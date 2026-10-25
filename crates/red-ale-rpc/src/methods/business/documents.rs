@@ -7,8 +7,9 @@
 use red_ale_core::business::{AmountType, DiscountHow, Entry, Invoice, Order, OwnerRef, PaymentType};
 use red_ale_core::ops::business::contacts::{owner_currency, owner_terms};
 use red_ale_core::ops::business::documents::{
-    DocumentKind, add_entry, add_invoice, add_order, close_order, default_entry, delete_invoice, owner_document_kind, document_kind, entry_document_kind,
-    entries_of, remove_entry, update_entry, update_invoice, update_order,
+    CREDIT_NOTE, DocumentKind, add_entry, add_invoice, add_order, close_order, default_document_entry, delete_invoice, document_kind,
+    document_quantity, entries_of, entry_document_kind, entry_on_credit_note, owner_document_kind, remove_entry, update_entry, update_invoice,
+    update_order,
 };
 use red_ale_core::{Book, Env, Frame, Guid, Numeric, Time64};
 use schemars::JsonSchema;
@@ -52,7 +53,7 @@ pub enum DocumentKindWire {
     Bill,
     /// An employee expense voucher.
     ExpenseVoucher,
-    /// A credit note (read-only in v0.1: books with credit notes open read-only).
+    /// A credit note of an invoice, bill or voucher; its owner says which.
     CreditNote,
 }
 
@@ -155,7 +156,7 @@ macro_rules! with_line_fields {
             action: Option<String>,
             /// Notes.
             notes: Option<String>,
-            /// Quantity.
+            /// Quantity, as printed on the document; stored negated on a credit note.
             quantity: Option<Amount>,
             /// The income account (invoices) or expense account (bills, vouchers); `null` for none.
             #[serde(deserialize_with = "nullable")]
@@ -286,7 +287,8 @@ impl LineFields {
         set(&mut e.description, self.description);
         set(&mut e.action, self.action);
         set(&mut e.notes, self.notes);
-        set(&mut e.quantity, self.quantity.map(|a| a.0));
+        let credit_note = entry_on_credit_note(book, e);
+        set(&mut e.quantity, self.quantity.map(|a| document_quantity(a.0, credit_note)));
         let account = self.account.map(|a| a.map(|a| a.resolve(book)).transpose()).transpose()?;
         let table = self.tax_table.map(|t| t.map(|t| t.resolve(book)).transpose()).transpose()?;
         if doc.is_customer() {
@@ -326,7 +328,10 @@ pub struct EntryInfo {
     pub description: String,
     pub action: String,
     pub notes: String,
+    /// As stored: negated on a credit note.
     pub quantity: Amount,
+    /// As printed on the document.
+    pub document_quantity: Amount,
     /// The customer invoice it is on.
     pub invoice: Option<Id>,
     /// The bill or voucher it is on.
@@ -351,8 +356,8 @@ pub struct EntryInfo {
     pub payment: PaymentWire,
 }
 
-impl From<&Entry> for EntryInfo {
-    fn from(e: &Entry) -> Self {
+impl EntryInfo {
+    fn of(book: &Book, e: &Entry) -> Self {
         Self {
             guid: e.guid.into(),
             date: e.date.into(),
@@ -361,6 +366,7 @@ impl From<&Entry> for EntryInfo {
             action: e.action.clone(),
             notes: e.notes.clone(),
             quantity: e.quantity.into(),
+            document_quantity: document_quantity(e.quantity, entry_on_credit_note(book, e)).into(),
             invoice: e.invoice.map(Into::into),
             bill: e.bill.map(Into::into),
             order: e.order.map(Into::into),
@@ -393,7 +399,7 @@ pub struct EntryKey {
 }
 
 fn get_entry(book: &Book, guid: Guid) -> Result<EntryInfo, RpcError> {
-    book.business.entries.get(&guid).map(|e| e.as_ref().into()).ok_or_else(|| RpcError::not_found("entry", guid))
+    book.business.entries.get(&guid).map(|e| EntryInfo::of(book, e)).ok_or_else(|| RpcError::not_found("entry", guid))
 }
 
 /// Make a new line for a document or order, with GnuCash's defaults, then the caller's fields. A document's lines
@@ -405,7 +411,7 @@ fn new_line(book: &Book, env: &mut dyn Env, parent: Guid, fields: LineFields, li
     let (guid, now) = (env.new_guid(), env.now());
     let (mut e, doc) = if let Some(inv) = book.business.invoices.get(&parent) {
         let doc = owner_document_kind(book, inv.owner).ok_or_else(|| RpcError::invalid("the document has no valid owner"))?;
-        (default_entry(book, guid, date, now, inv.owner), doc)
+        (default_document_entry(book, guid, date, now, inv), doc)
     } else if book.business.orders.contains_key(&parent) {
         (Entry::new(guid, date, now), DocumentKind::Invoice)
     } else {
@@ -494,6 +500,8 @@ params_pair!(
         charge_amount: Option<Amount>,
         /// Active; `false` deactivates.
         active: Option<bool>,
+        /// A credit note (default false). Fixed once the document exists: an update may only repeat it.
+        credit_note: Option<bool>,
     }
 );
 
@@ -517,6 +525,9 @@ impl InvoiceFields {
         }
         set(&mut inv.charge_amount, self.charge_amount.map(|a| a.0));
         set(&mut inv.active, self.active);
+        if let Some(cn) = self.credit_note {
+            inv.slots.set(CREDIT_NOTE, red_ale_core::SlotValue::Integer(i64::from(cn)));
+        }
         Ok(())
     }
 }
@@ -584,7 +595,7 @@ fn invoice_info(book: &Book, inv: &Invoice) -> InvoiceInfo {
 
 fn get_invoice(book: &Book, guid: Guid) -> Result<InvoiceDetail, RpcError> {
     let inv = book.business.invoices.get(&guid).ok_or_else(|| RpcError::not_found("invoice", guid))?;
-    let entries = entries_of(book, guid).into_iter().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(Into::into).collect();
+    let entries = entries_of(book, guid).into_iter().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(|e| EntryInfo::of(book, e)).collect();
     Ok(InvoiceDetail { invoice: invoice_info(book, inv), entries })
 }
 
@@ -649,7 +660,7 @@ fn invoice_create(ctx: &mut Context, p: InvoiceFields) -> Result<InvoiceDetail, 
 /// document the GUI saves has it (`5.17:gnucash/gnome/dialog-invoice.c:414`, `:433`, `:2981`).
 fn new_invoice(book: &Book, env: &mut dyn Env, owner: OwnerRef) -> Result<Invoice, RpcError> {
     let mut slots = Frame::new();
-    slots.set(red_ale_core::ops::business::documents::CREDIT_NOTE, red_ale_core::SlotValue::Integer(0));
+    slots.set(CREDIT_NOTE, red_ale_core::SlotValue::Integer(0));
     Ok(Invoice {
         guid: env.new_guid(),
         id: String::new(),
@@ -781,7 +792,7 @@ fn order_info(book: &Book, o: &Order) -> OrderInfo {
 
 fn get_order(book: &Book, guid: Guid) -> Result<OrderDetail, RpcError> {
     let o = book.business.orders.get(&guid).ok_or_else(|| RpcError::not_found("order", guid))?;
-    let entries = entries_of(book, guid).into_iter().filter(|e| e.order == Some(guid)).map(Into::into).collect();
+    let entries = entries_of(book, guid).into_iter().filter(|e| e.order == Some(guid)).map(|e| EntryInfo::of(book, e)).collect();
     Ok(OrderDetail { order: order_info(book, o), entries })
 }
 

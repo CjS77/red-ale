@@ -16,8 +16,9 @@ use crate::lock::BookLock;
 use crate::replay::{ReplayReport, replay};
 
 /// Book features red-ale can edit safely: their data lives in slots or files red-ale keeps unchanged, or red-ale
-/// follows them (`Number Field Source`). Credit notes are not implemented, so books declaring them open read-only.
-pub const SUPPORTED_FEATURES: [&str; 9] = [
+/// follows them (`Number Field Source`, `Credit Notes`).
+pub const SUPPORTED_FEATURES: [&str; 10] = [
+    "Credit Notes",
     "Number Field Source",
     "Extra data in addresses, jobs or invoice entries",
     "Account GUID based Bayesian data",
