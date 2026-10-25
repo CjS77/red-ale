@@ -4,9 +4,9 @@
 //! `reconcile.finish` and `reconcile.postpone` change the book. See `design/api/reconcile.md`.
 
 use red_ale_core::ops::reconcile::{
-    self as rec, Balances, Candidate, Interval, Postponed, ReconcileInfo, Request, StateChange, Statement, UtcOffset,
+    self as rec, Balances, Candidate, Interval, Postponed, ReconcileInfo, Request, StateChange, Statement,
 };
-use red_ale_core::{Book, Guid, ReconcileState};
+use red_ale_core::{Book, Guid, ReconcileState, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -281,8 +281,8 @@ pub struct StartParams {
     /// another commodity.
     #[serde(default)]
     pub include_subaccounts: Option<bool>,
-    /// The caller's offset from UTC in minutes, for GnuCash's local-time rules (the statement date ends at 23:59:59
-    /// local time). Defaults to 0 (UTC).
+    /// A fixed offset from UTC in minutes to use instead of the server's local time zone, for GnuCash's local-time
+    /// rules (the statement date ends at 23:59:59 local time).
     #[serde(default)]
     pub utc_offset_minutes: Option<i32>,
 }
@@ -300,7 +300,7 @@ pub struct StatusParams {
     /// Reconcile the sub-accounts too. Defaults to the account's stored choice.
     #[serde(default)]
     pub include_subaccounts: Option<bool>,
-    /// The caller's offset from UTC in minutes. Defaults to 0.
+    /// A fixed offset from UTC in minutes to use instead of the server's local time zone.
     #[serde(default)]
     pub utc_offset_minutes: Option<i32>,
     /// The ticked splits. Defaults to the ticks the window starts with: cleared splits posted by the statement date.
@@ -327,7 +327,7 @@ pub struct FinishParams {
     /// Reconcile the sub-accounts too. Defaults to the account's stored choice.
     #[serde(default)]
     pub include_subaccounts: Option<bool>,
-    /// The caller's offset from UTC in minutes. Defaults to 0.
+    /// A fixed offset from UTC in minutes to use instead of the server's local time zone.
     #[serde(default)]
     pub utc_offset_minutes: Option<i32>,
     /// The ticked splits.
@@ -396,10 +396,12 @@ pub struct ReconcileView {
     pub splits: Vec<CandidateWire>,
 }
 
-fn zone(minutes: Option<i32>) -> Result<UtcOffset, RpcError> {
-    match minutes.unwrap_or(0) {
-        m if (-18 * 60..=18 * 60).contains(&m) => Ok(UtcOffset(i64::from(m) * 60)),
-        m => Err(RpcError::invalid_params(format!("utcOffsetMinutes must be within ±1080, got {m}"))),
+/// The zone the statement is read in: a fixed offset the caller gives, else the local time zone.
+fn zone(minutes: Option<i32>, local: &TimeZone) -> Result<TimeZone, RpcError> {
+    match minutes {
+        None => Ok(local.clone()),
+        Some(m) if (-18 * 60..=18 * 60).contains(&m) => TimeZone::fixed(m * 60).map_err(|e| RpcError::invalid_params(e.to_string())),
+        Some(m) => Err(RpcError::invalid_params(format!("utcOffsetMinutes must be within ±1080, got {m}"))),
     }
 }
 
@@ -443,7 +445,7 @@ fn candidate(book: &Book, c: &Candidate, ticked: &[Guid]) -> CandidateWire {
 }
 
 fn start(ctx: &mut Context, p: StartParams) -> Result<ReconcileView, RpcError> {
-    let zone = zone(p.utc_offset_minutes)?;
+    let zone = zone(p.utc_offset_minutes, &ctx.zone())?;
     ctx.query(|book, env| {
         let request = Request {
             account: p.account.resolve(book)?,
@@ -463,7 +465,7 @@ fn prepared(book: &Book, now: red_ale_core::Time64, request: &Request) -> Result
 }
 
 fn status(ctx: &mut Context, p: StatusParams) -> Result<ReconcileView, RpcError> {
-    let zone = zone(p.utc_offset_minutes)?;
+    let zone = zone(p.utc_offset_minutes, &ctx.zone())?;
     ctx.query(|book, env| {
         let request = Request {
             account: p.account.resolve(book)?,
@@ -484,13 +486,13 @@ fn status(ctx: &mut Context, p: StatusParams) -> Result<ReconcileView, RpcError>
     })
 }
 
-fn statement(book: &Book, now: red_ale_core::Time64, p: &FinishParams) -> Result<Statement, RpcError> {
+fn statement(book: &Book, now: red_ale_core::Time64, p: &FinishParams, local: &TimeZone) -> Result<Statement, RpcError> {
     let request = Request {
         account: p.account.resolve(book)?,
         date: Some(p.statement_date.0),
         ending_balance: Some(p.ending_balance.0),
         include_children: p.include_subaccounts,
-        zone: zone(p.utc_offset_minutes)?,
+        zone: zone(p.utc_offset_minutes, local)?,
     };
     Ok(prepared(book, now, &request)?.statement)
 }
@@ -547,7 +549,7 @@ fn ids(v: &[Id]) -> Vec<Guid> {
 
 fn finish(ctx: &mut Context, p: FinishParams) -> Result<FinishResult, RpcError> {
     ctx.mutate_rpc(|book, env| {
-        let st = statement(book, env.now(), &p)?;
+        let st = statement(book, env.now(), &p, env.zone())?;
         let done = rec::finish(book, &st, &ids(&p.ticked), p.force)?;
         Ok(FinishResult {
             reconciled: done.reconciled.iter().map(Into::into).collect(),
@@ -563,7 +565,7 @@ fn postpone(ctx: &mut Context, p: FinishParams) -> Result<PostponeResult, RpcErr
         return Err(RpcError::invalid_params("force applies only to reconcile.finish"));
     }
     ctx.mutate_rpc(|book, env| {
-        let st = statement(book, env.now(), &p)?;
+        let st = statement(book, env.now(), &p, env.zone())?;
         let done = rec::postpone(book, &st, &ids(&p.ticked))?;
         Ok(PostponeResult {
             changed: done.changed.iter().map(Into::into).collect(),

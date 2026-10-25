@@ -2,9 +2,7 @@
 //! properties themselves are fields of `account.create`, `account.update` and `AccountInfo`. See
 //! `design/api/accounts.md`, "Account properties".
 
-use chrono::{Local, NaiveDate, TimeZone};
 use red_ale_core::ops::account_properties::{self as ops, Cascade, FoundBy, LimitState};
-use red_ale_core::{Date, Time64};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -31,14 +29,6 @@ pub fn methods() -> Vec<Method> {
         ),
         method("account.cascade", "Set colour, placeholder or hidden on an account and all its sub-accounts.", Effect::Write, cascade),
     ]
-}
-
-/// The last second of `date` in the server's time zone (`gnc_time64_get_day_end`).
-fn local_day_end(date: Date) -> Time64 {
-    NaiveDate::from_ymd_opt(date.year(), date.month(), date.day())
-        .and_then(|d| d.and_hms_opt(23, 59, 59))
-        .and_then(|dt| Local.from_local_datetime(&dt).latest())
-        .map_or_else(|| date.end_utc(), |dt| Time64(dt.timestamp()))
 }
 
 /// Params of `account.checkBalanceLimit`.
@@ -111,9 +101,9 @@ fn check_balance_limit(ctx: &mut Context, p: CheckParams) -> Result<CheckResult,
         let guid = p.account.resolve(book)?;
         let day = match p.as_of {
             Some(d) => d.0,
-            None => local_today(env.now())?,
+            None => local_today(env)?,
         };
-        let c = ops::check_balance_limit(book, guid, Some(local_day_end(day)))?;
+        let c = ops::check_balance_limit(book, guid, Some(env.zone().day_end(day)))?;
         Ok(CheckResult {
             account: guid.into(),
             as_of: Day(day),

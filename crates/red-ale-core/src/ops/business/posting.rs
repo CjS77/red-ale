@@ -188,21 +188,23 @@ fn convert_foreign(book: &Book, currency: &CommodityRef, prices: &[(CommodityRef
 }
 
 /// The due date: as given, else from the billing term (the GUI's choice, `5.17:gnucash/gnome/dialog-date-close.c:94-98`),
-/// else midnight at the start of the posting date, which the GUI's date field gives.
-fn due_time(book: &Book, req: &PostRequest, inv: &Invoice) -> DomainResult<Time64> {
+/// else the posting date's neutral time, which the GUI's due date field starts at (`5.17:gnucash/gnome/dialog-invoice.c:1072`)
+/// and gives back (`gnc_date_edit_get_date`, `5.17:gnucash/gnome-utils/gnc-date-edit.c:1069`).
+fn due_time(book: &Book, req: &PostRequest, inv: &Invoice, zone: &crate::TimeZone) -> DomainResult<Time64> {
     if let Some(due) = req.due {
         return Ok(due);
     }
+    let posted = zone.neutral_time(req.post_date);
     match inv.terms.and_then(|g| book.business.bill_terms.get(&g)) {
-        Some(term) => calc::due_date(Some(term), req.post_date.neutral_time()),
-        None => Ok(req.post_date.start_utc()),
+        Some(term) => calc::due_date(Some(term), posted, zone),
+        None => Ok(posted),
     }
 }
 
 /// `gncInvoicePostToAccount` (`5.17:libgnucash/engine/gncInvoice.c:1442-1731`).
 pub fn post(book: &mut Book, env: &mut dyn Env, req: &PostRequest) -> DomainResult<Posted> {
     let p = plan(book, req)?;
-    let due = due_time(book, req, &p.inv)?;
+    let due = due_time(book, req, &p.inv, env.zone())?;
     let mut splits = plan_splits(book, req, &p)?;
     splits.splits.iter_mut().try_for_each(|s| convert_foreign(book, &p.currency, &req.prices, s))?;
     let lot = env.new_guid();
@@ -236,13 +238,13 @@ fn posted_transaction(book: &Book, env: &mut dyn Env, req: &PostRequest, p: &Pla
         guid: env.new_guid(),
         currency: p.currency.clone(),
         num: Some(num_action_targets(book, &p.inv.id, p.kind.type_string()).0).filter(|n| !n.is_empty()).map(str::to_owned),
-        date_posted: req.post_date.neutral_time(),
+        date_posted: env.zone().neutral_time(req.post_date),
         date_entered: env.now(),
         description: Some(contacts::owner_name(book, p.kind.end_owner).unwrap_or_default()),
         slots: Frame::new(),
         splits,
     };
-    set_date_posted(&mut t, req.post_date);
+    set_date_posted(&mut t, req.post_date, env.zone());
     t.slots.set(txn_slots::INVOICE, SlotValue::Guid(p.inv.guid));
     t.slots.set(DATE_DUE, SlotValue::Timespec(due));
     t.slots.set(txn_slots::READ_ONLY, SlotValue::String(READ_ONLY_REASON.to_owned()));
@@ -583,7 +585,7 @@ mod tests {
         assert_eq!(parent.refcount, 0, "each entry dropped its reference to the parent");
         assert!(f.book.business.tax_tables[&child].invisible);
         assert!(f.book.business.entries.values().all(|e| e.i_tax_table == Some(child)));
-        assert_eq!(posted.due, Date::from_ymd(2024, 3, 5).unwrap().start_utc());
+        assert_eq!(posted.due, Date::from_ymd(2024, 3, 5).unwrap().neutral_time(), "no term: the posting date, as the dialog gives it");
         assert!(matches!(post(&mut f.book, &mut f.env, &req), Err(DomainError::Conflict(_))));
 
         unpost(&mut f.book, &mut f.env, inv, true).unwrap();

@@ -28,13 +28,18 @@ pub fn python_path() -> PathBuf {
 /// Run a Python script with the oracle's environment (`PYTHONPATH`, `TZ=UTC`). Returns standard output; fails with
 /// the standard error when the script does.
 pub fn run_script(script: &Path, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("python3")
-        .arg(script)
-        .args(args)
-        .env("PYTHONPATH", python_path())
-        .env("TZ", "UTC")
-        .output()
-        .map_err(|e| format!("cannot run python3: {e}"))?;
+    run_script_in(script, args, Some("UTC"))
+}
+
+/// [`run_script`] with another `TZ`, or with `TZ` unset (`None`), for the time-zone tests.
+pub fn run_script_in(script: &Path, args: &[&str], tz: Option<&str>) -> Result<String, String> {
+    let mut command = Command::new("python3");
+    command.arg(script).args(args).env("PYTHONPATH", python_path());
+    match tz {
+        Some(tz) => command.env("TZ", tz),
+        None => command.env_remove("TZ"),
+    };
+    let output = command.output().map_err(|e| format!("cannot run python3: {e}"))?;
     let stderr = String::from_utf8_lossy(&output.stderr);
     if !output.status.success() {
         return Err(format!("{} failed ({}):\n{stderr}", script.display(), output.status));
@@ -44,10 +49,15 @@ pub fn run_script(script: &Path, args: &[&str]) -> Result<String, String> {
 
 /// Run Python code given as text, with the oracle's environment.
 pub fn run_code(code: &str, args: &[&str]) -> Result<String, String> {
+    run_code_in(code, args, Some("UTC"))
+}
+
+/// [`run_code`] with another `TZ`, or with `TZ` unset (`None`).
+pub fn run_code_in(code: &str, args: &[&str], tz: Option<&str>) -> Result<String, String> {
     let dir = tempfile::tempdir().map_err(|e| e.to_string())?;
     let script = dir.path().join("script.py");
     std::fs::write(&script, code).map_err(|e| e.to_string())?;
-    run_script(&script, args)
+    run_script_in(&script, args, tz)
 }
 
 /// The oracle's version. Errors if it cannot run.

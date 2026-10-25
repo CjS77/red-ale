@@ -638,7 +638,7 @@ fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> 
 pub struct BalanceParams {
     /// The account.
     pub account: AccountRef,
-    /// Balances at the end of this day (transactions posted before 23:59:59 UTC); by default every transaction.
+    /// Balances at the end of this day (transactions posted before 23:59:59 local time); by default every transaction.
     #[serde(default)]
     pub as_of: Option<Day>,
     /// Add the sub-accounts' balances.
@@ -682,9 +682,10 @@ fn commodity_balances(c: red_ale_core::CommodityRef, b: ops::Balances) -> Commod
 }
 
 fn balance(ctx: &mut Context, p: BalanceParams) -> Result<BalanceResult, RpcError> {
+    let zone = ctx.zone();
     let book = ctx.book()?;
     let guid = p.account.resolve(book)?;
-    let before = p.as_of.map(|d| d.0.end_utc());
+    let before = p.as_of.map(|d| zone.day_end(d.0));
     let commodity = book.account(guid).and_then(|a| a.commodity.clone());
     let (total, others) = if p.include_subaccounts {
         ops::balances_with_subaccounts(book, guid, before)?

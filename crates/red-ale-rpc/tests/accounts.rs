@@ -216,7 +216,14 @@ fn accounting_period_in_memory_and_in_a_file() {
     let got = b.ok("period.get", json!({}));
     assert_eq!((got["start"].as_str(), got["end"].as_str(), got["configFile"].is_null()), (Some("year"), Some("year"), true));
     let dates = b.ok("period.dates", json!({}));
-    assert_eq!(dates, json!({ "today": "2024-07-01", "start": "2024-01-01", "end": "2024-12-31" }));
+    let want = json!({
+        "today": "2024-07-01",
+        "start": "2024-01-01",
+        "end": "2024-12-31",
+        "startTime": "2024-01-01T00:00:00Z",
+        "endTime": "2024-12-31T23:59:59Z"
+    });
+    assert_eq!(dates, want, "local 00:00:00 and 23:59:59, in UTC here");
     assert_eq!(b.err("period.set", json!({ "start": "fiscal-year" })).code, codes::INVALID, "no fiscal year end");
     b.ok("period.set", json!({ "start": "fiscal-year", "end": "fiscal-year", "fiscalYearEnd": "03-31" }));
     assert_eq!(b.ok("book.info", json!({}))["dirty"], false, "the period is not book data");

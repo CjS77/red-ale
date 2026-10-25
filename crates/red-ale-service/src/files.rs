@@ -12,8 +12,6 @@ use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use chrono::Local;
-
 use crate::error::ServiceError;
 
 /// How long old backups and journals are kept. GnuCash's prefs `retain-type-*` and `retain-days`
@@ -35,9 +33,11 @@ impl Default for Retention {
     }
 }
 
-/// `gnc_date_timestamp()`: local time as `YYYYMMDDhhmmss` (`5.17:libgnucash/engine/gnc-datetime.cpp:638`).
+/// `gnc_date_timestamp()`: the system clock in the local time zone as `YYYYMMDDhhmmss`
+/// (`5.17:libgnucash/engine/gnc-datetime.cpp:638-644`).
 pub fn local_timestamp() -> String {
-    Local::now().format("%Y%m%d%H%M%S").to_string()
+    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
+    crate::zone::local_zone().to_local(red_ale_core::Time64(now)).map_or_else(|| "19700101000000".to_owned(), red_ale_core::time::LocalTime::compact)
 }
 
 fn with_suffix(path: &Path, suffix: &str) -> PathBuf {

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::dispatch::{Context, Effect, Method, method};
 use crate::error::RpcError;
-use crate::wire::{Day, NoParams};
+use crate::wire::{Day, NoParams, Timestamp};
 
 /// The period methods.
 pub fn methods() -> Vec<Method> {
@@ -129,7 +129,7 @@ fn set(ctx: &mut Context, p: SetParams) -> Result<PeriodInfo, RpcError> {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct DatesParams {
-    /// The day the period must contain; by default today (UTC) by the server's clock.
+    /// The day the period must contain; by default today in the local time zone.
     #[serde(default)]
     pub date: Option<Day>,
     /// Start, instead of the configured one.
@@ -153,11 +153,16 @@ pub struct DatesResult {
     pub start: Day,
     /// Last day of the period (GnuCash ends it at 23:59:59 local time).
     pub end: Day,
+    /// The period's first instant: local 00:00:00 on `start`.
+    pub start_time: Timestamp,
+    /// The period's last instant: local 23:59:59 on `end`.
+    pub end_time: Timestamp,
 }
 
+/// Today in the local time zone, by the session's clock, or the server's without a book.
 fn today(ctx: &mut Context) -> Result<Date, RpcError> {
-    let now = if ctx.has_session() { ctx.query(|_, env| Ok(env.now()))? } else { SystemEnv.now() };
-    now.utc_date().ok_or_else(|| RpcError::internal("the clock is out of range"))
+    let today = if ctx.has_session() { ctx.query(|_, env| Ok(env.today()))? } else { SystemEnv.today() };
+    today.ok_or_else(|| RpcError::internal("the clock is out of range"))
 }
 
 fn dates(ctx: &mut Context, p: DatesParams) -> Result<DatesResult, RpcError> {
@@ -176,5 +181,12 @@ fn dates(ctx: &mut Context, p: DatesParams) -> Result<DatesResult, RpcError> {
         None => today(ctx)?,
     };
     let (start, end) = period::period_dates(&c.period, day, c.fy())?;
-    Ok(DatesResult { today: day.into(), start: start.into(), end: end.into() })
+    let bounds = period::period_bounds(&c.period, day, c.fy(), &ctx.zone())?;
+    Ok(DatesResult {
+        today: day.into(),
+        start: start.into(),
+        end: end.into(),
+        start_time: Timestamp(bounds.start),
+        end_time: Timestamp(bounds.end),
+    })
 }

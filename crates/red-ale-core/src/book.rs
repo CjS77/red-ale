@@ -6,35 +6,56 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 
 use crate::business::Business;
-use crate::{Account, Commodity, CommodityRef, Frame, Guid, Lot, Price, Time64, Transaction};
+use crate::{Account, Commodity, CommodityRef, Frame, Guid, Lot, Price, Time64, TimeZone, Transaction};
 
-/// Supplies what domain operations need from the outside world: the time and fresh GUIDs. The service passes a real
-/// one; tests pass a deterministic one, which keeps the core pure.
+/// Supplies what domain operations need from the outside world: the time, the local time zone and fresh GUIDs. The
+/// service passes a real one; tests pass a deterministic one, which keeps the core pure.
 pub trait Env {
     /// The current time.
     fn now(&mut self) -> Time64;
     /// A new, unique GUID.
     fn new_guid(&mut self) -> Guid;
+    /// The local time zone: day boundaries, "today" and same-day prices are decided in it, as GnuCash decides them.
+    fn zone(&self) -> &TimeZone;
+
+    /// Today's date in the local time zone.
+    fn today(&mut self) -> Option<crate::Date> {
+        let now = self.now();
+        self.zone().local_date(now)
+    }
 }
 
-/// A deterministic [`Env`] for tests and replays: a fixed clock and sequential GUIDs.
+/// A deterministic [`Env`] for tests and replays: a fixed clock, sequential GUIDs and a fixed zone (UTC unless
+/// [`FixedEnv::with_zone`] gives another).
 #[derive(Debug, Clone)]
 pub struct FixedEnv {
     /// The time `now` returns.
     pub now: Time64,
     next: u128,
+    zone: TimeZone,
 }
 
 impl FixedEnv {
-    /// A fixed clock at `now`; GUIDs count up from `seed`.
+    /// A fixed clock at `now` in UTC; GUIDs count up from `seed`.
     pub fn new(now: Time64, seed: u128) -> Self {
-        Self { now, next: seed }
+        Self { now, next: seed, zone: TimeZone::utc() }
+    }
+
+    /// The same, in another time zone.
+    #[must_use]
+    pub fn with_zone(mut self, zone: TimeZone) -> Self {
+        self.zone = zone;
+        self
     }
 }
 
 impl Env for FixedEnv {
     fn now(&mut self) -> Time64 {
         self.now
+    }
+
+    fn zone(&self) -> &TimeZone {
+        &self.zone
     }
 
     fn new_guid(&mut self) -> Guid {

@@ -2,11 +2,11 @@
 
 use red_ale_core::business::{OwnerKind, OwnerRef};
 use red_ale_core::ops::business::{calc, contacts, matching, payments};
-use red_ale_core::{Book, Guid, Numeric};
+use red_ale_core::{Book, Guid, Numeric, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::posting::{invoice, utc_day};
+use super::posting::{invoice, local_day};
 use crate::dispatch::{Context, Effect, Method, method};
 use crate::error::RpcError;
 use crate::wire::{AccountRef, Amount, Day, Id, Timestamp};
@@ -153,14 +153,14 @@ struct Money {
 impl Money {
     /// The engine's payment. Its date is the day-neutral time, as GnuCash's dialog gives (`gdate_to_time64`,
     /// `5.17:libgnucash/engine/gnc-date.cpp:1323`).
-    fn payment(self, book: &Book, owner: OwnerRef, posted: Guid) -> Result<payments::Payment, RpcError> {
+    fn payment(self, book: &Book, owner: OwnerRef, posted: Guid, zone: &TimeZone) -> Result<payments::Payment, RpcError> {
         Ok(payments::Payment {
             owner,
             posted_account: posted,
             transfer_account: self.transfer.map(|a| a.resolve(book)).transpose()?,
             amount: engine_amount(book, owner, self.amount)?,
             exchange_rate: self.rate.map_or(Numeric::ONE, |r| r.0),
-            date: self.date.0.neutral_time(),
+            date: zone.neutral_time(self.date.0),
             memo: self.memo.unwrap_or_default(),
             num: self.num.unwrap_or_default(),
         })
@@ -173,7 +173,7 @@ fn process(ctx: &mut Context, p: ProcessParams) -> Result<PaymentResult, RpcErro
         let posted = p.account.resolve(book)?;
         let lots = p.apply_to.iter().map(|id| lot_of(book, *id)).collect::<Result<Vec<_>, _>>()?;
         let money = Money { transfer: p.transfer_account, amount: p.amount.0, rate: p.exchange_rate, date: p.date, memo: p.memo, num: p.num };
-        let pay = money.payment(book, owner, posted)?;
+        let pay = money.payment(book, owner, posted, env.zone())?;
         Ok(payments::apply_owner_payment(book, env, &pay, &lots, p.auto_pay)?)
     })?;
     Ok(result.into())
@@ -208,7 +208,7 @@ fn pay_invoice(ctx: &mut Context, p: PayParams) -> Result<PaymentResult, RpcErro
         let (guid, owner) = (inv.guid, calc::require_end_owner(book, inv.owner)?);
         let posted = inv.post_acc.ok_or_else(|| RpcError::invalid(format!("document {} is not posted", inv.id)))?;
         let money = Money { transfer: Some(p.transfer_account), amount: p.amount.0, rate: p.exchange_rate, date: p.date, memo: p.memo, num: p.num };
-        let pay = money.payment(book, owner, posted)?;
+        let pay = money.payment(book, owner, posted, env.zone())?;
         Ok(payments::apply_invoice_payment(book, env, guid, pay)?)
     })?;
     Ok(result.into())
@@ -332,7 +332,7 @@ fn from_transaction(ctx: &mut Context, p: FromTransactionParams) -> Result<Payme
             transfer_split: p.transfer_split.map(|s| s.0),
             amount,
             exchange_rate: p.exchange_rate.map_or(Numeric::ONE, |r| r.0),
-            date: p.date.map(|d| d.0.neutral_time()),
+            date: p.date.map(|d| env.zone().neutral_time(d.0)),
             memo: p.memo,
             num: p.num,
             apply_to,
@@ -409,7 +409,7 @@ fn due(ctx: &mut Context, p: DueParams) -> Result<Vec<DueDocument>, RpcError> {
                     doc_type: d.kind.type_string().to_owned(),
                     company: contacts::owner_name(book, d.kind.end_owner).unwrap_or_default(),
                     due: Timestamp(d.due),
-                    due_date: Day(utc_day(d.due)?),
+                    due_date: Day(local_day(d.due, env.zone())?),
                     amount: Amount(d.balance),
                 })
             })

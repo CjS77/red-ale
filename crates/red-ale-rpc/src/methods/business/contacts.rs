@@ -6,13 +6,12 @@
 // Optional fields that can be cleared are three-state on the wire: absent (keep), null (clear) or a value.
 #![allow(clippy::option_option)]
 
-use chrono::{Datelike, Local, NaiveDate, TimeZone};
 use red_ale_core::business::{Address, Customer, Employee, Job, OwnerKind, OwnerRef, TaxIncluded, Vendor};
 use red_ale_core::ops::business::contacts::{
     add_customer, add_employee, add_job, add_vendor, find_owner, job_rate, set_job_rate, update_customer, update_employee, update_job,
     update_vendor,
 };
-use red_ale_core::{Book, Date, Frame, Guid, Numeric, Time64};
+use red_ale_core::{Book, Date, Env, Frame, Guid, Numeric, Time64, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -92,21 +91,14 @@ pub(crate) fn nullable<'de, D: Deserializer<'de>, T: Deserialize<'de>>(d: D) -> 
 }
 
 /// GnuCash stores a date chosen in its dialogs as noon local time (`time64CanonicalDayTime`,
-/// `5.17:libgnucash/engine/gnc-date.cpp:404-410`); red-ale does the same in the server's time zone.
-pub(crate) fn local_noon(date: Date) -> Time64 {
-    NaiveDate::from_ymd_opt(date.year(), date.month(), date.day())
-        .and_then(|d| d.and_hms_opt(12, 0, 0))
-        .and_then(|dt| Local.from_local_datetime(&dt).earliest())
-        .map_or_else(|| date.neutral_time(), |dt| Time64(dt.timestamp()))
+/// `5.17:libgnucash/engine/gnc-date.cpp:403-410`); red-ale does the same in the local time zone.
+pub(crate) fn local_noon(date: Date, zone: &TimeZone) -> Time64 {
+    zone.noon(date)
 }
 
-/// Today's date in the server's time zone.
-pub(crate) fn local_today(now: Time64) -> Result<Date, RpcError> {
-    Local
-        .timestamp_opt(now.0, 0)
-        .single()
-        .and_then(|dt| Date::from_ymd(dt.year(), dt.month(), dt.day()))
-        .ok_or_else(|| RpcError::internal("the clock is out of range"))
+/// Today's date in the local time zone.
+pub(crate) fn local_today(env: &mut dyn Env) -> Result<Date, RpcError> {
+    env.today().ok_or_else(|| RpcError::internal("the clock is out of range"))
 }
 
 /// What kind of owner a GUID names.

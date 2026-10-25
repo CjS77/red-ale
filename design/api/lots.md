@@ -46,8 +46,8 @@ Code: `red-ale-core/src/ops/lots.rs` (with `lots/ledger.rs`, `gains.rs`, `scrub.
 ### Results
 
 `LotInfo` (from `lot.list`, `lot.create`, `lot.update`; `lot.get` adds `splits`): `guid`, `account`, `title`,
-`notes`, `invoice` (the invoice a business lot belongs to: the viewer's type `I`), `closed`, `openDate` (posted date of
-the earliest split), `closeDate` (of the latest split, when closed), `balance` (sum of adjusted amounts),
+`notes`, `invoice` (the invoice a business lot belongs to: the viewer's type `I`), `closed`, `openDate` (local date
+of the earliest split's posted time, as the viewer prints it, `5.17:gnucash/gnome/dialog-lot-viewer.c:845`), `closeDate` (of the latest split, when closed), `balance` (sum of adjusted amounts),
 `gainsCurrency`, `realizedGains`, `splitCount`. Lots are listed opened earliest first, empty lots last.
 
 `LotSplitInfo`: `split`, `transaction`, `datePosted`, `num`, `description`, `memo`, `action`, `amount`,
@@ -156,7 +156,7 @@ lot) and `newLots` (lots FIFO opened).
 4. **Stock split currency.** GnuCash uses the user's default currency preference, which a book does not hold. red-ale
    takes `currency`, defaulting to the currency of the nearest ancestor account held in a currency, and refuses when
    there is none.
-5. **Same day is a UTC day** for the stock split's price, where GnuCash uses the machine's time zone.
+5. **Same day is a local day** for the stock split's price, as in GnuCash (v0.1 used UTC days).
 6. **Explicit lot edits only.** The lot viewer writes the title and notes of a lot whenever the selection moves, storing
    empty strings (`5.17:gnucash/gnome/dialog-lot-viewer.c:236-258`); `lot.update` changes only what it is given, and
    an empty string removes the slot.

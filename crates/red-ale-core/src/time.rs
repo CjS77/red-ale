@@ -1,9 +1,16 @@
-//! Instants and calendar dates.
+//! Instants, calendar dates, the local time zone and relative dates.
+
+mod posix;
+mod relative;
+mod zone;
 
 use std::fmt;
 
-use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone as _, Utc};
 use thiserror::Error;
+
+pub use relative::{PeriodBounds, RelativeDate, relative_date};
+pub use zone::{LocalTime, TimeZone, ZoneError};
 
 /// An instant in whole seconds since 1970-01-01 00:00:00 UTC: GnuCash's `time64`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -121,8 +128,9 @@ impl Date {
         NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").map(Self).map_err(|_| ParseTimeError { kind: "date", text: s.to_owned() })
     }
 
-    /// GnuCash's *neutral time* for this date: 10:59:00 UTC, which falls on the same calendar day in every time zone
-    /// from UTC-10 to UTC+13. `5.17:libgnucash/engine/gnc-date.cpp` (`gnc_dmy2time64_neutral`).
+    /// 10:59:00 UTC on this date: GnuCash's *neutral time* in every time zone from UTC-10 to UTC+13
+    /// (`gnc_dmy2time64_neutral`). Outside that band GnuCash moves it; code that stores a date the user chose uses
+    /// [`TimeZone::neutral_time`] instead.
     pub fn neutral_time(self) -> Time64 {
         Time64(self.0.and_hms_opt(10, 59, 0).map_or(0, |dt| dt.and_utc().timestamp()))
     }

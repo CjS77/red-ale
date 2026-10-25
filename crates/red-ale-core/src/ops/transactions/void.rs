@@ -133,7 +133,7 @@ pub fn reverse(book: &mut Book, env: &mut dyn Env, guid: Guid, date: Date) -> Do
     t.guid = env.new_guid();
     t.splits = orig.splits.iter().map(|s| reversed_split(env, s)).collect();
     t.slots.remove(slot_paths::READ_ONLY);
-    commit::set_date_posted(&mut t, date);
+    commit::set_date_posted(&mut t, date, env.zone());
     t.date_entered = env.now();
     commit::commit(book, env, &mut t)?;
     let new_guid = t.guid;

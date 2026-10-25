@@ -8,7 +8,7 @@ use crate::business::{AmountType, BillTerm, BillTermKind, DiscountHow, Entry, In
 use crate::ops::business::{contacts, documents};
 use crate::ops::commit::commodity_fraction;
 use crate::time::days_in_month;
-use crate::{Book, DENOM_AUTO, Date, DenomMode, DomainError, DomainResult, Guid, How, Numeric, Round, Time64};
+use crate::{Book, DENOM_AUTO, Date, DenomMode, DomainError, DomainResult, Guid, How, Numeric, Round, Time64, TimeZone};
 
 /// `GNC_HOW_DENOM_LCD` with no rounding flag, which GnuCash treats as truncation (`5.17:libgnucash/engine/gnc-numeric.cpp:716`).
 const LCD: How = How::new(DenomMode::Lcd, Round::Truncate);
@@ -43,27 +43,27 @@ pub fn account_values_add_list(list: &mut AccountValues, other: &AccountValues) 
 // Due dates
 
 /// `gncBillTermComputeDueDate`: when a document posted at `post` falls due under `term`
-/// (`5.17:libgnucash/engine/gncBillTerm.c:751-825`). No term, or a term whose type was never set, gives the
-/// day-neutral time of the posting date. A proximo term with a due day of zero or less is refused: GnuCash passes
-/// it to `gnc_dmy2time64_neutral` unchecked and the result is undefined.
-pub fn due_date(term: Option<&BillTerm>, post: Time64) -> DomainResult<Time64> {
-    let date = post.utc_date().ok_or_else(|| DomainError::invalid(format!("posting time {} is out of range", post.0)))?;
+/// (`5.17:libgnucash/engine/gncBillTerm.c:751-825`), from the local date of the posting time. No term, or a term
+/// whose type was never set, gives the day-neutral time of the posting date. A proximo term with a due day of zero or
+/// less is refused: GnuCash passes it to `gnc_dmy2time64_neutral` unchecked and the result is undefined.
+pub fn due_date(term: Option<&BillTerm>, post: Time64, zone: &TimeZone) -> DomainResult<Time64> {
+    let date = zone.local_date(post).ok_or_else(|| DomainError::invalid(format!("posting time {} is out of range", post.0)))?;
     let Some(term) = term else { return Ok(post) };
     match term.kind {
-        None => Ok(date.neutral_time()),
-        Some(BillTermKind::Days { due_days, .. }) => Ok(date.add_days(due_days).neutral_time()),
-        Some(BillTermKind::Proximo { due_day, cutoff_day, .. }) => proximo_due(date, due_day, cutoff_day, &term.name),
+        None => Ok(zone.neutral_time(date)),
+        Some(BillTermKind::Days { due_days, .. }) => Ok(zone.neutral_time(date.add_days(due_days))),
+        Some(BillTermKind::Proximo { due_day, cutoff_day, .. }) => proximo_due(date, due_day, cutoff_day, &term.name, zone),
     }
 }
 
-fn proximo_due(date: Date, due_day: i64, cutoff_day: i64, name: &str) -> DomainResult<Time64> {
+fn proximo_due(date: Date, due_day: i64, cutoff_day: i64, name: &str, zone: &TimeZone) -> DomainResult<Time64> {
     if due_day <= 0 {
         return Err(DomainError::invalid(format!("billing term {name:?} has a proximo due day of {due_day}")));
     }
     let (year, month) = proximo_month(date, cutoff_day);
     let last = i64::from(days_in_month(year, month));
     let day = u32::try_from(due_day.min(last)).map_err(|_| DomainError::invalid("due day out of range"))?;
-    Date::from_ymd(year, month, day).map(Date::neutral_time).ok_or_else(|| DomainError::invalid("due date out of range"))
+    Date::from_ymd(year, month, day).map(|d| zone.neutral_time(d)).ok_or_else(|| DomainError::invalid("due date out of range"))
 }
 
 /// `compute_monthyear`: the month a proximo term falls due in (`5.17:libgnucash/engine/gncBillTerm.c:751-781`).
@@ -503,7 +503,7 @@ mod tests {
     fn due_dates_match_the_oracle() {
         let days = |d| term(BillTermKind::Days { due_days: d, disc_days: 0, discount: Numeric::ZERO });
         let prox = |due, cutoff| term(BillTermKind::Proximo { due_day: due, disc_day: 0, discount: Numeric::ZERO, cutoff_day: cutoff });
-        let check = |t: &BillTerm, post: Time64, want: Time64| assert_eq!(due_date(Some(t), post).unwrap(), want);
+        let check = |t: &BillTerm, post: Time64, want: Time64| assert_eq!(due_date(Some(t), post, &TimeZone::utc()).unwrap(), want);
         check(&days(30), day(2026, 1, 15), day(2026, 2, 14));
         check(&days(0), day(2010, 6, 14), day(2010, 6, 14));
         let p = prox(20, 19);
@@ -519,8 +519,8 @@ mod tests {
         check(&p, day(2011, 2, 26), day(2011, 4, 30));
         check(&prox(15, 0), day(2012, 2, 28), day(2012, 3, 15));
         check(&prox(15, 0), day(2012, 2, 29), day(2012, 3, 15));
-        assert!(due_date(Some(&prox(0, 1)), day(2012, 2, 29)).is_err());
-        assert_eq!(due_date(None, Time64(5)).unwrap(), Time64(5));
+        assert!(due_date(Some(&prox(0, 1)), day(2012, 2, 29), &TimeZone::utc()).is_err());
+        assert_eq!(due_date(None, Time64(5), &TimeZone::utc()).unwrap(), Time64(5));
     }
 
     proptest::proptest! {

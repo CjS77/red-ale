@@ -138,7 +138,10 @@ pub fn update(book: &mut Book, env: &mut dyn Env, guid: Guid, edit: TransactionE
     edit.add_splits.iter().try_for_each(|s| check_new_split(book, s))?;
     let added = edit.add_splits.into_iter().map(|s| commit::build_split(book, env, &t.currency, normalise_split(s))).collect::<DomainResult<Vec<_>>>()?;
     t.splits.extend(added);
-    apply_fields(&mut t, edit.date_posted, edit.date_entered, edit.num, edit.description, edit.notes.as_deref());
+    if let Some(date) = edit.date_posted {
+        commit::set_date_posted(&mut t, date, env.zone());
+    }
+    apply_fields(&mut t, edit.date_entered, edit.num, edit.description, edit.notes.as_deref());
     if t.splits.is_empty() {
         return Err(DomainError::invalid("a transaction needs at least one split; delete it instead"));
     }
@@ -147,10 +150,7 @@ pub fn update(book: &mut Book, env: &mut dyn Env, guid: Guid, edit: TransactionE
     Ok(())
 }
 
-fn apply_fields(t: &mut Transaction, posted: Option<Date>, entered: Option<Time64>, num: Option<String>, desc: Option<String>, notes: Option<&str>) {
-    if let Some(date) = posted {
-        commit::set_date_posted(t, date);
-    }
+fn apply_fields(t: &mut Transaction, entered: Option<Time64>, num: Option<String>, desc: Option<String>, notes: Option<&str>) {
     if let Some(entered) = entered {
         t.date_entered = entered;
     }

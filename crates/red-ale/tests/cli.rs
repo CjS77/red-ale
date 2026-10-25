@@ -130,3 +130,54 @@ customer.create {"name": "Acme", "currency": "USD"}
     let balance = json(&run(&["exec", "--book", &book, "--read-only", "account.balance", "account=Checking"]).stdout);
     assert_eq!(balance["balances"]["balance"], json!({ "num": "100000", "denom": "100" }));
 }
+
+/// The local time zone GnuCash would read for this `TZ` (`None`: unset), and today's date in it before and after
+/// `f` runs, so a midnight in between cannot fail the test.
+fn in_zone<T>(tz: Option<&str>, f: impl FnOnce() -> T) -> (red_ale_core::TimeZone, [red_ale_core::Date; 2], T) {
+    let tzdir = std::env::var_os("TZDIR").map(std::path::PathBuf::from);
+    let zone = red_ale_service::zone::zone_from(tz, tzdir.as_deref(), &|p| std::fs::read(p).ok());
+    let today = |z: &red_ale_core::TimeZone| {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        z.local_date(red_ale_core::Time64(i64::try_from(now).unwrap())).unwrap()
+    };
+    let before = today(&zone);
+    let out = f();
+    let after = today(&zone);
+    (zone, [before, after], out)
+}
+
+fn rfc3339(t: red_ale_core::Time64) -> String {
+    t.to_file_string().replacen(' ', "T", 1).replace(" +0000", "Z")
+}
+
+fn run_in(tz: Option<&str>, args: &[&str]) -> Output {
+    let mut command = Command::new(BIN);
+    command.args(args);
+    match tz {
+        Some(tz) => command.env("TZ", tz),
+        None => command.env_remove("TZ"),
+    };
+    command.output().unwrap()
+}
+
+#[test]
+fn today_and_backup_names_follow_tz_at_both_extremes_and_unset() {
+    [Some("Pacific/Pago_Pago"), Some("Pacific/Kiritimati"), Some("XYZ-11"), Some(":Pacific/Kiritimati"), None].iter().for_each(|tz| {
+        let dir = tempfile::tempdir().unwrap();
+        let book = dir.path().join("b.gnucash").display().to_string();
+        let (zone, days, out) = in_zone(*tz, || run_in(*tz, &["exec", "--create", "--book", &book, "period.dates", "start=today", "end=today"]));
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        let dates = json(&out.stdout);
+        let today = days.iter().find(|d| dates["today"] == d.to_string()).unwrap_or_else(|| panic!("TZ={tz:?}: {dates} is not {days:?}"));
+        assert_eq!(dates["startTime"], rfc3339(zone.day_start(*today)), "TZ={tz:?}");
+        assert_eq!(dates["endTime"], rfc3339(zone.day_end(*today)), "TZ={tz:?}");
+
+        let (_, days, out) = in_zone(*tz, || run_in(*tz, &["exec", "--book", &book, "account.create", "name=Bank", "type=BANK", "commodity=USD"]));
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        let names: Vec<String> = std::fs::read_dir(dir.path()).unwrap().filter_map(|e| e.unwrap().file_name().into_string().ok()).collect();
+        let backup = names.iter().find(|n| n.starts_with("b.gnucash.") && n.ends_with(".gnucash")).unwrap_or_else(|| panic!("TZ={tz:?}: {names:?}"));
+        let stamp = &backup["b.gnucash.".len().."b.gnucash.".len() + 8];
+        let local_days = days.map(|d| d.to_string().replace('-', ""));
+        assert!(local_days.iter().any(|d| d == stamp), "TZ={tz:?}: backup {backup} is not dated {local_days:?}");
+    });
+}

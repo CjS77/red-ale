@@ -91,7 +91,7 @@ fn lot_balance(book: &Book, lot: Guid) -> Numeric {
 fn post_a_job_invoice() {
     let (_book, mut d) = open("synthetic/business-editable.gnucash");
     let r = call(&mut d, "invoice.post", &json!({ "invoice": JOB_INVOICE, "account": "Assets:Receivable", "postDate": "2024-03-10", "memo": "m" }));
-    assert_eq!(r["due"], "2024-03-10T00:00:00Z", "no terms: the start of the posting date");
+    assert_eq!(r["due"], "2024-03-10T10:59:00Z", "no terms: the posting date's neutral time, as the post dialog gives");
     let book = d.context().book().unwrap().clone();
     let txn = id_of(&r["transaction"]);
     let t = book.transaction(txn).unwrap();

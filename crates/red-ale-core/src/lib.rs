@@ -1,7 +1,7 @@
 //! The red-ale bookkeeping domain.
 //!
 //! The Book model and its invariants, and the domain operations on it. Pure: no I/O, no async and no file formats.
-//! Time and fresh GUIDs come in through [`Env`].
+//! Time, the local time zone and fresh GUIDs come in through [`Env`].
 
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
@@ -33,5 +33,5 @@ pub use lot::Lot;
 pub use numeric::{DENOM_AUTO, DenomMode, How, Numeric, NumericError, Round};
 pub use price::Price;
 pub use slots::{Frame, SlotValue};
-pub use time::{Date, Time64};
+pub use time::{Date, Time64, TimeZone};
 pub use transaction::{ReconcileState, Split, Transaction};

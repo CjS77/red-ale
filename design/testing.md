@@ -42,7 +42,8 @@ sources and licences). Never personal financial data.
 
 GnuCash 5.17's engine, through its Python bindings, built from `$GNUCASH_SOURCE` at the pinned tag and installed in
 `$HOME/.local/opt/gnucash-5.17` (see `CLAUDE.md`). `red-ale-testkit::oracle` runs it as a subprocess with
-`PYTHONPATH` set and `TZ=UTC`; set `RED_ALE_ORACLE_PYTHONPATH` to use another install. Every call first checks that
+`PYTHONPATH` set and `TZ=UTC` (`run_script_in` takes another `TZ`, for the time-zone tests); set
+`RED_ALE_ORACLE_PYTHONPATH` to use another install. Every call first checks that
 the oracle reports version 5.17 and fails otherwise: the system GnuCash is never the oracle.
 
 The shared comparison:

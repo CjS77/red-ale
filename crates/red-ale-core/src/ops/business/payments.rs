@@ -322,9 +322,9 @@ pub(crate) fn create_payment_lot(
     t.date_posted = p.date;
     // GnuCash leaves a `date-posted` slot as it was; red-ale keeps it naming the posted day.
     if t.slots.get(txn_slots::DATE_POSTED).is_some()
-        && let Some(day) = p.date.utc_date()
+        && let Some(day) = env.zone().local_date(p.date)
     {
-        set_date_posted(&mut t, day);
+        set_date_posted(&mut t, day, env.zone());
     }
     sort_splits(&mut t);
     let txn = t.guid;

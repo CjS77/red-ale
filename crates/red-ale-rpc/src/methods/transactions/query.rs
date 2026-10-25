@@ -309,8 +309,9 @@ pub struct FindResult {
 }
 
 pub(super) fn find_(ctx: &mut Context, p: FindParams) -> Result<FindResult, RpcError> {
+    let zone = ctx.zone();
     let book = ctx.book()?;
     let query = p.query.resolve(book)?;
-    let hits = find::find(book, &query, p.limit)?;
+    let hits = find::find(book, &query, p.limit, &zone)?;
     Ok(FindResult { matches: super::found(book, &hits) })
 }

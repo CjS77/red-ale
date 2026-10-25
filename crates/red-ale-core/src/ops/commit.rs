@@ -130,10 +130,10 @@ pub fn round_amount(book: &Book, account: Guid, amount: Numeric) -> DomainResult
     round_to(amount, account_scu(book, account)?, "amount")
 }
 
-/// Set the posted date as GnuCash's dialogs do: neutral time plus the `date-posted` gdate slot
-/// (`xaccTransSetDatePostedGDate`, `5.17:libgnucash/engine/Transaction.cpp:1906-1928`).
-pub fn set_date_posted(t: &mut Transaction, date: Date) {
-    t.date_posted = date.neutral_time();
+/// Set the posted date as GnuCash's dialogs do: the day-neutral time in the local time zone plus the `date-posted`
+/// gdate slot (`xaccTransSetDatePostedGDate`, `5.17:libgnucash/engine/Transaction.cpp:1914-1926`).
+pub fn set_date_posted(t: &mut Transaction, date: Date, zone: &crate::TimeZone) {
+    t.date_posted = zone.neutral_time(date);
     t.slots.set(slot_paths::DATE_POSTED, SlotValue::Date(date));
 }
 
@@ -246,13 +246,13 @@ pub fn add_transaction(book: &mut Book, env: &mut dyn Env, new: NewTransaction) 
         guid: env.new_guid(),
         currency,
         num: new.num,
-        date_posted: new.date_posted.neutral_time(),
+        date_posted: env.zone().neutral_time(new.date_posted),
         date_entered,
         description: new.description,
         slots: crate::Frame::new(),
         splits,
     };
-    set_date_posted(&mut t, new.date_posted);
+    set_date_posted(&mut t, new.date_posted, env.zone());
     set_notes(&mut t, new.notes.as_deref());
     check_balanced(&t)?;
     trading::commit(book, env, &mut t)?;

@@ -13,7 +13,7 @@ use std::cmp::Ordering;
 use regex::{Regex, RegexBuilder};
 
 use super::order::split_order;
-use crate::{Book, Date, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, Transaction};
+use crate::{Book, Date, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, TimeZone, Transaction};
 
 /// How a string criterion compares (`5.17:gnucash/gnome-search/search-string.c:235-242`, `search-string.h:32-37`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -167,13 +167,14 @@ pub struct DateMatch {
 
 impl DateMatch {
     /// `date_match_predicate` with the dialog's boundaries (`5.17:gnucash/gnome-search/search-date.c:160-170`,
-    /// `:255-264`): "is on" and "is not on" compare calendar days; "before or on" and "after" compare with the end
-    /// of the day; "before" and "on or after" with the day's neutral time, 10:59.
-    fn matches(self, t: Time64) -> bool {
+    /// `:255-264`), in the local time zone: "is on" and "is not on" compare local days (`time64CanonicalDayTime`,
+    /// `5.17:libgnucash/engine/qofquerycore.cpp:350-364`); "before or on" and "after" compare with the end of the
+    /// day; "before" and "on or after" with the day's neutral time.
+    fn matches(self, t: Time64, zone: &TimeZone) -> bool {
         match self.compare {
-            Compare::Equal | Compare::NotEqual => self.compare.holds(t.utc_date().cmp(&Some(self.date))),
-            Compare::LessOrEqual | Compare::Greater => self.compare.holds(t.cmp(&self.date.end_utc())),
-            Compare::Less | Compare::GreaterOrEqual => self.compare.holds(t.cmp(&self.date.neutral_time())),
+            Compare::Equal | Compare::NotEqual => self.compare.holds(zone.local_date(t).cmp(&Some(self.date))),
+            Compare::LessOrEqual | Compare::Greater => self.compare.holds(t.cmp(&zone.day_end(self.date))),
+            Compare::Less | Compare::GreaterOrEqual => self.compare.holds(t.cmp(&zone.neutral_time(self.date))),
         }
     }
 }
@@ -253,21 +254,21 @@ pub fn share_price(s: &Split) -> Numeric {
 }
 
 impl Query {
-    /// True when the split `s` of transaction `t` matches.
-    pub fn matches(&self, t: &Transaction, s: &Split) -> bool {
+    /// True when the split `s` of transaction `t` matches; dates are compared in the local time zone `zone`.
+    pub fn matches(&self, t: &Transaction, s: &Split, zone: &TimeZone) -> bool {
         match self {
-            Self::All(qs) => qs.iter().all(|q| q.matches(t, s)),
-            Self::Any(qs) => qs.iter().any(|q| q.matches(t, s)),
-            Self::Not(q) => !q.matches(t, s),
+            Self::All(qs) => qs.iter().all(|q| q.matches(t, s, zone)),
+            Self::Any(qs) => qs.iter().any(|q| q.matches(t, s, zone)),
+            Self::Not(q) => !q.matches(t, s, zone),
             Self::Description(m) => m.matches(t.description.as_deref()),
             Self::Notes(m) => m.matches(t.notes()),
             Self::Memo(m) => m.matches(s.memo.as_deref()),
             Self::DescriptionNotesOrMemo(m) => [t.description.as_deref(), t.notes(), s.memo.as_deref()].into_iter().any(|x| m.matches(x)),
             Self::Num(m) => m.matches(t.num.as_deref()),
             Self::Action(m) => m.matches(s.action.as_deref()),
-            Self::DatePosted(d) => d.matches(t.date_posted),
-            Self::DateEntered(d) => d.matches(t.date_entered),
-            Self::DateReconciled(d) => d.matches(s.reconcile_date.unwrap_or_default()),
+            Self::DatePosted(d) => d.matches(t.date_posted, zone),
+            Self::DateEntered(d) => d.matches(t.date_entered, zone),
+            Self::DateReconciled(d) => d.matches(s.reconcile_date.unwrap_or_default(), zone),
             Self::Value(n) => n.matches(s.value),
             Self::Amount(n) => n.matches(s.amount),
             Self::SharePrice(n) => n.matches(share_price(s)),
@@ -308,10 +309,11 @@ pub struct Found {
 
 /// Every split matching `query`, in `xaccSplitOrder` (the query's default sort, `5.17:libgnucash/engine/qofquery.cpp:168-170`).
 /// With a limit, the last `limit` are kept, as GnuCash keeps them (`5.17:libgnucash/engine/qofquery.cpp:799-822`).
-pub fn find(book: &Book, query: &Query, limit: Option<usize>) -> DomainResult<Vec<Found>> {
+/// Dates are compared in the local time zone `zone`.
+pub fn find(book: &Book, query: &Query, limit: Option<usize>, zone: &TimeZone) -> DomainResult<Vec<Found>> {
     query.check(book)?;
     let mut hits: Vec<(&Transaction, &Split)> =
-        book.transactions.values().flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s))).filter(|(t, s)| query.matches(t, s)).collect();
+        book.transactions.values().flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s))).filter(|(t, s)| query.matches(t, s, zone)).collect();
     let num_action = crate::book_options::uses_split_action_for_num(book);
     hits.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
     let skip = limit.map_or(0, |n| hits.len().saturating_sub(n));
@@ -354,13 +356,22 @@ mod tests {
     #[test]
     fn dates_use_the_dialogs_boundaries() {
         let d = Date::from_ymd(2024, 6, 1).unwrap();
-        let posted = d.neutral_time();
         let m = |compare| DateMatch { compare, date: d };
-        assert!(m(Compare::Equal).matches(posted));
-        assert!(!m(Compare::Less).matches(posted));
-        assert!(m(Compare::LessOrEqual).matches(posted));
-        assert!(!m(Compare::Greater).matches(posted));
-        assert!(m(Compare::GreaterOrEqual).matches(posted));
+        [0, -11, 14].iter().for_each(|h| {
+            let zone = TimeZone::fixed(h * 3600).unwrap();
+            let posted = zone.neutral_time(d);
+            assert!(m(Compare::Equal).matches(posted, &zone), "UTC{h:+}");
+            assert!(!m(Compare::Less).matches(posted, &zone));
+            assert!(m(Compare::LessOrEqual).matches(posted, &zone));
+            assert!(!m(Compare::Greater).matches(posted, &zone));
+            assert!(m(Compare::GreaterOrEqual).matches(posted, &zone));
+        });
+        // 2024-06-01 20:00 UTC is 2 June in Kiritimati: on the local day, not the UTC one.
+        let late = Time64::parse_file_string("2024-06-01 20:00:00 +0000").unwrap();
+        let kiritimati = TimeZone::fixed(14 * 3600).unwrap();
+        assert!(!m(Compare::Equal).matches(late, &kiritimati));
+        assert!(m(Compare::Greater).matches(late, &kiritimati));
+        assert!(m(Compare::Equal).matches(late, &TimeZone::utc()));
     }
 
     #[test]
@@ -369,15 +380,15 @@ mod tests {
         let a = simple(&mut f, 100);
         let b = simple(&mut f, 200);
         let lunch = Query::Memo(text(StringOp::Contains, "lunch"));
-        let found = find(&f.book, &lunch, None).unwrap();
+        let found = find(&f.book, &lunch, None, &TimeZone::utc()).unwrap();
         assert_eq!(found.iter().map(|x| x.transaction).collect::<Vec<_>>(), [a, b], "same date and num: date entered, then GUID");
         let q = Query::All(vec![lunch.clone(), Query::Value(NumericMatch { compare: Compare::Greater, amount: usd(150), sign: Sign::Any })]);
-        assert_eq!(find(&f.book, &q, None).unwrap().len(), 1);
+        assert_eq!(find(&f.book, &q, None, &TimeZone::utc()).unwrap().len(), 1);
         let all = Query::Accounts { how: AccountMatch::All, accounts: vec![f.bank, f.food] };
-        assert_eq!(find(&f.book, &all, None).unwrap().len(), 4);
-        assert_eq!(find(&f.book, &all, Some(1)).unwrap().len(), 1);
-        assert_eq!(find(&f.book, &Query::Not(Box::new(Query::All(vec![]))), None).unwrap().len(), 0);
+        assert_eq!(find(&f.book, &all, None, &TimeZone::utc()).unwrap().len(), 4);
+        assert_eq!(find(&f.book, &all, Some(1), &TimeZone::utc()).unwrap().len(), 1);
+        assert_eq!(find(&f.book, &Query::Not(Box::new(Query::All(vec![]))), None, &TimeZone::utc()).unwrap().len(), 0);
         let none = Query::Accounts { how: AccountMatch::Any, accounts: vec![] };
-        assert!(find(&f.book, &none, None).is_err());
+        assert!(find(&f.book, &none, None, &TimeZone::utc()).is_err());
     }
 }

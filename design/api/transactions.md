@@ -16,7 +16,9 @@ Conventions used throughout:
   - values are rounded half up to the currency's fraction, and amounts to the account's SCU. A non-zero number that
     would round to zero is refused (`Split.cpp:1242-1312`);
   - splits are stably sorted with debits (value ≥ 0) first (`Transaction.cpp:540-553`);
-  - the posted date is stored at 10:59 UTC with a `date-posted` gdate slot (`Transaction.cpp:1906-1928`);
+  - the posted date is stored at its day-neutral time (10:59 UTC in zones from UTC−10 to UTC+13; see
+    [`../api.md`](../api.md), "Dates, times and the local time zone") with a `date-posted` gdate slot
+    (`Transaction.cpp:1906-1928`);
   - empty notes delete the `notes` slot (`Transaction.cpp:2042-2046`).
 - Empty num, memo and action are held as absent, because GnuCash does not write them. A new transaction's
   description is `""`, as `xaccInitTransaction` sets it (`Transaction.cpp:266-267`).
@@ -29,8 +31,8 @@ Conventions used throughout:
   [`book-options.md`](book-options.md).
 - **Placeholder accounts** cannot take new splits (`invalid`), as the register refuses them
   (`gnucash/register/ledger-core/split-register.c:2102-2110`). The root account cannot take splits either.
-- **Times.** "Today" and the find dialog's day boundaries use UTC. GnuCash uses the local time zone; red-ale has none
-  yet (open question).
+- **Times.** "Today" and the find dialog's day boundaries use the server's local time zone, as GnuCash does
+  (`5.17:libgnucash/engine/gnc-date.cpp:1366-1394`; v0.1 used UTC).
 
 ## Result: `TransactionInfo`
 
@@ -303,9 +305,9 @@ The operators and their meanings come from `gnome-search/search-*.c` and `qofque
   - Empty text is refused, and a regular expression matches anywhere in the field.
 - **Date:** `{ op, date }`.
   - `op` is `before` (default), `onOrBefore`, `on`, `notOn`, `after` or `onOrAfter`.
-  - `on` and `notOn` compare calendar days.
-  - `onOrBefore` and `after` compare with 23:59:59 on the date.
-  - `before` and `onOrAfter` compare with 10:59, the day's neutral time (`search-date.c:160-170`, `:255-264`;
+  - `on` and `notOn` compare local calendar days (`time64CanonicalDayTime`).
+  - `onOrBefore` and `after` compare with 23:59:59 local time on the date.
+  - `before` and `onOrAfter` compare with the day's neutral time (`search-date.c:160-170`, `:255-264`;
     `qofquerycore.cpp:352-400`).
 - **Number:** `{ op, amount, sign }`.
   - `op` is `lt`, `le`, `eq` (default), `ne`, `gt` or `ge`.
