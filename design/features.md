@@ -79,7 +79,7 @@ A feature added in a development series is listed under the stable release that 
 |:------:|-----------------|------------------------------------------------------------------|:----------:|:------:|
 |   ✅   | Imbalance scrub | Balances a transaction through an `Imbalance-<currency>` account |    1.6     |  0.1   |
 |   ✅   | Orphan scrub    | Moves splits with no account to an `Orphan-<currency>` account   |    1.6     |  0.1   |
-|        | Check & Repair  | Runs the scrubbers on an account, a subtree or the whole book    |   1.6.3    |        |
+|   ✅   | Check & Repair  | Runs the scrubbers on an account, a subtree or the whole book    |   1.6.3    |  0.1   |
 
 ## 3. Commodities, prices and investments
 
@@ -107,10 +107,10 @@ A feature added in a development series is listed under the stable release that 
 
 | Status | Name                        | Short description                                                    | Introduced | Ported |
 |:------:|-----------------------------|----------------------------------------------------------------------|:----------:|:------:|
-|        | Lots                        | Groups the splits that buy and sell the same holding                 |    1.8     |        |
-|        | Lot viewer                  | Inspect and edit lots for an account                                 |    2.0     |        |
-|        | Capital gains               | Computes realised gains per lot and records them as splits           |    2.0     |        |
-|        | Stock split assistant       | Records a stock split and its cash in lieu                           |    1.6     |        |
+|   ✅   | Lots                        | Groups the splits that buy and sell the same holding                 |    1.8     |  0.1   |
+|   ✅   | Lot viewer                  | Inspect and edit lots for an account                                 |    2.0     |  0.1   |
+|   ✅   | Capital gains               | Computes realised gains per lot and records them as splits           |    2.0     |  0.1   |
+|   ✅   | Stock split assistant       | Records a stock split and its cash in lieu                           |    1.6     |  0.1   |
 |        | Stock transaction assistant | Guided buy, sell, dividend, return of capital and split transactions |    5.0     |        |
 
 ## 4. Scheduled transactions

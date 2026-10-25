@@ -6,7 +6,7 @@ on XML books written by GnuCash 5.17.
 This file tracks progress towards v0.1. Feature names and versions come from [`features.md`](features.md); when a
 feature here is done, set its Ported column there to `0.1`.
 
-**Progress: 46 of 60 features, 0 of 2 interfaces (both reach every done feature; they are marked done when every feature is).**
+**Progress: 51 of 60 features, 0 of 2 interfaces (both reach every done feature; they are marked done when every feature is).**
 
 | Status  | Meaning                                                                           |
 |:-------:|-----------------------------------------------------------------------------------|
@@ -105,7 +105,7 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 |:------:|-----------------|:----------:|------|-----------------------------------------------------|
 |   ✅   | Imbalance scrub |    1.6     |      | Match 5.17: zero-value imbalance splits are removed |
 |   ✅   | Orphan scrub    |    1.6     |      |                                                     |
-|        | Check & Repair  |   1.6.3    |      |                                                     |
+|   ✅   | Check & Repair  |   1.6.3    |      |                                                     |
 
 ## 3. Commodities, prices and investments
 
@@ -131,10 +131,10 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 
 | Status | Feature               | Introduced | Epic | Notes                                           |
 |:------:|-----------------------|:----------:|------|-------------------------------------------------|
-|        | Lots                  |    1.8     |      |                                                 |
-|        | Lot viewer            |    2.0     |      |                                                 |
-|        | Capital gains         |    2.0     |      | Lot repair skips stock-split splits, as in 5.17 |
-|        | Stock split assistant |    1.6     |      |                                                 |
+|   ✅   | Lots                  |    1.8     |      |                                                 |
+|   ✅   | Lot viewer            |    2.0     |      |                                                 |
+|   ✅   | Capital gains         |    2.0     |      | Lot repair skips stock-split splits, as in 5.17 |
+|   ✅   | Stock split assistant |    1.6     |      |                                                 |
 
 ## 6. Business
 
