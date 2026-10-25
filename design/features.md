@@ -59,7 +59,7 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Transaction notes           | Free-text notes per transaction                                               |    1.6     |  0.1   |
 |   ✅   | Date entered                | Records when a transaction was entered, separate from the posted date         |   ≤ 1.4    |  0.1   |
 |   ✅   | Split action and memo       | Per-split action and memo fields                                              |   ≤ 1.4    |  0.1   |
-|        | Document links              | Links a transaction to a file or URL                                          |    2.6     |        |
+|   ✅   | Document links              | Links a transaction to a file or URL                                          |    2.6     |  0.2   |
 |   ✅   | Void and unvoid             | Voids a transaction, keeping it with a reason and timestamp                   |    1.8     |  0.1   |
 |   ✅   | Reverse transaction         | Creates the opposite of an existing transaction                               |    2.0     |  0.1   |
 |   ✅   | Find transactions           | Search splits by any combination of fields                                    |   ≤ 1.4    |  0.1   |
@@ -71,7 +71,7 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Reconcile states              | New, cleared, reconciled, frozen and void states per split |   ≤ 1.4    |  0.1   |
 |   ✅   | Reconcile against a statement | Matches splits to a statement's ending balance and date    |   ≤ 1.4    |  0.1   |
 |   ✅   | Last reconcile date           | Remembers each account's last reconciliation               |    1.6     |  0.1   |
-|        | Auto-clear                    | Finds the splits that make up a given cleared balance      |    2.4     |        |
+|   ✅   | Auto-clear                    | Finds the splits that make up a given cleared balance      |    2.4     |  0.2   |
 
 ### Data integrity
 
@@ -162,8 +162,8 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Billing terms      | Due dates and early-payment discounts                            |    1.8     |  0.1   |
 |   ✅   | Post to accounts   | Posts a document to A/R or A/P, creating its transaction and lot |    1.8     |  0.1   |
 |   ✅   | Unpost             | Reverses a posting so the document can be edited                 |    1.8     |  0.1   |
-|        | Duplicate document | Copies an invoice or bill                                        |   2.4.1    |        |
-|        | Document links     | Links an invoice or bill to a file or URL                        |    4.2     |        |
+|   ✅   | Duplicate document | Copies an invoice or bill                                        |   2.4.1    |  0.2   |
+|   ✅   | Document links     | Links an invoice or bill to a file or URL                        |    4.2     |  0.2   |
 
 ### Payments
 
