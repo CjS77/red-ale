@@ -5,9 +5,9 @@ Builds on business_posting.py (same book, op language and view). Commands (PYTHO
 
   make <book>             business_posting's book plus credit notes CN1 (Acme Ltd), VCN1 (Paper Co) and ECN1 (Jane Doe,
                           a card line and an extra charge), unposted
-  do <book> <ops.json>    business_posting's ops plus:
+  do <book> <ops.json>    business_posting's ops (numSource included) plus:
       {"op": "txn", "description": "Deposit", "num": "D1", "date": "2024-03-20", "notes": "",
-       "splits": [["Assets:Bank", "100", "c"], ["Income:Sales", "-100", "n"]]}
+       "splits": [["Assets:Bank", "100", "c", "CHK-7"], ["Income:Sales", "-100", "n"]]}   (a split's action is optional)
       {"op": "fromTxn", "find": "D1", "owner": "Acme Ltd", "applyTo": ["INV2"], "amount": "100", "date": "...",
        "memo": "...", "num": "...", "autoPay": false}
           the transaction whose num is "find", turned into a payment as GnuCash's payment dialog opened on it does
@@ -30,6 +30,7 @@ from gnucash.gnucash_core_c import (ACCT_TYPE_ASSET, ACCT_TYPE_BANK, ACCT_TYPE_C
                                     ACCT_TYPE_EQUITY, ACCT_TYPE_LIABILITY, ACCT_TYPE_MUTUAL, ACCT_TYPE_PAYABLE,
                                     ACCT_TYPE_RECEIVABLE, ACCT_TYPE_STOCK, GNC_HOW_RND_ROUND_HALF_UP)
 
+import gnc_engine
 from gnc_engine import NO_PROGRESS, GncNumeric as CNumeric, engine, ptr
 
 PAYMENT_TYPES = {ACCT_TYPE_BANK, ACCT_TYPE_CASH, ACCT_TYPE_ASSET, ACCT_TYPE_CREDIT, ACCT_TYPE_LIABILITY, ACCT_TYPE_STOCK,
@@ -148,8 +149,10 @@ def txn(book, op):
     t.SetDatePostedSecsNormalized(bp.neutral(op["date"]))
     if op.get("notes"):
         t.SetNotes(op["notes"])
-    for account, value, state in op["splits"]:
+    for account, value, state, *action in op["splits"]:
         s = Split(book)
+        if action:
+            s.SetAction(action[0])
         s.SetParent(t)
         s.SetAccount(bp.find_account(book, account))
         s.SetValue(bp.num(value))
@@ -247,7 +250,7 @@ def from_txn(book, op):
         amount = xfer_split.GetAmount()
     date = bp.neutral(op["date"]) if op.get("date") else bp.neutral(t.GetDate().date().isoformat())
     memo = op.get("memo", t.GetDescription())
-    num = op.get("num", t.GetNum())
+    num = op.get("num", gnc_engine.get_num_action(t, xfer_split) or "")
     glist = None
     for lot in chosen:
         glist = glib.g_list_append(glist, ptr(lot))
@@ -264,11 +267,15 @@ def do(path, ops_path):
     with open(ops_path) as f:
         ops = json.load(f)
     s = bp.Session("xml://" + path, bp.SessionOpenMode.SESSION_NORMAL_OPEN)
+    # gnc_set_num_action and gnc_get_num_action read the num field source from the current session's book.
+    gnc_engine.set_current_session(s)
     try:
         book = s.book
         for op in ops:
             kind = op["op"]
-            if kind == "post":
+            if kind == "numSource":
+                gnc_engine.set_num_source(book, op["on"])
+            elif kind == "post":
                 bp.post(book, op)
             elif kind == "unpost":
                 bp.find_invoice(book, op["invoice"]).Unpost(op.get("reset", False))

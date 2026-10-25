@@ -203,11 +203,11 @@ Params:
 | `owner`         | the owner of the document or pre-payment lot of its first A/R or A/P split in a business lot (`gncOwnerGetOwnerFromTxn`, `5.17:libgnucash/engine/gncOwner.c:674-697`); required when there is none |
 | `account`       | the A/R or A/P account of its splits (`select_txn_lots`, `5.17:gnucash/gnome/dialog-payment.c:1708-1796`); required when it has none |
 | `transferSplit` | its only split in a payment account; required when it has several                                  |
-| `amount`        | the transfer split's amount in the A/R or A/P account's commodity (`5.17:gnucash/gnome/dialog-payment.c:1843-1850`), signed as in `payment.process` |
+| `amount`        | the transfer split's amount (`5.17:gnucash/gnome/dialog-payment.c:1843-1850`), signed as in `payment.process`; required when the transfer and A/R or A/P commodities differ |
 | `exchangeRate`  | needed when the transfer and A/R or A/P commodities differ                                         |
 | `date`          | the transaction's posted date                                                                      |
 | `memo`          | the transaction's description (`5.17:gnucash/gnome/dialog-payment.c:1837`)                    |
-| `num`           | the transaction's number (the transfer split's action when the book uses it as the number)         |
+| `num`           | the transaction's number as `gnc_get_num_action` gives it: the transfer split's action when the num field source is on (`5.17:gnucash/gnome/dialog-payment.c:1836`) |
 | `applyTo`       | the dialog's preselection: lots of the transaction's own A/R or A/P splits that belong to `owner` and keep a balance once this transaction's split leaves them (`5.17:gnucash/gnome/dialog-payment.c:474-497`, `:555-575`, `:403-436`) |
 | `autoPay`       | false                                                                                              |
 
@@ -228,6 +228,9 @@ Result: `transaction` (the same GUID) and `paymentLot`, as `payment.process`.
   A/P or transfer commodity, `num`, type `P`, date entered now and the day-neutral time of `date`; a new A/R or A/P
   split (memo `memo`, action `Payment`) goes into a new payment lot. Then the payment lot and the chosen lots are
   applied as in `payment.process`. The GUID, notes and other slots stay.
+- **Num field source.** The transaction's num is always `num` (`5.17:libgnucash/engine/gncOwner.c:873`). A kept
+  transfer split keeps its action; a new one gets `num` as action when the num field source is on, as in
+  `payment.process` (`:836`).
 
 Refused (`invalid`): a void or read-only transaction, a lot-link transaction (it has no transfer split; link lots
 with `payment.process` and amount 0) and a zero amount.
@@ -284,7 +287,9 @@ back (`gncEntryGetDoc*`, `5.17:libgnucash/engine/gncEntry.c:1535-1568`). Every m
   link memo, `Extra to Charge Card` and the read-only reason. A localised GnuCash writes translations.
 - Peer-split (`lot-split`) slots are not maintained when lot-link splits are merged; business lots never have them.
 - **Payment from a transaction** refuses void and read-only transactions, whose splits GnuCash would delete all the
-  same, and lot-link transactions, which GnuCash lets through with no transfer split and a zero amount.
+  same, and lot-link transactions, which GnuCash lets through with no transfer split and a zero amount. When the
+  transfer and A/R or A/P commodities differ it needs `amount`: GnuCash's dialog proposes one converted at a price
+  of its own choosing (`xaccSplitConvertAmount`), which the user confirms.
 - **A `date-posted` slot** already on a transaction turned into a payment is set to the new date. GnuCash leaves it
   as it was (`xaccTransSetDatePostedSecs`, `5.17:libgnucash/engine/Transaction.cpp:1897-1903`), so the slot could
   name another day than the posted date.
@@ -294,7 +299,16 @@ back (`gncEntryGetDoc*`, `5.17:libgnucash/engine/gncEntry.c:1535-1568`). Every m
 - Unit: `crates/red-ale-core/src/ops/business/calc.rs` (GnuCash's worked examples for discount and tax modes, the
   due-date table), `posting.rs` (freezing, unposting, over-payments and auto-pay); property tests for tax-included
   values and for posted transactions balancing at the document total.
-- API: `crates/red-ale-testkit/tests/business_posting.rs`, on `synthetic/business-editable.gnucash`.
+- API: `crates/red-ale-testkit/tests/business_posting.rs`, on `synthetic/business-editable.gnucash`, including open
+  items, payments from transactions with the dialog's defaults and the transactions refused;
+  `crates/red-ale-rpc/tests/business_documents.rs` for credit notes (negated quantities, posting the other way, the
+  `Credit Notes` feature, `synthetic/business.gnucash` opening for editing and saving).
+- Oracle, credit notes and payment matching: `crates/red-ale-testkit/tests/oracle_business_payments.rs` with
+  `oracle/business_payments.py`: credit note totals, posting, linking and unposting; payments to chosen documents,
+  credit notes and pre-payments, and auto-applied; open items in the dialog's order; transactions turned into
+  payments (GnuCash's dialog logic driving `gncOwnerApplyPaymentSecs` with the transaction preset), an existing
+  payment re-matched, and both with the num field source on. Every test that compares books also runs GnuCash's
+  `gncScrubBusinessAccountTree` on red-ale's book and checks it changes nothing.
 - Oracle: `crates/red-ale-testkit/tests/oracle_business_posting.rs` with `oracle/business_posting.py`: totals against
   `GetTotal`/`GetTotalSubtotal`/`GetTotalTax` and each entry's `GetDoc*Value`; posting (accumulated and not, card
   vouchers, billable lines, job invoices, explicit due dates, a foreign line); partial, over- and auto-applied

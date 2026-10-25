@@ -95,7 +95,7 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|s| json!({ "account": s[0], "value": s[1], "reconcileState": s[2] }))
+                .map(|s| json!({ "account": s[0], "value": s[1], "reconcileState": s[2], "action": s.get(3) }))
                 .collect();
             let params = json!({
                 "currency": "USD", "description": op["description"], "num": op["num"], "datePosted": op["date"], "notes": opt("notes"), "splits": splits,
@@ -114,6 +114,9 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
                 }
             }
             call(d, "payment.fromTransaction", &params);
+        }
+        "numSource" => {
+            call(d, "book.setOptions", &json!({ "splitActionForNum": op["on"] }));
         }
         other => panic!("unknown op {other}"),
     }
@@ -275,4 +278,18 @@ fn open_items_come_in_the_dialogs_order() {
         .collect();
     assert_eq!(Value::Array(got), expected);
     assert_eq!(expected.as_array().unwrap().len(), 5, "four documents and a pre-payment");
+}
+
+#[test]
+fn payments_from_transactions_with_the_num_field_source_on() {
+    // The payment is made before the option is turned on, so its number is still the transaction's num and can find it.
+    compare(&json!([
+        post("INV1", AR, "2024-03-05"),
+        { "op": "txn", "description": "Cheque in", "num": "D7", "date": "2024-03-20",
+          "splits": [["Assets:Bank", "120", "n", "CHK-77"], ["Income:Sales", "-120", "n"]] },
+        { "op": "pay", "owner": "Acme Ltd", "account": AR, "transfer": "Assets:Bank", "amount": "30", "date": "2024-03-21", "num": "N2" },
+        { "op": "numSource", "on": true },
+        { "op": "fromTxn", "find": "D7", "owner": "Acme Ltd", "account": AR, "applyTo": ["INV1"] },
+        { "op": "fromTxn", "find": "N2", "owner": "Acme Ltd", "applyTo": ["INV1"], "num": "N3" },
+    ]));
 }
