@@ -211,6 +211,13 @@ def lots(root):
     return sorted(out, key=lambda x: (x["account"], x["splits"], x["title"] or ""))
 
 
+def query_raw(book, kind):
+    q = Query()
+    q.search_for(kind)
+    q.set_book(book)
+    return q.run()
+
+
 def run_query(book, kind, cls):
     q = Query()
     q.search_for(kind)
@@ -231,6 +238,15 @@ def owner_ref(owner):
         return None
     g = owner.GetGUID()
     return {"type": owner.GetType(), "guid": g.to_string() if g is not None else None}
+
+
+def owner_pair(pair):
+    """The raw owner getters (gncEntryGetBillTo, gncInvoiceGetBillTo) return (type, pointer or None)."""
+    kind, ptr = pair
+    if ptr is None:
+        return None
+    cls = {2: Customer, 3: Job, 4: Vendor, 5: Employee}.get(kind)
+    return {"type": kind, "guid": cls(instance=ptr).GetGUID().to_string() if cls else None}
 
 
 def name_of(x, cls):
@@ -272,6 +288,7 @@ def business(book):
         "toChargeAmount": frac(x.GetToChargeAmount()), "total": frac(x.GetTotal()),
         "subtotal": frac(x.GetTotalSubtotal()), "tax": frac(x.GetTotalTax()), "paid": bool(x.IsPaid()) if x.IsPosted() else None,
         "entries": sorted(guid(e, Entry) for e in x.GetEntries()),
+        "billTo": owner_pair(c.gncInvoiceGetBillTo(x.instance)),
     } for x in run_query(book, "gncInvoice", Invoice)]
     entries = [{
         "guid": guid(x), "date": ts(x.GetDate()), "description": text(x.GetDescription()), "action": text(x.GetAction()),
@@ -280,11 +297,14 @@ def business(book):
         "billAccount": guid(x.GetBillAccount(), Account), "billPrice": frac(x.GetBillPrice()),
         "invTaxable": bool(x.GetInvTaxable()), "billTaxable": bool(x.GetBillTaxable()),
         "invTaxTable": name_of(x.GetInvTaxTable(), TaxTable), "billTaxTable": name_of(x.GetBillTaxTable(), TaxTable),
-        "billable": bool(x.GetBillable()),
+        "billable": bool(x.GetBillable()), "dateEntered": ts(x.GetDateEntered()),
+        "invTaxIncluded": bool(x.GetInvTaxIncluded()), "billTaxIncluded": bool(x.GetBillTaxIncluded()),
+        "discount": frac(x.GetInvDiscount()), "discountType": x.GetInvDiscountType(), "discountHow": x.GetInvDiscountHow(),
+        "payment": x.GetBillPayment(), "billTo": owner_pair(c.gncEntryGetBillTo(x.instance)),
     } for x in run_query(book, "gncEntry", Entry)]
     # The bindings type GetEntries' GList as gnc_monetary, so entry details cannot be read; invoice tax totals
     # check them instead.
-    tax_tables = [{"name": x.GetName(), "entryCount": len(x.GetEntries())}
+    tax_tables = [{"name": x.GetName(), "entryCount": len(x.GetEntries()), "refcount": x.GetRefcount()}
                   for x in run_query(book, "gncTaxTable", TaxTable) if x.GetParent() is None]
     # Lists of bill terms come back mistyped from the bindings (as gnc_monetary), but single references work, so
     # the terms dumped are those a customer, vendor or invoice uses.
@@ -293,9 +313,11 @@ def business(book):
     terms = {}
     for x in referenced:
         if x is not None:
-            terms[x.GetName()] = {
+            frozen = x.GetParent() is not None
+            terms[(x.GetName(), frozen)] = {
                 "name": x.GetName(), "description": text(x.GetDescription()), "type": x.GetType(), "dueDays": x.GetDueDays(),
                 "discountDays": x.GetDiscountDays(), "discount": frac(x.GetDiscount()), "cutoff": x.GetCutoff(),
+                "refcount": x.GetRefcount(), "frozen": frozen,
             }
     bill_terms = list(terms.values())
     return {
@@ -305,8 +327,10 @@ def business(book):
         "jobs": sorted(jobs, key=lambda x: x["guid"]),
         "invoices": sorted(invoices, key=lambda x: (x["type"], x["id"])),
         "entries": sorted(entries, key=lambda x: x["guid"]),
-        "taxTables": sorted(tax_tables, key=lambda x: x["name"]),
-        "billTerms": sorted(bill_terms, key=lambda x: x["name"]),
+        "taxTables": sorted(tax_tables, key=lambda x: (x["name"], x["refcount"])),
+        "billTerms": sorted(bill_terms, key=lambda x: (x["name"], x["frozen"])),
+        # Orders are not wrapped by the bindings; GnuCash reading them back is checked by their number.
+        "orderCount": len(query_raw(book, "gncOrder")),
     }
 
 

@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use red_ale_core::account::slot_paths as acct;
-use red_ale_core::business::{Address, OwnerKind, OwnerRef, TaxIncluded};
+use red_ale_core::business::{Address, AmountType, DiscountHow, OwnerKind, OwnerRef, PaymentType, TaxIncluded};
 use red_ale_core::ops::business::calc;
 use red_ale_core::ops::commit::commodity_fraction;
 use red_ale_core::ops::commodities::{effective_quote, lookup, slot_paths, usage_table};
@@ -238,6 +238,31 @@ fn tax_included(t: TaxIncluded) -> i64 {
     }
 }
 
+/// `GncAmountType`: VALUE 1, PERCENT 2 (`5.17:libgnucash/engine/gncTaxTable.h:78-82`).
+fn amount_type(t: AmountType) -> i64 {
+    match t {
+        AmountType::Value => 1,
+        AmountType::Percent => 2,
+    }
+}
+
+/// `GncDiscountHow`: PRETAX 1, SAMETIME 2, POSTTAX 3 (`5.17:libgnucash/engine/gncEntry.h:49-54`).
+fn discount_how(h: DiscountHow) -> i64 {
+    match h {
+        DiscountHow::PreTax => 1,
+        DiscountHow::SameTime => 2,
+        DiscountHow::PostTax => 3,
+    }
+}
+
+/// `GncEntryPaymentType`: CASH 1, CARD 2 (`5.17:libgnucash/engine/gncEntry.h:43-47`).
+fn payment(p: PaymentType) -> i64 {
+    match p {
+        PaymentType::Cash => 1,
+        PaymentType::Card => 2,
+    }
+}
+
 fn term_name(book: &Book, g: Option<Guid>) -> Value {
     g.and_then(|g| book.business.bill_terms.get(&g)).map_or(Value::Null, |t| Value::String(t.name.clone()))
 }
@@ -305,6 +330,7 @@ fn invoices(book: &Book) -> Vec<Value> {
                 // gncInvoiceIsPaid: posted and its lot is closed.
                 "paid": if posted { Some(lot_balance.is_some_and(Numeric::is_zero)) } else { None },
                 "entries": entries,
+                "billTo": inv.bill_to.map_or(Value::Null, owner),
             })
         })
         .collect();
@@ -369,20 +395,27 @@ fn business(book: &Book) -> Value {
                 "notes": text(Some(&x.notes)), "quantity": frac(x.quantity), "invAccount": guid(x.i_account), "invPrice": frac(x.i_price),
                 "billAccount": guid(x.b_account), "billPrice": frac(x.b_price), "invTaxable": x.i_taxable, "billTaxable": x.b_taxable,
                 "invTaxTable": table_name(book, x.i_tax_table), "billTaxTable": table_name(book, x.b_tax_table), "billable": x.billable,
+                "dateEntered": x.entered.0, "invTaxIncluded": x.i_tax_included, "billTaxIncluded": x.b_tax_included,
+                "discount": frac(x.i_discount), "discountType": amount_type(x.i_disc_type), "discountHow": discount_how(x.i_disc_how),
+                "payment": payment(x.b_payment), "billTo": x.bill_to.map_or(Value::Null, owner),
             })
         })
         .collect();
-    let mut tax_tables: Vec<Value> =
-        b.tax_tables.values().filter(|t| t.parent.is_none()).map(|t| json!({ "name": t.name, "entryCount": t.entries.len() })).collect();
-    tax_tables.sort_by(|x, y| x["name"].as_str().cmp(&y["name"].as_str()));
+    let mut tax_tables: Vec<Value> = b
+        .tax_tables
+        .values()
+        .filter(|t| t.parent.is_none())
+        .map(|t| json!({ "name": t.name, "entryCount": t.entries.len(), "refcount": t.refcount }))
+        .collect();
+    tax_tables.sort_by(|x, y| (x["name"].as_str(), x["refcount"].as_i64()).cmp(&(y["name"].as_str(), y["refcount"].as_i64())));
     let referenced: BTreeSet<Guid> =
         b.customers.values().filter_map(|c| c.terms).chain(b.vendors.values().filter_map(|v| v.terms)).chain(b.invoices.values().filter_map(|i| i.terms)).collect();
     let mut bill_terms: Vec<Value> = referenced.iter().filter_map(|g| b.bill_terms.get(g)).map(bill_term).collect();
-    bill_terms.sort_by(|x, y| x["name"].as_str().cmp(&y["name"].as_str()));
-    bill_terms.dedup_by(|x, y| x["name"] == y["name"]);
+    bill_terms.sort_by(|x, y| (x["name"].as_str(), x["frozen"].as_bool()).cmp(&(y["name"].as_str(), y["frozen"].as_bool())));
+    bill_terms.dedup_by(|x, y| x["name"] == y["name"] && x["frozen"] == y["frozen"]);
     json!({
         "customers": customers, "vendors": vendors, "employees": employees, "jobs": jobs, "invoices": invoices(book),
-        "entries": entries, "taxTables": tax_tables, "billTerms": bill_terms,
+        "entries": entries, "taxTables": tax_tables, "billTerms": bill_terms, "orderCount": b.orders.len(),
     })
 }
 
@@ -395,7 +428,7 @@ fn bill_term(t: &std::sync::Arc<red_ale_core::business::BillTerm>) -> Value {
     };
     json!({
         "name": t.name, "description": text(Some(&t.description)), "type": kind, "dueDays": due, "discountDays": disc_days,
-        "discount": frac(discount), "cutoff": cutoff,
+        "discount": frac(discount), "cutoff": cutoff, "refcount": t.refcount, "frozen": t.parent.is_some(),
     })
 }
 
