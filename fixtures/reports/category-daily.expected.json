@@ -1,0 +1,80 @@
+{
+  "fixture": "reports/category-daily.gnucash",
+  "builtBy": "scripts/report-fixtures/category_report.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-standard-category-report.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of the test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:36)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; the day=value check reads the day as the text between the first and second '/'",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "account-1": "a0000000000000000000000000000001",
+    "account-2": "a0000000000000000000000000000002",
+    "account-3": "a0000000000000000000000000000003"
+  },
+  "book": "single-txn-test (:81-94): top-level ASSET account-1, EXPENSE account-2 and INCOME account-3, and one transaction per day of the current month, day N moving $N from account-3 to account-1. asset-test (:263-275) builds the same accounts and transactions (in GnuCash's run, in the book of multi-acct-test), so both run on this book. For the pinned now the month is March 2024, and the relative options start-this-month and end-this-month read 2024-03-01 00:00:00 and 2024-03-31 23:59:59 UTC.",
+  "optionValues": "Options are those changed from the template's defaults. {\"relative\": name} is a relative date resolved from now.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements: table 1; row 0 is the <th> header row, row N the Nth data row, null every row; column 1 is the date. A check with \"count\" expects the number of cells selected rather than their text.",
+  "renderOnly": [
+    { "line": 76, "note": "null-test: Income Over Time and Expense Over Time render with default options before single-txn-test (:60-61); Assets Over Time and Liabilities Over Time before asset-test (:67-68)" }
+  ],
+  "runs": [
+    {
+      "id": "single-txn-test",
+      "lines": "81-115",
+      "template": "Income Over Time",
+      "templateGuid": "44f81bee049b4b3ea908f8dac9a9474e",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "relative": "start-this-month" },
+        "General/End Date": { "relative": "end-this-month" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-3"],
+        "Accounts/Levels of Subaccounts": "all"
+      },
+      "checks": [
+        {
+          "name": "day=value",
+          "line": 107,
+          "select": { "table": 1, "row": null, "columns": [1, 2] },
+          "relation": "For each row, the number after the first '/' of column 1 (the day of the month) equals the number in column 2 (the day's income), both read keeping only digits, '-' and '.'.",
+          "implied": {
+            "column1": ["03/01/24", "03/02/24", "03/03/24", "03/04/24", "03/05/24", "03/06/24", "03/07/24", "03/08/24", "03/09/24", "03/10/24", "03/11/24", "03/12/24", "03/13/24", "03/14/24", "03/15/24", "03/16/24", "03/17/24", "03/18/24", "03/19/24", "03/20/24", "03/21/24", "03/22/24", "03/23/24", "03/24/24", "03/25/24", "03/26/24", "03/27/24", "03/28/24", "03/29/24", "03/30/24", "03/31/24"],
+            "column2": ["$1.00", "$2.00", "$3.00", "$4.00", "$5.00", "$6.00", "$7.00", "$8.00", "$9.00", "$10.00", "$11.00", "$12.00", "$13.00", "$14.00", "$15.00", "$16.00", "$17.00", "$18.00", "$19.00", "$20.00", "$21.00", "$22.00", "$23.00", "$24.00", "$25.00", "$26.00", "$27.00", "$28.00", "$29.00", "$30.00", "$31.00"]
+          },
+          "meaning": "Daily income, shown positive (Income Over Time reverses income signs, category-barchart.scm:733). GnuCash checks only the relation; the implied strings assume the C locale's %m/%d/%y."
+        }
+      ]
+    },
+    {
+      "id": "asset-test",
+      "lines": "263-300",
+      "template": "Assets Over Time",
+      "templateGuid": "e9cf815f79db44bcb637d0295093ae3d",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "relative": "start-this-month" },
+        "General/End Date": { "relative": "end-this-month" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-1"],
+        "Accounts/Levels of Subaccounts": "all"
+      },
+      "checks": [
+        { "name": "2 columns", "line": 288, "select": { "table": 1, "row": 0, "column": null }, "count": 2, "meaning": "Two header cells: Date and the account" },
+        { "name": "account-1", "line": 291, "select": { "table": 1, "row": 0, "column": 2 }, "expected": ["account-1"], "meaning": "The account's column header" },
+        { "name": "first row $1.00", "line": 294, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$1.00"], "meaning": "Balance at the end of 2024-03-01" },
+        { "name": "28th row $406.00", "line": 297, "select": { "table": 1, "row": 28, "column": 2 }, "expected": ["$406.00"], "meaning": "Balance at the end of 2024-03-28: 1 + 2 + ... + 28" }
+      ]
+    }
+  ]
+}

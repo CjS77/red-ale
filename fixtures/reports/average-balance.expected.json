@@ -1,0 +1,79 @@
+{
+  "fixture": "reports/average-balance.gnucash",
+  "builtBy": "scripts/report-fixtures/average_balance.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-average-balance.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:15)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Bank": "a0000000000000000000000000000002",
+    "Root.Another Bank": "a0000000000000000000000000000003",
+    "Root.Income": "a0000000000000000000000000000004"
+  },
+  "book": "The test runs its first report after the transfers of :63-64 and adds the third, Bank to Another Bank $25 on 1979-03-15, at :81 before the other two. This book has all three. The first run's figures hold on it: the report sums the selected accounts' daily balances (5.17:gnucash/report/reports/example/average-balance.scm:362-373), which the internal transfer leaves unchanged, and March's profit is the sum of its +$25 and -$25 split amounts, $0.00 as with no splits (:172, :189).",
+  "optionValues": "Options are those changed from the template's defaults (Step Size MonthDelta, so one row per month, January to June 1979). {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1, every row (null), column N counted from 1. The rendered HTML has its <script> elements stripped first (:31-33). Columns (average-balance.scm:136-138): 1 Period start, 2 Period end, 3 Average, 4 Maximum, 5 Minimum, 6 Gain, 7 Loss, 8 Profit.",
+  "runs": [
+    {
+      "id": "default",
+      "lines": "66-79",
+      "bookState": "before the third transfer in GnuCash's run",
+      "template": "Average Balance",
+      "templateGuid": "d5adcc61c62e4b8684dd8907448d7900",
+      "options": {
+        "Accounts/Accounts": ["Root.Bank", "Root.Another Bank"],
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1979-01-01" },
+        "General/End Date": { "absolute": "1979-06-30" }
+      },
+      "checks": [
+        { "name": "averages", "line": 68, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["$0.00", "$50.00", "$100.00", "$150.00", "$200.00", "$200.00"], "meaning": "Average balance of the two accounts per month, January to June" },
+        { "name": "maximums", "line": 71, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["$0.00", "$100.00", "$100.00", "$200.00", "$200.00", "$200.00"], "meaning": "Maximum balance per month" },
+        { "name": "minimums", "line": 74, "select": { "table": 1, "row": null, "column": 5 }, "expected": ["$0.00", "$0.00", "$100.00", "$100.00", "$200.00", "$200.00"], "meaning": "Minimum balance per month" },
+        { "name": "net", "line": 77, "select": { "table": 1, "row": null, "column": 8 }, "expected": ["$0.00", "$100.00", "$0.00", "$100.00", "$0.00", "$0.00"], "meaning": "Profit (gain less loss) per month" }
+      ]
+    },
+    {
+      "id": "include-internal",
+      "lines": "81-89",
+      "template": "Average Balance",
+      "templateGuid": "d5adcc61c62e4b8684dd8907448d7900",
+      "options": {
+        "Accounts/Accounts": ["Root.Bank", "Root.Another Bank"],
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1979-01-01" },
+        "General/End Date": { "absolute": "1979-06-30" }
+      },
+      "checks": [
+        { "name": "gains-include-internal", "line": 84, "select": { "table": 1, "row": null, "column": 6 }, "expected": ["$0.00", "$100.00", "$25.00", "$100.00", "$0.00", "$0.00"], "meaning": "Gain per month, counting the internal $25 transfer's receiving side in March" },
+        { "name": "loss-include-internal", "line": 87, "select": { "table": 1, "row": null, "column": 7 }, "expected": ["$0.00", "$0.00", "$25.00", "$0.00", "$0.00", "$0.00"], "meaning": "Loss per month, counting the internal transfer's sending side in March" }
+      ]
+    },
+    {
+      "id": "exclude-internal",
+      "lines": "91-99",
+      "template": "Average Balance",
+      "templateGuid": "d5adcc61c62e4b8684dd8907448d7900",
+      "options": {
+        "Accounts/Accounts": ["Root.Bank", "Root.Another Bank"],
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1979-01-01" },
+        "General/End Date": { "absolute": "1979-06-30" },
+        "Accounts/Exclude transactions between selected accounts": true
+      },
+      "checks": [
+        { "name": "gain-exclude-internal", "line": 94, "select": { "table": 1, "row": null, "column": 6 }, "expected": ["$0.00", "$100.00", "$0.00", "$100.00", "$0.00", "$0.00"], "meaning": "Gain per month without the internal transfer" },
+        { "name": "loss-exclude-internal", "line": 97, "select": { "table": 1, "row": null, "column": 7 }, "expected": ["$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00"], "meaning": "Loss per month without the internal transfer" }
+      ]
+    }
+  ]
+}

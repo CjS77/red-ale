@@ -1,0 +1,94 @@
+{
+  "fixture": "reports/charts-daily.gnucash",
+  "builtBy": "scripts/report-fixtures/charts.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-charts.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:45)",
+    "dateFormat": "ISO, set at :80",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank1": "a0000000000000000000000000000003",
+    "Root.Asset.Bank2": "a0000000000000000000000000000004",
+    "Root.Asset.Bank3": "a0000000000000000000000000000005",
+    "Root.Asset.Bank": "a0000000000000000000000000000006",
+    "Root.Income": "a0000000000000000000000000000007",
+    "Root.Liability": "a0000000000000000000000000000008",
+    "Root.Expenses": "a0000000000000000000000000000009",
+    "Root.Equity": "a000000000000000000000000000000a"
+  },
+  "book": "Book A of test-chart-variant (:153-185) for the pinned now's year, 2024, with the 101 daily transactions from 1970-01-01 (day N: $N from Income to Bank, :195-200) that the net-worth-barchart and income-expense-barchart variants add. In GnuCash's run the other 15 variants use book A without them, and every variant then adds book B (charts-net.gnucash) to the same book (:254-255).",
+  "optionValues": "Options are those changed from the template's defaults. default-testing-options (:163-175) sets Start Date to start-cal-year (except for the asset, liability and securities pie charts), End Date to end-cal-year and Accounts to Bank and Liability (except for the Price Scatterplot); for the pinned now these read 2024-01-01 00:00:00 to 2024-12-31 23:59:59 UTC. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight; {\"relative\": name} is a relative date resolved from now.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements (:208-209, :228-229): table 1; row 0 is the <th> header row, row 1 the first data row, row -1 the last; null column means every cell.",
+  "renderOnly": [
+    {
+      "line": 189,
+      "note": "basic report exists: each of the 17 templates renders on book A with default-testing-options",
+      "templates": {
+        "Liabilities (pie chart)": "3fe6dce77da24c66bdc8f8efdea7f9ac",
+        "Securities (pie chart)": "e9418ff64f2c11e5b61d1c7508d793ed",
+        "Assets (pie chart)": "5c7fd8a1fe9a4cd38884ff54214aa88a",
+        "Expense Accounts (pie chart)": "9bf1892805cb4336be6320fe48ce5446",
+        "Income Accounts (pie chart)": "e1bd09b8a1dd49dd85760db9d82b045c",
+        "Cash Flow Barchart": "5426e4d987f6444387fe70880e5b28a0",
+        "Income Over Time": "44f81bee049b4b3ea908f8dac9a9474e",
+        "Expense Over Time": "b1f15b2052c149df93e698fe85a81ea6",
+        "Assets Over Time": "e9cf815f79db44bcb637d0295093ae3d",
+        "Liabilities Over Time": "faf410e8f8da481fbc09e4763da40bcc",
+        "Income vs. Day of Week": "5e2d129f28d14df881c3e47e3053f604",
+        "Expenses vs. Day of Week": "dde49fed4ca940959ae7d01b72742530",
+        "Price Scatterplot": "1d241609fd4644caad765c95be20ff4c",
+        "Net Worth Barchart": "cbba1696c8c24744848062c7f1cf4a72",
+        "Net Worth Linechart": "d8b63264186b11e19038001558291366",
+        "Income/Expense Chart": "80769921e87943adade887b9835a7685",
+        "Income & Expense Linechart": "e533c998186b11e1b2e2001558291366"
+      }
+    }
+  ],
+  "runs": [
+    {
+      "id": "net-worth-barchart 2 months",
+      "lines": "201-218",
+      "template": "Net Worth Barchart",
+      "templateGuid": "cbba1696c8c24744848062c7f1cf4a72",
+      "options": {
+        "General/Start Date": { "absolute": "1970-01-15" },
+        "General/End Date": { "absolute": "1970-03-15" },
+        "Accounts/Accounts": ["Root.Asset.Bank", "Root.Liability"],
+        "General/Step Size": "DayDelta",
+        "Display/Show table": true
+      },
+      "checks": [
+        { "name": "net-worth-barchart: first row", "line": 210, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Assets", "Liabilities", "Net Worth"], "meaning": "Table headers" },
+        { "name": "net-worth-barchart: first data row", "line": 213, "select": { "table": 1, "row": 1, "column": null }, "expected": ["1970-01-15", "$105.00", "$0.00", "$105.00"], "meaning": "End of 1970-01-15: Bank holds 0 + 1 + ... + 14 = $105" },
+        { "name": "net-worth-barchart: last data row", "line": 216, "select": { "table": 1, "row": -1, "column": null }, "expected": ["1970-03-15", "$2,701.00", "$0.00", "$2,701.00"], "meaning": "End of 1970-03-15 (day 73): 0 + 1 + ... + 73 = $2,701" }
+      ]
+    },
+    {
+      "id": "income-expense-barchart 2 years",
+      "lines": "220-238",
+      "template": "Income/Expense Chart",
+      "templateGuid": "80769921e87943adade887b9835a7685",
+      "options": {
+        "General/Start Date": { "absolute": "1970-01-15" },
+        "General/End Date": { "absolute": "1970-03-15" },
+        "Accounts/Accounts": ["Root.Income", "Root.Expenses"],
+        "General/Step Size": "DayDelta",
+        "Display/Show table": true
+      },
+      "checks": [
+        { "name": "income-expense-barchart: first row", "line": 230, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Income", "Expense", "Net Profit"], "meaning": "Table headers" },
+        { "name": "income-expense: first data row", "line": 233, "select": { "table": 1, "row": 1, "column": null }, "expected": ["1970-01-15", "$14.00", "$0.00", "$14.00"], "meaning": "1970-01-15 (day 14): income $14" },
+        { "name": "income-expense: last data row", "line": 236, "select": { "table": 1, "row": -1, "column": null }, "expected": ["1970-03-15", "$73.00", "$0.00", "$73.00"], "meaning": "1970-03-15 (day 73): income $73" }
+      ]
+    }
+  ]
+}

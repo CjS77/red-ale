@@ -1,0 +1,48 @@
+{
+  "fixture": "reports/category-liability.gnucash",
+  "builtBy": "scripts/report-fixtures/category_report.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-standard-category-report.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of the test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:36)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "account-1": "a0000000000000000000000000000001",
+    "account-2": "a0000000000000000000000000000002",
+    "account-3": "a0000000000000000000000000000003"
+  },
+  "book": "liability-test (:302-318): top-level ASSET account-1, CREDIT account-2 and INCOME account-3; a $100 loan on 2016-10-01 (account-2 to account-1), then on the 1st of January to May 2017 $10 of income and on the 2nd a $9 repayment. No date depends on now. In GnuCash's run this test shares its book with multi-acct-test and asset-test.",
+  "optionValues": "Options are those changed from the template's defaults. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements: table 1; row 0 is the <th> header row, row 1 the first data row, row -1 the last; null column means every cell. A check with \"count\" expects the number of cells selected rather than their text.",
+  "runs": [
+    {
+      "id": "liability-test",
+      "lines": "302-343",
+      "template": "Liabilities Over Time",
+      "templateGuid": "faf410e8f8da481fbc09e4763da40bcc",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "2017-01-01" },
+        "General/End Date": { "absolute": "2018-12-31" },
+        "General/Step Size": "MonthDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-2"],
+        "Accounts/Levels of Subaccounts": "all"
+      },
+      "checks": [
+        { "name": "2 columns", "line": 331, "select": { "table": 1, "row": 0, "column": null }, "count": 2, "meaning": "Two header cells: Date and the account" },
+        { "name": "account-2", "line": 334, "select": { "table": 1, "row": 0, "column": 2 }, "expected": ["account-2"], "meaning": "The account's column header" },
+        { "name": "first row $100.00", "line": 337, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$100.00"], "meaning": "Amount owed at the first date, 2017-01-01, before the first repayment; shown positive" },
+        { "name": "last row $55.00", "line": 340, "select": { "table": 1, "row": -1, "column": 2 }, "expected": ["$55.00"], "meaning": "Amount owed in the last row, after the five $9 repayments" }
+      ]
+    }
+  ]
+}
