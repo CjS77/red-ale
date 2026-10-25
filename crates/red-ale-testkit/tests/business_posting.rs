@@ -200,3 +200,84 @@ fn paying_a_bill_and_listing_documents_due() {
     assert_eq!(values, vec!["5997/100", "-5997/100"], "A/P debited, bank credited");
     assert!(call(&mut d, "invoice.due", &json!({ "kind": "bills", "now": "2024-03-28T00:00:00Z" })).as_array().unwrap().is_empty());
 }
+
+fn deposit(d: &mut red_ale_rpc::Dispatcher, num: &str, splits: &Value) -> Value {
+    let t = json!({ "currency": "EUR", "description": "Deposit", "num": num, "datePosted": "2024-03-20", "notes": "kept", "splits": splits });
+    call(d, "transaction.post", &t)["guid"].clone()
+}
+
+#[test]
+fn open_items_list_documents_and_prepayments() {
+    let (_book, mut d) = open("synthetic/business-editable.gnucash");
+    let owner = json!({ "type": "customer", "id": CUSTOMER });
+    call(&mut d, "invoice.post", &json!({ "invoice": JOB_INVOICE, "account": "Assets:Receivable", "postDate": "2024-03-10" }));
+    call(
+        &mut d,
+        "payment.process",
+        &json!({ "owner": owner, "account": "Assets:Receivable", "transferAccount": "Assets:Bank", "amount": "5", "date": "2024-03-01" }),
+    );
+    let items = call(&mut d, "payment.openItems", &json!({ "owner": owner, "account": "Assets:Receivable" }))["items"].clone();
+    let types: Vec<&str> = items.as_array().unwrap().iter().map(|i| i["type"].as_str().unwrap()).collect();
+    assert_eq!(types, ["Pre-Payment", "Invoice", "Invoice"], "by due date, the pre-payment by its date: {items}");
+    assert!(items[0]["invoice"].is_null() && items[0]["id"].is_null());
+    assert_eq!(amount(&items[0]["balance"]), "-500/100");
+    let e = call_err(&mut d, "payment.openItems", &json!({ "owner": owner, "account": "Assets:Bank" }));
+    assert_eq!(e.code, codes::INVALID);
+}
+
+#[test]
+fn a_transaction_becomes_a_payment_with_the_dialogs_defaults() {
+    let (_book, mut d) = open("synthetic/business-editable.gnucash");
+    let txn = deposit(&mut d, "D1", &json!([{ "account": "Assets:Bank", "value": "873" }, { "account": "Income", "value": "-873" }]));
+    let e = call_err(&mut d, "payment.fromTransaction", &json!({ "transaction": txn, "owner": { "type": "customer", "id": CUSTOMER } }));
+    assert_eq!(e.code, codes::INVALID, "no A/R split: the account is needed");
+    let e = call_err(&mut d, "payment.fromTransaction", &json!({ "transaction": txn, "account": "Assets:Receivable" }));
+    assert_eq!(e.code, codes::INVALID, "no owner to find");
+    let r = call(
+        &mut d,
+        "payment.fromTransaction",
+        &json!({ "transaction": txn, "owner": { "type": "customer", "id": CUSTOMER }, "account": "Assets:Receivable", "applyTo": [CUSTOMER_INVOICE] }),
+    );
+    assert_eq!(r["transaction"], txn, "the same transaction");
+    assert!(r["paymentLot"].is_null(), "fully applied");
+    let book = d.context().book().unwrap().clone();
+    let t = book.transaction(id_of(&txn)).unwrap();
+    assert_eq!((t.txn_type(), t.num.as_deref(), t.description.as_deref()), (Some('P'), Some("D1"), Some("Acme & Sons <Ltd>")));
+    assert_eq!(t.notes(), Some("kept"));
+    assert_eq!(t.splits.iter().filter_map(|s| s.memo.as_deref()).collect::<Vec<_>>(), ["Deposit"], "the description is the memo");
+    let lot = book.business.invoices[&guid(CUSTOMER_INVOICE)].post_lot.unwrap();
+    assert!(lot_balance(&book, lot).is_zero());
+
+    // Now a payment: its owner and account are found, and with nothing chosen it becomes a pre-payment.
+    let r = call(&mut d, "payment.fromTransaction", &json!({ "transaction": txn, "applyTo": [] }));
+    let book = d.context().book().unwrap().clone();
+    assert_eq!(lot_balance(&book, id_of(&r["paymentLot"])), Numeric::new(-873, 1));
+    assert_eq!(lot_balance(&book, lot), Numeric::new(873, 1));
+    // The defaults choose nothing (the pre-payment would be empty without this transaction), so it stays one.
+    let r2 = call(&mut d, "payment.fromTransaction", &json!({ "transaction": txn, "amount": "900" }));
+    let book = d.context().book().unwrap().clone();
+    assert_eq!(lot_balance(&book, id_of(&r2["paymentLot"])), Numeric::new(-900, 1));
+    assert!(book.lot(id_of(&r["paymentLot"])).is_none(), "the old payment lot emptied and went");
+}
+
+#[test]
+fn transactions_that_cannot_become_payments() {
+    let (_book, mut d) = open("synthetic/business-editable.gnucash");
+    let owner = json!({ "type": "customer", "id": CUSTOMER });
+    let posted = d.context().book().unwrap().business.invoices[&guid(CUSTOMER_INVOICE)].post_txn.unwrap().to_string();
+    let e = call_err(&mut d, "payment.fromTransaction", &json!({ "transaction": posted, "owner": owner }));
+    assert_eq!(e.code, codes::INVALID, "a posted document's transaction");
+    let two_banks = deposit(
+        &mut d,
+        "D2",
+        &json!([{ "account": "Assets:Bank", "value": "10" }, { "account": "Assets:Bank", "value": "5" }, { "account": "Income", "value": "-15" }]),
+    );
+    let e = call_err(&mut d, "payment.fromTransaction", &json!({ "transaction": two_banks, "owner": owner, "account": "Assets:Receivable" }));
+    assert_eq!(e.code, codes::INVALID, "two candidate transfer splits");
+    let no_bank = deposit(&mut d, "D3", &json!([{ "account": "Expenses", "value": "10" }, { "account": "Income", "value": "-10" }]));
+    let e = call_err(&mut d, "payment.fromTransaction", &json!({ "transaction": no_bank, "owner": owner, "account": "Assets:Receivable" }));
+    assert_eq!(e.code, codes::INVALID, "no transfer split");
+    let zero = deposit(&mut d, "D4", &json!([{ "account": "Assets:Bank", "value": "0" }, { "account": "Income", "value": "0" }]));
+    let e = call_err(&mut d, "payment.fromTransaction", &json!({ "transaction": zero, "owner": owner, "account": "Assets:Receivable" }));
+    assert_eq!(e.code, codes::INVALID, "a zero amount");
+}
