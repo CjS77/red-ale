@@ -60,8 +60,10 @@ Both backends are in scope: XML (gzipped or plain) and SQL (SQLite first; Postgr
 - **Claims about GnuCash behaviour or file format must be checked against its source and cited** as
   `tag:path/to/file.cpp:line`. Mark anything taken only from the wiki or docs as docs-only. The format is defined by
   `libgnucash/backend/xml/` and `libgnucash/backend/sql/`, not by the wiki.
-- **No Guile, ever.** GnuCash's reports are Guile Scheme. red-ale never embeds or ports it. Reports are rebuilt on
-  red-ale's own report scripting (from v0.2), matching GnuCash's figures and options rather than its code.
+- **No Guile, ever.** GnuCash's reports are Guile Scheme. red-ale never embeds or runs Guile. From v0.2 each report
+  is translated from its GnuCash `.scm` file into a Rhai script (`.rhai`), keeping its options, logic and figures.
+  Reports are the one exception to "port only when the behaviour can't be matched any other way" (see "Licensing"
+  and `design/milestone2.md`).
 - **GnuCash is the test oracle.** Compatibility tests write a book with red-ale, open it with GnuCash, and compare. The
   oracle must run the pinned version; if its version differs from the pin, the tests say so and fail.
   - The oracle is GnuCash 5.17: the library and Python bindings, with no GUI. It is installed in

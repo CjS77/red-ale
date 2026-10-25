@@ -1,6 +1,6 @@
 # Open questions and decisions
 
-Decisions taken for v0.1 that a later version may revisit, and questions still open. Each says why.
+Decisions taken for each version that a later one may revisit, and questions still open. Each says why.
 
 ## Decided for v0.1
 
@@ -32,7 +32,8 @@ with data red-ale cannot see.
 
 **Credit notes, num-field source, trading accounts and the auto read-only threshold open read-only.** They change
 what other operations must do (signs, which field is the number, extra balancing splits, which transactions may be
-edited), so v0.1 opens such books read-only rather than edit them partly right.
+edited), so v0.1 opens such books read-only rather than edit them partly right. *v0.2 implements all four and lifts
+these triggers (see [`milestone2.md`](milestone2.md)).*
 
 **Version 1 XML files are refused** with a message to open and save them in GnuCash first. GnuCash 5.17 still reads
 them, but no current GnuCash writes them.
@@ -43,6 +44,75 @@ during replay), so they are not lost if the session ends before a save.
 
 **Shutdown without saving.** `red-ale serve` closes the book on Ctrl-C or SIGTERM without saving, as no client asked
 it to save; the journal holds the unsaved changes and `book.replayJournal` can restore them.
+
+## Decided for v0.2
+
+**Reports are Rhai scripts.** [Rhai](https://rhai.rs/book/) is pure Rust (MIT or Apache-2.0), can be built with no
+floating point (`no_float`) and no clock (`no_time`), has operation and size limits built in, and keeps its maps
+ordered, so exact money, sandboxing and deterministic output come from the engine rather than from rules scripts
+must follow. Starlark keeps a float type that can't be compiled out, and Lua is a C library whose numbers are
+doubles; writing reports in Rust would leave users no way to add their own. Rhai is less familiar than Lua or Python,
+but LLMs, directed by people, will write most report scripts, so that matters little. See
+[`milestone2.md`](milestone2.md) for how the engine is set up.
+
+**Charts are static SVG.** GnuCash 5.17 draws charts in the browser with Chart.js 2.9.4
+(`5.17:gnucash/report/html-chart.scm:532`), about 70 KB of JavaScript after gzip. red-ale draws them as inline SVG in
+Rust instead. An exported report then has no script and works offline, and its bytes are the same on every run, so
+determinism tests cover charts too. Pixel positions come from `Numeric` with integer arithmetic, so no floating point
+enters the renderer. Hover labels use SVG `<title>`; zooming and toggling series are left out. If interactive charts
+are wanted later, Chartist (about 13 KB gzipped, MIT) is the lightest library that draws every chart type the reports
+use (scatter as a line with points only).
+
+**Reports are translated from GnuCash's Scheme.** Each report `.scm` becomes a `.rhai` with the same name, rather
+than a report designed afresh to the same figures. Following GnuCash's own logic line by line is the surest way to
+the same figures and options, and makes each report easy to check against its source. The report files are
+GPL-2.0-or-later, so translations can be GPL-3.0-or-later; each keeps its source's header and author lines and
+cites the file it comes from. Scheme that only builds HTML is not translated.
+
+**Reports are tested against expected results, not against GnuCash.** GnuCash's report code links GTK and needs
+GnuCash's GUI modules (`5.17:gnucash/report/CMakeLists.txt:29-34`, `89-91`), so the library-only oracle can't run
+reports. For v0.2, expected figures come from GnuCash 5.17's own report tests, rebuilt as red-ale fixtures, and from
+cases worked out by hand from the report's Scheme, with citations. Comparing with GnuCash's report output, through
+`gnucash-cli --report run` in a full build (possibly in a rootless container), is for a later milestone.
+
+**Time zones work as in GnuCash.** Times are stored in UTC; dates at day-neutral time, 10:59:00 UTC
+(`5.17:libgnucash/engine/gnc-datetime.cpp:249-268`); everything else (day boundaries, "today", relative report
+dates, same-day prices, backup names) in the process's local time zone, taken from `TZ`, else `/etc/localtime`,
+else UTC (`5.17:libgnucash/engine/gnc-timezone.cpp:744-760`). v0.1 used UTC for same-day prices, "today", the find
+dialog's day boundaries and the accounting period; v0.2 changes those to local time, so a red-ale server and a
+GnuCash in the same zone agree on every date. See [`milestone2.md`](milestone2.md), "Time zones".
+
+## Decided for v0.3
+
+**red-ale fetches quotes itself, without Perl.** GnuCash runs Finance::Quote, a Perl library, as a child process
+(`5.17:libgnucash/app-utils/gnc-quotes.cpp:176-240`). red-ale does not depend on Perl; it gets prices from the
+quote sources' services in its own Rust code. Books stay compatible with GnuCash:
+
+- **Quote source names are Finance::Quote's.** A commodity's quote source is stored in the book by its Finance::Quote
+  name (`alphavantage`, `asx`, `currency`, …; 50 in all, `5.17:libgnucash/engine/gnc-commodity.cpp:180-250`).
+  red-ale reads and writes the same names, so GnuCash keeps fetching for the commodity. A source red-ale doesn't
+  implement yet is kept as read and reported as unsupported, never changed.
+- **Fetched prices use the source string `Finance::Quote`.** GnuCash knows only its fixed list of price sources and
+  ranks same-day prices by it (`5.17:libgnucash/engine/gnc-pricedb.h:165-182`). Another string would read as
+  `invalid` in GnuCash and lose its rank. **⚠** Here the name means "an online quote", not that Finance::Quote fetched it.
+- **Prices are built as GnuCash builds them.** Value read exactly from text, inverted where a currency is quoted the
+  other way; type `last`, `nav` or `unknown`; time is the quote's date, or now if it has none; saved through
+  `price.add`'s same-day rules (`gnc-quotes.cpp:546-760`).
+
+Which sources v0.3 implements, and how API keys and network access are configured, are for the v0.3 milestone.
+
+**Import and export move to v0.3**: all of `features.md` §7 except online banking, and the CSV imports under §6
+"Business import". Two questions come with them:
+
+- **Importers without C libraries.** GnuCash reads OFX/QFX through LibOFX, and MT940, MT942, DTAUS and CAMT through
+  AqBanking, both C libraries. The proposal, as for quotes: parsers in Rust. DTAUS has been retired for years and
+  could be dropped.
+- **The QIF importer** is Guile Scheme in GnuCash (`5.17:gnucash/import-export/qif-imp/`). red-ale either translates
+  it, as it does reports, or designs it from notes, the `CLAUDE.md` default.
+
+Two facts to carry over: Bayesian account matching sets two book features (`5.17:libgnucash/engine/gnc-features.h:58-59`),
+and GnuCash keeps CSV import layouts in its state file, not the book
+(`5.17:gnucash/import-export/csv-imp/gnc-imp-settings-csv-tx.cpp:147`), so red-ale keeps them in its Configuration.
 
 ## Open
 

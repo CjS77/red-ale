@@ -100,8 +100,10 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Price database             | Dated prices of one commodity in another     |    1.6     |  0.1   |
 |   ✅   | Price editor               | Add, edit and delete prices                  |    1.6     |  0.1   |
 |   ✅   | Remove old prices          | Thins out prices before a date, by namespace |    2.0     |  0.1   |
-|        | Online quotes              | Fetches prices through Finance::Quote        |   ≤ 1.4    |        |
+|   ❌   | Online quotes              | Fetches prices through Finance::Quote        |   ≤ 1.4    |        |
 |   ✅   | Quote source and time zone | Per-security quote source and time zone      |    1.6     |  0.1   |
+
+*Note:* re-ale will introduce its own price fetcher in v0.3
 
 ### Investments
 
@@ -111,7 +113,7 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Lot viewer                  | Inspect and edit lots for an account                                 |    2.0     |  0.1   |
 |   ✅   | Capital gains               | Computes realised gains per lot and records them as splits           |    2.0     |  0.1   |
 |   ✅   | Stock split assistant       | Records a stock split and its cash in lieu                           |    1.6     |  0.1   |
-|        | Stock transaction assistant | Guided buy, sell, dividend, return of capital and split transactions |    5.0     |        |
+|   ❌   | Stock transaction assistant | Guided buy, sell, dividend, return of capital and split transactions |    5.0     |        |
 
 ## 4. Scheduled transactions
 
@@ -218,9 +220,9 @@ A feature added in a development series is listed under the stable release that 
 
 ## 8. Reports
 
-GnuCash's reports are written in Guile Scheme. red-ale will never run Guile, so no report is ported from GnuCash's
-code. Each report here is rebuilt on red-ale's own report scripting, which arrives in v0.2. Parity means the same
-figures and options, not the same code.
+GnuCash's reports are written in Guile Scheme. red-ale will never run Guile. Instead, each report is translated
+from its GnuCash Scheme file into Rhai, red-ale's report scripting, which arrives in v0.2. A translation keeps the
+report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 
 ### Report system
 
@@ -352,9 +354,16 @@ figures and options, not the same code.
 
 | Status | Name                          | Short description                               | Introduced | Ported |
 |:------:|-------------------------------|-------------------------------------------------|:----------:|:------:|
-|        | gnucash-cli                   | Command-line tool that runs without the GUI     |    4.0     |        |
-|        | Quotes from the command line  | Fetches and stores price quotes without the GUI |    1.6     |        |
-|        | Reports from the command line | Runs a saved report and writes the output       |    4.0     |        |
+|   ❌   | gnucash-cli                   | Command-line tool that runs without the GUI     |    4.0     |        |
+|   ❌   | Quotes from the command line  | Fetches and stores price quotes without the GUI |    1.6     |        |
+|   ❌   | Reports from the command line | Runs a saved report and writes the output       |    4.0     |        |
+
+**Notes:**
+
+* `red-ale` has its own CLI interface via the red-ale binary, which lets you do anything the JSON-RPC server does.
+* Currency and price quotes can be automatically updated via JSON-RPC as of v0.3, fetched by red-ale's own Rust code
+  rather than Finance::Quote, so no Perl is needed (see [`open-questions.md`](open-questions.md))
+* `red-ale` will support its own reporting format.
 
 ### Scripting
 

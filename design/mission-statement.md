@@ -16,8 +16,8 @@ drive it over MCP. It works on the user's existing GnuCash books, in place, and 
 ## Non-goals
 
 - A graphical interface. GnuCash's desktop-only features are marked won't-do in `features.md`.
-- Guile. GnuCash's reports are Guile Scheme; red-ale rebuilds reports on its own scripting from v0.2 and never embeds
-  or ports Guile.
+- Guile. GnuCash's reports are Guile Scheme; red-ale translates them into its own Rhai scripts from v0.2 and never
+  embeds or runs Guile.
 - Linking. Programs that use red-ale talk to it over JSON-RPC or MCP; no red-ale crate is shipped as a library.
 - Being "better" than GnuCash in ways that change a book's meaning. Extensions beyond parity are stored where GnuCash
   keeps and ignores them, and each gets a design doc first.
@@ -27,5 +27,5 @@ drive it over MCP. It works on the user's existing GnuCash books, in place, and 
 | Version | Scope                                                                                              |
 |---------|----------------------------------------------------------------------------------------------------|
 | v0.1    | GnuCash ≤ 2.0 features (see [`milestone1.md`](milestone1.md)) on XML books; JSON-RPC API and CLI    |
-| v0.2    | MCP server; reports on red-ale's own scripting                                                     |
-| v0.3    | SQLite books                                                                                       |
+| v0.2    | MCP server; GnuCash ≤ 1.6 reports in Rhai; the rest of books, transactions and business (see [`milestone2.md`](milestone2.md)) |
+| v0.3    | SQLite books; import and export; online price quotes                                               |

@@ -6,11 +6,12 @@ Design comes before code. Read in this order:
 2. [`glossary.md`](glossary.md): the ubiquitous language. Every name used in docs and code is defined here once.
 3. [`features.md`](features.md): every GnuCash feature, with the red-ale version that ports it.
 4. [`milestone1.md`](milestone1.md): the v0.1 scope and its progress.
-5. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
-6. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
-7. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods.
-8. [`testing.md`](testing.md): fixtures, round-trip tests and the GnuCash oracle.
-9. [`open-questions.md`](open-questions.md): decisions not yet made.
+5. [`milestone2.md`](milestone2.md): the v0.2 scope (MCP server, reports, the rest of books, transactions and business) and its progress. Draft.
+6. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
+7. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
+8. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods.
+9. [`testing.md`](testing.md): fixtures, round-trip tests and the GnuCash oracle.
+10. [`open-questions.md`](open-questions.md): decisions not yet made.
 
 `GNUCASH_REV` pins the GnuCash release red-ale matches (tag, then commit).
 
