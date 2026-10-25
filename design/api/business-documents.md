@@ -8,7 +8,7 @@ are in [`business-contacts.md`](business-contacts.md), whose conventions (partia
 `OwnerInfo`, tax table and billing term references) apply here too.
 
 Code: `red-ale-core/src/ops/business/documents.rs` and `duplicate.rs`, `red-ale-rpc/src/methods/business/documents.rs`
-and `duplicate.rs`. Tests: `crates/red-ale-rpc/tests/business_documents.rs` (API),
+and `duplicate.rs`. Tests: `crates/red-ale-rpc/tests/business_documents.rs` and `invoice_duplicate.rs` (API),
 `crates/red-ale-testkit/tests/oracle_business_documents.rs` (GnuCash 5.17 reads the documents back, numbers the next
 ones as red-ale does, and computes the expected totals from red-ale's entries), and
 `crates/red-ale-testkit/tests/oracle_duplicate.rs` (a document duplicated by red-ale equals the same document
