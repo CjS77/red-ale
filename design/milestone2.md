@@ -145,7 +145,7 @@ report code.
 
 | Status | Feature                    | Introduced | Epic | Notes                                                                                     |
 |:------:|----------------------------|:----------:|------|-------------------------------------------------------------------------------------------|
-|        | Trading account type       |    2.4     |      | With "Use trading accounts"                                                               |
+|   ✅   | Trading account type       |    2.4     |      | With "Use trading accounts"                                                               |
 |   ✅   | Account colours            |    2.4     |      |                                                                                           |
 |   ✅   | Balance limits             |    5.0     |      |                                                                                           |
 |   ✅   | Opening balance account    |    4.3     |      | Sets the opening balance account book feature (`gnc-features.h:64`)                       |
@@ -159,7 +159,7 @@ report code.
 |   ✅   | Number counters and formats |   2.4.1    |      | v0.1 already assigns the next document number                                       |
 |   ✅   | Auto read-only threshold    |    2.6     |      | Lifts a v0.1 read-only trigger                                                      |
 |   ✅   | Num field source            |    2.6     |      | Lifts a v0.1 read-only trigger; sets `Number Field Source` (`gnc-features.h:55`)    |
-|        | Use trading accounts        |    2.4     |      | Lifts a v0.1 read-only trigger; every Mutation keeps trading splits as GnuCash does |
+|   ✅   | Use trading accounts        |    2.4     |      | Lifts a v0.1 read-only trigger; every Mutation keeps trading splits as GnuCash does |
 |   ✅   | Close book                  |   2.2.4    |      |                                                                                     |
 
 ## 2. Transactions

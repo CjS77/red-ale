@@ -21,7 +21,7 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Account hierarchy                | Accounts nest under a single root to any depth                                                   |   ≤ 1.4    |  0.1   |
 |   ✅   | Standard account types           | Bank, Cash, Asset, Credit Card, Liability, Stock, Mutual Fund, Currency, Income, Expense, Equity |   ≤ 1.4    |  0.1   |
 |   ✅   | A/Receivable and A/Payable types | Account types that carry business documents and payments                                         |    1.8     |  0.1   |
-|        | Trading account type             | Account type that balances multi-commodity transactions                                          |    2.4     |        |
+|   ✅   | Trading account type             | Account type that balances multi-commodity transactions                                          |    2.4     |  0.2   |
 |   ✅   | Placeholder accounts             | Accounts that group others and accept no transactions                                            |   1.6.7    |  0.1   |
 |   ✅   | Hidden accounts                  | Accounts kept but hidden from everyday views                                                     |    2.0     |  0.1   |
 |   ✅   | Account codes                    | A user code per account, used for sorting and numbering                                          |   ≤ 1.4    |  0.1   |
@@ -44,7 +44,7 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Number counters and formats | Next numbers and formats for invoices, bills, customers and others           |   2.4.1    |  0.2   |
 |   ✅   | Auto read-only threshold    | Transactions older than N days become read-only                              |    2.6     |  0.2   |
 |   ✅   | Num field source            | Use the split action field as the transaction number                         |    2.6     |  0.2   |
-|        | Use trading accounts        | Book option to balance multi-commodity transactions through trading accounts |    2.4     |        |
+|   ✅   | Use trading accounts        | Book option to balance multi-commodity transactions through trading accounts |    2.4     |  0.2   |
 |   ✅   | Close book                  | Zeroes income and expense into equity at a closing date                      |   2.2.4    |  0.2   |
 
 ## 2. Transactions
