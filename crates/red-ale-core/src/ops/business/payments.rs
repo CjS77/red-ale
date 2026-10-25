@@ -15,7 +15,8 @@ use std::sync::Arc;
 
 use crate::business::{Invoice, OwnerKind, OwnerRef};
 use crate::lot::slot_paths as lot_slots;
-use crate::ops::business::calc::{self, DocumentKind};
+use crate::ops::business::calc::{self, InvoiceType};
+use crate::ops::business::contacts;
 use crate::ops::commit::{currency_fraction, round_amount, round_value, sort_splits};
 use crate::transaction::slot_paths as txn_slots;
 use crate::{
@@ -136,23 +137,23 @@ pub fn lot_slot_owner(book: &Book, lot: Guid) -> Option<OwnerRef> {
     let slots = &book.lot(lot)?.slots;
     let kind = OwnerKind::from_owner_type_number(slots.get(lot_slots::OWNER_TYPE).and_then(SlotValue::as_int)?)?;
     let owner = OwnerRef { kind, guid: slots.get(lot_slots::OWNER_GUID).and_then(SlotValue::as_guid)? };
-    calc::owner_exists(book, owner).then_some(owner)
+    contacts::owner_exists(book, owner).then_some(owner)
 }
 
 /// The end owner of a document lot (through its invoice) or of a pre-payment lot (through its owner slots), as
 /// `gncOwnerLotMatchOwnerFunc` finds it (`5.17:libgnucash/engine/gncOwner.c:705-722`).
 fn lot_end_owner_invoice_first(book: &Book, lot: Guid) -> Option<OwnerRef> {
     match lot_invoice(book, lot) {
-        Some(inv) => calc::end_owner(book, inv.owner).ok(),
-        None => lot_slot_owner(book, lot).and_then(|o| calc::end_owner(book, o).ok()),
+        Some(inv) => contacts::end_owner(book, inv.owner),
+        None => lot_slot_owner(book, lot).and_then(|o| contacts::end_owner(book, o)),
     }
 }
 
 /// The same, owner slots first, as `gnc_lot_match_owner_balancing` looks (`5.17:libgnucash/engine/gncInvoice.c:1866-1890`).
 fn lot_end_owner_slots_first(book: &Book, lot: Guid) -> Option<OwnerRef> {
     match lot_slot_owner(book, lot) {
-        Some(o) => calc::end_owner(book, o).ok(),
-        None => lot_invoice(book, lot).and_then(|inv| calc::end_owner(book, inv.owner).ok()),
+        Some(o) => contacts::end_owner(book, o),
+        None => lot_invoice(book, lot).and_then(|inv| contacts::end_owner(book, inv.owner)),
     }
 }
 
@@ -181,12 +182,12 @@ fn open_lots(book: &Book, work: &mut LotWork, account: Guid, keep: impl Fn(&mut 
 
 /// The end owner's name for descriptions (`5.17:libgnucash/engine/gncOwner.c:771`).
 fn end_owner_name(book: &Book, owner: OwnerRef) -> Option<String> {
-    calc::end_owner(book, owner).ok().and_then(|o| calc::owner_name(book, o))
+    contacts::end_owner(book, owner).and_then(|o| contacts::owner_name(book, o))
 }
 
 /// "Type ID" as GnuCash titles a document (`5.17:libgnucash/engine/gncInvoice.c:1491`).
 pub fn document_title(book: &Book, invoice: &Invoice) -> DomainResult<String> {
-    Ok(format!("{} {}", calc::document_kind(book, invoice)?.type_string(), invoice.id))
+    Ok(format!("{} {}", calc::invoice_type(book, invoice)?.type_string(), invoice.id))
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -563,7 +564,7 @@ pub fn apply_owner_payment(book: &mut Book, env: &mut dyn Env, p: &Payment, lots
 
 /// Refuse a payment whose owner or posted account does not exist.
 fn check_owner_and_account(book: &Book, p: &Payment) -> DomainResult<()> {
-    if !calc::owner_exists(book, p.owner) {
+    if !contacts::owner_exists(book, p.owner) {
         return Err(DomainError::not_found(p.owner.kind.type_name(), &p.owner.guid));
     }
     let acc = book.account(p.posted_account).ok_or_else(|| DomainError::not_found("account", &p.posted_account))?;
@@ -579,7 +580,7 @@ pub fn apply_invoice_payment(book: &mut Book, env: &mut dyn Env, invoice: Guid, 
     let (Some(lot), Some(account)) = (inv.post_lot, inv.post_acc) else {
         return Err(DomainError::conflict(format!("document {} is not posted", inv.id)));
     };
-    p.owner = calc::end_owner(book, inv.owner)?;
+    p.owner = calc::require_end_owner(book, inv.owner)?;
     p.posted_account = account;
     if p.transfer_account.is_none() {
         return Err(DomainError::invalid("a payment needs a transfer account"));
@@ -600,7 +601,7 @@ pub fn auto_apply_invoice(book: &mut Book, env: &mut dyn Env, invoice: Guid) -> 
     let (Some(lot), Some(account)) = (inv.post_lot, inv.post_acc) else {
         return Err(DomainError::conflict(format!("document {} is not posted", inv.id)));
     };
-    let owner = calc::end_owner(book, inv.owner)?;
+    let owner = calc::require_end_owner(book, inv.owner)?;
     let mut work = LotWork::default();
     let positive = work.balance(book, lot)?.is_positive();
     let candidates = open_lots(book, &mut work, account, |w, l| {
@@ -639,7 +640,7 @@ pub struct DueDocument {
     /// When it is due (`trans-date-due` of its posted transaction).
     pub due: Time64,
     /// Its kind.
-    pub kind: DocumentKind,
+    pub kind: InvoiceType,
     /// The open balance of its lot, signed as on the A/R or A/P account.
     pub balance: Numeric,
 }
@@ -653,7 +654,7 @@ pub fn documents_due(book: &Book, which: DueFor, days: i64, now: Time64) -> Doma
     let mut out = Vec::new();
     for inv in book.business.invoices.values() {
         let (Some(txn), Some(lot)) = (inv.post_txn.and_then(|g| book.transaction(g)), inv.post_lot) else { continue };
-        let Ok(kind) = calc::document_kind(book, inv) else { continue };
+        let Ok(kind) = calc::invoice_type(book, inv) else { continue };
         let wanted = match which {
             DueFor::Customers => kind.is_customer(),
             DueFor::Vendors => !kind.is_customer(),

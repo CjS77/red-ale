@@ -1,7 +1,7 @@
 //! Methods: processing payments and listing documents that fall due. See `design/api/business-posting.md`.
 
 use red_ale_core::business::{OwnerKind, OwnerRef};
-use red_ale_core::ops::business::{calc, payments};
+use red_ale_core::ops::business::{calc, contacts, payments};
 use red_ale_core::{Book, Guid, Numeric};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -59,7 +59,7 @@ pub struct OwnerParam {
 impl OwnerParam {
     fn resolve(self, book: &Book) -> Result<OwnerRef, RpcError> {
         let owner = OwnerRef { kind: self.owner_type.into(), guid: self.id.0 };
-        if calc::owner_exists(book, owner) { Ok(owner) } else { Err(RpcError::not_found(owner.kind.type_name(), owner.guid)) }
+        if contacts::owner_exists(book, owner) { Ok(owner) } else { Err(RpcError::not_found(owner.kind.type_name(), owner.guid)) }
     }
 }
 
@@ -67,7 +67,7 @@ impl OwnerParam {
 /// as a debit (`5.17:gnucash/gnome/dialog-payment.c:670-690`), so a payment in the usual direction is positive here
 /// for every owner.
 fn engine_amount(book: &Book, owner: OwnerRef, amount: Numeric) -> Result<Numeric, RpcError> {
-    Ok(if calc::end_owner(book, owner)?.kind == OwnerKind::Customer { amount } else { amount.neg() })
+    Ok(if calc::require_end_owner(book, owner)?.kind == OwnerKind::Customer { amount } else { amount.neg() })
 }
 
 /// Params of `payment.process`.
@@ -193,7 +193,7 @@ pub struct PayParams {
 fn pay_invoice(ctx: &mut Context, p: PayParams) -> Result<PaymentResult, RpcError> {
     let result = ctx.mutate_rpc(|book, env| {
         let inv = invoice(book, p.invoice)?;
-        let (guid, owner) = (inv.guid, calc::end_owner(book, inv.owner)?);
+        let (guid, owner) = (inv.guid, calc::require_end_owner(book, inv.owner)?);
         let posted = inv.post_acc.ok_or_else(|| RpcError::invalid(format!("document {} is not posted", inv.id)))?;
         let money = Money { transfer: Some(p.transfer_account), amount: p.amount.0, rate: p.exchange_rate, date: p.date, memo: p.memo, num: p.num };
         let pay = money.payment(book, owner, posted)?;
@@ -266,7 +266,7 @@ fn due(ctx: &mut Context, p: DueParams) -> Result<Vec<DueDocument>, RpcError> {
                     invoice: Id(d.invoice),
                     id: inv.id.clone(),
                     doc_type: d.kind.type_string().to_owned(),
-                    company: calc::owner_name(book, d.kind.end_owner).unwrap_or_default(),
+                    company: contacts::owner_name(book, d.kind.end_owner).unwrap_or_default(),
                     due: Timestamp(d.due),
                     due_date: Day(utc_day(d.due)?),
                     amount: Amount(d.balance),

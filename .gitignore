@@ -1,3 +1,4 @@
 /target
 *.LCK
 *.LNK
+__pycache__/

@@ -9,7 +9,8 @@ use std::sync::Arc;
 
 use crate::business::{BillTerm, Entry, Invoice, OwnerKind, PaymentType, TaxTable};
 use crate::lot::slot_paths as lot_slots;
-use crate::ops::business::calc::{self, AccountValues, DocumentKind};
+use crate::ops::business::calc::{self, AccountValues, InvoiceType};
+use crate::ops::business::{contacts, documents};
 use crate::ops::business::payments::{self, LotWork, TXN_TYPE_INVOICE};
 use crate::ops::commit::{account_scu, build_split, check_balanced, set_date_posted, sort_splits, NewSplit};
 use crate::transaction::slot_paths as txn_slots;
@@ -60,7 +61,7 @@ pub struct Posted {
 /// `gncInvoiceGetIsCreditNote`-aware document checks before posting.
 struct Plan {
     inv: Arc<Invoice>,
-    kind: DocumentKind,
+    kind: InvoiceType,
     currency: CommodityRef,
     entries: Vec<Entry>,
     card: Option<Guid>,
@@ -71,10 +72,10 @@ fn plan(book: &Book, req: &PostRequest) -> DomainResult<Plan> {
     if inv.is_posted() {
         return Err(DomainError::conflict(format!("document {} is already posted", inv.id)));
     }
-    let kind = calc::document_kind(book, &inv)?;
+    let kind = calc::invoice_type(book, &inv)?;
     let currency = inv.currency.clone().ok_or_else(|| DomainError::invalid(format!("document {} has no currency", inv.id)))?;
     check_post_account(book, &kind, &currency, req.account)?;
-    let entries: Vec<Entry> = calc::document_entries(book, &inv).into_iter().cloned().collect();
+    let entries: Vec<Entry> = documents::entries_of(book, inv.guid).into_iter().cloned().collect();
     if entries.is_empty() {
         return Err(DomainError::invalid(format!("document {} has no entries", inv.id)));
     }
@@ -85,7 +86,7 @@ fn plan(book: &Book, req: &PostRequest) -> DomainResult<Plan> {
 /// The posting account must be A/R for customers and A/P otherwise (`5.17:libgnucash/engine/gncOwner.c:1443-1460`),
 /// not a placeholder, and in the document currency: GnuCash's dialog offers only such accounts, and
 /// `xaccSplitSetBaseValue` cannot set the amount of a split in another commodity.
-fn check_post_account(book: &Book, kind: &DocumentKind, currency: &CommodityRef, account: Guid) -> DomainResult<()> {
+fn check_post_account(book: &Book, kind: &InvoiceType, currency: &CommodityRef, account: Guid) -> DomainResult<()> {
     let acc = book.account(account).ok_or_else(|| DomainError::not_found("account", &account))?;
     let wanted = if kind.is_customer() { AccountType::Receivable } else { AccountType::Payable };
     if acc.account_type != wanted {
@@ -101,7 +102,7 @@ fn check_post_account(book: &Book, kind: &DocumentKind, currency: &CommodityRef,
 }
 
 /// An employee's company card account, which must be in the document currency.
-fn card_account(book: &Book, kind: &DocumentKind, currency: &CommodityRef) -> DomainResult<Option<Guid>> {
+fn card_account(book: &Book, kind: &InvoiceType, currency: &CommodityRef) -> DomainResult<Option<Guid>> {
     if kind.end_owner.kind != OwnerKind::Employee {
         return Ok(None);
     }
@@ -116,7 +117,7 @@ fn card_account(book: &Book, kind: &DocumentKind, currency: &CommodityRef) -> Do
 }
 
 /// The account an entry posts to on this kind of document.
-fn entry_account(entry: &Entry, kind: &DocumentKind) -> DomainResult<Guid> {
+fn entry_account(entry: &Entry, kind: &InvoiceType) -> DomainResult<Guid> {
     let account = if kind.is_customer() { entry.i_account } else { entry.b_account };
     account.ok_or_else(|| DomainError::invalid(format!("entry {:?} has no account", entry.description)))
 }
@@ -234,7 +235,7 @@ fn posted_transaction(book: &Book, env: &mut dyn Env, req: &PostRequest, p: &Pla
         num: (!p.inv.id.is_empty()).then(|| p.inv.id.clone()),
         date_posted: req.post_date.neutral_time(),
         date_entered: env.now(),
-        description: Some(calc::owner_name(book, p.kind.end_owner).unwrap_or_default()),
+        description: Some(contacts::owner_name(book, p.kind.end_owner).unwrap_or_default()),
         slots: Frame::new(),
         splits,
     };
@@ -261,7 +262,7 @@ fn freeze(book: &mut Book, env: &mut dyn Env, p: &Plan) -> DomainResult<()> {
     p.entries.iter().try_for_each(|e| freeze_entry(book, env, &p.kind, e.guid))
 }
 
-fn freeze_entry(book: &mut Book, env: &mut dyn Env, kind: &DocumentKind, entry: Guid) -> DomainResult<()> {
+fn freeze_entry(book: &mut Book, env: &mut dyn Env, kind: &InvoiceType, entry: Guid) -> DomainResult<()> {
     let e = book.business.entries.get(&entry).cloned().ok_or_else(|| DomainError::not_found("entry", &entry))?;
     let customer = kind.is_customer();
     let table = if customer { e.i_tax_table } else { e.b_tax_table };
@@ -434,8 +435,8 @@ fn relink_remaining(book: &mut Book, env: &mut dyn Env, work: &mut LotWork, lot:
 
 /// Point each entry's tax table at its parent (`5.17:libgnucash/engine/gncInvoice.c:1841-1855`).
 fn reset_tables(book: &mut Book, inv: &Invoice) -> DomainResult<()> {
-    let kind = calc::document_kind(book, inv)?;
-    let entries: Vec<(Guid, Option<Guid>)> = calc::document_entries(book, inv)
+    let kind = calc::invoice_type(book, inv)?;
+    let entries: Vec<(Guid, Option<Guid>)> = documents::entries_of(book, inv.guid)
         .into_iter()
         .map(|e| (e.guid, if kind.is_customer() { e.i_tax_table } else { e.b_tax_table }))
         .collect();

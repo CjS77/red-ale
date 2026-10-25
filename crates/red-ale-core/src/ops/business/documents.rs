@@ -30,7 +30,7 @@ pub const OPT_DEFAULT_VENDOR_TAX_TABLE: &str = "options/Business/Default Vendor 
 
 /// What kind of document an invoice is, from its end owner. Credit notes are not modelled in v0.1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DocumentType {
+pub enum DocumentKind {
     /// A customer invoice (`GNC_INVOICE_CUST_INVOICE`).
     Invoice,
     /// A vendor bill (`GNC_INVOICE_VEND_INVOICE`).
@@ -39,7 +39,7 @@ pub enum DocumentType {
     ExpenseVoucher,
 }
 
-impl DocumentType {
+impl DocumentKind {
     /// The type of a document whose end owner is of this kind.
     pub fn of_end_owner(kind: OwnerKind) -> Option<Self> {
         match kind {
@@ -76,13 +76,13 @@ impl DocumentType {
 }
 
 /// The document kind for an owner, following a job to its owner.
-pub fn document_type(book: &Book, owner: OwnerRef) -> Option<DocumentType> {
-    end_owner(book, owner).and_then(|o| DocumentType::of_end_owner(o.kind))
+pub fn owner_document_kind(book: &Book, owner: OwnerRef) -> Option<DocumentKind> {
+    end_owner(book, owner).and_then(|o| DocumentKind::of_end_owner(o.kind))
 }
 
 /// The type of a stored invoice.
-pub fn invoice_type(book: &Book, invoice: &Invoice) -> Option<DocumentType> {
-    document_type(book, invoice.owner)
+pub fn document_kind(book: &Book, invoice: &Invoice) -> Option<DocumentKind> {
+    owner_document_kind(book, invoice.owner)
 }
 
 fn invoice(book: &Book, guid: Guid) -> DomainResult<&Invoice> {
@@ -107,11 +107,11 @@ fn refuse_posted(inv: &Invoice) -> DomainResult<()> {
 /// customer, vendor or employee, an opened date (`design/notes/xml-format-business.md` §5.5), the owner's currency
 /// (`5.17:gnucash/gnome/dialog-invoice.c:414`), a bill-to customer or job only on bills and vouchers, and a charge
 /// amount only on vouchers.
-fn check_invoice(book: &Book, inv: &Invoice, old: Option<&Invoice>) -> DomainResult<DocumentType> {
+fn check_invoice(book: &Book, inv: &Invoice, old: Option<&Invoice>) -> DomainResult<DocumentKind> {
     if !owner_exists(book, inv.owner) {
         return Err(DomainError::not_found("owner", &inv.owner.guid));
     }
-    let doc = document_type(book, inv.owner)
+    let doc = owner_document_kind(book, inv.owner)
         .ok_or_else(|| DomainError::invalid("a document's owner must be a customer, vendor, employee or job"))?;
     if inv.is_credit_note() {
         return Err(DomainError::invalid("credit notes are not supported in red-ale v0.1"));
@@ -125,13 +125,13 @@ fn check_invoice(book: &Book, inv: &Invoice, old: Option<&Invoice>) -> DomainRes
     }
     check_bill_term_ref(book, inv.terms, old.and_then(|o| o.terms))?;
     check_bill_to(book, inv.bill_to, doc)?;
-    if !inv.charge_amount.is_zero() && doc != DocumentType::ExpenseVoucher {
+    if !inv.charge_amount.is_zero() && doc != DocumentKind::ExpenseVoucher {
         return Err(DomainError::invalid("only expense vouchers have an amount to charge"));
     }
     Ok(doc)
 }
 
-fn check_bill_to(book: &Book, bill_to: Option<OwnerRef>, doc: DocumentType) -> DomainResult<()> {
+fn check_bill_to(book: &Book, bill_to: Option<OwnerRef>, doc: DocumentKind) -> DomainResult<()> {
     let Some(b) = bill_to else { return Ok(()) };
     if doc.is_customer() {
         return Err(DomainError::invalid("only bills and expense vouchers have a bill-to customer"));
@@ -178,8 +178,8 @@ pub fn update_invoice(book: &mut Book, inv: Invoice) -> DomainResult<()> {
             return Err(DomainError::invalid("posting fields change only by posting"));
         }
         let doc = check_invoice(book, &inv, Some(&old))?;
-        if invoice_type(book, &old) != Some(doc) {
-            return Err(DomainError::invalid(format!("the owner must stay a {} owner", doc_owner_word(invoice_type(book, &old)))));
+        if document_kind(book, &old) != Some(doc) {
+            return Err(DomainError::invalid(format!("the owner must stay a {} owner", doc_owner_word(document_kind(book, &old)))));
         }
         retarget_bill_term(book, old.terms, inv.terms);
     }
@@ -187,11 +187,11 @@ pub fn update_invoice(book: &mut Book, inv: Invoice) -> DomainResult<()> {
     Ok(())
 }
 
-fn doc_owner_word(doc: Option<DocumentType>) -> &'static str {
+fn doc_owner_word(doc: Option<DocumentKind>) -> &'static str {
     match doc {
-        Some(DocumentType::Invoice) => "customer",
-        Some(DocumentType::Bill) => "vendor",
-        Some(DocumentType::ExpenseVoucher) => "employee",
+        Some(DocumentKind::Invoice) => "customer",
+        Some(DocumentKind::Bill) => "vendor",
+        Some(DocumentKind::ExpenseVoucher) => "employee",
         None => "valid",
     }
 }
@@ -242,12 +242,12 @@ fn destroy_line(book: &mut Book, line: Guid) {
 
 /// GnuCash's order of lines on a document: date, date entered, description, action, then GUID (`gncEntryCompare`,
 /// `5.17:libgnucash/engine/gncEntry.c:1647-1665`).
-pub fn line_order(a: &Entry, b: &Entry) -> std::cmp::Ordering {
+pub fn entry_order(a: &Entry, b: &Entry) -> std::cmp::Ordering {
     (a.date, a.entered, &a.description, &a.action, a.guid).cmp(&(b.date, b.entered, &b.description, &b.action, b.guid))
 }
 
 /// The lines of a document or order, in GnuCash's order.
-pub fn lines_of(book: &Book, doc: Guid) -> Vec<&Entry> {
+pub fn entries_of(book: &Book, doc: Guid) -> Vec<&Entry> {
     let mut lines: Vec<&Entry> =
         book.business
             .entries
@@ -255,16 +255,16 @@ pub fn lines_of(book: &Book, doc: Guid) -> Vec<&Entry> {
             .map(AsRef::as_ref)
             .filter(|e| e.invoice == Some(doc) || e.bill == Some(doc) || e.order == Some(doc))
             .collect();
-    lines.sort_by(|a, b| line_order(a, b));
+    lines.sort_by(|a, b| entry_order(a, b));
     lines
 }
 
 /// The document kind of the side an entry belongs to: its invoice, else its bill. Order lines use the invoice side
 /// whoever owns the order: GnuCash's order ledger is a customer-document ledger
 /// (`5.17:gnucash/register/ledger-core/gncEntryLedger.c:286-294`).
-pub fn line_type(book: &Book, e: &Entry) -> Option<DocumentType> {
-    let of_invoice = |g: Option<Guid>| g.and_then(|g| book.business.invoices.get(&g)).and_then(|i| invoice_type(book, i));
-    of_invoice(e.invoice).or_else(|| of_invoice(e.bill)).or_else(|| e.order.map(|_| DocumentType::Invoice))
+pub fn entry_document_kind(book: &Book, e: &Entry) -> Option<DocumentKind> {
+    let of_invoice = |g: Option<Guid>| g.and_then(|g| book.business.invoices.get(&g)).and_then(|i| document_kind(book, i));
+    of_invoice(e.invoice).or_else(|| of_invoice(e.bill)).or_else(|| e.order.map(|_| DocumentKind::Invoice))
 }
 
 /// A line's links: its invoice must be a customer invoice and its bill a bill or voucher, both unposted, and its
@@ -276,14 +276,14 @@ fn check_line_links(book: &Book, e: &Entry) -> DomainResult<()> {
     if let Some(g) = e.invoice {
         let inv = invoice(book, g)?;
         refuse_posted(inv)?;
-        if invoice_type(book, inv) != Some(DocumentType::Invoice) {
+        if document_kind(book, inv) != Some(DocumentKind::Invoice) {
             return Err(DomainError::invalid("only a customer invoice holds lines on the invoice side"));
         }
     }
     if let Some(g) = e.bill {
         let bill = invoice(book, g)?;
         refuse_posted(bill)?;
-        if invoice_type(book, bill).is_none_or(DocumentType::is_customer) {
+        if document_kind(book, bill).is_none_or(DocumentKind::is_customer) {
             return Err(DomainError::invalid("only a bill or expense voucher holds lines on the bill side"));
         }
     }
@@ -316,7 +316,7 @@ fn check_line_account(book: &Book, account: Option<Guid>, old: Option<Guid>, cus
 
 fn check_line(book: &Book, e: &Entry, old: Option<&Entry>) -> DomainResult<()> {
     check_line_links(book, e)?;
-    let customer = line_type(book, e).is_some_and(DocumentType::is_customer);
+    let customer = entry_document_kind(book, e).is_some_and(DocumentKind::is_customer);
     check_line_account(book, e.i_account, old.and_then(|o| o.i_account), customer || e.invoice.is_some())?;
     check_line_account(book, e.b_account, old.and_then(|o| o.b_account), false)?;
     check_tax_table_ref(book, e.i_tax_table, old.and_then(|o| o.i_tax_table))?;
@@ -376,8 +376,8 @@ pub fn remove_entry(book: &mut Book, guid: Guid) -> DomainResult<()> {
 /// when there is a table. Vouchers get the engine defaults only.
 pub fn default_entry(book: &Book, guid: Guid, date: Time64, entered: Time64, owner: OwnerRef) -> Entry {
     let mut e = Entry::new(guid, date, entered);
-    let Some(doc) = document_type(book, owner) else { return e };
-    if doc == DocumentType::ExpenseVoucher {
+    let Some(doc) = owner_document_kind(book, owner) else { return e };
+    if doc == DocumentKind::ExpenseVoucher {
         return e;
     }
     let price =
@@ -385,7 +385,7 @@ pub fn default_entry(book: &Book, guid: Guid, date: Time64, entered: Time64, own
     let b = &book.business;
     let end = end_owner(book, owner).map(|o| o.guid).unwrap_or_default();
     let (included, override_table, discount, option) = match doc {
-        DocumentType::Invoice => b.customers.get(&end).map_or((TaxIncluded::UseGlobal, None, None, OPT_DEFAULT_CUSTOMER_TAX_TABLE), |c| {
+        DocumentKind::Invoice => b.customers.get(&end).map_or((TaxIncluded::UseGlobal, None, None, OPT_DEFAULT_CUSTOMER_TAX_TABLE), |c| {
             (c.tax_included, c.use_tax_table.then_some(c.tax_table).flatten(), Some(c.discount), OPT_DEFAULT_CUSTOMER_TAX_TABLE)
         }),
         _ => b.vendors.get(&end).map_or((TaxIncluded::UseGlobal, None, None, OPT_DEFAULT_VENDOR_TAX_TABLE), |v| {
@@ -425,7 +425,7 @@ fn check_order(book: &Book, o: &Order) -> DomainResult<()> {
     if !owner_exists(book, o.owner) {
         return Err(DomainError::not_found("owner", &o.owner.guid));
     }
-    if !matches!(document_type(book, o.owner), Some(DocumentType::Invoice | DocumentType::Bill)) {
+    if !matches!(owner_document_kind(book, o.owner), Some(DocumentKind::Invoice | DocumentKind::Bill)) {
         return Err(DomainError::invalid("an order's owner must be a customer, vendor or job"));
     }
     if o.opened == Time64(i64::MAX) {

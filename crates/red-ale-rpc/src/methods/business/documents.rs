@@ -7,8 +7,8 @@
 use red_ale_core::business::{AmountType, DiscountHow, Entry, Invoice, Order, OwnerRef, PaymentType};
 use red_ale_core::ops::business::contacts::{owner_currency, owner_terms};
 use red_ale_core::ops::business::documents::{
-    DocumentType, add_entry, add_invoice, add_order, close_order, default_entry, delete_invoice, document_type, invoice_type, line_type,
-    lines_of, remove_entry, update_entry, update_invoice, update_order,
+    DocumentKind, add_entry, add_invoice, add_order, close_order, default_entry, delete_invoice, owner_document_kind, document_kind, entry_document_kind,
+    entries_of, remove_entry, update_entry, update_invoice, update_order,
 };
 use red_ale_core::{Book, Env, Frame, Guid, Numeric, Time64};
 use schemars::JsonSchema;
@@ -45,7 +45,7 @@ pub fn methods() -> Vec<Method> {
 /// The kind of a document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub enum DocumentTypeWire {
+pub enum DocumentKindWire {
     /// A customer invoice.
     Invoice,
     /// A vendor bill.
@@ -56,14 +56,14 @@ pub enum DocumentTypeWire {
     CreditNote,
 }
 
-fn type_wire(book: &Book, inv: &Invoice) -> Option<DocumentTypeWire> {
+fn type_wire(book: &Book, inv: &Invoice) -> Option<DocumentKindWire> {
     if inv.is_credit_note() {
-        return Some(DocumentTypeWire::CreditNote);
+        return Some(DocumentKindWire::CreditNote);
     }
-    invoice_type(book, inv).map(|t| match t {
-        DocumentType::Invoice => DocumentTypeWire::Invoice,
-        DocumentType::Bill => DocumentTypeWire::Bill,
-        DocumentType::ExpenseVoucher => DocumentTypeWire::ExpenseVoucher,
+    document_kind(book, inv).map(|t| match t {
+        DocumentKind::Invoice => DocumentKindWire::Invoice,
+        DocumentKind::Bill => DocumentKindWire::Bill,
+        DocumentKind::ExpenseVoucher => DocumentKindWire::ExpenseVoucher,
     })
 }
 
@@ -259,26 +259,26 @@ with_line_fields!(line_params! {
 impl LineFields {
     /// Refuse fields that do not exist on this kind of document, as GnuCash's entry ledger shows no column for them
     /// (`5.17:gnucash/register/ledger-core/gncEntryLedgerLayout.c:218-282`).
-    fn check_side(&self, doc: DocumentType) -> Result<(), RpcError> {
+    fn check_side(&self, doc: DocumentKind) -> Result<(), RpcError> {
         let refuse =
             |present: bool, what: &str| if present { Err(RpcError::invalid(format!("{what} not on this kind of document"))) } else { Ok(()) };
         match doc {
-            DocumentType::Invoice => {
+            DocumentKind::Invoice => {
                 refuse(self.billable.is_some() || self.bill_to.is_some(), "billable and billTo are")?;
                 refuse(self.payment.is_some(), "payment is")
             }
-            DocumentType::Bill => {
+            DocumentKind::Bill => {
                 refuse(self.discount.is_some() || self.discount_type.is_some() || self.discount_how.is_some(), "discounts are")?;
                 refuse(self.payment.is_some(), "payment is")
             }
-            DocumentType::ExpenseVoucher => {
+            DocumentKind::ExpenseVoucher => {
                 refuse(self.discount.is_some() || self.discount_type.is_some() || self.discount_how.is_some(), "discounts are")?;
                 refuse(self.taxable.is_some() || self.tax_included.is_some() || self.tax_table.is_some(), "tax settings are")
             }
         }
     }
 
-    fn apply(self, book: &Book, e: &mut Entry, doc: DocumentType) -> Result<(), RpcError> {
+    fn apply(self, book: &Book, e: &mut Entry, doc: DocumentKind) -> Result<(), RpcError> {
         self.check_side(doc)?;
         if let Some(d) = self.date {
             e.date = local_noon(d.0);
@@ -404,10 +404,10 @@ fn new_line(book: &Book, env: &mut dyn Env, parent: Guid, fields: LineFields, li
     let date = date_or_today(env, None)?;
     let (guid, now) = (env.new_guid(), env.now());
     let (mut e, doc) = if let Some(inv) = book.business.invoices.get(&parent) {
-        let doc = document_type(book, inv.owner).ok_or_else(|| RpcError::invalid("the document has no valid owner"))?;
+        let doc = owner_document_kind(book, inv.owner).ok_or_else(|| RpcError::invalid("the document has no valid owner"))?;
         (default_entry(book, guid, date, now, inv.owner), doc)
     } else if book.business.orders.contains_key(&parent) {
-        (Entry::new(guid, date, now), DocumentType::Invoice)
+        (Entry::new(guid, date, now), DocumentKind::Invoice)
     } else {
         return Err(RpcError::not_found("document", parent));
     };
@@ -421,7 +421,7 @@ fn invoice_add_entry(ctx: &mut Context, p: AddLineParams) -> Result<EntryInfo, R
     let fields = p.fields();
     ctx.mutate_rpc(|book, env| {
         let inv = book.business.invoices.get(&doc).ok_or_else(|| RpcError::not_found("invoice", doc))?;
-        let customer = invoice_type(book, inv).is_some_and(DocumentType::is_customer);
+        let customer = document_kind(book, inv).is_some_and(DocumentKind::is_customer);
         let e = new_line(book, env, doc, fields, |e| {
             if customer {
                 e.invoice = Some(doc);
@@ -450,7 +450,7 @@ fn entry_update(ctx: &mut Context, p: UpdateLineParams) -> Result<EntryInfo, Rpc
     let fields = p.fields();
     ctx.mutate_rpc(|book, _| {
         let mut e = book.business.entries.get(&guid).map(|e| (**e).clone()).ok_or_else(|| RpcError::not_found("entry", guid))?;
-        let doc = line_type(book, &e).ok_or_else(|| RpcError::invalid("the line is on no document or order"))?;
+        let doc = entry_document_kind(book, &e).ok_or_else(|| RpcError::invalid("the line is on no document or order"))?;
         fields.apply(book, &mut e, doc)?;
         update_entry(book, e)?;
         get_entry(book, guid)
@@ -530,7 +530,7 @@ pub struct InvoiceInfo {
     pub id: String,
     /// From the owner (through a job to its owner) and the credit-note flag.
     #[serde(rename = "type")]
-    pub kind: Option<DocumentTypeWire>,
+    pub kind: Option<DocumentKindWire>,
     pub owner: OwnerInfo,
     pub currency: Option<CommodityId>,
     pub date_opened: Timestamp,
@@ -584,7 +584,7 @@ fn invoice_info(book: &Book, inv: &Invoice) -> InvoiceInfo {
 
 fn get_invoice(book: &Book, guid: Guid) -> Result<InvoiceDetail, RpcError> {
     let inv = book.business.invoices.get(&guid).ok_or_else(|| RpcError::not_found("invoice", guid))?;
-    let entries = lines_of(book, guid).into_iter().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(Into::into).collect();
+    let entries = entries_of(book, guid).into_iter().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(Into::into).collect();
     Ok(InvoiceDetail { invoice: invoice_info(book, inv), entries })
 }
 
@@ -602,7 +602,7 @@ pub struct InvoiceKey {
 pub struct InvoiceListParams {
     /// Only this type.
     #[serde(default, rename = "type")]
-    pub kind: Option<DocumentTypeWire>,
+    pub kind: Option<DocumentKindWire>,
     /// Only this owner's documents; a customer or vendor also matches its jobs' documents.
     #[serde(default)]
     pub owner: Option<Id>,
@@ -781,7 +781,7 @@ fn order_info(book: &Book, o: &Order) -> OrderInfo {
 
 fn get_order(book: &Book, guid: Guid) -> Result<OrderDetail, RpcError> {
     let o = book.business.orders.get(&guid).ok_or_else(|| RpcError::not_found("order", guid))?;
-    let entries = lines_of(book, guid).into_iter().filter(|e| e.order == Some(guid)).map(Into::into).collect();
+    let entries = entries_of(book, guid).into_iter().filter(|e| e.order == Some(guid)).map(Into::into).collect();
     Ok(OrderDetail { order: order_info(book, o), entries })
 }
 

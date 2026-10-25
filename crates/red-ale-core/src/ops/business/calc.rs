@@ -4,9 +4,8 @@
 //! results match it exactly (`design/notes/engine-business.md` §3.2, §4.2, §5.1). Calendar dates are UTC dates: red-ale
 //! treats UTC as the local time zone, as the oracle does (`TZ=UTC`).
 
-use std::cmp::Ordering;
-
 use crate::business::{AmountType, BillTerm, BillTermKind, DiscountHow, Entry, Invoice, OwnerKind, OwnerRef, PaymentType, TaxTable, TaxTableEntry};
+use crate::ops::business::{contacts, documents};
 use crate::ops::commit::commodity_fraction;
 use crate::time::days_in_month;
 use crate::{Book, DENOM_AUTO, Date, DenomMode, DomainError, DomainResult, Guid, How, Numeric, Round, Time64};
@@ -80,14 +79,14 @@ fn proximo_month(date: Date, cutoff_day: i64) -> (i32, u32) {
 /// What kind of document an invoice is, from its end owner and credit-note flag (`gncInvoiceGetType`,
 /// `5.17:libgnucash/engine/gncInvoice.c:1065-1108`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DocumentKind {
+pub struct InvoiceType {
     /// The end owner: a job's owner, otherwise the document's owner.
     pub end_owner: OwnerRef,
     /// A credit note.
     pub credit_note: bool,
 }
 
-impl DocumentKind {
+impl InvoiceType {
     /// The document belongs to a customer, so entries use their invoice (`i_`) side.
     pub fn is_customer(self) -> bool {
         self.end_owner.kind == OwnerKind::Customer
@@ -110,57 +109,23 @@ impl DocumentKind {
     }
 }
 
-/// `gncOwnerGetEndOwner`: a job's owner, or the owner itself (`5.17:libgnucash/engine/gncOwner.c:572`).
-pub fn end_owner(book: &Book, owner: OwnerRef) -> DomainResult<OwnerRef> {
-    match owner.kind {
-        OwnerKind::Job => {
-            let job = book.business.jobs.get(&owner.guid).ok_or_else(|| DomainError::not_found("job", &owner.guid))?;
-            if job.owner.kind == OwnerKind::Job {
-                return Err(DomainError::invalid(format!("job {} is owned by another job", job.id)));
-            }
-            Ok(job.owner)
-        }
-        _ => Ok(owner),
+/// The end owner (`contacts::end_owner`), refusing a missing job and a job owned by another job, which GnuCash
+/// cannot post or pay (`5.17:libgnucash/engine/gncOwner.c:572`).
+pub fn require_end_owner(book: &Book, owner: OwnerRef) -> DomainResult<OwnerRef> {
+    let end = contacts::end_owner(book, owner).ok_or_else(|| DomainError::not_found("job", &owner.guid))?;
+    if end.kind == OwnerKind::Job {
+        return Err(DomainError::invalid(format!("job {} is owned by another job", owner.guid)));
     }
-}
-
-/// `gncOwnerGetName` (`5.17:libgnucash/engine/gncOwner.c:432-450`); an employee's name is its address name.
-pub fn owner_name(book: &Book, owner: OwnerRef) -> Option<String> {
-    let b = &book.business;
-    match owner.kind {
-        OwnerKind::Customer => b.customers.get(&owner.guid).map(|c| c.name.clone()),
-        OwnerKind::Vendor => b.vendors.get(&owner.guid).map(|v| v.name.clone()),
-        OwnerKind::Employee => b.employees.get(&owner.guid).map(|e| e.addr.name.clone()),
-        OwnerKind::Job => b.jobs.get(&owner.guid).map(|j| j.name.clone()),
-    }
-}
-
-/// True when the owner exists in the book.
-pub fn owner_exists(book: &Book, owner: OwnerRef) -> bool {
-    owner_name(book, owner).is_some()
+    Ok(end)
 }
 
 /// The kind of document `invoice` is.
-pub fn document_kind(book: &Book, invoice: &Invoice) -> DomainResult<DocumentKind> {
-    let end_owner = end_owner(book, invoice.owner)?;
-    if !owner_exists(book, end_owner) {
+pub fn invoice_type(book: &Book, invoice: &Invoice) -> DomainResult<InvoiceType> {
+    let end_owner = require_end_owner(book, invoice.owner)?;
+    if !contacts::owner_exists(book, end_owner) {
         return Err(DomainError::not_found(end_owner.kind.type_name(), &end_owner.guid));
     }
-    Ok(DocumentKind { end_owner, credit_note: invoice.is_credit_note() })
-}
-
-/// `gncEntryCompare`: date, date entered, description, action, then GUID (`5.17:libgnucash/engine/gncEntry.c:1647-1663`).
-fn entry_order(a: &Entry, b: &Entry) -> Ordering {
-    a.date.cmp(&b.date).then(a.entered.cmp(&b.entered)).then_with(|| a.description.cmp(&b.description)).then_with(|| a.action.cmp(&b.action)).then(a.guid.cmp(&b.guid))
-}
-
-/// A document's entries in GnuCash's order: those on it as an invoice or as a bill, sorted by `gncEntryCompare`
-/// (`5.17:libgnucash/engine/gncInvoice.c:661-740`).
-pub fn document_entries<'a>(book: &'a Book, invoice: &Invoice) -> Vec<&'a Entry> {
-    let mut entries: Vec<&Entry> =
-        book.business.entries.values().map(AsRef::as_ref).filter(|e| e.invoice == Some(invoice.guid) || e.bill == Some(invoice.guid)).collect();
-    entries.sort_by(|a, b| entry_order(a, b));
-    entries
+    Ok(InvoiceType { end_owner, credit_note: invoice.is_credit_note() })
 }
 
 /// A tax table's lines in GnuCash's order: by account full name, then amount (`gncTaxTableEntryCompare`,
@@ -402,11 +367,11 @@ fn document_denom(book: &Book, invoice: &Invoice) -> i64 {
 /// `gncInvoiceGetNetAndTaxesInternal` and `gncInvoiceGetTotalInternal`, optionally restricted to entries paid one
 /// way (`gncInvoiceGetTotalOf`).
 pub fn document_totals_of(book: &Book, invoice: &Invoice, payment: Option<PaymentType>) -> DomainResult<DocumentTotals> {
-    let kind = document_kind(book, invoice)?;
+    let kind = invoice_type(book, invoice)?;
     let denom = document_denom(book, invoice);
     let mut subtotal = Numeric::ZERO;
     let mut taxes = AccountValues::new();
-    document_entries(book, invoice).into_iter().filter(|e| payment.is_none_or(|p| e.b_payment == p)).try_for_each(|e| -> DomainResult<()> {
+    documents::entries_of(book, invoice.guid).into_iter().filter(|e| payment.is_none_or(|p| e.b_payment == p)).try_for_each(|e| -> DomainResult<()> {
         let amounts = entry_amounts(book, e, kind.is_customer(), entry_denom(book, e))?;
         let value = if kind.credit_note { amounts.value_rounded.neg() } else { amounts.value_rounded };
         subtotal = subtotal.add(value, DENOM_AUTO, LCD)?;
@@ -436,9 +401,9 @@ pub struct DocumentLine {
 
 /// Every entry of a document with its rounded, document-signed values, in document order.
 pub fn document_lines(book: &Book, invoice: &Invoice) -> DomainResult<Vec<DocumentLine>> {
-    let kind = document_kind(book, invoice)?;
+    let kind = invoice_type(book, invoice)?;
     let sign = |n: Numeric| if kind.credit_note { n.neg() } else { n };
-    document_entries(book, invoice)
+    documents::entries_of(book, invoice.guid)
         .into_iter()
         .map(|e| {
             let a = entry_amounts(book, e, kind.is_customer(), entry_denom(book, e))?;
