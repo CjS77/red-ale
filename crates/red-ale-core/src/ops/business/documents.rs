@@ -238,6 +238,20 @@ fn destroy_line(book: &mut Book, line: Guid) {
 // ---------------------------------------------------------------------------------------------------------------
 // Lines (entries).
 
+/// GnuCash's order of lines on a document: date, date entered, description, action, then GUID (`gncEntryCompare`,
+/// `5.17:libgnucash/engine/gncEntry.c:1647-1665`).
+pub fn line_order(a: &Entry, b: &Entry) -> std::cmp::Ordering {
+    (a.date, a.entered, &a.description, &a.action, a.guid).cmp(&(b.date, b.entered, &b.description, &b.action, b.guid))
+}
+
+/// The lines of a document or order, in GnuCash's order.
+pub fn lines_of(book: &Book, doc: Guid) -> Vec<&Entry> {
+    let mut lines: Vec<&Entry> =
+        book.business.entries.values().map(AsRef::as_ref).filter(|e| e.invoice == Some(doc) || e.bill == Some(doc) || e.order == Some(doc)).collect();
+    lines.sort_by(|a, b| line_order(a, b));
+    lines
+}
+
 /// The document type of the side a line belongs to: its invoice, else its bill, else its order's owner.
 pub fn line_type(book: &Book, e: &Entry) -> Option<DocumentType> {
     let of_invoice = |g: Option<Guid>| g.and_then(|g| book.business.invoices.get(&g)).and_then(|i| invoice_type(book, i));

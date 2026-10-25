@@ -3,6 +3,9 @@
 //!
 //! There are no delete methods: GnuCash never deletes a saved contact, it deactivates it (`active: false`).
 
+// Optional fields that can be cleared are three-state on the wire: absent (keep), null (clear) or a value.
+#![allow(clippy::option_option)]
+
 use chrono::{Datelike, Local, NaiveDate, TimeZone};
 use red_ale_core::business::{Address, Customer, Employee, Job, OwnerKind, OwnerRef, TaxIncluded, Vendor};
 use red_ale_core::ops::business::contacts::{
