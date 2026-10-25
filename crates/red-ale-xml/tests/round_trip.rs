@@ -68,3 +68,15 @@ fn edits_are_written_and_only_the_edited_entity_changes() {
     let changed: Vec<_> = original.lines().zip(out.lines()).filter(|(a, b)| a != b).collect();
     assert_eq!(changed.len(), 1, "{changed:?}");
 }
+
+#[test]
+fn a_split_with_no_account_round_trips() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let start = text.find("<split:account type=\"guid\">").unwrap() + "<split:account type=\"guid\">".len();
+    let orphaned = format!("{}{}{}", &text[..start], "0".repeat(32), &text[start + 32..]);
+    let (book, mut residue) = read_book(orphaned.as_bytes()).unwrap();
+    assert!(book.transactions.values().flat_map(|t| &t.splits).any(|s| s.account.is_none()));
+    residue.forget_originals();
+    let (again, _) = read_book(write_book_text(&book, &residue).as_bytes()).unwrap();
+    assert_eq!(again, book);
+}
