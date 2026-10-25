@@ -132,5 +132,9 @@ Trading accounts the scrub creates are reported as `accountCreated`.
   as the same book.
 - **Oracle:** `crates/red-ale-testkit/tests/oracle_trading.rs`. GnuCash 5.17 posts the same multi-commodity
   transactions in a book with trading accounts (adding the trading splits itself) as red-ale posts through the API,
-  and the two books must match. A piecash book edited by red-ale reads the same in GnuCash, every transaction is
-  balanced by `xaccTransIsBalanced`, and GnuCash's own imbalance scrub changes nothing.
+  and the two books must match split for split, in stored order, with the same trading tree. GnuCash's imbalance
+  scrub and red-ale's `scrub.checkAndRepair` rebuild the same trading splits on a book whose transactions predate the
+  option. Piecash books saved unedited and edited by red-ale (post, update, reverse, void) read the same in GnuCash,
+  every transaction is balanced by `xaccTransIsBalanced`, GnuCash's own imbalance scrub changes nothing and its
+  engine logs no warning. GnuCash's side runs in `oracle/trading.py`, which sets the current session to the open
+  book as the GUI does; `oracle/scrub.py` now does too.
