@@ -16,7 +16,7 @@ Code names are given in `code font` when they differ from the term.
 | **Session** | An open Book file: the Book, its lock, its journal and whether it is read-only. Opened, edited, saved and closed through the API. |
 | **Lock** | The `<file>.LCK` marker that stops two programs writing one Book file. A Session either holds the lock or is read-only. |
 | **Read-only session** | A Session that never takes the lock and refuses every mutation. Carries the *reason* it is read-only. |
-| **Read-only trigger** | A property of a Book that makes red-ale open it read-only: an unknown Book feature, or trading accounts. |
+| **Read-only trigger** | A property of a Book that makes red-ale open it read-only: an unknown Book feature. (Trading accounts, the num field source and an auto read-only threshold were triggers in v0.1.) |
 | **Book feature** | A string in the Book's `features` slot naming a capability the Book relies on, so that programs lacking it refuse to edit the Book. **⚠** Not a red-ale "feature" in the `features.md` sense; say *Book feature* for this. |
 | **Book option** | A setting stored in the Book's `options` Frame, edited in GnuCash's File > Properties. Book data, unlike the Configuration. |
 | **Num field source** (`splitActionForNum`) | The Book option "Use Split Action Field for Number". When on, a Split's Number is its Action, and the Transaction's Num is shown as *T-Num*. Turning it on sets the Book feature `Number Field Source`. |
@@ -87,6 +87,10 @@ Code names are given in `code font` when they differ from the term.
 | **Transfer** | GnuCash's Transfer dialog as one operation: a Transaction between two Accounts, possibly in different Commodities, with its rate (to-commodity per from-currency) optionally recorded as a Price. |
 | **Find query** | Criteria over Splits (text, amounts, dates, states, Accounts) combined with all, any or not, as GnuCash's Find dialog builds them. |
 | **Imbalance** | The amount by which a Transaction's values fail to sum to zero. A *scrub* moves it to an `Imbalance-<CUR>` Account. |
+| **Use trading accounts** | The Book option (`options/Accounts/Use Trading Accounts` = `"t"`) under which every commit keeps a Transaction's amounts balanced per Commodity through Trading splits. |
+| **Trading account** | An Account of type `TRADING`. GnuCash's own ones form the tree `Trading:<namespace>:<mnemonic>`, one leaf per Commodity. |
+| **Trading split** | A Split in a Trading account. With Use trading accounts on, commit replaces a Transaction's Trading splits so that, per Commodity, amounts sum to zero. **⚠** GnuCash adds and removes them itself; they are not the user's entries. |
+| **Balanced with trading accounts** | Non-trading values sum to zero, Trading split values sum to zero, and each Commodity's amounts sum to zero (`xaccTransIsBalanced`). Without the option, *balanced* means only that values sum to zero. |
 | **Orphan** | A Split with no Account. A scrub moves it to an `Orphan-<CUR>` Account. |
 | **Scrub** | A repair that restores an invariant (imbalance, orphans, lots). *Check & Repair* runs the scrubs over an Account, a subtree or the Book. |
 | **Statement** | One reconciliation's Account, statement date (the last second of the local day), ending balance and include-subaccounts flag. |
