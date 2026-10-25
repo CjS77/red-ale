@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use red_ale_core::ops::lots::{self, LotSummary, PriceOutcome, SplitKind, SplitView, StockSplit};
-use red_ale_core::{Book, DomainResult, Env, Guid, Time64};
+use red_ale_core::{Book, DomainResult, Env, Guid, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -227,7 +227,7 @@ pub struct LotSplitInfo {
     pub split: Id,
     /// Its transaction.
     pub transaction: Id,
-    /// The transaction's posted date (UTC calendar date; GnuCash posts at 10:59 UTC).
+    /// The local date of the transaction's posted time, as the lot viewer shows it.
     pub date_posted: Option<Day>,
     /// The transaction's number.
     pub num: Option<String>,
@@ -336,7 +336,8 @@ pub struct StockSplitResult {
     pub blocking_price: Option<Id>,
 }
 
-fn lot_info(s: LotSummary) -> LotInfo {
+/// A lot as the lot viewer shows it: dates are local (`qof_print_date`, `5.17:gnucash/gnome/dialog-lot-viewer.c:845-857`).
+fn lot_info(s: LotSummary, zone: &TimeZone) -> LotInfo {
     LotInfo {
         guid: s.guid.into(),
         account: s.account.into(),
@@ -344,8 +345,8 @@ fn lot_info(s: LotSummary) -> LotInfo {
         notes: s.notes,
         invoice: s.invoice.map(Id),
         closed: s.closed,
-        open_date: s.opened.and_then(Time64::utc_date).map(Day),
-        close_date: s.closed_at.and_then(Time64::utc_date).map(Day),
+        open_date: s.opened.and_then(|t| zone.local_date(t)).map(Day),
+        close_date: s.closed_at.and_then(|t| zone.local_date(t)).map(Day),
         balance: s.balance.into(),
         gains_currency: s.gains_currency.map(CommodityId),
         realized_gains: s.gains.into(),
@@ -353,11 +354,11 @@ fn lot_info(s: LotSummary) -> LotInfo {
     }
 }
 
-fn split_info(s: SplitView) -> LotSplitInfo {
+fn split_info(s: SplitView, zone: &TimeZone) -> LotSplitInfo {
     LotSplitInfo {
         split: s.split.into(),
         transaction: s.transaction.into(),
-        date_posted: s.date_posted.utc_date().map(Day),
+        date_posted: zone.local_date(s.date_posted).map(Day),
         num: s.num.filter(|n| !n.is_empty()),
         description: s.description,
         memo: s.memo,
@@ -377,7 +378,7 @@ fn split_info(s: SplitView) -> LotSplitInfo {
 }
 
 fn list(ctx: &mut Context, p: ListParams) -> Result<Vec<LotInfo>, RpcError> {
-    ctx.query(|book, _| {
+    ctx.query(|book, env| {
         let account = p.account.resolve(book)?;
         let lots = lots::lot_summaries(book, account)?;
         Ok(lots
@@ -387,23 +388,23 @@ fn list(ctx: &mut Context, p: ListParams) -> Result<Vec<LotInfo>, RpcError> {
                 LotState::Open => !l.closed,
                 LotState::Closed => l.closed,
             })
-            .map(lot_info)
+            .map(|s| lot_info(s, env.zone()))
             .collect())
     })
 }
 
 fn get(ctx: &mut Context, p: LotParams) -> Result<LotDetail, RpcError> {
-    ctx.query(|book, _| {
-        let lot = lot_info(lots::lot_summary(book, p.lot.0)?);
-        let splits = lots::lot_splits(book, p.lot.0)?.into_iter().map(split_info).collect();
+    ctx.query(|book, env| {
+        let lot = lot_info(lots::lot_summary(book, p.lot.0)?, env.zone());
+        let splits = lots::lot_splits(book, p.lot.0)?.into_iter().map(|s| split_info(s, env.zone())).collect();
         Ok(LotDetail { lot, splits })
     })
 }
 
 fn free_splits(ctx: &mut Context, p: FreeSplitsParams) -> Result<Vec<LotSplitInfo>, RpcError> {
-    ctx.query(|book, _| {
+    ctx.query(|book, env| {
         let account = p.account.resolve(book)?;
-        Ok(lots::free_splits(book, account, p.lot.map(|l| l.0))?.into_iter().map(split_info).collect())
+        Ok(lots::free_splits(book, account, p.lot.map(|l| l.0))?.into_iter().map(|s| split_info(s, env.zone())).collect())
     })
 }
 
@@ -412,12 +413,12 @@ fn create(ctx: &mut Context, p: CreateParams) -> Result<LotInfo, RpcError> {
         let account = p.account.resolve(book)?;
         Ok(lots::create_lot(book, env, account, p.title.as_deref(), p.notes.as_deref())?)
     })?;
-    ctx.query(|book, _| Ok(lot_info(lots::lot_summary(book, guid)?)))
+    ctx.query(|book, env| Ok(lot_info(lots::lot_summary(book, guid)?, env.zone())))
 }
 
 fn update(ctx: &mut Context, p: UpdateParams) -> Result<LotInfo, RpcError> {
     ctx.mutate(|book, _| lots::update_lot(book, p.lot.0, p.title.as_deref(), p.notes.as_deref()))?;
-    ctx.query(|book, _| Ok(lot_info(lots::lot_summary(book, p.lot.0)?)))
+    ctx.query(|book, env| Ok(lot_info(lots::lot_summary(book, p.lot.0)?, env.zone())))
 }
 
 fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {

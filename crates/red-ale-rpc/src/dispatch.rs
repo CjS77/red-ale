@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use red_ale_core::{Book, DomainResult, Env};
+use red_ale_core::{Book, DomainResult, Env, TimeZone};
 use red_ale_service::session::EnvDebug;
 use red_ale_service::{ServiceError, Session, Settings};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
@@ -124,6 +124,15 @@ impl Context {
     /// Remove the open session.
     pub fn take_session(&mut self) -> Result<Session, RpcError> {
         self.session.take().ok_or_else(|| ServiceError::NoSession.into())
+    }
+
+    /// The local time zone: the open session's, else the one new sessions get, else the server process's.
+    pub fn zone(&self) -> TimeZone {
+        match (&self.session, &self.env_factory) {
+            (Some(s), _) => s.zone().clone(),
+            (None, Some(factory)) => factory().zone().clone(),
+            (None, None) => red_ale_service::zone::local_zone().clone(),
+        }
     }
 
     /// The open book.

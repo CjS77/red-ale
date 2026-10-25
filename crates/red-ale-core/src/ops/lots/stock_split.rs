@@ -110,7 +110,8 @@ pub fn stock_split(book: &mut Book, env: &mut dyn Env, req: &StockSplit) -> Doma
     let price = match req.price.filter(|p| p.is_positive()) {
         Some(value) => {
             let price_currency = req.price_currency.clone().unwrap_or_else(|| latest_price_currency(book, &commodity).unwrap_or(currency));
-            add_price(book, env, &commodity, price_currency, req.date.neutral_time(), value)?
+            let time = env.zone().neutral_time(req.date);
+            add_price(book, env, &commodity, price_currency, time, value)?
         }
         None => PriceOutcome::None,
     };
@@ -190,7 +191,8 @@ fn add_price(
         price_type: Some(PRICE_TYPE_UNKNOWN.to_owned()),
         value,
     };
-    let result = prices::add_price(book, price)?;
+    let zone = env.zone().clone();
+    let result = prices::add_price(book, price, &zone)?;
     Ok(match (result.added, result.rejected_by) {
         (Some(guid), _) => PriceOutcome::Added(guid),
         (None, Some(existing)) => PriceOutcome::Rejected { existing },

@@ -1,7 +1,7 @@
 //! Methods: the price database, the price editor and removing old prices. See `design/api/prices.md`.
 
 use red_ale_core::ops::prices::{self as ops, AddResult, Keep, Nearest, PriceChanges, RemoveOld, SourceFlags};
-use red_ale_core::{Book, Date, Numeric, Price, Time64};
+use red_ale_core::{Book, Date, Numeric, Price, Time64, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -35,7 +35,7 @@ pub struct PriceInfo {
     pub currency: CommodityId,
     /// When the price applies.
     pub time: Timestamp,
-    /// The UTC day of `time`, which the same-day rules use.
+    /// The local day of `time`, which the same-day rules use.
     pub date: Option<Day>,
     /// Where it came from, such as `user:price-editor` or `Finance::Quote`; kept as read even when GnuCash does not
     /// know it.
@@ -47,13 +47,13 @@ pub struct PriceInfo {
     pub value: Amount,
 }
 
-fn info(p: &Price) -> PriceInfo {
+fn info(p: &Price, zone: &TimeZone) -> PriceInfo {
     PriceInfo {
         guid: p.guid.into(),
         commodity: p.commodity.clone().into(),
         currency: p.currency.clone().into(),
         time: p.time.into(),
-        date: ops::price_day(p.time).map(Day),
+        date: ops::price_day(p.time, zone).map(Day),
         source: p.source.clone(),
         price_type: p.price_type.clone(),
         value: p.value.into(),
@@ -64,11 +64,11 @@ fn find(book: &Book, guid: Id) -> Result<&Price, RpcError> {
     book.prices.get(&guid.0).map(AsRef::as_ref).ok_or_else(|| RpcError::not_found("price", guid.0))
 }
 
-/// Exactly one of a date (the price editor's: 10:59 UTC that day) or an exact time.
-fn when(date: Option<Day>, time: Option<Timestamp>) -> Result<Option<Time64>, RpcError> {
+/// Exactly one of a date (the price editor's: that day's neutral time) or an exact time.
+fn when(date: Option<Day>, time: Option<Timestamp>, zone: &TimeZone) -> Result<Option<Time64>, RpcError> {
     match (date, time) {
         (Some(_), Some(_)) => Err(RpcError::invalid_params("give date or time, not both")),
-        (Some(d), None) => Ok(Some(d.0.neutral_time())),
+        (Some(d), None) => Ok(Some(zone.neutral_time(d.0))),
         (None, t) => Ok(t.map(|t| t.0)),
     }
 }
@@ -83,7 +83,7 @@ pub struct AddParams {
     pub currency: CommodityId,
     /// Units of `currency` per unit of `commodity`; stored exactly as given.
     pub value: Amount,
-    /// The day it applies, stored at 10:59 UTC as the price editor does. Give this or `time`.
+    /// The day it applies, stored at its day-neutral time as the price editor does. Give this or `time`.
     #[serde(default)]
     pub date: Option<Day>,
     /// The exact time it applies. Give this or `date`.
@@ -112,7 +112,7 @@ pub struct AddOutcome {
     pub existing: Option<Id>,
 }
 
-fn outcome(book: &Book, r: &AddResult) -> AddOutcome {
+fn outcome(book: &Book, r: &AddResult, zone: &TimeZone) -> AddOutcome {
     let name = match (r.added, r.replaced, r.rejected_by) {
         (_, _, Some(_)) => "rejected",
         (None, _, None) => "duplicate",
@@ -121,14 +121,15 @@ fn outcome(book: &Book, r: &AddResult) -> AddOutcome {
     };
     AddOutcome {
         outcome: name,
-        price: r.added.and_then(|g| book.prices.get(&g)).map(|p| info(p)),
+        price: r.added.and_then(|g| book.prices.get(&g)).map(|p| info(p, zone)),
         replaced: r.replaced.map(Id),
         existing: r.rejected_by.or(r.duplicate_of).map(Id),
     }
 }
 
 fn add(ctx: &mut Context, p: AddParams) -> Result<AddOutcome, RpcError> {
-    let time = when(p.date, p.time)?.ok_or_else(|| RpcError::invalid_params("give date or time"))?;
+    let zone = ctx.zone();
+    let time = when(p.date, p.time, &zone)?.ok_or_else(|| RpcError::invalid_params("give date or time"))?;
     let result = ctx.mutate(|book, env| {
         let price = Price {
             guid: env.new_guid(),
@@ -139,9 +140,9 @@ fn add(ctx: &mut Context, p: AddParams) -> Result<AddOutcome, RpcError> {
             price_type: p.price_type.filter(|t| !t.is_empty()),
             value: p.value.0,
         };
-        ops::add_price(book, price)
+        ops::add_price(book, price, &zone)
     })?;
-    Ok(outcome(ctx.book()?, &result))
+    Ok(outcome(ctx.book()?, &result, &zone))
 }
 
 /// Params naming one price.
@@ -153,7 +154,8 @@ pub struct PriceParams {
 }
 
 fn get(ctx: &mut Context, p: PriceParams) -> Result<PriceInfo, RpcError> {
-    find(ctx.book()?, p.price).map(info)
+    let zone = ctx.zone();
+    find(ctx.book()?, p.price).map(|x| info(x, &zone))
 }
 
 /// Params of `price.list`.
@@ -169,24 +171,25 @@ pub struct ListParams {
     /// Also prices of `currency` in `commodity` (needs both).
     #[serde(default)]
     pub both_directions: bool,
-    /// Only prices on or after this UTC day.
+    /// Only prices from local 00:00:00 on this day.
     #[serde(default)]
     pub from: Option<Day>,
-    /// Only prices on or before this UTC day.
+    /// Only prices up to local 23:59:59 on this day.
     #[serde(default)]
     pub to: Option<Day>,
 }
 
 fn list(ctx: &mut Context, p: ListParams) -> Result<Vec<PriceInfo>, RpcError> {
+    let zone = ctx.zone();
     let book = ctx.book()?;
     let selected = match (&p.commodity, &p.currency) {
         (Some(c), cur) => ops::prices(book, &c.0, cur.as_ref().map(|c| &c.0), p.both_directions),
         (None, None) if !p.both_directions => ops::all_prices(book),
         _ => return Err(RpcError::invalid_params("currency and bothDirections need commodity")),
     };
-    let from = p.from.map(|d| d.0.start_utc());
-    let to = p.to.map(|d| d.0.end_utc());
-    Ok(selected.into_iter().filter(|x| from.is_none_or(|f| x.time >= f) && to.is_none_or(|t| x.time <= t)).map(info).collect())
+    let from = p.from.map(|d| zone.day_start(d.0));
+    let to = p.to.map(|d| zone.day_end(d.0));
+    Ok(selected.into_iter().filter(|x| from.is_none_or(|f| x.time >= f) && to.is_none_or(|t| x.time <= t)).map(|x| info(x, &zone)).collect())
 }
 
 /// Params of `price.latest`.
@@ -212,10 +215,10 @@ pub struct FoundPrice {
     pub rate: Option<Amount>,
 }
 
-fn found(p: &Price, requested: &red_ale_core::CommodityRef) -> FoundPrice {
+fn found(p: &Price, requested: &red_ale_core::CommodityRef, zone: &TimeZone) -> FoundPrice {
     let reversed = p.commodity != red_ale_core::ops::commodities::canonical(requested);
     let rate = if reversed { invert(p.value) } else { Some(p.value) };
-    FoundPrice { price: info(p), reversed, rate: rate.map(Amount) }
+    FoundPrice { price: info(p, zone), reversed, rate: rate.map(Amount) }
 }
 
 /// `gnc_numeric_invert`: swap numerator and denominator, keeping the denominator positive.
@@ -228,8 +231,9 @@ fn invert(n: Numeric) -> Option<Numeric> {
 }
 
 fn latest(ctx: &mut Context, p: PairParams) -> Result<Option<FoundPrice>, RpcError> {
+    let zone = ctx.zone();
     let book = ctx.book()?;
-    Ok(ops::latest(book, &p.commodity.0, &p.currency.0).map(|x| found(x, &p.commodity.0)))
+    Ok(ops::latest(book, &p.commodity.0, &p.currency.0).map(|x| found(x, &p.commodity.0, &zone)))
 }
 
 /// How `price.nearest` chooses.
@@ -241,7 +245,7 @@ pub enum NearestMode {
     Nearest,
     /// The newest price at or before the time.
     Before,
-    /// The nearest price on the same UTC day, if any.
+    /// The nearest price on the same local day, if any.
     SameDay,
 }
 
@@ -253,7 +257,7 @@ pub struct NearestParams {
     pub commodity: CommodityId,
     /// The currency wanted.
     pub currency: CommodityId,
-    /// A day, meaning 10:59 UTC on it. Give this or `time`.
+    /// A day, meaning its neutral time (10:59 UTC from UTC−10 to UTC+13). Give this or `time`.
     #[serde(default)]
     pub date: Option<Day>,
     /// An exact time. Give this or `date`.
@@ -265,14 +269,15 @@ pub struct NearestParams {
 }
 
 fn nearest(ctx: &mut Context, p: NearestParams) -> Result<Option<FoundPrice>, RpcError> {
-    let t = when(p.date, p.time)?.ok_or_else(|| RpcError::invalid_params("give date or time"))?;
+    let zone = ctx.zone();
+    let t = when(p.date, p.time, &zone)?.ok_or_else(|| RpcError::invalid_params("give date or time"))?;
     let how = match p.mode {
         NearestMode::Nearest => Nearest::Nearest,
         NearestMode::Before => Nearest::Before,
         NearestMode::SameDay => Nearest::SameDay,
     };
     let book = ctx.book()?;
-    Ok(ops::nearest(book, &p.commodity.0, &p.currency.0, t, how).map(|x| found(x, &p.commodity.0)))
+    Ok(ops::nearest(book, &p.commodity.0, &p.currency.0, t, how, &zone).map(|x| found(x, &p.commodity.0, &zone)))
 }
 
 /// Read a present field as `Some(value)`, so that `null` (clear) and absent (keep) differ.
@@ -294,7 +299,7 @@ pub struct UpdateParams {
     /// New currency.
     #[serde(default)]
     pub currency: Option<CommodityId>,
-    /// New day (10:59 UTC on it).
+    /// New day (its neutral time).
     #[serde(default)]
     pub date: Option<Day>,
     /// New exact time.
@@ -322,21 +327,22 @@ pub struct UpdateOutcome {
 }
 
 fn update(ctx: &mut Context, p: UpdateParams) -> Result<UpdateOutcome, RpcError> {
+    let zone = ctx.zone();
     let changes = PriceChanges {
         commodity: p.commodity.map(|c| c.0),
         currency: p.currency.map(|c| c.0),
-        time: when(p.date, p.time)?,
+        time: when(p.date, p.time, &zone)?,
         source: p.source,
         price_type: p.price_type,
         value: p.value.map(|v| v.0),
     };
-    let replaced = ctx.mutate(|book, _| ops::update_price(book, p.price.0, &changes))?;
-    Ok(UpdateOutcome { price: info(find(ctx.book()?, p.price)?), replaced: replaced.map(Id) })
+    let replaced = ctx.mutate(|book, _| ops::update_price(book, p.price.0, &changes, &zone))?;
+    Ok(UpdateOutcome { price: info(find(ctx.book()?, p.price)?, &zone), replaced: replaced.map(Id) })
 }
 
 fn delete(ctx: &mut Context, p: PriceParams) -> Result<PriceInfo, RpcError> {
     let deleted = ctx.mutate(|book, _| ops::delete_price(book, p.price.0))?;
-    Ok(info(&deleted))
+    Ok(info(&deleted, &ctx.zone()))
 }
 
 /// Which old prices are kept.
@@ -380,7 +386,7 @@ fn default_sources() -> Vec<RemoveSource> {
 pub struct RemoveOldParams {
     /// The commodities whose prices (in any currency) are considered; at least one.
     pub commodities: Vec<CommodityId>,
-    /// Only prices before 10:59 UTC on this day are considered.
+    /// Only prices before this day's neutral time are considered.
     pub before: Day,
     /// Which sources may be removed; default `["fetched"]`.
     #[serde(default = "default_sources")]
@@ -420,10 +426,10 @@ fn remove_old(ctx: &mut Context, p: RemoveOldParams) -> Result<RemoveOldResult, 
     };
     let removed = ctx.mutate(|book, env| {
         // gnc_pricedb_remove_old_prices defaults the fiscal year end to 31 December this year (gnc-pricedb.cpp:1595-1600).
-        let this_year = env.now().utc_date().map_or(1970, Date::year);
+        let this_year = env.today().map_or(1970, Date::year);
         let fiscal_year_end = p.fiscal_year_end.map(|d| d.0).or_else(|| Date::from_ymd(this_year, 12, 31)).unwrap_or(p.before.0);
-        let opts = RemoveOld { commodities: p.commodities.into_iter().map(|c| c.0).collect(), cutoff: p.before.0.neutral_time(), sources, keep, fiscal_year_end };
-        ops::remove_old_prices(book, &opts)
+        let opts = RemoveOld { commodities: p.commodities.into_iter().map(|c| c.0).collect(), cutoff: env.zone().neutral_time(p.before.0), sources, keep, fiscal_year_end };
+        ops::remove_old_prices(book, &opts, env.zone())
     })?;
     Ok(RemoveOldResult { removed: removed.into_iter().map(Id).collect() })
 }

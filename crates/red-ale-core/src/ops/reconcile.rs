@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use crate::account::slot_paths;
-use crate::{Account, Book, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, SlotValue, Split, Time64, Transaction};
+use crate::{Account, Book, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, SlotValue, Split, Time64, TimeZone, Transaction};
 
 /// `reconcile-info/include-children`: whether the last reconciliation included sub-accounts.
 pub const INCLUDE_CHILDREN: &str = "reconcile-info/include-children";
@@ -17,23 +17,6 @@ pub const INCLUDE_CHILDREN: &str = "reconcile-info/include-children";
 pub const POSTPONE: &str = "reconcile-info/postpone";
 
 const SECONDS_PER_DAY: i64 = 86_400;
-
-/// A fixed offset from UTC, in seconds, standing in for the local time zone of GnuCash's local-time rules (the
-/// statement date is "the end of the chosen day, local time").
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct UtcOffset(pub i64);
-
-impl UtcOffset {
-    /// The local calendar date of an instant.
-    pub fn local_date(self, t: Time64) -> Option<Date> {
-        t.plus_seconds(self.0).utc_date()
-    }
-
-    /// The last second of a local day (`gnc_time64_get_day_end_gdate`).
-    pub fn day_end(self, d: Date) -> Time64 {
-        d.end_utc().plus_seconds(-self.0)
-    }
-}
 
 /// The interval between reconciliations GnuCash remembers to propose the next statement date.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -196,8 +179,8 @@ pub struct Request {
     pub ending_balance: Option<Numeric>,
     /// Include sub-accounts.
     pub include_children: Option<bool>,
-    /// The caller's time zone.
-    pub zone: UtcOffset,
+    /// The local time zone: the statement date is "the end of the chosen day, local time".
+    pub zone: TimeZone,
 }
 
 /// A statement being reconciled: everything Finish and Postpone need besides the ticks.
@@ -211,8 +194,8 @@ pub struct Statement {
     pub date: Time64,
     /// The ending balance, raw sign.
     pub ending_balance: Numeric,
-    /// The caller's time zone, for the interval GnuCash remembers.
-    pub zone: UtcOffset,
+    /// The local time zone, for the interval GnuCash remembers.
+    pub zone: TimeZone,
 }
 
 /// A statement with the defaults filled in, and where they came from.
@@ -233,7 +216,7 @@ pub fn has_different_commodities(book: &Book, account: &Account) -> bool {
 /// The default statement date (`gnc_get_reconcile_info`, `5.17:gnucash/gnome/window-reconcile.cpp:1635-1675`): the
 /// last reconcile date plus the last interval (one month by default, tracking month ends), no later than today; a
 /// postponed date wins. GnuCash's preference to always reconcile to today is off by default and not modelled.
-pub fn default_statement_date(info: &ReconcileInfo, now: Time64, zone: UtcOffset) -> Time64 {
+pub fn default_statement_date(info: &ReconcileInfo, now: Time64, zone: &TimeZone) -> Time64 {
     let today_end = zone.local_date(now).map_or(now, |d| zone.day_end(d));
     let from_last = info.last_date.and_then(|last| zone.local_date(last)).map(|last| {
         let interval = info.last_interval.unwrap_or(Interval { months: 1, days: 0 });
@@ -285,7 +268,7 @@ pub fn prepare(book: &Book, now: Time64, request: &Request) -> DomainResult<Prep
         return Err(DomainError::invalid("sub-accounts hold other commodities, so they cannot be reconciled with this account"));
     }
     let include_children = request.include_children.unwrap_or(info.include_children && !mixed);
-    let date = request.date.map_or_else(|| default_statement_date(&info, now, request.zone), |d| request.zone.day_end(d));
+    let date = request.date.map_or_else(|| default_statement_date(&info, now, &request.zone), |d| request.zone.day_end(d));
     let use_postponed = request.date.is_none() && request.include_children.is_none_or(|i| i == (info.include_children && !mixed));
     let postponed = info.postpone_balance.filter(|_| use_postponed);
     let ending_balance = match request.ending_balance.or(postponed) {
@@ -293,7 +276,7 @@ pub fn prepare(book: &Book, now: Time64, request: &Request) -> DomainResult<Prep
         None => balance_as_of(book, &covered_accounts(book, account.guid, include_children), date)?,
     };
     let resumed_postponed = use_postponed && (info.postpone_balance.is_some() || info.postpone_date.is_some());
-    let statement = Statement { account: account.guid, include_children, date, ending_balance, zone: request.zone };
+    let statement = Statement { account: account.guid, include_children, date, ending_balance, zone: request.zone.clone() };
     Ok(Prepared { statement, resumed_postponed })
 }
 
@@ -382,7 +365,7 @@ pub fn balances(book: &Book, statement: &Statement, candidates: &[Candidate], ti
 /// The interval GnuCash remembers when a reconciliation starts (`gnc_save_reconcile_interval`,
 /// `5.17:gnucash/gnome/window-reconcile.cpp:693-740`): whole days, except that 28 days stays one month if it was, and
 /// more than 28 days counts calendar months. `None` when there is no earlier reconciliation or the result is negative.
-pub fn next_interval(info: &ReconcileInfo, statement_date: Time64, zone: UtcOffset) -> Option<Interval> {
+pub fn next_interval(info: &ReconcileInfo, statement_date: Time64, zone: &TimeZone) -> Option<Interval> {
     let last = info.last_date?;
     let days = (statement_date.0 - last.0) / SECONDS_PER_DAY;
     let interval = match days {
@@ -401,7 +384,7 @@ pub fn next_interval(info: &ReconcileInfo, statement_date: Time64, zone: UtcOffs
 /// (`5.17:gnucash/gnome/window-reconcile.cpp:929-939`). red-ale records them at Finish or Postpone, its only writes.
 fn record_start(book: &mut Book, statement: &Statement) -> DomainResult<Option<Interval>> {
     let account = account_mut(book, statement.account)?;
-    let interval = next_interval(&reconcile_info(account), statement.date, statement.zone);
+    let interval = next_interval(&reconcile_info(account), statement.date, &statement.zone);
     set_include_children(account, statement.include_children);
     if interval.is_some() {
         set_last_interval(account, interval)?;
@@ -543,7 +526,7 @@ mod tests {
     }
 
     fn request(account: Guid, date: Option<Date>) -> Request {
-        Request { account, date, ending_balance: None, include_children: None, zone: UtcOffset(0) }
+        Request { account, date, ending_balance: None, include_children: None, zone: TimeZone::utc() }
     }
 
     fn statement(f: &Fixture, date: Date, ending_cents: i64) -> Statement {
@@ -552,7 +535,7 @@ mod tests {
             date: Some(date),
             ending_balance: Some(Numeric::new(ending_cents, 100)),
             include_children: None,
-            zone: UtcOffset::default(),
+            zone: TimeZone::utc(),
         };
         prepare(&f.book, NOW, &request).unwrap().statement
     }
@@ -580,7 +563,7 @@ mod tests {
 
     #[test]
     fn default_statement_date_follows_the_interval() {
-        let zone = UtcOffset::default();
+        let zone = &TimeZone::utc();
         let mut info = reconcile_info(&fixture().book.accounts[1]);
         assert_eq!(default_statement_date(&info, NOW, zone), day(2024, 7, 1).end_utc(), "no history: today");
         info.last_date = Some(day(2024, 1, 31).end_utc());
@@ -591,13 +574,13 @@ mod tests {
         assert_eq!(default_statement_date(&info, NOW, zone), day(2024, 6, 22).end_utc());
         info.postpone_date = Some(Time64(5));
         assert_eq!(default_statement_date(&info, NOW, zone), Time64(5), "a postponed date wins");
-        let east = UtcOffset(2 * 3600);
+        let east = TimeZone::fixed(2 * 3600).unwrap();
         assert_eq!(east.day_end(day(2024, 6, 30)), Time64(day(2024, 6, 30).end_utc().0 - 7200));
     }
 
     #[test]
     fn interval_rules() {
-        let zone = UtcOffset::default();
+        let zone = &TimeZone::utc();
         let mut info = reconcile_info(&fixture().book.accounts[1]);
         assert_eq!(next_interval(&info, NOW, zone), None);
         info.last_date = Some(day(2024, 2, 1).end_utc());

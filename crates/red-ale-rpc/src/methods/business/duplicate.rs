@@ -27,7 +27,7 @@ pub fn methods() -> Vec<Method> {
 pub struct DuplicateParams {
     /// The document to copy, posted or not.
     pub invoice: Id,
-    /// The date of the copy and of each of its lines, stored at neutral time (10:59 UTC). Defaults to today.
+    /// The date of the copy and of each of its lines, stored at its day-neutral time. Defaults to today.
     #[serde(default)]
     pub date: Option<Day>,
     /// The copy's number. Absent or empty takes the next number from the counter of its kind.
@@ -39,9 +39,9 @@ fn duplicate(ctx: &mut Context, p: DuplicateParams) -> Result<InvoiceDetail, Rpc
     ctx.mutate_rpc(|book, env| {
         let date = match p.date {
             Some(d) => d.0,
-            None => local_today(env.now())?,
+            None => local_today(env)?,
         };
-        let d = Duplicate { source: p.invoice.0, id: p.id.unwrap_or_default(), date: date.neutral_time() };
+        let d = Duplicate { source: p.invoice.0, id: p.id.unwrap_or_default(), date: env.zone().neutral_time(date) };
         let guid = duplicate_invoice(book, env, &d)?;
         get_invoice(book, guid)
     })

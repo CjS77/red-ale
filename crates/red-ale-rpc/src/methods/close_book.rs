@@ -1,8 +1,7 @@
 //! Methods: closing the books (GnuCash's Close Book). See `design/api/close-book.md`.
 
-use chrono::{Local, NaiveDate, TimeZone};
 use red_ale_core::ops::close_book::{CloseBooks, CloseReport, close_books};
-use red_ale_core::{AccountType, Date, Time64};
+use red_ale_core::AccountType;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -72,15 +71,6 @@ pub struct CloseResult {
     pub created_accounts: Vec<Id>,
 }
 
-/// The last second of a date in the server's local time zone (`gnc_time64_get_day_end`,
-/// `5.17:libgnucash/engine/gnc-date.cpp:1386-1394`).
-fn local_day_end(date: Date) -> Time64 {
-    NaiveDate::from_ymd_opt(date.year(), date.month(), date.day())
-        .and_then(|d| d.and_hms_opt(23, 59, 59))
-        .and_then(|dt| Local.from_local_datetime(&dt).earliest())
-        .map_or_else(|| date.end_utc(), |dt| Time64(dt.timestamp()))
-}
-
 fn result(report: CloseReport) -> CloseResult {
     CloseResult {
         transactions: report
@@ -102,7 +92,9 @@ fn close(ctx: &mut Context, p: CloseBooksParams) -> Result<CloseResult, RpcError
     ctx.mutate_rpc(|book, env| {
         let req = CloseBooks {
             date: p.date.0,
-            day_end: local_day_end(p.date.0),
+            // The last second of the day in the local time zone (`gnc_time64_get_day_end`,
+            // `5.17:libgnucash/engine/gnc-date.cpp:1386-1394`).
+            day_end: env.zone().day_end(p.date.0),
             income_total: p.income_total_account.resolve(book)?,
             expense_total: p.expense_total_account.resolve(book)?,
             description: p.description,

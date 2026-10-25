@@ -6,7 +6,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::{Book, Date, DomainError, DomainResult, SlotValue};
+use crate::time::PeriodBounds;
+use crate::{Book, Date, DomainError, DomainResult, SlotValue, TimeZone};
 
 /// A relative period choice, GnuCash's `GncAccountingPeriod` (`5.17:libgnucash/engine/gnc-accounting-period.h:57-73`).
 /// As a start it means the first day of the period; as an end, the last.
@@ -265,6 +266,13 @@ pub fn period_dates(p: &AccountingPeriod, today: Date, fy: Option<FiscalYearEnd>
     Ok((start, end))
 }
 
+/// The accounting period containing `today` as the instants GnuCash uses: local 00:00:00 of its first day and
+/// 23:59:59 of its last (`gnc_accounting_period_fiscal_start` and `_end`, `gnc-accounting-period.c:60-100`).
+pub fn period_bounds(p: &AccountingPeriod, today: Date, fy: Option<FiscalYearEnd>, zone: &TimeZone) -> DomainResult<PeriodBounds> {
+    let (start, end) = period_dates(p, today, fy)?;
+    Ok(PeriodBounds { start: zone.day_start(start), end: zone.day_end(end) })
+}
+
 /// Check a setting can be computed: a fiscal choice needs a fiscal year end.
 pub fn check_period(p: &AccountingPeriod, fy: Option<FiscalYearEnd>) -> DomainResult<()> {
     let fiscal = [p.start, p.end].iter().any(|b| matches!(b, PeriodBound::Relative(r) if r.is_fiscal()));
@@ -324,5 +332,13 @@ mod tests {
         assert_eq!("2024-01-01".parse::<PeriodBound>().unwrap().to_string(), "2024-01-01");
         assert!("someday".parse::<PeriodBound>().is_err());
         assert_eq!(RelativePeriod::Year.gnucash_value(), 5);
+    }
+
+    #[test]
+    fn bounds_are_local_day_start_and_end() {
+        let kiritimati = TimeZone::fixed(14 * 3600).unwrap();
+        let b = period_bounds(&AccountingPeriod::default(), d("2024-06-20"), None, &kiritimati).unwrap();
+        assert_eq!(b.start.to_file_string(), "2023-12-31 10:00:00 +0000");
+        assert_eq!(b.end.to_file_string(), "2024-12-31 09:59:59 +0000");
     }
 }

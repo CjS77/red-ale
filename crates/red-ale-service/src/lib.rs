@@ -10,6 +10,7 @@ pub mod journal;
 pub mod lock;
 pub mod replay;
 pub mod session;
+pub mod zone;
 
 pub use error::ServiceError;
 pub use session::{ReadOnlyReason, SaveReport, Session, Settings};

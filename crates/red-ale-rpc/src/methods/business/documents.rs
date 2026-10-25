@@ -11,7 +11,7 @@ use red_ale_core::ops::business::documents::{
     document_quantity, entries_of, entry_document_kind, entry_on_credit_note, owner_document_kind, remove_entry, update_entry, update_invoice,
     update_order,
 };
-use red_ale_core::{Book, Env, Frame, Guid, Numeric, Time64};
+use red_ale_core::{Book, Env, Frame, Guid, Numeric, Time64, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -69,10 +69,11 @@ pub(crate) fn type_wire(book: &Book, inv: &Invoice) -> Option<DocumentKindWire> 
 }
 
 fn date_or_today(env: &mut dyn Env, date: Option<Day>) -> Result<Time64, RpcError> {
-    Ok(local_noon(match date {
+    let date = match date {
         Some(d) => d.0,
-        None => local_today(env.now())?,
-    }))
+        None => local_today(env)?,
+    };
+    Ok(local_noon(date, env.zone()))
 }
 
 fn set<T>(target: &mut T, value: Option<T>) {
@@ -279,10 +280,10 @@ impl LineFields {
         }
     }
 
-    fn apply(self, book: &Book, e: &mut Entry, doc: DocumentKind) -> Result<(), RpcError> {
+    fn apply(self, book: &Book, e: &mut Entry, doc: DocumentKind, zone: &TimeZone) -> Result<(), RpcError> {
         self.check_side(doc)?;
         if let Some(d) = self.date {
-            e.date = local_noon(d.0);
+            e.date = local_noon(d.0, zone);
         }
         set(&mut e.description, self.description);
         set(&mut e.action, self.action);
@@ -418,7 +419,7 @@ fn new_line(book: &Book, env: &mut dyn Env, parent: Guid, fields: LineFields, li
         return Err(RpcError::not_found("document", parent));
     };
     link(&mut e);
-    fields.apply(book, &mut e, doc)?;
+    fields.apply(book, &mut e, doc, env.zone())?;
     Ok(e)
 }
 
@@ -454,10 +455,10 @@ fn order_add_entry(ctx: &mut Context, p: AddOrderLineParams) -> Result<EntryInfo
 fn entry_update(ctx: &mut Context, p: UpdateLineParams) -> Result<EntryInfo, RpcError> {
     let guid = p.entry.0;
     let fields = p.fields();
-    ctx.mutate_rpc(|book, _| {
+    ctx.mutate_rpc(|book, env| {
         let mut e = book.business.entries.get(&guid).map(|e| (**e).clone()).ok_or_else(|| RpcError::not_found("entry", guid))?;
         let doc = entry_document_kind(book, &e).ok_or_else(|| RpcError::invalid("the line is on no document or order"))?;
-        fields.apply(book, &mut e, doc)?;
+        fields.apply(book, &mut e, doc, env.zone())?;
         update_entry(book, e)?;
         get_entry(book, guid)
     })

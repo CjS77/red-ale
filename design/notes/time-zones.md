@@ -25,9 +25,16 @@ tries, in order:
    - Names are letters only, so the quoted form `<-11>11` is refused.
    - A DST name needs both rule fields (`M`m`.`w`.`d, `J`n or n, each with an optional `/`time from 0 to 24 h,
      default 02:00); the second offset is the DST *adjustment* (default 1 h), not the DST zone's offset.
-   - An empty string is refused. A name with no offset (`UTC` when no file of that name exists) is UTC.
+   - An empty string is refused. A name with no offset is UTC: under `TZ=Nowhere` (no such file) the oracle's day
+     starts at 00:00 UTC.
+   - A `TZ` naming a file that is not TZif aborts GnuCash (`std::bad_alloc` under `TZ=/etc/hostname`).
 3. **`/etc/localtime`**, read as TZif.
 4. **UTC** (`PTZ("UTC0")`).
+
+One exception: `GncDate`'s default constructor, "today" as a date, asks Boost's `day_clock::local_day()`, which
+uses the C library's `localtime` (`5.17:libgnucash/engine/gnc-datetime.cpp:339`, used by `gnc_gdate_set_today`,
+`5.17:libgnucash/engine/gnc-date.cpp:1305-1311`). It agrees with the provider except under a POSIX `TZ` string,
+whose sign glibc reads the other way. `gnc_time64_get_today_start` and `_end` use the provider.
 
 A `TZ` that fails both 1 and 2 falls through to `/etc/localtime`, exactly as an unset `TZ` does (probed with
 `TZ=""`, `TZ=Nowhere/Land`, `TZ=<-11>11`, `TZ=XYZ-13`).

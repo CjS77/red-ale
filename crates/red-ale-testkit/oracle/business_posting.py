@@ -283,13 +283,15 @@ def post(book, op):
     inv = find_invoice(book, op["invoice"])
     acc = find_account(book, op["account"])
     post_date = day(op["postDate"])
+    # The post dialog's date fields give the chosen day's neutral time (gnc-date-edit.c:1069), and its due date starts
+    # as the post date (dialog-invoice.c:1072).
     if op.get("dueDate"):
-        due = day(op["dueDate"])
+        due = neutral(op["dueDate"])
     elif inv.GetTerms() is not None:
         terms = inv.GetTerms()
         due = terms.ComputeDueDate(datetime.datetime.combine(post_date, datetime.time(0, 0)))
     else:
-        due = post_date
+        due = neutral(op["postDate"])
     for comm, value in op.get("prices", []):
         ns, mnemonic = comm.split("::")
         p = GncPrice(book)

@@ -123,7 +123,7 @@ pub struct TransactionInfo {
     pub notes: Option<String>,
     /// The posted date.
     pub date_posted: Option<Day>,
-    /// The posted instant as stored (10:59 UTC on the posted date for transactions GnuCash or red-ale enters).
+    /// The posted instant as stored (the posted date's day-neutral time for transactions GnuCash or red-ale enters).
     pub date_posted_time: Timestamp,
     /// When it was entered.
     pub date_entered: Timestamp,
@@ -245,7 +245,7 @@ pub struct PostParams {
     /// The transaction currency. Defaults to the first split's account commodity, when that is a currency.
     #[serde(default)]
     pub currency: Option<CommodityId>,
-    /// The posted date; today by default. Stored at 10:59 UTC with a `date-posted` slot, as GnuCash does.
+    /// The posted date; today by default. Stored at its day-neutral time with a `date-posted` slot, as GnuCash does.
     #[serde(default)]
     pub date_posted: Option<Day>,
     /// When it was entered; now by default.
@@ -280,9 +280,10 @@ fn default_currency(book: &Book, splits: &[NewSplit]) -> Result<CommodityRef, Rp
         .ok_or_else(|| RpcError::invalid("give the transaction currency: the first split's account does not hold a currency"))
 }
 
-/// Today's date in UTC, the default posted date (red-ale has no local time zone yet).
+/// Today's date in the local time zone, the default posted date (`gnc_gdate_set_today`,
+/// `5.17:libgnucash/engine/gnc-date.cpp:1305-1311`).
 pub(crate) fn today(env: &mut dyn Env) -> Result<Date, RpcError> {
-    env.now().utc_date().ok_or_else(|| RpcError::internal("the clock is out of range"))
+    env.today().ok_or_else(|| RpcError::internal("the clock is out of range"))
 }
 
 /// Refuse a change to a transaction posted before the book's auto read-only threshold, as GnuCash's register does

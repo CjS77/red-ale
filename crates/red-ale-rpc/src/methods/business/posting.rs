@@ -2,7 +2,7 @@
 
 use red_ale_core::business::Invoice;
 use red_ale_core::ops::business::{calc, posting};
-use red_ale_core::{Book, Guid, Time64};
+use red_ale_core::{Book, Guid, Time64, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -115,7 +115,7 @@ pub struct DueDateParams {
 pub struct DueDateResult {
     /// The due date.
     pub due_date: Day,
-    /// The instant GnuCash stores: the day-neutral time (10:59 UTC) of the due date.
+    /// The instant GnuCash stores: the day-neutral time of the due date.
     pub due: Timestamp,
 }
 
@@ -129,15 +129,16 @@ fn term_of(book: &Book, invoice_id: Option<Id>, term: Option<Id>) -> Result<Opti
 }
 
 fn due_date(ctx: &mut Context, p: DueDateParams) -> Result<DueDateResult, RpcError> {
+    let zone = ctx.zone();
     let book = ctx.book()?;
     let term = term_of(book, p.invoice, p.term)?.and_then(|g| book.business.bill_terms.get(&g)).map(AsRef::as_ref);
-    let due = calc::due_date(term, p.post_date.0.neutral_time())?;
-    Ok(DueDateResult { due_date: Day(utc_day(due)?), due: Timestamp(due) })
+    let due = calc::due_date(term, zone.neutral_time(p.post_date.0), &zone)?;
+    Ok(DueDateResult { due_date: Day(local_day(due, &zone)?), due: Timestamp(due) })
 }
 
-/// The UTC calendar date of an instant.
-pub fn utc_day(t: Time64) -> Result<red_ale_core::Date, RpcError> {
-    t.utc_date().ok_or_else(|| RpcError::invalid(format!("time {} is out of range", t.0)))
+/// The local calendar date of an instant.
+pub fn local_day(t: Time64, zone: &TimeZone) -> Result<red_ale_core::Date, RpcError> {
+    zone.local_date(t).ok_or_else(|| RpcError::invalid(format!("time {} is out of range", t.0)))
 }
 
 /// The price of one unit of a commodity in the document currency.
@@ -196,8 +197,8 @@ fn post(ctx: &mut Context, p: PostParams) -> Result<PostResult, RpcError> {
             invoice: invoice(book, p.invoice)?.guid,
             account: p.account.resolve(book)?,
             post_date: p.post_date.0,
-            // GnuCash's date field gives the start of the chosen day.
-            due: p.due_date.map(|d| d.0.start_utc()),
+            // GnuCash's date field gives the chosen day's neutral time (gnc-date-edit.c:1069).
+            due: p.due_date.map(|d| env.zone().neutral_time(d.0)),
             memo: p.memo.unwrap_or_default(),
             accumulate: p.accumulate_splits.unwrap_or(true),
             autopay: p.auto_pay,

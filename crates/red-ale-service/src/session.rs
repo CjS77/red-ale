@@ -103,11 +103,15 @@ pub fn gnucash_feature_names() -> impl Iterator<Item = &'static str> {
     GNUCASH_FEATURES.iter().map(|(n, _)| *n)
 }
 
-/// The real [`Env`]: the system clock and random GUIDs.
+/// The real [`Env`]: the system clock, random GUIDs and the process's local time zone ([`crate::zone::local_zone`]).
 #[derive(Debug, Default)]
 pub struct SystemEnv;
 
 impl Env for SystemEnv {
+    fn zone(&self) -> &red_ale_core::TimeZone {
+        crate::zone::local_zone()
+    }
+
     fn now(&mut self) -> Time64 {
         Time64(SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX)))
     }
@@ -269,6 +273,11 @@ impl Session {
     /// The current time from the session's environment.
     pub fn now(&mut self) -> Time64 {
         self.env.now()
+    }
+
+    /// The local time zone of the session's environment.
+    pub fn zone(&self) -> &red_ale_core::TimeZone {
+        self.env.zone()
     }
 
     /// Read-only access to the book with the environment, for queries that need the clock.
