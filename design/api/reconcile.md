@@ -153,6 +153,69 @@ local time zone, so the caller gives one: `utcOffsetMinutes` (default 0, within 
 - "Today" and the local dates used for defaults and intervals use the same offset.
 - **Deviation:** a fixed offset, not a time zone with daylight saving. Pass the offset in force on the statement date.
 
+## Auto-clear
+
+Auto-clear finds the uncleared splits of one account that bring its cleared balance to a given figure, and marks them
+cleared: GnuCash's Actions > Auto-clear (`5.17:gnucash/gnome/window-autoclear.c`), whose search is
+`gnc_account_get_autoclear_splits` (`5.17:libgnucash/app-utils/gnc-autoclear.cpp:171-252`).
+
+| Method                    | Effect | Params                       | Result |
+|---------------------------|--------|------------------------------|--------|
+| `reconcile.findAutoClear` | read   | `account`, `clearedBalance`  | `account`, `currentClearedBalance`, `clearedBalance`, `outcome`, `message`, `splits` |
+| `reconcile.autoClear`     | write  | `account`, `clearedBalance`  | as `reconcile.findAutoClear`, with `outcome` always `found` |
+
+`clearedBalance` is the cleared balance wanted, raw sign. `currentClearedBalance` is the account's cleared balance
+now (every split not `n`), which GnuCash's window starts from (`xaccAccountGetClearedBalance`,
+`window-autoclear.c:248-252`).
+`splits` lists the splits found, in account order (`xaccSplitOrder`): `split`, `transaction`, `datePosted`,
+`description`, `memo` and `amount`.
+
+### The search
+
+- **Units.** Amounts are compared as whole numbers of the account's SCU (`numeric_to_int64`,
+  `gnc-autoclear.cpp:178-186`). The window rounds the figure typed to the SCU with banker's rounding
+  (`GNC_HOW_RND_ROUND`, `window-autoclear.c:139-140`); so does red-ale.
+- **Splits considered** (`:186-199`): every split of the account itself, not its sub-accounts, at any date: the window
+  passes no date limit (`INT64_MAX`, `window-autoclear.c:142-146`).
+  - A split in any state but `n` (`c`, `y`, `f` or `v`) counts as already cleared: its amount comes off the target.
+  - An `n` split with a zero amount is skipped. The other `n` splits are the candidates.
+- **Already there.** If the target is then zero, the outcome is `alreadyCleared` ("Account is already at Auto-Clear
+  Balance.", `:201-207`).
+- **Order** (`:209-216`): candidates sorted by size, largest first, and for equal sizes the positive one first. For
+  each, the sums of the positive and of the negative amounts from it to the end are kept (`:218-225`).
+- **Depth-first search** (`subset_sum`, `:111-169`): at each candidate, first take it, then leave it.
+  - When the remaining target reaches zero, the splits taken so far are a solution, and that branch stops there:
+    nothing after it is added. A second solution ends the search with `ambiguous` ("Cannot uniquely clear splits.
+    Found multiple possibilities.").
+  - A branch stops when the target lies outside what the remaining candidates can reach, between their negative and
+    positive sums.
+- **Outcomes** (`:236-247`, `gnc-autoclear.h:35-42`): `found` with exactly one solution, `ambiguous` with two,
+  `unreachable` with none ("The selected amount cannot be cleared."), and `limit` when the search stops early.
+- **Equal amounts.** Candidates of equal size may come in any order in GnuCash's unstable `std::sort`. The outcome
+  does not depend on it: if one of two equal splits is in a solution and the other is not, swapping them gives a
+  second solution, so the outcome is `ambiguous`. red-ale breaks ties by account order.
+
+### Applying it
+
+`reconcile.autoClear` runs the same search and, on `found`, sets each split to `c`, as the window's OK does
+(`xaccSplitSetReconcile (…, CREC)`, `window-autoclear.c:159-164`). Reconcile dates are left alone. Any other outcome is
+refused with `invalid`, `data.reason` set to the outcome. Like every Mutation, a split in an unbalanced transaction is
+refused (`unbalanced`).
+
+### Deviations
+
+- **A step limit, not a time limit.** GnuCash gives up after 5 seconds (`MAX_AUTOCLEAR_SECONDS`,
+  `window-autoclear.c:142`; checked every 100,000 steps, `gnc-autoclear.cpp:48-67`). red-ale stops after a fixed
+  number of search steps (2²⁵), so the same book always gives the same answer. Either may stop where the other
+  finishes.
+- **Stopping early says so.** When GnuCash times out before finding any solution it reports "The selected amount
+  cannot be cleared." (`:236-241`); red-ale reports `limit`.
+- **Amounts off the SCU.** A split amount that is not a whole number of SCUs (possible in a book whose commodity's SCU
+  changed) is refused with `invalid`. GnuCash's conversion fails silently there and searches with an error code in
+  place of the amount.
+- **Raw sign.** The window shows and takes the figure with credit accounts' sign flipped (`gnc_reverse_balance`,
+  `:136-137`, `:250-251`), a display preference; red-ale uses the raw sign, as everywhere in reconciliation.
+
 ## Deviations from GnuCash, summarised
 
 - `y` stamps the reconcile date (above).
@@ -166,8 +229,13 @@ local time zone, so the caller gives one: `utcOffsetMinutes` (default 0, within 
 
 - **Unit:** `red-ale-core/src/ops/reconcile.rs`, covering the state rules, default dates, the interval rules, Finish
   and Postpone. A property test checks that Finish moves exactly the ticked amounts into the reconciled balance.
-- **API:** `crates/red-ale-rpc/tests/reconcile.rs`.
+- **Unit:** `red-ale-core/src/ops/autoclear.rs` runs GnuCash's own auto-clear cases
+  (`5.17:libgnucash/app-utils/test/test-autoclear.cpp`).
+- **API:** `crates/red-ale-rpc/tests/reconcile.rs`; auto-clear in `crates/red-ale-rpc/tests/autoclear.rs`.
 - **Oracle:** `crates/red-ale-testkit/tests/oracle_reconcile.rs`.
   - GnuCash 5.17 computes the default ending balance and the reconciled and cleared balances.
   - After Finish, Postpone, `setState` and `setInfo`, GnuCash reads back every state, reconcile date and
     `reconcile-info` slot red-ale wrote (`oracle/reconcile.py`, which reads through the engine's own getters).
+  - `crates/red-ale-testkit/tests/oracle_autoclear.rs`: GnuCash's `gnc_account_get_autoclear_splits`, run on the same
+    book (`oracle/autoclear.py`), picks the same splits or fails the same way, for found, ambiguous, unreachable and
+    already-cleared targets; after `reconcile.autoClear`, GnuCash reads the cleared states back.

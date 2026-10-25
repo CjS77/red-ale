@@ -4,11 +4,13 @@ use crate::dispatch::Method;
 
 pub mod account_properties;
 pub mod accounts;
+pub mod autoclear;
 pub mod book;
 pub mod book_options;
 pub mod business;
 pub mod close_book;
 pub mod commodities;
+pub mod doc_links;
 pub mod lots;
 pub mod period;
 pub mod prices;
@@ -25,7 +27,9 @@ pub fn all() -> Vec<Method> {
         account_properties::methods(),
         period::methods(),
         transactions::methods(),
+        doc_links::methods(),
         reconcile::methods(),
+        autoclear::methods(),
         scrub::methods(),
         commodities::methods(),
         prices::methods(),

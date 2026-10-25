@@ -46,6 +46,7 @@ Every method that returns a transaction returns it in this form.
 | `readOnly` | The read-only reason, if any |
 | `reversedBy` | The transaction that reverses this one (`reversed-by` slot) |
 | `closing`, `balanced` | A book-closing entry (`book_closing` slot); the values sum to zero |
+| `docLink` | The document link, as stored (see "Document links") |
 | `splits` | In stored order: `guid`, `account`, `accountName` (full name), `commodity`, `value`, `amount`, `memo`, `action`, `reconcileState` (`n` `c` `y` `f` `v`), `reconcileDate`, `lot`, `number` (the split's Number: its action when the book's num field source is on, else the transaction's num; see [`book-options.md`](book-options.md)) |
 
 ## Methods
@@ -62,6 +63,7 @@ Every method that returns a transaction returns it in this form.
 | `transaction.reverse` | write | Create the reversing transaction, as `xaccTransReverse` |
 | `transaction.transfer` | write | Transfer between two accounts, at a rate, recording the price |
 | `transaction.find` | read | Find splits with the Find Transaction dialog's criteria |
+| `docLink.transactions` | read | Transactions with a document link (see "Document links") |
 
 ### `transaction.post`
 
@@ -75,6 +77,7 @@ Params:
 - `datePosted` (default today), `dateEntered` (default now: GnuCash sets it at the first commit,
   `Transaction.cpp:1570-1574`).
 - `num`, `description`, `notes`.
+- `docLink`: a document link (see "Document links"); empty means none.
 - `recordPrice` (default false): run `xaccTransRecordPrice` with source `user:split-register` afterwards, as the
   register does after committing a multi-currency transaction (see "Prices from transactions").
 
@@ -97,7 +100,8 @@ with a non-zero number (`order_by_int64_or_string`, `:1773-1791`).
 ### `transaction.update`
 
 Params: `guid`, then any of `currency`, `datePosted`, `dateEntered`, `num` (empty clears it), `description`, `notes`
-(empty deletes them), `removeSplits` (GUIDs), `changeSplits`, `addSplits` (as in `post`), and `recordPrice`.
+and `docLink` (empty deletes them), `removeSplits` (GUIDs), `changeSplits`, `addSplits` (as in `post`), and
+`recordPrice`.
 
 A `changeSplits` entry has `guid` and any of `account`, `value`, `amount`, `memo`, `action`, `reconcileState`
 (not `v`) and `reconcileDate`. Absent fields are kept.
@@ -327,11 +331,67 @@ The oracle test runs the same queries through GnuCash's query engine and gets th
 - Scheduled-transaction template splits are not in the book model, so they are never found. GnuCash's results
   register excludes them too (`gnc-ledger-display.c:176-200`).
 
+## Document links
+
+A transaction can link to a document: a file, or a web page such as a receipt in online storage. GnuCash 5.17 calls
+it a *document link*.
+
+- **Stored** in the transaction's `assoc_uri` string slot, the name from before GnuCash 4 kept for compatibility
+  (`5.17:libgnucash/engine/Transaction.cpp:179`). `xaccTransSetDocLink` writes it; an empty link deletes the slot
+  (`:2027-2031`, `set_kvp_string_path` at `:1845-1853`).
+- **Read-only transactions refuse a link** (`conflict`), whether read-only by a `trans-read-only` slot or by date
+  under the book's auto read-only threshold ([`book-options.md`](book-options.md)): the register's Manage Document
+  Link and Remove Document Link both stop at `is_trans_readonly_and_warn`
+  (`5.17:gnucash/gnome/gnc-split-reg.c:1118-1158`, called at `:1255-1256` and `:1325-1326`).
+- **Three forms**, told apart as GnuCash does: a link with `://` has a scheme (the text before it), and one without is
+  a relative path (`gnc_uri_get_components`, `5.17:libgnucash/engine/gnc-uri-utils.c:164-172`):
+  - a URL, such as `https://example.com/receipt/42`. GnuCash's location box accepts only text with a scheme
+    (`location_ok_cb`, `5.17:gnucash/gnome/dialog-doclink.c:112-129`);
+  - an absolute file, `file:///home/me/receipts/42.pdf`;
+  - a file relative to the *path head*, such as `receipts/42.pdf`. GnuCash's file chooser stores a file under the path
+    head this way (`5.17:gnucash/gnome/dialog-doclink.c:421-437`).
+- red-ale stores the text it is given, as GnuCash's location box does. It does not check that a file exists, and it
+  does not make a path relative: give a relative path to store one.
+
+### Path head
+
+The path head is the folder relative links start from. It is a GnuCash user preference (`general/assoc-head`,
+`5.17:gnucash/gnome-utils/dialog-doclink-utils.h:30`), not book data, so red-ale keeps it in its Configuration as
+`docLinks.pathHead`: a `file://` URI ending in `/` (`doclink_get_path_head_and_set`,
+`5.17:gnucash/gnome-utils/dialog-doclink-utils.c:165-203`).
+
+- **Resolving** a link (`gnc_doclink_get_use_uri`, `:47-75`, `:102-121`): a relative link becomes `file://` followed
+  by the path head's path and the link (`gnc_file_path_absolute`,
+  `5.17:libgnucash/core-utils/gnc-filepath-utils.cpp:1038-1065`); any other link is used as stored.
+- **Deviation:** with no path head configured, GnuCash falls back to the user's Documents folder, else its data
+  folder. red-ale reads neither and leaves a relative link unresolved (`uri` is `null`).
+- **Deviation:** GnuCash offers to rewrite links when the path head changes (`gnc_doclink_pref_path_head_changed`,
+  `:390-444`). red-ale only changes the setting; links stay as stored.
+
+### Methods
+
+| Method                  | Effect | Params                     | Result |
+|-------------------------|--------|----------------------------|--------|
+| `docLink.transactions`  | read   | `{}`                       | `{pathHead, links}`: `transaction`, `datePosted`, `description`, `docLink`, `relative`, `uri` |
+| `docLink.documents`     | read   | `{}`                       | `{pathHead, links}`: `invoice`, `id`, `type`, `dateOpened`, `docLink`, `relative`, `uri` |
+| `docLink.pathHead`      | read   | `{}`                       | `{pathHead, configFile}` |
+| `docLink.setPathHead`   | write  | `{pathHead}` (`null` removes it) | as `docLink.pathHead` |
+
+- `docLink.transactions` and `docLink.documents` are GnuCash's Transaction and Business Document Links dialogs
+  (`5.17:gnucash/gnome/dialog-doclink.c:788-946`): every transaction or business document whose link is not empty.
+  Transactions come in `xaccTransOrder`, documents in GUID order.
+- A transaction link stored as `file:` without `//`, which GnuCash before 3.5 wrote for relative paths, is read as
+  the relative path after `file:` or `file:/` (`gnc_doclink_convert_trans_link_uri`,
+  `5.17:gnucash/gnome-utils/dialog-doclink-utils.c:135-161`). GnuCash also rewrites the stored link when it lists it;
+  red-ale's listing reads only, so `docLink` stays as stored.
+- `docLink.setPathHead` takes a `file://` URI or an absolute path, which becomes a `file://` URI; a trailing `/` is
+  added. Like `period.set` it changes the Configuration only, never the Book.
+
 ## Tests
 
 - **Unit and property tests:** `crates/red-ale-core/src/ops/transactions*.rs`. A property test checks that random
   balanced splits post exactly, that void then unvoid restores the transaction, and that a reversal cancels it.
-- **API tests:** `crates/red-ale-rpc/tests/transactions.rs`.
+- **API tests:** `crates/red-ale-rpc/tests/transactions.rs`; document links in `crates/red-ale-rpc/tests/doc_links.rs`.
 - **Oracle tests:** `crates/red-ale-testkit/tests/oracle_transactions.rs`.
   - GnuCash reads posted, updated, deleted, voided, unvoided, reversed, re-currencied and transferred transactions
     the same as red-ale.
@@ -339,3 +399,5 @@ The oracle test runs the same queries through GnuCash's query engine and gets th
     register's date handling), `SetCurrency` and `RecordPrice`, and the results equal red-ale's, denominators
     included.
   - The transfer's arithmetic matches `gnc_numeric`'s, and find matches GnuCash's query engine.
+  - `crates/red-ale-testkit/tests/oracle_doc_links.rs`: GnuCash reads the transaction and document links red-ale
+    wrote, and the ones it removed, through `xaccTransGetDocLink` and `gncInvoiceGetDocLink`.

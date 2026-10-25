@@ -19,6 +19,8 @@ use serde_json::{Map, Value};
 use crate::ServiceError;
 
 const PERIOD: &str = "accountingPeriod";
+const DOC_LINKS: &str = "docLinks";
+const PATH_HEAD: &str = "pathHead";
 
 /// The configuration document.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -85,6 +87,31 @@ impl Config {
             match fiscal_year_end {
                 Some(fy) => p.insert("fiscalYearEnd".into(), Value::String(fy.to_string())),
                 None => p.remove("fiscalYearEnd"),
+            };
+        }
+    }
+}
+
+impl Config {
+    /// The path head relative document links start from (GnuCash's `general/assoc-head` preference), if set.
+    pub fn doc_link_path_head(&self) -> Result<Option<&str>, ServiceError> {
+        match self.raw.get(DOC_LINKS).and_then(|d| d.get(PATH_HEAD)) {
+            None | Some(Value::Null) => Ok(None),
+            Some(Value::String(s)) => Ok(Some(s)),
+            Some(other) => Err(invalid(format!("{DOC_LINKS}.{PATH_HEAD} must be a string, not {other}"))),
+        }
+    }
+
+    /// Set the path head, or remove it with `None`.
+    pub fn set_doc_link_path_head(&mut self, head: Option<&str>) {
+        let entry = self.raw.entry(DOC_LINKS).or_insert_with(|| Value::Object(Map::new()));
+        if !entry.is_object() {
+            *entry = Value::Object(Map::new());
+        }
+        if let Value::Object(d) = entry {
+            match head {
+                Some(h) => d.insert(PATH_HEAD.into(), Value::String(h.to_owned())),
+                None => d.remove(PATH_HEAD),
             };
         }
     }
@@ -176,6 +203,19 @@ mod tests {
         assert!(again.to_text().contains("\"other\"") && again.to_text().contains("\"note\""));
         assert!(Config::parse("[]").is_err());
         assert!(Config::parse(r#"{"accountingPeriod": {"start": "soon"}}"#).unwrap().accounting_period().is_err());
+    }
+
+    #[test]
+    fn the_doc_link_path_head_is_kept_beside_other_settings() {
+        let mut c = Config::parse(r#"{"docLinks": {"other": 1}}"#).unwrap();
+        assert_eq!(c.doc_link_path_head().unwrap(), None);
+        c.set_doc_link_path_head(Some("file:///srv/docs/"));
+        let again = Config::parse(&c.to_text()).unwrap();
+        assert_eq!(again.doc_link_path_head().unwrap(), Some("file:///srv/docs/"));
+        assert!(again.to_text().contains("\"other\""));
+        c.set_doc_link_path_head(None);
+        assert_eq!(c.doc_link_path_head().unwrap(), None);
+        assert!(Config::parse(r#"{"docLinks": {"pathHead": 3}}"#).unwrap().doc_link_path_head().is_err());
     }
 
     #[test]

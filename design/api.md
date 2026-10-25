@@ -120,8 +120,8 @@ deliberate deviations.
 | Page                                                       | Methods                                                     |
 |------------------------------------------------------------|-------------------------------------------------------------|
 | [`api/accounts.md`](api/accounts.md)                       | `account.*`, `period.*`                                     |
-| [`api/transactions.md`](api/transactions.md)               | `transaction.*`                                             |
-| [`api/reconcile.md`](api/reconcile.md)                     | reconcile states, reconciling against a statement           |
+| [`api/transactions.md`](api/transactions.md)               | `transaction.*`, `docLink.*`                                |
+| [`api/reconcile.md`](api/reconcile.md)                     | reconcile states, reconciling against a statement, auto-clear |
 | [`api/scrub.md`](api/scrub.md)                             | imbalance and orphan scrubs, Check & Repair                 |
 | [`api/commodities.md`](api/commodities.md)                 | `commodity.*`, `currency.*`                                 |
 | [`api/prices.md`](api/prices.md)                           | `price.*`                                                   |
