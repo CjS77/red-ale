@@ -1,12 +1,14 @@
 //! Methods: the account tree, account settings and balances. See `design/api/accounts.md`.
 
+use std::collections::BTreeMap;
+
 use red_ale_core::account::slot_paths;
 use red_ale_core::ops::accounts::{
     self as ops, ACCOUNT_TYPES, AccountEdit, CommodityRule, DeleteOptions, Disposal, Renumber, Scu, account_order, commodity_rule,
 };
 use red_ale_core::{Account, AccountType, Book, Guid, SlotValue};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::dispatch::{Context, Effect, Method, method};
 use crate::error::RpcError;
@@ -20,7 +22,13 @@ pub fn methods() -> Vec<Method> {
         method("account.get", "Describe one account.", Effect::Read, get),
         method("account.tree", "The account tree as nested nodes, in the book's order or GnuCash's display order.", Effect::Read, tree),
         method("account.create", "Create an account under a parent (the root by default).", Effect::Write, create),
-        method("account.update", "Change an account's name, type, commodity, smallest fraction, code, notes, flags or tax settings.", Effect::Write, update),
+        method(
+            "account.update",
+            "Change an account's name, type, commodity, smallest fraction, code, notes, flags, tax settings, colour, balance limits, \
+             opening balance flag or associated accounts.",
+            Effect::Write,
+            update,
+        ),
         method("account.move", "Move an account, with its sub-accounts, under another parent.", Effect::Write, move_account),
         method("account.renumber", "Renumber the codes of an account's immediate sub-accounts.", Effect::Write, renumber),
         method("account.delete", "Delete an account, moving or deleting its transactions and sub-account.", Effect::Destructive, delete),
@@ -133,6 +141,18 @@ pub struct AccountInfo {
     pub children: usize,
     /// The account has splits.
     pub has_splits: bool,
+    /// Account colour (`rgb(r,g,b)` as GnuCash's dialog writes it, or as stored); null when unset or `Not Set`.
+    pub color: Option<String>,
+    /// Higher balance limit, in raw sign (debits positive).
+    pub higher_balance_limit: Option<Amount>,
+    /// Lower balance limit, in raw sign.
+    pub lower_balance_limit: Option<Amount>,
+    /// The balance limits apply to the balance with sub-accounts.
+    pub include_subaccount_balances: bool,
+    /// The EQUITY account holding the opening balances of its commodity.
+    pub opening_balance: bool,
+    /// Associated accounts by tag (such as `stock-dividends`), each naming an existing account.
+    pub associated_accounts: BTreeMap<String, Id>,
 }
 
 /// Describe an account.
@@ -164,6 +184,17 @@ pub fn info(book: &Book, guid: Guid) -> Result<AccountInfo, RpcError> {
         depth: if guid == book.root { 0 } else { book.ancestors(guid).len() + 1 },
         children: book.children(guid).count(),
         has_splits: ops::has_splits(book, guid),
+        color: a.color().map(ToOwned::to_owned),
+        higher_balance_limit: a.higher_balance_limit().map(Amount),
+        lower_balance_limit: a.lower_balance_limit().map(Amount),
+        include_subaccount_balances: a.includes_subaccount_balances(),
+        opening_balance: a.is_opening_balance(),
+        associated_accounts: a
+            .associated_accounts()
+            .into_iter()
+            .filter(|(_, g)| book.account(*g).is_some())
+            .map(|(tag, g)| (tag.to_owned(), Id(g)))
+            .collect(),
     })
 }
 
@@ -349,11 +380,43 @@ pub struct Fields {
     /// US TXF copy number; 0 clears it.
     #[serde(default)]
     pub tax_us_copy_number: Option<i64>,
+    /// Account colour: `#rrggbb`, `#rgb` or `rgb(r,g,b)`, stored as `rgb(r,g,b)`; empty (or GnuCash's default
+    /// `rgb(237,236,235)`) clears it.
+    #[serde(default)]
+    pub color: Option<String>,
+    /// Higher balance limit, in raw sign; null clears it.
+    #[serde(default, deserialize_with = "present")]
+    pub higher_balance_limit: Option<Option<Amount>>,
+    /// Lower balance limit, in raw sign; null clears it.
+    #[serde(default, deserialize_with = "present")]
+    pub lower_balance_limit: Option<Option<Amount>>,
+    /// Apply the balance limits to the balance with sub-accounts. Cleared when no limit is left.
+    #[serde(default)]
+    pub include_subaccount_balances: Option<bool>,
+    /// Hold the opening balances of the account's commodity (EQUITY only; one per commodity; not once it has
+    /// splits). Setting it declares GnuCash's opening balance account Book feature.
+    #[serde(default)]
+    pub opening_balance: Option<bool>,
+    /// Associated accounts by tag; null removes a tag, tags not named are kept.
+    #[serde(default)]
+    pub associated_accounts: Option<BTreeMap<String, Option<AccountRef>>>,
+}
+
+/// Read a present field as `Some(value)`, so that `null` (clear) and absent (keep) differ.
+#[allow(clippy::option_option, clippy::unnecessary_wraps)]
+fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(d: D) -> Result<Option<Option<T>>, D::Error> {
+    Option::<T>::deserialize(d).map(Some)
 }
 
 impl Fields {
-    fn edit(self, name: Option<String>, account_type: Option<AccountType>, retype_children: bool) -> AccountEdit {
-        AccountEdit {
+    fn edit(self, book: &Book, name: Option<String>, account_type: Option<AccountType>, retype_children: bool) -> Result<AccountEdit, RpcError> {
+        let associated_accounts = self
+            .associated_accounts
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(tag, r)| Ok((tag, r.map(|r| r.resolve(book)).transpose()?)))
+            .collect::<Result<_, RpcError>>()?;
+        Ok(AccountEdit {
             name,
             account_type,
             retype_children,
@@ -368,7 +431,13 @@ impl Fields {
             tax_us_code: self.tax_us_code,
             tax_us_payer_name_source: self.tax_us_payer_name_source,
             tax_us_copy_number: self.tax_us_copy_number,
-        }
+            color: self.color,
+            higher_balance_limit: self.higher_balance_limit.map(|l| l.map(|a| a.0)),
+            lower_balance_limit: self.lower_balance_limit.map(|l| l.map(|a| a.0)),
+            include_subaccount_balances: self.include_subaccount_balances,
+            opening_balance: self.opening_balance,
+            associated_accounts,
+        })
     }
 }
 
@@ -393,7 +462,8 @@ fn create(ctx: &mut Context, p: CreateParams) -> Result<AccountInfo, RpcError> {
     let account_type = parse_type(&p.account_type)?;
     ctx.mutate_rpc(|book, env| {
         let parent = resolve_or_root(book, p.parent.as_ref())?;
-        let guid = ops::create_account(book, env, parent, &p.fields.edit(Some(p.name), Some(account_type), false))?;
+        let edit = p.fields.edit(book, Some(p.name), Some(account_type), false)?;
+        let guid = ops::create_account(book, env, parent, &edit)?;
         info(book, guid)
     })
 }
@@ -422,7 +492,8 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<AccountInfo, RpcError> {
     let account_type = p.account_type.as_deref().map(parse_type).transpose()?;
     ctx.mutate_rpc(|book, _| {
         let guid = p.account.resolve(book)?;
-        ops::update_account(book, guid, &p.fields.edit(p.name, account_type, p.retype_children))?;
+        let edit = p.fields.edit(book, p.name, account_type, p.retype_children)?;
+        ops::update_account(book, guid, &edit)?;
         info(book, guid)
     })
 }

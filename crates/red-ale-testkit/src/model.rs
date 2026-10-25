@@ -9,7 +9,7 @@ use red_ale_core::account::slot_paths as acct;
 use red_ale_core::business::{Address, AmountType, DiscountHow, OwnerKind, OwnerRef, PaymentType, TaxIncluded};
 use red_ale_core::ops::business::calc;
 use red_ale_core::ops::commit::commodity_fraction;
-use red_ale_core::ops::commodities::{effective_quote, lookup, slot_paths, usage_table};
+use red_ale_core::ops::commodities::{display_symbol, effective_quote, lookup, slot_paths, usage_table};
 use red_ale_core::transaction::slot_paths as txn;
 use red_ale_core::{Book, CommodityRef, Guid, Numeric, SlotValue, Transaction};
 use serde_json::{Value, json};
@@ -30,6 +30,18 @@ fn guid(g: Option<Guid>) -> Value {
 
 fn sum(values: impl Iterator<Item = Numeric>) -> Numeric {
     values.fold(Numeric::ZERO, |acc, v| acc.add_exact(v).unwrap_or(acc))
+}
+
+/// The associated accounts `dump.py` asks GnuCash for: the stock assistant's tags, naming an existing account
+/// (`xaccAccountGetAssociatedAccount`, 5.17:libgnucash/engine/Account.cpp:3374-3380).
+fn associated(book: &Book, a: &red_ale_core::Account) -> Value {
+    const TAGS: [&str; 4] = ["stock-cash-proceeds", "stock-broker-fees", "stock-dividends", "stock-capgains"];
+    a.associated_accounts()
+        .into_iter()
+        .filter(|(tag, g)| TAGS.contains(tag) && book.account(*g).is_some())
+        .map(|(tag, g)| (tag.to_owned(), json!(g.to_string())))
+        .collect::<serde_json::Map<_, _>>()
+        .into()
 }
 
 /// Every account but the root.
@@ -61,6 +73,12 @@ fn accounts(book: &Book) -> Vec<Value> {
                 // xaccAccountGetTaxUSCopyNumber returns 1 when unset (5.17:libgnucash/engine/Account.cpp).
                 "taxCopyNumber": a.slots.get(acct::TAX_US_COPY_NUMBER).and_then(SlotValue::as_int).unwrap_or(1),
                 "balance": frac(sum(book.splits_of(a.guid).map(|(_, s)| s.amount))),
+                "color": text(a.stored_color()),
+                "higherBalanceLimit": a.higher_balance_limit().map(frac),
+                "lowerBalanceLimit": a.lower_balance_limit().map(frac),
+                "includeSubaccountBalances": a.includes_subaccount_balances(),
+                "openingBalance": a.is_opening_balance(),
+                "associated": associated(book, a),
             })
         })
         .collect();
@@ -137,6 +155,7 @@ fn commodities(book: &Book) -> Vec<Value> {
             "quoteSource": if flag { quote.and_then(|q| q.source).map_or(Value::Null, Value::String) } else { Value::Null },
             "quoteTz": text(stored.as_deref().and_then(|c| c.quote_tz.as_deref())),
             "userSymbol": text(stored.as_deref().and_then(|c| c.slots.get_str(slot_paths::USER_SYMBOL))),
+            "displaySymbol": display_symbol(book, &id),
         })
     });
     let securities = book.commodities.values().filter(|c| !c.id.is_currency() && c.id.namespace != "template").map(|c| {
@@ -149,6 +168,7 @@ fn commodities(book: &Book) -> Vec<Value> {
             "fullname": text(c.fullname.as_deref()),
             "cusip": text(c.cusip.as_deref()),
             "userSymbol": text(c.slots.get_str(slot_paths::USER_SYMBOL)),
+            "displaySymbol": display_symbol(book, &c.id),
         })
     });
     let mut out: Vec<Value> = currencies.chain(securities).collect();

@@ -18,7 +18,7 @@ import os
 import sys
 from fractions import Fraction
 
-from gnucash import Account, GncLot, Query, Session, SessionOpenMode, Transaction, _sw_core_utils
+from gnucash import Account, GncLot, GncNumeric, Query, Session, SessionOpenMode, Transaction, _sw_core_utils
 from gnucash import gnucash_core_c as c
 from gnucash.gnucash_business import BillTerm, Customer, Employee, Entry, Invoice, Job, TaxTable, Vendor
 
@@ -72,6 +72,25 @@ def quote_source(cm):
     return c.gnc_quote_source_get_internal_name(qs) if qs is not None else None
 
 
+# The tags 5.17's stock transaction assistant stores associated accounts under
+# (5.17:gnucash/gnome/assistant-stock-transaction.cpp:95-98).
+ASSOCIATED_TAGS = ["stock-cash-proceeds", "stock-broker-fees", "stock-dividends", "stock-capgains"]
+
+
+def balance_limit(a, getter):
+    n = GncNumeric()
+    return frac(n) if getter(n) else None
+
+
+def associated(a):
+    out = {}
+    for tag in ASSOCIATED_TAGS:
+        other = a.GetAssociatedAccount(tag)
+        if other is not None:
+            out[tag] = guid(other, Account)
+    return out
+
+
 def accounts(root):
     out = []
     for a in root.get_descendants():
@@ -94,6 +113,12 @@ def accounts(root):
             "taxSource": text(a.GetTaxUSPayerNameSource()),
             "taxCopyNumber": a.GetTaxUSCopyNumber(),
             "balance": frac(a.GetBalance()),
+            "color": text(a.GetColor()),
+            "higherBalanceLimit": balance_limit(a, a.GetHigherBalanceLimit),
+            "lowerBalanceLimit": balance_limit(a, a.GetLowerBalanceLimit),
+            "includeSubaccountBalances": bool(a.GetIncludeSubAccountBalances()),
+            "openingBalance": bool(a.GetIsOpeningBalance()),
+            "associated": associated(a),
         })
     return sorted(out, key=lambda x: x["guid"])
 
@@ -149,7 +174,8 @@ def commodities(book, used):
             uid = cm.get_unique_name()
             entry = {"id": uid, "fraction": cm.get_fraction(), "quoteFlag": bool(cm.get_quote_flag()),
                      "quoteSource": quote_source(cm) if cm.get_quote_flag() else None,
-                     "quoteTz": text(cm.get_quote_tz()), "userSymbol": text(cm.get_user_symbol())}
+                     "quoteTz": text(cm.get_quote_tz()), "userSymbol": text(cm.get_user_symbol()),
+                     "displaySymbol": cm.get_nice_symbol()}
             if name == "CURRENCY":
                 if uid in used:
                     out.append(entry)

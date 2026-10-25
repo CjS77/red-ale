@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use crate::account::slot_paths;
 use crate::ops::commit::{commodity_fraction, round_amount, sort_splits};
+use crate::ops::account_properties::apply_properties;
 use crate::ops::commodities::account_commodity_changed;
 use crate::transaction::slot_paths as txn_slots;
 use crate::{
@@ -264,6 +265,7 @@ pub enum Scu {
 
 /// Changes to an account. `None` leaves a field as it is; an empty string clears a text field.
 #[derive(Debug, Clone, PartialEq, Default)]
+#[allow(clippy::option_option)] // Absent, cleared and set limits are three different requests.
 pub struct AccountEdit {
     /// Name.
     pub name: Option<String>,
@@ -293,6 +295,18 @@ pub struct AccountEdit {
     pub tax_us_payer_name_source: Option<String>,
     /// US TXF copy number (`tax-US/copy-number`); 0 removes it.
     pub tax_us_copy_number: Option<i64>,
+    /// Account colour (see `account_properties::parse_color`); empty removes it.
+    pub color: Option<String>,
+    /// Higher balance limit; `Some(None)` clears it.
+    pub higher_balance_limit: Option<Option<Numeric>>,
+    /// Lower balance limit; `Some(None)` clears it.
+    pub lower_balance_limit: Option<Option<Numeric>>,
+    /// Balance limits apply with sub-accounts.
+    pub include_subaccount_balances: Option<bool>,
+    /// Holds the opening balances of its commodity (EQUITY only).
+    pub opening_balance: Option<bool>,
+    /// Associated accounts by tag; `None` removes the tag. Tags not named are kept.
+    pub associated_accounts: BTreeMap<String, Option<Guid>>,
 }
 
 /// Create an account under `parent` with `edit.name`, `edit.account_type` and `edit.commodity` (by default the
@@ -320,7 +334,9 @@ pub fn create_account(book: &mut Book, env: &mut dyn Env, parent: Guid, edit: &A
     if let Some(scu) = edit.scu {
         apply_scu(book, guid, scu, false)?;
     }
-    apply_details(book, guid, edit)
+    apply_details(book, guid, edit)?;
+    apply_properties(book, guid, edit, None)?;
+    Ok(guid)
 }
 
 fn check_type(t: AccountType, parent_type: AccountType) -> DomainResult<()> {
@@ -361,7 +377,8 @@ pub fn update_account(book: &mut Book, guid: Guid, edit: &AccountEdit) -> Domain
     if let Some(scu) = edit.scu.or(if commodity_changed { current_choice } else { None }) {
         apply_scu(book, guid, scu, commodity_changed)?;
     }
-    apply_details(book, guid, edit).map(|_| ())
+    apply_details(book, guid, edit)?;
+    apply_properties(book, guid, edit, Some(&current))
 }
 
 /// Change an account's type. With splits only a compatible type is allowed (`dialog-account.c:1714-1728`). When the

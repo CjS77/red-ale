@@ -56,6 +56,11 @@ Code names are given in `code font` when they differ from the term.
 | **Delete with move** | Deleting an Account while moving its Splits to another Account, or re-parenting its single sub-account, instead of deleting them. |
 | **Accounting period** | Start and end bounds (a relative choice such as *start of this quarter*, or a date) and a fiscal year end. A user setting kept in red-ale's Configuration, not Book data. |
 | **Fiscal year end** | The month and day a fiscal year ends, from the Configuration or the Book's `fy_end` slot. |
+| **Account colour** | A display colour for an Account, in its `color` slot, written `rgb(r,g,b)` as GnuCash's account dialog writes it. Unset means GnuCash's default colour. **⚠** The slot key is spelt `color`. |
+| **Balance limit** | A *higher* or *lower* limit on an Account's balance, in Raw sign, in the `balance-limit` Frame. GnuCash warns when the balance crosses one. **⚠** The include-sub-accounts slot is spelt `inlude-sub-accts` in GnuCash's files. |
+| **Opening balance account** | The one EQUITY Account per currency that holds opening balances, marked by the slot `equity-type` = `opening-balance`. Its use is declared by a Book feature. |
+| **Associated account** | An Account another Account remembers for a role, named by a *tag* (`stock-dividends`, `stock-capgains`, `stock-cash-proceeds`, `stock-broker-fees`), in the `associated-account` Frame. |
+| **Cascade** | GnuCash's "Cascade Account Properties": setting colour, placeholder or hidden on an Account and all its descendants at once. |
 
 ## Transactions
 
@@ -105,6 +110,9 @@ Code names are given in `code font` when they differ from the term.
 | **Usage** (of a Commodity) | What refers to it. **⚠** GnuCash's usage count is Accounts only; red-ale also reports Transactions, Prices and business objects. |
 | **Auto quote control** | GnuCash's `auto_quote_control` slot on a currency: `"false"` means the user overrode the quote flag GnuCash sets for currencies Accounts use. |
 | **Euro legacy currency** | A currency replaced by the euro at a fixed rate (DEM, FRF, …). |
+| **User symbol** | A Commodity's display symbol chosen by the user, in its `user_symbol` slot. |
+| **Default symbol** | A built-in currency's symbol from the ISO table (`$`, `€`); may be empty. Never stored. |
+| **Display symbol** | The symbol GnuCash shows amounts with: the User symbol, else the Default symbol, else the Mnemonic. **⚠** GnuCash calls it the *nice symbol* (`gnc_commodity_get_nice_symbol`). |
 
 ## Investments
 

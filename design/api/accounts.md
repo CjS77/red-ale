@@ -168,6 +168,140 @@ Balances are amounts in the account's commodity (`balances` is null for an accou
 Text compares bytewise where GnuCash's split order collates by locale; this only affects running balances on a day
 with several splits and a stock split.
 
+## Account properties (v0.2)
+
+Account colours, balance limits, the opening balance account, associated accounts and cascading. Domain code:
+`crates/red-ale-core/src/account.rs` (the slots, as GnuCash's getters and setters read and write them) and
+`crates/red-ale-core/src/ops/account_properties.rs` (the dialogs' rules). Tests: unit tests there, API tests in
+`crates/red-ale-rpc/tests/account_properties.rs`, oracle tests in `crates/red-ale-testkit/tests/oracle_account_properties.rs`.
+
+`AccountInfo` gains:
+
+| Field                       | Meaning                                                                                         |
+|-----------------------------|-------------------------------------------------------------------------------------------------|
+| `color`                     | The Account colour; null when unset or `Not Set` (below)                                        |
+| `higherBalanceLimit`, `lowerBalanceLimit` | Amounts in Raw sign; null when unset                                              |
+| `includeSubaccountBalances` | Limits apply to the balance with sub-accounts                                                   |
+| `openingBalance`            | It is an Opening balance account (`xaccAccountGetIsOpeningBalance`)                             |
+| `associatedAccounts`        | `{ tag: Guid }`, each tag naming an existing account                                            |
+
+`account.create` and `account.update` take the same names as params: `color` (a string; empty clears it),
+`higherBalanceLimit` and `lowerBalanceLimit` (an Amount; null clears it), `includeSubaccountBalances`,
+`openingBalance` (bool) and `associatedAccounts` (`{ tag: AccountRef | null }`; null clears that tag, other tags are
+kept). Each changes only when given and different, as the other fields do.
+
+### Colours
+
+GnuCash's engine stores any string in the `color` slot and an empty one removes it (`xaccAccountSetColor`,
+`set_kvp_string_path`, `5.17:libgnucash/engine/Account.cpp:2519-2529`, `:2601-2604`). The account dialog reads the
+slot with `gdk_rgba_parse`, falls back to its default `rgb(237,236,235)` when unset or unparsable, and on OK writes
+`gdk_rgba_to_string` of the chosen colour, which is `rgb(r,g,b)` with integers 0–255, or removes the slot when the
+colour is the default (`5.17:gnucash/gnome-utils/dialog-account.c:57`, `:309-316`, `:507-524`).
+
+red-ale follows the dialog. A `color` param is one of `#rgb`, `#rrggbb` or `rgb(r,g,b)` (integers 0–255, spaces
+allowed), and is stored as `rgb(r,g,b)`; anything else is `invalid`. The default colour and the empty string remove
+the slot. A colour already in a book is reported as stored.
+
+**`Not Set`.** GnuCash 2.4 to 3.3 wrote the colour `Not Set` for no colour. The 5.17 GUI removes those slots once per
+book when it opens it, and records that it did in the Book slot `remove-color-not-set-slots`
+(`xaccAccountScrubColorNotSet`, `5.17:libgnucash/engine/Scrub.cpp:1414-1452`, run from
+`5.17:gnucash/gnome-utils/gnc-file.c:771`). red-ale never changes a book on open, so it reports `Not Set` as no
+colour (null), treats it so when cascading, and removes it when the colour is changed.
+
+### Balance limits
+
+Two Numeric slots, `balance-limit/higher-value` and `balance-limit/lower-value`, and the flag
+`balance-limit/inlude-sub-accts` (GnuCash's spelling), written `"true"` or removed (`5.17:libgnucash/engine/Account.cpp:77-80`,
+`:4689-4754`). Limits are stored in Raw sign. The account dialog shows them with the sign the user's "reverse balanced
+accounts" preference gives (`dialog-account.c:368-398`, `:593-635`); that preference is display only and red-ale
+ignores it. The value is stored as given, with its denominator.
+
+The dialog's rules (`gnc_common_ok`, `dialog-account.c:1029-1056`; `gnc_ui_to_account`, `:589-640`), applied to the
+limits an edit leaves:
+
+- with both set, the higher must be above the lower, or both zero (`invalid`);
+- when an edit leaves neither limit, the include-sub-accounts flag is cleared, as the dialog clears it.
+
+#### `account.checkBalanceLimit` (read)
+
+`{ account, asOf?: Date }` → `{ account, balance, higherLimit, lowerLimit, includesSubaccounts, state, unconverted }`.
+GnuCash's account tree shows an icon and tooltip when a limit is crossed (`gnc_ui_account_get_balance_limit_icon_name`
+and `_explanation`, `5.17:libgnucash/app-utils/gnc-ui-balances.cpp:254-406`); this method returns what decides them:
+
+- `balance`: the balance at the end of `asOf` (default today, local time), with sub-accounts when the account's flag
+  is set: `xaccAccountGetBalanceAsOfDate` of the account plus each descendant's, added exactly
+  (`account_get_balance_as_of_date`, `:184-226`; `account_balance_for_limit`, `:254-261`).
+- A limit is reached when the balance is not zero and is strictly above the higher limit or strictly below the lower
+  one (`account_balance_limit_reached`, `:263-277`).
+- `state` follows `get_balance_limit_info` (`:363-393`): `above` (higher limit reached and not zero, or reached
+  while the lower limit isn't zero), `below` (lower limit reached, unless both limits are zero), `shouldBeZero` (both
+  limits zero and either reached), or null.
+
+GnuCash works in display sign, so for a reversed account it tests the lower limit first; the two orders differ only
+when both limits are reached at once, which the dialog's rules prevent. red-ale always tests the higher first.
+Sub-accounts in other commodities: GnuCash converts them at the latest price (`gnc_pricedb_convert_balance_latest_price`);
+red-ale adds nothing for them and lists them in `unconverted`, as `account.balance` does.
+
+### Opening balance account
+
+The slot `equity-type` = `opening-balance` marks an EQUITY account as the one holding opening balances for its
+commodity; the getter ignores it on other types (`xaccAccountGetIsOpeningBalance`/`Set`, `Account.cpp:4131-4147`).
+GnuCash's account dialog enables the "Opening balance" check box only for an EQUITY account, only when no other
+account in its commodity has the flag, and, when editing, only while the account has no splits
+(`gnc_account_opening_balance_button_update`, `dialog-account.c:245-276`). red-ale's `openingBalance` param applies
+the same rules: `invalid` on another type, `conflict` when another account of the commodity has the flag or when the
+account has splits. A type or commodity change that would give a commodity two such accounts is `conflict` too (the
+dialog does not check that case).
+
+**Book feature.** The flag only means something in a book that declares `Use a dedicated opening balance account
+identified by an 'equity-type' slot` (`5.17:libgnucash/engine/gnc-features.h:64`). GnuCash sets it whenever a register
+page opens and when the new-account-hierarchy assistant finishes (`5.17:gnucash/gnome/gnc-plugin-page-register.cpp:408-410`,
+`5.17:gnucash/gnome/assistant-hierarchy.cpp:1432-1433`), so almost every book edited in the GUI has it. red-ale sets
+it, with GnuCash's description (`gnc_features_set_used`), when it sets the flag on an account, and at no other time.
+
+#### `account.openingBalanceAccount` (read)
+
+`{ currency: CommodityId }` → `{ account: AccountInfo | null, foundBy, featureUsed }`. The lookup half of
+`gnc_find_or_create_equity_account` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:563-622`), which GnuCash uses to
+find where an opening balance goes (the account dialog and the hierarchy assistant, through
+`gnc_account_create_opening_balance`, `:666-685`):
+
+1. With the Book feature, the first account with the flag in that commodity, depth first
+   (`gnc_account_lookup_by_opening_balance`, `Account.cpp:3099-3112`, `:3231-3251`): `foundBy: "equityType"`.
+2. Otherwise, or if none has it: the first account named `Opening Balances`, searched level by level
+   (`gnc_account_lookup_by_name`, `:3052-3084`); if it is EQUITY and in the currency, `foundBy: "name"`.
+3. Then `Opening Balances - <MNEMONIC>` the same way: `foundBy: "nameWithCurrency"`.
+
+GnuCash also tries the translated name, which in English is the same, and when it finds an account by name it sets
+the flag on it if the Book feature is used. This method only reads; set the flag with `account.update`. The currency
+must be a currency (`invalid`), as `gnc_find_or_create_equity_account` requires. GnuCash creates the account when
+none is found; red-ale leaves that to `account.create`.
+
+### Associated accounts
+
+Each Account may remember accounts for roles, as GUID slots `associated-account/<tag>`
+(`xaccAccountSetAssociatedAccount`/`Get`, `Account.cpp:2538-2555`, `:2656-2663`, `:3374-3380`). In 5.17 only the stock
+transaction assistant uses them, with the tags `stock-cash-proceeds`, `stock-broker-fees`, `stock-dividends` and
+`stock-capgains` (`5.17:gnucash/gnome/assistant-stock-transaction.cpp:95-98`, `:1456-1459`). red-ale stores and edits
+them only. Any non-empty tag without `/` is accepted (GnuCash accepts any non-empty tag; `/` would split red-ale's slot
+path), and the account must exist. The getter returns no account for a GUID that names none, so `associatedAccounts`
+leaves such a slot out; the slot itself is kept.
+
+### `account.cascade` (write)
+
+`{ account, color?, replaceColors?, placeholder?, hidden? }` → `{ changed: Guid[] }`. GnuCash's "Cascade Account
+Properties" (`gnc_account_cascade_properties_dialog`, `dialog-account.c:2422-2595`): each property given is applied to
+the account and every descendant (`gnc_account_get_descendants`); the result lists the accounts that changed, in that
+order.
+
+- `color` (a colour as above; empty or the default means no colour): an account without a colour gets it; an account
+  with one gets it only with `replaceColors` (default false, as the dialog's "Replace any existing account colors"),
+  and with `replaceColors` no colour removes the existing one (`update_account_color`, `:2388-2407`).
+- `placeholder`, `hidden`: set on every one of them.
+
+The account must have sub-accounts (`invalid`; the dialog requires them, `:2441`) and not be the root. The cascade is
+one Mutation.
+
 ## The accounting period
 
 GnuCash keeps the accounting period as user preferences, not in the book
@@ -216,5 +350,7 @@ and 23:59:59; red-ale reports dates only, as time zones are an open question.
 - Name ties in display order compare bytewise, not by the locale's collation.
 - Type changes check retyped sub-accounts' splits; deletes check sub-accounts' business references and re-parent
   name clashes; deletes need explicit choices and `allowCommodityMismatch`.
-- Sub-account balances in other commodities are reported unconverted.
+- Sub-account balances in other commodities are reported unconverted, also when checking balance limits.
+- Colours are checked and written as the dialog writes them; `Not Set` reads as no colour without the GUI's scrub.
+- The opening balance account lookup never creates or flags an account.
 - The accounting period lives in red-ale's configuration; dates are UTC dates.

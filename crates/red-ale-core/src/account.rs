@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
-use crate::{CommodityRef, Frame, Guid, SlotValue};
+use crate::{CommodityRef, Frame, Guid, Numeric, SlotValue};
 
 /// An account type. Names are as GnuCash writes them (`xaccAccountTypeEnumAsString`,
 /// `5.17:libgnucash/engine/Account.cpp`).
@@ -154,7 +154,26 @@ pub mod slot_paths {
     pub const RECONCILE_POSTPONE_DATE: &str = "reconcile-info/postpone/date";
     /// Postponed reconciliation balance.
     pub const RECONCILE_POSTPONE_BALANCE: &str = "reconcile-info/postpone/balance";
+    /// Display colour (`Account.cpp:2601-2604`).
+    pub const COLOR: &str = "color";
+    /// Higher balance limit, a numeric (`Account.cpp:77-80`).
+    pub const HIGHER_BALANCE_LIMIT: &str = "balance-limit/higher-value";
+    /// Lower balance limit, a numeric.
+    pub const LOWER_BALANCE_LIMIT: &str = "balance-limit/lower-value";
+    /// `"true"` when the limits apply with sub-accounts. GnuCash spells it `inlude`.
+    pub const INCLUDE_SUBACCOUNT_BALANCES: &str = "balance-limit/inlude-sub-accts";
+    /// `"opening-balance"` on the opening balance account (`Account.cpp:4131-4147`).
+    pub const EQUITY_TYPE: &str = "equity-type";
+    /// Frame of associated accounts: one GUID per tag (`Account.cpp:2656-2663`).
+    pub const ASSOCIATED_ACCOUNT: &str = "associated-account";
 }
+
+/// The `equity-type` value of an opening balance account.
+pub const OPENING_BALANCE: &str = "opening-balance";
+
+/// The colour GnuCash 2.4 to 3.3 wrote for "no colour"; the 5.17 GUI removes it when it opens a book
+/// (`xaccAccountScrubColorNotSet`, `5.17:libgnucash/engine/Scrub.cpp:1414-1452`).
+pub const COLOR_NOT_SET: &str = "Not Set";
 
 /// An account. Placeholder, hidden, notes and tax settings live in its slots, as in GnuCash.
 #[derive(Debug, Clone, PartialEq)]
@@ -248,6 +267,89 @@ impl Account {
     /// Notes.
     pub fn notes(&self) -> Option<&str> {
         self.slots.get_str(slot_paths::NOTES)
+    }
+
+    /// The colour as GnuCash's GUI sees it: the `color` slot, with `Not Set` and empty read as none.
+    pub fn color(&self) -> Option<&str> {
+        self.slots.get_str(slot_paths::COLOR).filter(|c| !c.is_empty() && *c != COLOR_NOT_SET)
+    }
+
+    /// The `color` slot as stored, `Not Set` included (`xaccAccountGetColor`).
+    pub fn stored_color(&self) -> Option<&str> {
+        self.slots.get_str(slot_paths::COLOR)
+    }
+
+    /// `xaccAccountSetColor`: an empty or absent colour removes the slot.
+    pub fn set_color(&mut self, color: Option<&str>) {
+        self.slots.set_opt_str(slot_paths::COLOR, color);
+    }
+
+    /// `xaccAccountGetHigherBalanceLimit` (`5.17:libgnucash/engine/Account.cpp:4706-4711`).
+    pub fn higher_balance_limit(&self) -> Option<Numeric> {
+        self.slots.get(slot_paths::HIGHER_BALANCE_LIMIT).and_then(SlotValue::as_numeric)
+    }
+
+    /// `xaccAccountGetLowerBalanceLimit`.
+    pub fn lower_balance_limit(&self) -> Option<Numeric> {
+        self.slots.get(slot_paths::LOWER_BALANCE_LIMIT).and_then(SlotValue::as_numeric)
+    }
+
+    /// `xaccAccountSetHigherBalanceLimit`, or `xaccAccountClearHigherBalanceLimit` with `None`.
+    pub fn set_higher_balance_limit(&mut self, limit: Option<Numeric>) {
+        self.set_numeric(slot_paths::HIGHER_BALANCE_LIMIT, limit);
+    }
+
+    /// `xaccAccountSetLowerBalanceLimit`, or `xaccAccountClearLowerBalanceLimit` with `None`.
+    pub fn set_lower_balance_limit(&mut self, limit: Option<Numeric>) {
+        self.set_numeric(slot_paths::LOWER_BALANCE_LIMIT, limit);
+    }
+
+    fn set_numeric(&mut self, path: &str, value: Option<Numeric>) {
+        match value {
+            Some(n) => self.slots.set(path, SlotValue::Numeric(n)),
+            None => drop(self.slots.remove(path)),
+        }
+    }
+
+    /// `xaccAccountGetIncludeSubAccountBalances`.
+    pub fn includes_subaccount_balances(&self) -> bool {
+        self.flag(slot_paths::INCLUDE_SUBACCOUNT_BALANCES)
+    }
+
+    /// `xaccAccountSetIncludeSubAccountBalances`.
+    pub fn set_include_subaccount_balances(&mut self, on: bool) {
+        self.set_flag(slot_paths::INCLUDE_SUBACCOUNT_BALANCES, on);
+    }
+
+    /// `xaccAccountGetIsOpeningBalance`: an EQUITY account whose `equity-type` is `opening-balance`.
+    pub fn is_opening_balance(&self) -> bool {
+        self.account_type == AccountType::Equity && self.slots.get_str(slot_paths::EQUITY_TYPE) == Some(OPENING_BALANCE)
+    }
+
+    /// `xaccAccountSetIsOpeningBalance`: does nothing unless the account is EQUITY.
+    pub fn set_opening_balance(&mut self, on: bool) {
+        if self.account_type == AccountType::Equity {
+            self.slots.set_opt_str(slot_paths::EQUITY_TYPE, on.then_some(OPENING_BALANCE));
+        }
+    }
+
+    /// Every associated account's tag and GUID as stored, in tag order. `xaccAccountGetAssociatedAccount` also
+    /// requires the GUID to name an account in the book.
+    pub fn associated_accounts(&self) -> Vec<(&str, Guid)> {
+        self.slots
+            .get_key(slot_paths::ASSOCIATED_ACCOUNT)
+            .and_then(SlotValue::as_frame)
+            .map(|f| f.iter().filter_map(|(tag, v)| v.as_guid().map(|g| (tag.as_str(), g))).collect())
+            .unwrap_or_default()
+    }
+
+    /// `xaccAccountSetAssociatedAccount`: `None` removes the tag.
+    pub fn set_associated_account(&mut self, tag: &str, account: Option<Guid>) {
+        let path = format!("{}/{tag}", slot_paths::ASSOCIATED_ACCOUNT);
+        match account {
+            Some(g) => self.slots.set(&path, SlotValue::Guid(g)),
+            None => drop(self.slots.remove(&path)),
+        }
     }
 
     /// The SCU quantities are kept in: the account's own when non-standard, else the commodity's fraction.
