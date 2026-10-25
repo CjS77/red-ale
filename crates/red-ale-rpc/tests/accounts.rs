@@ -219,6 +219,7 @@ fn accounting_period_in_memory_and_in_a_file() {
     assert_eq!(dates, json!({ "today": "2024-07-01", "start": "2024-01-01", "end": "2024-12-31" }));
     assert_eq!(b.err("period.set", json!({ "start": "fiscal-year" })).code, codes::INVALID, "no fiscal year end");
     b.ok("period.set", json!({ "start": "fiscal-year", "end": "fiscal-year", "fiscalYearEnd": "03-31" }));
+    assert_eq!(b.ok("book.info", json!({}))["dirty"], false, "the period is not book data");
     let dates = b.ok("period.dates", json!({ "date": "2024-03-31" }));
     assert_eq!((dates["start"].as_str(), dates["end"].as_str()), (Some("2023-04-01"), Some("2024-03-31")));
     b.ok("book.close", json!({}));
