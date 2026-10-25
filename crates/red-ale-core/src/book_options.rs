@@ -16,6 +16,9 @@ pub const OPT_TRADING_ACCOUNTS: &str = "options/Accounts/Use Trading Accounts";
 pub const OPT_NUM_SOURCE: &str = "options/Accounts/Use Split Action Field for Number";
 /// "Day Threshold for Read-Only Transactions (red line)": a double, 0 when off.
 pub const OPT_AUTO_READONLY_DAYS: &str = "options/Accounts/Day Threshold for Read-Only Transactions (red line)";
+/// The business "Company Name", a string (`gnc:*business-label*` and `gnc:*company-name*`,
+/// `5.17:bindings/guile/options.scm:388-389`).
+pub const OPT_COMPANY_NAME: &str = "options/Business/Company Name";
 
 /// Book feature names known to GnuCash 5.17, with the description GnuCash writes for each
 /// (`5.17:libgnucash/engine/gnc-features.cpp:36-48`).
@@ -72,6 +75,12 @@ pub fn set_trading_accounts(book: &mut Book, on: bool) {
     if uses_trading_accounts(book) != on {
         book.slots.set(OPT_TRADING_ACCOUNTS, SlotValue::String(if on { "t" } else { "f" }.to_owned()));
     }
+}
+
+/// The business company name, `""` when unset: what `gnc:company-info` reads for reports' titles
+/// (`5.17:bindings/guile/options.scm:409-411`).
+pub fn company_name(book: &Book) -> &str {
+    book.slots.get_str(OPT_COMPANY_NAME).unwrap_or_default()
 }
 
 /// True when the book uses split actions as transaction numbers.
@@ -254,6 +263,14 @@ mod tests {
         set_split_action_for_num(&mut b, true);
         assert_eq!(number(&b, &t, &t.splits[0]), Some("Buy"));
         assert_eq!(num_action_targets(&b, "INV-1", "Invoice"), ("Invoice", "INV-1"));
+    }
+
+    #[test]
+    fn the_company_name_is_a_business_option() {
+        let mut b = book();
+        assert_eq!(company_name(&b), "");
+        b.slots.set(OPT_COMPANY_NAME, SlotValue::String("Acme Ltd".into()));
+        assert_eq!(company_name(&b), "Acme Ltd");
     }
 
     #[test]

@@ -1,7 +1,7 @@
 //! Domain operations: the account tree.
 //!
-//! Creating, editing, moving, renumbering and deleting accounts as GnuCash 5.17's account dialogs do, and account
-//! balances as its engine computes them. The GnuCash engine accepts almost anything; its rules live in the dialogs,
+//! Creating, editing, moving, renumbering and deleting accounts as GnuCash 5.17's account dialogs do. Balances are in
+//! [`balances`](crate::ops::balances). The GnuCash engine accepts almost anything; its rules live in the dialogs,
 //! so this module follows `gnucash/gnome-utils/dialog-account.c` and `gnucash/gnome/gnc-plugin-page-account-tree.cpp`.
 //! See `design/notes/engine-accounts-transactions.md` §2 and §3.
 
@@ -14,10 +14,7 @@ use crate::ops::commit::{commodity_fraction, round_amount, sort_splits};
 use crate::ops::account_properties::apply_properties;
 use crate::ops::commodities::account_commodity_changed;
 use crate::transaction::slot_paths as txn_slots;
-use crate::{
-    Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, How, Numeric, ReconcileState, Round, SlotValue, Split, Time64,
-    Transaction,
-};
+use crate::{Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, Numeric, SlotValue, Transaction};
 
 /// The account separator. GnuCash makes it a user preference (default `:`,
 /// `5.17:gnucash/gschemas/org.gnucash.GnuCash.gschema.xml.in:18-22`); red-ale always uses `:`.
@@ -204,6 +201,25 @@ pub fn sorted_children(book: &Book, parent: Guid) -> Vec<&Account> {
     let mut children: Vec<&Account> = book.children(parent).collect();
     children.sort_by(|a, b| account_order(a, b));
     children
+}
+
+/// Every descendant of an account in display order, depth first: each child, in display order among its siblings,
+/// followed by its own descendants (`gnc_account_get_descendants_sorted`, `5.17:libgnucash/engine/Account.cpp:2807-2822`,
+/// `:3039-3045`).
+pub fn descendants_sorted(book: &Book, parent: Guid) -> Vec<&Account> {
+    sorted_children(book, parent).into_iter().flat_map(|child| std::iter::once(child).chain(descendants_sorted(book, child.guid))).collect()
+}
+
+/// How many levels an account is below the root account: 0 for the root, 1 for its children
+/// (`gnc_account_get_current_depth`, `5.17:libgnucash/engine/Account.cpp:2997-3013`).
+pub fn depth(book: &Book, guid: Guid) -> usize {
+    book.ancestors(guid).len() + usize::from(guid != book.root)
+}
+
+/// The number of levels in an account's subtree, counting the account itself: 1 for an account without children
+/// (`gnc_account_get_tree_depth`, `5.17:libgnucash/engine/Account.cpp:3016-3029`).
+pub fn tree_depth(book: &Book, guid: Guid) -> usize {
+    1 + book.children(guid).map(|child| tree_depth(book, child.guid)).max().unwrap_or(0)
 }
 
 /// True when the account or one of its ancestors is hidden (`xaccAccountIsHidden`,
@@ -854,181 +870,11 @@ pub fn destroy_all_transactions(book: &mut Book, account: Guid) -> (Vec<Guid>, V
     (doomed, empty)
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// Balances
-
-/// An account's balances, in its commodity (amounts, not values).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Balances {
-    /// Every split.
-    pub balance: Numeric,
-    /// Splits not in state `n`.
-    pub cleared: Numeric,
-    /// Splits in state `y` or `f`.
-    pub reconciled: Numeric,
-}
-
-impl Balances {
-    /// All zero.
-    pub const ZERO: Self = Self { balance: Numeric::ZERO, cleared: Numeric::ZERO, reconciled: Numeric::ZERO };
-}
-
-/// `strtoull` as `order_by_int64_or_string` uses it: the number and the rest of the string. A minus sign wraps, and
-/// no digits gives 0 with the whole string as the rest.
-fn strtoull(s: &str) -> (u64, &str) {
-    let trimmed = s.trim_start();
-    let (negative, unsigned) = match trimmed.as_bytes().first() {
-        Some(b'-') => (true, &trimmed[1..]),
-        Some(b'+') => (false, &trimmed[1..]),
-        _ => (false, trimmed),
-    };
-    let digits = unsigned.bytes().take_while(u8::is_ascii_digit).count();
-    if digits == 0 {
-        return (0, s);
-    }
-    let n = unsigned[..digits].bytes().try_fold(0_u64, |n, d| n.checked_mul(10)?.checked_add(u64::from(d - b'0'))).unwrap_or(u64::MAX);
-    (if negative { n.wrapping_neg() } else { n }, &unsigned[digits..])
-}
-
-/// `order_by_int64_or_string` (`5.17:libgnucash/engine/Transaction.cpp:1774`), with bytewise comparison where GnuCash
-/// collates by locale.
-fn num_order(a: &str, b: &str) -> Ordering {
-    match (strtoull(a), strtoull(b)) {
-        ((na, ra), (nb, rb)) if na != 0 && nb != 0 => na.cmp(&nb).then_with(|| ra.cmp(rb)),
-        _ => a.cmp(b),
-    }
-}
-
-fn is_closing(t: &Transaction) -> bool {
-    t.slots.get("book_closing").and_then(SlotValue::as_int).is_some_and(|v| v != 0)
-}
-
-/// `xaccTransOrder` (`5.17:libgnucash/engine/Transaction.cpp:1794`): posted date, closing transactions last, num,
-/// date entered, description, GUID. Text compares bytewise where GnuCash collates by locale.
-pub fn transaction_order(a: &Transaction, b: &Transaction) -> Ordering {
-    a.date_posted
-        .cmp(&b.date_posted)
-        .then_with(|| is_closing(a).cmp(&is_closing(b)))
-        .then_with(|| num_order(a.num.as_deref().unwrap_or_default(), b.num.as_deref().unwrap_or_default()))
-        .then_with(|| a.date_entered.cmp(&b.date_entered))
-        .then_with(|| a.description.as_deref().unwrap_or_default().cmp(b.description.as_deref().unwrap_or_default()))
-        .then_with(|| a.guid.cmp(&b.guid))
-}
-
-/// `xaccSplitOrder` (`5.17:libgnucash/engine/Split.cpp:1536`): the order of splits in an account, which running
-/// balances follow. With `num_action` (the book's num field source), split actions stand in for transaction nums
-/// (`:1550-1556`).
-pub fn split_order(a: (&Transaction, &Split), b: (&Transaction, &Split), num_action: bool) -> Ordering {
-    let (ta, sa) = a;
-    let (tb, sb) = b;
-    let text = |s: &Option<String>| s.clone().unwrap_or_default();
-    let by_txn = if num_action {
-        crate::ops::lots::trans_order(ta, Some(&text(&sa.action)), tb, Some(&text(&sb.action)))
-    } else {
-        transaction_order(ta, tb)
-    };
-    by_txn
-        .then_with(|| text(&sa.memo).cmp(&text(&sb.memo)))
-        .then_with(|| text(&sa.action).cmp(&text(&sb.action)))
-        .then_with(|| sa.reconcile_state.as_char().cmp(&sb.reconcile_state.as_char()))
-        .then_with(|| sa.amount.cmp_value(sb.amount))
-        .then_with(|| sa.value.cmp_value(sb.value))
-        .then_with(|| sa.reconcile_date.unwrap_or_default().cmp(&sb.reconcile_date.unwrap_or_default()))
-        .then_with(|| sa.guid.cmp(&sb.guid))
-}
-
-fn is_stock_split(s: &Split) -> bool {
-    s.slots.get_str("split-type") == Some("stock-split")
-}
-
-/// One step of `xaccAccountRecomputeBalance` (`5.17:libgnucash/engine/Account.cpp:2263-2335`). A stock split is
-/// skipped while the balance is zero or when it would make it zero.
-fn step(running: &mut Balances, s: &Split, amount: Numeric) -> DomainResult<()> {
-    if is_stock_split(s) {
-        if running.balance.is_zero() {
-            return Ok(());
-        }
-        let next = running.balance.add_fixed(amount)?;
-        if next.is_zero() {
-            return Ok(());
-        }
-        running.balance = next;
-    } else {
-        running.balance = running.balance.add_fixed(amount)?;
-    }
-    if s.reconcile_state != ReconcileState::New {
-        running.cleared = running.cleared.add_fixed(amount)?;
-    }
-    if matches!(s.reconcile_state, ReconcileState::Reconciled | ReconcileState::Frozen) {
-        running.reconciled = running.reconciled.add_fixed(amount)?;
-    }
-    Ok(())
-}
-
-/// An account's balances, or, with `before`, the running balances at its last split whose transaction was posted
-/// strictly before that instant (`GetBalanceAsOfDate`, `5.17:libgnucash/engine/Account.cpp:3506`). Amounts are taken
-/// at the account's SCU, as GnuCash holds them once loaded.
-pub fn balances(book: &Book, guid: Guid, before: Option<Time64>) -> DomainResult<Balances> {
-    account(book, guid)?;
-    let scu = crate::ops::commit::account_scu(book, guid).ok();
-    let mut splits: Vec<(&Transaction, &Split)> = book.splits_of(guid).collect();
-    let num_action = crate::book_options::uses_split_action_for_num(book);
-    splits.sort_by(|a, b| split_order(*a, *b, num_action));
-    let mut running = Balances::ZERO;
-    let mut at = Balances::ZERO;
-    splits.iter().try_for_each(|(t, s)| -> DomainResult<()> {
-        let amount = match scu {
-            Some(scu) => s.amount.to_denom(scu, Round::HalfUp)?,
-            None => s.amount,
-        };
-        step(&mut running, s, amount)?;
-        if before.is_none_or(|cut| t.date_posted < cut) {
-            at = running;
-        }
-        Ok(())
-    })?;
-    Ok(at)
-}
-
-/// Balances of an account and its sub-accounts, as `xaccAccountGetXxxBalanceInCurrencyRecursive` sums them
-/// (`5.17:libgnucash/engine/Account.cpp:3669-3740`): each sub-account's balance is added rounded half up to the
-/// commodity's fraction. GnuCash converts a sub-account in another commodity at the latest price; red-ale v0.1 adds
-/// nothing for it (as GnuCash does when no price exists) and reports its balances unconverted, by commodity.
-pub fn balances_with_subaccounts(book: &Book, guid: Guid, before: Option<Time64>) -> DomainResult<(Balances, BTreeMap<CommodityRef, Balances>)> {
-    let acc = account(book, guid)?;
-    let own = balances(book, guid, before)?;
-    let Some(commodity) = acc.commodity.clone() else { return Ok((own, BTreeMap::new())) };
-    let fraction = commodity_fraction(book, &commodity).ok_or_else(|| DomainError::not_found("commodity", &commodity))?;
-    let add = |a: Numeric, b: Numeric| a.add(b, fraction, How::round(Round::HalfUp));
-    let mut unconverted: BTreeMap<CommodityRef, Balances> = BTreeMap::new();
-    let total = book.descendants(guid).iter().try_fold(own, |total, sub| -> DomainResult<Balances> {
-        let b = balances(book, sub.guid, before)?;
-        let same = sub.commodity.as_ref() == Some(&commodity) || b.balance.is_zero() && b.cleared.is_zero() && b.reconciled.is_zero();
-        let counted = if same {
-            b
-        } else {
-            let other = sub.commodity.clone().unwrap_or_else(|| commodity.clone());
-            let entry = unconverted.entry(other).or_insert(Balances::ZERO);
-            *entry = Balances {
-                balance: entry.balance.add_exact(b.balance)?,
-                cleared: entry.cleared.add_exact(b.cleared)?,
-                reconciled: entry.reconciled.add_exact(b.reconciled)?,
-            };
-            Balances::ZERO
-        };
-        Ok(Balances {
-            balance: add(total.balance, counted.balance)?,
-            cleared: add(total.cleared, counted.cleared)?,
-            reconciled: add(total.reconciled, counted.reconciled)?,
-        })
-    })?;
-    Ok((total, unconverted))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Date, FixedEnv, ops::commit::NewSplit, ops::commit::NewTransaction, ops::commit::add_transaction};
+    use crate::ops::balances::balances;
+    use crate::{Date, FixedEnv, Time64, ops::commit::NewSplit, ops::commit::NewTransaction, ops::commit::add_transaction};
 
     struct Fx {
         book: Book,
@@ -1220,23 +1066,19 @@ mod tests {
     }
 
     #[test]
-    fn balances_follow_reconcile_states_and_dates() {
+    fn sorted_descendants_and_depths_walk_the_tree() {
         let mut f = Fx::new();
-        let bank = f.add(Guid::NULL, "Bank", AccountType::Bank);
-        let sub = f.add(bank, "Sub", AccountType::Bank);
-        let food = f.add(Guid::NULL, "Food", AccountType::Expense);
-        f.post(bank, food, 1000, 2);
-        let t = f.post(bank, food, 250, 5);
-        f.post(sub, food, 5, 6);
-        let tx = Arc::make_mut(f.book.transactions.get_mut(&t).unwrap());
-        tx.splits.iter_mut().for_each(|s| s.reconcile_state = ReconcileState::Reconciled);
-        let all = balances(&f.book, bank, None).unwrap();
-        assert_eq!((all.balance, all.cleared, all.reconciled), (Numeric::new(1250, 100), Numeric::new(250, 100), Numeric::new(250, 100)));
-        let before = balances(&f.book, bank, Some(Date::from_ymd(2024, 1, 5).unwrap().start_utc())).unwrap();
-        assert_eq!(before.balance, Numeric::new(1000, 100));
-        let (total, other) = balances_with_subaccounts(&f.book, bank, None).unwrap();
-        assert_eq!(total.balance, Numeric::new(1255, 100));
-        assert!(other.is_empty());
+        let z = f.add(Guid::NULL, "Z", AccountType::Asset);
+        let zb = f.add(z, "B", AccountType::Asset);
+        f.add(zb, "C", AccountType::Asset);
+        f.add(z, "A", AccountType::Asset);
+        f.add(Guid::NULL, "Y", AccountType::Asset);
+        let names = |v: Vec<&Account>| v.iter().map(|a| a.name.clone()).collect::<Vec<_>>();
+        assert_eq!(names(descendants_sorted(&f.book, f.book.root)), ["Y", "Z", "A", "B", "C"]);
+        assert_eq!(names(f.book.descendants(f.book.root)), ["Z", "B", "C", "A", "Y"], "book order for comparison");
+        let root = f.book.root;
+        assert_eq!((depth(&f.book, root), depth(&f.book, z), depth(&f.book, zb)), (0, 1, 2));
+        assert_eq!((tree_depth(&f.book, root), tree_depth(&f.book, z), tree_depth(&f.book, zb)), (4, 3, 2));
     }
 
     #[test]
@@ -1250,13 +1092,5 @@ mod tests {
         let mut v = [acc("A", AccountType::Bank, None), acc("B", AccountType::Trading, None), acc("C", AccountType::Cash, None), acc("D", AccountType::Bank, Some("1"))];
         v.sort_by(account_order);
         assert_eq!(v.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["C", "B", "A", "D"]);
-    }
-
-    #[test]
-    fn num_order_is_numeric_when_both_parse() {
-        assert_eq!(num_order("10", "9"), Ordering::Greater);
-        assert_eq!(num_order("", "1"), Ordering::Less);
-        assert_eq!(num_order("10a", "10b"), Ordering::Less);
-        assert_eq!(strtoull("-5").0, 5_u64.wrapping_neg());
     }
 }

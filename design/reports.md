@@ -332,8 +332,8 @@ comes back in hash order.
 | `book.prices(commodity, currency)` | Price[], newest first, ties by GUID | `price.list` | `gnc-pricedb-get-prices`, forward only (`5.17:libgnucash/engine/gnc-pricedb.cpp:2047-2058`) |
 | `book.price_rate(commodity, currency, when, mode)` | Rational | `price.nearest`, `price.latest` | `gnc-pricedb-get-{nearest,nearest-before,latest}-price`: 1 for the same commodity; a direct price, inverted when quoted the other way; else an indirect price through a commodity both are priced in; 0 when there is none (`:2408-2527`) |
 | `book.price_convert(monetary, currency, when, mode)` | Monetary | | `gnc-pricedb-convert-balance-*`: amount × `price_rate`, rounded to the currency's SCU with banker's rounding; 0 when no price (`:2529-2586`) |
-| `book.commodity_splits(until, commodity)` | Split[] in split order | | `gnc-get-match-commodity-splits`: non-void splits up to `until` (inclusive) whose transaction currency differs from their account's commodity, accounts in display order; `commodity` `()` for all (`5.17:bindings/engine.i:167-193`) |
-| `book.split_query(q)` | Split[] in split order | `transaction.find` | the split query of `gnc:account-get-trans-type-splits-interval` (`report/report-utilities.scm:692-725`): `q` is `#{ accounts, from, to, excludeVoid, description: #{ text, cased, regexp }, closing }`; `description` and `closing` are OR'ed, as there |
+| `book.commodity_splits(accounts, until, commodity, sorted)` | Split[] | | `gnc-get-match-commodity-splits`: non-void splits of `accounts` up to `until` (inclusive) whose transaction currency differs from their account's commodity and, unless `commodity` is `()`, one of the two is `commodity` (`5.17:bindings/engine.i:167-193`). Unsorted, account after account, each in split order (`get-exchange-totals` relies on it, CU:447); `sorted`, all in split order. Callers pass the root's sorted descendants (CU:203-205) or those holding shares (`standard/price-scatter.scm:147-149`) |
+| `book.split_query(q)` | Split[] in split order | `transaction.find` | the split query of `gnc:account-get-trans-type-splits-interval` (`report/report-utilities.scm:692-725`), which the Average Balance report also runs (`example/average-balance.scm:300-345`): `q` is `#{ accounts, from, to, description: #{ text, cased, regexp }, closing }`; void splits never match (both GnuCash queries leave them out); `description` and `closing` are OR'ed, as there |
 | `is_euro_currency(c)`, `euro_convert(m, currency)` | bool, Monetary or `()` | `currency.euroConvert` | `gnc-is-euro-currency`, `gnc-convert-to-euro`/`-from-euro` (`5.17:libgnucash/engine/gnc-euro.cpp:31-106`) |
 
 `mode` is `"nearest"`, `"before"` or `"latest"`; `when` is a Time64. `"latest"` keeps GnuCash's split behaviour:
@@ -370,6 +370,60 @@ Properties: `guid`, `name`, `fullName`, `type`, `code`, `description`, `notes`, 
 "Split order" is `xaccSplitOrder` (`5.17:libgnucash/engine/Split.cpp:1536-1597`) and "display order" is
 `xaccAccountOrder` (`Account.cpp:2363-2413`), both as v0.1 implements them, with names compared bytewise
 ([`api/accounts.md`](api/accounts.md)).
+
+### Core reads behind the query API
+
+Each function reads the Book through one `red_ale_core` read; the report crate adds no Book logic of its own. Reads
+marked *new* were added for reports; `oracle_report_reads.rs` checks them against GnuCash 5.17 on one book, with the
+num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.rs`).
+
+| Query function | Core read | |
+|----------------|-----------|---|
+| `book.root()`, `book.account(ref)`, `book.accounts()` | `Book::root`, `Book::account`, `Book::account_by_full_name`, `Book::accounts` | |
+| `book.accounts_of_types(types)` | `ops::accounts::descendants_sorted` of the root, filtered by type | new |
+| `book.commodity(id)` | `ops::commodities::lookup` | |
+| `book.uses_trading_accounts()` | `book_options::uses_trading_accounts` | |
+| `book.company_name()` | `book_options::company_name` (`options/Business/Company Name`) | new |
+| `book.prices(commodity, currency)` | `ops::prices::prices(book, commodity, Some(currency), false)`; a date range is a filter on `time`, as the Price Scatterplot filters (`standard/price-scatter.scm:220-229`) | |
+| `book.price_rate(…)` | `ops::prices::convert::rate` with `PriceAt::{Nearest, Before, Latest { now }}` | new |
+| `book.price_convert(…)` | `ops::prices::convert::convert_balance`, after the Monetary's Rational is made a Numeric (past 64 bits GnuCash fails at the same place, section 3) | new |
+| `book.commodity_splits(…)` | `ops::transactions::find::cross_commodity_splits` | new |
+| `book.split_query(q)` | `ops::transactions::find::period_splits` with a `PeriodQuery` | new |
+| `is_euro_currency`, `euro_convert` | `currencies::is_euro_currency`, `ops::commodities::euro_convert` | |
+| `a.children()`, `a.descendants()` | `Book::children`, `Book::descendants` | |
+| `a.children_sorted()`, `a.descendants_sorted()` | `ops::accounts::sorted_children`, `ops::accounts::descendants_sorted` | new (descendants) |
+| `a.tree_depth()`, `depth` | `ops::accounts::tree_depth`, `ops::accounts::depth` | new |
+| `a.splits()` | `ops::balances::account_splits` | new |
+| `a.splits_between(from, to)` | `ops::balances::account_splits_between` (with descendants for `gnc:account-get-comm-value-interval`) | new |
+| `a.balance_as_of(t)` | `ops::balances::balance_as_of(…, Total::Balance)` | new |
+| `a.accumulate_at(times, what)` | `ops::balances::running_totals_at` with `Total::Balance` or `Total::Noclosing`; `accumulate_to_dates` for any other element | new |
+| `a.reverse_balance(ctx)` | none: a report setting (section 4), not Book data; stays in `red-ale-report` | |
+| Split `balance`, `noclosingBalance` | `ops::balances::running_balances` (`RunningSplit::running`) | new |
+| Split `sharePrice` | `ops::transactions::find::share_price` | |
+| Transaction `isClosing`, `isVoid` | `Transaction::is_closing`, `Transaction::is_void` | |
+| Commodity `symbol` | `ops::commodities::display_symbol` | |
+| `ctx.accounting_period()` | `ops::period::period_bounds` | |
+
+Core also has the reads `lib/balances` and clients may want beyond these: `balances_at_dates`
+(`gnc:account-get-balances-at-dates`, the sum of amounts at or before each time, which counts the stock splits the
+engine skips), `balance_as_of_in_commodity` (`xaccAccountGet{,Noclosing}BalanceAsOfDateInCurrency`, sub-accounts
+converted at the price before), `balance_change` (`xaccAccountGet{,Noclosing}BalanceChangeForPeriod`) and the
+any-currency lookups `nearest_any_currency` and `latest_before_any_currency`. No JSON-RPC method is added: every
+query function that mirrors a method mirrors one that exists.
+
+Behaviour the oracle confirms and translations must keep:
+
+- **As of is strictly before; at dates is at or before.** `balance_as_of(t)` takes splits posted before `t`
+  (`Account.cpp:3505-3518`), `accumulate_at` splits posted at or before each time (`5.17:bindings/engine.i:195-221`).
+  `accumulate_at` walks the times in the order given with a cursor that only moves forward, as GnuCash's does.
+- **The num field source reorders a day.** With it on, split actions stand in for nums in split order
+  (`Split.cpp:1548-1557`), which changes the running balances of splits posted at the same time, never a balance
+  between days.
+- **A skipped stock split reads as zero.** The engine skips a stock split while the balance is zero or when it would
+  make it zero, and never sets that split's running totals (`Account.cpp:2284-2290`); its `balance` reads 0, and so
+  does `balance_as_of` a time when it is the last split before.
+- **Latest is two lookups.** A direct latest price may lie in the future; an indirect one is the newest at or before
+  now, which the host passes in (`PriceAt::Latest { now }`), never the clock.
 
 ### Time
 
@@ -1074,6 +1128,8 @@ drops it and needs nothing from budgets.
 | Amounts past 64 bits | Fail at `gnc_scm_to_numeric`: an empty cell or an error (`5.17:bindings/guile/gnc-engine-guile.cpp:1709-1727`) | Exact, printed | Figures within 64 bits are the same |
 | Floating point (day fractions, pie percentages, chart values) | Doubles | Exact, rounded as GnuCash displays | No floats anywhere in red-ale |
 | Bad option values | Logged and ignored | `report-option` error | A typo never runs a different report |
+| A split query's description pattern that is not a regular expression | The criterion is dropped (`qof_query_string_predicate` returns null, `5.17:libgnucash/engine/qofquerycore.cpp:319-334`) | `report-script` error | A typo never matches every transaction |
+| A split query's regular expressions and case folding | POSIX extended expressions; `g_utf8_casefold` | Rust `regex`; lowercase, as `transaction.find` | Same results for patterns both dialects read alike |
 | Saved configuration name clash | A number is appended on save | `conflict` | The caller gets the name it asked for |
 | User text in style sheets | Inserted as raw HTML | Escaped | No injected markup in exported reports |
 | CSS style sheet text | Default CSS on `</style` | Refused on `</style`, `@import`, `url(` | Exported pages load nothing |

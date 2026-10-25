@@ -8,8 +8,7 @@
 
 use std::cmp::Reverse;
 
-use crate::book_options::uses_split_action_for_num;
-use crate::ops::accounts::split_order;
+use crate::ops::balances::account_splits;
 use crate::ops::commit::account_scu;
 use crate::ops::reconcile::set_split_state;
 use crate::{Book, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, Round};
@@ -75,9 +74,7 @@ pub fn find_with_limit(book: &Book, account: Guid, target: Numeric, limit: u64) 
     book.account(account).ok_or_else(|| DomainError::not_found("account", &account))?;
     let scu = account_scu(book, account)?;
     let target = target.to_denom(scu, Round::Bankers)?;
-    let mut splits: Vec<_> = book.splits_of(account).collect();
-    let num_action = uses_split_action_for_num(book);
-    splits.sort_by(|a, b| split_order(*a, *b, num_action));
+    let splits = account_splits(book, account);
     let amounts = splits.iter().map(|(_, s)| whole_units(s.amount, scu, s.guid)).collect::<DomainResult<Vec<i128>>>()?;
     let is_new = |i: usize| splits[i].1.reconcile_state == ReconcileState::New;
     let cleared: i128 = (0..splits.len()).filter(|&i| !is_new(i)).map(|i| amounts[i]).sum();

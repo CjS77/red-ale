@@ -526,6 +526,22 @@ impl Numeric {
         Self { num: self.num.abs(), denom: self.denom }
     }
 
+    /// The reciprocal, with the sign on the numerator (`gnc_numeric_invert`,
+    /// `5.17:libgnucash/engine/gnc-numeric.cpp:1274-1288`, and `GncNumeric::inv`, `:422-430`). Zero inverts to zero,
+    /// as in GnuCash. A negative denominator is a multiplier, so it is applied before inverting.
+    pub fn invert(self) -> Result<Self, NumericError> {
+        if !self.is_valid() {
+            return Err(NumericError::Arg);
+        }
+        let overflow = |x: Option<i64>| x.ok_or(NumericError::Overflow);
+        let (num, denom) = if self.denom < 0 { (overflow(self.num.checked_mul(-self.denom))?, 1) } else { (self.num, self.denom) };
+        match num {
+            0 => Ok(Self::ZERO),
+            n if n < 0 => Ok(Self { num: overflow(denom.checked_neg())?, denom: overflow(n.checked_neg())? }),
+            n => Ok(Self { num: denom, denom: n }),
+        }
+    }
+
     /// Lowest terms (`gnc_numeric_reduce`).
     #[must_use]
     pub fn reduce(self) -> Self {
@@ -758,6 +774,16 @@ mod tests {
     fn add_fixed_uses_lcm_denominator() {
         assert!(n(1, 2).add_fixed(n(1, 3)).unwrap().same_repr(n(5, 6)));
         assert!(n(150, 100).add_fixed(n(-150, 100)).unwrap().same_repr(n(0, 100)));
+    }
+
+    #[test]
+    fn invert_moves_the_sign_to_the_numerator_and_keeps_zero() {
+        assert!(n(110, 100).invert().unwrap().same_repr(n(100, 110)));
+        assert!(n(-3, 4).invert().unwrap().same_repr(n(-4, 3)));
+        assert!(n(0, 100).invert().unwrap().same_repr(Numeric::ZERO));
+        assert!(n(3, -10).invert().unwrap().same_repr(n(1, 30)), "a negative denominator multiplies");
+        assert_eq!(n(1, 0).invert(), Err(NumericError::Arg));
+        assert_eq!(n(i64::MIN, 1).invert(), Err(NumericError::Overflow));
     }
 
     #[test]

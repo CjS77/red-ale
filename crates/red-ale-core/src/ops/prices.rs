@@ -15,6 +15,8 @@ use chrono::{Datelike, NaiveDate};
 use crate::ops::commodities::{canonical, require};
 use crate::{Book, CommodityRef, Date, DomainError, DomainResult, Guid, Numeric, Price, Time64, TimeZone};
 
+pub mod convert;
+
 /// GnuCash's price sources, in precedence order: a lower index wins (`PriceSource`,
 /// `5.17:libgnucash/engine/gnc-pricedb.h:169-182`; strings at `5.17:libgnucash/engine/gnc-pricedb.cpp:105-120`).
 pub const SOURCES: [&str; 11] = [

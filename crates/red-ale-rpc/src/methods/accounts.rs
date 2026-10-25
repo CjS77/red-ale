@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use red_ale_core::account::slot_paths;
+use red_ale_core::ops::balances;
 use red_ale_core::ops::accounts::{
     self as ops, ACCOUNT_TYPES, AccountEdit, CommodityRule, DeleteOptions, Disposal, Renumber, Scu, account_order, commodity_rule,
 };
@@ -677,7 +678,7 @@ pub struct BalanceResult {
     pub unconverted: Vec<CommodityBalances>,
 }
 
-fn commodity_balances(c: red_ale_core::CommodityRef, b: ops::Balances) -> CommodityBalances {
+fn commodity_balances(c: red_ale_core::CommodityRef, b: balances::Balances) -> CommodityBalances {
     CommodityBalances { commodity: CommodityId(c), balance: b.balance.into(), cleared: b.cleared.into(), reconciled: b.reconciled.into() }
 }
 
@@ -688,9 +689,9 @@ fn balance(ctx: &mut Context, p: BalanceParams) -> Result<BalanceResult, RpcErro
     let before = p.as_of.map(|d| zone.day_end(d.0));
     let commodity = book.account(guid).and_then(|a| a.commodity.clone());
     let (total, others) = if p.include_subaccounts {
-        ops::balances_with_subaccounts(book, guid, before)?
+        balances::balances_with_subaccounts(book, guid, before)?
     } else {
-        (ops::balances(book, guid, before)?, std::collections::BTreeMap::new())
+        (balances::balances(book, guid, before)?, std::collections::BTreeMap::new())
     };
     Ok(BalanceResult {
         account: guid.into(),
