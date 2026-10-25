@@ -19,7 +19,12 @@ use crate::wire::NoParams;
 pub fn methods() -> Vec<Method> {
     vec![
         method("counter.list", "Every counter: the last number issued, its format and the next ID it would give.", Effect::Read, list),
-        method("counter.set", "Set a counter's last number issued or its format; a null or empty format means the default.", Effect::Write, set),
+        method(
+            "counter.set",
+            "Set a counter's last number issued or its format; a null or empty format means the default.",
+            Effect::Write,
+            set,
+        ),
     ]
 }
 

@@ -8,8 +8,16 @@ use crate::ops::business::documents::{COUNTER_BILL, COUNTER_EXPENSE_VOUCHER, COU
 use crate::{Book, DomainError, DomainResult, SlotValue};
 
 /// The counters GnuCash's book options offer, in their order (`5.17:libgnucash/engine/gnc-optiondb.cpp:1228-1297`).
-pub const COUNTERS: [&str; 8] =
-    [COUNTER_CUSTOMER, COUNTER_EMPLOYEE, COUNTER_INVOICE, COUNTER_BILL, COUNTER_EXPENSE_VOUCHER, COUNTER_JOB, COUNTER_ORDER, COUNTER_VENDOR];
+pub const COUNTERS: [&str; 8] = [
+    COUNTER_CUSTOMER,
+    COUNTER_EMPLOYEE,
+    COUNTER_INVOICE,
+    COUNTER_BILL,
+    COUNTER_EXPENSE_VOUCHER,
+    COUNTER_JOB,
+    COUNTER_ORDER,
+    COUNTER_VENDOR,
+];
 
 /// The highest value the book options let a counter take (`5.17:libgnucash/engine/gnc-optiondb.cpp:947-956`).
 pub const MAX_COUNTER: i64 = 999_999_999;
