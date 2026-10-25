@@ -195,3 +195,29 @@ fn a_read_only_book_refuses_changes() {
     assert_eq!(b.err("customer.create", json!({ "name": "X", "currency": "EUR" })).code, codes::READ_ONLY);
     assert_eq!(b.call("customer.list", json!({}))["customers"].as_array().unwrap().len(), 1);
 }
+
+#[test]
+fn counters_are_listed_set_and_used_for_new_ids() {
+    let mut b = open("synthetic/business-editable.gnucash");
+    let list = b.call("counter.list", json!({}));
+    let names: Vec<&str> = list["counters"].as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap()).collect();
+    assert_eq!(names, ["gncCustomer", "gncEmployee", "gncInvoice", "gncBill", "gncExpVoucher", "gncJob", "gncOrder", "gncVendor"]);
+    let invoice = &list["counters"][2];
+    assert_eq!(invoice["last"], 2);
+    assert_eq!(invoice["next"], "000003");
+    assert_eq!(invoice["formatValid"], false);
+    assert_eq!(invoice["normalizedFormat"], "%.6li");
+
+    let set = b.call("counter.set", json!({ "name": "gncCustomer", "last": 99, "format": "CUST-%05lli" }));
+    assert_eq!(set["next"], "CUST-00100");
+    assert_eq!(set["normalizedFormat"], "CUST-%05li");
+    assert_eq!(b.call("customer.create", json!({ "name": "New", "currency": "EUR" }))["id"], "CUST-00100");
+    let after = b.call("counter.set", json!({ "name": "gncCustomer", "format": null }));
+    assert_eq!((after["last"].clone(), after["format"].clone(), after["next"].clone()), (json!(100), Value::Null, json!("000101")));
+
+    let bad = b.err("counter.set", json!({ "name": "gncCustomer", "format": "%d" }));
+    assert_eq!(bad.code, codes::INVALID);
+    assert!(bad.message.contains("doesn't contain requested format specifier"), "{}", bad.message);
+    assert_eq!(b.err("counter.set", json!({ "name": "gncThing", "last": 1 })).code, codes::INVALID);
+    assert_eq!(b.err("counter.set", json!({ "name": "gncBill", "last": 1_000_000_000 })).code, codes::INVALID);
+}
