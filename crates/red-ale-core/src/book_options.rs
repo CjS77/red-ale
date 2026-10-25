@@ -65,11 +65,11 @@ pub fn uses_trading_accounts(book: &Book) -> bool {
     option_is_t(book, OPT_TRADING_ACCOUNTS)
 }
 
-/// Turn "Use Trading Accounts" on or off as GnuCash's Book Options dialog does: `"t"` or `"f"`
-/// (`5.17:libgnucash/engine/gnc-optiondb.cpp:404-410`). Turning it off when the Book has no such slot writes none.
-/// No transaction changes (`qof_book_set_option`, `5.17:libgnucash/engine/qofbook.cpp:1379-1389`).
+/// Turn "Use Trading Accounts" on or off as GnuCash's book options dialog does: an unchanged value writes nothing; a
+/// change writes `"t"` or `"f"` (`5.17:libgnucash/engine/gnc-optiondb.cpp:404-410`). No transaction changes
+/// (`qof_book_set_option`, `5.17:libgnucash/engine/qofbook.cpp:1379-1389`).
 pub fn set_trading_accounts(book: &mut Book, on: bool) {
-    if on || book.slots.get(OPT_TRADING_ACCOUNTS).is_some() {
+    if uses_trading_accounts(book) != on {
         book.slots.set(OPT_TRADING_ACCOUNTS, SlotValue::String(if on { "t" } else { "f" }.to_owned()));
     }
 }

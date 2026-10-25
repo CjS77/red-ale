@@ -1,6 +1,6 @@
 //! Methods: opening, creating, saving and closing a book, and what the book declares about itself.
 
-use red_ale_core::book_options::{GNUCASH_FEATURES, features, set_trading_accounts, uses_trading_accounts};
+use red_ale_core::book_options::{GNUCASH_FEATURES, features};
 use red_ale_service::session::SUPPORTED_FEATURES;
 use red_ale_service::{ReadOnlyReason, Session};
 use schemars::JsonSchema;
@@ -23,12 +23,6 @@ pub fn methods() -> Vec<Method> {
             "Replay a GnuCash .log journal onto the open book: create, update or delete transactions by GUID.",
             Effect::Write,
             replay_journal,
-        ),
-        method(
-            "book.setTradingAccounts",
-            "Turn the book option Use Trading Accounts on or off; commits then keep trading splits as GnuCash does.",
-            Effect::Write,
-            set_trading,
         ),
     ]
 }
@@ -129,14 +123,6 @@ pub struct FeatureInfo {
     pub supported: bool,
 }
 
-/// The Book options red-ale reads, from the Book's `options` slots.
-#[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct BookOptionsInfo {
-    /// "Use Trading Accounts" is on: commits keep trading splits.
-    pub use_trading_accounts: bool,
-}
-
 /// How many of each entity the book holds.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -179,8 +165,6 @@ pub struct BookInfo {
     pub journal: Option<String>,
     /// Book features the book declares.
     pub features: Vec<FeatureInfo>,
-    /// Book options.
-    pub options: BookOptionsInfo,
     /// Entity counts.
     pub counts: Counts,
 }
@@ -233,7 +217,6 @@ pub fn describe(session: &Session) -> BookInfo {
                 description,
             })
             .collect(),
-        options: BookOptionsInfo { use_trading_accounts: uses_trading_accounts(book) },
         counts: Counts {
             commodities: book.commodities.len(),
             accounts: book.accounts.len(),
@@ -303,20 +286,5 @@ fn replay_journal(ctx: &mut Context, p: ReplayParams) -> Result<ReplayResult, Rp
         not_found: ids(&r.not_found),
         skipped_records: r.skipped_records,
         skipped_lines: r.skipped_lines.iter().map(|l| format!("line {}: {}", l.line, l.reason)).collect(),
-    })
-}
-
-/// Params and result of `book.setTradingAccounts`.
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct TradingAccountsParams {
-    /// Balance multi-commodity transactions through trading accounts.
-    pub use_trading_accounts: bool,
-}
-
-fn set_trading(ctx: &mut Context, p: TradingAccountsParams) -> Result<TradingAccountsParams, RpcError> {
-    ctx.mutate(|book, _| {
-        set_trading_accounts(book, p.use_trading_accounts);
-        Ok(TradingAccountsParams { use_trading_accounts: uses_trading_accounts(book) })
     })
 }

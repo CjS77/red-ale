@@ -2,7 +2,7 @@
 
 The Book option "Use Trading Accounts", the TRADING account tree, and the trading splits every commit keeps. Domain
 code: `crates/red-ale-core/src/ops/trading.rs`, applied from `ops/commit.rs`; option: `book_options.rs`; methods:
-`crates/red-ale-rpc/src/methods/book.rs`. Research: [`notes/engine-accounts-transactions.md`](../notes/engine-accounts-transactions.md)
+`crates/red-ale-rpc/src/methods/book_options.rs`. Research: [`notes/engine-accounts-transactions.md`](../notes/engine-accounts-transactions.md)
 §9.6 and [`notes/storage-and-safety.md`](../notes/storage-and-safety.md) §11.
 
 With the option on, a transaction that moves value between commodities also records, in TRADING accounts, how much
@@ -17,12 +17,13 @@ Books using trading accounts were read-only in v0.1. From v0.2 they open for edi
 The Book slot `options/Accounts/Use Trading Accounts` (string). On when it is exactly `"t"`
 (`5.17:libgnucash/engine/qofbook.cpp:919-928`).
 
-- `book.info` (and `book.open`, `book.create`) report it as `options.useTradingAccounts: bool`.
-- `book.setTradingAccounts` (write) takes `{ useTradingAccounts: bool }` and returns `{ useTradingAccounts }`.
-  - On writes `"t"`. Off writes `"f"`, as GnuCash's Book Options dialog does (`5.17:libgnucash/engine/gnc-optiondb.cpp:404-410`);
-    off on a Book with no slot writes nothing.
-  - No transaction changes. As in GnuCash, an existing transaction gets trading splits when it is next changed.
-  - Refused on a read-only session, like every Mutation.
+It is one of the Book options of [`book-options.md`](book-options.md):
+
+- `book.options` returns it as `useTradingAccounts: bool`.
+- `book.setOptions` takes `useTradingAccounts: bool`, applied as GnuCash's book options dialog applies it:
+  - an unchanged value writes nothing; a change writes `"t"` or `"f"` (`5.17:libgnucash/engine/gnc-optiondb.cpp:404-410`),
+    never deleting the slot;
+  - no transaction changes. As in GnuCash, an existing transaction gets trading splits when it is next changed.
 
 ## Account type
 

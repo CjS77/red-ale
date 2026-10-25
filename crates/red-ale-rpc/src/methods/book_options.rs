@@ -1,5 +1,6 @@
 //! Methods: the Book options red-ale reads, sets and follows: the num field source and the auto read-only threshold
-//! (`design/api/book-options.md`). The rules live in `red_ale_core::book_options`.
+//! (`design/api/book-options.md`), and trading accounts (`design/api/trading-accounts.md`). The rules live in
+//! `red_ale_core::book_options`.
 
 use red_ale_core::book_options::{self as opts, MAX_AUTO_READONLY_DAYS};
 use red_ale_core::{Book, Env};
@@ -14,10 +15,15 @@ use crate::wire::{Day, NoParams};
 /// The book options methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("book.options", "The book's num field source and auto read-only threshold, with today's threshold date.", Effect::Read, get),
+        method(
+            "book.options",
+            "The book's num field source, auto read-only threshold (with today's threshold date) and trading accounts option.",
+            Effect::Read,
+            get,
+        ),
         method(
             "book.setOptions",
-            "Set the num field source or the auto read-only threshold, as GnuCash's book options dialog does.",
+            "Set the num field source, the auto read-only threshold or trading accounts, as GnuCash's book options dialog does.",
             Effect::Write,
             set,
         ),
@@ -35,6 +41,8 @@ pub struct BookOptions {
     /// Today minus the threshold's days: transactions posted before it are read-only. Absent when the threshold is off.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub read_only_threshold: Option<Day>,
+    /// "Use Trading Accounts": every commit keeps the trading splits of multi-commodity transactions.
+    pub use_trading_accounts: bool,
 }
 
 /// Params of `book.setOptions`; an absent option is left as it is.
@@ -48,6 +56,9 @@ pub struct SetParams {
     #[serde(default)]
     #[schemars(range(min = 0, max = MAX_AUTO_READONLY_DAYS))]
     pub auto_read_only_days: Option<i64>,
+    /// Balance multi-commodity transactions through trading accounts. No existing transaction changes.
+    #[serde(default)]
+    pub use_trading_accounts: Option<bool>,
 }
 
 fn describe(book: &Book, env: &mut dyn Env) -> Result<BookOptions, RpcError> {
@@ -56,6 +67,7 @@ fn describe(book: &Book, env: &mut dyn Env) -> Result<BookOptions, RpcError> {
         split_action_for_num: opts::uses_split_action_for_num(book),
         auto_read_only_days: opts::auto_readonly_days(book),
         read_only_threshold: opts::auto_readonly_threshold(book, today).map(Day),
+        use_trading_accounts: opts::uses_trading_accounts(book),
     })
 }
 
@@ -70,6 +82,9 @@ fn set(ctx: &mut Context, p: SetParams) -> Result<BookOptions, RpcError> {
         }
         if let Some(days) = p.auto_read_only_days {
             opts::set_auto_readonly_days(book, days)?;
+        }
+        if let Some(on) = p.use_trading_accounts {
+            opts::set_trading_accounts(book, on);
         }
         describe(book, env)
     })

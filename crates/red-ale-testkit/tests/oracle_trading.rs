@@ -67,7 +67,7 @@ fn trading_book() -> (TempBook, red_ale_rpc::Dispatcher) {
     .for_each(|(name, ty, parent, commodity)| {
         call(&mut d, "account.create", &json!({ "name": name, "type": ty, "parent": parent, "commodity": commodity }));
     });
-    call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": true }));
+    call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }));
     call(&mut d, "book.close", &json!({ "save": true }));
     (book, d)
 }
@@ -116,9 +116,9 @@ fn red_ale_posts_the_trading_splits_gnucash_posts() {
 fn gnucash_rebalances_a_transaction_posted_before_the_option_was_on() {
     let (book, mut d) = trading_book();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-    call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": false }));
+    call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": false }));
     post_through_api(&mut d, &json!([transactions()[0]]));
-    call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": true }));
+    call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }));
     call(&mut d, "book.close", &json!({ "save": true }));
     let found = check(&book);
     assert_eq!((&found["unbalanced"], &found["changed"]), (&json!(["Exchange"]), &json!(["Exchange"])), "{found}");
@@ -128,9 +128,9 @@ fn gnucash_rebalances_a_transaction_posted_before_the_option_was_on() {
 fn red_ale_scrubs_a_trading_book_as_gnucash_does() {
     let (base, mut d) = trading_book();
     call(&mut d, "book.open", &json!({ "path": base.path_str() }));
-    call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": false }));
+    call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": false }));
     post_through_api(&mut d, &transactions());
-    call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": true }));
+    call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }));
     call(&mut d, "book.close", &json!({ "save": true }));
 
     let theirs = copy_of(&base);
@@ -153,7 +153,8 @@ fn trading_fixtures_edited_by_red_ale_need_nothing_from_gnucash() {
         assert_nothing_to_fix(&book);
         let mut d = dispatcher();
         let info = call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-        assert_eq!((&info["readOnly"], &info["options"]["useTradingAccounts"]), (&json!(false), &json!(true)), "{name}: {info}");
+        assert_eq!(info["readOnly"], false, "{name}: {info}");
+        assert_eq!(call(&mut d, "book.options", &json!({}))["useTradingAccounts"], true, "{name}");
         let diffs = oracle_check(&mut d, &book, &[]);
         assert!(diffs.is_empty(), "{name} saved unedited:\n{}", diffs.join("\n"));
     });

@@ -15,6 +15,7 @@ options dialog writes them (`GncOptionDB::save_to_kvp`, `libgnucash/engine/gnc-o
 |---|---|---|---|
 | `Use Split Action Field for Number` | `splitActionForNum` | string `"t"` or `"f"` | on only when exactly `"t"` (`qof_book_use_split_action_for_num_field`, `libgnucash/engine/qofbook.cpp:933-959`) |
 | `Day Threshold for Read-Only Transactions (red line)` | `autoReadOnlyDays` | double, 0–3650, step 1 | the value truncated to an integer, `(gint)` (`qof_book_get_num_days_autoreadonly`, `qofbook.cpp:986-1004`); on when not 0 (`qof_book_uses_autoreadonly`, `:974-978`) |
+| `Use Trading Accounts` | `useTradingAccounts` | string `"t"` or `"f"` | on only when exactly `"t"` (`qof_book_use_trading_accounts`, `qofbook.cpp:919-928`); what it does is in [`trading-accounts.md`](trading-accounts.md) |
 
 The dialog writes only options the user changed. A boolean is written `"t"` or `"f"`, never deleted
 (`kvp_value_from_bool_option`, `gnc-optiondb.cpp:404-410`); a number range as a double (`:493-502`), which the XML
@@ -25,18 +26,19 @@ read `30`.
 
 | Method            | Effect | Does |
 |-------------------|--------|------|
-| `book.options`    | read   | The two options and today's read-only threshold. |
-| `book.setOptions` | write  | Change either option, as GnuCash's book options dialog does. |
+| `book.options`    | read   | The options and today's read-only threshold. |
+| `book.setOptions` | write  | Change any of them, as GnuCash's book options dialog does. |
 
-**Result** (both methods): `{ splitActionForNum, autoReadOnlyDays, readOnlyThreshold }`. `readOnlyThreshold` is the
-threshold date (below), or absent when the threshold is off.
+**Result** (both methods): `{ splitActionForNum, autoReadOnlyDays, readOnlyThreshold, useTradingAccounts }`.
+`readOnlyThreshold` is the threshold date (below), or absent when the threshold is off.
 
 ### `book.setOptions`
 
 Params, each optional; an absent option is left alone:
 
 - `splitActionForNum` (bool);
-- `autoReadOnlyDays` (integer, 0 to 3650, the dialog's range; anything else is `invalid`).
+- `autoReadOnlyDays` (integer, 0 to 3650, the dialog's range; anything else is `invalid`);
+- `useTradingAccounts` (bool; see [`trading-accounts.md`](trading-accounts.md)).
 
 As the dialog applies them (`gnc_book_options_dialog_apply_helper`, `gnucash/gnome-utils/gnc-main-window.cpp:4632-4681`):
 

@@ -98,9 +98,8 @@ is used only for protocol errors.
 | `book.close`         | write  | Release the lock. Refuses unsaved changes unless `save` or `discard`.                  |
 | `book.replayJournal` | write  | Replay a GnuCash `.log` journal: transactions created, updated or deleted by GUID.     |
 | `book.closeBooks`    | write  | Close the books: zero income and expense into equity at a date ([`api/close-book.md`](api/close-book.md)). Not `book.close`. |
-| `book.options`       | read   | The num field source and auto read-only threshold Book options ([`api/book-options.md`](api/book-options.md)). |
+| `book.options`       | read   | The num field source, auto read-only threshold and trading accounts Book options ([`api/book-options.md`](api/book-options.md), [`api/trading-accounts.md`](api/trading-accounts.md)). |
 | `book.setOptions`    | write  | Change them as GnuCash's book options dialog does, setting `Number Field Source` when the num field source is turned on. |
-| `book.setTradingAccounts` | write | Turn the Book option "Use Trading Accounts" on or off ([`api/trading-accounts.md`](api/trading-accounts.md)). |
 
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
 feature red-ale does not implement (`unsupported-features`), holds content red-ale can keep but not edit safely
@@ -126,7 +125,7 @@ deliberate deviations.
 | [`api/transactions.md`](api/transactions.md)               | `transaction.*`, `docLink.*`                                |
 | [`api/reconcile.md`](api/reconcile.md)                     | reconcile states, reconciling against a statement, auto-clear |
 | [`api/scrub.md`](api/scrub.md)                             | imbalance and orphan scrubs, Check & Repair                 |
-| [`api/trading-accounts.md`](api/trading-accounts.md)       | `book.setTradingAccounts`, trading splits at every commit   |
+| [`api/trading-accounts.md`](api/trading-accounts.md)       | trading accounts: the option, trading splits at every commit |
 | [`api/commodities.md`](api/commodities.md)                 | `commodity.*`, `currency.*`                                 |
 | [`api/prices.md`](api/prices.md)                           | `price.*`                                                   |
 | [`api/lots.md`](api/lots.md)                               | `lot.*`, capital gains, stock splits                        |

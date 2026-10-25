@@ -31,7 +31,7 @@ fn book(trading: bool) -> (tempfile::TempDir, Dispatcher) {
         call(&mut d, "account.create", a);
     });
     if trading {
-        call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": true }));
+        call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }));
     }
     (dir, d)
 }
@@ -61,13 +61,12 @@ fn row(a: &str, v: &str, q: &str) -> (String, String, String) {
 #[test]
 fn the_option_is_read_and_set() {
     let (_dir, mut d) = book(false);
-    assert_eq!(call(&mut d, "book.info", &json!({}))["options"]["useTradingAccounts"], false);
-    assert_eq!(call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": true })), json!({ "useTradingAccounts": true }));
-    let info = call(&mut d, "book.info", &json!({}));
-    assert_eq!(info["options"]["useTradingAccounts"], true);
-    assert_eq!(info["readOnly"], false);
-    assert_eq!(call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": false }))["useTradingAccounts"], false);
-    assert_eq!(d.call("book.setTradingAccounts", json!({ "use": true })).unwrap_err().code, codes::INVALID_PARAMS);
+    assert_eq!(call(&mut d, "book.options", &json!({}))["useTradingAccounts"], false);
+    assert_eq!(call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }))["useTradingAccounts"], true);
+    assert_eq!(call(&mut d, "book.options", &json!({}))["useTradingAccounts"], true);
+    assert_eq!(call(&mut d, "book.info", &json!({}))["readOnly"], false);
+    assert_eq!(call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": false }))["useTradingAccounts"], false);
+    assert_eq!(d.call("book.setOptions", json!({ "useTradingAccounts": "yes" })).unwrap_err().code, codes::INVALID_PARAMS);
 }
 
 #[test]
@@ -138,7 +137,7 @@ fn a_transaction_from_before_the_option_gets_trading_splits_when_next_changed() 
     let (_dir, mut d) = book(false);
     let t = exchange(&mut d);
     assert_eq!(t["splits"].as_array().unwrap().len(), 2);
-    call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": true }));
+    call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }));
     let guid = t["guid"].clone();
     let still = call(&mut d, "transaction.get", &json!({ "guid": guid }));
     let split_count = still["splits"].as_array().unwrap().len();
