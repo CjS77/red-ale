@@ -83,9 +83,9 @@ pub fn backup(book: &Path) -> Result<Option<PathBuf>, ServiceError> {
 }
 
 fn temp_path(book: &Path) -> PathBuf {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let nanos = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
     let seed = u64::from(nanos) ^ u64::from(std::process::id()).rotate_left(20);
-    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let tail: String = (0..6)
         .map(|i| {
             let idx = usize::try_from((seed >> (i * 6)) % CHARS.len() as u64).unwrap_or(0);

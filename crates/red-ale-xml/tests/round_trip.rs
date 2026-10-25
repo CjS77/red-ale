@@ -1,5 +1,6 @@
 //! Round-trip tests: books written by GnuCash 5.17 must come back byte for byte, both when unchanged entities are
 //! written from their original elements and when every entity is generated from the model.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use red_ale_xml::{read_book, write_book_text};
 

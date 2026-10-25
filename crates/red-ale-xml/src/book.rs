@@ -150,8 +150,7 @@ pub fn read_book(bytes: &[u8]) -> Result<(Book, XmlResidue), XmlError> {
     let [book_el] = books.as_slice() else {
         return Err(XmlError::NotABook(format!("expected one gnc:book, found {}", books.len())));
     };
-    let mut reader = Reader::default();
-    reader.residue_book_version = book_el.get_attr("version").unwrap_or(BOOK_VERSION).to_owned();
+    let mut reader = Reader { residue_book_version: book_el.get_attr("version").unwrap_or(BOOK_VERSION).to_owned(), ..Reader::default() };
     book_el.elements().try_for_each(|el| reader.part(el))?;
     root.elements().filter(|e| e.name != "gnc:book" && e.name != "gnc:count-data").for_each(|e| {
         reader.notices.unrecognised.push(format!("unknown element {} outside the book", e.name));
@@ -362,7 +361,9 @@ impl<'a> Writer<'a> {
     fn write(mut self) -> String {
         self.out.push_str(&header());
         count_line(&mut self.out, "book", 1);
-        self.out.push_str(&format!("<gnc:book version=\"{}\">\n", self.residue.book_version));
+        self.out.push_str("<gnc:book version=\"");
+        self.out.push_str(&self.residue.book_version);
+        self.out.push_str("\">\n");
         self.line(&guid_el("book:id", self.book.guid));
         self.book_slots();
         self.counts();

@@ -146,6 +146,7 @@ fn top(name: &str) -> Element {
 
 /// A parsed business object.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)] // Short-lived: each is moved into the Book as soon as it is parsed.
 pub enum BusinessObject {
     /// A billing term.
     BillTerm(BillTerm),

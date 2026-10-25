@@ -7,5 +7,7 @@ pub mod error;
 pub mod files;
 pub mod journal;
 pub mod lock;
+pub mod session;
 
 pub use error::ServiceError;
+pub use session::{ReadOnlyReason, SaveReport, Session, Settings};

@@ -89,6 +89,18 @@ impl Book {
         }
     }
 
+    /// A new, empty book as GnuCash creates one: a root account named "Root Account" with no commodity, and the
+    /// reserved `template` commodity (`5.17:libgnucash/engine/gnc-commodity.cpp:2317-2327`).
+    pub fn new_empty(env: &mut dyn Env) -> Self {
+        let root = Account::new(env.new_guid(), "Root Account", crate::AccountType::Root, None, None);
+        let mut book = Self::new(env.new_guid(), root);
+        let template = CommodityRef::new(crate::commodity::TEMPLATE_NAMESPACE, "template");
+        let mut c = Commodity::new(template.clone(), Some("template".into()), 1);
+        c.cusip = Some("template".into());
+        book.commodities.insert(template, Arc::new(c));
+        book
+    }
+
     /// The account with this GUID.
     pub fn account(&self, guid: Guid) -> Option<&Account> {
         self.accounts.get(&guid).map(AsRef::as_ref)

@@ -379,7 +379,7 @@ pub struct BillTerm {
 ///
 /// The `i_` fields apply when the entry is on a customer invoice, the `b_` fields when it is on a bill or voucher.
 #[derive(Debug, Clone, PartialEq)]
-#[allow(missing_docs)]
+#[allow(missing_docs, clippy::struct_excessive_bools)] // Mirrors GnuCash's entry fields one for one.
 pub struct Entry {
     pub guid: Guid,
     pub date: Time64,

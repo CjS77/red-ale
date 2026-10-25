@@ -37,4 +37,54 @@ pub enum ServiceError {
         /// The cause.
         source: std::io::Error,
     },
+    /// The path names an SQL book; v0.1 handles XML books only.
+    #[error("{path} is an SQL book; red-ale v0.1 opens XML books only (SQLite arrives in v0.3)")]
+    SqlBook {
+        /// The path or URI.
+        path: String,
+    },
+    /// The URI scheme is not supported.
+    #[error("unsupported URI {uri}; use a path or an xml:// URI")]
+    UnsupportedUri {
+        /// The URI.
+        uri: String,
+    },
+    /// The file could not be read or written as an XML book.
+    #[error("{path}: {source}")]
+    Xml {
+        /// The book.
+        path: PathBuf,
+        /// The cause.
+        source: red_ale_xml::XmlError,
+    },
+    /// The session is read-only.
+    #[error("the book is open read-only: {reason}")]
+    ReadOnly {
+        /// Why.
+        reason: String,
+    },
+    /// The file to create already exists.
+    #[error("{path} already exists")]
+    Exists {
+        /// The file.
+        path: PathBuf,
+    },
+    /// The written book did not read back identically, so it was not saved.
+    #[error("save refused: {detail}; the book on disk is unchanged")]
+    Verification {
+        /// What differed.
+        detail: String,
+    },
+    /// A domain rule refused the operation.
+    #[error(transparent)]
+    Domain(#[from] red_ale_core::DomainError),
+    /// No book is open.
+    #[error("no book is open")]
+    NoSession,
+    /// A book is already open.
+    #[error("a book is already open: {path}")]
+    AlreadyOpen {
+        /// The open book.
+        path: PathBuf,
+    },
 }

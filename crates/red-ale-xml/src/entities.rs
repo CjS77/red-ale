@@ -247,7 +247,7 @@ fn parse_split(el: &Element, notices: &mut Notices) -> Result<Split, XmlError> {
     }
     report_unknown(el, &SPLIT_FIELDS, notices);
     let req = |name: &str| el.find(name).ok_or_else(|| malformed(&el.name, format!("missing {name}")));
-    let state_text = el.find("split:reconciled-state").map(Element::text_content).unwrap_or_else(|| "n".into());
+    let state_text = el.find("split:reconciled-state").map_or_else(|| "n".into(), Element::text_content);
     let reconcile_state = state_text
         .chars()
         .next()
