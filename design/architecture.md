@@ -10,11 +10,11 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale-xml` | XML file format | Anti-corruption layer: parses an XML Book file into a core `Book` plus the Residue it does not model, and writes them back as GnuCash 5.17 does. | core |
 | `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. | core, xml |
 | `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. | core, service |
-| `red-ale` | Binary | `red-ale serve` (the JSON-RPC server) and the CLI front end. The only crate that uses `anyhow`. | rpc, service |
+| `red-ale-mcp` | MCP adapter | Conformist to the MCP specification: one tool per JSON-RPC method, served over stdio, each call run through the `Dispatcher`. No logic of its own ([`mcp.md`](mcp.md)). | rpc |
+| `red-ale` | Binary | `red-ale serve` (the JSON-RPC server), `red-ale mcp` (the MCP server) and the CLI front end. The only crate that uses `anyhow`. | rpc, mcp, service |
 | `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, and the GnuCash oracle harness. Used only by tests. | core, xml, service, rpc |
 
-`red-ale-mcp` arrives in v0.2 as a thin adapter over `red-ale-rpc`'s dispatcher. `red-ale-sql` arrives in v0.3 as a
-second Backend beside `red-ale-xml`.
+`red-ale-sql` arrives in v0.3 as a second Backend beside `red-ale-xml`.
 
 ## Context map
 
@@ -34,7 +34,7 @@ second Backend beside `red-ale-xml`.
           │                              │
           ▼                              ▼
    red-ale serve (HTTP, localhost)   red-ale CLI (in-process or client)
-                                     red-ale-mcp (v0.2, conformist to MCP)
+                                     red-ale-mcp → red-ale mcp (stdio, conformist to MCP)
 ```
 
 - **XML file ⇄ core:** anti-corruption layer. File quirks (element names, `quantity` for amount, slot paths used only
@@ -42,6 +42,8 @@ second Backend beside `red-ale-xml`.
 - **core ⇄ service:** customer/supplier. The service decides *when*; core decides *what is valid*.
 - **service ⇄ rpc:** the rpc crate translates wire types to core types and back; it holds no domain rules.
 - **rpc ⇄ clients:** published language (see [`api.md`](api.md)).
+- **rpc ⇄ MCP:** conformist. `red-ale-mcp` adopts the MCP specification's model as it is and maps the published
+  language onto it: method to tool, Effect to annotations, error object to an `isError` result (see [`mcp.md`](mcp.md)).
 
 ## Main decisions
 
@@ -99,6 +101,7 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `flate2` | xml | gzip, through the pure-Rust `miniz_oxide` |
 | `serde`, `serde_json`, `schemars` | rpc | wire types and their JSON Schema |
 | `jsonrpsee` | rpc | JSON-RPC 2.0 server over HTTP |
-| `tokio` | rpc, binary | async runtime for the server |
+| `tokio` | rpc, mcp, binary | async runtime for the servers |
+| `rmcp` | mcp | the official MCP SDK: protocol types and the stdio transport (Apache-2.0) |
 | `clap`, `anyhow` | binary | CLI |
 | `proptest`, `tempfile` | tests | property tests and temp directories |

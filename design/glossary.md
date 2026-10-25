@@ -151,4 +151,5 @@ Code names are given in `code font` when they differ from the term.
 | **Mutation** | A use case that changes the Book. Applies completely or not at all, and leaves the Book balanced. |
 | **Published language** | The JSON-RPC schema: versioned, documented, and changed only additively within a major version. |
 | **Effect** | What a method does to the Book: *read*, *write* or *destructive*. MCP's read-only and destructive hints come from it. |
+| **Tool** | MCP's name for an operation an agent can call. In red-ale each Tool is one JSON-RPC method, with the same name and params schema; it is not a separate operation. |
 | **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps as user preferences (the Accounting period). Never stored in the Book. |
