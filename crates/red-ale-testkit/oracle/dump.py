@@ -148,7 +148,7 @@ def commodities(book, used):
             uid = cm.get_unique_name()
             entry = {"id": uid, "fraction": cm.get_fraction(), "quoteFlag": bool(cm.get_quote_flag()),
                      "quoteSource": quote_source(cm) if cm.get_quote_flag() else None,
-                     "quoteTz": text(cm.get_quote_tz())}
+                     "quoteTz": text(cm.get_quote_tz()), "userSymbol": text(cm.get_user_symbol())}
             if name == "CURRENCY":
                 if uid in used:
                     out.append(entry)

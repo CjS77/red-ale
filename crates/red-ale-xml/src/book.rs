@@ -83,6 +83,12 @@ impl XmlResidue {
         self.out_of_scope_elements().filter(|e| element_mentions(e, needle)).map(|e| e.name.clone()).collect()
     }
 
+    /// Names of out-of-scope sections holding a reference to `commodity` (a `cmdty:space` and `cmdty:id` pair), for
+    /// refusing renames and deletions that would leave them dangling.
+    pub fn sections_referring_to(&self, commodity: &CommodityRef) -> Vec<String> {
+        self.out_of_scope_elements().filter(|e| refers_to(e, commodity)).map(|e| e.name.clone()).collect()
+    }
+
     /// Forget the originals: the next write generates every entity from the model. Used to test the generators.
     pub fn forget_originals(&mut self) {
         self.book_slots = None;
@@ -97,6 +103,13 @@ impl XmlResidue {
     pub fn mark_saved(&mut self, book: &Book) {
         self.snapshot = book.clone();
     }
+}
+
+fn refers_to(el: &Element, commodity: &CommodityRef) -> bool {
+    let text = |name: &str| el.find(name).map(|e| e.text_content().trim().to_owned());
+    let here = text("cmdty:id").is_some_and(|id| id == commodity.mnemonic)
+        && text("cmdty:space").is_some_and(|ns| CommodityRef::new(ns, "").namespace == commodity.namespace);
+    here || el.elements().any(|child| refers_to(child, commodity))
 }
 
 fn element_mentions(el: &Element, needle: &str) -> bool {
