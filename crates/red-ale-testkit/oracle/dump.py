@@ -159,6 +159,7 @@ def transactions(root):
                 "notes": text(t.GetNotes()),
                 "void": bool(t.GetVoidStatus()),
                 "voidReason": text(t.GetVoidReason()) if t.GetVoidStatus() else None,
+                "docLink": text(t.GetDocLink()),
                 "splits": splits_of(t),
             }
     return [seen[k] for k in sorted(seen)]
@@ -315,6 +316,7 @@ def business(book):
         "subtotal": frac(x.GetTotalSubtotal()), "tax": frac(x.GetTotalTax()), "paid": bool(x.IsPaid()) if x.IsPosted() else None,
         "entries": sorted(guid(e, Entry) for e in x.GetEntries()),
         "billTo": owner_pair(c.gncInvoiceGetBillTo(x.instance)),
+        "docLink": text(x.GetDocLink()),
     } for x in run_query(book, "gncInvoice", Invoice)]
     entries = [{
         "guid": guid(x), "date": ts(x.GetDate()), "description": text(x.GetDescription()), "action": text(x.GetAction()),

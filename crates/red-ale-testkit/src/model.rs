@@ -10,6 +10,7 @@ use red_ale_core::business::{Address, AmountType, DiscountHow, OwnerKind, OwnerR
 use red_ale_core::ops::business::calc;
 use red_ale_core::ops::commit::commodity_fraction;
 use red_ale_core::ops::commodities::{display_symbol, effective_quote, lookup, slot_paths, usage_table};
+use red_ale_core::ops::doc_links::doc_link;
 use red_ale_core::transaction::slot_paths as txn;
 use red_ale_core::{Book, CommodityRef, Guid, Numeric, SlotValue, Transaction};
 use serde_json::{Value, json};
@@ -120,6 +121,7 @@ fn transaction(book: &Book, t: &Transaction) -> Value {
         "notes": text(t.notes()),
         "void": t.is_void(),
         "voidReason": if t.is_void() { text(t.slots.get_str(txn::VOID_REASON)) } else { Value::Null },
+        "docLink": text(doc_link(&t.slots)),
         "splits": splits,
     })
 }
@@ -351,6 +353,7 @@ fn invoices(book: &Book) -> Vec<Value> {
                 "paid": if posted { Some(lot_balance.is_some_and(Numeric::is_zero)) } else { None },
                 "entries": entries,
                 "billTo": inv.bill_to.map_or(Value::Null, owner),
+                "docLink": text(doc_link(&inv.slots)),
             })
         })
         .collect();
