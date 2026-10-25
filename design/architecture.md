@@ -9,12 +9,15 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale-core` | Bookkeeping domain | The Book model and its invariants, and every domain operation (post, void, scrub, lots, capital gains, invoices, payments). Pure: no I/O, no async, no file formats. | — |
 | `red-ale-xml` | XML file format | Anti-corruption layer: parses an XML Book file into a core `Book` plus the Residue it does not model, and writes them back as GnuCash 5.17 does. | core |
 | `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. | core, xml |
-| `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. | core, service |
+| `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. | core, service, report |
 | `red-ale-mcp` | MCP adapter | Conformist to the MCP specification: one tool per JSON-RPC method, served over stdio, each call run through the `Dispatcher`. No logic of its own ([`mcp.md`](mcp.md)). | rpc |
 | `red-ale` | Binary | `red-ale serve` (the JSON-RPC server), `red-ale mcp` (the MCP server) and the CLI front end. The only crate that uses `anyhow`. | rpc, mcp, service |
+| `red-ale-report` | Reports (v0.2) | The Rhai report engine and its sandbox, the read-only query API, report options, the report result (a published language), and the HTML and SVG renderer with its style sheets. Built-in report scripts are compiled in. Pure: no I/O; script sources and settings come in as values. | core |
 | `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, and the GnuCash oracle harness. Used only by tests. | core, xml, service, rpc |
 
-`red-ale-sql` arrives in v0.3 as a second Backend beside `red-ale-xml`.
+`red-ale-report` arrives in v0.2 (see [`reports.md`](reports.md)); `red-ale-rpc` depends on it for the `report.*`
+methods, and `red-ale-service` reads the report directory and keeps saved report configurations in the
+Configuration. `red-ale-sql` arrives in v0.3 as a second Backend beside `red-ale-xml`.
 
 ## Context map
 
@@ -44,6 +47,9 @@ Each bounded context is one crate with its own model. A crate uses another only 
 - **rpc ⇄ clients:** published language (see [`api.md`](api.md)).
 - **rpc ⇄ MCP:** conformist. `red-ale-mcp` adopts the MCP specification's model as it is and maps the published
   language onto it: method to tool, Effect to annotations, error object to an `isError` result (see [`mcp.md`](mcp.md)).
+- **core → report:** customer/supplier. The report engine reads a snapshot of the Book through core's read
+  operations; reads that reports need and core lacks are added to core. **report → rpc:** the report result is a
+  published language owned by `red-ale-report`, served unchanged by `report.run`.
 
 ## Main decisions
 
@@ -83,6 +89,13 @@ is byte order). Collections are `IndexMap`.
 A `red-ale serve` process has at most one open Session. `book.open` fails while one is open. This keeps v0.1 simple;
 see [`open-questions.md`](open-questions.md).
 
+### Reports only read
+
+A report runs on a clone of the Book, held where only the read-only query handles can see it. `red-ale-report` never
+holds a `&mut Book` and does not depend on `red-ale-service`, so it can reach neither a Mutation nor the journal;
+report methods use `Context::query`, never `mutate`, so a Session is never made dirty by a report. Tests check all
+three on every built-in report (see [`reports.md`](reports.md) §1).
+
 ### Errors
 
 Library crates return typed errors (`thiserror`). `red-ale-rpc` maps each to a stable JSON-RPC error code listed in
@@ -99,9 +112,11 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `chrono` | core, xml, service | calendar arithmetic and formatting (no clock in core) |
 | `quick-xml` | xml | XML tokenising; red-ale builds its own small DOM and serialiser to match libxml2's output |
 | `flate2` | xml | gzip, through the pure-Rust `miniz_oxide` |
-| `serde`, `serde_json`, `schemars` | rpc | wire types and their JSON Schema |
+| `serde`, `serde_json`, `schemars` | rpc, report | wire types, the report result and their JSON Schema |
 | `jsonrpsee` | rpc | JSON-RPC 2.0 server over HTTP |
 | `tokio` | rpc, mcp, binary | async runtime for the servers |
 | `rmcp` | mcp | the official MCP SDK: protocol types and the stdio transport (Apache-2.0) |
 | `clap`, `anyhow` | binary | CLI |
+| `rhai` | report | report scripting (`no_float`, `no_time`; see [`reports.md`](reports.md)) |
+| `num-bigint`, `num-rational` | report | the unbounded exact Rational of report arithmetic |
 | `proptest`, `tempfile` | tests | property tests and temp directories |

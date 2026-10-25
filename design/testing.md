@@ -35,6 +35,8 @@ sources and licences). Never personal financial data.
 - Some fixtures are refused by design: `piecash/simple_sample.sqlite.gnucash` is an SQL book and
   `gnucash/currency_tree_xml.gnucash` is a version 1 file. `piecash/simple_sample.gnucash` and
   `piecash/investment.gnucash` use trading accounts; read-only in v0.1, they open for editing from v0.2.
+- `reports/` (v0.2) holds the books of GnuCash 5.17's report tests, rebuilt by the oracle with the scripts in
+  `scripts/report-fixtures/`; see [`reports.md`](reports.md) §13.
 
 ## The oracle
 
