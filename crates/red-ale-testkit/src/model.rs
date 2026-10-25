@@ -45,7 +45,9 @@ fn accounts(book: &Book) -> Vec<Value> {
                 "type": a.account_type.as_str(),
                 "commodity": a.commodity.as_ref().map(ToString::to_string),
                 "scu": a.scu(fraction),
-                "nonStandardScu": a.non_standard_scu,
+                // xaccAccountSetCommoditySCU marks the account non-standard when the SCU read differs from the commodity's
+                // fraction (5.17:libgnucash/engine/Account.cpp:2719-2720).
+                "nonStandardScu": a.non_standard_scu || a.commodity_scu.is_some_and(|scu| scu != fraction),
                 "parent": a.parent.filter(|p| *p != book.root).map(|p| p.to_string()),
                 "code": text(a.code.as_deref()),
                 "description": text(a.description.as_deref()),
