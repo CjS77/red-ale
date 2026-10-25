@@ -2,6 +2,7 @@
 //! or returns a [`DomainError`](crate::DomainError); the service runs it on a copy of the Book, so a failure leaves
 //! nothing behind.
 
+pub mod account_properties;
 pub mod accounts;
 pub mod business;
 pub mod commit;

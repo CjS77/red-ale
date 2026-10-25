@@ -50,6 +50,18 @@ pub fn require(book: &Book, id: &CommodityRef) -> DomainResult<CommodityRef> {
     lookup(book, id).map(|c| c.id.clone()).ok_or_else(|| DomainError::not_found("commodity", id))
 }
 
+/// The Display symbol GnuCash prints amounts with (`gnc_commodity_get_nice_symbol`,
+/// `5.17:libgnucash/engine/gnc-commodity.cpp:1094-1115`): the user symbol, else a currency's default symbol, else the
+/// mnemonic. GnuCash's locale step compares the mnemonic with `int_curr_symbol`, which always ends in a space
+/// (`5.17:libgnucash/core-utils/gnc-locale-utils.c:89`, `:124-127`), so it never applies. `None` when `id` names no
+/// commodity.
+pub fn display_symbol(book: &Book, id: &CommodityRef) -> Option<String> {
+    let c = lookup(book, id)?;
+    let default = c.id.is_currency().then(|| iso_currency(&c.id.mnemonic).map(|iso| iso.symbol)).flatten();
+    let symbol = c.slots.get_str(slot_paths::USER_SYMBOL).filter(|s| !s.is_empty()).or(default.filter(|s| !s.is_empty()));
+    Some(symbol.unwrap_or(&c.id.mnemonic).to_owned())
+}
+
 /// True for a commodity in the `CURRENCY` namespace: GnuCash's `gnc_commodity_is_iso`.
 pub fn is_iso_namespace(namespace: &str) -> bool {
     namespace == CURRENCY_NAMESPACE || namespace == LEGACY_CURRENCY_NAMESPACE
@@ -554,6 +566,19 @@ mod tests {
             fraction: 10_000,
             ..NewSecurity::default()
         }
+    }
+
+    #[test]
+    fn display_symbols_fall_back_from_user_to_default_to_mnemonic() {
+        let mut b = book();
+        let id = create_security(&mut b, &acme()).unwrap();
+        assert_eq!(display_symbol(&b, &id).as_deref(), Some("ACME"));
+        assert_eq!(display_symbol(&b, &CommodityRef::currency("USD")).as_deref(), Some("$"));
+        assert_eq!(display_symbol(&b, &CommodityRef::currency("AFN")).as_deref(), Some("AFN"), "an empty default symbol");
+        let changes = CommodityChanges { user_symbol: Some(Some("US$".into())), ..CommodityChanges::default() };
+        update_commodity(&mut b, &CommodityRef::currency("USD"), &changes).unwrap();
+        assert_eq!(display_symbol(&b, &CommodityRef::currency("USD")).as_deref(), Some("US$"));
+        assert_eq!(display_symbol(&b, &CommodityRef::new("NASDAQ", "NONE")), None);
     }
 
     #[test]
