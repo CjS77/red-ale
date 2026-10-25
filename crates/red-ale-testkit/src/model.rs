@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 
 use red_ale_core::account::slot_paths as acct;
 use red_ale_core::business::{Address, OwnerKind, OwnerRef, TaxIncluded};
+use red_ale_core::ops::business::calc;
 use red_ale_core::ops::commit::commodity_fraction;
 use red_ale_core::ops::commodities::{effective_quote, lookup, slot_paths, usage_table};
 use red_ale_core::transaction::slot_paths as txn;
@@ -68,7 +69,8 @@ fn accounts(book: &Book) -> Vec<Value> {
 }
 
 fn lot_title(book: &Book, lot: Option<Guid>) -> Value {
-    lot.and_then(|l| book.lot(l)).map_or(Value::Null, |l| Value::String(l.title().unwrap_or_default().to_owned()))
+    // gnc_lot_get_title is NULL for a lot without a title, such as a pre-payment lot.
+    lot.and_then(|l| book.lot(l)).and_then(|l| l.title()).map_or(Value::Null, |t| Value::String(t.to_owned()))
 }
 
 fn transaction(book: &Book, t: &Transaction) -> Value {
@@ -270,6 +272,8 @@ fn invoices(book: &Book) -> Vec<Value> {
             let post_txn = inv.post_txn.and_then(|g| book.transaction(g));
             let due = post_txn.map(|t| t.slots.get("trans-date-due").and_then(SlotValue::as_time).unwrap_or(t.date_posted).0);
             let lot_balance = inv.post_lot.map(|l| sum(book.splits_in_lot(l).map(|(_, s)| s.amount)));
+            // gncInvoiceGetTotal, GetTotalSubtotal and GetTotalTax (5.17:libgnucash/engine/gncInvoice.c:997-1018).
+            let totals = calc::document_totals(book, inv).ok();
             let mut entries: Vec<String> =
                 b.entries.values().filter(|e| e.invoice == Some(inv.guid) || e.bill == Some(inv.guid)).map(|e| e.guid.to_string()).collect();
             entries.sort();
@@ -288,8 +292,9 @@ fn invoices(book: &Book) -> Vec<Value> {
                 "postedAccount": guid(inv.post_acc),
                 "postedTxn": guid(inv.post_txn),
                 "toChargeAmount": frac(inv.charge_amount),
-                // Filled in by the business work package (invoice totals); ignored by comparisons until then.
-                "total": Value::Null,
+                "subtotal": totals.as_ref().map(|t| frac(t.subtotal)),
+                "tax": totals.as_ref().map(|t| frac(t.tax)),
+                "total": totals.as_ref().map(|t| frac(t.total)),
                 // gncInvoiceIsPaid: posted and its lot is closed.
                 "paid": if posted { Some(lot_balance.is_some_and(Numeric::is_zero)) } else { None },
                 "entries": entries,
@@ -406,4 +411,4 @@ pub fn dump(book: &Book) -> Value {
 }
 
 /// Paths the comparison skips until red-ale computes them.
-pub const NOT_YET_COMPUTED: [&str; 1] = ["business.invoices.*.total"];
+pub const NOT_YET_COMPUTED: [&str; 0] = [];

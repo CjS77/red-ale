@@ -249,7 +249,8 @@ def business(book):
         "dateDue": ts(x.GetDateDue()) if x.IsPosted() else None,
         "postedAccount": guid(x.GetPostedAcc(), Account),
         "postedTxn": guid(x.GetPostedTxn(), Transaction),
-        "toChargeAmount": frac(x.GetToChargeAmount()), "total": frac(x.GetTotal()), "paid": bool(x.IsPaid()) if x.IsPosted() else None,
+        "toChargeAmount": frac(x.GetToChargeAmount()), "total": frac(x.GetTotal()),
+        "subtotal": frac(x.GetTotalSubtotal()), "tax": frac(x.GetTotalTax()), "paid": bool(x.IsPaid()) if x.IsPosted() else None,
         "entries": sorted(guid(e, Entry) for e in x.GetEntries()),
     } for x in run_query(book, "gncInvoice", Invoice)]
     entries = [{
