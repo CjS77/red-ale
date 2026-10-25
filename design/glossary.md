@@ -130,6 +130,11 @@ Code names are given in `code font` when they differ from the term.
 | **Payment** | A Transaction that settles an Owner's open documents through their Lots. |
 | **Due reminder** | The list of posted, unpaid documents falling due within a number of days. |
 | **Counter** | The next number for a kind of document or Owner, kept in the Book's `counters` slot. |
+| **End owner** | The Owner a document finally belongs to: a Job's Customer or Vendor, otherwise the Owner itself. Decides the document kind. |
+| **Document kind** | Invoice (Customer), bill (Vendor) or expense voucher (Employee), from the End owner. |
+| **Frozen copy** | A hidden child copy of a Tax table or Billing term made when a document is posted, so later edits to the original do not change posted documents. **⚠** GnuCash calls it the *child*. |
+| **Payment lot** | A Lot in the A/R or A/P Account holding a payment not yet matched to a document. A *pre-payment lot* is one made before the document existed. |
+| **Lot link** | A Transaction of type `L` that moves value between Lots of one Owner to settle documents against payments or credits. |
 
 ## red-ale
 

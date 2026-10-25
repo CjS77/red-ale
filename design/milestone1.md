@@ -6,7 +6,7 @@ on XML books written by GnuCash 5.17.
 This file tracks progress towards v0.1. Feature names and versions come from [`features.md`](features.md); when a
 feature here is done, set its Ported column there to `0.1`.
 
-**Progress: 42 of 60 features, 0 of 2 interfaces (both reach every done feature; they are marked done when every feature is).**
+**Progress: 46 of 60 features, 0 of 2 interfaces (both reach every done feature; they are marked done when every feature is).**
 
 | Status  | Meaning                                                                           |
 |:-------:|-----------------------------------------------------------------------------------|
@@ -156,15 +156,15 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 |        | Orders             |    1.8     |      |                                             |
 |        | Tax tables         |    1.8     |      |                                             |
 |        | Billing terms      |    1.8     |      |                                             |
-|        | Post to accounts   |    1.8     |      |                                             |
-|        | Unpost             |    1.8     |      |                                             |
+|   ✅   | Post to accounts   |    1.8     |      |                                             |
+|   ✅   | Unpost             |    1.8     |      |                                             |
 
 ### Payments
 
 | Status | Feature         | Introduced | Epic | Notes |
 |:------:|-----------------|:----------:|------|-------|
-|        | Process payment |    1.8     |      |       |
-|        | Due reminders   |    2.0     |      |       |
+|   ✅   | Process payment |    1.8     |      |       |
+|   ✅   | Due reminders   |    2.0     |      |       |
 
 ## 9. Files and storage
 
