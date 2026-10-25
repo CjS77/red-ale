@@ -146,11 +146,11 @@ report code.
 | Status | Feature                    | Introduced | Epic | Notes                                                                                     |
 |:------:|----------------------------|:----------:|------|-------------------------------------------------------------------------------------------|
 |        | Trading account type       |    2.4     |      | With "Use trading accounts"                                                               |
-|        | Account colours            |    2.4     |      |                                                                                           |
-|        | Balance limits             |    5.0     |      |                                                                                           |
-|        | Opening balance account    |    4.3     |      | Sets the opening balance account book feature (`gnc-features.h:64`)                       |
-|        | Associated accounts        |    5.6     |      | Stored and edited only: in 5.17 only the stock transaction assistant (won't do) uses them |
-|        | Cascade account properties |    4.0     |      | Needs Account colours                                                                     |
+|   ✅   | Account colours            |    2.4     |      |                                                                                           |
+|   ✅   | Balance limits             |    5.0     |      |                                                                                           |
+|   ✅   | Opening balance account    |    4.3     |      | Sets the opening balance account book feature (`gnc-features.h:64`)                       |
+|   ✅   | Associated accounts        |    5.6     |      | Stored and edited only: in 5.17 only the stock transaction assistant (won't do) uses them |
+|   ✅   | Cascade account properties |    4.0     |      | Needs Account colours                                                                     |
 
 ### Book settings
 
@@ -173,7 +173,7 @@ report code.
 
 | Status | Feature               | Introduced | Epic | Notes                     |
 |:------:|-----------------------|:----------:|------|---------------------------|
-|        | User currency symbols |    2.6     |      | Used by report formatting |
+|   ✅   | User currency symbols |    2.6     |      | Used by report formatting |
 
 ## 6. Business
 

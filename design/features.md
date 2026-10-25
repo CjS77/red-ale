@@ -26,14 +26,14 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Hidden accounts                  | Accounts kept but hidden from everyday views                                                     |    2.0     |  0.1   |
 |   ✅   | Account codes                    | A user code per account, used for sorting and numbering                                          |   ≤ 1.4    |  0.1   |
 |   ✅   | Account description and notes    | Free-text description and notes per account                                                      |   ≤ 1.4    |  0.1   |
-|        | Account colours                  | A display colour per account                                                                     |    2.4     |        |
+|   ✅   | Account colours                  | A display colour per account                                                                     |    2.4     |  0.2   |
 |   ✅   | Tax-related flag                 | Marks accounts that feed tax reports                                                             |    1.6     |  0.1   |
 |   ✅   | US tax (TXF) codes               | Per-account TXF form and line codes for US tax export                                            |    1.6     |  0.1   |
-|        | Balance limits                   | Upper and lower balance limits that warn when crossed                                            |    5.0     |        |
-|        | Opening balance account          | A dedicated equity account for opening balances (`equity-type` slot)                             |    4.3     |        |
-|        | Associated accounts              | Remembers the proceeds, fees, dividend and gains accounts for a security                         |    5.6     |        |
+|   ✅   | Balance limits                   | Upper and lower balance limits that warn when crossed                                            |    5.0     |  0.2   |
+|   ✅   | Opening balance account          | A dedicated equity account for opening balances (`equity-type` slot)                             |    4.3     |  0.2   |
+|   ✅   | Associated accounts              | Remembers the proceeds, fees, dividend and gains accounts for a security                         |    5.6     |  0.2   |
 |   ✅   | Renumber sub-accounts            | Assigns sequential codes to an account's children                                                |    2.0     |  0.1   |
-|        | Cascade account properties       | Copies colour, placeholder or hidden settings to sub-accounts                                    |    4.0     |        |
+|   ✅   | Cascade account properties       | Copies colour, placeholder or hidden settings to sub-accounts                                    |    4.0     |  0.2   |
 |   ✅   | Delete with move                 | Deletes an account after moving its sub-accounts and splits elsewhere                            |    1.8     |  0.1   |
 
 ### Book settings
@@ -90,7 +90,7 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Commodity table        | Currencies and securities grouped by namespace             |    1.6     |  0.1   |
 |   ✅   | ISO 4217 currencies    | Built-in table of ISO currencies and their fractions       |    1.6     |  0.1   |
 |   ✅   | Security editor        | Create, edit and delete securities and namespaces          |    1.6     |  0.1   |
-|        | User currency symbols  | Overrides a currency's display symbol                      |    2.6     |        |
+|   ✅   | User currency symbols  | Overrides a currency's display symbol                      |    2.6     |  0.2   |
 |   ✅   | Euro legacy currencies | Fixed conversion rates for currencies replaced by the euro |   ≤ 1.4    |  0.1   |
 
 ### Prices
