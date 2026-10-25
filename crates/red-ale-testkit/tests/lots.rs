@@ -147,7 +147,9 @@ fn stock_split_records_the_assistants_transaction() {
 
 #[test]
 fn a_read_only_book_still_answers_queries() {
-    let (_book, mut d) = open("piecash/investment.gnucash");
+    let book = red_ale_testkit::TempBook::copy("piecash/investment.gnucash");
+    let mut d = red_ale_testkit::dispatcher();
+    call(&mut d, "book.open", &json!({ "path": book.path_str(), "readOnly": true }));
     let lots = call(&mut d, "lot.list", &json!({ "account": "Assets:Investments:Brokerage Account:Stock:VEUR" }));
     assert!(lots.as_array().unwrap().is_empty());
     let err = call_err(&mut d, "lot.create", &json!({ "account": "Assets:Investments:Brokerage Account:Stock:VEUR" }));

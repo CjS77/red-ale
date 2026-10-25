@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, features, uses_trading_accounts};
+use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, features};
+use red_ale_core::ops::commit;
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
 use red_ale_xml::{XmlResidue, read_book, write_book};
 
@@ -54,8 +55,6 @@ pub enum ReadOnlyReason {
     Requested,
     /// The book declares Book features v0.1 does not implement.
     UnsupportedFeatures(Vec<String>),
-    /// The book balances transactions through trading accounts.
-    TradingAccounts,
     /// The file holds content red-ale can keep but not edit safely.
     UnrecognisedContent(Vec<String>),
 }
@@ -66,7 +65,6 @@ impl ReadOnlyReason {
         match self {
             Self::Requested => "requested",
             Self::UnsupportedFeatures(_) => "unsupported-features",
-            Self::TradingAccounts => "trading-accounts",
             Self::UnrecognisedContent(_) => "unrecognised-content",
         }
     }
@@ -77,7 +75,6 @@ impl fmt::Display for ReadOnlyReason {
         match self {
             Self::Requested => write!(f, "opened read-only on request"),
             Self::UnsupportedFeatures(list) => write!(f, "the book uses features red-ale v0.1 does not support: {}", list.join("; ")),
-            Self::TradingAccounts => write!(f, "the book uses trading accounts, which red-ale v0.1 does not support"),
             Self::UnrecognisedContent(list) => write!(f, "the book contains data red-ale cannot edit safely: {}", list.join("; ")),
         }
     }
@@ -94,9 +91,6 @@ pub fn read_only_triggers(book: &Book, residue: &XmlResidue) -> Vec<ReadOnlyReas
     let mut reasons = Vec::new();
     if !unsupported.is_empty() {
         reasons.push(ReadOnlyReason::UnsupportedFeatures(unsupported));
-    }
-    if uses_trading_accounts(book) {
-        reasons.push(ReadOnlyReason::TradingAccounts);
     }
     if !residue.notices.unrecognised.is_empty() {
         reasons.push(ReadOnlyReason::UnrecognisedContent(residue.notices.unrecognised.clone()));
@@ -282,8 +276,10 @@ impl Session {
         f(&self.book, &mut *self.env)
     }
 
-    /// Apply a Mutation atomically: `f` edits a copy of the book; the copy replaces the book only if `f` succeeds and
-    /// every changed transaction is balanced and refers to existing accounts. Transaction changes are journaled.
+    /// Apply a Mutation atomically: `f` edits a copy of the book; every transaction it added or changed is then
+    /// committed as GnuCash commits it (trading splits, when the book uses them); the copy replaces the book only if
+    /// all this succeeds and every changed transaction is balanced and refers to existing accounts. Transaction changes
+    /// are journaled.
     pub fn mutate<T>(&mut self, f: impl FnOnce(&mut Book, &mut dyn Env) -> Result<T, DomainError>) -> Result<T, ServiceError> {
         self.try_mutate(|book, env| f(book, env).map_err(ServiceError::from))
     }
@@ -295,6 +291,7 @@ impl Session {
         }
         let mut next = self.book.clone();
         let out = f(&mut next, &mut *self.env)?;
+        commit::commit_changed(&self.book, &mut next, &mut *self.env).map_err(ServiceError::from)?;
         let records = {
             let changes = transaction_changes(&self.book, &next);
             changes.iter().filter_map(TxnChange::after).try_for_each(|t| check_transaction(&next, t))?;
@@ -340,7 +337,7 @@ impl Session {
         let text = std::fs::read(&journal).map_err(|e| ServiceError::Io { path: journal.clone(), source: e })?;
         let (records, skipped_lines) =
             crate::journal::parse(&String::from_utf8_lossy(&text)).map_err(|source| ServiceError::Journal { path: journal.clone(), source })?;
-        let mut report = self.mutate(|book, _| replay(book, &records, skip_invalid))?;
+        let mut report = self.mutate(|book, env| replay(book, env, &records, skip_invalid))?;
         report.skipped_lines = skipped_lines;
         Ok(report)
     }
@@ -404,11 +401,7 @@ fn check_transaction(book: &Book, t: &Transaction) -> Result<(), ServiceError> {
     if let Some(s) = t.splits.iter().find(|s| s.account.is_some_and(|a| book.account(a).is_none())) {
         return Err(DomainError::invalid(format!("split {} refers to a missing account", s.guid)).into());
     }
-    let imbalance = t.imbalance().map_err(DomainError::from)?;
-    if !imbalance.is_zero() {
-        return Err(DomainError::Unbalanced { imbalance: imbalance.to_string(), currency: t.currency.mnemonic.clone() }.into());
-    }
-    Ok(())
+    commit::check_committed(book, t).map_err(ServiceError::from)
 }
 
 /// The first difference between the book in memory and the book read back from the bytes about to be written.

@@ -100,6 +100,10 @@ pub enum RepairWire {
     BalanceSplitRemoved { transaction: Id, split: Id, account: Id, value: Amount },
     /// The lot scrub changed an account's lots or splits.
     LotsRepaired { account: Id },
+    /// A trading split was removed before the transaction's trading splits were rebuilt.
+    TradingSplitRemoved { transaction: Id, split: Id, account: Id, value: Amount, amount: Amount },
+    /// A trading split was added.
+    TradingSplitAdded { transaction: Id, split: Id, account: Id, value: Amount, amount: Amount },
 }
 
 impl From<Repair> for RepairWire {
@@ -143,6 +147,20 @@ impl From<Repair> for RepairWire {
                 value: value.into(),
             },
             Repair::LotsRepaired { account } => Self::LotsRepaired { account: account.into() },
+            Repair::TradingSplitRemoved { transaction, split, account, value, amount } => Self::TradingSplitRemoved {
+                transaction: transaction.into(),
+                split: split.into(),
+                account: account.into(),
+                value: value.into(),
+                amount: amount.into(),
+            },
+            Repair::TradingSplitAdded { transaction, split, account, value, amount } => Self::TradingSplitAdded {
+                transaction: transaction.into(),
+                split: split.into(),
+                account: account.into(),
+                value: value.into(),
+                amount: amount.into(),
+            },
         }
     }
 }

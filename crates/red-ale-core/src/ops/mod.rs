@@ -15,4 +15,5 @@ pub mod period;
 pub mod prices;
 pub mod reconcile;
 pub mod scrub;
+pub mod trading;
 pub mod transactions;

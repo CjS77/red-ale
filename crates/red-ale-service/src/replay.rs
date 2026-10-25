@@ -12,7 +12,7 @@
 use std::sync::Arc;
 
 use red_ale_core::ops::commit;
-use red_ale_core::{Book, CommodityRef, DomainError, DomainResult, Frame, Guid, Numeric, ReconcileState, Split, Time64, Transaction};
+use red_ale_core::{Book, CommodityRef, DomainError, DomainResult, Env, Frame, Guid, Numeric, ReconcileState, Split, Time64, Transaction};
 
 use crate::journal::{JournalLine, JournalRecord, RecordKind, SkippedLine};
 
@@ -37,9 +37,9 @@ pub struct ReplayReport {
 
 /// Apply `records` to `book`. With `skip_invalid`, a record that cannot be applied is reported and skipped;
 /// otherwise the first one fails the whole replay.
-pub fn replay(book: &mut Book, records: &[JournalRecord], skip_invalid: bool) -> DomainResult<ReplayReport> {
+pub fn replay(book: &mut Book, env: &mut dyn Env, records: &[JournalRecord], skip_invalid: bool) -> DomainResult<ReplayReport> {
     let mut report = ReplayReport { records: records.len(), ..ReplayReport::default() };
-    records.iter().try_for_each(|record| match apply_record(book, record, &mut report) {
+    records.iter().try_for_each(|record| match apply_record(book, env, record, &mut report) {
         Err(e) if skip_invalid => {
             report.skipped_records.push(format!("record at line {}: {e}", record.start_line));
             Ok(())
@@ -50,7 +50,7 @@ pub fn replay(book: &mut Book, records: &[JournalRecord], skip_invalid: bool) ->
     Ok(report)
 }
 
-fn apply_record(book: &mut Book, record: &JournalRecord, report: &mut ReplayReport) -> DomainResult<()> {
+fn apply_record(book: &mut Book, env: &mut dyn Env, record: &JournalRecord, report: &mut ReplayReport) -> DomainResult<()> {
     if !record.complete {
         report.skipped_records.push(format!("record at line {}: some lines could not be read", record.start_line));
         return Ok(());
@@ -65,12 +65,12 @@ fn apply_record(book: &mut Book, record: &JournalRecord, report: &mut ReplayRepo
             }
             Ok(())
         }
-        RecordKind::Commit => upsert(book, &record.lines.iter().filter(|l| l.kind == RecordKind::Commit).collect::<Vec<_>>(), report),
+        RecordKind::Commit => upsert(book, env, &record.lines.iter().filter(|l| l.kind == RecordKind::Commit).collect::<Vec<_>>(), report),
         RecordKind::Begin | RecordKind::Rollback => Ok(()),
     }
 }
 
-fn upsert(book: &mut Book, lines: &[&JournalLine], report: &mut ReplayReport) -> DomainResult<()> {
+fn upsert(book: &mut Book, env: &mut dyn Env, lines: &[&JournalLine], report: &mut ReplayReport) -> DomainResult<()> {
     let Some(first) = lines.first() else { return Ok(()) };
     let guid = first.trans;
     let existing = book.transactions.get(&guid).map(|t| (**t).clone());
@@ -81,7 +81,7 @@ fn upsert(book: &mut Book, lines: &[&JournalLine], report: &mut ReplayReport) ->
     };
     apply_transaction_fields(&mut t, first);
     lines.iter().filter(|l| l.split.is_some()).try_for_each(|line| apply_split(book, &mut t, line))?;
-    commit::commit(book, &mut t)?;
+    commit::commit(book, env, &mut t)?;
     book.transactions.insert(guid, Arc::new(t));
     if created { report.created.push(guid) } else { report.updated.push(guid) }
     Ok(())
@@ -181,7 +181,7 @@ fn take_split_from_elsewhere(book: &mut Book, keep: Guid, split: Guid) -> Domain
 mod tests {
     use super::*;
     use crate::journal::parse;
-    use red_ale_core::{Account, AccountType, Env, FixedEnv};
+    use red_ale_core::{Account, AccountType, FixedEnv};
 
     fn book() -> (Book, Guid, Guid) {
         let mut env = FixedEnv::new(Time64(0), 0);
@@ -216,7 +216,7 @@ mod tests {
         let text = format!("{HEAD}===== START\n===== END\n{}{}", commit("Groceries"), commit("Groceries edited"));
         let (records, skipped) = parse(&text).unwrap();
         assert!(skipped.is_empty());
-        let report = replay(&mut b, &records, false).unwrap();
+        let report = replay(&mut b, &mut FixedEnv::new(Time64(0), 1 << 64), &records, false).unwrap();
         let guid = Guid::parse("65e21d8a290f4355b9555dfca9bfe888").unwrap();
         assert_eq!((report.created, report.updated), (vec![guid], vec![guid]));
         let t = b.transaction(guid).unwrap();
@@ -225,7 +225,7 @@ mod tests {
         assert!(t.splits[0].value.same_repr(Numeric::new(1234, 100)), "debit first");
         let delete = record(&[line('D', "Groceries edited", s1, &bank.to_string(), "-1234/100")]);
         let (records, _) = parse(&format!("{HEAD}{delete}{delete}")).unwrap();
-        let report = replay(&mut b, &records, false).unwrap();
+        let report = replay(&mut b, &mut FixedEnv::new(Time64(0), 1 << 64), &records, false).unwrap();
         assert_eq!((report.deleted, report.not_found), (vec![guid], vec![guid]));
         assert!(b.transactions.is_empty());
     }
@@ -235,14 +235,14 @@ mod tests {
         let (mut b, bank, food) = book();
         let unbalanced = record(&[line('C', "x", "4b9a929657604caaa5a5f57b2a4b1917", &bank.to_string(), "-5/1"), line('C', "x", "b7fa927032c94a4ea19da098987e9b42", &food.to_string(), "4/1")]);
         let (records, _) = parse(&format!("{HEAD}{unbalanced}")).unwrap();
-        assert!(replay(&mut b.clone(), &records, false).is_err());
-        let report = replay(&mut b, &records, true).unwrap();
+        assert!(replay(&mut b.clone(), &mut FixedEnv::new(Time64(0), 1 << 64), &records, false).is_err());
+        let report = replay(&mut b, &mut FixedEnv::new(Time64(0), 1 << 64), &records, true).unwrap();
         assert_eq!(report.skipped_records.len(), 1);
         assert!(b.transactions.is_empty());
         let tabbed = record(&[line('C', "a\tb", "4b9a929657604caaa5a5f57b2a4b1917", &bank.to_string(), "-5/1")]);
         let (records, skipped) = parse(&format!("{HEAD}{tabbed}")).unwrap();
         assert_eq!(skipped.len(), 1);
-        let report = replay(&mut b, &records, false).unwrap();
+        let report = replay(&mut b, &mut FixedEnv::new(Time64(0), 1 << 64), &records, false).unwrap();
         assert_eq!(report.skipped_records.len(), 1);
         assert!(b.transactions.is_empty());
     }

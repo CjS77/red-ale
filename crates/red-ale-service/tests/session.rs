@@ -130,12 +130,12 @@ fn supported_features_stay_writable() {
 }
 
 #[test]
-fn trading_accounts_and_red_line_open_read_only_for_trading_accounts_only() {
+fn red_line_and_trading_accounts_open_for_editing() {
     let dir = tempfile::tempdir().unwrap();
     let accounts = slot("Use Trading Accounts", "string", "t") + &slot("Day Threshold for Read-Only Transactions (red line)", "double", "30");
     let path = with_book_slots(dir.path(), &frame("options", &frame("Accounts", &accounts)));
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
-    assert_eq!(session.read_only_reasons(), [ReadOnlyReason::TradingAccounts]);
+    assert!(!session.is_read_only(), "{:?}", session.read_only_reasons());
 }
 
 #[test]

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use chrono::DateTime;
 
 use super::{check_writable, get};
-use crate::ops::commit;
+use crate::ops::{commit, trading};
 use crate::transaction::slot_paths;
 use crate::{Book, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, SlotValue, Split, Time64, Transaction};
 
@@ -63,7 +63,7 @@ pub fn void(book: &mut Book, env: &mut dyn Env, guid: Guid, reason: &str) -> Dom
     let currency = t.currency.clone();
     t.splits.iter_mut().try_for_each(|s| void_split(book, &currency, s))?;
     t.slots.set_opt_str(slot_paths::READ_ONLY, Some(VOIDED_READ_ONLY));
-    commit::commit(book, &mut t)?;
+    commit::commit(book, env, &mut t)?;
     book.transactions.insert(guid, Arc::new(t));
     Ok(())
 }
@@ -82,7 +82,7 @@ fn unvoid_split(s: &mut Split) {
 /// Unvoid a transaction (`xaccTransUnvoid`, `5.17:libgnucash/engine/Transaction.cpp:2553-2573`): notes restored from
 /// `void-former-notes` (deleted when there were none), the void slots deleted, splits restored and the read-only mark
 /// cleared. A transaction that is not void is refused, where GnuCash silently does nothing.
-pub fn unvoid(book: &mut Book, guid: Guid) -> DomainResult<()> {
+pub fn unvoid(book: &mut Book, env: &mut dyn Env, guid: Guid) -> DomainResult<()> {
     let mut t = get(book, guid)?.clone();
     if !t.is_void() {
         return Err(DomainError::conflict(format!("transaction {guid} is not void")));
@@ -93,7 +93,7 @@ pub fn unvoid(book: &mut Book, guid: Guid) -> DomainResult<()> {
         t.slots.remove(p);
     });
     t.splits.iter_mut().for_each(unvoid_split);
-    commit::commit(book, &mut t)?;
+    commit::commit(book, env, &mut t)?;
     book.transactions.insert(guid, Arc::new(t));
     Ok(())
 }
@@ -115,7 +115,8 @@ fn reversed_split(env: &mut dyn Env, s: &Split) -> Split {
 /// `5.17:libgnucash/engine/Transaction.cpp:2575-2610`, and its caller `5.17:gnucash/gnome/gnc-plugin-page-register.cpp:2560-2585`):
 /// a clone with a new GUID and every slot, negated splits, the read-only mark cleared, posted on `date` and entered
 /// now; the original gets `reversed-by`. Refused when a reversing transaction already exists, and, unlike GnuCash,
-/// for a voided transaction, whose all-zero clone would itself read as void.
+/// for a voided transaction, whose all-zero clone would itself read as void. As in GnuCash, the original is committed
+/// first, so in a Book with trading accounts its trading splits are rebuilt if it is not balanced, and cloned.
 pub fn reverse(book: &mut Book, env: &mut dyn Env, guid: Guid, date: Date) -> DomainResult<Guid> {
     let orig = get(book, guid)?;
     if let Some(by) = orig.reversed_by().filter(|g| book.transaction(*g).is_some()) {
@@ -124,15 +125,18 @@ pub fn reverse(book: &mut Book, env: &mut dyn Env, guid: Guid, date: Date) -> Do
     if orig.is_void() {
         return Err(DomainError::conflict(format!("transaction {guid} is void; unvoid it before reversing")));
     }
+    let mut orig = orig.clone();
+    if trading::commit(book, env, &mut orig)?.is_some() {
+        commit::sort_splits(&mut orig);
+    }
     let mut t = orig.clone();
     t.guid = env.new_guid();
     t.splits = orig.splits.iter().map(|s| reversed_split(env, s)).collect();
     t.slots.remove(slot_paths::READ_ONLY);
     commit::set_date_posted(&mut t, date);
     t.date_entered = env.now();
-    commit::commit(book, &mut t)?;
+    commit::commit(book, env, &mut t)?;
     let new_guid = t.guid;
-    let mut orig = get(book, guid)?.clone();
     orig.slots.set(slot_paths::REVERSED_BY, SlotValue::Guid(new_guid));
     book.transactions.insert(guid, Arc::new(orig));
     book.transactions.insert(new_guid, Arc::new(t));
@@ -161,9 +165,9 @@ mod tests {
         assert!(s.value.same_repr(usd(0)) && s.amount.same_repr(usd(0)));
         assert_eq!(s.slots.get(slot_paths::VOID_FORMER_VALUE), Some(&SlotValue::Numeric(usd(700))));
         assert!(matches!(void(&mut f.book, &mut f.env, g, "again"), Err(DomainError::Conflict(_))));
-        unvoid(&mut f.book, g).unwrap();
+        unvoid(&mut f.book, &mut f.env, g).unwrap();
         assert_eq!(f.book.transaction(g).unwrap(), &before);
-        assert!(matches!(unvoid(&mut f.book, g), Err(DomainError::Conflict(_))));
+        assert!(matches!(unvoid(&mut f.book, &mut f.env, g), Err(DomainError::Conflict(_))));
     }
 
     #[test]

@@ -17,7 +17,7 @@ Books using trading accounts were read-only in v0.1. From v0.2 they open for edi
 The Book slot `options/Accounts/Use Trading Accounts` (string). On when it is exactly `"t"`
 (`5.17:libgnucash/engine/qofbook.cpp:919-928`).
 
-- `book.info` (and `book.open`, `book.create`) report it as `useTradingAccounts: bool`.
+- `book.info` (and `book.open`, `book.create`) report it as `options.useTradingAccounts: bool`.
 - `book.setTradingAccounts` (write) takes `{ useTradingAccounts: bool }` and returns `{ useTradingAccounts }`.
   - On writes `"t"`. Off writes `"f"`, as GnuCash's Book Options dialog does (`5.17:libgnucash/engine/gnc-optiondb.cpp:404-410`);
     off on a Book with no slot writes nothing.

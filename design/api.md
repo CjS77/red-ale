@@ -93,7 +93,7 @@ is used only for protocol errors.
 |----------------------|--------|----------------------------------------------------------------------------------------|
 | `book.open`          | read   | Open an XML book (`path`, `readOnly`). Takes the `.LCK` lock unless read-only.         |
 | `book.create`        | write  | Create an empty book (root account only) and open it; gzip-compressed unless `compressed: false`. |
-| `book.info`          | read   | Path, GUIDs, read-only state and reasons, dirty, compression, journal, Book features, `useTradingAccounts`, counts. |
+| `book.info`          | read   | Path, GUIDs, read-only state and reasons, dirty, compression, journal, Book features, `options` (`useTradingAccounts`), counts. |
 | `book.save`          | write  | Back up the previous file, write the book (atomically), rotate the journal, apply retention. `compressed` changes the file's compression. |
 | `book.close`         | write  | Release the lock. Refuses unsaved changes unless `save` or `discard`.                  |
 | `book.replayJournal` | write  | Replay a GnuCash `.log` journal: transactions created, updated or deleted by GUID.     |

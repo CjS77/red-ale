@@ -65,6 +65,15 @@ pub fn uses_trading_accounts(book: &Book) -> bool {
     option_is_t(book, OPT_TRADING_ACCOUNTS)
 }
 
+/// Turn "Use Trading Accounts" on or off as GnuCash's Book Options dialog does: `"t"` or `"f"`
+/// (`5.17:libgnucash/engine/gnc-optiondb.cpp:404-410`). Turning it off when the Book has no such slot writes none.
+/// No transaction changes (`qof_book_set_option`, `5.17:libgnucash/engine/qofbook.cpp:1379-1389`).
+pub fn set_trading_accounts(book: &mut Book, on: bool) {
+    if on || book.slots.get(OPT_TRADING_ACCOUNTS).is_some() {
+        book.slots.set(OPT_TRADING_ACCOUNTS, SlotValue::String(if on { "t" } else { "f" }.to_owned()));
+    }
+}
+
 /// True when the book uses split actions as transaction numbers.
 pub fn uses_split_action_for_num(book: &Book) -> bool {
     option_is_t(book, OPT_NUM_SOURCE)
@@ -245,6 +254,18 @@ mod tests {
         set_split_action_for_num(&mut b, true);
         assert_eq!(number(&b, &t, &t.splits[0]), Some("Buy"));
         assert_eq!(num_action_targets(&b, "INV-1", "Invoice"), ("Invoice", "INV-1"));
+    }
+
+    #[test]
+    fn trading_accounts_option_is_written_as_gnucash_writes_it() {
+        let mut book = Book::new_empty(&mut crate::FixedEnv::new(crate::Time64(0), 0));
+        set_trading_accounts(&mut book, false);
+        assert!(book.slots.is_empty(), "off with no slot writes nothing");
+        set_trading_accounts(&mut book, true);
+        assert!(uses_trading_accounts(&book));
+        set_trading_accounts(&mut book, false);
+        assert_eq!(book.slots.get_str(OPT_TRADING_ACCOUNTS), Some("f"));
+        assert!(!uses_trading_accounts(&book));
     }
 
     #[test]
