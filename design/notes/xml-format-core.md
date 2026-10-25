@@ -406,7 +406,7 @@ digits/hex) and after creation for `string`; the output always has exactly one a
   (verified).
 - A slot with a key and a value is stored with `frame->set({key}, value)`; a **duplicate key replaces** the earlier
   value (verified: `dup` → `second`).
-- A failed `integer`/`double`/`guid` parse drops the slot; a failed `numeric` stores `0/1` (verified `abc` → `0/1`);
+- A failed `integer`/`double`/`guid`/`gdate` parse drops the slot; a failed `numeric` stores `0/1` (verified `abc` → `0/1`);
   `string` with no children gives `""`; `timespec` failure stores `INT64_MAX`… which the writer then omits
   (`time64_to_dom_tree` returns NULL, `xmlAddChild(NULL)` is a no-op) leaving `<slot>` with only a key — open
   question 4.
@@ -473,7 +473,7 @@ written, including `template:template`, which every book has (created with the d
 | `cmdty:fraction` | non-currency | integer SCU |
 | `cmdty:get_quotes` | quote flag | empty element `<cmdty:get_quotes/>` |
 | `cmdty:quote_source` | quote flag and a source | internal name; a currency with no explicit source writes `currency` (`5.17:libgnucash/engine/gnc-commodity.cpp:1038-1047`) |
-| `cmdty:quote_tz` | quote flag and tz non-NULL | tz string; `""` gives `<cmdty:quote_tz/>` (the ISO table gives currencies `""`) |
+| `cmdty:quote_tz` | quote flag and tz non-NULL | tz string; `""` gives `<cmdty:quote_tz/>` (observed for every currency with a quote flag) |
 | `cmdty:slots` | frame non-empty | slots (e.g. `auto_quote_control` = `"false"`, `user_symbol`) |
 
 Excerpt (oracle):
@@ -820,7 +820,7 @@ visit(root)
 
 `acc.splits` is sorted by `xaccSplitOrder` when the account's edit ends (all accounts are committed at the end of the
 load, `5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:836-850`; `5.17:libgnucash/engine/Account.cpp:1925-1948,
-1993-2004`). Between different transactions `xaccSplitOrder` reduces to `xaccTransOrder_num_action`
+1993-2004, 2013`). Between different transactions `xaccSplitOrder` reduces to `xaccTransOrder_num_action`
 (`5.17:libgnucash/engine/Split.cpp:1536-1597`, `5.17:libgnucash/engine/Transaction.cpp:1758-1839`):
 
 1. `date_posted` ascending;
@@ -1129,10 +1129,10 @@ would convert on load, writes the same converted value only for splits it create
 
 ## 11. GnuCash's own round-trip test
 
-`5.17:libgnucash/backend/xml/test/gtest-load-save-files.cpp:208-283`: for every `*.gnucash` in
+`5.17:libgnucash/backend/xml/test/gtest-load-save-files.cpp:209-290`: for every `*.gnucash` in
 `test-files/load-save/`, load read-only, swap into a new session, save compressed, `inflate` and compare **byte for
-byte** with the original (`:166-198`); then load that compressed file, save uncompressed and `memcmp` with the original
-(`:61-77`). So GnuCash guarantees byte-identical load+save only for its fixtures (no budgets, one SX), in the test
+byte** with the original (`:146-200`); then load that compressed file, save uncompressed and `memcmp` with the original
+(`:76-89`, `:288`). So GnuCash guarantees byte-identical load+save only for its fixtures (no budgets, one SX), in the test
 locale. Our oracle runs reproduce it for both fixtures.
 
 ## 12. Guidance for red-ale's XML backend

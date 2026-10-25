@@ -3,7 +3,20 @@
 
 use red_ale_xml::{read_book, write_book_text};
 
-const CANONICAL: [&str; 3] = ["gnucash/sample1.gnucash", "gnucash/bug-746937-sx-split-order.gnucash", "synthetic/business.gnucash"];
+/// Books in GnuCash 5.17's canonical form: GnuCash itself loads and saves each one byte for byte.
+const CANONICAL: [&str; 11] = [
+    "gnucash/sample1.gnucash",
+    "gnucash/bug-746937-sx-split-order.gnucash",
+    "synthetic/business.gnucash",
+    "synthetic/rich.gnucash",
+    "piecash/all_account_types.gnucash",
+    "piecash/book_prices.gnucash",
+    "piecash/book_schtx.gnucash",
+    "piecash/ghost_kvp_scheduled_transaction.gnucash",
+    "piecash/investment.gnucash",
+    "piecash/invoices.gnucash",
+    "piecash/simple_sample.gnucash",
+];
 
 fn fixture(name: &str) -> Vec<u8> {
     std::fs::read(format!("{}/../../fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()
@@ -39,4 +52,17 @@ fn generators_reproduce_gnucash_output() {
         residue.forget_originals();
         assert_same(name, &text(&bytes), &write_book_text(&book, &residue));
     }
+}
+
+#[test]
+fn edits_are_written_and_only_the_edited_entity_changes() {
+    let bytes = fixture("synthetic/rich.gnucash");
+    let (mut book, residue) = read_book(&bytes).unwrap();
+    let guid = *book.accounts.keys().nth(1).unwrap();
+    std::sync::Arc::make_mut(book.accounts.get_mut(&guid).unwrap()).name = "Renamed & <new>".into();
+    let out = write_book_text(&book, &residue);
+    assert!(out.contains("<act:name>Renamed &amp; &lt;new&gt;</act:name>"));
+    let original = text(&bytes);
+    let changed: Vec<_> = original.lines().zip(out.lines()).filter(|(a, b)| a != b).collect();
+    assert_eq!(changed.len(), 1, "{changed:?}");
 }

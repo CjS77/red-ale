@@ -171,17 +171,18 @@ fn dump_element(out: &mut String, el: &Element, level: usize, format: bool) {
     out.push('>');
 }
 
-/// `xmlEscapeEntities` with no document encoding: markup characters as entities, non-ASCII and control characters
-/// (other than tab and newline) as hexadecimal character references with upper-case digits.
+/// `xmlEscapeContent` as libxml2 2.9.14 applies it to GnuCash's nodes: markup characters and carriage return
+/// escaped, everything else raw UTF-8. Control characters other than tab and newline are not valid XML and are
+/// written as `?`, as libxml2 does. Verified against the oracle (`design/notes/xml-format-core.md` §3.4).
 fn escape_text(out: &mut String, text: &str) {
     text.chars().for_each(|c| match c {
         '<' => out.push_str("&lt;"),
         '>' => out.push_str("&gt;"),
         '&' => out.push_str("&amp;"),
-        '\n' | '\t' | ' '..='\u{7f}' => out.push(c),
-        _ => {
-            let _ = write!(out, "&#x{:X};", u32::from(c));
-        }
+        '\r' => out.push_str("&#13;"),
+        '\n' | '\t' => out.push(c),
+        '\u{0}'..='\u{1f}' => out.push('?'),
+        _ => out.push(c),
     });
 }
 
@@ -207,7 +208,9 @@ fn escape_attr(out: &mut String, text: &str) {
 /// Whitespace-only text is dropped from elements that also have element children: it is formatting, which the
 /// serialiser recreates. Text content of leaf elements is kept exactly, including whitespace.
 pub fn parse_document(text: &str) -> Result<Element, XmlError> {
-    let mut reader = Reader::from_str(text);
+    // XML end-of-line handling: a raw CR LF or lone CR is read as LF. `&#13;` references are unaffected.
+    let normalised = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut reader = Reader::from_str(&normalised);
     let config = reader.config_mut();
     config.trim_text(false);
     config.expand_empty_elements = false;
@@ -335,15 +338,15 @@ mod tests {
             .child(Element::text("act:id", "abc").attr("type", "guid"))
             .child(Element::new("act:slots").child(Element::new("slot").child(Element::text("slot:key", "k"))))
             .child(Element::new("act:non-standard-scu"));
-        let expected = "<gnc:account version=\"2.0.0\">\n  <act:name>A &amp; B &lt;&#xE9;&gt;</act:name>\n  <act:id type=\"guid\">abc</act:id>\n  <act:slots>\n    <slot>\n      <slot:key>k</slot:key>\n    </slot>\n  </act:slots>\n  <act:non-standard-scu/>\n</gnc:account>";
+        let expected = "<gnc:account version=\"2.0.0\">\n  <act:name>A &amp; B &lt;é&gt;</act:name>\n  <act:id type=\"guid\">abc</act:id>\n  <act:slots>\n    <slot>\n      <slot:key>k</slot:key>\n    </slot>\n  </act:slots>\n  <act:non-standard-scu/>\n</gnc:account>";
         assert_eq!(el.dump(0), expected);
     }
 
     #[test]
     fn parse_then_dump_is_identity() {
-        let text = "<gnc:account version=\"2.0.0\">\n  <act:name>Caf&#xE9; &amp; co</act:name>\n  <act:description> </act:description>\n  <act:slots>\n    <slot>\n      <slot:key>notes</slot:key>\n      <slot:value type=\"string\">line1\nline2</slot:value>\n    </slot>\n  </act:slots>\n</gnc:account>";
+        let text = "<gnc:account version=\"2.0.0\">\n  <act:name>Café &amp; co\ttab&#13;</act:name>\n  <act:description> </act:description>\n  <act:slots>\n    <slot>\n      <slot:key>notes</slot:key>\n      <slot:value type=\"string\">line1\nline2</slot:value>\n    </slot>\n  </act:slots>\n</gnc:account>";
         let el = parse_document(text).unwrap();
-        assert_eq!(el.find("act:name").unwrap().text_content(), "Café & co");
+        assert_eq!(el.find("act:name").unwrap().text_content(), "Café & co\ttab\r");
         assert_eq!(el.dump(0), text);
     }
 }

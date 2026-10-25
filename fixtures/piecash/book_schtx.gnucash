@@ -1,0 +1,5293 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<gnc-v2
+     xmlns:gnc="http://www.gnucash.org/XML/gnc"
+     xmlns:act="http://www.gnucash.org/XML/act"
+     xmlns:book="http://www.gnucash.org/XML/book"
+     xmlns:cd="http://www.gnucash.org/XML/cd"
+     xmlns:cmdty="http://www.gnucash.org/XML/cmdty"
+     xmlns:price="http://www.gnucash.org/XML/price"
+     xmlns:slot="http://www.gnucash.org/XML/slot"
+     xmlns:split="http://www.gnucash.org/XML/split"
+     xmlns:sx="http://www.gnucash.org/XML/sx"
+     xmlns:trn="http://www.gnucash.org/XML/trn"
+     xmlns:ts="http://www.gnucash.org/XML/ts"
+     xmlns:fs="http://www.gnucash.org/XML/fs"
+     xmlns:bgt="http://www.gnucash.org/XML/bgt"
+     xmlns:recurrence="http://www.gnucash.org/XML/recurrence"
+     xmlns:lot="http://www.gnucash.org/XML/lot"
+     xmlns:addr="http://www.gnucash.org/XML/addr"
+     xmlns:billterm="http://www.gnucash.org/XML/billterm"
+     xmlns:bt-days="http://www.gnucash.org/XML/bt-days"
+     xmlns:bt-prox="http://www.gnucash.org/XML/bt-prox"
+     xmlns:cust="http://www.gnucash.org/XML/cust"
+     xmlns:employee="http://www.gnucash.org/XML/employee"
+     xmlns:entry="http://www.gnucash.org/XML/entry"
+     xmlns:invoice="http://www.gnucash.org/XML/invoice"
+     xmlns:job="http://www.gnucash.org/XML/job"
+     xmlns:order="http://www.gnucash.org/XML/order"
+     xmlns:owner="http://www.gnucash.org/XML/owner"
+     xmlns:taxtable="http://www.gnucash.org/XML/taxtable"
+     xmlns:tte="http://www.gnucash.org/XML/tte"
+     xmlns:vendor="http://www.gnucash.org/XML/vendor">
+<gnc:count-data cd:type="book">1</gnc:count-data>
+<gnc:book version="2.0.0">
+<book:id type="guid">daeacdbeb194ff66c4f69f2a832f6f89</book:id>
+<book:slots>
+  <slot>
+    <slot:key>counters</slot:key>
+    <slot:value type="frame">
+      <slot>
+        <slot:key>gncCustomer</slot:key>
+        <slot:value type="integer">13</slot:value>
+      </slot>
+    </slot:value>
+  </slot>
+  <slot>
+    <slot:key>features</slot:key>
+    <slot:value type="frame">
+      <slot>
+        <slot:key>ISO-8601 formatted date strings in SQLite3 databases.</slot:key>
+        <slot:value type="string">Use ISO formatted date-time strings in SQLite3 databases (requires at least GnuCash 2.6.20)</slot:value>
+      </slot>
+    </slot:value>
+  </slot>
+  <slot>
+    <slot:key>options</slot:key>
+    <slot:value type="frame">
+      <slot>
+        <slot:key>Budgeting</slot:key>
+        <slot:value type="frame"/>
+      </slot>
+    </slot:value>
+  </slot>
+</book:slots>
+<gnc:count-data cd:type="commodity">1</gnc:count-data>
+<gnc:count-data cd:type="account">66</gnc:count-data>
+<gnc:count-data cd:type="transaction">74</gnc:count-data>
+<gnc:count-data cd:type="schedxaction">2</gnc:count-data>
+<gnc:count-data cd:type="price">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncCustomer">13</gnc:count-data>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>CURRENCY</cmdty:space>
+  <cmdty:id>EUR</cmdty:id>
+  <cmdty:get_quotes/>
+  <cmdty:quote_source>currency</cmdty:quote_source>
+  <cmdty:quote_tz/>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>CURRENCY</cmdty:space>
+  <cmdty:id>USD</cmdty:id>
+  <cmdty:get_quotes/>
+  <cmdty:quote_source>currency</cmdty:quote_source>
+  <cmdty:quote_tz/>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>template</cmdty:space>
+  <cmdty:id>template</cmdty:id>
+  <cmdty:name>template</cmdty:name>
+  <cmdty:xcode>template</cmdty:xcode>
+  <cmdty:fraction>1</cmdty:fraction>
+</gnc:commodity>
+<gnc:pricedb version="1">
+  <price>
+    <price:id type="guid">fdb7d22663f57e2159a5f31aefce9980</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>EUR</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2015-11-18 03:35:47 +0000</ts:date>
+    </price:time>
+    <price:source>Finance::Quote</price:source>
+    <price:type>last</price:type>
+    <price:value>940600000/1000000000</price:value>
+  </price>
+</gnc:pricedb>
+<gnc:account version="2.0.0">
+  <act:name>Root Account</act:name>
+  <act:id type="guid">30be2cd0a8141dc3deb2d01bfbb2b66d</act:id>
+  <act:type>ROOT</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Assets</act:name>
+  <act:id type="guid">33df2adb50ad0af64ab8375abf6fbd69</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Assets</act:description>
+  <act:slots>
+    <slot>
+      <slot:key>placeholder</slot:key>
+      <slot:value type="string">true</slot:value>
+    </slot>
+  </act:slots>
+  <act:parent type="guid">30be2cd0a8141dc3deb2d01bfbb2b66d</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Current Assets</act:name>
+  <act:id type="guid">5dcc6d7de48a3c95ba6cdae9e9ac0039</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Current Assets</act:description>
+  <act:slots>
+    <slot>
+      <slot:key>placeholder</slot:key>
+      <slot:value type="string">true</slot:value>
+    </slot>
+  </act:slots>
+  <act:parent type="guid">33df2adb50ad0af64ab8375abf6fbd69</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Checking Account</act:name>
+  <act:id type="guid">1a7b2758fed3d8d98f4ec81035a9a457</act:id>
+  <act:type>BANK</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Checking Account</act:description>
+  <act:parent type="guid">5dcc6d7de48a3c95ba6cdae9e9ac0039</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Savings Account</act:name>
+  <act:id type="guid">0169250cd3f1e09ffb3e8e17b666059c</act:id>
+  <act:type>BANK</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Savings Account</act:description>
+  <act:parent type="guid">5dcc6d7de48a3c95ba6cdae9e9ac0039</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Cash in Wallet</act:name>
+  <act:id type="guid">1b06dc0573b9b35279ffc328491b7f10</act:id>
+  <act:type>CASH</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Cash in Wallet</act:description>
+  <act:parent type="guid">5dcc6d7de48a3c95ba6cdae9e9ac0039</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>us account</act:name>
+  <act:id type="guid">d49d336235ee30d0f08e54146d9614cc</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">5dcc6d7de48a3c95ba6cdae9e9ac0039</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Liabilities</act:name>
+  <act:id type="guid">a7210220a80b82f509b8cc2d7e648f33</act:id>
+  <act:type>LIABILITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Liabilities</act:description>
+  <act:slots>
+    <slot>
+      <slot:key>placeholder</slot:key>
+      <slot:value type="string">true</slot:value>
+    </slot>
+  </act:slots>
+  <act:parent type="guid">30be2cd0a8141dc3deb2d01bfbb2b66d</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Credit Card</act:name>
+  <act:id type="guid">6e2bd46c938ffe07ef4b97eff397d39d</act:id>
+  <act:type>CREDIT</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Credit Card</act:description>
+  <act:parent type="guid">a7210220a80b82f509b8cc2d7e648f33</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Income</act:name>
+  <act:id type="guid">644c7a9fd398c143f057c5e76566002e</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Income</act:description>
+  <act:slots>
+    <slot>
+      <slot:key>placeholder</slot:key>
+      <slot:value type="string">true</slot:value>
+    </slot>
+  </act:slots>
+  <act:parent type="guid">30be2cd0a8141dc3deb2d01bfbb2b66d</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Bonus</act:name>
+  <act:id type="guid">cd3ce00095d9a9ea1a0d79ee83d3c688</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Bonus</act:description>
+  <act:parent type="guid">644c7a9fd398c143f057c5e76566002e</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Gifts Received</act:name>
+  <act:id type="guid">02e54d98d8a56c78998069c73dcfe91b</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Gifts Received</act:description>
+  <act:parent type="guid">644c7a9fd398c143f057c5e76566002e</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Interest Income</act:name>
+  <act:id type="guid">813d7dcff054091e35cf6d8ee46bd70a</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Interest Income</act:description>
+  <act:parent type="guid">644c7a9fd398c143f057c5e76566002e</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Checking Interest</act:name>
+  <act:id type="guid">097e2ebc4a7a1994b2f23537f9339c7f</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Checking Interest</act:description>
+  <act:parent type="guid">813d7dcff054091e35cf6d8ee46bd70a</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Other Interest</act:name>
+  <act:id type="guid">fc909be09d55b125c5a95d3f69d03181</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Other Interest</act:description>
+  <act:parent type="guid">813d7dcff054091e35cf6d8ee46bd70a</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Savings Interest</act:name>
+  <act:id type="guid">8ec544d9b885d3acc09d73e91c93a184</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Savings Interest</act:description>
+  <act:parent type="guid">813d7dcff054091e35cf6d8ee46bd70a</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Other Income</act:name>
+  <act:id type="guid">7d6f473e419ef199fe4e355645365dde</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Other Income</act:description>
+  <act:parent type="guid">644c7a9fd398c143f057c5e76566002e</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Salary</act:name>
+  <act:id type="guid">058ffb502e07c0972ae25554d2c5fe84</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Salary</act:description>
+  <act:parent type="guid">644c7a9fd398c143f057c5e76566002e</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Expenses</act:name>
+  <act:id type="guid">60b022719e975d59fd855a27353ae70c</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Expenses</act:description>
+  <act:slots>
+    <slot>
+      <slot:key>placeholder</slot:key>
+      <slot:value type="string">true</slot:value>
+    </slot>
+  </act:slots>
+  <act:parent type="guid">30be2cd0a8141dc3deb2d01bfbb2b66d</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Adjustment</act:name>
+  <act:id type="guid">e679e25441f9607b70abc86a6a612eee</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Adjustment</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Auto</act:name>
+  <act:id type="guid">50418a84019511e4bc6071d79ee5e0ec</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Auto</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Fees</act:name>
+  <act:id type="guid">4ed0c2dab6d6b81afb8324a39ff64380</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Fees</act:description>
+  <act:parent type="guid">50418a84019511e4bc6071d79ee5e0ec</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Gas</act:name>
+  <act:id type="guid">f6f903eb7c94571165969ea72b9a92a1</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Gas</act:description>
+  <act:parent type="guid">50418a84019511e4bc6071d79ee5e0ec</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Parking</act:name>
+  <act:id type="guid">e21b5955538e58b8e358eae0b8a7b3ff</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Parking</act:description>
+  <act:parent type="guid">50418a84019511e4bc6071d79ee5e0ec</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Repair and Maintenance</act:name>
+  <act:id type="guid">ee6d58f996dfa2181ff196c773e0e543</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Repair and Maintenance</act:description>
+  <act:parent type="guid">50418a84019511e4bc6071d79ee5e0ec</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Bank Service Charge</act:name>
+  <act:id type="guid">c647c330b7596ff54102d52d312ec8f7</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Bank Service Charge</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Books</act:name>
+  <act:id type="guid">c38cafb2637dce81d1c69e2a7cb11f83</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Books</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Cable</act:name>
+  <act:id type="guid">bb05a4cebf05504ee2359f0f62671dca</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Cable</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Charity</act:name>
+  <act:id type="guid">f5f53ddb5a254d2a619838c366006be8</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Charity</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Clothes</act:name>
+  <act:id type="guid">f0f1994b9f22dc8bb2c40996302be21d</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Clothes</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Computer</act:name>
+  <act:id type="guid">8d930c5f834c5d020bd8123bbaa1578f</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Computer</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Dining</act:name>
+  <act:id type="guid">fd5cab5d367dbdf3f43ee330aa632cd1</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Dining</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Education</act:name>
+  <act:id type="guid">8bbd79818573ea87b4dd4d9ddf2c9db8</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Education</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Entertainment</act:name>
+  <act:id type="guid">528e046f3c30ac70c353b88588251eb7</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Entertainment</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Music/Movies</act:name>
+  <act:id type="guid">fa7ba8f6b2fdbaaebedba14bcdd3e8b6</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Music/Movies</act:description>
+  <act:parent type="guid">528e046f3c30ac70c353b88588251eb7</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Recreation</act:name>
+  <act:id type="guid">bc3ac6ff88cf1ebf758d0c9a6658ae7f</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Recreation</act:description>
+  <act:parent type="guid">528e046f3c30ac70c353b88588251eb7</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Travel</act:name>
+  <act:id type="guid">24d1766da87916809d392767c8828d0c</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Travel</act:description>
+  <act:parent type="guid">528e046f3c30ac70c353b88588251eb7</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Gifts</act:name>
+  <act:id type="guid">3fe6465e6f000253b2404bf79e8abf24</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Gifts</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Groceries</act:name>
+  <act:id type="guid">2ae1708ea1f7475cccd8601682d20ff6</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Groceries</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Hobbies</act:name>
+  <act:id type="guid">8c696f488771170e3a60cc4d70cfa516</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Hobbies</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Insurance</act:name>
+  <act:id type="guid">2b15fc7d127a7171609470cc74ffb58a</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Insurance</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Auto Insurance</act:name>
+  <act:id type="guid">8414fb34d306e29dbadfe43d4aa38be8</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Auto Insurance</act:description>
+  <act:parent type="guid">2b15fc7d127a7171609470cc74ffb58a</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Health Insurance</act:name>
+  <act:id type="guid">f8f5d3e286d5743f5036a2b5f41ae6ee</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Health Insurance</act:description>
+  <act:parent type="guid">2b15fc7d127a7171609470cc74ffb58a</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Life Insurance</act:name>
+  <act:id type="guid">ce5ac7582353d63777494aec3ac97125</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Life Insurance</act:description>
+  <act:parent type="guid">2b15fc7d127a7171609470cc74ffb58a</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Laundry/Dry Cleaning</act:name>
+  <act:id type="guid">c75c2ded9fcc1ca46c29780948d2f235</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Laundry/Dry Cleaning</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Medical Expenses</act:name>
+  <act:id type="guid">61a6a6582a998d994cc91e648de6765e</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Medical Expenses</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Miscellaneous</act:name>
+  <act:id type="guid">461bea324fe82d3f400631674f641ad7</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Miscellaneous</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Online Services</act:name>
+  <act:id type="guid">6a738fd62236d46fe5a11b9d083c56ea</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Online Services</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Phone</act:name>
+  <act:id type="guid">38164c05dc75b7756ca454f53c82e20f</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Phone</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Public Transportation</act:name>
+  <act:id type="guid">4198f092ca4cdfcf316da4104fae29c2</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Public Transportation</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Subscriptions</act:name>
+  <act:id type="guid">36ffd52a1733912e3afca5ac036cce7f</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Subscriptions</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Supplies</act:name>
+  <act:id type="guid">8ec891f5204eb09abdb10378bfe3d168</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Supplies</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Taxes</act:name>
+  <act:id type="guid">1a3284c396fae0a828ca902673fe9777</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Taxes</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Federal</act:name>
+  <act:id type="guid">cacc1532075bd2940a254475711e1b58</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Federal</act:description>
+  <act:parent type="guid">1a3284c396fae0a828ca902673fe9777</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Medicare</act:name>
+  <act:id type="guid">00404239392c3de45033a264f858817f</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Medicare</act:description>
+  <act:parent type="guid">1a3284c396fae0a828ca902673fe9777</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Other Tax</act:name>
+  <act:id type="guid">ee7b04e91e2dca960eb66b13cccfd2d7</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Other Tax</act:description>
+  <act:parent type="guid">1a3284c396fae0a828ca902673fe9777</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Social Security</act:name>
+  <act:id type="guid">459314bf9e0bcb1570bfce0417686639</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Social Security</act:description>
+  <act:parent type="guid">1a3284c396fae0a828ca902673fe9777</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>State/Province</act:name>
+  <act:id type="guid">77e6bc471185e5719b8e8c709e084f56</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>State/Province</act:description>
+  <act:parent type="guid">1a3284c396fae0a828ca902673fe9777</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Utilities</act:name>
+  <act:id type="guid">7e0fceab21ff54739325e4fb1581eae5</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Utilities</act:description>
+  <act:parent type="guid">60b022719e975d59fd855a27353ae70c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Electric</act:name>
+  <act:id type="guid">b893be28421a493e0a79b58cd7d9c4c0</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Electric</act:description>
+  <act:parent type="guid">7e0fceab21ff54739325e4fb1581eae5</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Garbage collection</act:name>
+  <act:id type="guid">ebdfb549166549f5d6c07b182da17d07</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Garbage collection</act:description>
+  <act:parent type="guid">7e0fceab21ff54739325e4fb1581eae5</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Gas</act:name>
+  <act:id type="guid">0881b5f6e62e5d3303691237a730fe2e</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Gas</act:description>
+  <act:parent type="guid">7e0fceab21ff54739325e4fb1581eae5</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Water</act:name>
+  <act:id type="guid">e6786574a7eb97cb0526a8290afa0fd0</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Water</act:description>
+  <act:parent type="guid">7e0fceab21ff54739325e4fb1581eae5</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Equity</act:name>
+  <act:id type="guid">945251aa20f61b5cfb54610887121bbf</act:id>
+  <act:type>EQUITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Equity</act:description>
+  <act:slots>
+    <slot>
+      <slot:key>placeholder</slot:key>
+      <slot:value type="string">true</slot:value>
+    </slot>
+  </act:slots>
+  <act:parent type="guid">30be2cd0a8141dc3deb2d01bfbb2b66d</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Opening Balances</act:name>
+  <act:id type="guid">7465f4f3b05f8f9ec409c6ac32e87b69</act:id>
+  <act:type>EQUITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Opening Balances</act:description>
+  <act:parent type="guid">945251aa20f61b5cfb54610887121bbf</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Orphan-EUR</act:name>
+  <act:id type="guid">b8d4e6b9949c95e335377160a48c4391</act:id>
+  <act:type>BANK</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">30be2cd0a8141dc3deb2d01bfbb2b66d</act:parent>
+</gnc:account>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">42b89b48ef237eaa61ef58717a32d024</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2013-01-02 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:27:46 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Opening balance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2013-01-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">22697f647b124a22473842ff6b395385</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>70000/100</split:value>
+      <split:quantity>70000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">95690b7a8ab12bde3cbff21e2fdcc86f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-70000/100</split:value>
+      <split:quantity>-70000/100</split:quantity>
+      <split:account type="guid">7465f4f3b05f8f9ec409c6ac32e87b69</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">b7d259a288746b54703ec93af6b8496c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2013-05-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:22:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Insurance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2013-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">eaed39aac85788b98e9a4e6faad18d72</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">f5815ea512fef79130578be98df1942e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">8414fb34d306e29dbadfe43d4aa38be8</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">8086177080d834f762deefbfb6eb6f9b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-3000/100</split:value>
+      <split:quantity>-3000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">638bf16ba2382d4e3a01868ed661bcf5</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2013-12-31 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-01-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">3cd5bf1696752091c1daeee469db0393</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">67980caca40e0c6ba4434074c5d652cc</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d253b9640ad36f6d7209e80ab6fcc847</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">9654766ba918ef9dbb6acd7ead5d96e6</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2013-12-31 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-11-29 07:27:43 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>salary</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-01-01</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">97fb1e471c5ddc80cff6f98b1ed94432</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>80000/100</split:value>
+      <split:quantity>80000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">766211b5e920ee8fccc4ac820ce494c7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-80000/100</split:value>
+      <split:quantity>-80000/100</split:quantity>
+      <split:account type="guid">058ffb502e07c0972ae25554d2c5fe84</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">3ee5f153bb6cd29311abe543a9bf473b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-02-02 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-02-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">c48c260db448da34bba7c25b50d79f9d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">f0b581a807e0fd56c56675a3bf2e5d35</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">80f458a7fa6868b8b2a74693c0a26e94</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c568fcbd10e6c9aaa57e72f96661a03d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-03-02 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-03-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">bc9d1070f8a5d8eb04c1801f8547090f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">fd3cf31862d8b819788d5d1b199b3884</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">bf8da2e7b105d900727b470bc09f8fc7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">f1d79ccf38a75760fdf63b3d998b3f00</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-03-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-04-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">c33a9288e28a7b9b172c07905c3da3ee</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">532f04ee3ffdb9dbe35e16db7e2ac01d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d503ccc7ee2c0a665444cb10bd6be932</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">7bb14e994695789c1761a254318a8fce</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-04-30 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-05-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">54ef011e599b2d47526e5c687c1e1ee4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0ecb688d86bae42720c4069f8391089</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">7c672e1433d08f860930bd7b84bd47b7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">41ae8c4e4f46f9f4a0435b71b74fee08</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-05-29 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:22:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Insurance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-05-30</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">eaed39aac85788b98e9a4e6faad18d72</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">222d2905893a557dc05a2e719da6be48</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">8414fb34d306e29dbadfe43d4aa38be8</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">4765999a3bf47ee134d232f8db7849d3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-3000/100</split:value>
+      <split:quantity>-3000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">b2a577885e6016683b481b6dee098ed1</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-06-01 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-06-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">894bf776faa4c91bb0ef7fc4f4a8a061</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">db1536fc38811bb9e17430da51a27cd4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">0b6465dec33d9a423b59277a09d3d38c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">afa0b0d0abe1add1a3f9c0acde5fae8c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-06-30 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-07-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">bed8cb43b338907df9d1f77d6573d967</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">8a20778818902facf90f423c3ea5c840</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">b797a9218fa2faf4ad0086a907aa8116</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">e44ef2771329bcbca7b65d9db823278d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-07-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-08-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">8be862f84e2a195a3a56bb2373f62ee4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">6947ebc9e25712691db063e93bf05511</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d962d8a7587f6da4c0399eeeccbc3a09</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">14d64a9736278c34429cc264569ff67d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-08-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-09-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">f4532a75cac9c411f22ee6910140b9b4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">cb4aad30829a34380963ac6019be93dc</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">99c1c28767b8857ba682f28a3fe845e2</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">3717cdb41c3b72d01fe9f677f082068b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-09-30 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-10-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">9670fafeadd3f04ac4be1aab63241c94</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">ea557bb7f6f0c5a288d246ba71380cea</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">4b94ca59ae8753c0a92aff2fb69a3814</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">7c1aa7915d8678739659819667fda957</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-11-02 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-11-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">04ab2172525b9468369e3509c69fb4b3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">525fbe40d5906e6ce0dd5538b9afd3a2</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">644f05c4ab492a443e05823f550822fd</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">0d96e76504026c870f718d9ab20ca16e</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-11-30 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2014-12-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">bd444de7dd2929bf7dec694326a23f60</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">6de3a0f71834be8ebe7fdc2189d89157</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">c6344f21004f19d5cf637789d70df7d2</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">87db335f7acc633dfb2ee6eb8050356a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-12-31 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-01-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">bc0c688f9d4b6f5634dddbd4d5f30f44</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">615cfabc392ccb8b6d1bd5a9f19a563b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">245f98c62f5b07b8da1ff9568fa4e485</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">3c17ec09ce01153429b8d6bca60acc99</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2014-12-31 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-11-29 07:28:20 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>salary</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-01-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string"></slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">c1fad585c238da4a1da338587feb9512</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>80000/100</split:value>
+      <split:quantity>80000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">86747562d74c2d942a98c58251a87621</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-80000/100</split:value>
+      <split:quantity>-80000/100</split:quantity>
+      <split:account type="guid">058ffb502e07c0972ae25554d2c5fe84</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">6bcd1a453347c3a543642a60a08eed9f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-02-01 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-02-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">2e7c9ec21c4011b5a89ee521a6bbb7fa</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">1cb2c20796a38bce8f6b3f9b4494a6b4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">62ddd1b2e854eb874aba6198967afce6</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">436546069e85836565f7222841f71eae</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-03-01 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-03-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">36299708b4f436a4140a029a568621d3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">1e3f089c1a5de84a425a744477238dfd</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">08660223359f52daaed99ce41b566570</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">02fb3df923fdb04a84ae49ceedfce1e8</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-03-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-04-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">7f575c7bfa7f7a44ed3d5e6fade3b8bc</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">66d618671346f58f337aa95147f3d513</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">babbf1108ea7494dda52c7541588c6d0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">3c6f8dfb335a7c17e7009efd1b1ef8b1</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-04-30 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-05-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">57bc46394d2c55b70cde61d3af85048f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">9ab85cdbe164b9ae74dcd7eb120de05d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">0cf3339f25fb08b3a16e695ef1b14298</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">d51a802e08d00c23fc50619e4f7657ad</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-05-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">8e8050a44fbe1904891b43f7d93fc1e4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">e5217317ea17b6f0d693d027957347eb</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">e58fb24764c0d5f49702b5a2613ff355</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">49af40cf736ececd08914c0c583ec180</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-05-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:22:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Insurance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">eaed39aac85788b98e9a4e6faad18d72</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">a0f91b5168cae71efaa04a92e6fd690e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">8414fb34d306e29dbadfe43d4aa38be8</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">16e25b691c483ab5dc2d44cb9986ed96</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-3000/100</split:value>
+      <split:quantity>-3000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">d1bc12e45e6cc0851da344a8828e1e6c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-06-30 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-07-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">1f5bb2902dbfd0205696a19208990b7b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">65907a487e0f6ce51427d4087b67436e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d52ec5ccc6f2e4b41d73f2be6014f797</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">2fb389c871a0bf69f2a128055cad133b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-08-02 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-08-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">21f09995e9b854f76f032d7ae1622fe0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">746732f3c3a9c516018391cc2b2d3d50</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">244f35a987121dbe83f0c145062cd3ac</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">f1b57e28449b8eb63f8d292535cfadab</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-08-31 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-09-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">dad0f92ffb153419def59f7347e85ad6</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">6c8605e2272521b155c757ce8188b3d3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">fe31789a46477fe4b21cbe4c7540917a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">44efa0cc371de90cfb7800cdbe9f2d60</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-09-30 22:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-10-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">83b1f1e2e572bf151e74b86c05e16ede</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">587ca3a65b1d9afa1b738bdd7d1fb9bb</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">7d0cfeee32ff9b220ccb4d4073e15215</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">0fc5dbe4514cd51cc79d7e8abf5d1c15</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-11-01 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-11-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">4f91d130dada6f7b4b5d18f565596c87</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">6ee21b2092bec6840c1aff8fe6e46bbe</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">bdbaec8af86ad4fa71a638c9073da910</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">06800070e0f7535f14155e9829507477</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-11-17 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-11-18 03:35:50 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>test</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-11-18</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">f4a182e49b477430311093115095f062</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10000/100</split:value>
+      <split:quantity>10000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">e83ac1dc4b93f21de5b47866798088e0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10000/100</split:value>
+      <split:quantity>-10632/100</split:quantity>
+      <split:account type="guid">d49d336235ee30d0f08e54146d9614cc</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">831e39ed9f4040598b69f6a506b54c2b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-12-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-12-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">bd3be299f0b64834b4a4c56334adb2c3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">e2acc1a9a09143d7becd5725e64bf8c1</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">75bb7e1152524dd586f223e8095f676b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">e9997bbb69e44a7899e7d4bbf773d4be</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-01-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-01-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">30de04670104483a918b69cdcbf74f69</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">39e1d09bc22f4c4d967fc8a1b1cc7544</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">8f6ee67083d348beb00fe72535c01954</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">74b66fb5bba34884bcbf086d5ad6008d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-02-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-02-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">440b4ad131044a1caa4dbf6b27420b43</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">68f570c6dec94f6d8579a5faecbd0d75</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">7f3d8fe058ca4044a58b6b60ac6332d7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">33314b663c444b719076d3f933a4ac11</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-03-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-03-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">8183a0b44a614670834af6384e96b4a3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">2fb2b5a82a87402b815c891035678973</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">8e459478a1004311bcee439829cfa978</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">e4c464755fcd4a8ca99abee514046396</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-04-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-04-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">b32a3473ca3b4424a545e48004e854c9</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">78a9e3a1bcf5419fb2cd4421b77eaf80</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">f50f2c824a074dbdae09b52199bc45aa</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">129ae42622714e14ac205e1226f5e2b4</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-05-02 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-05-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">be26c9789c9240a58bbd561fda10e73d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">01930e0a98664649ae170b077d343556</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">55907657505145d88dfb433fe211b6d4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">6bbdffab55bb4793b6baa0fd509f1b1b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-06-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">ea244044828646f39b0dca0e948d356a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">a63680f138ed4ef8b2ab70bf43bd5fd7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">7a3e78e9e356467db8c70a69a6e3d259</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">b227307708c24ccf8e6bea522321f9dd</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-06-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:22:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Insurance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">eaed39aac85788b98e9a4e6faad18d72</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">b495febdb8ca460c9bf930b5c3865a05</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">8414fb34d306e29dbadfe43d4aa38be8</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">c20ceeae72374d879cb50d3a19654213</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-3000/100</split:value>
+      <split:quantity>-3000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">d08a0c0db8704c9086f4671f1dd67887</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-07-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-07-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">ca7819e9242a41c2800d1009c9001639</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">8576ae82ff03463daf5287effdbb4f09</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">5465271797d843099d948ab226eb8d3f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">4b6e19c64f6b4f5f989b97d8add70d7c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-08-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-08-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">90bf662666514751bf73bdad15976a6c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">17aefaa4238c4151a21b83a2411ad0a8</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">fdcf6ed873f74a49b6d21ec8ab0868e5</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">234e9d623eed479b9e1b453a371f1bf3</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-09-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-09-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">8d28521f7ca44253bf8cc48fdaf538ee</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">9774eb0b99ed43068c1a825a139872b0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">94fe12dccd424205af6cb0ce4ebb4d33</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">48e4a526d264429b8979e3cadb6f24cf</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-10-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-10-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">3a57df80130c440ea5f2bb116fa2f825</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">2bd5f6a6f88c4181b5eaaa4c1c4df1e3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">da8f481f0ae644389275b1a734ff0db7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">e52800d9d1a447a6af3ea959c9a10fc7</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-11-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-11-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">9e0621f8fe21461a8b3dd3c708fc6887</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">7c30af0915324d20988a55dd03bb53ee</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">59b1ee1439814b478285f8c6eb892747</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">3a634791c7644fdc9952972a59b61201</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2016-12-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2016-12-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">68a04eff128c476ba675aff4b7c4e6b0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">08279eaf435a44bb94d96d00cd36bd7d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">1fff4a235e324fada409e12894c6d91a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">86507ca02d31402392701e3d8627b0fa</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-01-02 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-01-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">74a91e4b32c247ff8d5327dff0ed52d1</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">a805e5fae2e64ece813e5be29621b586</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">acdb576bfd9241e2a299d214bde2147e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">ec6e438e20ac4dccb94f6e5db9b8a70a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-02-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-02-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">ac1c8ddc13414538a90a95d35dae8d4c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">df788e8091b64848b23cdc24e98fb2de</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">725980dbdbf54d58884631ce81ff6b97</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">1b567c41d6f24e2382fdd687ca266f68</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-03-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-03-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">2b11fd4f5aeb45cd8147d20a892a59ee</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">e95c24e55fc34734a3275cc0ec907c55</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">f16022e825e94d8eb5b9d338ee5c4bb3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">e8e9585bdb0d4cbd989609345fdfc387</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-04-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-04-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">b57103bfaedc4bf4923863254b9a62fb</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">aa1ea8f3a96840d8860d37ba08a9b661</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">a0867f59bc6543caa06f8e37ef0e9af1</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c34daa928a5c4d1991ca60dcf8a6b007</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-05-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-05-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">eaae2708b0c74861bfde39919237586c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">aa2ea791d12e45b586457196f58fcc96</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d373c0ed813142579b7866d584cbbde8</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">da0ca671a8f144079def808e872f70fd</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-06-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">423a592c316e45c8888daa689544fa40</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">db9df29fafd24c9eb358e477766949be</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">de54d83ec06246ad9593a542722e5d98</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">08ac7bf7ab64472a821429c34ada82e3</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-06-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:22:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Insurance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">eaed39aac85788b98e9a4e6faad18d72</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">769880656ccb4a548dd4a78657311eb9</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">8414fb34d306e29dbadfe43d4aa38be8</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">6fc64c7131c646909270c9c569f0839e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-3000/100</split:value>
+      <split:quantity>-3000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">4ec03e9bf2034cd29f2ac373745660bc</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-07-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-07-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">8203c9e3f92f45a6a6917ebb3085a30b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">b6ecd31e04f645b18a9fbd4b9760af26</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">896c724bb8644dd7956c8487d5f24ebf</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">9cead3b26b024ba8ac19fdf467605625</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-08-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-08-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">97f0cd9f939d4a899c626c61337221d4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">03fee6043eb4402d876e14a6522fbc4d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">6f37037a93304d80bd40f84e40f9f964</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">ac6b50aebf114659a48ff580c959563f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-09-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-09-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">1c31cf160f8c454b9be147ff38af55b1</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">58fc6b24f81243fa85069fc2bd1f8031</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">497ee68de0cd4cbc91ac4cad71e255a3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">6ab1c3ae4289425dbbd86e060dec32b7</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-10-02 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-10-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">412810f338c742b58923a6e7b9190a60</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">197cac61d4b64298872c05b7d74268d5</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">72b87f99041e4244b8dde0060b7b88c6</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">28d98ffbed1f4f80bf26d637f4281a2a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-11-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-11-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">535e8d0783fa496b9bb6304baf27ad04</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">1421f96c50d34fd8914f80ec3f4649f8</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">c60cd4828b9845e18c294665aa71fdd4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">50d9bf6333a8454595b69a89c1aeaea2</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2017-12-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2017-12-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">5663359307984d749f0588667889bf5d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d186b32c04744c9f857cca921ae4c2b3</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">5d88718dd2254b2f870757ab5ae71dc6</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">25eb03ef9c394370967e92b4d6470668</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-01-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-01-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">2d9a7f64778c438899f0f36cf5336c59</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">f978019670424892851aa92a84443cee</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">2319d960d14c426b83a8466fce01974b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">f3515f61428f4871bef65d886fcd66cb</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-02-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-02-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">6c8318aefc9243b38192fec261acf09e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">329dbc3653664593a1430d4c09018feb</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">b497dae2c66a4e3288b0b07e55f7b5af</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">d86333e21869438e8d33a6cffb9f54a7</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-03-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-03-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">89d539ae07f141a08f356a7e4426cca0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d36e9255092148cea7ff5a5f4441fc40</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">270d9fa3ab3b4c8cbcaf6762fca01e91</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">5c2ca533cffc4a83a5123be51c648432</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-04-02 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-04-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">1d81e8fdddf4475cb660ecf178055a4b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">f9c3ec7cae8846a3993285fb4440c562</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">0d9c1c63686949a4aa5db1f617497ce7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">ee8eb6af34914edb94c8768d448bf9e8</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-05-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-05-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">acddb0d465ec4349977cae3298481dfd</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">1382a01be2a84001a5fc0bbddafe0e39</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">9699e9656048446d9af080a29d106b99</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">8309d05a5e174765bb40cf83629693c9</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-06-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">52869d22803f4e3896b0502d88585d10</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">c66e5aa516cb4327a74554f2557531b4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">57053899060b4daabdfc450b98101905</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">6d2b5cb2a0114ae39d7d983de71e98e1</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-06-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:22:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Insurance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-06-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">eaed39aac85788b98e9a4e6faad18d72</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">dba94cbe872a455b97bf473d99f5e1a9</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">8414fb34d306e29dbadfe43d4aa38be8</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">a89f4d508f1e4fc5bfa94c7cd3323157</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-3000/100</split:value>
+      <split:quantity>-3000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">7443acd9e70d4b229d2a646679885e63</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-07-02 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-07-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">6070ba6b8a09475b82c626b3fecb82c0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">8ac77931e57e448c8cb3ecd61f66a692</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">0f4caa0152794f0292b87385b90d96b5</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">5e608a0183b342bc9f16810100c09b1a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-08-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-08-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">b1503fefd962494f8ef7bb196cc8cb72</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">94df00fabb7540ab9ffa003ffd21b9b9</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">553962164b6d416194bd8f5a75e69e8b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">000dfe29498c4d40bdd79a676fe6cec5</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-09-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-09-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">3729db12f5bc42a9a00ad5d5c0145500</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">ece6c65079e24575af9663325f650e14</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">0f667e9288ad41bd8375271bc8fc159f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">a4c30ab517e74ff3b42788a76f3108ea</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-10-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-10-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">55465b16a9a64bd69f74b6b185ddfa41</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">b2333564519143b4827e4c29d4ec9937</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">eee61af172e34f24904f171e13e2ee17</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">3a5588d9cdff4dca980dbbd338f4ff19</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-11-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-11-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">08cf3b3a2c7640948e0cb510e2024496</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">ce3b840095914fac88e8654a5971ee46</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">77e83208a25c4769a65d29a804adee31</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">4664ca71444c40db8fb08afbc2b9be46</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2018-12-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2018-12-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">614712be80054689957c7e7cb13753c7</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">5e3060e4170944ef9653e117cad8836c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">af44802e597844e49e9484988b96ea71</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">fec99067b5cb49928fbda71a0080bdd2</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2019-01-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2019-01-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">1890c3df6c364ef9a6eb8c01d1be79d2</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">075dd39340754b76853caed52a8d39f4</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">39a239e248fa4629baafab3f0c7ca322</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">af2826556854462f86b80fc9fd5ff660</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2019-02-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2019-02-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">e00db3742992428ba912b56a7501db7a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">c1f58c91ba41407283a7ee5f8deb8037</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">f27562221dea4bc58cbee679feca28bf</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">de4e3862f16d4700b5f22d554b76c96a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2019-03-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2019-03-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">2c10511605b04d13b32af5e9eb6bfa85</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">cb6fbb0cb58f476a8c7caa966d180e81</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">1642086727e9486f81e0fc6161c82ff0</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">fa6a987f09984feca2817002ba7eac43</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2019-04-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2019-04-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>from-sched-xaction</slot:key>
+      <slot:value type="guid">37c29195dfe40a85c18572c59b247811</slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">1faf92b6e4094ee1a1185edb1891dd3f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3000/100</split:value>
+      <split:quantity>3000/100</split:quantity>
+      <split:account type="guid">b893be28421a493e0a79b58cd7d9c4c0</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">a1f733924ff741f29d1507dd2cb2539b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4000/100</split:value>
+      <split:quantity>4000/100</split:quantity>
+      <split:account type="guid">0881b5f6e62e5d3303691237a730fe2e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">506d6a1416ba4a4d87472323933a20fa</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-7000/100</split:value>
+      <split:quantity>-7000/100</split:quantity>
+      <split:account type="guid">1a7b2758fed3d8d98f4ec81035a9a457</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:template-transactions>
+<gnc:account version="2.0.0">
+  <act:name>Template Root</act:name>
+  <act:id type="guid">91a44be3141d262be7cff38dc16ec2a9</act:id>
+  <act:type>ROOT</act:type>
+  <act:commodity>
+    <cmdty:space>template</cmdty:space>
+    <cmdty:id>template</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>1</act:commodity-scu>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>37c29195dfe40a85c18572c59b247811</act:name>
+  <act:id type="guid">bd1eb6e9685d82eab598d059d1b30043</act:id>
+  <act:type>BANK</act:type>
+  <act:commodity>
+    <cmdty:space>template</cmdty:space>
+    <cmdty:id>template</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>1</act:commodity-scu>
+  <act:parent type="guid">91a44be3141d262be7cff38dc16ec2a9</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>eaed39aac85788b98e9a4e6faad18d72</act:name>
+  <act:id type="guid">ef844b067ee85f24062505eff37cde84</act:id>
+  <act:type>BANK</act:type>
+  <act:commodity>
+    <cmdty:space>template</cmdty:space>
+    <cmdty:id>template</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>1</act:commodity-scu>
+  <act:parent type="guid">91a44be3141d262be7cff38dc16ec2a9</act:parent>
+</gnc:account>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">945bbf4d518fbac1ff2c94aa497193ba</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-01-02 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:18:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Monthly utility bill</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-01-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Automatic wire transfer</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">760868286c8272cfe1cfdd73b0d75799</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/1</split:quantity>
+      <split:account type="guid">bd1eb6e9685d82eab598d059d1b30043</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>sched-xaction</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>account</slot:key>
+              <slot:value type="guid">1a7b2758fed3d8d98f4ec81035a9a457</slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-formula</slot:key>
+              <slot:value type="string">70</slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-numeric</slot:key>
+              <slot:value type="numeric">70/1</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-formula</slot:key>
+              <slot:value type="string"></slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-numeric</slot:key>
+              <slot:value type="numeric">0/1</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">4df70e2d031c3ca73f0fc124d2781afb</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/1</split:quantity>
+      <split:account type="guid">bd1eb6e9685d82eab598d059d1b30043</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>sched-xaction</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>account</slot:key>
+              <slot:value type="guid">b893be28421a493e0a79b58cd7d9c4c0</slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-formula</slot:key>
+              <slot:value type="string"></slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-numeric</slot:key>
+              <slot:value type="numeric">0/1</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-formula</slot:key>
+              <slot:value type="string">30</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-numeric</slot:key>
+              <slot:value type="numeric">30/1</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">c3f91c5fc4365e48ad05d3bb838e8c54</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/1</split:quantity>
+      <split:account type="guid">bd1eb6e9685d82eab598d059d1b30043</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>sched-xaction</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>account</slot:key>
+              <slot:value type="guid">0881b5f6e62e5d3303691237a730fe2e</slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-formula</slot:key>
+              <slot:value type="string"></slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-numeric</slot:key>
+              <slot:value type="numeric">0/1</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-formula</slot:key>
+              <slot:value type="string">40</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-numeric</slot:key>
+              <slot:value type="numeric">40/1</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">dbce30c426f675cef50b5f5b18967085</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2015-01-02 23:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2015-01-03 08:22:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Insurance</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2015-01-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">152d8b883abe1806fad98eefa02c7caf</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/1</split:quantity>
+      <split:account type="guid">ef844b067ee85f24062505eff37cde84</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>sched-xaction</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>account</slot:key>
+              <slot:value type="guid">8414fb34d306e29dbadfe43d4aa38be8</slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-formula</slot:key>
+              <slot:value type="string"></slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-numeric</slot:key>
+              <slot:value type="numeric">0/1</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-formula</slot:key>
+              <slot:value type="string">30</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-numeric</slot:key>
+              <slot:value type="numeric">30/1</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d3eb4b7ff5b3b0f95a7387939bdc0312</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/1</split:quantity>
+      <split:account type="guid">ef844b067ee85f24062505eff37cde84</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>sched-xaction</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>account</slot:key>
+              <slot:value type="guid">1a7b2758fed3d8d98f4ec81035a9a457</slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-formula</slot:key>
+              <slot:value type="string">30</slot:value>
+            </slot>
+            <slot>
+              <slot:key>credit-numeric</slot:key>
+              <slot:value type="numeric">30/1</slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-formula</slot:key>
+              <slot:value type="string"></slot:value>
+            </slot>
+            <slot>
+              <slot:key>debit-numeric</slot:key>
+              <slot:value type="numeric">0/1</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+</gnc:template-transactions>
+<gnc:schedxaction version="2.0.0">
+  <sx:id type="guid">37c29195dfe40a85c18572c59b247811</sx:id>
+  <sx:name>Payment monthly utility bill</sx:name>
+  <sx:enabled>y</sx:enabled>
+  <sx:autoCreate>y</sx:autoCreate>
+  <sx:autoCreateNotify>y</sx:autoCreateNotify>
+  <sx:advanceCreateDays>0</sx:advanceCreateDays>
+  <sx:advanceRemindDays>0</sx:advanceRemindDays>
+  <sx:instanceCount>78</sx:instanceCount>
+  <sx:start>
+    <gdate>2014-01-01</gdate>
+  </sx:start>
+  <sx:last>
+    <gdate>2019-04-01</gdate>
+  </sx:last>
+  <sx:templ-acct type="guid">bd1eb6e9685d82eab598d059d1b30043</sx:templ-acct>
+  <sx:schedule>
+    <gnc:recurrence version="1.0.0">
+      <recurrence:mult>1</recurrence:mult>
+      <recurrence:period_type>month</recurrence:period_type>
+      <recurrence:start>
+        <gdate>2014-01-01</gdate>
+      </recurrence:start>
+      <recurrence:weekend_adj>forward</recurrence:weekend_adj>
+    </gnc:recurrence>
+  </sx:schedule>
+</gnc:schedxaction>
+<gnc:schedxaction version="2.0.0">
+  <sx:id type="guid">eaed39aac85788b98e9a4e6faad18d72</sx:id>
+  <sx:name>Yearly insurance</sx:name>
+  <sx:enabled>y</sx:enabled>
+  <sx:autoCreate>y</sx:autoCreate>
+  <sx:autoCreateNotify>n</sx:autoCreateNotify>
+  <sx:advanceCreateDays>0</sx:advanceCreateDays>
+  <sx:advanceRemindDays>0</sx:advanceRemindDays>
+  <sx:instanceCount>7</sx:instanceCount>
+  <sx:start>
+    <gdate>2013-06-01</gdate>
+  </sx:start>
+  <sx:last>
+    <gdate>2018-06-01</gdate>
+  </sx:last>
+  <sx:templ-acct type="guid">ef844b067ee85f24062505eff37cde84</sx:templ-acct>
+  <sx:schedule>
+    <gnc:recurrence version="1.0.0">
+      <recurrence:mult>12</recurrence:mult>
+      <recurrence:period_type>month</recurrence:period_type>
+      <recurrence:start>
+        <gdate>2013-06-01</gdate>
+      </recurrence:start>
+      <recurrence:weekend_adj>back</recurrence:weekend_adj>
+    </gnc:recurrence>
+  </sx:schedule>
+</gnc:schedxaction>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">189f0f1346bc40c690707e1172cdf364</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000004</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">3e9f620b24534e36a330953115c779a8</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000001</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">4aead3a059694892a738f437f2ebacf7</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000010</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">55a2c77ca95446c1b78e04d45b001bfe</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000002</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">5ad90bed7b6a4e098e632e931ea4e52e</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000006</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">73824dd50dec4cb1a88cc14315bcd8dc</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000008</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">846f641932324b1ebbf41c0ddc9b51d7</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000011</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">9b3d375345254516b64f706efa74f507</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000012</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">d0bd194ed830485f999601bf03bdbbe1</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000009</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">d30cea771a1f4dc3a914a9f453682c8c</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000005</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">d450a5a44479454b92557dda4c7de93a</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000013</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">d74703e434714c3eaf551ef2c8a03a70</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000003</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">d99ac0f247764401ac6e47a05ebb8b5e</cust:guid>
+  <cust:name>Mickey</cust:name>
+  <cust:id>000007</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:addr1>Sesame street 1</addr:addr1>
+    <addr:email>mickey@example.com</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:taxincluded>USEGLOBAL</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+</gnc:book>
+</gnc-v2>
+
