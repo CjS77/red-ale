@@ -51,7 +51,8 @@ the earliest split), `closeDate` (of the latest split, when closed), `balance` (
 `gainsCurrency`, `realizedGains`, `splitCount`. Lots are listed opened earliest first, empty lots last.
 
 `LotSplitInfo`: `split`, `transaction`, `datePosted`, `num`, `description`, `memo`, `action`, `amount`,
-`adjustedAmount`, `value`, `currency`, `gain`, `kind` (`normal`, `gains` or `stockSplit`). The viewer hides
+`adjustedAmount`, `value`, `currency`, `gain`, `kind` (`normal`, `gains` or `stockSplit`), `number` (the Num column the
+viewer shows: the action when the num field source is on, else `num`; [`book-options.md`](book-options.md)). The viewer hides
 stock-split splits, and splits with a zero adjusted amount (gains splits among them) outside business lots
 (`5.17:gnucash/gnome/dialog-lot-viewer.c:512-515`); the API returns them all so callers can choose.
 
