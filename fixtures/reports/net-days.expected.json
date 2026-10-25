@@ -1,0 +1,221 @@
+{
+  "fixture": "reports/net-days.gnucash",
+  "builtBy": "scripts/report-fixtures/net_barchart.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-standard-net-barchart.scm and test-standard-net-linechart.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of each test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:32 in both tests)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "dates": {
+    "date-0": "2024-03-01 00:00:00 UTC, gnc:get-start-this-month for the pinned now",
+    "date-1": "2024-03-02 00:00:00 UTC",
+    "date-2": "2024-03-03 00:00:00 UTC",
+    "date-3": "2024-03-04 00:00:00 UTC"
+  },
+  "accounts": {
+    "single-txn-test": { "asset": "a0000000000000000000000000000001", "expense": "a0000000000000000000000000000002", "income": "a0000000000000000000000000000003" },
+    "two-txn-test": { "asset": "a0000000000000000000000000000004", "expense": "a0000000000000000000000000000005", "income": "a0000000000000000000000000000006" },
+    "two-txn-test-2": { "asset": "a0000000000000000000000000000007", "liability": "a0000000000000000000000000000008", "expense": "a0000000000000000000000000000009", "income": "a000000000000000000000000000000a" },
+    "two-txn-test-income": { "asset": "a000000000000000000000000000000b", "liability": "a000000000000000000000000000000c", "expense": "a000000000000000000000000000000d", "income": "a000000000000000000000000000000e" },
+    "closing-test": { "asset": "a000000000000000000000000000000f", "liability": "a0000000000000000000000000000010", "expense": "a0000000000000000000000000000011", "income": "a0000000000000000000000000000012", "equity": "a0000000000000000000000000000013" }
+  },
+  "book": "Each test group makes its own top-level accounts, named account-1, account-2, ... by its own counter, so names repeat; the accounts are listed above by group and role. The line chart test builds the first three groups only (test-standard-net-linechart.scm:55-170), with the same GUIDs here.",
+  "optionValues": "Options are those changed from the template's defaults. {\"absolute\": \"date-N\"} is the time above. Accounts are given as group.role.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements: table 1; row 1 is the first data row; column 1 is the date, 2 the first series (Assets or Income), 3 the second (Liabilities or Expense), 4 the net (Net Worth or Net Profit). A check with \"count\" expects the number of cells selected rather than their text.",
+  "renderOnly": [
+    { "line": 53, "note": "null-test in both tests: each template renders with default options before any data" }
+  ],
+  "runs": [
+    {
+      "id": "barchart single-txn-test",
+      "test": "test-standard-net-barchart.scm",
+      "lines": "58-101",
+      "template": "Net Worth Barchart",
+      "templateGuid": "cbba1696c8c24744848062c7f1cf4a72",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-0" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["single-txn-test.asset"]
+      },
+      "checks": [
+        { "name": "assets $1.00", "line": 86, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$1.00"], "meaning": "Assets at date-0: the $1 transaction posted that day" },
+        { "name": "liability $0.00", "line": 89, "select": { "table": 1, "row": 1, "column": 3 }, "expected": ["$0.00"], "meaning": "Liabilities" },
+        { "name": "net $0.00", "line": 92, "select": { "table": 1, "row": 1, "column": 4 }, "expected": ["$1.00"], "meaning": "Net worth; the test's name says $0.00 but it expects $1.00" },
+        { "name": "1 rows", "line": 95, "select": { "table": 1, "row": null, "column": 1 }, "count": 1, "meaning": "One data row" },
+        { "name": "4 columns", "line": 98, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" }
+      ]
+    },
+    {
+      "id": "barchart two-txn-test",
+      "test": "test-standard-net-barchart.scm",
+      "lines": "103-153",
+      "template": "Net Worth Barchart",
+      "templateGuid": "cbba1696c8c24744848062c7f1cf4a72",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["two-txn-test.asset"]
+      },
+      "checks": [
+        { "name": "asset $0.00", "line": 137, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$0.00"], "meaning": "Assets at date-0" },
+        { "name": "asset $1.00", "line": 140, "select": { "table": 1, "row": 2, "column": 2 }, "expected": ["$1.00"], "meaning": "Assets at date-1" },
+        { "name": "asset $6.00", "line": 143, "select": { "table": 1, "row": 3, "column": 2 }, "expected": ["$6.00"], "meaning": "Assets at date-2" },
+        { "name": "4 columns", "line": 146, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "3 rows", "line": 149, "select": { "table": 1, "row": null, "column": 1 }, "count": 3, "meaning": "Three data rows" }
+      ]
+    },
+    {
+      "id": "barchart two-txn-test-2",
+      "test": "test-standard-net-barchart.scm",
+      "lines": "156-203",
+      "template": "Net Worth Barchart",
+      "templateGuid": "cbba1696c8c24744848062c7f1cf4a72",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["two-txn-test-2.asset", "two-txn-test-2.liability"]
+      },
+      "checks": [
+        { "name": "asset $0.00", "line": 187, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$0.00"], "meaning": "Assets at date-0" },
+        { "name": "asset $1.00", "line": 190, "select": { "table": 1, "row": 2, "column": 2 }, "expected": ["$1.00"], "meaning": "Assets at date-1" },
+        { "name": "asset $6.00", "line": 193, "select": { "table": 1, "row": 3, "column": 2 }, "expected": ["$6.00"], "meaning": "Assets at date-2" },
+        { "name": "4 columns", "line": 196, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "3 rows", "line": 199, "select": { "table": 1, "row": null, "column": 1 }, "count": 3, "meaning": "Three data rows" }
+      ]
+    },
+    {
+      "id": "barchart two-txn-test-income",
+      "test": "test-standard-net-barchart.scm",
+      "lines": "205-252",
+      "template": "Income/Expense Chart",
+      "templateGuid": "80769921e87943adade887b9835a7685",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["two-txn-test-income.income", "two-txn-test-income.expense"]
+      },
+      "checks": [
+        { "name": "income $0.00", "line": 236, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$0.00"], "meaning": "Income on date-0" },
+        { "name": "income $1.00", "line": 239, "select": { "table": 1, "row": 2, "column": 2 }, "expected": ["$1.00"], "meaning": "Income on date-1" },
+        { "name": "income $5.00", "line": 242, "select": { "table": 1, "row": 3, "column": 2 }, "expected": ["$5.00"], "meaning": "Income on date-2" },
+        { "name": "4 columns", "line": 245, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "3 rows", "line": 248, "select": { "table": 1, "row": null, "column": 1 }, "count": 3, "meaning": "Three data rows" }
+      ]
+    },
+    {
+      "id": "barchart closing-test",
+      "test": "test-standard-net-barchart.scm",
+      "lines": "255-311",
+      "template": "Income/Expense Chart",
+      "templateGuid": "80769921e87943adade887b9835a7685",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-3" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["closing-test.income", "closing-test.expense"]
+      },
+      "checks": [
+        { "name": "income $0.00", "line": 292, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$0.00"], "meaning": "Income on date-0" },
+        { "name": "income $1.00", "line": 295, "select": { "table": 1, "row": 2, "column": 2 }, "expected": ["$1.00"], "meaning": "Income on date-1" },
+        { "name": "income $2.00", "line": 298, "select": { "table": 1, "row": 3, "column": 2 }, "expected": ["$2.00"], "meaning": "Income on date-2; the closing transaction that day ($300 between the group's equity and asset accounts) touches neither selected account" },
+        { "name": "income $3.00", "line": 301, "select": { "table": 1, "row": 4, "column": 2 }, "expected": ["$3.00"], "meaning": "Income on date-3" },
+        { "name": "4 columns", "line": 304, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "4 rows", "line": 307, "select": { "table": 1, "row": null, "column": 1 }, "count": 4, "meaning": "Four data rows" }
+      ]
+    },
+    {
+      "id": "linechart single-txn-test",
+      "test": "test-standard-net-linechart.scm",
+      "lines": "55-97",
+      "template": "Net Worth Linechart",
+      "templateGuid": "d8b63264186b11e19038001558291366",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-0" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["single-txn-test.asset"]
+      },
+      "checks": [
+        { "name": "assets $1.00", "line": 83, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$1.00"], "meaning": "Assets at date-0" },
+        { "name": "liability $0.00", "line": 86, "select": { "table": 1, "row": 1, "column": 3 }, "expected": ["$0.00"], "meaning": "Liabilities" },
+        { "name": "net $0.00", "line": 89, "select": { "table": 1, "row": 1, "column": 4 }, "expected": ["$1.00"], "meaning": "Net worth; the test's name says $0.00 but it expects $1.00" },
+        { "name": "4 columns", "line": 92, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" }
+      ]
+    },
+    {
+      "id": "linechart two-txn-test",
+      "test": "test-standard-net-linechart.scm",
+      "lines": "98-150",
+      "template": "Net Worth Linechart",
+      "templateGuid": "d8b63264186b11e19038001558291366",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["two-txn-test.asset"]
+      },
+      "checks": [
+        { "name": "asset $0.00", "line": 133, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$0.00"], "meaning": "Assets at date-0" },
+        { "name": "asset $1.00", "line": 136, "select": { "table": 1, "row": 2, "column": 2 }, "expected": ["$1.00"], "meaning": "Assets at date-1" },
+        { "name": "asset $6.00", "line": 139, "select": { "table": 1, "row": 3, "column": 2 }, "expected": ["$6.00"], "meaning": "Assets at date-2" },
+        { "name": "4 columns", "line": 142, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "3 rows", "line": 145, "select": { "table": 1, "row": null, "column": 1 }, "count": 3, "meaning": "Three data rows" }
+      ]
+    },
+    {
+      "id": "linechart two-txn-test-2",
+      "test": "test-standard-net-linechart.scm",
+      "lines": "152-198",
+      "template": "Net Worth Linechart",
+      "templateGuid": "d8b63264186b11e19038001558291366",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["two-txn-test-2.asset", "two-txn-test-2.liability"]
+      },
+      "checks": [
+        { "name": "asset $0.00", "line": 183, "select": { "table": 1, "row": 1, "column": 2 }, "expected": ["$0.00"], "meaning": "Assets at date-0" },
+        { "name": "asset $1.00", "line": 186, "select": { "table": 1, "row": 2, "column": 2 }, "expected": ["$1.00"], "meaning": "Assets at date-1" },
+        { "name": "asset $6.00", "line": 189, "select": { "table": 1, "row": 3, "column": 2 }, "expected": ["$6.00"], "meaning": "Assets at date-2" },
+        { "name": "4 columns", "line": 192, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "3 rows", "line": 195, "select": { "table": 1, "row": null, "column": 1 }, "count": 3, "meaning": "Three data rows" }
+      ]
+    }
+  ]
+}

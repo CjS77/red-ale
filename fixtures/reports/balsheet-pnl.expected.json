@@ -1,0 +1,686 @@
+{
+  "fixture": "reports/balsheet-pnl.gnucash",
+  "builtBy": "scripts/report-fixtures/balsheet_pnl.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-balsheet-pnl.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:24)",
+    "dateFormat": "ISO, set at :175 before the first figure is checked",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": ".",
+    "userSymbols": { "GBP": "#" }
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank1": "a0000000000000000000000000000003",
+    "Root.Asset.Bank1.Savings": "a0000000000000000000000000000004",
+    "Root.Asset.Bank1.Bonds": "a0000000000000000000000000000005",
+    "Root.Asset.Bank1.Empty": "a0000000000000000000000000000006",
+    "Root.Asset.Bank1.Current": "a0000000000000000000000000000007",
+    "Root.Asset.House": "a0000000000000000000000000000008",
+    "Root.Asset.ForeignBank": "a0000000000000000000000000000009",
+    "Root.Asset.ForeignBank.ForeignSavings": "a000000000000000000000000000000a",
+    "Root.Asset.Broker": "a000000000000000000000000000000b",
+    "Root.Asset.Broker.Funds": "a000000000000000000000000000000c",
+    "Root.Liability": "a000000000000000000000000000000d",
+    "Root.Liability.Bank2": "a000000000000000000000000000000e",
+    "Root.Liability.Bank2.Loan": "a000000000000000000000000000000f",
+    "Root.Liability.Bank2.CreditCard": "a0000000000000000000000000000010",
+    "Root.Equity": "a0000000000000000000000000000011",
+    "Root.Income": "a0000000000000000000000000000012",
+    "Root.Income.Income-GBP": "a0000000000000000000000000000013"
+  },
+  "optionValues": "Options are those changed from the template's defaults and in effect for the run: the test changes one options object step by step. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight. Symbols are written without the quote.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table N of the document; row N counts <tr> elements from 1 (negative from the end), 0 selects the <th> header cells, null every row; column N counts <td> (or <th>) cells from 1 (negative from the right), null every cell. Matching is by descendant, and the result is every text node in document order. Checks with \"anyTable\" use (sxpath '(// table // (tr R) // (td C) // *text*)) directly, over every table.",
+  "renderOnly": [
+    { "line": 87, "template": "Balance Sheet", "note": "null-test: renders with default options on the empty book, before create-test-data" }
+  ],
+  "runs": [
+    {
+      "id": "balsheet-default",
+      "lines": "177-188",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true
+      },
+      "checks": [
+        { "name": "total assets = $116,006.33", "line": 180, "select": { "table": 1, "row": 15, "column": 6 }, "expected": ["$116,006.33"], "meaning": "Total Assets, at the default price source (pricedb-nearest)" },
+        { "name": "total liabilities = $9,500.00", "line": 183, "select": { "table": 1, "row": 23, "column": 6 }, "expected": ["$9,500.00"], "meaning": "Total Liabilities" },
+        { "name": "total equity  = $106,506.33", "line": 186, "select": { "table": 1, "row": 28, "column": 6 }, "expected": ["$106,506.33"], "meaning": "Total Equity" }
+      ]
+    },
+    {
+      "id": "balsheet-weighted-average",
+      "lines": "190-194",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "weighted-average"
+      },
+      "checks": [
+        { "name": "weighted average assets = $114,071.66", "line": 192, "select": { "table": 1, "row": 15, "column": 6 }, "expected": ["$114,071.66"], "meaning": "Total Assets" }
+      ]
+    },
+    {
+      "id": "balsheet-average-cost",
+      "lines": "196-200",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "average-cost"
+      },
+      "checks": [
+        { "name": "average-cost assets = $113,100", "line": 198, "select": { "table": 1, "row": 15, "column": 6 }, "expected": ["$113,100.00"], "meaning": "Total Assets" }
+      ]
+    },
+    {
+      "id": "balsheet-pricedb-nearest",
+      "lines": "202-206",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-nearest"
+      },
+      "checks": [
+        { "name": "pricedb-nearest assets = $116,006.33", "line": 204, "select": { "table": 1, "row": 15, "column": 6 }, "expected": ["$116,006.33"], "meaning": "Total Assets" }
+      ]
+    },
+    {
+      "id": "balsheet-pricedb-latest",
+      "lines": "208-212",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest"
+      },
+      "checks": [
+        { "name": "pricedb-latest assets = $121,473.52", "line": 210, "select": { "table": 1, "row": 15, "column": 6 }, "expected": ["$121,473.52"], "meaning": "Total Assets" }
+      ]
+    },
+    {
+      "id": "balsheet-multilevel",
+      "lines": "214-272",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "immediate-bal",
+        "Display/Parent account subtotals": "t"
+      },
+      "checks": [
+        { "name": "multilevel. root = $0.00", "line": 219, "select": { "table": 1, "row": 3, "column": 6 }, "expected": ["$0.00"], "meaning": "Root's own balance" },
+        { "name": "multilevel. assets = $0.00", "line": 222, "select": { "table": 1, "row": 4, "column": 5 }, "expected": ["$0.00"], "meaning": "Asset's own balance" },
+        { "name": "multilevel. bank1 = $0.00", "line": 225, "select": { "table": 1, "row": 5, "column": 4 }, "expected": ["$0.00"], "meaning": "Bank1's own balance" },
+        { "name": "multilevel. bonds = $2,000.00", "line": 228, "select": { "table": 1, "row": 6, "column": 3 }, "expected": ["$2,000.00"], "meaning": "Bonds" },
+        { "name": "multilevel. current = $2609.00", "line": 231, "select": { "table": 1, "row": 7, "column": 3 }, "expected": ["$2,609.00"], "meaning": "Current" },
+        { "name": "multilevel. empty = $0.00", "line": 234, "select": { "table": 1, "row": 8, "column": 3 }, "expected": ["$0.00"], "meaning": "Empty" },
+        { "name": "multilevel. savings = $100.00", "line": 237, "select": { "table": 1, "row": 9, "column": 3 }, "expected": ["$100.00"], "meaning": "Savings" },
+        { "name": "multilevel. total bank1 = $4709", "line": 240, "select": { "table": 1, "row": 10, "column": 4 }, "expected": ["$4,709.00"], "meaning": "Total for Bank1" },
+        { "name": "multilevel. broker = $2,000.00", "line": 243, "select": { "table": 1, "row": 11, "column": 4 }, "expected": ["$2,000.00"], "meaning": "Broker's own balance" },
+        { "name": "multilevel. funds = $14,424.52", "line": 246, "select": { "table": 1, "row": 12, "column": 3 }, "expected": ["30. FUNDS", "$14,424.52", "$14,424.52"], "meaning": "Funds: 30 FUNDS units, worth $14,424.52 at the latest price (50005/104)" },
+        { "name": "multilevel. total broker = $16,424.52", "line": 249, "select": { "table": 1, "row": 13, "column": 4 }, "expected": ["$16,424.52"], "meaning": "Total for Broker" },
+        { "name": "multilevel. foreign = $0.00", "line": 252, "select": { "table": 1, "row": 14, "column": 4 }, "expected": ["$0.00"], "meaning": "ForeignBank's own balance" },
+        { "name": "multilevel. foreignsavings = #200.00 = $340", "line": 255, "select": { "table": 1, "row": 15, "column": 3 }, "expected": ["#200.00", "$340.00", "$340.00"], "meaning": "ForeignSavings: #200.00, worth $340.00 at GBP = $1.70, the latest rate (the 1980-02-01 transfer's price of USD in GBP, 10/17)" },
+        { "name": "multilevel. total foreign = $340", "line": 258, "select": { "table": 1, "row": 16, "column": 4 }, "expected": ["$340.00"], "meaning": "Total for ForeignBank" },
+        { "name": "multilevel. house = $100,000", "line": 261, "select": { "table": 1, "row": 17, "column": 4 }, "expected": ["$100,000.00"], "meaning": "House" },
+        { "name": "multilevel. total asset = $121,473.52", "line": 264, "select": { "table": 1, "row": 18, "column": 5 }, "expected": ["$121,473.52"], "meaning": "Total for Asset" },
+        { "name": "multilevel. total root = $121,473.52", "line": 267, "select": { "table": 1, "row": 19, "column": 6 }, "expected": ["$121,473.52"], "meaning": "Total for Root" },
+        { "name": "multilevel. total assets = $121,473.52", "line": 270, "select": { "table": 1, "row": 20, "column": 6 }, "expected": ["$121,473.52"], "meaning": "Total Assets" }
+      ]
+    },
+    {
+      "id": "balsheet-recursive",
+      "lines": "274-316",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "recursive-bal",
+        "Display/Parent account subtotals": "f"
+      },
+      "checks": [
+        { "name": "recursive. root = $760+14424.52+106709", "line": 278, "select": { "table": 1, "row": 3, "column": 6 }, "expected": ["#200.00", "$340.00", "30. FUNDS", "$14,424.52", "$106,709.00", "$106,709.00"], "meaning": "Root with its sub-accounts: #200.00 ($340.00), 30 FUNDS ($14,424.52) and $106,709.00 in USD (shown twice)" },
+        { "name": "recursive. assets = $760+14424.52+106709", "line": 281, "select": { "table": 1, "row": 4, "column": 5 }, "expected": ["#200.00", "$340.00", "30. FUNDS", "$14,424.52", "$106,709.00", "$106,709.00"], "meaning": "Asset with its sub-accounts" },
+        { "name": "recursive. bank1 = $4,709.00", "line": 284, "select": { "table": 1, "row": 5, "column": 4 }, "expected": ["$4,709.00"], "meaning": "Bank1 with its sub-accounts" },
+        { "name": "recursive. bonds = $2,000.00", "line": 287, "select": { "table": 1, "row": 6, "column": 3 }, "expected": ["$2,000.00"], "meaning": "Bonds" },
+        { "name": "recursive. current = $2609.00", "line": 290, "select": { "table": 1, "row": 7, "column": 3 }, "expected": ["$2,609.00"], "meaning": "Current" },
+        { "name": "recursive. empty = $0.00", "line": 293, "select": { "table": 1, "row": 8, "column": 3 }, "expected": ["$0.00"], "meaning": "Empty" },
+        { "name": "recursive. savings = $100.00", "line": 296, "select": { "table": 1, "row": 9, "column": 3 }, "expected": ["$100.00"], "meaning": "Savings" },
+        { "name": "recursive. broker = $14424.52+$2000.00", "line": 299, "select": { "table": 1, "row": 10, "column": 4 }, "expected": ["30. FUNDS", "$14,424.52", "$2,000.00", "$2,000.00"], "meaning": "Broker with its sub-accounts: 30 FUNDS ($14,424.52) and $2,000.00" },
+        { "name": "recursive. funds = $14424.52", "line": 302, "select": { "table": 1, "row": 11, "column": 3 }, "expected": ["30. FUNDS", "$14,424.52", "$14,424.52"], "meaning": "Funds" },
+        { "name": "recursive. foreign = $340.00", "line": 305, "select": { "table": 1, "row": 12, "column": 4 }, "expected": ["#200.00", "$340.00"], "meaning": "ForeignBank with its sub-accounts" },
+        { "name": "recursive. foreignsavings = #200.00 = $340", "line": 308, "select": { "table": 1, "row": 13, "column": 3 }, "expected": ["#200.00", "$340.00", "$340.00"], "meaning": "ForeignSavings" },
+        { "name": "recursive. house = $100,000", "line": 311, "select": { "table": 1, "row": 14, "column": 4 }, "expected": ["$100,000.00"], "meaning": "House" },
+        { "name": "recursive. total assets = $121,473.52", "line": 314, "select": { "table": 1, "row": 15, "column": 6 }, "expected": ["$121,473.52"], "meaning": "Total Assets" }
+      ]
+    },
+    {
+      "id": "balsheet-disable show-fcur show-rates",
+      "lines": "318-326",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": false,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "recursive-bal",
+        "Display/Parent account subtotals": "f",
+        "Commodities/Show Foreign Currencies": false
+      },
+      "checks": [
+        { "name": "show-fcur disabled", "line": 321, "select": { "table": 1, "row": 3, "column": 6 }, "expected": ["$121,473.52"], "meaning": "Root with its sub-accounts, all in USD" },
+        { "name": "show-rates disabled", "line": 324, "select": { "table": 2, "row": null, "column": null }, "expected": [], "meaning": "No exchange rates table" }
+      ]
+    },
+    {
+      "id": "balsheet-enable show-fcur show-rates",
+      "lines": "328-336",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "recursive-bal",
+        "Display/Parent account subtotals": "f",
+        "Commodities/Show Foreign Currencies": true
+      },
+      "checks": [
+        { "name": "show-fcur enabled", "line": 331, "select": { "table": 1, "row": 3, "column": 6 }, "expected": ["#200.00", "$340.00", "30. FUNDS", "$14,424.52", "$106,709.00", "$106,709.00"], "meaning": "Root with its sub-accounts" },
+        { "name": "show-rates enabled", "line": 334, "select": { "table": 2, "row": null, "column": null }, "expected": ["#1.00", "$1.70", "1. FUNDS", "$480 + 85/104"], "meaning": "Exchange rates table: #1.00 = $1.70, 1 FUNDS = $480 + 85/104 (50005/104)" }
+      ]
+    },
+    {
+      "id": "balsheet-incl-zb-accts=#f omit-zb-bals=#t",
+      "lines": "338-350",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "immediate-bal",
+        "Display/Parent account subtotals": "t",
+        "Commodities/Show Foreign Currencies": true,
+        "Display/Omit zero balance figures": true,
+        "Display/Include accounts with zero total balances": false
+      },
+      "checks": [
+        { "name": "omit-zb-bals=#t", "line": 345, "select": { "table": 1, "row": 3, "column": 5 }, "expected": [], "meaning": "Root's own zero balance is left blank" },
+        { "name": "incl-zb-accts=#f", "line": 348, "select": { "table": 1, "row": 8, "column": null }, "expected": ["Savings", "$100.00"], "meaning": "Row 8 is Savings: the Empty account, with a zero total, is skipped" }
+      ]
+    },
+    {
+      "id": "balsheet-incl-zb-accts=#t omit-zb-bals=#f",
+      "lines": "352-360",
+      "template": "Balance Sheet",
+      "templateGuid": "c4173ac99b2b448289bf4d11c731af13",
+      "options": {
+        "General/Balance Sheet Date": { "absolute": "1971-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "immediate-bal",
+        "Display/Parent account subtotals": "t",
+        "Commodities/Show Foreign Currencies": true,
+        "Display/Omit zero balance figures": false,
+        "Display/Include accounts with zero total balances": true
+      },
+      "checks": [
+        { "name": "omit-zb-bals=#f", "line": 355, "select": { "table": 1, "row": 3, "column": 6 }, "expected": ["$0.00"], "meaning": "Root's own zero balance is shown" },
+        { "name": "incl-zb-accts=#t", "line": 358, "select": { "table": 1, "row": 8, "column": null }, "expected": ["Empty", "$0.00"], "meaning": "Row 8 is the Empty account" }
+      ]
+    },
+    {
+      "id": "pnl-default",
+      "lines": "371-380",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "note": "GnuCash's \"pnl\" test runs the Income Statement's GUID (:19); the Profit & Loss template has no checks of its own.",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true
+      },
+      "checks": [
+        { "name": "total revenue  = $1,270.00", "line": 373, "select": { "anyTable": true, "row": 4, "column": 6 }, "expected": ["$1,270.00"], "meaning": "Total Revenue, at the default price source (pricedb-nearest)" },
+        { "name": "total expenses  = $0.00", "line": 377, "select": { "anyTable": true, "row": 7, "column": 6 }, "expected": ["$0.00"], "meaning": "Total Expenses" }
+      ]
+    },
+    {
+      "id": "pnl-weighted-average",
+      "lines": "382-387",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "weighted-average"
+      },
+      "checks": [
+        { "name": "weighted average revenue = $1160.36", "line": 384, "select": { "anyTable": true, "row": 4, "column": 6 }, "expected": ["$1,160.36"], "meaning": "Total Revenue" }
+      ]
+    },
+    {
+      "id": "pnl-average-cost",
+      "lines": "389-394",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "average-cost"
+      },
+      "checks": [
+        { "name": "average-cost revenue = $976", "line": 391, "select": { "anyTable": true, "row": 4, "column": 6 }, "expected": ["$976.00"], "meaning": "Total Revenue" }
+      ]
+    },
+    {
+      "id": "pnl-pricedb-nearest",
+      "lines": "396-401",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-nearest"
+      },
+      "checks": [
+        { "name": "pricedb-nearest revenue = $1270", "line": 398, "select": { "anyTable": true, "row": 4, "column": 6 }, "expected": ["$1,270.00"], "meaning": "Total Revenue" }
+      ]
+    },
+    {
+      "id": "pnl-pricedb-latest",
+      "lines": "403-408",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest"
+      },
+      "checks": [
+        { "name": "pricedb-latest revenue = $1270", "line": 405, "select": { "anyTable": true, "row": 4, "column": 6 }, "expected": ["$1,270.00"], "meaning": "Total Revenue" }
+      ]
+    },
+    {
+      "id": "pnl-multilevel",
+      "lines": "410-438",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "immediate-bal",
+        "Display/Parent account subtotals": "t"
+      },
+      "checks": [
+        { "name": "multilevel. income = -$250.00", "line": 415, "select": { "anyTable": true, "row": 2, "column": 6 }, "expected": ["-$250.00"], "meaning": "Income's own amount (credit, so negative with no sign reversal)" },
+        { "name": "multilevel. income-GBP = -#600", "line": 419, "select": { "anyTable": true, "row": 3, "column": 5 }, "expected": ["-#600.00", "-$1,020.00"], "meaning": "Income-GBP: -#600.00, -$1,020.00 at GBP = $1.70" },
+        { "name": "multilevel. total income = -$1,270.00", "line": 423, "select": { "anyTable": true, "row": 4, "column": 6 }, "expected": ["-$1,270.00"], "meaning": "Total for Income" },
+        { "name": "multilevel. total revenue = $1,270.00", "line": 427, "select": { "anyTable": true, "row": 5, "column": 6 }, "expected": ["$1,270.00"], "meaning": "Total Revenue" },
+        { "name": "multilevel. expenses = $0.00", "line": 431, "select": { "anyTable": true, "row": 8, "column": 6 }, "expected": ["$0.00"], "meaning": "Total Expenses" },
+        { "name": "multilevel. net-income = $1,270", "line": 435, "select": { "anyTable": true, "row": 10, "column": 6 }, "expected": ["$1,270.00"], "meaning": "Net income" }
+      ]
+    },
+    {
+      "id": "pnl-recursive",
+      "lines": "440-452",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "recursive-bal",
+        "Display/Parent account subtotals": "f"
+      },
+      "checks": [
+        { "name": "recursive. income = $1020+250", "line": 444, "select": { "table": 1, "row": 2, "column": 6 }, "expected": ["-#600.00", "-$1,020.00", "-$250.00", "-$250.00"], "meaning": "Income with its sub-account: -#600.00 (-$1,020.00) and -$250.00" },
+        { "name": "recursive. income-gbp = $1020", "line": 447, "select": { "table": 1, "row": 3, "column": 5 }, "expected": ["-#600.00", "-$1,020.00"], "meaning": "Income-GBP" },
+        { "name": "recursive. total revenue = $1270", "line": 450, "select": { "table": 1, "row": 4, "column": 6 }, "expected": ["$1,270.00"], "meaning": "Total Revenue" }
+      ]
+    },
+    {
+      "id": "pnl-disable show-fcur show-rates",
+      "lines": "454-462",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": false,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "recursive-bal",
+        "Display/Parent account subtotals": "f",
+        "Commodities/Show Foreign Currencies": false
+      },
+      "checks": [
+        { "name": "show-fcur disabled", "line": 457, "select": { "table": 1, "row": 2, "column": 6 }, "expected": ["-$1,270.00"], "meaning": "Income with its sub-account, all in USD" },
+        { "name": "show-rates disabled", "line": 460, "select": { "table": 2, "row": null, "column": null }, "expected": [], "meaning": "No exchange rates table" }
+      ]
+    },
+    {
+      "id": "pnl-enable show-fcur show-rates",
+      "lines": "464-472",
+      "template": "Income Statement",
+      "templateGuid": "0b81a3bdfd504aff849ec2e8630524bc",
+      "options": {
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1981-01-01" },
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "Commodities/Price Source": "pricedb-latest",
+        "Display/Parent account balances": "recursive-bal",
+        "Display/Parent account subtotals": "f",
+        "Commodities/Show Foreign Currencies": true
+      },
+      "checks": [
+        { "name": "show-fcur enabled", "line": 467, "select": { "table": 1, "row": 2, "column": 6 }, "expected": ["-#600.00", "-$1,020.00", "-$250.00", "-$250.00"], "meaning": "Income with its sub-account" },
+        { "name": "show-rates enabled", "line": 470, "select": { "table": 2, "row": null, "column": null }, "expected": ["#1.00", "$1.70"], "meaning": "Exchange rates table: #1.00 = $1.70" }
+      ]
+    },
+    {
+      "id": "multicol-balsheet-default",
+      "lines": "493-513",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": false,
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1972-01-01" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true
+      },
+      "checks": [
+        { "name": "default row headers", "line": 496, "select": { "table": 1, "row": null, "column": 1 }, "expected": ["Asset", "Root", "Root.Asset", "Root.Asset.Bank1", "Root.Asset.Bank1.Bonds", "Root.Asset.Bank1.Current", "Root.Asset.Bank1.Empty", "Root.Asset.Bank1.Savings", "Root.Asset.Broker", "Root.Asset.Broker", "Root.Asset.Broker.Funds", "Root.Asset.ForeignBank", "Root.Asset.ForeignBank.ForeignSavings", "Root.Asset.House", "Total For Asset", "Liability", "Root.Liability", "Root.Liability.Bank2", "Root.Liability.Bank2.CreditCard", "Root.Liability.Bank2.Loan", "Total For Liability", "Equity", "Root.Equity", "Retained Earnings", "Total For Equity", "Total For Liability and Equity"], "meaning": "Row headers" },
+        { "name": "default balances", "line": 506, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["#200.00", "$106,709.00", "30. FUNDS", "#200.00", "$106,709.00", "30. FUNDS", "$4,709.00", "$2,000.00", "$2,609.00", "$0.00", "$100.00", "$2,000.00", "30. FUNDS", "$2,000.00", "30. FUNDS", "#200.00", "#200.00", "$100,000.00", "30. FUNDS", "#200.00", "$106,709.00", "$9,500.00", "$9,500.00", "$500.00", "$9,000.00", "$9,500.00", "$103,600.00", "$0.00", "#0.00", "$103,600.00", "#0.00", "$113,100.00", "#0.00"], "meaning": "The one balance column, at 1972-01-01" }
+      ]
+    },
+    {
+      "id": "multicol-balsheet-halfyear",
+      "lines": "517-545",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": false,
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1972-01-01" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "YearDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD"
+      },
+      "checks": [
+        { "name": "bal-1/1/70", "line": 522, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["1970-01-01", "$113,100.00", "$113,100.00", "$8,970.00", "$2,000.00", "$6,870.00", "$0.00", "$100.00", "$4,000.00", "$2,000.00", "$2,000.00", "10. FUNDS ", "$130.00", "$130.00", "#100.00 ", "$100,000.00", "$113,100.00", "$9,500.00", "$9,500.00", "$500.00", "$9,000.00", "$9,500.00", "$103,600.00", "$0.00", "$0.00", "$103,600.00", "$113,100.00", "#1.00 $1.30", "1. FUNDS $200.00"], "meaning": "The 1970-01-01 column" },
+        { "name": "bal-1/1/71", "line": 530, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["1971-01-01", "$116,006.33", "$116,006.33", "$4,709.00", "$2,000.00", "$2,609.00", "$0.00", "$100.00", "$11,000.30", "$2,000.00", "$9,000.30", "30. FUNDS ", "$297.03", "$297.03", "#200.00 ", "$100,000.00", "$116,006.33", "$9,500.00", "$9,500.00", "$500.00", "$9,000.00", "$9,500.00", "$103,600.00", "$2,906.33", "$0.00", "$106,506.33", "$116,006.33", "#1.00 $1 + 49/101", "1. FUNDS $300.01"], "meaning": "The 1971-01-01 column" },
+        { "name": "bal-1/1/72", "line": 538, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["1972-01-01", "$117,437.00", "$117,437.00", "$4,709.00", "$2,000.00", "$2,609.00", "$0.00", "$100.00", "$12,396.63", "$2,000.00", "$10,396.63", "30. FUNDS ", "$331.37", "$331.37", "#200.00 ", "$100,000.00", "$117,437.00", "$9,500.00", "$9,500.00", "$500.00", "$9,000.00", "$9,500.00", "$103,600.00", "$4,337.00", "$0.00", "$107,937.00", "$117,437.00", "#1.00 $1 + 67/102", "1. FUNDS $346 + 56/101"], "meaning": "The 1972-01-01 column" }
+      ]
+    },
+    {
+      "id": "multicol-balsheet-halfyear (most recent first)",
+      "lines": "547-552",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": true,
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1972-01-01" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "YearDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD"
+      },
+      "checks": [
+        { "name": "bal-1/1/70-reverse-chrono", "line": 550, "select": { "table": 1, "row": 1, "column": null }, "expected": ["Date", "1972-01-01", "1971-01-01", "1970-01-01"], "meaning": "The first row: column dates, latest first" }
+      ]
+    },
+    {
+      "id": "multicol-balsheet-retained",
+      "lines": "554-569",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": false,
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1980-03-01" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "disabled",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD"
+      },
+      "checks": [
+        { "name": "bal-1/3/80", "line": 562, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$122,743.52", "$122,743.52", "$5,129.00", "$2,000.00", "$3,029.00", "$0.00", "$100.00", "$16,424.52", "$2,000.00", "$14,424.52", "30. FUNDS ", "$1,190.00", "$1,190.00", "#700.00 ", "$100,000.00", "$122,743.52", "$9,500.00", "$9,500.00", "$500.00", "$9,000.00", "$9,500.00", "$103,600.00", "$8,373.52", "$1,270.00", "$113,243.52", "$122,743.52", "#1.00 $1.70", "1. FUNDS $480 + 85/104"], "meaning": "The one column, at 1980-03-01, with retained earnings of $1,270.00" }
+      ]
+    },
+    {
+      "id": "multicol-pnl-default",
+      "lines": "586-595",
+      "template": "Income Statement (Multicolumn)",
+      "templateGuid": "0e94fd0277ba11e8825d43e27232c9d4",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": false,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-03-31" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true
+      },
+      "checks": [
+        { "name": "default row headers", "line": 589, "select": { "table": 1, "row": null, "column": 1 }, "expected": ["Income", "Root.Income", "Root.Income", "Root.Income.Income-GBP", "Total For Income"], "meaning": "Row headers" },
+        { "name": "default pnl", "line": 593, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$250.00", "#600.00", "$250.00", "#600.00", "$250.00", "#600.00"], "meaning": "The one column" }
+      ]
+    },
+    {
+      "id": "multicol-pnl-halfyear",
+      "lines": "597-615",
+      "template": "Income Statement (Multicolumn)",
+      "templateGuid": "0e94fd0277ba11e8825d43e27232c9d4",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": false,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-03-31" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "MonthDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD"
+      },
+      "checks": [
+        { "name": "pnl-1/80", "line": 604, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["1980-01-01", " to 1980-01-31", "$1,100.00", "$250.00", "$850.00", "#500.00 ", "$1,100.00", "#1.00 $1.70"], "meaning": "January 1980" },
+        { "name": "pnl-2/80", "line": 608, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["1980-02-01", " to 1980-02-29", "$170.00", "$0.00", "$170.00", "#100.00 ", "$170.00", "#1.00 $1.70"], "meaning": "February 1980" },
+        { "name": "pnl-3/80", "line": 612, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["1980-03-01", " to 1980-03-31", "$0.00", "$0.00", "$0.00", "#0.00 ", "$0.00", "#1.00 $1.70"], "meaning": "March 1980" }
+      ]
+    },
+    {
+      "id": "testing period reverse chrono order pnl",
+      "lines": "617-622",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "note": "The test renders the Balance Sheet (Multicolumn) GUID with the Income Statement (Multicolumn) options object (:618), as do the four runs after it.",
+      "options": {
+        "General/Period order is most recent first": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-03-31" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "MonthDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD"
+      },
+      "checks": [
+        { "name": "pnl-reverse chrono", "line": 620, "select": { "table": 1, "row": 1, "column": null }, "expected": ["Date", "1980-03-31", "1980-03-01", "1980-02-01", "1980-01-01"], "meaning": "The first row: column dates, latest first" }
+      ]
+    },
+    {
+      "id": "multicol pnl weighted-average",
+      "lines": "624-629",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-03-31" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "MonthDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD",
+        "Commodities/Price Source": "weighted-average"
+      },
+      "checks": [
+        { "name": "weighted average exchange-rate", "line": 627, "select": { "table": 1, "row": -2, "column": -1 }, "expected": ["#1.00 $1.499", "1. FUNDS $235 + 3/7"], "meaning": "Exchange rates in the last column" }
+      ]
+    },
+    {
+      "id": "multicol pnl average-cost",
+      "lines": "631-636",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-03-31" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "MonthDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD",
+        "Commodities/Price Source": "average-cost"
+      },
+      "checks": [
+        { "name": "average-cost exchange-rate", "line": 634, "select": { "table": 1, "row": -2, "column": -1 }, "expected": ["#1.00 $1.455", "1. FUNDS $203 + 1/3"], "meaning": "Exchange rates in the last column" }
+      ]
+    },
+    {
+      "id": "multicol pnl pricedb-nearest",
+      "lines": "638-643",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-03-31" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "MonthDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD",
+        "Commodities/Price Source": "pricedb-nearest"
+      },
+      "checks": [
+        { "name": "pricedb-nearest exchange-rate", "line": 641, "select": { "table": 1, "row": -2, "column": -1 }, "expected": ["#1.00 $1.70", "1. FUNDS $480 + 85/104"], "meaning": "Exchange rates in the last column" }
+      ]
+    },
+    {
+      "id": "multicol pnl pricedb-latest",
+      "lines": "645-650",
+      "template": "Balance Sheet (Multicolumn)",
+      "templateGuid": "065d5d5a77ba11e8b31e83ada73c5eea",
+      "inV02Inventory": false,
+      "options": {
+        "General/Period order is most recent first": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-03-31" },
+        "General/Enable dual columns": false,
+        "General/Disable amount indenting": true,
+        "Display/Account full name instead of indenting": true,
+        "Accounts/Levels of Subaccounts": "all",
+        "Commodities/Show Exchange Rates": true,
+        "General/Period duration": "MonthDelta",
+        "Commodities/Common Currency": true,
+        "Commodities/Report's currency": "USD",
+        "Commodities/Price Source": "pricedb-latest"
+      },
+      "checks": [
+        { "name": "pricedb-latest exchange-rate", "line": 648, "select": { "table": 1, "row": -2, "column": -1 }, "expected": ["#1.00 $1.70", "1. FUNDS $480 + 85/104"], "meaning": "Exchange rates in the last column" }
+      ]
+    }
+  ]
+}

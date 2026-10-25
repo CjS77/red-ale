@@ -1,0 +1,146 @@
+{
+  "fixture": "reports/category-average.gnucash",
+  "builtBy": "scripts/report-fixtures/category_report.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-standard-category-report.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of the test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:36)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "account-1": "a0000000000000000000000000000001",
+    "account-2": "a0000000000000000000000000000002",
+    "account-3": "a0000000000000000000000000000003"
+  },
+  "book": "single-txn-test-average (:117-136): top-level ASSET account-1, EXPENSE account-2 and INCOME account-3; 52 weekly transactions from 1980-01-01 (Tuesdays) moving $1.10, $2.20, ..., $57.20 from account-3 to account-1, and $22.40 on 1980-07-01. No date depends on now.",
+  "optionValues": "Options are those changed from the template's defaults and in effect for the run: the test changes one options object step by step. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements: table 1, every row, column 2 (the income account's column).",
+  "runs": [
+    {
+      "id": "single-txn-test-average-week",
+      "lines": "148-158",
+      "template": "Income Over Time",
+      "templateGuid": "44f81bee049b4b3ea908f8dac9a9474e",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-12-31" },
+        "General/Step Size": "MonthDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-3"],
+        "Accounts/Levels of Subaccounts": "all",
+        "General/Show Average": "WeekDelta"
+      },
+      "checks": [
+        { "name": "monthly chart, weekly average", "line": 155, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$3.79", "$7.57", "$11.61", "$20.20", "$20.70", "$24.74", "$41.75", "$33.83", "$47.97", "$42.92", "$46.96", "$51.00"], "meaning": "Each month of 1980, January to December: the month's income times the report range's length in months over its length in weeks, rounded to 6 decimals (category-barchart.scm:299-318); January's $16.50 becomes $3.79" }
+      ]
+    },
+    {
+      "id": "single-txn-test-average-month",
+      "lines": "159-167",
+      "template": "Income Over Time",
+      "templateGuid": "44f81bee049b4b3ea908f8dac9a9474e",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-12-31" },
+        "General/Step Size": "MonthDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-3"],
+        "Accounts/Levels of Subaccounts": "all",
+        "General/Show Average": "MonthDelta"
+      },
+      "checks": [
+        { "name": "monthly chart, monthly average", "line": 164, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$16.50", "$33.00", "$50.60", "$88.00", "$90.20", "$107.80", "$181.90", "$147.40", "$209.00", "$187.00", "$204.60", "$222.20"], "meaning": "Each month's income: averaging over the step itself leaves the multiplier at 1 (category-barchart.scm:315-317)" }
+      ]
+    },
+    {
+      "id": "single-txn-test-average-day",
+      "lines": "168-176",
+      "template": "Income Over Time",
+      "templateGuid": "44f81bee049b4b3ea908f8dac9a9474e",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1980-01-01" },
+        "General/End Date": { "absolute": "1980-12-31" },
+        "General/Step Size": "MonthDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-3"],
+        "Accounts/Levels of Subaccounts": "all",
+        "General/Show Average": "DayDelta"
+      },
+      "checks": [
+        { "name": "monthly chart, daily average", "line": 173, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$0.54", "$1.08", "$1.66", "$2.89", "$2.96", "$3.53", "$5.96", "$4.83", "$6.85", "$6.13", "$6.71", "$7.29"], "meaning": "Each month's income times the range's months over its days" }
+      ]
+    },
+    {
+      "id": "single-txn-test-weekly-average-day",
+      "lines": "177-189",
+      "template": "Income Over Time",
+      "templateGuid": "44f81bee049b4b3ea908f8dac9a9474e",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1980-06-01" },
+        "General/End Date": { "absolute": "1980-08-01" },
+        "General/Step Size": "WeekDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-3"],
+        "Accounts/Levels of Subaccounts": "all",
+        "General/Show Average": "DayDelta"
+      },
+      "checks": [
+        { "name": "weekly chart, daily average", "line": 187, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$3.61", "$3.77", "$3.93", "$4.09", "$7.44", "$4.40", "$4.56", "$4.71", "$4.87"], "meaning": "Each week from 1980-06-01: the week's income times the range's weeks over its days; the fifth week holds the extra $22.40 of 1980-07-01" }
+      ]
+    },
+    {
+      "id": "single-txn-test-weekly-average-week",
+      "lines": "190-198",
+      "template": "Income Over Time",
+      "templateGuid": "44f81bee049b4b3ea908f8dac9a9474e",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1980-06-01" },
+        "General/End Date": { "absolute": "1980-08-01" },
+        "General/Step Size": "WeekDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-3"],
+        "Accounts/Levels of Subaccounts": "all",
+        "General/Show Average": "WeekDelta"
+      },
+      "checks": [
+        { "name": "weekly chart, weekly average", "line": 195, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$25.30", "$26.40", "$27.50", "$28.60", "$52.10", "$30.80", "$31.90", "$33.00", "$34.10"], "meaning": "Each week's income: the multiplier is 1" }
+      ]
+    },
+    {
+      "id": "single-txn-test-weekly-average-month",
+      "lines": "199-207",
+      "template": "Income Over Time",
+      "templateGuid": "44f81bee049b4b3ea908f8dac9a9474e",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "absolute": "1980-06-01" },
+        "General/End Date": { "absolute": "1980-08-01" },
+        "General/Step Size": "WeekDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["account-3"],
+        "Accounts/Levels of Subaccounts": "all",
+        "General/Show Average": "MonthDelta"
+      },
+      "checks": [
+        { "name": "weekly chart, monthly average", "line": 204, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$25.30", "$26.40", "$27.50", "$28.60", "$52.10", "$30.80", "$31.90", "$33.00", "$34.10"], "meaning": "Each week's income again: a range shorter in months than in weeks keeps the multiplier at 1 (category-barchart.scm:315-317)" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "fixture": "reports/test-data.gnucash",
+  "builtBy": "scripts/report-fixtures/account_summary.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-account-summary.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:17)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": ".",
+    "userSymbols": { "GBP": "#" }
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank": "a0000000000000000000000000000003",
+    "Root.Asset.GBP Bank": "a0000000000000000000000000000004",
+    "Root.Asset.Wallet": "a0000000000000000000000000000005",
+    "Root.Income": "a0000000000000000000000000000006",
+    "Root.Income-GBP": "a0000000000000000000000000000007",
+    "Root.Expenses": "a0000000000000000000000000000008",
+    "Root.Liabilities": "a0000000000000000000000000000009",
+    "Root.Equity": "a000000000000000000000000000000a"
+  },
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table N of the document; row N counts <tr> elements from 1 (negative from the end), 0 selects the <th> header cells, null every row; column N counts <td> (or <th>) cells from 1 (negative from the right), null every cell. Matching is by descendant, so cells of tables nested in a cell count too, and the result is every text node in document order.",
+  "runs": [
+    {
+      "id": "account-summary",
+      "lines": "51-65",
+      "template": "Account Summary",
+      "templateGuid": "3298541c236b494998b236dfad6ad752",
+      "options": {},
+      "checks": [
+        {
+          "name": "accsum col 1",
+          "line": 54,
+          "select": { "table": 1, "row": null, "column": 1 },
+          "expected": ["#608.00", "-#612.00", "#608.00", "-#612.00", "#608.00", "-#612.00"],
+          "meaning": "The GBP amounts the report shows (GBP Bank #608.00, Income-GBP -#612.00), as GnuCash's descendant matching returns them."
+        },
+        {
+          "name": "accsum col 2",
+          "line": 57,
+          "select": { "table": 1, "row": null, "column": 2 },
+          "expected": ["Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity"],
+          "meaning": "Every account name, in the order the report lists them."
+        },
+        {
+          "name": "accsum col 3",
+          "line": 61,
+          "select": { "table": 1, "row": null, "column": 3 },
+          "expected": ["$2,186.00", "#608.00", "$912.00", "$912.00", "$20.00", "-$918.00", "$912.00", "-$918.00", "$912.00", "-$918.00"],
+          "meaning": "Balances as of today: Bank $2,186.00; GBP Bank #608.00 shown as $912.00 at GBP = $1.50 (the price of the 2000-02-15 transfer, 9/6); Wallet $20.00; Income-GBP -#612.00 as -$918.00. design/reports.md section 13 lists these as Bank $2,186.00, GBP Bank #608.00 and $912.00, Wallet $20.00, Income-GBP -#612.00 and -$918.00."
+        }
+      ]
+    },
+    {
+      "id": "fsts",
+      "lines": "67-79",
+      "template": "Future Scheduled Transactions Summary",
+      "templateGuid": "47f45d7d6d57b68518481c1fc8d4e4ba",
+      "inV02Inventory": false,
+      "options": {},
+      "checks": [
+        {
+          "name": "fsts col 1",
+          "line": 70,
+          "select": { "table": 1, "row": null, "column": 1 },
+          "expected": [],
+          "meaning": "Nothing in column 1."
+        },
+        {
+          "name": "fsts col 2",
+          "line": 73,
+          "select": { "table": 1, "row": null, "column": 2 },
+          "expected": ["Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity"],
+          "meaning": "Account names, as for the Account Summary."
+        },
+        {
+          "name": "fsts col 3",
+          "line": 77,
+          "select": { "table": 1, "row": null, "column": 3 },
+          "expected": ["$0.00", "$0.00", "$0.00"],
+          "meaning": "Three zero amounts; the book has no scheduled transactions."
+        }
+      ]
+    }
+  ]
+}

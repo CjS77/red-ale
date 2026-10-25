@@ -30,7 +30,7 @@ pub const VERSION_1_FIXTURES: [&str; 1] = ["gnucash/currency_tree_xml.gnucash"];
 
 /// Every XML book fixture in the version 2 format, relative to `fixtures/`, sorted.
 pub fn xml_fixtures() -> Vec<String> {
-    let mut out: Vec<String> = ["gnucash", "piecash", "synthetic"]
+    let mut out: Vec<String> = ["gnucash", "piecash", "reports", "synthetic"]
         .iter()
         .flat_map(|dir| {
             std::fs::read_dir(fixtures_dir().join(dir))
@@ -47,6 +47,12 @@ pub fn xml_fixtures() -> Vec<String> {
     out.retain(|f| !VERSION_1_FIXTURES.contains(&f.as_str()));
     out.sort();
     out
+}
+
+/// The books of GnuCash 5.17's report tests, rebuilt by `scripts/report-fixtures/`, relative to `fixtures/`,
+/// sorted.
+pub fn report_fixtures() -> Vec<String> {
+    xml_fixtures().into_iter().filter(|f| f.starts_with("reports/")).collect()
 }
 
 /// A book copied into its own temporary directory, removed when dropped.

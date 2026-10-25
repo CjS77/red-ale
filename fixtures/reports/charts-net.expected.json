@@ -1,0 +1,108 @@
+{
+  "fixture": "reports/charts-net.gnucash",
+  "builtBy": "scripts/report-fixtures/charts.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-charts.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:45)",
+    "dateFormat": "ISO, set at :80",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank1": "a0000000000000000000000000000003",
+    "Root.Asset.Bank2": "a0000000000000000000000000000004",
+    "Root.Asset.Bank3": "a0000000000000000000000000000005",
+    "Root.Asset.Bank": "a0000000000000000000000000000006",
+    "Root.Income": "a0000000000000000000000000000007",
+    "Root.Liability": "a0000000000000000000000000000008",
+    "Root.Expenses": "a0000000000000000000000000000009",
+    "Root.Equity": "a000000000000000000000000000000a"
+  },
+  "book": "Book B of test-net-chart-variant (:85-114). In GnuCash's run these accounts sit in the same book as book A (see charts-daily.expected.json); every check selects its accounts, all from book B.",
+  "optionValues": "Options are those changed from the template's defaults. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight. The same options are set for each of the four templates (:116-122).",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements (:124-125): table 1; row 0 is the <th> header row, row 1 the first data row, row -1 the last; null column means every cell.",
+  "renderOnly": [
+    { "line": 71, "note": "null-test: each of the 17 templates of :21-39 renders with default options on an empty book" }
+  ],
+  "runs": [
+    {
+      "id": "net-worth-barchart 3 months",
+      "lines": "116-135",
+      "template": "Net Worth Barchart",
+      "templateGuid": "cbba1696c8c24744848062c7f1cf4a72",
+      "options": {
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1970-04-15" },
+        "Accounts/Accounts": ["Root.Income", "Root.Asset.Bank1", "Root.Asset.Bank2", "Root.Asset.Bank3"],
+        "General/Step Size": "MonthDelta",
+        "Display/Show table": true
+      },
+      "checks": [
+        { "name": "first row", "line": 127, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Assets", "Liabilities", "Net Worth"], "meaning": "Table headers" },
+        { "name": "first data row", "line": 130, "select": { "table": 1, "row": 1, "column": null }, "expected": ["1970-01-01", "$25.00", "$0.00", "$25.00"], "meaning": "1970-01-01: assets $25.00 (Bank3's 1969 deposit), no liabilities, net worth $25.00" },
+        { "name": "last data row", "line": 133, "select": { "table": 1, "row": -1, "column": null }, "expected": ["1970-04-15", "$375.00", "$0.00", "$375.00"], "meaning": "1970-04-15: Bank1 $225 + Bank2 $100 + Bank3 $50" }
+      ]
+    },
+    {
+      "id": "net-worth-linechart 3 months",
+      "lines": "116-135",
+      "template": "Net Worth Linechart",
+      "templateGuid": "d8b63264186b11e19038001558291366",
+      "options": {
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1970-04-15" },
+        "Accounts/Accounts": ["Root.Income", "Root.Asset.Bank1", "Root.Asset.Bank2", "Root.Asset.Bank3"],
+        "General/Step Size": "MonthDelta",
+        "Display/Show table": true
+      },
+      "checks": [
+        { "name": "first row", "line": 127, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Assets", "Liabilities", "Net Worth"], "meaning": "Table headers" },
+        { "name": "first data row", "line": 130, "select": { "table": 1, "row": 1, "column": null }, "expected": ["1970-01-01", "$25.00", "$0.00", "$25.00"], "meaning": "As for the bar chart" },
+        { "name": "last data row", "line": 133, "select": { "table": 1, "row": -1, "column": null }, "expected": ["1970-04-15", "$375.00", "$0.00", "$375.00"], "meaning": "As for the bar chart" }
+      ]
+    },
+    {
+      "id": "income-expense-barchart 3 months",
+      "lines": "116-146",
+      "template": "Income/Expense Chart",
+      "templateGuid": "80769921e87943adade887b9835a7685",
+      "options": {
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1970-04-15" },
+        "Accounts/Accounts": ["Root.Income", "Root.Asset.Bank1", "Root.Asset.Bank2", "Root.Asset.Bank3"],
+        "General/Step Size": "MonthDelta",
+        "Display/Show table": true
+      },
+      "checks": [
+        { "name": "first row", "line": 138, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Income", "Expense", "Net Profit"], "meaning": "Table headers" },
+        { "name": "first data row", "line": 141, "select": { "table": 1, "row": 1, "column": null }, "expected": ["1970-01-01", "$100.00", "$0.00", "$100.00"], "meaning": "January 1970: income $10 + $15 + $50 + $25 = $100; the $25 closing transaction of 1970-01-03 is ignored" },
+        { "name": "last data row", "line": 144, "select": { "table": 1, "row": -1, "column": null }, "expected": ["1970-04-01", "$0.00", "$0.00", "$0.00"], "meaning": "April 1970: nothing" }
+      ]
+    },
+    {
+      "id": "income-expense-linechart 3 months",
+      "lines": "116-146",
+      "template": "Income & Expense Linechart",
+      "templateGuid": "e533c998186b11e1b2e2001558291366",
+      "options": {
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "1970-04-15" },
+        "Accounts/Accounts": ["Root.Income", "Root.Asset.Bank1", "Root.Asset.Bank2", "Root.Asset.Bank3"],
+        "General/Step Size": "MonthDelta",
+        "Display/Show table": true
+      },
+      "checks": [
+        { "name": "first row", "line": 138, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Income", "Expense", "Net Profit"], "meaning": "Table headers" },
+        { "name": "first data row", "line": 141, "select": { "table": 1, "row": 1, "column": null }, "expected": ["1970-01-01", "$100.00", "$0.00", "$100.00"], "meaning": "As for the bar chart" },
+        { "name": "last data row", "line": 144, "select": { "table": 1, "row": -1, "column": null }, "expected": ["1970-04-01", "$0.00", "$0.00", "$0.00"], "meaning": "As for the bar chart" }
+      ]
+    }
+  ]
+}

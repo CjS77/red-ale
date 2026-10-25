@@ -1008,7 +1008,13 @@ can be re-run to check it.
 | `reports/charts-net.gnucash` | book B of `standard/test/test-charts.scm:85-114` | the four net charts |
 | `reports/charts-daily.gnucash` | book A and the 101 daily transactions of `standard/test/test-charts.scm:148-200` | Net Worth Barchart, Income/Expense Chart |
 | `reports/net-days.gnucash` | `standard/test/test-standard-net-barchart.scm:58-311` (the line chart test uses the same books, `test-standard-net-linechart.scm:55-198`) | the net charts, day steps |
-| `reports/category-*.gnucash` | the five books of `standard/test/test-standard-category-report.scm:81-343` | the category bar charts |
+| `reports/category-daily.gnucash`, `-average`, `-multi`, `-liability` | `single-txn-test` (which `asset-test` builds identically), `single-txn-test-average`, `multi-acct-test` and `liability-test` of `standard/test/test-standard-category-report.scm:81-318` | the category bar charts |
+
+GUIDs are fixed and readable (`a000…0001` for the first account made, and so on), entered dates and void times are
+the pinned now plus one second per transaction, and books are written uncompressed, so a script gives the same bytes
+on every run; an oracle test checks that the committed books are what the scripts build. Next to each book,
+`<name>.expected.json` lists every assertion of the test that uses it: template, the options in effect, the cells
+GnuCash reads and the exact expected strings, with the test line (see `fixtures/README.md`).
 
 ### Per report
 

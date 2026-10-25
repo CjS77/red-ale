@@ -1,0 +1,73 @@
+{
+  "fixture": "reports/category-multi.gnucash",
+  "builtBy": "scripts/report-fixtures/category_report.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-standard-category-report.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of the test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:36)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Expenses": "a0000000000000000000000000000001",
+    "Expenses.Groceries": "a0000000000000000000000000000002",
+    "Expenses.Rent": "a0000000000000000000000000000003",
+    "Expenses.Auto": "a0000000000000000000000000000004",
+    "Expenses.Auto.Tax": "a0000000000000000000000000000005",
+    "Expenses.Auto.Parking": "a0000000000000000000000000000006",
+    "Expenses.Auto.Petrol": "a0000000000000000000000000000007",
+    "Assets": "a0000000000000000000000000000008",
+    "Assets.Bank": "a0000000000000000000000000000009"
+  },
+  "book": "multi-acct-test (:211-229): the expense tree of env-expense-account-structure (test-engine-extras.scm:360-370) and Assets:Bank; each of the seven expense accounts, parents included, gets one transaction per day of the current month from Bank, day N of $N. For the pinned now the month is March 2024, and start-this-month and end-this-month read 2024-03-01 00:00:00 and 2024-03-31 23:59:59 UTC.",
+  "optionValues": "Options are those changed from the template's defaults and in effect for the run. {\"relative\": name} is a relative date resolved from now.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements: table 1; row 0 is the <th> header row, row N the Nth data row; null column means every cell. A check with \"count\" expects the number of cells selected rather than their text.",
+  "runs": [
+    {
+      "id": "multi--test",
+      "lines": "230-249",
+      "template": "Expense Over Time",
+      "templateGuid": "b1f15b2052c149df93e698fe85a81ea6",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "relative": "start-this-month" },
+        "General/End Date": { "relative": "end-this-month" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["Expenses", "Expenses.Groceries", "Expenses.Rent", "Expenses.Auto", "Expenses.Auto.Tax", "Expenses.Auto.Parking", "Expenses.Auto.Petrol"],
+        "Accounts/Levels of Subaccounts": 2
+      },
+      "checks": [
+        { "name": "6 columns", "line": 241, "select": { "table": 1, "row": 0, "column": null }, "count": 6, "meaning": "Six header cells: Date, four account columns at two levels, and the grand total" },
+        { "name": "date", "line": 244, "select": { "table": 1, "row": 0, "column": 1 }, "expected": ["Date"], "meaning": "First header" },
+        { "name": "auto", "line": 247, "select": { "table": 1, "row": 0, "column": 2 }, "expected": ["Auto"], "meaning": "Second header: Auto, with its three children folded in, is the largest series and comes first under the default Sort Method, descending amount (category-barchart.scm:183-185)" }
+      ]
+    },
+    {
+      "id": "ratios",
+      "lines": "251-259",
+      "template": "Expense Over Time",
+      "templateGuid": "b1f15b2052c149df93e698fe85a81ea6",
+      "options": {
+        "Display/Show table": true,
+        "General/Start Date": { "relative": "start-this-month" },
+        "General/End Date": { "relative": "end-this-month" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["Expenses", "Expenses.Groceries", "Expenses.Rent", "Expenses.Auto", "Expenses.Auto.Tax", "Expenses.Auto.Parking", "Expenses.Auto.Petrol"],
+        "Accounts/Levels of Subaccounts": 2,
+        "Display/Percentage chart": true
+      },
+      "checks": [
+        { "name": "multi-acct ratios", "line": 257, "select": { "table": 1, "row": 2, "column": null, "dropFirst": true }, "expected": ["57.14 %", "14.29 %", "14.29 %", "14.29 %", "$14.00"], "meaning": "Day 2 (2024-03-02) without its date cell: Auto $8 of $14 (57.14 %), then Expenses, Groceries and Rent at $2 each (14.29 %), and the $14.00 grand total" }
+      ]
+    }
+  ]
+}
