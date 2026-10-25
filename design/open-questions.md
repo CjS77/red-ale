@@ -82,6 +82,31 @@ else UTC (`5.17:libgnucash/engine/gnc-timezone.cpp:744-760`). v0.1 used UTC for 
 dialog's day boundaries and the accounting period; v0.2 changes those to local time, so a red-ale server and a
 GnuCash in the same zone agree on every date. See [`milestone2.md`](milestone2.md), "Time zones".
 
+**Reports: the design in [`reports.md`](reports.md).** The "Decide before code" items of milestone 2 on reports are
+settled there; in short:
+
+- **The report result is data**: sections of tables (rows with roles, depth and staircase level; cells carrying
+  exact Rationals with the host's display form), charts as series with axes and labels, and text. It is a published
+  language owned by the new crate `red-ale-report` and versioned with `redAleApi`. HTML is rendered from it through
+  a style sheet; charts are SVG drawn with integer arithmetic (pie arcs by fixed-point CORDIC).
+- **Effects outside the Book get an Effect target.** Effect keeps its three values and drives MCP's hints alone; a
+  new field says whether a changing method targets the `book` or the `configuration`. `period.set` was already such
+  a method. Saving, renaming and deleting saved report configurations and style sheets target the Configuration.
+- **`report.export` returns HTML and writes no file.** A server that wrote to caller-named paths would let a remote
+  client write files where it runs; the CLI writes the HTML on its own side.
+- **GnuCash's names and GUIDs** for all 19 built-in templates ([`reports.md`](reports.md) §11). A name matching
+  several reports is refused, as `gnucash-cli` refuses it.
+- **Report arithmetic uses an unbounded Rational** (`num-rational` with `num-bigint`, MIT or Apache-2.0), rounded
+  only for display, to the commodity's SCU with banker's rounding, as GnuCash's report renderer rounds.
+- **GnuCash preferences reports read** (report currency, reversed-balance accounts, date format, week start) are
+  Report settings in the Configuration, with GnuCash's defaults.
+- **Saved configurations and style sheets are JSON in the Configuration.** GnuCash's `saved-reports-2.8` and
+  `stylesheets-2.0` are Scheme programs and are not read; importing their literal option forms is left open.
+- **Report fixtures are built by the oracle**: Python scripts make the same engine calls as GnuCash's report tests
+  and save XML books, so the fixtures are GnuCash's own files.
+- **The budget import in `test-average-balance.scm:4` is unused**: the budget module exports nothing
+  (`5.17:gnucash/report/reports/standard/budget.scm:28`), so the port drops it.
+
 ## Decided for v0.3
 
 **red-ale fetches quotes itself, without Perl.** GnuCash runs Finance::Quote, a Perl library, as a child process
@@ -125,3 +150,6 @@ and GnuCash keeps CSV import layouts in its state file, not the book
 - **Locale-dependent collation.** GnuCash orders some ties (transactions with equal date, number and date entered)
   with `g_utf8_collate`, which depends on the locale of the GnuCash that wrote the file. red-ale appends new entities
   and keeps the order it read, which GnuCash accepts on load.
+- **Importing GnuCash's saved report configurations and style sheets.** They are Scheme programs, but their option
+  forms are literal calls (`5.17:gnucash/report/report-core.scm:620-643`). An importer that reads only those forms,
+  never evaluating Scheme, would let users bring them over. Not in v0.2.

@@ -143,6 +143,28 @@ Code names are given in `code font` when they differ from the term.
 | **Payment lot** | A Lot in the A/R or A/P Account holding a payment not yet matched to a document. A *pre-payment lot* is one made before the document existed. |
 | **Lot link** | A Transaction of type `L` that moves value between Lots of one Owner to settle documents against payments or credits. |
 
+## Reports
+
+See [`reports.md`](reports.md).
+
+| Term | Meaning |
+|------|---------|
+| **Report template** | A report definition: a GUID, a name, its options and the code that builds its result. Built-in templates keep GnuCash 5.17's names and GUIDs. **⚠** GnuCash also calls saved configurations "custom report templates"; red-ale says *saved report configuration* for those. |
+| **Report script** | A `.rhai` file defining one or more Report templates. *Built-in* scripts are translations of GnuCash's `.scm` files compiled into red-ale; *user* scripts load from the Report directory. |
+| **Report directory** | The directory, named in the Configuration, that user Report scripts load from. |
+| **Report option** | One setting of a report, identified by section and name (GnuCash's English strings), with a type, a default and a value. |
+| **Saved report configuration** | A Report template's options saved under a new name and GUID in the Configuration. Stores only what differs from the template's defaults. **⚠** GnuCash's *custom report*; its *saved report* is an open report window, which red-ale does not have. |
+| **Report result** | What running a report gives: sections of tables, charts and text with exact figures. The published language for reports. |
+| **Report log** | The lines a Report script prints with `print` and `debug`, returned with the Report result. |
+| **Query API** | The read-only functions and handles through which a Report script reads the Book. |
+| **Rational** | An exact rational with no size limit, the number of report arithmetic, as Scheme's exact numbers are in GnuCash. **⚠** Not a Numeric: it never enters the Book. |
+| **Monetary** | A Rational with a Commodity: GnuCash's `gnc:monetary`. |
+| **Commodity collector** | A report's running totals per Commodity: GnuCash's `gnc:make-commodity-collector`. |
+| **Display rounding** | Rounding a figure to its Commodity's SCU with banker's rounding, only to show it, as GnuCash's report renderer does. |
+| **Exchange method** | How a report converts other Commodities to the report currency: the *Price Source* option (average cost, weighted average, or the Price database before, nearest to or latest at the report date). **⚠** Not a Price's source string (see *Price source rank*). |
+| **Style sheet** | A named set of presentation options from a *style sheet template* (Plain, CSS, Easy, Fancy, Footer, Head or Tail), applied when a Report result is rendered as HTML. |
+| **Report settings** | The Configuration's `reports` values standing in for GnuCash preferences reports read: report currency, reversed-balance accounts, date format, week start, limits. |
+
 ## red-ale
 
 | Term | Meaning |
@@ -150,5 +172,6 @@ Code names are given in `code font` when they differ from the term.
 | **Use case** | One operation on a Session, such as posting a Transaction. Each JSON-RPC method calls exactly one use case. |
 | **Mutation** | A use case that changes the Book. Applies completely or not at all, and leaves the Book balanced. |
 | **Published language** | The JSON-RPC schema: versioned, documented, and changed only additively within a major version. |
-| **Effect** | What a method does to the Book: *read*, *write* or *destructive*. MCP's read-only and destructive hints come from it. |
-| **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps as user preferences (the Accounting period). Never stored in the Book. |
+| **Effect** | How much a method changes: *read*, *write* or *destructive*. MCP's read-only and destructive hints come from it. |
+| **Effect target** | What a method that is not *read* changes: the *book* or the *configuration*. Saving a Saved report configuration changes the Configuration and never the Book. |
+| **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps outside the book: user preferences (the Accounting period, the Report settings), Saved report configurations and Style sheets. Never stored in the Book. |
