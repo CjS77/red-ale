@@ -24,8 +24,12 @@ The kind is never stored: it follows from the owner, through a job to the job's 
 | employee  | `expenseVoucher`          | `gncExpVoucher`  | bill (`b-` fields)    |
 
 The counters are GnuCash's (`gncInvoiceNextID`, `5.17:libgnucash/engine/gncInvoice.c:2256-2275`) and work as the
-contact counters do: a number taken is never given back, even when its document is deleted. `creditNote` exists on
-the wire for documents GnuCash made; red-ale v0.1 does not create or edit credit notes.
+contact counters do: a number taken is never given back, even when its document is deleted.
+
+A **credit note** of any kind has the type `creditNote` on the wire, takes its number from the counter of its kind
+and uses the entry side of its kind. Whether a document is a credit note is chosen when it is created and never
+changes: GnuCash's dialog sets it only for a new or duplicated document (`5.17:gnucash/gnome/dialog-invoice.c:420-434`).
+Its totals, posting and payments are in [`business-posting.md`](business-posting.md#credit-notes).
 
 ## Dates
 
@@ -46,7 +50,8 @@ An entry's `dateEntered` is the time it was created.
 
 `InvoiceFields`: `owner`, `id`, `dateOpened`, `terms`, `billingId` (the customer's reference or the vendor's
 invoice number), `notes`, `billTo` (bills and vouchers: the customer or job the costs are for), `chargeAmount`
-(vouchers: an extra amount to charge to the employee's card when posted), `active`.
+(vouchers: an extra amount to charge to the employee's card when posted), `active`, and on create only
+`creditNote` (default false).
 
 `InvoiceDetail`: `guid`, `id`, `type`, `owner`, `currency`, `dateOpened`, `posted`, `datePosted`, `terms`,
 `billingId`, `notes`, `active`, `billTo`, `chargeAmount`, `postedAccount`, `postedTransaction`, `postedLot`,
@@ -56,11 +61,13 @@ invoice number), `notes`, `billTo` (bills and vouchers: the customer or job the 
 - **Create** starts from `gncInvoiceCreate`'s defaults (`5.17:libgnucash/engine/gncInvoice.c:313-334`), then takes,
   as GnuCash's invoice dialog does, the owner's currency (`5.17:gnucash/gnome/dialog-invoice.c:414`), the owner's
   billing term unless `terms` is given, and today's date. It writes the `credit-note` slot as 0, as every document
-  the dialog saves has it (`5.17:gnucash/gnome/dialog-invoice.c:433`, `:2981`). The billing term's refcount goes up.
+  the dialog saves has it (`5.17:gnucash/gnome/dialog-invoice.c:433`, `:2981`), or as 1 with `creditNote`, which
+  also sets the Book feature `Credit Notes` (`gncInvoiceSetIsCreditNote`, `5.17:libgnucash/engine/gncInvoice.c:576-594`).
+  The billing term's refcount goes up.
 - **Checks.** The owner must be a customer, vendor, employee or job of one of them. `billTo` must be a customer or
   job, and only on bills and vouchers. `chargeAmount` only on vouchers. The document's currency is always its
   owner's.
-- **Update.** An unposted document may change anything but its kind: a new owner must give the same kind (a
+- **Update.** An unposted document may change anything but its kind and whether it is a credit note: a new owner must give the same kind (a
   customer's job for a customer, and so on), and the currency follows it. A posted document may only be
   (de)activated; anything else is a `conflict`. Unpost it first ([`business-posting.md`](business-posting.md)).
 - **`invoice.list {owner}`** matches the document's owner or its end owner, so a customer also finds its jobs'
@@ -95,8 +102,14 @@ the side of the entry's document; `EntryInfo` shows both (`invoiceAccount`, `inv
   ledger's defaults from the owner (`5.17:gnucash/register/ledger-core/gncEntryLedgerLoad.c:375-466`): the job's rate
   as the price on a job's document; the customer's discount; tax included from the owner's setting, where
   `useGlobal` gives yes (see Deviations); the owner's tax table when it overrides, else the book's default customer or
-  vendor tax table; and taxable when a table applies. Vouchers get the engine defaults only. Params then override the
-  defaults.
+  vendor tax table; and taxable when a table applies. Vouchers get the engine defaults only. An employee's credit
+  note goes through the ledger's owner branch, which finds no table for an employee: its new entries are untaxed,
+  with tax included as `useGlobal` gives (`5.17:gnucash/register/ledger-core/gncEntryLedgerLoad.c:376`,
+  `:462-467`). Params then override the defaults.
+- **Credit notes.** `quantity` is the quantity printed on the credit note; it is stored negated, as the ledger
+  stores it (`gncEntrySetDocQuantity`, `5.17:gnucash/register/ledger-core/gncEntryLedgerModel.c:1075`,
+  `5.17:libgnucash/engine/gncEntry.c:562-570`). `EntryInfo.quantity` is the stored quantity and
+  `EntryInfo.documentQuantity` the printed one (`gncEntryGetDocQuantity`, `5.17:libgnucash/engine/gncEntry.c:952-956`).
 - **Accounts.** An entry cannot use an A/R, A/P, bank, cash, equity, trading or placeholder account, nor an expense
   account on an invoice or an income account on a bill or voucher, as the entry ledger offers none of them
   (`5.17:gnucash/register/ledger-core/gncEntryLedgerLoad.c:140-181`).
@@ -159,6 +172,5 @@ trip of `book.save` and reopen.
 | New entry defaults follow GnuCash's entry ledger (the GUI), not only `gncEntryCreate`. A `useGlobal` tax-included setting gives yes. | The GUI is how GnuCash users make entries; the global preference is a GUI setting red-ale cannot read, so its shipped default (yes) is used. |
 | The book's default tax table is read from both option spellings: `Default Customer Tax Table` (what the options dialog writes) first, then `Default Customer TaxTable` (what `gncTaxTableGetDefault` reads, `5.17:libgnucash/engine/gncTaxTable.c:680-699`); likewise for vendors. | GnuCash 5.17 writes one and reads the other (`design/notes/xml-format-business.md` §10.2). |
 | Entry fields with no ledger column on a kind of document, and accounts the ledger does not offer, are refused. The engine would store them. | GnuCash would ignore or mis-post them, and users could not see or fix them in GnuCash. |
-| Credit notes cannot be created or edited. | Out of v0.1's scope; documents GnuCash made as credit notes are kept unchanged. |
 | A new bill or voucher entry cannot go on an order. The engine allows it. | Order entries use the invoice side in GnuCash's order ledger; a bill-side entry on an order would show empty there. |
 | Order behaviour is not oracle-tested. | GnuCash's Python bindings do not wrap orders. |

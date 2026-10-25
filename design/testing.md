@@ -30,8 +30,8 @@ sources and licences). Never personal financial data.
   must round-trip byte for byte through red-ale.
 - `synthetic/rich.gnucash` exercises every core entity and slot type, special characters (including tabs and
   newlines in text), a budget, a scheduled transaction and template transactions.
-- `synthetic/business.gnucash` has every business object, including a credit note, so it opens read-only;
-  `synthetic/business-editable.gnucash` is the same book without the credit note.
+- `synthetic/business.gnucash` has every business object, including a credit note (it declares the Book feature
+  `Credit Notes`); `synthetic/business-editable.gnucash` is the same book without the credit note.
 - Some fixtures open read-only by design: `piecash/simple_sample.gnucash` and `piecash/investment.gnucash` use
   trading accounts; `piecash/simple_sample.sqlite.gnucash` is an SQL book (refused);
   `gnucash/currency_tree_xml.gnucash` is a version 1 file (refused).

@@ -157,6 +157,10 @@ Code names are given in `code font` when they differ from the term.
 | **Frozen copy** | A hidden child copy of a Tax table or Billing term made when a document is posted, so later edits to the original do not change posted documents. **⚠** GnuCash calls it the *child*. |
 | **Payment lot** | A Lot in the A/R or A/P Account holding a payment not yet matched to a document. A *pre-payment lot* is one made before the document existed. |
 | **Lot link** | A Transaction of type `L` that moves value between Lots of one Owner to settle documents against payments or credits. |
+| **Credit note** | A document that reverses an invoice, bill or expense voucher of its kind: its `credit-note` slot is 1, its Entries store their quantity negated, and posting it moves the A/R or A/P balance the other way. Making one sets the Book feature `Credit Notes`. |
+| **Document quantity** | An Entry's quantity as printed on its document: the stored quantity, negated on a credit note. |
+| **Open item** | An Owner's open document Lot or Payment lot in an A/R or A/P Account: what a payment can be applied to, as GnuCash's payment dialog lists it. |
+| **Transfer split** | A payment's Split in the Account the money moves through: any asset, liability or equity type but A/R and A/P. |
 
 ## red-ale
 

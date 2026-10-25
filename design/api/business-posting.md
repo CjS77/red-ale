@@ -5,8 +5,8 @@ the bills-due / invoices-due reminders. The domain code is `red-ale-core::ops::b
 the methods are in `red-ale-rpc::methods::business::{posting, payments}`. Research: `design/notes/engine-business.md`
 §3–§9 and `design/notes/xml-format-business.md` §9.
 
-A *document* is GnuCash's `GncInvoice`: a customer invoice, vendor bill or employee expense voucher (or a credit note
-of one, which v0.1 opens read-only). Its kind comes from its **end owner**: a job's owner, otherwise its owner.
+A *document* is GnuCash's `GncInvoice`: a customer invoice, vendor bill or employee expense voucher, or a credit note
+of one. Its kind comes from its **end owner**: a job's owner, otherwise its owner.
 Documents are named by GUID (`invoice`); owners by `{ "type": "customer" | "vendor" | "employee" | "job", "id": GUID }`.
 
 ## Methods
@@ -19,6 +19,8 @@ Documents are named by GUID (`invoice`); owners by `{ "type": "customer" | "vend
 | `invoice.unpost`  | destructive | Unpost a document: delete its posted transaction and lot links.                          |
 | `payment.process` | write       | Record an owner's payment and apply it to chosen documents, or to all open ones.        |
 | `invoice.pay`     | write       | Record a payment of one posted document.                                                 |
+| `payment.openItems` | read      | An owner's open documents and pre-payments in an A/R or A/P account, as the payment dialog lists them. |
+| `payment.fromTransaction` | destructive | Turn an existing transaction into a payment, or re-match an existing payment.   |
 | `invoice.due`     | read        | Posted, unpaid documents due within some days.                                           |
 
 ### `invoice.totals`
@@ -144,6 +146,92 @@ Params: `invoice`, `transferAccount`, `amount`, `exchangeRate`, `date`, `memo`, 
 (`5.17:libgnucash/engine/gncInvoice.c:1950-1979`): a payment for the document's end owner, applied to that document
 only.
 
+### Payment matching and pre-payments: scope
+
+v0.1 already covers, as GnuCash's engine does: payments applied to chosen documents and pre-payment lots
+(`payment.process {applyTo}`) or to all open ones (`autoPay`); over-payments and payments with nothing to apply to
+kept as pre-payment lots; pre-payments and opposite documents applied at posting (`invoice.post {autoPay}`); lot
+links between documents of opposite sign; and linking chosen lots with no new transaction (`payment.process` with
+amount 0), which applies existing pre-payments and credit notes to documents.
+
+Compared with 5.17's payment dialog (`5.17:gnucash/gnome/dialog-payment.c`) and engine
+(`5.17:libgnucash/engine/gncOwner.c`), v0.2 adds:
+
+1. **What can be matched** (`payment.openItems`): the dialog's list of an owner's open documents and pre-payments
+   (`gnc_payment_window_fill_docs_list`, `5.17:gnucash/gnome/dialog-payment.c:440-603`), in the order the dialog
+   hands the chosen ones to the engine. `payment.process` applies `applyTo` in the order given, as
+   `gncOwnerApplyPaymentSecs` does; giving the chosen items in `payment.openItems` order reproduces the dialog.
+2. **Payment from a transaction, and editing a payment's matching** (`payment.fromTransaction`): the register's
+   "Assign as payment" and "Edit payment" (`5.17:gnucash/gnome/gnc-plugin-business.c:158-159`), which open the
+   dialog on an existing transaction (`gnc_ui_payment_new_with_txn`, `5.17:gnucash/gnome/dialog-payment.c:1798-1854`)
+   and rebuild it as a payment (`5.17:libgnucash/engine/gncOwner.c:776-800`). Applying it to other documents, or to
+   none (it becomes a pre-payment), edits or removes an existing payment's matching.
+
+Out of scope:
+
+- **The business scrub** (`gncScrubBusinessAccount`, `5.17:libgnucash/engine/ScrubBusiness.c:467-762`): it repairs
+  books damaged by older GnuCash versions (double-posted documents, superfluous lot links, dangling payments). red-ale
+  never writes what it repairs: the oracle tests run 5.17's scrub on the books red-ale wrote and find nothing to
+  change. It belongs with Check & Repair ([`scrub.md`](scrub.md)) and needs its own ticket.
+- Printing a check, and remembering the last transfer account (the owner's `payment/last_acct` slot,
+  `5.17:gnucash/gnome/dialog-payment.c:718-733`): GUI conveniences, like `last-posted-to-acct`.
+
+### `payment.openItems`
+
+Params: `owner` (a customer, vendor or employee) and `account` (A/R or A/P). Result: `items`, each
+`{lot, invoice, id, type, date, sortDate, balance}`:
+
+- the open lots in `account` whose end owner is `owner`, through their document or their `gncOwner` slots
+  (`xaccAccountFindOpenLots` with `gncOwnerLotMatchOwnerFunc`, `5.17:libgnucash/engine/gncOwner.c:705-722`);
+- `invoice` and `id` name the document, and are null for a pre-payment; `type` is the document's type word
+  (`Invoice`, `Bill`, `Expense`, `Credit Note`) or `Pre-Payment`;
+- `date` is the document's posted date, or the date of a pre-payment's latest split; `balance` is the lot's balance,
+  signed as on the account (the dialog's debit is positive, its credit negative);
+- in the order the dialog passes chosen items to the engine: sorted by `sortDate`, which is the document's due date
+  or the date of a pre-payment's earliest split (`gncOwnerLotsSortFunc`, `5.17:libgnucash/engine/gncOwner.c:728-745`,
+  through `g_list_insert_sorted`, `5.17:gnucash/gnome/dialog-payment.c:933-945`). Ties come in the reverse of the
+  dialog's display order (date, then number, `5.17:gnucash/gnome/dialog-payment.c:1186-1206`), as inserting before
+  an equal item leaves them.
+
+### `payment.fromTransaction`
+
+Params:
+
+| Param           | Default                                                                                            |
+|-----------------|----------------------------------------------------------------------------------------------------|
+| `transaction`   | required                                                                                           |
+| `owner`         | the owner of the document or pre-payment lot of its first A/R or A/P split in a business lot (`gncOwnerGetOwnerFromTxn`, `5.17:libgnucash/engine/gncOwner.c:674-697`); required when there is none |
+| `account`       | the A/R or A/P account of its splits (`select_txn_lots`, `5.17:gnucash/gnome/dialog-payment.c:1708-1796`); required when it has none |
+| `transferSplit` | its only split in a payment account; required when it has several                                  |
+| `amount`        | the transfer split's amount in the A/R or A/P account's commodity (`5.17:gnucash/gnome/dialog-payment.c:1843-1850`), signed as in `payment.process` |
+| `exchangeRate`  | needed when the transfer and A/R or A/P commodities differ                                         |
+| `date`          | the transaction's posted date                                                                      |
+| `memo`          | the transaction's description (`5.17:gnucash/gnome/dialog-payment.c:1837`)                    |
+| `num`           | the transaction's number (the transfer split's action when the book uses it as the number)         |
+| `applyTo`       | the dialog's preselection: lots of the transaction's own A/R or A/P splits that belong to `owner` and keep a balance once this transaction's split leaves them (`5.17:gnucash/gnome/dialog-payment.c:474-497`, `:555-575`, `:403-436`) |
+| `autoPay`       | false                                                                                              |
+
+Result: `transaction` (the same GUID) and `paymentLot`, as `payment.process`.
+
+- **What qualifies.** A transaction with at least two splits (`5.17:gnucash/gnome/gnc-plugin-business.c:677-679`),
+  splits in at most one A/R or A/P account (`5.17:gnucash/gnome/dialog-payment.c:1758-1790`), and a *transfer split*:
+  a split in a payment account, which is any asset, liability or equity type but A/R and A/P
+  (`gncBusinessIsPaymentAcctType`, `5.17:libgnucash/engine/gncBusiness.c:92-99`). A posted document's transaction
+  (type `I`) is refused, as GnuCash offers neither menu item for it
+  (`5.17:gnucash/gnome/gnc-plugin-business.c:776-785`).
+- **The chosen documents** are applied in the dialog's order, as `payment.openItems` gives it.
+- **The transaction is rebuilt** by `gncOwnerCreatePaymentLotSecs` with it preset
+  (`5.17:libgnucash/engine/gncOwner.c:776-800`, `:806-883`): every split except the first split in the transfer
+  account is deleted, leaving its lot (an emptied lot is dropped); that split keeps its memo, action and reconcile
+  state, unless its amount or value changes, which sets them and marks it not reconciled. The transaction takes the
+  end owner's name as description, the transfer account's commodity as currency unless it is already in the A/R or
+  A/P or transfer commodity, `num`, type `P`, date entered now and the day-neutral time of `date`; a new A/R or A/P
+  split (memo `memo`, action `Payment`) goes into a new payment lot. Then the payment lot and the chosen lots are
+  applied as in `payment.process`. The GUID, notes and other slots stay.
+
+Refused (`invalid`): a void or read-only transaction, a lot-link transaction (it has no transfer split; link lots
+with `payment.process` and amount 0) and a zero amount.
+
 ### `invoice.due`
 
 Params: `kind` (`invoices` or `bills`), `daysInAdvance` (default 7), `now` (default now). Result:
@@ -153,6 +241,30 @@ preferences are params. The query is `gnc_invoice_show_docs_due` (`5.17:gnucash/
 posted documents whose lot is open, of the kind asked (`bills`: vendor and employee documents; `invoices`: customer
 documents), due (`trans-date-due`) at or before `now + daysInAdvance × 86400`, overdue included. `amount` is the
 lot's balance, signed as on the A/R or A/P account; `company` is the end owner's name.
+
+## Credit notes
+
+A credit note is a document whose `credit-note` slot is 1 (`gncInvoiceGetIsCreditNote`,
+`5.17:libgnucash/engine/gncInvoice.c:1146-1155`). It is made by `invoice.create {creditNote: true}`
+([`business-documents.md`](business-documents.md)), which also sets the Book feature `Credit Notes` as
+`gncInvoiceSetIsCreditNote` does (`5.17:libgnucash/engine/gncInvoice.c:576-594`,
+`5.17:libgnucash/engine/gnc-features.h:54`). Its entries keep their quantity negated (`gncEntrySetDocQuantity`,
+`5.17:libgnucash/engine/gncEntry.c:562-570`), so the entry arithmetic gives negative values that the accessors turn
+back (`gncEntryGetDoc*`, `5.17:libgnucash/engine/gncEntry.c:1535-1568`). Every method on this page takes credit notes:
+
+- **Totals** are signed as printed on the credit note: positive for positive quantities.
+- **Posting** negates the balance where the matching invoice, bill or voucher would not, and the reverse
+  (`is_cust_doc != is_cn`, `5.17:libgnucash/engine/gncInvoice.c:1516-1531`): a customer credit note credits A/R and
+  debits income; a vendor or employee credit note debits A/P. Entry lines use the balance value of their side,
+  unaffected by the flag (`gncEntryGetBalValue`), as do an employee credit note's card lines; its extra charge is
+  negated (`5.17:libgnucash/engine/gncInvoice.c:1593-1610`, `:1664-1670`). The type word in split actions and the lot
+  title is `Credit Note` (`5.17:libgnucash/engine/gncInvoice.c:1089-1108`). Numbers come from the counter of the
+  matching kind (`gncInvoice`, `gncBill`, `gncExpVoucher`).
+- **Unposting** is the same as for any document.
+- **Payments.** A credit note's lot has the opposite sign to its owner's invoices or bills, so it is linked to them
+  (a lot-link transaction) by `invoice.post {autoPay}` or by `payment.process` with amount 0, or settled by a refund:
+  a negative `amount`.
+- **Due reminders** list customer credit notes with invoices and vendor and employee credit notes with bills.
 
 ## Deviations from GnuCash
 
@@ -171,7 +283,11 @@ lot's balance, signed as on the A/R or A/P account; `company` is the end owner's
 - **Strings are in English** (C locale): `Invoice`, `Bill`, `Expense`, `Credit Note`, `Payment`, `Lot Link`, the
   link memo, `Extra to Charge Card` and the read-only reason. A localised GnuCash writes translations.
 - Peer-split (`lot-split`) slots are not maintained when lot-link splits are merged; business lots never have them.
-- Credit notes are computed (signs follow `gncEntryGetDoc*`) but v0.1 opens books that use them read-only.
+- **Payment from a transaction** refuses void and read-only transactions, whose splits GnuCash would delete all the
+  same, and lot-link transactions, which GnuCash lets through with no transfer split and a zero amount.
+- **A `date-posted` slot** already on a transaction turned into a payment is set to the new date. GnuCash leaves it
+  as it was (`xaccTransSetDatePostedSecs`, `5.17:libgnucash/engine/Transaction.cpp:1897-1903`), so the slot could
+  name another day than the posted date.
 
 ## Tests
 
