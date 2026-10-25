@@ -157,8 +157,8 @@ report code.
 | Status | Feature                     | Introduced | Epic | Notes                                                                               |
 |:------:|-----------------------------|:----------:|------|-------------------------------------------------------------------------------------|
 |   ✅   | Number counters and formats |   2.4.1    |      | v0.1 already assigns the next document number                                       |
-|        | Auto read-only threshold    |    2.6     |      | Lifts a v0.1 read-only trigger                                                      |
-|        | Num field source            |    2.6     |      | Lifts a v0.1 read-only trigger; sets `Number Field Source` (`gnc-features.h:55`)    |
+|   ✅   | Auto read-only threshold    |    2.6     |      | Lifts a v0.1 read-only trigger                                                      |
+|   ✅   | Num field source            |    2.6     |      | Lifts a v0.1 read-only trigger; sets `Number Field Source` (`gnc-features.h:55`)    |
 |        | Use trading accounts        |    2.4     |      | Lifts a v0.1 read-only trigger; every Mutation keeps trading splits as GnuCash does |
 |   ✅   | Close book                  |   2.2.4    |      |                                                                                     |
 
