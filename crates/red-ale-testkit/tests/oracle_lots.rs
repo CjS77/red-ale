@@ -286,3 +286,69 @@ fn rescrubbing_an_edited_sale_matches_gnucash() {
     compare_scrubs(&book, 0x00ef_0000_0000_0000_0000_0000_0000_0000);
 }
 
+
+/// `gnc_stock_split_assistant_finish` (5.17:gnucash/gnome/assistant-stock-split.c:339-473) replayed through the
+/// bindings, with the user's default currency USD: 5 shares, price 60, cash in lieu 2.50.
+const GNUCASH_STOCK_SPLIT: &str = r#"
+import sys
+from datetime import datetime
+from gnucash import Session, SessionOpenMode, Transaction, Split, GncPrice, GncNumeric, _sw_core_utils
+from gnucash import gnucash_core_c as c
+assert _sw_core_utils.gnc_version() == "5.17"
+s = Session("xml://" + sys.argv[1], SessionOpenMode.SESSION_NORMAL_OPEN)
+try:
+    book = s.book
+    accounts = {a.get_full_name(): a for a in book.get_root_account().get_descendants()}
+    acme, cash, income = accounts["Assets.Brokerage.ACME"], accounts["Assets.Cash"], accounts["Income.Capital Gains"]
+    usd = book.get_table().lookup("CURRENCY", "USD")
+    date = datetime(2024, 6, 10, 10, 59)
+    t = Transaction(book)
+    t.BeginEdit()
+    t.SetCurrency(usd)
+    t.SetDatePostedSecsNormalized(date)
+    t.SetDescription("Stock Split")
+    sp = Split(book)
+    sp.SetParent(t)
+    sp.SetAccount(acme)
+    sp.SetAmount(GncNumeric(5, 1))
+    sp.MakeStockSplit()
+    sp.SetAction("Split")
+    p = GncPrice(book)
+    p.begin_edit()
+    p.set_commodity(acme.GetCommodity())
+    p.set_currency(usd)
+    p.set_time64(date)
+    p.set_source(c.PRICE_SOURCE_STOCK_SPLIT)
+    p.set_typestr("unknown")
+    p.set_value(GncNumeric(60, 1))
+    p.commit_edit()
+    book.get_price_db().add_price(p)
+    for account, amount in ((cash, GncNumeric(250, 100)), (income, GncNumeric(-250, 100))):
+        x = Split(book)
+        x.SetAccount(account)
+        x.SetParent(t)
+        x.SetAmount(amount)
+        x.SetValue(amount)
+        x.SetMemo("Cash in lieu")
+    t.CommitEdit()
+    s.save()
+finally:
+    s.end()
+"#;
+
+#[test]
+fn stock_split_matches_the_assistant() {
+    let (book, mut d) = open("synthetic/rich.gnucash");
+    let theirs = copy_to(&book.path);
+    oracle::run_code(GNUCASH_STOCK_SPLIT, &[&theirs.path.display().to_string()]).unwrap();
+    call(
+        &mut d,
+        "stock.split",
+        &json!({ "account": ACME, "date": "2024-06-10", "shares": "5", "price": "60", "cash": "2.50",
+                 "incomeAccount": "Income:Capital Gains", "assetAccount": CASH }),
+    );
+    save_and_close(&mut d);
+    let differences = diff(&normalize(&oracle::dump(&theirs.path).unwrap()), &normalize(&oracle::dump(&book.path).unwrap()), &[]);
+    assert!(differences.is_empty(), "red-ale's stock split differs from the assistant's:\n{}", differences.join("\n"));
+    assert_eq!(split_slot_keys(&theirs.path), split_slot_keys(&book.path));
+}
