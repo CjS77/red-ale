@@ -36,6 +36,12 @@ Every method declares its effect in the schema; MCP's `readOnlyHint` and `destru
 | `write`       | Adds or changes data.                                     |
 | `destructive` | Deletes or overwrites data (delete, remove old prices, …) |
 
+From `redAleApi` 0.2.0 each method also declares its **effect target**: what a `write` or `destructive` method
+changes, `book` or `configuration` (`null` for `read`). Every method that changes something targets `book`, except
+`period.set` and the saved-configuration and style-sheet methods of [`api/reports.md`](api/reports.md), which change
+only red-ale's Configuration, work with no book open and never make a book dirty. The MCP hints come from the effect
+alone (see [`reports.md`](reports.md) §10).
+
 Every mutation is **atomic**: it runs on a copy of the book, the copy's changed transactions are checked (balanced,
 accounts exist), and only then does the copy replace the book. A failed mutation leaves nothing behind. Mutations
 change the book in memory and the journal; `book.save` writes the file.
@@ -84,6 +90,11 @@ is used only for protocol errors.
 | 2002   | `unbalanced`        | A transaction would not balance (`data.imbalance`, `data.currency`).      |
 | 2003   | `conflict`          | The entity exists but may not be changed this way.                        |
 | 2004   | `arithmetic`        | Exact arithmetic overflowed or was undefined.                             |
+| 3000   | `report-script`     | A report script failed at run time (`data.source`, `data.line`, `data.message`, `data.log`). |
+| 3001   | `report-limit`      | A report script passed a limit (`data.limit`: `operations`, `time`, `call-depth`, …). |
+| 3002   | `report-option`     | A report option value is not valid (`data.section`, `data.name`, `data.reason`). |
+| 3003   | `report-result`     | A report script returned an invalid report result (`data.path`).          |
+| 3004   | `report-load`       | A user report script does not load (`data.source`, `data.line`).          |
 
 ## Book methods
 
@@ -122,6 +133,7 @@ deliberate deviations.
 | [`api/business-contacts.md`](api/business-contacts.md)     | customers, vendors, employees, jobs, tax tables, billing terms |
 | [`api/business-documents.md`](api/business-documents.md)   | invoices, bills, expense vouchers, entries, orders          |
 | [`api/business-posting.md`](api/business-posting.md)       | totals, post, unpost, payments, due reminders               |
+| [`api/reports.md`](api/reports.md)                         | `report.*`: list, options, run, export, saved configurations, style sheets |
 
 ## CLI
 

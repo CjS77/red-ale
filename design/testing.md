@@ -32,6 +32,8 @@ sources and licences). Never personal financial data.
   newlines in text), a budget, a scheduled transaction and template transactions.
 - `synthetic/business.gnucash` has every business object, including a credit note, so it opens read-only;
   `synthetic/business-editable.gnucash` is the same book without the credit note.
+- `reports/` (v0.2) holds the books of GnuCash 5.17's report tests, rebuilt by the oracle with the scripts in
+  `scripts/report-fixtures/`; see [`reports.md`](reports.md) §13.
 - Some fixtures open read-only by design: `piecash/simple_sample.gnucash` and `piecash/investment.gnucash` use
   trading accounts; `piecash/simple_sample.sqlite.gnucash` is an SQL book (refused);
   `gnucash/currency_tree_xml.gnucash` is a version 1 file (refused).
