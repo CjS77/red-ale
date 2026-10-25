@@ -47,6 +47,7 @@ Returns `CommodityInfo[]` sorted by namespace, then mnemonic.
 | `quoteSourceType` | `single`, `multi`, `currency`, or `unknown` for a source 5.17 does not know (kept as read)  |
 | `quoteTz`         | Quote time zone; null is "use local time"                                                   |
 | `userSymbol`, `defaultSymbol` | The `user_symbol` slot; a currency's built-in symbol                            |
+| `displaySymbol`   | The symbol GnuCash shows amounts with (below)                                               |
 | `usage`           | `{ accounts, transactions, prices, business }`: accounts holding it (GnuCash's usage count), transactions with it as currency, prices with it on either side, customers, vendors, employees and invoices with it as currency |
 
 **Currency quote flags.** Loading a book runs `gnc_commodity_increment_usage_count` for each account, which turns
@@ -102,7 +103,10 @@ Namespace, mnemonic, full name, exchange code and time zone are trimmed, because
 - **Fraction.** GnuCash lets the fraction of a commodity in use change, with no check
   (`5.17:libgnucash/engine/gnc-commodity.cpp:1219`). Stored amounts keep their denominators.
 - **User symbol**: empty, or equal to a currency's built-in symbol, removes the slot (`gnc_commodity_set_user_symbol`,
-  `:1355-1380`).
+  `:1355-1380`). GnuCash also removes the locale's own currency symbol given for the locale's currency, but it tests
+  the mnemonic against `int_curr_symbol`, which always ends in a space (`USD `; GnuCash's own fallback is `"USD "`,
+  `5.17:libgnucash/core-utils/gnc-locale-utils.c:89`, and see its comment at `:124-127`), so that test never matches
+  and red-ale's rule is GnuCash's in effect.
 - The template commodity cannot be edited.
 
 ### `commodity.delete` (destructive)
@@ -116,6 +120,17 @@ with it (`5.17:gnucash/gnome/dialog-commodities.cpp:160-246`). red-ale refuses:
 - a commodity any account, transaction (as currency) or business object uses (`conflict`);
 - a commodity with prices on either side unless `deletePrices` is true (`conflict`); with it, those prices go too;
 - a commodity template transactions, scheduled transactions or budgets refer to (`conflict`).
+
+## Display symbol
+
+The Display symbol is what GnuCash prints amounts with (`gnc_commodity_get_nice_symbol`,
+`5.17:libgnucash/engine/gnc-commodity.cpp:1094-1115`, used by `xaccPrintAmount`,
+`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1341-1349`): the User symbol if not empty, else the Default symbol if not
+empty, else the mnemonic. Between the first two GnuCash tries the locale's currency symbol when the mnemonic equals
+the locale's `int_curr_symbol`; for the reason above that never matches, so the result does not depend on the locale.
+`ops::commodities::display_symbol` gives it to the report renderer, and `CommodityInfo.displaySymbol` to clients.
+GnuCash prints a security's symbol after the amount and a currency's before it (`gnc-ui-util.cpp:1344-1348`); where
+it goes is the renderer's business.
 
 ## Currencies
 
@@ -143,5 +158,5 @@ and the 21 currencies with a fixed rate in `5.17:libgnucash/engine/gnc-euro.cpp:
 | Converting with a currency that has no euro rate | Returns 0 | `invalid` | A zero is a silent wrong answer |
 | Quote source or time zone of a commodity without quotes | Kept in memory until the book is closed | Dropped | GnuCash does not write them (`gnc-commodity-xml-v2.cpp:97-108`), so they would not survive a save anyway |
 | Accounts of a commodity whose fraction changes | Keep the old SCU stored; after a reload they become non-standard at the old SCU (`Account.cpp:2710-2722`) | Accounts that followed the commodity's fraction store the new one | The book reads back as GnuCash showed it before the reload |
-| The editor's user-symbol field | Shows the "nice" symbol and stores it back | Changed only when given | The editor's display value is not the user's choice |
+| The editor's user-symbol field | Shows the Display symbol and stores it back | Changed only when given | The editor's display value is not the user's choice |
 | Quote time zone outside the editor's six-entry menu | Written back as local time when the dialog is saved | Kept | Never lose data |
