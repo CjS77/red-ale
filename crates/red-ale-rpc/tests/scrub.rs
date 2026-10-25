@@ -72,7 +72,11 @@ fn account_scopes() {
     assert_eq!(result["repairs"][1]["transaction"], OPENING);
     let result = call(&mut d, "scrub.checkAndRepair", &json!({ "account": "Expenses", "subaccounts": true, "lots": true }));
     assert_eq!(kinds(&result), ["accountCreated", "balanceSplitAdded"], "Groceries, through Food");
-    assert!(kinds(&call(&mut d, "scrub.checkAndRepair", &json!({ "lots": true }))).is_empty());
+    assert!(kinds(&call(&mut d, "scrub.checkAndRepair", &json!({}))).is_empty(), "everything but lots is repaired");
+    // rich.gnucash has lots GnuCash's own lot scrub would repair (an unrecorded gain on ACME, among others).
+    let lots = kinds(&call(&mut d, "scrub.checkAndRepair", &json!({ "lots": true })));
+    assert!(!lots.is_empty() && lots.iter().all(|k| k == "lotsRepaired"), "{lots:?}");
+    assert!(kinds(&call(&mut d, "scrub.checkAndRepair", &json!({ "lots": true }))).is_empty(), "a second run changes nothing");
     assert!(kinds(&call(&mut d, "scrub.currency", &json!({}))).is_empty());
 }
 
