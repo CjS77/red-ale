@@ -85,6 +85,8 @@ Code names are given in `code font` when they differ from the term.
 | **Postponed reconciliation** | A reconciliation saved for later: its date and balance in the Account's `reconcile-info/postpone` slots, its ticked Splits cleared. |
 | **Repair** | One change a Scrub made, as the scrub methods report it. |
 | **Raw sign** | Debits positive, credits negative: the sign of every reconcile amount. **⚠** GnuCash's flipped sign for credit Accounts is a display preference. |
+| **Closing the books** (`book.closeBooks`) | GnuCash's *Close Book* (Tools ▸ Close Book…): at a closing date, one Closing transaction per Commodity moves the balances of the income Accounts, and another those of the expense Accounts, into an equity Account. **⚠** Not closing a Session (`book.close`): the books stay open and editable. |
+| **Closing transaction** | A Transaction marked with the slot `book_closing` = 1, made when closing the books. Reports can leave such Transactions out. |
 
 ## Commodities and prices
 
@@ -133,7 +135,8 @@ Code names are given in `code font` when they differ from the term.
 | **Post** | Turning a document into a Transaction in an A/Receivable or A/Payable Account, with a Lot linking the two. *Unpost* reverses it. |
 | **Payment** | A Transaction that settles an Owner's open documents through their Lots. |
 | **Due reminder** | The list of posted, unpaid documents falling due within a number of days. |
-| **Counter** | The next number for a kind of document or Owner, kept in the Book's `counters` slot. |
+| **Counter** | The last number issued for a kind of document or Owner, kept in the Book's `counters/<name>` slot (`gncCustomer`, `gncInvoice`, …). The next ID is one more, formatted with the Counter format. **⚠** GnuCash's book options call it the *previous* number. |
+| **Counter format** | A `printf` format with exactly one 64-bit integer conversion (`%li`, `%lli` or `%I64i`, with flags, width and precision), kept in `counter_formats/<name>`. A missing or invalid one means GnuCash's default `%.6li` (`000001`). |
 | **End owner** | The Owner a document finally belongs to: a Job's Customer or Vendor, otherwise the Owner itself. Decides the document kind. |
 | **Document kind** | Invoice (Customer), bill (Vendor) or expense voucher (Employee), from the End owner. |
 | **Invoice type** (`InvoiceType`) | A document's End owner and whether it is a credit note: GnuCash's `GncInvoiceType`. Decides the signs of posted values and the word GnuCash writes in lot titles and split actions (`Invoice`, `Bill`, `Expense`, `Credit Note`). |
