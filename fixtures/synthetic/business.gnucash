@@ -1,0 +1,918 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<gnc-v2
+     xmlns:gnc="http://www.gnucash.org/XML/gnc"
+     xmlns:act="http://www.gnucash.org/XML/act"
+     xmlns:book="http://www.gnucash.org/XML/book"
+     xmlns:cd="http://www.gnucash.org/XML/cd"
+     xmlns:cmdty="http://www.gnucash.org/XML/cmdty"
+     xmlns:price="http://www.gnucash.org/XML/price"
+     xmlns:slot="http://www.gnucash.org/XML/slot"
+     xmlns:split="http://www.gnucash.org/XML/split"
+     xmlns:sx="http://www.gnucash.org/XML/sx"
+     xmlns:trn="http://www.gnucash.org/XML/trn"
+     xmlns:ts="http://www.gnucash.org/XML/ts"
+     xmlns:fs="http://www.gnucash.org/XML/fs"
+     xmlns:bgt="http://www.gnucash.org/XML/bgt"
+     xmlns:recurrence="http://www.gnucash.org/XML/recurrence"
+     xmlns:lot="http://www.gnucash.org/XML/lot"
+     xmlns:addr="http://www.gnucash.org/XML/addr"
+     xmlns:billterm="http://www.gnucash.org/XML/billterm"
+     xmlns:bt-days="http://www.gnucash.org/XML/bt-days"
+     xmlns:bt-prox="http://www.gnucash.org/XML/bt-prox"
+     xmlns:cust="http://www.gnucash.org/XML/cust"
+     xmlns:employee="http://www.gnucash.org/XML/employee"
+     xmlns:entry="http://www.gnucash.org/XML/entry"
+     xmlns:invoice="http://www.gnucash.org/XML/invoice"
+     xmlns:job="http://www.gnucash.org/XML/job"
+     xmlns:order="http://www.gnucash.org/XML/order"
+     xmlns:owner="http://www.gnucash.org/XML/owner"
+     xmlns:taxtable="http://www.gnucash.org/XML/taxtable"
+     xmlns:tte="http://www.gnucash.org/XML/tte"
+     xmlns:vendor="http://www.gnucash.org/XML/vendor">
+<gnc:count-data cd:type="book">1</gnc:count-data>
+<gnc:book version="2.0.0">
+<book:id type="guid">7502d58bbfd542688aadd557e6b66046</book:id>
+<book:slots>
+  <slot>
+    <slot:key>counters</slot:key>
+    <slot:value type="frame">
+      <slot>
+        <slot:key>gncBill</slot:key>
+        <slot:value type="integer">1</slot:value>
+      </slot>
+      <slot>
+        <slot:key>gncCustomer</slot:key>
+        <slot:value type="integer">1</slot:value>
+      </slot>
+      <slot>
+        <slot:key>gncExpVoucher</slot:key>
+        <slot:value type="integer">1</slot:value>
+      </slot>
+      <slot>
+        <slot:key>gncInvoice</slot:key>
+        <slot:value type="integer">2</slot:value>
+      </slot>
+      <slot>
+        <slot:key>gncVendor</slot:key>
+        <slot:value type="integer">1</slot:value>
+      </slot>
+    </slot:value>
+  </slot>
+  <slot>
+    <slot:key>features</slot:key>
+    <slot:value type="frame">
+      <slot>
+        <slot:key>Credit Notes</slot:key>
+        <slot:value type="string">Customer and vendor credit notes (requires at least GnuCash 2.5.0)</slot:value>
+      </slot>
+      <slot>
+        <slot:key>Extra data in addresses, jobs or invoice entries</slot:key>
+        <slot:value type="string">Extra data for addresses, jobs or invoice entries (requires at least GnuCash 2.6.4)</slot:value>
+      </slot>
+    </slot:value>
+  </slot>
+  <slot>
+    <slot:key>options</slot:key>
+    <slot:value type="frame">
+      <slot>
+        <slot:key>Business</slot:key>
+        <slot:value type="frame">
+          <slot>
+            <slot:key>Default Invoice Report</slot:key>
+            <slot:value type="string">0769e242be474010b4acf264a5512e6e/Printable Invoice</slot:value>
+          </slot>
+        </slot:value>
+      </slot>
+    </slot:value>
+  </slot>
+</book:slots>
+<gnc:count-data cd:type="commodity">1</gnc:count-data>
+<gnc:count-data cd:type="account">11</gnc:count-data>
+<gnc:count-data cd:type="transaction">4</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncBillTerm">3</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncCustomer">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncEmployee">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncEntry">5</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncInvoice">4</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncJob">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncTaxTable">2</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncVendor">1</gnc:count-data>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>CURRENCY</cmdty:space>
+  <cmdty:id>EUR</cmdty:id>
+  <cmdty:get_quotes/>
+  <cmdty:quote_source>currency</cmdty:quote_source>
+  <cmdty:quote_tz/>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>template</cmdty:space>
+  <cmdty:id>template</cmdty:id>
+  <cmdty:name>template</cmdty:name>
+  <cmdty:xcode>template</cmdty:xcode>
+  <cmdty:fraction>1</cmdty:fraction>
+</gnc:commodity>
+<gnc:account version="2.0.0">
+  <act:name>Root Account</act:name>
+  <act:id type="guid">e6ce8337fdf340be86b0eb3c5422a610</act:id>
+  <act:type>ROOT</act:type>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Assets</act:name>
+  <act:id type="guid">bd792f619fcc438fa8bf5f748b2a42d3</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">e6ce8337fdf340be86b0eb3c5422a610</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Receivable</act:name>
+  <act:id type="guid">4d2c9fd7f9424def92c0b482d356529d</act:id>
+  <act:type>RECEIVABLE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">bd792f619fcc438fa8bf5f748b2a42d3</act:parent>
+  <act:lots>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">990068d856184ff2966e0d91c987124a</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">35ad2d2ebe3847ea9a415e7cc53cc09f</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Invoice 000001</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+  </act:lots>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Bank</act:name>
+  <act:id type="guid">785dbadbc8164c61a9faaa3f449b519b</act:id>
+  <act:type>BANK</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">bd792f619fcc438fa8bf5f748b2a42d3</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Liabilities</act:name>
+  <act:id type="guid">734fcba120c6441bb469eabe15624abf</act:id>
+  <act:type>LIABILITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">e6ce8337fdf340be86b0eb3c5422a610</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Payable</act:name>
+  <act:id type="guid">551e806ff8b74e5a80dcf191b5a62e61</act:id>
+  <act:type>PAYABLE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">734fcba120c6441bb469eabe15624abf</act:parent>
+  <act:lots>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">1a037a7010ce434eb82e5416259910e4</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">6193d3b14af34c25b389fc13ac14d277</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Expense 000001</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">5fd1c24abee14dbd8c884729a0cadd7a</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">fc2cd829ac2442269c964a2ee27244cc</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Bill 000001</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+  </act:lots>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Tax</act:name>
+  <act:id type="guid">ab5ea3a814dc43e9a1ead4b0906af531</act:id>
+  <act:type>LIABILITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">734fcba120c6441bb469eabe15624abf</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Levy</act:name>
+  <act:id type="guid">f0aa94b4951d4266a02b3f1b2006bcdc</act:id>
+  <act:type>LIABILITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">734fcba120c6441bb469eabe15624abf</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Card</act:name>
+  <act:id type="guid">45431796c89a4dfea728654952339200</act:id>
+  <act:type>CREDIT</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">734fcba120c6441bb469eabe15624abf</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Income</act:name>
+  <act:id type="guid">49306ee1de824cd79d6e9cb6cbdc2be2</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">e6ce8337fdf340be86b0eb3c5422a610</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Expenses</act:name>
+  <act:id type="guid">724cb54702e0471bad717afcc102da3c</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">e6ce8337fdf340be86b0eb3c5422a610</act:parent>
+</gnc:account>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">0f9d622d28fd4e879c8ef7aad0519313</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:num>000001</trn:num>
+  <trn:date-posted>
+    <ts:date>2024-03-05 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2026-10-25 13:06:26 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Acme &amp; Sons &lt;Ltd&gt;</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-03-05</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">35ad2d2ebe3847ea9a415e7cc53cc09f</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>2024-04-03 23:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">2870c3ebf8d5482e96c3993994fb139b</split:id>
+      <split:memo>posted memo</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>137300/100</split:value>
+      <split:quantity>137300/100</split:quantity>
+      <split:account type="guid">4d2c9fd7f9424def92c0b482d356529d</split:account>
+      <split:lot type="guid">990068d856184ff2966e0d91c987124a</split:lot>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d7979ca015f64d68bbec7aad9f9ea0ed</split:id>
+      <split:memo>posted memo</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-250/100</split:value>
+      <split:quantity>-250/100</split:quantity>
+      <split:account type="guid">f0aa94b4951d4266a02b3f1b2006bcdc</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">c9266e32bb99443e90e620363d705bf3</split:id>
+      <split:memo>posted memo</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-12050/100</split:value>
+      <split:quantity>-12050/100</split:quantity>
+      <split:account type="guid">ab5ea3a814dc43e9a1ead4b0906af531</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">eefda2ef2a2641d29df84451209a6111</split:id>
+      <split:memo>posted memo</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-125000/100</split:value>
+      <split:quantity>-125000/100</split:quantity>
+      <split:account type="guid">49306ee1de824cd79d6e9cb6cbdc2be2</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">f99f92f9dbdb46ae8794f535001657f7</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:num>CHK-1</trn:num>
+  <trn:date-posted>
+    <ts:date>2024-03-20 00:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2026-10-25 13:06:26 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Acme &amp; Sons &lt;Ltd&gt;</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">P</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">433885b88a2f4a5e83e52428272c7e6c</split:id>
+      <split:memo>part pay</split:memo>
+      <split:action>Payment</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>50000/100</split:value>
+      <split:quantity>50000/100</split:quantity>
+      <split:account type="guid">785dbadbc8164c61a9faaa3f449b519b</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">36fbdb6d621749e2b901b5d0da963ac0</split:id>
+      <split:memo>part pay</split:memo>
+      <split:action>Payment</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-50000/100</split:value>
+      <split:quantity>-50000/100</split:quantity>
+      <split:account type="guid">4d2c9fd7f9424def92c0b482d356529d</split:account>
+      <split:lot type="guid">990068d856184ff2966e0d91c987124a</split:lot>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">2d5a6693ee484c6ebc37a412700d4c7f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:num>000001</trn:num>
+  <trn:date-posted>
+    <ts:date>2024-03-05 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2026-10-25 13:06:26 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Jane Doe</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-03-05</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">6193d3b14af34c25b389fc13ac14d277</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>2024-04-03 23:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">29950ec521314d1e9e5382901045d1db</split:id>
+      <split:action>Expense</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>3275/100</split:value>
+      <split:quantity>3275/100</split:quantity>
+      <split:account type="guid">724cb54702e0471bad717afcc102da3c</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">9628c7fcff5146c6adece9656a66cbd0</split:id>
+      <split:action>Expense</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/100</split:quantity>
+      <split:account type="guid">551e806ff8b74e5a80dcf191b5a62e61</split:account>
+      <split:lot type="guid">1a037a7010ce434eb82e5416259910e4</split:lot>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">ddfe5446f5f8419e8ef31eb1635c6222</split:id>
+      <split:memo>Taxi</split:memo>
+      <split:action>Expense</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-3275/100</split:value>
+      <split:quantity>-3275/100</split:quantity>
+      <split:account type="guid">45431796c89a4dfea728654952339200</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">8ab080a5552745f793330b17a3aba749</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </trn:currency>
+  <trn:num>000001</trn:num>
+  <trn:date-posted>
+    <ts:date>2024-03-05 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2026-10-25 13:06:26 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Paper Supplies</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-03-05</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">fc2cd829ac2442269c964a2ee27244cc</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>2024-04-03 23:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">2581a524cc2f45d0bcb77dbb73a1239d</split:id>
+      <split:action>Bill</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>250/100</split:value>
+      <split:quantity>250/100</split:quantity>
+      <split:account type="guid">f0aa94b4951d4266a02b3f1b2006bcdc</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">14ee5b8ef4704cb0b59d28f71e4ed5f5</split:id>
+      <split:action>Bill</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>522/100</split:value>
+      <split:quantity>522/100</split:quantity>
+      <split:account type="guid">ab5ea3a814dc43e9a1ead4b0906af531</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">9ecfb6b38ae0454d8e590ab21ab38d28</split:id>
+      <split:action>Bill</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5225/100</split:value>
+      <split:quantity>5225/100</split:quantity>
+      <split:account type="guid">724cb54702e0471bad717afcc102da3c</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">cd02acff32c84afd8af411ef38a9ed7a</split:id>
+      <split:action>Bill</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5997/100</split:value>
+      <split:quantity>-5997/100</split:quantity>
+      <split:account type="guid">551e806ff8b74e5a80dcf191b5a62e61</split:account>
+      <split:lot type="guid">5fd1c24abee14dbd8c884729a0cadd7a</split:lot>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:GncBillTerm version="2.0.0">
+  <billterm:guid type="guid">99e988293b82468e9d59f463256a2b67</billterm:guid>
+  <billterm:name>Prox15</billterm:name>
+  <billterm:desc>15th of next month</billterm:desc>
+  <billterm:refcount>1</billterm:refcount>
+  <billterm:invisible>0</billterm:invisible>
+  <billterm:proximo>
+    <bt-prox:due-day>15</bt-prox:due-day>
+    <bt-prox:disc-day>5</bt-prox:disc-day>
+    <bt-prox:discount>3/2</bt-prox:discount>
+    <bt-prox:cutoff-day>25</bt-prox:cutoff-day>
+  </billterm:proximo>
+</gnc:GncBillTerm>
+<gnc:GncBillTerm version="2.0.0">
+  <billterm:guid type="guid">aee1a394641d499ea42c7c468f0c9a10</billterm:guid>
+  <billterm:name>Net30</billterm:name>
+  <billterm:desc>Net 30, 2% in 10</billterm:desc>
+  <billterm:refcount>0</billterm:refcount>
+  <billterm:invisible>1</billterm:invisible>
+  <billterm:parent type="guid">f63cb04af83a4af289c65e378e1d4966</billterm:parent>
+  <billterm:days>
+    <bt-days:due-days>30</bt-days:due-days>
+    <bt-days:disc-days>10</bt-days:disc-days>
+    <bt-days:discount>2/1</bt-days:discount>
+  </billterm:days>
+</gnc:GncBillTerm>
+<gnc:GncBillTerm version="2.0.0">
+  <billterm:guid type="guid">f63cb04af83a4af289c65e378e1d4966</billterm:guid>
+  <billterm:name>Net30</billterm:name>
+  <billterm:desc>Net 30, 2% in 10</billterm:desc>
+  <billterm:refcount>1</billterm:refcount>
+  <billterm:invisible>0</billterm:invisible>
+  <billterm:child type="guid">aee1a394641d499ea42c7c468f0c9a10</billterm:child>
+  <billterm:days>
+    <bt-days:due-days>30</bt-days:due-days>
+    <bt-days:disc-days>10</bt-days:disc-days>
+    <bt-days:discount>2/1</bt-days:discount>
+  </billterm:days>
+</gnc:GncBillTerm>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">b8e36e1fda8a4ffbb3ab1703daaa2460</cust:guid>
+  <cust:name>Acme &amp; Sons &lt;Ltd&gt;</cust:name>
+  <cust:id>000001</cust:id>
+  <cust:addr version="2.0.0">
+    <addr:name>Acme Billing</addr:name>
+    <addr:addr1>1 Main St</addr:addr1>
+    <addr:addr2>Suite 2</addr:addr2>
+    <addr:phone>555-1234</addr:phone>
+    <addr:email>ap@acme.example</addr:email>
+  </cust:addr>
+  <cust:shipaddr version="2.0.0">
+    <addr:name>Acme Warehouse</addr:name>
+    <addr:addr1>9 Dock Rd</addr:addr1>
+  </cust:shipaddr>
+  <cust:notes>Good payer</cust:notes>
+  <cust:terms type="guid">f63cb04af83a4af289c65e378e1d4966</cust:terms>
+  <cust:taxincluded>NO</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>5/1</cust:discount>
+  <cust:credit>100000/100</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>1</cust:use-tt>
+  <cust:taxtable type="guid">0378d4eceda949ecbfc4f29555413868</cust:taxtable>
+</gnc:GncCustomer>
+<gnc:GncEmployee version="2.0.0">
+  <employee:guid type="guid">140510290c1a4775bbe2909e180ed1db</employee:guid>
+  <employee:username>jdoe</employee:username>
+  <employee:id>000001</employee:id>
+  <employee:addr version="2.0.0">
+    <addr:name>Jane Doe</addr:name>
+  </employee:addr>
+  <employee:language>en_GB</employee:language>
+  <employee:acl>all</employee:acl>
+  <employee:active>1</employee:active>
+  <employee:workday>8/1</employee:workday>
+  <employee:rate>4250/100</employee:rate>
+  <employee:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </employee:currency>
+  <employee:ccard type="guid">45431796c89a4dfea728654952339200</employee:ccard>
+</gnc:GncEmployee>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">096f3244072b439b8dc0c3d40a7f4fef</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-02 00:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>2024-03-02 10:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>Consulting</entry:description>
+  <entry:action>Hours</entry:action>
+  <entry:notes>On site</entry:notes>
+  <entry:qty>10/1</entry:qty>
+  <entry:i-acct type="guid">49306ee1de824cd79d6e9cb6cbdc2be2</entry:i-acct>
+  <entry:i-price>12050/100</entry:i-price>
+  <entry:invoice type="guid">35ad2d2ebe3847ea9a415e7cc53cc09f</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">d1f98324f54f48c98e68c5d35e8005eb</entry:i-taxtable>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">2e45baf6806d407ab3ea61b8b64ca5ca</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-03 00:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>2024-03-03 10:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>Travel</entry:description>
+  <entry:qty>1/1</entry:qty>
+  <entry:i-acct type="guid">49306ee1de824cd79d6e9cb6cbdc2be2</entry:i-acct>
+  <entry:i-price>5000/100</entry:i-price>
+  <entry:i-discount>500/100</entry:i-discount>
+  <entry:invoice type="guid">35ad2d2ebe3847ea9a415e7cc53cc09f</entry:invoice>
+  <entry:i-disc-type>VALUE</entry:i-disc-type>
+  <entry:i-disc-how>POSTTAX</entry:i-disc-how>
+  <entry:i-taxable>0</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">b07aa40e105d4c51b55a6440517c221f</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-02 00:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>2024-03-02 11:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>Printer paper</entry:description>
+  <entry:qty>3/1</entry:qty>
+  <entry:i-price>1742/100</entry:i-price>
+  <entry:b-acct type="guid">724cb54702e0471bad717afcc102da3c</entry:b-acct>
+  <entry:b-price>1999/100</entry:b-price>
+  <entry:bill type="guid">fc2cd829ac2442269c964a2ee27244cc</entry:bill>
+  <entry:billable>1</entry:billable>
+  <entry:billto version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">b8e36e1fda8a4ffbb3ab1703daaa2460</owner:id>
+  </entry:billto>
+  <entry:b-taxable>1</entry:b-taxable>
+  <entry:b-taxincluded>1</entry:b-taxincluded>
+  <entry:b-pay>CASH</entry:b-pay>
+  <entry:b-taxtable type="guid">d1f98324f54f48c98e68c5d35e8005eb</entry:b-taxtable>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">dd72c36402aa40d5bf6558c045b6722c</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-04 00:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>2024-03-04 12:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>Taxi</entry:description>
+  <entry:qty>1/1</entry:qty>
+  <entry:b-acct type="guid">724cb54702e0471bad717afcc102da3c</entry:b-acct>
+  <entry:b-price>3275/100</entry:b-price>
+  <entry:bill type="guid">6193d3b14af34c25b389fc13ac14d277</entry:bill>
+  <entry:billable>0</entry:billable>
+  <entry:b-taxable>1</entry:b-taxable>
+  <entry:b-taxincluded>0</entry:b-taxincluded>
+  <entry:b-pay>CARD</entry:b-pay>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">f25f3734afca4d9e94333ed47ff8952d</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-06 00:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>2024-03-06 09:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>Refund</entry:description>
+  <entry:qty>1/1</entry:qty>
+  <entry:i-acct type="guid">49306ee1de824cd79d6e9cb6cbdc2be2</entry:i-acct>
+  <entry:i-price>1000/100</entry:i-price>
+  <entry:invoice type="guid">f6772a8b0ea543679c940e23904f9ed9</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>SAMETIME</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+</gnc:GncEntry>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">35ad2d2ebe3847ea9a415e7cc53cc09f</invoice:guid>
+  <invoice:id>000001</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">b8e36e1fda8a4ffbb3ab1703daaa2460</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>2024-03-01 00:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>2024-03-05 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:terms type="guid">aee1a394641d499ea42c7c468f0c9a10</invoice:terms>
+  <invoice:billing_id>CUST-REF-9</invoice:billing_id>
+  <invoice:notes>First invoice</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">0f9d622d28fd4e879c8ef7aad0519313</invoice:posttxn>
+  <invoice:postlot type="guid">990068d856184ff2966e0d91c987124a</invoice:postlot>
+  <invoice:postacc type="guid">4d2c9fd7f9424def92c0b482d356529d</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">6193d3b14af34c25b389fc13ac14d277</invoice:guid>
+  <invoice:id>000001</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncEmployee</owner:type>
+    <owner:id type="guid">140510290c1a4775bbe2909e180ed1db</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>2024-03-01 00:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>2024-03-05 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">2d5a6693ee484c6ebc37a412700d4c7f</invoice:posttxn>
+  <invoice:postlot type="guid">1a037a7010ce434eb82e5416259910e4</invoice:postlot>
+  <invoice:postacc type="guid">551e806ff8b74e5a80dcf191b5a62e61</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">f6772a8b0ea543679c940e23904f9ed9</invoice:guid>
+  <invoice:id>000002</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncJob</owner:type>
+    <owner:id type="guid">7a34dbf4077949a7964c7dc9862ae620</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>2024-03-01 00:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:active>1</invoice:active>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </invoice:currency>
+  <invoice:slots>
+    <slot>
+      <slot:key>credit-note</slot:key>
+      <slot:value type="integer">1</slot:value>
+    </slot>
+  </invoice:slots>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">fc2cd829ac2442269c964a2ee27244cc</invoice:guid>
+  <invoice:id>000001</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncVendor</owner:type>
+    <owner:id type="guid">8b493968e2684355b5acb18b857e8575</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>2024-03-01 00:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>2024-03-05 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">8ab080a5552745f793330b17a3aba749</invoice:posttxn>
+  <invoice:postlot type="guid">5fd1c24abee14dbd8c884729a0cadd7a</invoice:postlot>
+  <invoice:postacc type="guid">551e806ff8b74e5a80dcf191b5a62e61</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncJob version="2.0.0">
+  <job:guid type="guid">7a34dbf4077949a7964c7dc9862ae620</job:guid>
+  <job:id>JOB-1</job:id>
+  <job:name>Website rebuild</job:name>
+  <job:reference>PO-77</job:reference>
+  <job:owner version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">b8e36e1fda8a4ffbb3ab1703daaa2460</owner:id>
+  </job:owner>
+  <job:active>1</job:active>
+  <job:slots>
+    <slot>
+      <slot:key>job-rate</slot:key>
+      <slot:value type="numeric">9000/100</slot:value>
+    </slot>
+  </job:slots>
+</gnc:GncJob>
+<gnc:GncTaxTable version="2.0.0">
+  <taxtable:guid type="guid">0378d4eceda949ecbfc4f29555413868</taxtable:guid>
+  <taxtable:name>GST+Levy</taxtable:name>
+  <taxtable:refcount>1</taxtable:refcount>
+  <taxtable:invisible>0</taxtable:invisible>
+  <taxtable:child type="guid">d1f98324f54f48c98e68c5d35e8005eb</taxtable:child>
+  <taxtable:entries>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">f0aa94b4951d4266a02b3f1b2006bcdc</tte:acct>
+      <tte:amount>250/100</tte:amount>
+      <tte:type>VALUE</tte:type>
+    </gnc:GncTaxTableEntry>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">ab5ea3a814dc43e9a1ead4b0906af531</tte:acct>
+      <tte:amount>10/1</tte:amount>
+      <tte:type>PERCENT</tte:type>
+    </gnc:GncTaxTableEntry>
+  </taxtable:entries>
+</gnc:GncTaxTable>
+<gnc:GncTaxTable version="2.0.0">
+  <taxtable:guid type="guid">d1f98324f54f48c98e68c5d35e8005eb</taxtable:guid>
+  <taxtable:name>GST+Levy</taxtable:name>
+  <taxtable:refcount>0</taxtable:refcount>
+  <taxtable:invisible>1</taxtable:invisible>
+  <taxtable:parent type="guid">0378d4eceda949ecbfc4f29555413868</taxtable:parent>
+  <taxtable:entries>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">f0aa94b4951d4266a02b3f1b2006bcdc</tte:acct>
+      <tte:amount>250/100</tte:amount>
+      <tte:type>VALUE</tte:type>
+    </gnc:GncTaxTableEntry>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">ab5ea3a814dc43e9a1ead4b0906af531</tte:acct>
+      <tte:amount>10/1</tte:amount>
+      <tte:type>PERCENT</tte:type>
+    </gnc:GncTaxTableEntry>
+  </taxtable:entries>
+</gnc:GncTaxTable>
+<gnc:GncVendor version="2.0.0">
+  <vendor:guid type="guid">8b493968e2684355b5acb18b857e8575</vendor:guid>
+  <vendor:name>Paper Supplies</vendor:name>
+  <vendor:id>000001</vendor:id>
+  <vendor:addr version="2.0.0">
+    <addr:name>Paper Supplies Accounts</addr:name>
+  </vendor:addr>
+  <vendor:terms type="guid">99e988293b82468e9d59f463256a2b67</vendor:terms>
+  <vendor:taxincluded>YES</vendor:taxincluded>
+  <vendor:active>1</vendor:active>
+  <vendor:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+  </vendor:currency>
+  <vendor:use-tt>0</vendor:use-tt>
+</gnc:GncVendor>
+</gnc:book>
+</gnc-v2>
+

@@ -469,7 +469,7 @@ Note `entry:invoice` sits between `i-discount` and `i-disc-type`, and `entry:bil
 Defaults (5.17:libgnucash/engine/gncEntry.c:413-444): quantity, prices, discount 0; i-taxable and b-taxable TRUE;
 i-disc-type PERCENT; i-disc-how PRETAX; b-payment CASH; bill-to type CUSTOMER with no object. Posting a vendor bill
 overwrites `i-price` of each **billable** line with its net price and clears `i-taxincluded`
-(5.17:libgnucash/engine/gncInvoice.c:1530-1541), so a billable bill line carries an `entry:i-price` though it is on no
+(5.17:libgnucash/engine/gncInvoice.c:1552-1559), so a billable bill line carries an `entry:i-price` though it is on no
 invoice (observed `<entry:i-price>1742/100</entry:i-price>` for b-price `1999/100` with tax included).
 
 The `entry:invoice`, `entry:bill` and `entry:order` handlers add the entry to the document
@@ -865,8 +865,8 @@ JOB 3, VENDOR 4, EMPLOYEE 5 (5.17:libgnucash/engine/gncOwner.h:45-53).
 returns the existing child, or for a visible parent makes a copy (same name, description/type/days/discount/cutoff, or
 same entries) and links it with `SetChild(parent, child)` + `SetParent(child, parent)`; a child or invisible table
 returns itself (5.17:libgnucash/engine/gncBillTerm.c:595-609, gncTaxTable.c:749-762; called from
-5.17:libgnucash/engine/gncInvoice.c:1470-1473, 1544-1551). A parent has at most one child, reused by every later
-posting until the parent is edited (`gncTaxTableChanged` clears the child, 5.17:libgnucash/engine/gncTaxTable.c:620-626).
+5.17:libgnucash/engine/gncInvoice.c:1469-1472, 1544-1551). A parent has at most one child, reused by every later
+posting until the parent is edited (`gncTaxTableChanged` clears the child, 5.17:libgnucash/engine/gncTaxTable.c:622-628).
 Children are `invisible = 1`, `refcount = 0` and hidden from the selection lists, but they are ordinary objects in the
 collection and are always written.
 
@@ -915,7 +915,7 @@ Slot encoding (types `integer`, `string`, `guid`, `numeric`, `frame`, `timespec`
 | Object | Path | Type | Meaning | Source |
 |---|---|---|---|---|
 | Invoice | `credit-note` | integer `1`/`0` | document is a credit note; setting it sets book feature "Credit Notes" | 5.17:libgnucash/engine/gncInvoice.c:86, 576-593 |
-| Invoice | `assoc_uri` | string | document link (old key name kept) | 5.17:libgnucash/engine/gncInvoice.c:87, 545-561 |
+| Invoice | `assoc_uri` | string | document link (old key name kept) | 5.17:libgnucash/engine/gncInvoice.c:87, 544-561 |
 | Job | `job-rate` | numeric | default rate; slot removed when rate set to 0 | 5.17:libgnucash/engine/gncJob.c:59, 315-335 |
 | Customer, Vendor, Employee | `export-pdf-directory` | string | last PDF export directory | 5.17:libgnucash/engine/gncBusiness.h:85; gncCustomer.c:140-148 |
 | Customer, Vendor, Employee | `last-posted-to-acct` | guid | last posting account | 5.17:libgnucash/engine/gncBusiness.h:86 |
@@ -932,14 +932,14 @@ gncTaxTable.c:651-656).
 | posted txn | `gncInvoice/invoice-guid` | guid | invoice GUID | 5.17:libgnucash/engine/gncInvoice.c:1255-1268; gnc-engine.h:257-258 |
 | posted txn | `trans-txn-type` | string | `I` (invoice), `P` (payment), `L` (lot link) | 5.17:libgnucash/engine/Transaction.h:125-128, Transaction.cpp:183 |
 | posted txn | `trans-date-due` | timespec | due date | 5.17:libgnucash/engine/Transaction.cpp:182, 1958 |
-| posted txn | `trans-read-only` | string | "Generated from an invoice. Try unposting the invoice." (translated) | 5.17:libgnucash/engine/gncInvoice.c:1708 |
+| posted txn | `trans-read-only` | string | "Generated from an invoice. Try unposting the invoice." (translated) | 5.17:libgnucash/engine/gncInvoice.c:1713 |
 | invoice lot | `gncInvoice/invoice-guid` | guid | invoice GUID | 5.17:libgnucash/engine/gncInvoice.c:1219-1233 |
-| invoice lot | `title` | string | "<type> <id>", type = translated `Invoice`/`Bill`/`Expense`/`Credit Note` | 5.17:libgnucash/engine/gncInvoice.c:1488-1491, 1089-1108 |
+| invoice lot | `title` | string | "<type> <id>", type = translated `Invoice`/`Bill`/`Expense`/`Credit Note` | 5.17:libgnucash/engine/gncInvoice.c:1489-1493, 1089-1108 |
 | pre-payment lot | `gncOwner/owner-type` | integer | `GncOwnerType` (customer = 2) | 5.17:libgnucash/engine/gncOwner.c:621-633 |
 | pre-payment lot | `gncOwner/owner-guid` | guid | owner GUID | same |
 
 Posting also sets the transaction's `num` to the invoice ID and each split's action to the type string (both via
-`gnc_set_num_action`, 5.17:libgnucash/engine/gncInvoice.c:1495-1500, 1666-1667). Observed posted transaction slots
+`gnc_set_num_action`, 5.17:libgnucash/engine/gncInvoice.c:1504, 1612, 1675, 1696). Observed posted transaction slots
 (verbatim):
 
 ```
@@ -1170,7 +1170,10 @@ Both appear in the observed book.
 
 Oracle: GnuCash 5.17 Python bindings (`gnc_version() == '5.17'` asserted in every script). Directory:
 `/tmp/claude-1001/-home-code-projects-red-ale/bbc44319-413c-4d3a-9c4c-5d9e0c7bf9fe/scratchpad/bizxml/` (synthetic data
-only). Books are saved gzipped by default; `.xml` files are `zcat` output.
+only). Books are saved gzipped by default; `.xml` files are `zcat` output. `make_book.py` was run twice (the second run
+made the voucher a bill-side document and gave the bill line a tax table); excerpts from the first run (bill terms,
+customer, employee, invoice-side entries, invoices, job, tax tables, vendor) differ from the `biz.xml` on disk only in
+GUIDs. The count-data excerpt in §1.2 is from `main.out.xml`.
 
 | Run | Script / input | What | Result |
 |---|---|---|---|

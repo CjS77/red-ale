@@ -10,6 +10,8 @@ pub mod account;
 pub mod book;
 pub mod business;
 pub mod commodity;
+pub mod currencies;
+mod iso4217_table;
 pub mod guid;
 pub mod lot;
 pub mod numeric;

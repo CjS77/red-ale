@@ -3,8 +3,10 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
 
+pub mod business;
 pub mod dom;
 pub mod envelope;
 pub mod error;
+pub mod values;
 
 pub use error::XmlError;
