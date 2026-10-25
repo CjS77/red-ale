@@ -97,6 +97,7 @@ is used only for protocol errors.
 | `book.save`          | write  | Back up the previous file, write the book (atomically), rotate the journal, apply retention. `compressed` changes the file's compression. |
 | `book.close`         | write  | Release the lock. Refuses unsaved changes unless `save` or `discard`.                  |
 | `book.replayJournal` | write  | Replay a GnuCash `.log` journal: transactions created, updated or deleted by GUID.     |
+| `book.closeBooks`    | write  | Close the books: zero income and expense into equity at a date ([`api/close-book.md`](api/close-book.md)). Not `book.close`. |
 
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
 feature v0.1 does not implement (`unsupported-features`), uses trading accounts (`trading-accounts`), sets an auto
@@ -121,9 +122,10 @@ deliberate deviations.
 | [`api/commodities.md`](api/commodities.md)                 | `commodity.*`, `currency.*`                                 |
 | [`api/prices.md`](api/prices.md)                           | `price.*`                                                   |
 | [`api/lots.md`](api/lots.md)                               | `lot.*`, capital gains, stock splits                        |
-| [`api/business-contacts.md`](api/business-contacts.md)     | customers, vendors, employees, jobs, tax tables, billing terms |
+| [`api/business-contacts.md`](api/business-contacts.md)     | customers, vendors, employees, jobs, counters, tax tables, billing terms |
 | [`api/business-documents.md`](api/business-documents.md)   | invoices, bills, expense vouchers, entries, orders          |
 | [`api/business-posting.md`](api/business-posting.md)       | totals, post, unpost, payments, due reminders               |
+| [`api/close-book.md`](api/close-book.md)                   | `book.closeBooks`: closing the books                        |
 
 ## CLI
 

@@ -276,7 +276,7 @@ pub fn gains_account(book: &mut Book, env: &mut dyn Env, lot_account: Guid, curr
 }
 
 /// `gnc_account_lookup_by_name`: children first, then each child's subtree (`5.17:libgnucash/engine/Account.cpp:3081`).
-fn lookup_by_name(book: &Book, parent: Guid, name: &str) -> Option<Guid> {
+pub(crate) fn lookup_by_name(book: &Book, parent: Guid, name: &str) -> Option<Guid> {
     let children: Vec<&Account> = book.children(parent).collect();
     children.iter().find(|a| a.name == name).map(|a| a.guid).or_else(|| children.iter().find_map(|c| lookup_by_name(book, c.guid, name)))
 }

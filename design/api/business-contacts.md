@@ -5,7 +5,8 @@ tables and billing terms they and their documents refer to. Documents (invoices,
 entries and orders) are in [`business-documents.md`](business-documents.md). Posting, totals, due dates and payments
 are in [`business-posting.md`](business-posting.md).
 
-Code: `red-ale-core/src/ops/business/{contacts,terms}.rs`, `red-ale-rpc/src/methods/business/{contacts,terms}.rs`.
+Code: `red-ale-core/src/ops/business/{contacts,counters,terms}.rs`,
+`red-ale-rpc/src/methods/business/{contacts,counters,terms}.rs`.
 Tests: `crates/red-ale-rpc/tests/business_contacts.rs` (API), `crates/red-ale-testkit/tests/oracle_business_contacts.rs`
 (GnuCash 5.17 reads the result back, numbers and taxes the same way).
 
@@ -41,6 +42,39 @@ Tests: `crates/red-ale-rpc/tests/business_contacts.rs` (API), `crates/red-ale-te
 Errors are the generic ones of [`../api.md`](../api.md): `not-found` for a missing contact, account, table or term;
 `invalid` for a failed check; `conflict` for a name already taken, a frozen copy, a table or term still in use, or a
 job owner change once it has documents.
+
+## Counters
+
+The book's counters number new contacts, documents and orders. GnuCash edits them in File ▸ Properties ▸ Counters,
+one number and one format per counter (`5.17:libgnucash/engine/gnc-optiondb.cpp:1228-1297`).
+
+| Method         | Effect | Params                   | Result          |
+|----------------|--------|--------------------------|-----------------|
+| `counter.list` | read   | `{}`                     | `{counters}`    |
+| `counter.set`  | write  | `{name, last?, format?}` | `CounterInfo`   |
+
+`CounterInfo`: `name`, `last` (the last number issued, 0 when none), `format` (as stored, if any), `formatValid`
+(GnuCash accepts the stored format; when false it numbers with the default), `normalizedFormat` (the format GnuCash
+passes to `printf`, the default when none is valid) and `next` (the ID the next new object would get; reading it does
+not take it).
+
+- **Counter names.** The eight the book options offer, listed in their order: `gncCustomer`, `gncEmployee`,
+  `gncInvoice`, `gncBill`, `gncExpVoucher`, `gncJob`, `gncOrder`, `gncVendor`. Credit notes use their document's
+  counter. `counter.list` also lists any other name the book's `counters` or `counter_formats` frames hold, after
+  these, by name; `counter.set` takes only the eight.
+- **Values.** `counters/<name>` holds the last number issued, as an integer; a double (GnuCash bug 798930) reads
+  truncated (`qof_book_get_counter`, `5.17:libgnucash/engine/qofbook.cpp:592-634`). `last` must be from 0 to
+  999999999, the range the book options allow (`5.17:libgnucash/engine/gnc-optiondb.cpp:947-956`), and is written as
+  an integer, as GnuCash writes it (`:493-497`).
+- **Formats.** A format is checked as `qof_book_normalize_counter_format` checks it
+  (`5.17:libgnucash/engine/qofbook.cpp:752-917`): any text, with `%%` for a literal `%`, and exactly one conversion:
+  `%`, flags from `#0- +'I`, digits and dots for width and precision, then `li`, `lli` or `I64i`. GnuCash rewrites
+  the conversion as `li` (`PRIi64`). A format it refuses is refused with `invalid` and GnuCash's message; `null` or
+  `""` removes the format, so the default `%.6li` (`000001`) applies. The format is stored as given, not normalised,
+  as GnuCash stores it.
+- **Numbering** (`qof_book_increment_and_format_counter`, `5.17:libgnucash/engine/qofbook.cpp:636-695`): the counter
+  goes up by one and the new value is formatted with the counter's format, or the default when the stored format is
+  missing or invalid (`qof_book_get_counter_format`, `:697-750`).
 
 ## Addresses
 
@@ -167,4 +201,5 @@ cutoff of 0 or less counts back from the end of the month). `discount` is a perc
 | Billing terms: negative days, a proximo due day outside 1-31, a discount day outside 0-31, a cutoff outside -31 to 31 and a discount outside 0-100 are refused. The dialog accepts some of them. | GnuCash computes an undefined due date from them (`design/notes/engine-business.md` §3.2). |
 | Tax tables need at least one line. The dialog can leave a table empty. | GnuCash deletes empty tables when it next loads the book, which would orphan references to them. |
 | Employee `creditCardAccount` must be a `CREDIT` account. The engine accepts any account. | The GUI offers only credit card accounts; posting charges card payments to it. |
-| A counter format `printf` would refuse (two dots in the width and precision) falls back to the default format; the `'` and `I` flags are accepted and ignored. | GnuCash would pass such a format to `printf` with undefined results; `'` and `I` only localise digits, and red-ale writes ASCII digits. |
+| A counter format `printf` would refuse (two dots in the width and precision) falls back to the default format, and `counter.set` refuses it; the `'` and `I` flags are accepted and ignored. | GnuCash would pass such a format to `printf` with undefined results; `'` and `I` only localise digits, and red-ale writes ASCII digits. |
+| `counter.set` refuses a format GnuCash would refuse when numbering. The book options store any text. | GnuCash would silently number with the default instead. |

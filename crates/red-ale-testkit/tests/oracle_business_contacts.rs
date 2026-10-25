@@ -83,6 +83,75 @@ fn ids_continue_gnucash_counters_and_honour_counter_formats() {
     assert_eq!(gnucash_next_ids(&book), ["C-0003%", "000003"]);
 }
 
+/// For every counter, GnuCash's last number, the format it numbers with and the ID it gives next
+/// (`qof_book_get_counter`, `qof_book_get_counter_format`, `qof_book_increment_and_format_counter`).
+const GNUCASH_COUNTERS: &str = r#"
+import ctypes, json, sys
+from gnucash import Session, SessionOpenMode, _sw_core_utils
+import gnc_engine as g
+assert _sw_core_utils.gnc_version() == "5.17"
+g.engine.qof_book_get_counter.restype = ctypes.c_int64
+g.engine.qof_book_get_counter.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+g.engine.qof_book_get_counter_format.restype = ctypes.c_char_p
+g.engine.qof_book_get_counter_format.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+g.engine.qof_book_increment_and_format_counter.restype = ctypes.c_char_p
+g.engine.qof_book_increment_and_format_counter.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+s = Session("xml://" + sys.argv[1], SessionOpenMode.SESSION_NORMAL_OPEN)
+try:
+    book = s.book
+    out = []
+    for name in sys.argv[2:]:
+        key = name.encode()
+        out.append({"name": name, "last": g.engine.qof_book_get_counter(g.ptr(book), key),
+                    "normalizedFormat": g.engine.qof_book_get_counter_format(g.ptr(book), key).decode(),
+                    "next": g.engine.qof_book_increment_and_format_counter(g.ptr(book), key).decode()})
+    print(json.dumps(out))
+finally:
+    s.end()
+"#;
+
+fn gnucash_counters(book: &TempBook, names: &[&str]) -> Value {
+    let copy = book.dir.path().join("counters.gnucash");
+    std::fs::copy(&book.path, &copy).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let script = dir.path().join("counters.py");
+    std::fs::write(&script, GNUCASH_COUNTERS).unwrap();
+    std::fs::copy(oracle::scripts_dir().join("gnc_engine.py"), dir.path().join("gnc_engine.py")).unwrap();
+    let mut args = vec![copy.to_str().unwrap()];
+    args.extend_from_slice(names);
+    serde_json::from_str(&oracle::run_script(&script, &args).unwrap()).unwrap()
+}
+
+#[test]
+fn counters_and_formats_set_by_red_ale_number_the_same_in_gnucash() {
+    let (book, mut d) = open(BOOK);
+    let settings = [
+        json!({ "name": "gncCustomer", "last": 41, "format": "C-%04li" }),
+        json!({ "name": "gncEmployee", "last": 0 }),
+        json!({ "name": "gncInvoice", "last": 999, "format": "INV %lli/2024%%" }),
+        json!({ "name": "gncBill", "format": "%-8I64i|" }),
+        json!({ "name": "gncExpVoucher", "last": 7, "format": "%+.3li" }),
+        json!({ "name": "gncJob", "last": 999_999_999 }),
+        json!({ "name": "gncOrder", "last": 12, "format": "%5.4li" }),
+        json!({ "name": "gncVendor", "last": 3, "format": "%#'0 9li" }),
+    ];
+    settings.iter().for_each(|p| {
+        call(&mut d, "counter.set", p);
+    });
+    let ours = call(&mut d, "counter.list", &json!({}))["counters"].clone();
+    let diffs = oracle_check(&mut d, &book, &[]);
+    assert!(diffs.is_empty(), "{}", diffs.join("\n"));
+    let names: Vec<&str> = ours.as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap()).collect();
+    let theirs = gnucash_counters(&book, &names);
+    let ours: Vec<Value> = ours
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| json!({ "name": c["name"], "last": c["last"], "normalizedFormat": c["normalizedFormat"], "next": c["next"] }))
+        .collect();
+    assert_eq!(Value::Array(ours), theirs);
+}
+
 #[test]
 fn tax_tables_and_terms_read_back_and_gnucash_taxes_with_them() {
     let (book, mut d) = open(BOOK);

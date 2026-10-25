@@ -5,6 +5,7 @@ use crate::dispatch::Method;
 pub mod accounts;
 pub mod book;
 pub mod business;
+pub mod close_book;
 pub mod commodities;
 pub mod lots;
 pub mod period;
@@ -26,6 +27,7 @@ pub fn all() -> Vec<Method> {
         prices::methods(),
         lots::methods(),
         business::methods(),
+        close_book::methods(),
     ]
     .into_iter()
     .flatten()
