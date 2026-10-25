@@ -5,9 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use red_ale_core::book_options::{
-    GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, auto_readonly_days, features, uses_split_action_for_num, uses_trading_accounts,
-};
+use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, features, uses_trading_accounts};
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
 use red_ale_xml::{XmlResidue, read_book, write_book};
 
@@ -17,9 +15,10 @@ use crate::journal::{Journal, RecordKind, record_lines};
 use crate::lock::BookLock;
 use crate::replay::{ReplayReport, replay};
 
-/// Book features v0.1 can edit safely: their data lives in slots or files red-ale keeps unchanged. Credit notes and
-/// the num-field source are not implemented, so books declaring them open read-only.
-pub const SUPPORTED_FEATURES: [&str; 8] = [
+/// Book features red-ale can edit safely: their data lives in slots or files red-ale keeps unchanged, or red-ale
+/// follows them (`Number Field Source`). Credit notes are not implemented, so books declaring them open read-only.
+pub const SUPPORTED_FEATURES: [&str; 9] = [
+    "Number Field Source",
     "Extra data in addresses, jobs or invoice entries",
     "Account GUID based Bayesian data",
     "Account GUID based bayesian with flat KVP",
@@ -56,8 +55,6 @@ pub enum ReadOnlyReason {
     UnsupportedFeatures(Vec<String>),
     /// The book balances transactions through trading accounts.
     TradingAccounts,
-    /// The book makes transactions older than this many days read-only.
-    AutoReadOnly(i64),
     /// The file holds content red-ale can keep but not edit safely.
     UnrecognisedContent(Vec<String>),
 }
@@ -69,7 +66,6 @@ impl ReadOnlyReason {
             Self::Requested => "requested",
             Self::UnsupportedFeatures(_) => "unsupported-features",
             Self::TradingAccounts => "trading-accounts",
-            Self::AutoReadOnly(_) => "auto-read-only",
             Self::UnrecognisedContent(_) => "unrecognised-content",
         }
     }
@@ -81,7 +77,6 @@ impl fmt::Display for ReadOnlyReason {
             Self::Requested => write!(f, "opened read-only on request"),
             Self::UnsupportedFeatures(list) => write!(f, "the book uses features red-ale v0.1 does not support: {}", list.join("; ")),
             Self::TradingAccounts => write!(f, "the book uses trading accounts, which red-ale v0.1 does not support"),
-            Self::AutoReadOnly(days) => write!(f, "the book makes transactions older than {days} days read-only, which red-ale v0.1 does not support"),
             Self::UnrecognisedContent(list) => write!(f, "the book contains data red-ale cannot edit safely: {}", list.join("; ")),
         }
     }
@@ -90,26 +85,17 @@ impl fmt::Display for ReadOnlyReason {
 /// The read-only triggers a book sets off.
 pub fn read_only_triggers(book: &Book, residue: &XmlResidue) -> Vec<ReadOnlyReason> {
     let declared = features(book);
-    let mut unsupported: Vec<String> = declared
+    let unsupported: Vec<String> = declared
         .iter()
         .filter(|(name, _)| name != OBSOLETE_BOOK_CURRENCY && !SUPPORTED_FEATURES.contains(&name.as_str()))
         .map(|(name, description)| if description.is_empty() { name.clone() } else { description.clone() })
         .collect();
-    // GnuCash declares the feature when the option is set, but a book can carry the option alone; it changes what
-    // "number" means either way.
-    if uses_split_action_for_num(book) && !declared.iter().any(|(name, _)| name == "Number Field Source") {
-        unsupported.push("Number Field Source (the book option to use the split action as the number)".to_owned());
-    }
     let mut reasons = Vec::new();
     if !unsupported.is_empty() {
         reasons.push(ReadOnlyReason::UnsupportedFeatures(unsupported));
     }
     if uses_trading_accounts(book) {
         reasons.push(ReadOnlyReason::TradingAccounts);
-    }
-    let days = auto_readonly_days(book);
-    if days != 0 {
-        reasons.push(ReadOnlyReason::AutoReadOnly(days));
     }
     if !residue.notices.unrecognised.is_empty() {
         reasons.push(ReadOnlyReason::UnrecognisedContent(residue.notices.unrecognised.clone()));

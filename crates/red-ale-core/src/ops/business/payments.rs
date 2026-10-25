@@ -13,6 +13,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::book_options::num_action_targets;
 use crate::business::{Invoice, OwnerKind, OwnerRef};
 use crate::lot::slot_paths as lot_slots;
 use crate::ops::business::calc::{self, InvoiceType};
@@ -255,14 +256,17 @@ fn create_payment_lot(book: &mut Book, env: &mut dyn Env, work: &mut LotWork, p:
     let converted = || p.amount.mul(p.exchange_rate, DENOM_AUTO, How::round(Round::HalfUp));
     let xfer_amount = if post_comm == xfer_comm { p.amount } else { converted()? };
     let value = if post_comm == currency { p.amount } else { converted()? };
-    let split = |book: &Book, env: &mut dyn Env, account: Guid, amount: Numeric, value: Numeric| -> DomainResult<Split> {
+    let split = |book: &Book, env: &mut dyn Env, account: Guid, amount: Numeric, value: Numeric, action: &str| -> DomainResult<Split> {
         let mut s = Split::new(env.new_guid(), account, round_value(book, &currency, value)?, round_amount(book, account, amount)?);
         s.memo = non_empty(&p.memo);
-        s.action = Some(PAYMENT_ACTION.to_owned());
+        s.action = non_empty(action);
         Ok(s)
     };
-    let xfer_split = split(book, env, xfer, xfer_amount, value)?;
-    let post_split = split(book, env, p.posted_account, p.amount.neg(), value.neg())?;
+    // The transfer split's action is the payment's num with the num field source on (`gncOwner.c:836`); the A/R or
+    // A/P split's is always "Payment" (`:859`).
+    let xfer_action = num_action_targets(book, &p.num, PAYMENT_ACTION).1.to_owned();
+    let xfer_split = split(book, env, xfer, xfer_amount, value, &xfer_action)?;
+    let post_split = split(book, env, p.posted_account, p.amount.neg(), value.neg(), PAYMENT_ACTION)?;
     let lot_guid = env.new_guid();
     let mut lot_frame = Frame::new();
     attach_owner(&mut lot_frame, p.owner);

@@ -9,6 +9,7 @@
 //! `xaccTransRecordPrice`'s own rules for when an existing same-day price is kept or updated.
 
 use super::post;
+use crate::book_options::uses_split_action_for_num;
 use crate::currencies::{euro_rate, is_euro_currency};
 use crate::ops::commit::{NewSplit, NewTransaction, account_scu, commodity_fraction};
 use crate::ops::prices::{self, Nearest, PriceChanges, SPLIT_REGISTER_SOURCE, USER_PRICE_SOURCE, XFER_DIALOG_SOURCE, source_rank};
@@ -225,14 +226,19 @@ pub fn transfer(book: &mut Book, env: &mut dyn Env, x: &Transfer) -> DomainResul
         Some(m) => s.with_memo(m.clone()),
         None => s,
     };
+    // `gnc_set_num_action(trans, from_split, num, NULL)` (`:1514-1516`): with the num field source on, the num goes
+    // to the from split's action.
+    let num_on_split = uses_split_action_for_num(book);
+    let from_split = with_memo(NewSplit::new(x.from, x.amount.neg()).with_amount(x.amount.neg()));
+    let from_split = match &x.num {
+        Some(n) if num_on_split => from_split.with_action(n.clone()),
+        _ => from_split,
+    };
     let new = NewTransaction {
         description: x.description.clone(),
-        num: x.num.clone(),
+        num: x.num.clone().filter(|_| !num_on_split),
         notes: x.notes.clone(),
-        splits: vec![
-            with_memo(NewSplit::new(x.from, x.amount.neg()).with_amount(x.amount.neg())),
-            with_memo(NewSplit::new(x.to, x.amount).with_amount(to_amount)),
-        ],
+        splits: vec![from_split, with_memo(NewSplit::new(x.to, x.amount).with_amount(to_amount))],
         ..NewTransaction::new(leg.from.clone(), x.date)
     };
     let transaction = post(book, env, new)?;

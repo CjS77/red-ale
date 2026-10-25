@@ -237,6 +237,9 @@ pub struct LotSplitInfo {
     pub memo: Option<String>,
     /// Action.
     pub action: Option<String>,
+    /// The Number the lot viewer shows: the action when the book's num field source is on, else the transaction's
+    /// number.
+    pub number: Option<String>,
     /// Amount (shares).
     pub amount: Amount,
     /// Amount restated in units after later stock splits.
@@ -359,6 +362,7 @@ fn split_info(s: SplitView) -> LotSplitInfo {
         description: s.description,
         memo: s.memo,
         action: s.action,
+        number: s.number.filter(|n| !n.is_empty()),
         amount: s.amount.into(),
         adjusted_amount: s.adjusted_amount.into(),
         value: s.value.into(),

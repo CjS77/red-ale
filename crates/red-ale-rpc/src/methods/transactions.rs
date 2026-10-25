@@ -3,6 +3,7 @@
 
 mod query;
 
+use red_ale_core::book_options;
 use red_ale_core::ops::commit::{NewSplit, NewTransaction};
 use red_ale_core::ops::transactions::{self as ops, ListFilter, SplitEdit, TransactionEdit, find, transfer, void};
 use red_ale_core::{Book, CommodityRef, Date, Env, Guid, ReconcileState, Split, Transaction};
@@ -101,6 +102,9 @@ pub struct SplitInfo {
     pub reconcile_date: Option<Timestamp>,
     /// The lot it belongs to.
     pub lot: Option<Id>,
+    /// The split's Number, as GnuCash's register shows it: the action when the book's num field source is on, else
+    /// the transaction's num.
+    pub number: Option<String>,
 }
 
 /// A transaction, as returned by every transaction method.
@@ -141,7 +145,7 @@ pub struct TransactionInfo {
     pub splits: Vec<SplitInfo>,
 }
 
-fn split_info(book: &Book, s: &Split) -> SplitInfo {
+fn split_info(book: &Book, t: &Transaction, s: &Split) -> SplitInfo {
     let account = s.account.and_then(|a| book.account(a));
     SplitInfo {
         guid: s.guid.into(),
@@ -155,6 +159,7 @@ fn split_info(book: &Book, s: &Split) -> SplitInfo {
         reconcile_state: s.reconcile_state.into(),
         reconcile_date: s.reconcile_date.map(Timestamp),
         lot: s.lot.map(Id),
+        number: red_ale_core::book_options::number(book, t, s).map(str::to_owned),
     }
 }
 
@@ -177,7 +182,7 @@ pub fn info(book: &Book, t: &Transaction) -> TransactionInfo {
         reversed_by: t.reversed_by().map(Id),
         closing: t.is_closing(),
         balanced: t.is_balanced(),
-        splits: t.splits.iter().map(|s| split_info(book, s)).collect(),
+        splits: t.splits.iter().map(|s| split_info(book, t, s)).collect(),
     }
 }
 
@@ -270,8 +275,21 @@ fn default_currency(book: &Book, splits: &[NewSplit]) -> Result<CommodityRef, Rp
 }
 
 /// Today's date in UTC, the default posted date (red-ale has no local time zone yet).
-fn today(env: &mut dyn Env) -> Result<Date, RpcError> {
+pub(crate) fn today(env: &mut dyn Env) -> Result<Date, RpcError> {
     env.now().utc_date().ok_or_else(|| RpcError::internal("the clock is out of range"))
+}
+
+/// Refuse a change to a transaction posted before the book's auto read-only threshold, as GnuCash's register does
+/// (`design/api/book-options.md`).
+fn check_editable_by_date(book: &Book, env: &mut dyn Env, guid: Guid) -> Result<(), RpcError> {
+    let today = today(env)?;
+    Ok(book_options::check_not_read_only_by_date(book, ops::get(book, guid)?, today)?)
+}
+
+/// Refuse a posted date before the book's auto read-only threshold, as GnuCash's register date cell does.
+fn check_posted_date(book: &Book, env: &mut dyn Env, date: Date) -> Result<(), RpcError> {
+    let today = today(env)?;
+    Ok(book_options::check_date_not_before_threshold(book, date, today)?)
 }
 
 /// A given date, or today.
@@ -293,9 +311,11 @@ fn post(ctx: &mut Context, p: PostParams) -> Result<TransactionInfo, RpcError> {
             Some(c) => c.0,
             None => default_currency(book, &splits)?,
         };
+        let date_posted = date_or_today(env, p.date_posted)?;
+        check_posted_date(book, env, date_posted)?;
         let new = NewTransaction {
             currency,
-            date_posted: date_or_today(env, p.date_posted)?,
+            date_posted,
             date_entered: p.date_entered.map(|t| t.0),
             num: p.num,
             description: p.description,
@@ -433,6 +453,10 @@ pub struct UpdateParams {
 
 fn update(ctx: &mut Context, p: UpdateParams) -> Result<TransactionInfo, RpcError> {
     ctx.mutate_rpc(|book, env| {
+        check_editable_by_date(book, env, p.guid.0)?;
+        if let Some(d) = p.date_posted {
+            check_posted_date(book, env, d.0)?;
+        }
         let edit = TransactionEdit {
             currency: p.currency.map(|c| c.0),
             date_posted: p.date_posted.map(|d| d.0),
@@ -451,8 +475,11 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<TransactionInfo, RpcErro
 }
 
 fn delete(ctx: &mut Context, p: GuidParams) -> Result<Done, RpcError> {
-    ctx.mutate(|book, _| ops::delete(book, p.guid.0))?;
-    Ok(Done {})
+    ctx.mutate_rpc(|book, env| {
+        check_editable_by_date(book, env, p.guid.0)?;
+        ops::delete(book, p.guid.0)?;
+        Ok(Done {})
+    })
 }
 
 /// Params of `transaction.void`.
@@ -468,13 +495,15 @@ pub struct VoidParams {
 
 fn void_txn(ctx: &mut Context, p: VoidParams) -> Result<TransactionInfo, RpcError> {
     ctx.mutate_rpc(|book, env| {
+        check_editable_by_date(book, env, p.guid.0)?;
         void::void(book, env, p.guid.0, &p.reason)?;
         info_of(book, p.guid.0)
     })
 }
 
 fn unvoid(ctx: &mut Context, p: GuidParams) -> Result<TransactionInfo, RpcError> {
-    ctx.mutate_rpc(|book, _| {
+    ctx.mutate_rpc(|book, env| {
+        check_editable_by_date(book, env, p.guid.0)?;
         void::unvoid(book, p.guid.0)?;
         info_of(book, p.guid.0)
     })

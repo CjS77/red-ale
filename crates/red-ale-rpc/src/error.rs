@@ -144,8 +144,17 @@ impl From<DomainError> for RpcError {
             }
             DomainError::Conflict(_) => Self::new(codes::CONFLICT, message),
             DomainError::Numeric(_) => Self::new(codes::ARITHMETIC, message),
+            DomainError::ReadOnlyByDate { date, threshold } => Self::new(codes::CONFLICT, message).with_data(auto_read_only(date, threshold)),
+            DomainError::BeforeReadOnlyThreshold { date, threshold } => {
+                Self::new(codes::INVALID, message).with_data(auto_read_only(date, threshold))
+            }
         }
     }
+}
+
+/// The data of a refusal by the book's auto read-only threshold (`design/api/book-options.md`).
+fn auto_read_only(date: red_ale_core::Date, threshold: red_ale_core::Date) -> Value {
+    json!({ "reason": "auto-read-only", "date": date.to_string(), "threshold": threshold.to_string() })
 }
 
 impl From<ServiceError> for RpcError {

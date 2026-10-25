@@ -312,7 +312,8 @@ pub fn find(book: &Book, query: &Query, limit: Option<usize>) -> DomainResult<Ve
     query.check(book)?;
     let mut hits: Vec<(&Transaction, &Split)> =
         book.transactions.values().flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s))).filter(|(t, s)| query.matches(t, s)).collect();
-    hits.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb));
+    let num_action = crate::book_options::uses_split_action_for_num(book);
+    hits.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
     let skip = limit.map_or(0, |n| hits.len().saturating_sub(n));
     Ok(hits.into_iter().skip(skip).map(|(t, s)| Found { transaction: t.guid, split: s.guid }).collect())
 }
