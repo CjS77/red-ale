@@ -442,12 +442,12 @@ impl<'a> Writer<'a> {
         self.unknown_after(Section::Commodities);
     }
 
-    /// Prices in GnuCash's stable order: commodity, then currency, then newest first
-    /// (`stable_price_traversal`, `5.17:libgnucash/engine/gnc-pricedb.cpp:2708`).
+    /// Prices in GnuCash's stable order: commodity, then currency, then newest first, then GUID ascending
+    /// (`stable_price_traversal`, `5.17:libgnucash/engine/gnc-pricedb.cpp:2708`; `compare_prices_by_date`, `:674-692`).
     fn prices(&mut self) {
         if !self.book.prices.is_empty() {
             let mut prices: Vec<&Arc<red_ale_core::Price>> = self.book.prices.values().collect();
-            prices.sort_by(|a, b| a.commodity.cmp(&b.commodity).then_with(|| a.currency.cmp(&b.currency)).then_with(|| b.time.cmp(&a.time)));
+            prices.sort_by(|a, b| a.commodity.cmp(&b.commodity).then_with(|| a.currency.cmp(&b.currency)).then_with(|| b.time.cmp(&a.time)).then_with(|| a.guid.cmp(&b.guid)));
             self.out.push_str("<gnc:pricedb version=\"1\">\n");
             for p in prices {
                 let original = self.residue.prices.get(&p.guid).filter(|_| self.residue.snapshot.prices.get(&p.guid).is_some_and(|o| same(p, o)));
