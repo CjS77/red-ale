@@ -7,6 +7,7 @@ pub mod book;
 pub mod business;
 pub mod commodities;
 pub mod lots;
+pub mod period;
 pub mod prices;
 pub mod reconcile;
 pub mod scrub;
@@ -17,6 +18,7 @@ pub fn all() -> Vec<Method> {
     [
         book::methods(),
         accounts::methods(),
+        period::methods(),
         transactions::methods(),
         reconcile::methods(),
         scrub::methods(),
