@@ -11,7 +11,7 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. | core, xml |
 | `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. | core, service |
 | `red-ale` | Binary | `red-ale serve` (the JSON-RPC server) and the CLI front end. The only crate that uses `anyhow`. | rpc, service |
-| `red-ale-testkit` | Testing | Fixture paths, builders, and the GnuCash oracle harness. Dev-dependency only. | core, xml, service |
+| `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, and the GnuCash oracle harness. Used only by tests. | core, xml, service, rpc |
 
 `red-ale-mcp` arrives in v0.2 as a thin adapter over `red-ale-rpc`'s dispatcher. `red-ale-sql` arrives in v0.3 as a
 second Backend beside `red-ale-xml`.
