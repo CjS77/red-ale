@@ -78,6 +78,17 @@ Where v0.1 used UTC days instead, v0.2 uses local ones: same-day prices, "today"
 boundaries, the accounting period, balances "as of" a day, lot dates and price dates. Under `TZ=UTC` nothing
 changes.
 
+Deviations, each pinned by `oracle_time_zones.rs` or the zone tests:
+
+- red-ale follows a zone file's transitions exactly. GnuCash approximates the file with one rule per year
+  ([`notes/time-zones.md`](notes/time-zones.md) §1), which puts local midnight an hour late on the autumn change in
+  zones whose rules are in UT (most of Europe) and drops daylight saving from 2037. Stored dates are unaffected:
+  day-neutral times and local noons agree.
+- GnuCash's `GncDate` "today" reads the C library's zone, which reads a POSIX `TZ` string with the opposite sign to
+  GnuCash's own; red-ale has one zone.
+- A `TZ` naming a file that is not TZif aborts GnuCash; red-ale reads it as a POSIX string, then falls back as
+  GnuCash does.
+
 ## Errors
 
 Errors are JSON-RPC error objects with a stable `code`, a human `message` and structured `data`. The JSON-RPC range

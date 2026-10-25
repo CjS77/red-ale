@@ -1443,6 +1443,7 @@ dependencies = [
  "anyhow",
  "clap",
  "jsonrpsee",
+ "red-ale-core",
  "red-ale-mcp",
  "red-ale-rpc",
  "red-ale-service",
