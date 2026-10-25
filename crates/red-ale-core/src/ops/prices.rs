@@ -36,6 +36,10 @@ pub const EDITOR_SOURCE: &str = "user:price-editor";
 pub const FQ_SOURCE: &str = "Finance::Quote";
 /// `PRICE_SOURCE_USER_PRICE`.
 pub const USER_PRICE_SOURCE: &str = "user:price";
+/// `PRICE_SOURCE_XFER_DLG_VAL`: a rate the transfer dialog computed from the amount received.
+pub const XFER_DIALOG_SOURCE: &str = "user:xfer-dialog";
+/// `PRICE_SOURCE_SPLIT_REG`: a price recorded from a register transaction (`xaccTransRecordPrice`).
+pub const SPLIT_REGISTER_SOURCE: &str = "user:split-register";
 const INVALID_RANK: usize = 10;
 
 /// A price source's precedence (lower wins). `gnc_price_set_source_string` matches only the known strings before

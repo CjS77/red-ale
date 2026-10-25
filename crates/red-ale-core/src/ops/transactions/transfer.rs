@@ -5,77 +5,74 @@
 //! rate in the price database. [`record_prices`] is `xaccTransRecordPrice`, which the register calls after
 //! committing a transaction with splits in priced accounts. See `design/notes/engine-accounts-transactions.md` §10.
 //!
-//! The price database helpers here (same-day and nearest lookups, source ranks) follow `gnc-pricedb.cpp`; the
-//! prices package owns the price methods.
-
-use std::sync::Arc;
+//! Price lookups, source precedence and adding prices are `ops::prices`; this module adds only the dialog's and
+//! `xaccTransRecordPrice`'s own rules for when an existing same-day price is kept or updated.
 
 use super::post;
 use crate::currencies::{euro_rate, is_euro_currency};
 use crate::ops::commit::{NewSplit, NewTransaction, account_scu, commodity_fraction};
+use crate::ops::prices::{self, Nearest, PriceChanges, SPLIT_REGISTER_SOURCE, USER_PRICE_SOURCE, XFER_DIALOG_SOURCE, source_rank};
 use crate::{AccountType, Book, CommodityRef, Date, DomainError, DomainResult, Env, Guid, How, Numeric, Price, Round, Time64, Transaction};
 
 /// `PRICE_TYPE_TRN`.
 pub const PRICE_TYPE_TRANSACTION: &str = "transaction";
-/// Price source for a rate typed in the transfer dialog (`PRICE_SOURCE_USER_PRICE`).
-pub const SOURCE_USER_PRICE: &str = "user:price";
-/// Price source for a rate computed from the amount received (`PRICE_SOURCE_XFER_DLG_VAL`).
-pub const SOURCE_XFER_DIALOG: &str = "user:xfer-dialog";
-/// Price source for prices recorded from a register transaction (`PRICE_SOURCE_SPLIT_REG`).
-pub const SOURCE_SPLIT_REGISTER: &str = "user:split-register";
-
-/// Price sources in preference order, best first (`PriceSource`, `5.17:libgnucash/engine/gnc-pricedb.h:165-182`).
-const SOURCES: [&str; 11] = [
-    "user:price-editor",
-    "Finance::Quote",
-    SOURCE_USER_PRICE,
-    SOURCE_XFER_DIALOG,
-    SOURCE_SPLIT_REGISTER,
-    "user:split-import",
-    "user:stock-split",
-    "user:stock-transaction",
-    "user:invoice-post",
-    "temporary",
-    "invalid",
-];
-
-/// A source's rank: lower is preferred. An unknown or missing source ranks as `invalid`, as
-/// `gnc_price_set_source_string` leaves it (`5.17:libgnucash/engine/gnc-pricedb.cpp:90-96`, `:530-542`).
-pub fn source_rank(source: Option<&str>) -> usize {
-    source.and_then(|s| SOURCES[..SOURCES.len() - 2].iter().position(|x| *x == s)).unwrap_or(SOURCES.len() - 1)
-}
 
 /// `gnc_numeric_invert`.
 fn invert(n: Numeric) -> Numeric {
     if n.num() < 0 { Numeric::new(-n.denom(), -n.num()) } else { Numeric::new(n.denom(), n.num()) }
 }
 
-/// A price between `a` and `b` in either direction, with `reversed` true when it is stored as `b` priced in `a`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Found {
-    /// The price.
-    pub guid: Guid,
-    /// The price is stored the other way round.
-    pub reversed: bool,
+/// A price between `a` and `b` in either direction: its GUID, value and source rank, and whether it is stored the
+/// other way round (as `b` priced in `a`, which GnuCash tests as `gnc_commodity_equiv(price currency, a)`).
+struct Found {
+    guid: Guid,
+    value: Numeric,
+    rank: usize,
+    reversed: bool,
 }
 
-fn between<'a>(book: &'a Book, a: &'a CommodityRef, b: &'a CommodityRef) -> impl Iterator<Item = (&'a Price, bool)> {
-    book.prices.values().map(AsRef::as_ref).filter_map(move |p| match (&p.commodity, &p.currency) {
-        (c, cur) if c == a && cur == b => Some((p, false)),
-        (c, cur) if c == b && cur == a => Some((p, true)),
-        _ => None,
+fn lookup(book: &Book, a: &CommodityRef, b: &CommodityRef, t: Time64, how: Nearest) -> Option<Found> {
+    prices::nearest(book, a, b, t, how).map(|p| Found {
+        guid: p.guid,
+        value: p.value,
+        rank: source_rank(p.source.as_deref()),
+        reversed: p.currency == crate::ops::commodities::canonical(a),
     })
 }
 
-/// The price nearest to `t`, either side; on a tie the older (`lookup_nearest_in_time`,
-/// `5.17:libgnucash/engine/gnc-pricedb.cpp:2179-2280`). With `same_day`, only prices on `t`'s calendar day (UTC here,
-/// local time in GnuCash) count.
-pub fn lookup_nearest(book: &Book, a: &CommodityRef, b: &CommodityRef, t: Time64, same_day: bool) -> Option<Found> {
-    between(book, a, b)
-        .filter(|(p, _)| !same_day || p.time.utc_date() == t.utc_date())
-        .min_by_key(|(p, _)| ((p.time.0 - t.0).abs(), p.time, p.guid))
-        .map(|(p, reversed)| Found { guid: p.guid, reversed })
+/// A new price of the transaction type, added by `gnc_pricedb_add_price`'s rules.
+fn add(book: &mut Book, env: &mut dyn Env, commodity: CommodityRef, currency: CommodityRef, time: Time64, source: &str, value: Numeric) -> DomainResult<PriceChange> {
+    let price = Price {
+        guid: env.new_guid(),
+        commodity,
+        currency,
+        time,
+        source: Some(source.to_owned()),
+        price_type: Some(PRICE_TYPE_TRANSACTION.to_owned()),
+        value,
+    };
+    let added = prices::add_price(book, price)?;
+    Ok(match (added.added, added.rejected_by.or(added.duplicate_of)) {
+        (Some(g), _) => PriceChange::Created(g),
+        (None, Some(g)) => PriceChange::Kept(g),
+        (None, None) => return Err(DomainError::conflict("the price database refused the price")),
+    })
 }
+
+/// Update a price's time, type and value, and its source when given, keeping it otherwise
+/// (`gnc_price_set_*`; moving its time re-applies the same-day rules, as `ops::prices::update_price` does).
+fn set(book: &mut Book, guid: Guid, time: Time64, source: Option<&str>, value: Numeric) -> DomainResult<PriceChange> {
+    let changes = PriceChanges {
+        time: Some(time),
+        source: source.map(str::to_owned),
+        price_type: Some(Some(PRICE_TYPE_TRANSACTION.to_owned())),
+        value: Some(value),
+        ..PriceChanges::default()
+    };
+    prices::update_price(book, guid, &changes)?;
+    Ok(PriceChange::Updated(guid))
+}
+
 
 /// `round_price` in the transfer dialog: to 1/10000 between two currencies, else to the currency side's fraction
 /// × 10000 (`5.17:gnucash/gnome-utils/dialog-transfer.cpp:201-217`).
@@ -182,11 +179,11 @@ fn decide(book: &Book, x: &Transfer, leg: &Leg) -> DomainResult<(Numeric, &'stat
         if !rate.is_positive() {
             return Err(DomainError::invalid("the exchange rate must be positive"));
         }
-        Ok((rate, SOURCE_USER_PRICE, x.amount.mul(rate, leg.scu, How::round(Round::HalfUp))?))
+        Ok((rate, USER_PRICE_SOURCE, x.amount.mul(rate, leg.scu, How::round(Round::HalfUp))?))
     };
     let (rate, source, to_amount) = match x.rate {
         Rate::Rate(r) => by_rate(r)?,
-        Rate::ToAmount(to) => (to.div(x.amount, crate::DENOM_AUTO, How::REDUCE_NEVER)?, SOURCE_XFER_DIALOG, to),
+        Rate::ToAmount(to) => (to.div(x.amount, crate::DENOM_AUTO, How::REDUCE_NEVER)?, XFER_DIALOG_SOURCE, to),
         Rate::FromPriceDb => by_rate(prefilled_rate(book, x, leg)?)?,
     };
     if to_amount.is_zero() {
@@ -202,11 +199,10 @@ fn prefilled_rate(book: &Book, x: &Transfer, leg: &Leg) -> DomainResult<Numeric>
         return Ok(t.div(f, crate::DENOM_AUTO, How::REDUCE_NEVER)?);
     }
     let time = x.date.neutral_time();
-    let found = lookup_nearest(book, &leg.from, &leg.to, time, true)
-        .or_else(|| lookup_nearest(book, &leg.from, &leg.to, time, false))
+    let found = lookup(book, &leg.from, &leg.to, time, Nearest::SameDay)
+        .or_else(|| lookup(book, &leg.from, &leg.to, time, Nearest::Nearest))
         .ok_or_else(|| DomainError::invalid(format!("no price of {} in {}; give a rate or the amount received", leg.from, leg.to)))?;
-    let value = book.prices.get(&found.guid).map_or(Numeric::ZERO, |p| p.value);
-    Ok(if found.reversed { invert(value) } else { value })
+    Ok(if found.reversed { invert(found.value) } else { found.value })
 }
 
 /// Transfer between two accounts as the dialog does (`create_transaction`, `:1473-1530`): the transaction is in the
@@ -253,8 +249,8 @@ pub fn transfer(book: &mut Book, env: &mut dyn Env, x: &Transfer) -> DomainResul
 /// `:1591-1620`).
 fn create_price(book: &mut Book, env: &mut dyn Env, leg: &Leg, x: &Transfer, rate: Numeric, source: &str) -> DomainResult<PriceChange> {
     let time = x.date.neutral_time();
-    if let Some(found) = lookup_nearest(book, &leg.from, &leg.to, time, true) {
-        return update_price(book, leg, found, rate, source, time);
+    if let Some(found) = lookup(book, &leg.from, &leg.to, time, Nearest::SameDay) {
+        return update_price(book, leg, &found, rate, source, time);
     }
     let (mut commodity, mut currency, mut value) = (leg.from.clone(), leg.to.clone(), rate.abs());
     let default_first = x.default_currency.as_ref().is_some_and(|d| *d == leg.from && *d != leg.to);
@@ -262,39 +258,22 @@ fn create_price(book: &mut Book, env: &mut dyn Env, leg: &Leg, x: &Transfer, rat
         std::mem::swap(&mut commodity, &mut currency);
         value = invert(value);
     }
-    let price = Price {
-        guid: env.new_guid(),
-        commodity,
-        currency,
-        time,
-        source: Some(source.to_owned()),
-        price_type: Some(PRICE_TYPE_TRANSACTION.to_owned()),
-        value,
-    };
-    let guid = price.guid;
-    book.prices.insert(guid, Arc::new(price));
-    Ok(PriceChange::Created(guid))
+    add(book, env, commodity, currency, time, source, value)
 }
 
-/// `update_price`: keep an existing price whose source is preferred or whose rounded value is the same; otherwise
-/// set its time, type and unrounded value (inverted when it is stored the other way round), keeping its source.
-fn update_price(book: &mut Book, leg: &Leg, found: Found, rate: Numeric, source: &str, time: Time64) -> DomainResult<PriceChange> {
-    let Some(existing) = book.prices.get(&found.guid) else { return Err(DomainError::not_found("price", &found.guid)) };
-    if source_rank(existing.source.as_deref()) < source_rank(Some(source)) {
+/// The dialog's `update_price`: keep an existing price whose source is preferred or whose rounded value is the same;
+/// otherwise set its time, type and *unrounded* value (inverted when it is stored the other way round), keeping its
+/// source.
+fn update_price(book: &mut Book, leg: &Leg, found: &Found, rate: Numeric, source: &str, time: Time64) -> DomainResult<PriceChange> {
+    if found.rank < source_rank(Some(source)) {
         return Ok(PriceChange::Kept(found.guid));
     }
     let value = if found.reversed { invert(rate) } else { rate };
-    let rounded_existing = round_price(book, &leg.from, &leg.to, existing.value)?;
+    let rounded_existing = round_price(book, &leg.from, &leg.to, found.value)?;
     if round_price(book, &leg.from, &leg.to, value)?.same_value(rounded_existing) {
         return Ok(PriceChange::Kept(found.guid));
     }
-    if let Some(p) = book.prices.get_mut(&found.guid) {
-        let p = Arc::make_mut(p);
-        p.time = time;
-        p.price_type = Some(PRICE_TYPE_TRANSACTION.to_owned());
-        p.value = value;
-    }
-    Ok(PriceChange::Updated(found.guid))
+    set(book, found.guid, time, None, value)
 }
 
 /// `xaccAccountIsPriced`: stock, mutual fund and currency accounts (`5.17:libgnucash/engine/Account.cpp:4539-4548`).
@@ -321,40 +300,18 @@ pub fn record_prices(book: &mut Book, env: &mut dyn Env, guid: Guid, source: &st
 
 fn record_price(book: &mut Book, env: &mut dyn Env, t: &Transaction, value: Numeric, comm: &CommodityRef, source: &str) -> DomainResult<PriceChange> {
     let curr = &t.currency;
-    let mut fraction = commodity_fraction(book, curr).unwrap_or(100);
-    let Some(found) = lookup_nearest(book, comm, curr, t.date_posted, true) else {
-        let price = Price {
-            guid: env.new_guid(),
-            commodity: comm.clone(),
-            currency: curr.clone(),
-            time: t.date_posted,
-            source: Some(source.to_owned()),
-            price_type: Some(PRICE_TYPE_TRANSACTION.to_owned()),
-            value: value.to_denom(fraction * 10_000, Round::HalfUp)?,
-        };
-        let guid = price.guid;
-        book.prices.insert(guid, Arc::new(price));
-        return Ok(PriceChange::Created(guid));
+    let fraction = commodity_fraction(book, curr).unwrap_or(100);
+    let Some(found) = lookup(book, comm, curr, t.date_posted, Nearest::SameDay) else {
+        let value = value.to_denom(fraction * 10_000, Round::HalfUp)?;
+        return add(book, env, comm.clone(), curr.clone(), t.date_posted, source, value);
     };
-    let existing = book.prices.get(&found.guid).map(|p| (p.value, source_rank(p.source.as_deref())));
-    let Some((existing_value, old_rank)) = existing else { return Err(DomainError::not_found("price", &found.guid)) };
     let compared = if found.reversed { invert(value) } else { value };
-    let register_over_dialog = old_rank == source_rank(Some(SOURCE_XFER_DIALOG)) && source == SOURCE_SPLIT_REGISTER;
-    if compared.same_value(existing_value) || (old_rank < source_rank(Some(source)) && !register_over_dialog) {
+    let register_over_dialog = found.rank == source_rank(Some(XFER_DIALOG_SOURCE)) && source == SPLIT_REGISTER_SOURCE;
+    if compared.same_value(found.value) || (found.rank < source_rank(Some(source)) && !register_over_dialog) {
         return Ok(PriceChange::Kept(found.guid));
     }
-    if found.reversed {
-        fraction = commodity_fraction(book, comm).unwrap_or(100);
-    }
-    let new_value = compared.to_denom(fraction * 10_000, Round::HalfUp)?;
-    if let Some(p) = book.prices.get_mut(&found.guid) {
-        let p = Arc::make_mut(p);
-        p.time = t.date_posted;
-        p.source = Some(source.to_owned());
-        p.price_type = Some(PRICE_TYPE_TRANSACTION.to_owned());
-        p.value = new_value;
-    }
-    Ok(PriceChange::Updated(found.guid))
+    let fraction = if found.reversed { commodity_fraction(book, comm).unwrap_or(100) } else { fraction };
+    set(book, found.guid, t.date_posted, Some(source), compared.to_denom(fraction * 10_000, Round::HalfUp)?)
 }
 
 #[cfg(test)]
@@ -391,7 +348,7 @@ mod tests {
         let p = f.book.prices[&p].clone();
         assert_eq!((p.commodity.mnemonic.as_str(), p.currency.mnemonic.as_str()), ("USD", "EUR"));
         assert!(p.value.same_repr(Numeric::new(9091, 10_000)));
-        assert_eq!(p.source.as_deref(), Some(SOURCE_USER_PRICE));
+        assert_eq!(p.source.as_deref(), Some(USER_PRICE_SOURCE));
         // A second transfer on the same day by amount received keeps it: user:xfer-dialog ranks below user:price.
         let x = xfer(&f, Rate::ToAmount(usd(9900)));
         let again = transfer(&mut f.book, &mut f.env, &x).unwrap();
@@ -416,12 +373,5 @@ mod tests {
         let mut back = xfer(&f, Rate::Rate(Numeric::ONE));
         back.to = back.from;
         assert!(transfer(&mut f.book, &mut f.env, &back).is_err());
-    }
-
-    #[test]
-    fn source_ranks_follow_the_enum() {
-        assert!(source_rank(Some("user:price-editor")) < source_rank(Some(SOURCE_USER_PRICE)));
-        assert!(source_rank(Some(SOURCE_XFER_DIALOG)) < source_rank(Some(SOURCE_SPLIT_REGISTER)));
-        assert_eq!(source_rank(Some("whatever")), source_rank(None));
     }
 }
