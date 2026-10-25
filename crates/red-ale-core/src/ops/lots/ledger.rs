@@ -43,7 +43,7 @@ pub struct Entry {
 /// Setting a split's amount resets its adjusted amount to the amount (`xaccSplitSetAmount`,
 /// `5.17:libgnucash/engine/Split.cpp:1260`); GnuCash restates it for stock splits only when it recomputes the
 /// account's balances, which a scrub defers to the end of the account edit wrapping it
-/// (`5.17:libgnucash/engine/Account.cpp:2266`). Until then, lot balances, FIFO and gains read the reset value. red-ale
+/// (`5.17:libgnucash/engine/Account.cpp:2268`). Until then, lot balances, FIFO and gains read the reset value. red-ale
 /// reproduces this so its lots and gains match GnuCash's when a sale before a stock split is cut.
 #[derive(Debug, Clone, Default)]
 pub struct Touched(Vec<Guid>);

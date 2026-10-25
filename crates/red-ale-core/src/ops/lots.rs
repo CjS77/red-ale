@@ -175,7 +175,7 @@ fn assign_to_chosen(book: &mut Book, env: &mut dyn Env, split: Guid, account: Gu
 
 /// Take a split out of its lot (`gnc_lot_remove_split`). Refused for the posting split of an invoice's own lot
 /// (`5.17:gnucash/gnome/dialog-lot-viewer.c:472-487`). A lot left empty leaves its account, so GnuCash no longer
-/// writes it (`5.17:libgnucash/engine/gnc-lot.cpp:623-630`); red-ale deletes it. Returns whether it was deleted.
+/// writes it (`5.17:libgnucash/engine/gnc-lot.cpp:631-652`); red-ale deletes it. Returns whether it was deleted.
 pub fn remove_split(book: &mut Book, split: Guid) -> DomainResult<bool> {
     let (txn, s) = locate(book, split).ok_or_else(|| DomainError::not_found("split", &split))?;
     let lot = s.lot.ok_or_else(|| DomainError::invalid("the split is in no lot"))?;

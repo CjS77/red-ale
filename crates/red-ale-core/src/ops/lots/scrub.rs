@@ -254,7 +254,7 @@ fn merge_lot_sub_splits(book: &mut Book, touched: &mut Touched, account: Guid, l
 }
 
 /// Merge into `split` the other splits of its transaction in the same lot that it names as peers
-/// (`xaccScrubMergeSubSplits`, `5.17:libgnucash/engine/Scrub2.cpp:325-388`). Invoice transactions are left to the
+/// (`xaccScrubMergeSubSplits`, `5.17:libgnucash/engine/Scrub2.cpp:329-387`). Invoice transactions are left to the
 /// business code.
 fn merge_sub_splits(book: &mut Book, touched: &mut Touched, split: Guid, lot: Guid) -> DomainResult<bool> {
     let Some((txn, s)) = locate(book, split) else { return Ok(false) };
@@ -269,7 +269,7 @@ fn merge_sub_splits(book: &mut Book, touched: &mut Touched, split: Guid, lot: Gu
     Ok(true)
 }
 
-/// Fold `sb` into `sa` and delete it (`merge_splits`, `5.17:libgnucash/engine/Scrub2.cpp:261-322`). `sb`'s gains
+/// Fold `sb` into `sa` and delete it (`merge_splits`, `5.17:libgnucash/engine/Scrub2.cpp:283-326`). `sb`'s gains
 /// transaction is deleted too. GnuCash 5.17 deletes it only when it has already looked at `sb`'s gains in the same
 /// session, so after a fresh open it leaves the gains transaction behind and counts the gain twice; red-ale deletes it
 /// always.
@@ -288,7 +288,7 @@ fn merge_splits(book: &mut Book, txn: crate::Guid, sa: Guid, sb: Guid) -> Domain
                 s.slots.remove(split_slots::LOT_SPLIT);
             }
             // The peer's links move over only when `sa` has none (qof_instance_kvp_merge_guids,
-            // 5.17:libgnucash/engine/qofinstance.cpp:1236-1262, drops the merged list it builds otherwise).
+            // 5.17:libgnucash/engine/qofinstance.cpp:1234-1262, drops the merged list it builds otherwise).
             let b_keeps = b_lot_split.filter(|v| !matches_peer(v, sa));
             if let (None, Some(v)) = (s.slots.get_key(split_slots::LOT_SPLIT), b_keeps) {
                 s.slots.insert_key(split_slots::LOT_SPLIT, v);

@@ -96,7 +96,7 @@ pub fn gains_split(split: &Split) -> Option<Guid> {
 }
 
 /// True when the split's `lot-split` slot names `peer`: a frame or a list of frames (`qof_instance_kvp_has_guid`,
-/// `5.17:libgnucash/engine/qofinstance.cpp:1157-1188`).
+/// `5.17:libgnucash/engine/qofinstance.cpp:1158-1188`).
 pub fn is_peer_split(split: &Split, peer: Guid) -> bool {
     let names = |v: &SlotValue| v.as_frame().and_then(|f| f.get_key(split_slots::PEER_GUID)).and_then(SlotValue::as_guid) == Some(peer);
     match split.slots.get_key(split_slots::LOT_SPLIT) {
