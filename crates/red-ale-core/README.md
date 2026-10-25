@@ -36,13 +36,13 @@ commodity.
 
 ## What's inside
 
-| Module | Contents |
-|--------|----------|
-| `book` | `Book`, which holds every entity of one GnuCash book; `Env` and `FixedEnv` |
-| `numeric` | `Numeric`, with GnuCash's arithmetic and rounding modes |
-| `account`, `transaction`, `commodity`, `price`, `lot`, `business` | The entities |
-| `guid`, `time`, `slots` | GUIDs, timestamps and dates, and key-value slots |
-| `ops` | The operations, one module per area: `accounts`, `transactions`, `commit`, `reconcile`, `scrub`, `commodities`, `prices`, `lots`, `period`, `business` |
+| Module                                                            | Contents                                                                                                                                               |
+|-------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `book`                                                            | `Book`, which holds every entity of one GnuCash book; `Env` and `FixedEnv`                                                                             |
+| `numeric`                                                         | `Numeric`, with GnuCash's arithmetic and rounding modes                                                                                                |
+| `account`, `transaction`, `commodity`, `price`, `lot`, `business` | The entities                                                                                                                                           |
+| `guid`, `time`, `slots`                                           | GUIDs, timestamps and dates, and key-value slots                                                                                                       |
+| `ops`                                                             | The operations, one module per area: `accounts`, `transactions`, `commit`, `reconcile`, `scrub`, `commodities`, `prices`, `lots`, `period`, `business` |
 
 ## Usage
 
@@ -55,24 +55,24 @@ use red_ale_core::{AccountType, Book, CommodityRef, Date, FixedEnv, Numeric, Tim
 
 // Time and new GUIDs come from an Env; tests use a fixed one.
 let mut env = FixedEnv::new(Time64(1_719_835_200), 0);
-let mut book = Book::new_empty(&mut env);
+let mut book = Book::new_empty( & mut env);
 let usd = CommodityRef::currency("USD");
 
-let account = |name: &str, account_type| AccountEdit {
-    name: Some(name.to_owned()),
-    account_type: Some(account_type),
-    commodity: Some(usd.clone()),
-    ..AccountEdit::default()
+let account = | name: & str, account_type| AccountEdit {
+name: Some(name.to_owned()),
+account_type: Some(account_type),
+commodity: Some(usd.clone()),
+..AccountEdit::default ()
 };
 let root = book.root;
-let checking = create_account(&mut book, &mut env, root, &account("Checking", AccountType::Bank))?;
-let salary = create_account(&mut book, &mut env, root, &account("Salary", AccountType::Income))?;
+let checking = create_account( & mut book, & mut env, root, & account("Checking", AccountType::Bank)) ?;
+let salary = create_account( & mut book, & mut env, root, & account("Salary", AccountType::Income)) ?;
 
-let mut pay = NewTransaction::new(usd, Date::from_ymd(2024, 7, 1).ok_or("bad date")?);
+let mut pay = NewTransaction::new(usd, Date::from_ymd(2024, 7, 1).ok_or("bad date") ? );
 pay.description = Some("Pay day".to_owned());
-pay.splits.push(NewSplit::new(checking, Numeric::parse_decimal("2500.00")?));
-pay.splits.push(NewSplit::new(salary, Numeric::parse_decimal("-2500.00")?));
-add_transaction(&mut book, &mut env, pay)?; // refused if the splits don't balance
+pay.splits.push(NewSplit::new(checking, Numeric::parse_decimal("2500.00") ? ));
+pay.splits.push(NewSplit::new(salary, Numeric::parse_decimal("-2500.00") ? ));
+add_transaction( & mut book, & mut env, pay) ?; // refused if the splits don't balance
 
 assert_eq!(balances(&book, checking, None)?.balance.to_decimal_string(), "2500.00");
 ```
@@ -82,8 +82,8 @@ Exact arithmetic with GnuCash's rounding:
 ```rust
 use red_ale_core::{How, Numeric, Round};
 
-let price = Numeric::parse_decimal("19.99")?;                 // 1999/100, exactly
-let cents = Numeric::new(1, 3).convert(100, How::round(Round::HalfUp))?;
+let price = Numeric::parse_decimal("19.99") ?;                 // 1999/100, exactly
+let cents = Numeric::new(1, 3).convert(100, How::round(Round::HalfUp)) ?;
 assert_eq!(cents.to_decimal_string(), "0.33");
 ```
 

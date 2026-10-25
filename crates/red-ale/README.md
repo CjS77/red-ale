@@ -8,13 +8,13 @@ This crate builds the program people run. It reads the command line and passes e
 `Dispatcher`. It has no bookkeeping logic of its own; that is what makes the command line, the server and every other
 route into red-ale behave the same.
 
-| Command | What it does |
-|---------|--------------|
+| Command                                        | What it does                                                                                |
+|------------------------------------------------|---------------------------------------------------------------------------------------------|
 | `red-ale exec --book <file> <method> [params]` | Opens a book, runs one method or a script of them, saves if anything changed, and closes it |
-| `red-ale serve [--book <file>]` | Keeps a book open and serves the API over HTTP, on `127.0.0.1:7878` by default |
-| `red-ale call <method> [params]` | Sends one method to a running server |
-| `red-ale methods` | Lists every method, with its effect and a one-line summary |
-| `red-ale schema` | Prints the API's JSON Schema |
+| `red-ale serve [--book <file>]`                | Keeps a book open and serves the API over HTTP, on `127.0.0.1:7878` by default              |
+| `red-ale call <method> [params]`               | Sends one method to a running server                                                        |
+| `red-ale methods`                              | Lists every method, with its effect and a one-line summary                                  |
+| `red-ale schema`                               | Prints the API's JSON Schema                                                                |
 
 Params are one JSON object, or `key=value` pairs for text and `key:=json` pairs for anything else. Results go to
 standard output as JSON. Errors go to standard error, as `{"error": …}`, with exit status 2; mistakes in the command

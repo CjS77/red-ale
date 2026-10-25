@@ -34,30 +34,30 @@ is the only crate that calls this one in normal use. An SQLite backend, `red-ale
 
 ## What's inside
 
-| Module | Contents |
-|--------|----------|
-| `book` | `read_book`, `write_book`, `write_book_text`, and `XmlResidue` |
-| `envelope` | The XML declaration, the `gnc-v2` root and its namespaces, and the book wrapper |
-| `entities` | Commodities, prices, accounts, lots, transactions and splits |
+| Module     | Contents                                                                                     |
+|------------|----------------------------------------------------------------------------------------------|
+| `book`     | `read_book`, `write_book`, `write_book_text`, and `XmlResidue`                               |
+| `envelope` | The XML declaration, the `gnc-v2` root and its namespaces, and the book wrapper              |
+| `entities` | Commodities, prices, accounts, lots, transactions and splits                                 |
 | `business` | Customers, vendors, employees, jobs, invoices, entries, orders, tax tables and billing terms |
-| `values` | Shared encodings: GUIDs, numerics, timestamps, dates, commodity references and slots |
-| `dom` | A small XML tree, and the serialiser that writes it as libxml2 does |
+| `values`   | Shared encodings: GUIDs, numerics, timestamps, dates, commodity references and slots         |
+| `dom`      | A small XML tree, and the serialiser that writes it as libxml2 does                          |
 
 ## Usage
 
 Read a book, look inside, and write it back:
 
 ```rust
-let bytes = std::fs::read("home.gnucash")?;
-let (book, residue) = red_ale_xml::read_book(&bytes)?;
+let bytes = std::fs::read("home.gnucash") ?;
+let (book, residue) = red_ale_xml::read_book( & bytes) ?;
 println!("{} accounts, {} transactions", book.accounts.len(), book.transactions.len());
 
 // Nothing changed, so the same text comes back.
-let text = red_ale_xml::write_book_text(&book, &residue);
+let text = red_ale_xml::write_book_text( & book, & residue);
 assert_eq!(text, red_ale_xml::book::decode(&bytes)?.0);
 
 // Bytes ready for disk, compressed if the original was.
-let out = red_ale_xml::write_book(&book, &residue, residue.compressed)?;
+let out = red_ale_xml::write_book( & book, & residue, residue.compressed) ?;
 ```
 
 To edit a real book, go through `red-ale-service` instead: it takes GnuCash's lock and makes a backup before writing.

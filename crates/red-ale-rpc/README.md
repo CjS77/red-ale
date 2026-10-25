@@ -37,13 +37,13 @@ Each area's methods are documented in [`design/api/`](../../design/api), with th
 
 ## What's inside
 
-| Module | Contents |
-|--------|----------|
-| `dispatch` | `Dispatcher`, `Context`, `Method`, and `method()` to declare one |
-| `methods` | One module per area: `book`, `accounts`, `transactions`, `reconcile`, `scrub`, `commodities`, `prices`, `lots`, `period`, `business` |
-| `wire` | Amounts, GUIDs, dates, timestamps, commodity IDs and account references |
-| `error` | `RpcError` and the error `codes` |
-| `server` | `serve`: the HTTP server |
+| Module     | Contents                                                                                                                             |
+|------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| `dispatch` | `Dispatcher`, `Context`, `Method`, and `method()` to declare one                                                                     |
+| `methods`  | One module per area: `book`, `accounts`, `transactions`, `reconcile`, `scrub`, `commodities`, `prices`, `lots`, `period`, `business` |
+| `wire`     | Amounts, GUIDs, dates, timestamps, commodity IDs and account references                                                              |
+| `error`    | `RpcError` and the error `codes`                                                                                                     |
+| `server`   | `serve`: the HTTP server                                                                                                             |
 
 ## Usage
 
@@ -54,15 +54,15 @@ use red_ale_rpc::Dispatcher;
 use red_ale_service::Settings;
 use serde_json::json;
 
-let mut d = Dispatcher::new(Settings::default());
-d.call("book.open", json!({ "path": "home.gnucash" }))?;
-let balance = d.call("account.balance", json!({ "account": "Assets:Checking" }))?;
+let mut d = Dispatcher::new(Settings::default ());
+d.call("book.open", json!({ "path": "home.gnucash" })) ?;
+let balance = d.call("account.balance", json!({ "account": "Assets:Checking" })) ?;
 println!("{}", balance["balances"]["balance"]);
 
 // Raw JSON-RPC text in, raw JSON-RPC text out, as the HTTP server does for each request.
 let reply = d.handle_text(r#"{"jsonrpc": "2.0", "id": 1, "method": "book.info"}"#);
 
-d.call("book.close", json!({ "save": true }))?;
+d.call("book.close", json!({ "save": true })) ?;
 ```
 
 Add a method by writing a handler that takes typed params and returns a typed result, then registering it in its
