@@ -210,6 +210,14 @@ fn orders_hold_lines_and_close() {
     assert_eq!(b.call("order.list", json!({ "closed": true }))["orders"].as_array().unwrap().len(), 1);
     let jane = b.guid_of("employee.list", "employees", "000001");
     assert_eq!(b.err("order.create", json!({ "owner": jane })).code, codes::INVALID);
+
+    // A vendor's order still uses the invoice side, as GnuCash's order ledger does; a bill's line cannot join it.
+    let vo = b.call("order.create", json!({ "owner": paper }));
+    let line = b.call("order.addEntry", json!({ "order": vo["guid"], "quantity": "2", "price": "7", "discount": "1" }));
+    assert_eq!((line["invoicePrice"]["num"].as_str(), line["billPrice"]["num"].as_str()), (Some("7"), Some("0")));
+    assert_eq!(b.err("order.addEntry", json!({ "order": vo["guid"], "billable": true })).code, codes::INVALID);
+    let bill = b.call("invoice.create", json!({ "owner": paper }));
+    assert_eq!(b.err("invoice.addEntry", json!({ "invoice": bill["guid"], "order": vo["guid"] })).code, codes::INVALID);
 }
 
 #[test]

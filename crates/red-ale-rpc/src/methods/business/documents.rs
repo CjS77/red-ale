@@ -231,7 +231,8 @@ with_line_fields!(line_params! {
     {
         /// The unposted document.
         invoice: Id,
-        /// Also put the line on this open order (of the same side).
+        /// Also put the line on this open order. Customer invoices only: order lines use the invoice side, as GnuCash's
+        /// order ledger does.
         #[serde(default)]
         order: Option<Id>,
     }
