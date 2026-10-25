@@ -1365,6 +1365,7 @@ dependencies = [
  "getrandom 0.3.4",
  "red-ale-core",
  "red-ale-xml",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
 ]
