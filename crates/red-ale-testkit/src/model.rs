@@ -66,7 +66,8 @@ fn accounts(book: &Book) -> Vec<Value> {
 }
 
 fn lot_title(book: &Book, lot: Option<Guid>) -> Value {
-    lot.and_then(|l| book.lot(l)).map_or(Value::Null, |l| Value::String(l.title().unwrap_or_default().to_owned()))
+    // gnc_lot_get_title is NULL for a lot without a title, such as a pre-payment lot.
+    lot.and_then(|l| book.lot(l)).and_then(|l| l.title()).map_or(Value::Null, |t| Value::String(t.to_owned()))
 }
 
 fn transaction(book: &Book, t: &Transaction) -> Value {
