@@ -1,7 +1,7 @@
 //! The book options methods, and how transactions follow the num field source and the auto read-only threshold, on
 //! copies of `synthetic/rich.gnucash`. Today is 2024-07-01.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::needless_pass_by_value)]
 
 use red_ale_core::{FixedEnv, Time64};
 use red_ale_rpc::{Dispatcher, RpcError, codes};
