@@ -293,7 +293,8 @@ pub fn prepare(book: &Book, now: Time64, request: &Request) -> DomainResult<Prep
         None => balance_as_of(book, &covered_accounts(book, account.guid, include_children), date)?,
     };
     let resumed_postponed = use_postponed && (info.postpone_balance.is_some() || info.postpone_date.is_some());
-    Ok(Prepared { statement: Statement { account: account.guid, include_children, date, ending_balance, zone: request.zone }, resumed_postponed })
+    let statement = Statement { account: account.guid, include_children, date, ending_balance, zone: request.zone };
+    Ok(Prepared { statement, resumed_postponed })
 }
 
 /// A split the reconciliation can tick: one of the covered accounts' splits that is not yet reconciled.
@@ -360,7 +361,8 @@ pub struct Balances {
 /// The ticked candidates, in candidate order. A tick that is not a candidate is refused.
 pub fn ticked_candidates<'a>(candidates: &'a [Candidate], ticked: &[Guid]) -> DomainResult<Vec<&'a Candidate>> {
     if let Some(bad) = ticked.iter().find(|g| !candidates.iter().any(|c| c.split == **g)) {
-        return Err(DomainError::invalid(format!("split {bad} cannot be ticked: it is not an unreconciled split of the accounts reconciled")));
+        let reason = "it is not an unreconciled split of the accounts reconciled";
+        return Err(DomainError::invalid(format!("split {bad} cannot be ticked: {reason}")));
     }
     Ok(candidates.iter().filter(|c| ticked.contains(&c.split)).collect())
 }
@@ -540,6 +542,10 @@ mod tests {
         (s.reconcile_state, s.reconcile_date)
     }
 
+    fn request(account: Guid, date: Option<Date>) -> Request {
+        Request { account, date, ending_balance: None, include_children: None, zone: UtcOffset(0) }
+    }
+
     fn statement(f: &Fixture, date: Date, ending_cents: i64) -> Statement {
         let request = Request {
             account: f.bank,
@@ -622,8 +628,7 @@ mod tests {
         assert_eq!((info.postpone_date, info.postpone_balance), (Some(st.date), Some(Numeric::new(-750, 100))));
         assert_eq!(f.book.account(f.bank).unwrap().slots.get(INCLUDE_CHILDREN), Some(&SlotValue::Integer(0)));
 
-        let resumed = prepare(&f.book, NOW, &Request { account: f.bank, date: None, ending_balance: None, include_children: None, zone: UtcOffset(0) })
-            .unwrap();
+        let resumed = prepare(&f.book, NOW, &request(f.bank, None)).unwrap();
         assert!(resumed.resumed_postponed);
         assert_eq!((resumed.statement.date, resumed.statement.ending_balance), (st.date, Numeric::new(-750, 100)));
 
@@ -642,8 +647,7 @@ mod tests {
         let mut f = fixture();
         pay(&mut f, day(2024, 6, 3), 500);
         pay(&mut f, day(2024, 7, 2), 100);
-        let p = prepare(&f.book, NOW, &Request { account: f.bank, date: Some(day(2024, 6, 30)), ending_balance: None, include_children: None, zone: UtcOffset(0) })
-            .unwrap();
+        let p = prepare(&f.book, NOW, &request(f.bank, Some(day(2024, 6, 30)))).unwrap();
         assert_eq!(p.statement.ending_balance, Numeric::new(-500, 100));
         assert!(!p.resumed_postponed);
     }
@@ -652,7 +656,10 @@ mod tests {
         /// Finishing with the reconciled balance as the ending balance always succeeds, and moves exactly the ticked
         /// amounts into the reconciled balance.
         #[test]
-        fn finish_balances_exactly(amounts in proptest::collection::vec(1i64..1_000_000, 1..8), mask in proptest::collection::vec(any::<bool>(), 8)) {
+        fn finish_balances_exactly(
+            amounts in proptest::collection::vec(1i64..1_000_000, 1..8),
+            mask in proptest::collection::vec(any::<bool>(), 8),
+        ) {
             let mut f = fixture();
             let splits: Vec<Guid> = amounts.iter().map(|c| pay(&mut f, day(2024, 6, 3), *c)).collect();
             let ticked: Vec<Guid> = splits.iter().zip(&mask).filter(|(_, m)| **m).map(|(s, _)| *s).collect();

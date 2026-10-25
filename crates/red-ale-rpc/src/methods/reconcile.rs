@@ -17,13 +17,48 @@ use crate::wire::{AccountRef, Amount, Day, Id, Timestamp};
 /// The reconcile methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("reconcile.setState", "Set a split's reconcile state (n, c, y or f); y stamps the reconcile date.", Effect::Write, set_state),
-        method("reconcile.info", "An account's reconcile information: last reconcile date and interval, postponed reconciliation.", Effect::Read, info),
-        method("reconcile.setInfo", "Set or remove an account's last reconcile date, interval, postponed reconciliation or sub-account flag.", Effect::Write, set_info),
-        method("reconcile.start", "Start reconciling an account against a statement: GnuCash's defaults, the splits to tick and the balances.", Effect::Read, start),
-        method("reconcile.status", "The splits, balances and difference of a reconciliation for a set of ticks, with marks and unmarks applied.", Effect::Read, status),
-        method("reconcile.finish", "Finish a reconciliation: ticked splits become reconciled and the statement date becomes the last reconcile date.", Effect::Write, finish),
-        method("reconcile.postpone", "Postpone a reconciliation: ticked splits become cleared and the statement is kept for next time.", Effect::Write, postpone),
+        method(
+            "reconcile.setState",
+            "Set a split's reconcile state (n, c, y or f); y stamps the reconcile date.",
+            Effect::Write,
+            set_state,
+        ),
+        method(
+            "reconcile.info",
+            "An account's reconcile information: last reconcile date and interval, postponed reconciliation.",
+            Effect::Read,
+            info,
+        ),
+        method(
+            "reconcile.setInfo",
+            "Set or remove an account's last reconcile date, interval, postponed reconciliation or sub-account flag.",
+            Effect::Write,
+            set_info,
+        ),
+        method(
+            "reconcile.start",
+            "Start reconciling an account against a statement: GnuCash's defaults, the splits to tick and the balances.",
+            Effect::Read,
+            start,
+        ),
+        method(
+            "reconcile.status",
+            "The splits, balances and difference of a reconciliation for a set of ticks, with marks and unmarks applied.",
+            Effect::Read,
+            status,
+        ),
+        method(
+            "reconcile.finish",
+            "Finish a reconciliation: ticked splits become reconciled and the statement date becomes the last reconcile date.",
+            Effect::Write,
+            finish,
+        ),
+        method(
+            "reconcile.postpone",
+            "Postpone a reconciliation: ticked splits become cleared and the statement is kept for next time.",
+            Effect::Write,
+            postpone,
+        ),
     ]
 }
 
@@ -104,7 +139,8 @@ fn set_state(ctx: &mut Context, p: SetStateParams) -> Result<SplitState, RpcErro
     let book = ctx.book()?;
     let t = book.transaction_of_split(split).ok_or_else(|| RpcError::not_found("split", split))?;
     let s = t.split(split).ok_or_else(|| RpcError::not_found("split", split))?;
-    Ok(SplitState { split: p.split, transaction: t.guid.into(), state: s.reconcile_state.into(), reconcile_date: s.reconcile_date.map(Into::into) })
+    let reconcile_date = s.reconcile_date.map(Into::into);
+    Ok(SplitState { split: p.split, transaction: t.guid.into(), state: s.reconcile_state.into(), reconcile_date })
 }
 
 /// The interval between reconciliations.
