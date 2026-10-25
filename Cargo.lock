@@ -481,6 +481,7 @@ name = "red-ale-xml"
 version = "0.1.0"
 dependencies = [
  "flate2",
+ "indexmap",
  "quick-xml",
  "red-ale-core",
  "thiserror",
