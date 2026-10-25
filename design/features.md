@@ -41,11 +41,11 @@ A feature added in a development series is listed under the stable release that 
 | Status | Name                        | Short description                                                            | Introduced | Ported |
 |:------:|-----------------------------|------------------------------------------------------------------------------|:----------:|:------:|
 |   ✅   | Accounting period           | Fiscal year start and end, used by reports and date ranges                   |    2.0     |  0.1   |
-|        | Number counters and formats | Next numbers and formats for invoices, bills, customers and others           |   2.4.1    |        |
+|   ✅   | Number counters and formats | Next numbers and formats for invoices, bills, customers and others           |   2.4.1    |  0.2   |
 |        | Auto read-only threshold    | Transactions older than N days become read-only                              |    2.6     |        |
 |        | Num field source            | Use the split action field as the transaction number                         |    2.6     |        |
 |        | Use trading accounts        | Book option to balance multi-commodity transactions through trading accounts |    2.4     |        |
-|        | Close book                  | Zeroes income and expense into equity at a closing date                      |   2.2.4    |        |
+|   ✅   | Close book                  | Zeroes income and expense into equity at a closing date                      |   2.2.4    |  0.2   |
 
 ## 2. Transactions
 
