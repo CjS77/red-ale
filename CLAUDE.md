@@ -18,7 +18,7 @@ The name:
 
 **Status: greenfield, design phase.** Design documents live in `design/` and come before code. Start at
 `design/README.md` (reading order), then `design/mission-statement.md`, `design/glossary.md`,
-`design/feature-parity.md` (the checklist against upstream) and `design/open-questions.md`. Create any that are missing
+`design/features.md` (the checklist against upstream) and `design/open-questions.md`. Create any that are missing
 before writing code that depends on them.
 
 ## File compatibility: rules that are never broken
@@ -60,6 +60,8 @@ Both backends are in scope: XML (gzipped or plain) and SQL (SQLite first; Postgr
 - **Claims about GnuCash behaviour or file format must be checked against its source and cited** as
   `tag:path/to/file.cpp:line`. Mark anything taken only from the wiki or docs as docs-only. The format is defined by
   `libgnucash/backend/xml/` and `libgnucash/backend/sql/`, not by the wiki.
+- **No Guile, ever.** GnuCash's reports are Guile Scheme. red-ale never embeds or ports it. Reports are rebuilt on
+  red-ale's own report scripting (from v0.2), matching GnuCash's figures and options rather than its code.
 - **GnuCash is the test oracle.** Compatibility tests write a book with red-ale, open it with GnuCash, and compare. The
   oracle must run the pinned version; if its version differs from the pin, the tests say so and fail.
   - The oracle is GnuCash 5.17: the library and Python bindings, with no GUI. It is installed in
@@ -178,7 +180,7 @@ Before a PR: tests and clippy are clean, and any change to a backend passes the 
 - **Round-trip tests** for every backend and fixture: open, save without changes, compare, then open in GnuCash.
 - **Property tests** (`proptest`) on core invariants: balanced transactions, exact arithmetic, and rounding that
   matches GnuCash.
-- **Parity tests:** each item in `design/feature-parity.md` links to the tests that prove it.
+- **Parity tests:** each item in `design/features.md` links to the tests that prove it.
 - Bugs get a failing test first.
 
 ## Workflow
