@@ -15,7 +15,9 @@ A book is *canonical* when GnuCash 5.17 loads and saves it back byte for byte (`
 are canonical, and red-ale must round-trip them byte for byte:
 
 - `gnucash/sample1.gnucash`, `gnucash/bug-746937-sx-split-order.gnucash`
-- `synthetic/business.gnucash` (every business object type), `synthetic/rich.gnucash` (every core entity and slot
+- `synthetic/business.gnucash` (every business object type, including a credit note, so it declares the Credit
+  Notes feature and red-ale v0.1 opens it read-only), `synthetic/business-editable.gnucash` (the same book made with
+  `--no-credit-note`: the job's invoice is an ordinary invoice and the book is writable), `synthetic/rich.gnucash` (every core entity and slot
   type, special characters, a budget, a scheduled transaction and template transactions)
 - every `piecash/*.gnucash` except the `.sqlite` one
 
@@ -27,6 +29,7 @@ checked with the oracle rather than byte for byte.
 ```
 export PYTHONPATH=$HOME/.local/opt/gnucash-5.17/lib/python3.12/site-packages
 python3 scripts/fixtures/business_make_book.py /tmp/biz.gnucash        # then zcat to fixtures/synthetic/business.gnucash
+python3 scripts/fixtures/business_make_book.py /tmp/biz2.gnucash --no-credit-note   # business-editable.gnucash
 python3 scripts/fixtures/rich_create.py /tmp/rich.xml && python3 scripts/fixtures/rich_augment.py /tmp/rich.xml > /tmp/aug.xml
 scripts/oracle-resave.py /tmp/aug.xml fixtures/synthetic/rich.gnucash
 scripts/sqlite-to-xml.py <piecash book> fixtures/piecash/<name>.gnucash

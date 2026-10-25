@@ -5,10 +5,11 @@
 use red_ale_xml::{read_book, write_book_text};
 
 /// Books in GnuCash 5.17's canonical form: GnuCash itself loads and saves each one byte for byte.
-const CANONICAL: [&str; 11] = [
+const CANONICAL: [&str; 12] = [
     "gnucash/sample1.gnucash",
     "gnucash/bug-746937-sx-split-order.gnucash",
     "synthetic/business.gnucash",
+    "synthetic/business-editable.gnucash",
     "synthetic/rich.gnucash",
     "piecash/all_account_types.gnucash",
     "piecash/book_prices.gnucash",
