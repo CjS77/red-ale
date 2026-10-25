@@ -1,0 +1,17 @@
+[package]
+name = "red-ale-xml"
+description = "The XML Backend for GnuCash books"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+red-ale-core.workspace = true
+flate2.workspace = true
+quick-xml.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

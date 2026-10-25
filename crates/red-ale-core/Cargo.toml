@@ -1,0 +1,19 @@
+[package]
+name = "red-ale-core"
+description = "The red-ale bookkeeping domain: the Book model, its invariants and operations"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono.workspace = true
+indexmap.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true
