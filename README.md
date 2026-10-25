@@ -204,6 +204,8 @@ The server listens on 127.0.0.1 only and has no password. Don't expose it to a n
 
 - `red-ale methods` lists every method, with what it does and whether it changes the book.
 - `red-ale schema` prints every method's params and results as JSON Schema.
+- `red-ale mcp` serves the same methods to AI agents as MCP tools; [`design/mcp.md`](design/mcp.md) shows how to set
+  up a client.
 - [`design/api.md`](design/api.md) explains the API's conventions and error codes, and [`design/api/`](design/api)
   has a page for each area, with notes on where red-ale and GnuCash differ.
 - [`design/glossary.md`](design/glossary.md) defines the accounting terms, such as *value* and *amount*.
@@ -216,6 +218,7 @@ The server listens on 127.0.0.1 only and has no password. Don't expose it to a n
 | [`red-ale-xml`](crates/red-ale-xml) | Reads and writes GnuCash XML files, translating between GnuCash's format and the core model. |
 | [`red-ale-service`](crates/red-ale-service) | Opens a book for editing: the lock, read-only checks, all-or-nothing changes, the journal, saving and backups. |
 | [`red-ale-rpc`](crates/red-ale-rpc) | The JSON-RPC API: every method, its params and error codes, and the HTTP server. |
+| [`red-ale-mcp`](crates/red-ale-mcp) | The MCP server: every method as a tool that AI agents can call. |
 | [`red-ale`](crates/red-ale) | The `red-ale` command: runs the server, or calls methods from the command line. |
 | [`red-ale-testkit`](crates/red-ale-testkit) | Test fixtures, temporary copies of books, and the harness that checks red-ale's results against GnuCash itself. |
 
