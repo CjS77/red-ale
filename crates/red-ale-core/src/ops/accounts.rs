@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use crate::account::slot_paths;
 use crate::ops::commit::{commodity_fraction, round_amount, sort_splits};
+use crate::ops::commodities::account_commodity_changed;
 use crate::transaction::slot_paths as txn_slots;
 use crate::{
     Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, How, Numeric, ReconcileState, Round, SlotValue, Split, Time64,
@@ -310,11 +311,12 @@ pub fn create_account(book: &mut Book, env: &mut dyn Env, parent: Guid, edit: &A
         _ => return Err(DomainError::invalid(format!("a {account_type} account needs a commodity"))),
     };
     let fraction = check_commodity(book, account_type, &commodity)?;
-    let mut new = Account::new(env.new_guid(), name, account_type, Some(commodity), Some(parent));
+    let mut new = Account::new(env.new_guid(), name, account_type, Some(commodity.clone()), Some(parent));
     new.commodity_scu = Some(fraction);
     let guid = new.guid;
     book.accounts.insert(guid, Arc::new(new));
     place_subtree(book, guid);
+    account_commodity_changed(book, None, Some(&commodity));
     if let Some(scu) = edit.scu {
         apply_scu(book, guid, scu, false)?;
     }
@@ -400,9 +402,10 @@ fn change_commodity(book: &mut Book, guid: Guid, c: &CommodityRef) -> DomainResu
     }
     let fraction = commodity_fraction(book, c).ok_or_else(|| DomainError::not_found("commodity", c))?;
     let acc = account_mut(book, guid)?;
-    acc.commodity = Some(c.clone());
+    let old = acc.commodity.replace(c.clone());
     acc.commodity_scu = Some(fraction);
     acc.non_standard_scu = false;
+    account_commodity_changed(book, old.as_ref(), Some(c));
     Ok(())
 }
 
@@ -734,7 +737,9 @@ impl Plan {
         }
         dispose(book, self.account.guid, self.transactions, &mut report)?;
         let doomed: BTreeSet<Guid> = self.doomed().into_iter().collect();
+        let released: Vec<CommodityRef> = doomed.iter().filter_map(|g| book.account(*g)).filter_map(|a| a.commodity.clone()).collect();
         book.accounts.retain(|g, _| !doomed.contains(g));
+        released.iter().for_each(|c| account_commodity_changed(book, Some(c), None));
         let lots: Vec<Guid> = book.lots.values().filter(|l| doomed.contains(&l.account)).map(|l| l.guid).collect();
         book.lots.retain(|g, _| !lots.contains(g));
         report.deleted_lots.extend(lots);
