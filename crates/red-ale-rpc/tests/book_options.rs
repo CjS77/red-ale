@@ -69,9 +69,9 @@ fn assert_auto_read_only(e: &RpcError, code: i32, date: &str) {
 #[test]
 fn options_are_off_by_default_and_set_as_the_dialog_sets_them() {
     let mut b = open();
-    assert_eq!(b.call("book.options", json!({})), json!({ "splitActionForNum": false, "autoReadOnlyDays": 0 }));
+    assert_eq!(b.call("book.options", json!({})), json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false }));
     let set = b.call("book.setOptions", json!({ "splitActionForNum": true, "autoReadOnlyDays": 10 }));
-    assert_eq!(set, json!({ "splitActionForNum": true, "autoReadOnlyDays": 10, "readOnlyThreshold": "2024-06-21" }));
+    assert_eq!(set, json!({ "splitActionForNum": true, "autoReadOnlyDays": 10, "readOnlyThreshold": "2024-06-21", "useTradingAccounts": false }));
     let info = b.call("book.info", json!({}));
     let feature = info["features"].as_array().unwrap().iter().find(|f| f["name"] == "Number Field Source").expect("the feature is set");
     assert_eq!(feature["supported"], true);
@@ -79,8 +79,8 @@ fn options_are_off_by_default_and_set_as_the_dialog_sets_them() {
     b.reopen();
     assert_eq!(b.call("book.options", json!({}))["autoReadOnlyDays"], 10, "the options survive a save");
     assert_eq!(b.call("book.info", json!({}))["readOnly"], false, "and the book opens for editing");
-    let off = b.call("book.setOptions", json!({ "splitActionForNum": false, "autoReadOnlyDays": 0 }));
-    assert_eq!(off, json!({ "splitActionForNum": false, "autoReadOnlyDays": 0 }));
+    let off = b.call("book.setOptions", json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false }));
+    assert_eq!(off, json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false }));
     let info = b.call("book.info", json!({}));
     assert!(info["features"].as_array().unwrap().iter().any(|f| f["name"] == "Number Field Source"), "GnuCash never removes it");
 }

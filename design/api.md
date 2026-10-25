@@ -93,20 +93,22 @@ is used only for protocol errors.
 |----------------------|--------|----------------------------------------------------------------------------------------|
 | `book.open`          | read   | Open an XML book (`path`, `readOnly`). Takes the `.LCK` lock unless read-only.         |
 | `book.create`        | write  | Create an empty book (root account only) and open it; gzip-compressed unless `compressed: false`. |
-| `book.info`          | read   | Path, GUIDs, read-only state and reasons, dirty, compression, journal, Book features, counts. |
+| `book.info`          | read   | Path, GUIDs, read-only state and reasons, dirty, compression, journal, Book features, `options` (`useTradingAccounts`), counts. |
 | `book.save`          | write  | Back up the previous file, write the book (atomically), rotate the journal, apply retention. `compressed` changes the file's compression. |
 | `book.close`         | write  | Release the lock. Refuses unsaved changes unless `save` or `discard`.                  |
 | `book.replayJournal` | write  | Replay a GnuCash `.log` journal: transactions created, updated or deleted by GUID.     |
 | `book.closeBooks`    | write  | Close the books: zero income and expense into equity at a date ([`api/close-book.md`](api/close-book.md)). Not `book.close`. |
-| `book.options`       | read   | The num field source and auto read-only threshold Book options ([`api/book-options.md`](api/book-options.md)). |
+| `book.options`       | read   | The num field source, auto read-only threshold and trading accounts Book options ([`api/book-options.md`](api/book-options.md), [`api/trading-accounts.md`](api/trading-accounts.md)). |
 | `book.setOptions`    | write  | Change them as GnuCash's book options dialog does, setting `Number Field Source` when the num field source is turned on. |
 
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
-feature red-ale does not implement (`unsupported-features`), uses trading accounts (`trading-accounts`), holds
-content red-ale can keep but not edit safely (`unrecognised-content`), or the caller asked (`requested`). A read-only
-book is never locked and never written. Since v0.2 the num field source (and its Book feature `Number Field Source`)
-and an auto read-only threshold no longer make a book read-only; the threshold makes old transactions read-only
-instead ([`api/book-options.md`](api/book-options.md)), and the reason `auto-read-only` is no longer given.
+feature red-ale does not implement (`unsupported-features`), holds content red-ale can keep but not edit safely
+(`unrecognised-content`), or the caller asked (`requested`). A read-only book is never locked and never written.
+Since v0.2 the num field source (and its Book feature `Number Field Source`) and an auto read-only threshold no longer
+make a book read-only; the threshold makes old transactions read-only instead
+([`api/book-options.md`](api/book-options.md)), and the reason `auto-read-only` is no longer given. Nor do trading
+accounts: commits keep their trading splits ([`api/trading-accounts.md`](api/trading-accounts.md)), and the reason
+`trading-accounts` is no longer given.
 
 Replay differs from GnuCash in two ways, both to protect the book: a record with an unreadable line is skipped
 whole, and an unbalanced replayed transaction is refused (or skipped with `skipInvalid`) instead of getting an
@@ -123,6 +125,7 @@ deliberate deviations.
 | [`api/transactions.md`](api/transactions.md)               | `transaction.*`, `docLink.*`                                |
 | [`api/reconcile.md`](api/reconcile.md)                     | reconcile states, reconciling against a statement, auto-clear |
 | [`api/scrub.md`](api/scrub.md)                             | imbalance and orphan scrubs, Check & Repair                 |
+| [`api/trading-accounts.md`](api/trading-accounts.md)       | trading accounts: the option, trading splits at every commit |
 | [`api/commodities.md`](api/commodities.md)                 | `commodity.*`, `currency.*`                                 |
 | [`api/prices.md`](api/prices.md)                           | `price.*`                                                   |
 | [`api/lots.md`](api/lots.md)                               | `lot.*`, capital gains, stock splits                        |

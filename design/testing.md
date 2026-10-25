@@ -32,9 +32,9 @@ sources and licences). Never personal financial data.
   newlines in text), a budget, a scheduled transaction and template transactions.
 - `synthetic/business.gnucash` has every business object, including a credit note (it declares the Book feature
   `Credit Notes`); `synthetic/business-editable.gnucash` is the same book without the credit note.
-- Some fixtures open read-only by design: `piecash/simple_sample.gnucash` and `piecash/investment.gnucash` use
-  trading accounts; `piecash/simple_sample.sqlite.gnucash` is an SQL book (refused);
-  `gnucash/currency_tree_xml.gnucash` is a version 1 file (refused).
+- Some fixtures are refused by design: `piecash/simple_sample.sqlite.gnucash` is an SQL book and
+  `gnucash/currency_tree_xml.gnucash` is a version 1 file. `piecash/simple_sample.gnucash` and
+  `piecash/investment.gnucash` use trading accounts; read-only in v0.1, they open for editing from v0.2.
 
 ## The oracle
 

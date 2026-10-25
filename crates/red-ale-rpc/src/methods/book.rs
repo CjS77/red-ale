@@ -104,7 +104,7 @@ pub struct ReplayResult {
 /// Why a book is read-only.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct ReadOnlyInfo {
-    /// `requested`, `unsupported-features`, `trading-accounts` or `unrecognised-content`.
+    /// `requested`, `unsupported-features` or `unrecognised-content`.
     pub code: &'static str,
     /// Explanation.
     pub message: String,

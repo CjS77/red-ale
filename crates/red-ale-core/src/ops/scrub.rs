@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::book_options::uses_trading_accounts;
 use crate::ops::commit::{commodity_fraction, sort_splits};
+use crate::ops::trading::{self, lookup, set_value};
 use crate::{
     Account, AccountType, Book, CommodityRef, DENOM_AUTO, DomainError, DomainResult, Env, Guid, How, Numeric, Round, Split, Transaction,
 };
@@ -134,6 +135,32 @@ pub enum Repair {
         /// The account.
         account: Guid,
     },
+    /// A trading split was removed before the transaction's trading splits were rebuilt.
+    TradingSplitRemoved {
+        /// The transaction.
+        transaction: Guid,
+        /// The removed split.
+        split: Guid,
+        /// Its account.
+        account: Guid,
+        /// Its value.
+        value: Numeric,
+        /// Its amount.
+        amount: Numeric,
+    },
+    /// A trading split was added.
+    TradingSplitAdded {
+        /// The transaction.
+        transaction: Guid,
+        /// The new split.
+        split: Guid,
+        /// Its account.
+        account: Guid,
+        /// Its value.
+        value: Numeric,
+        /// Its amount.
+        amount: Numeric,
+    },
 }
 
 /// The book being scrubbed, its environment, and the repairs made so far.
@@ -160,20 +187,6 @@ fn scu(book: &Book, account: &Account) -> DomainResult<i64> {
     Ok(account.scu(fraction(book, commodity)?))
 }
 
-/// The accounts GnuCash's lookup finds, in its order (`gnc_account_lookup_by_type_and_commodity`,
-/// `5.17:libgnucash/engine/Account.cpp:3176-3210`): matching direct children, last first; failing those, each child's
-/// matches, last child first.
-fn lookup(book: &Book, parent: Guid, name: &str, account_type: AccountType, commodity: &CommodityRef) -> Vec<Guid> {
-    let matches = |a: &&Account| a.account_type == account_type && a.commodity.as_ref() == Some(commodity) && a.name == name;
-    let mut direct: Vec<Guid> = book.children(parent).filter(matches).map(|a| a.guid).collect();
-    if !direct.is_empty() {
-        direct.reverse();
-        return direct;
-    }
-    let children: Vec<Guid> = book.children(parent).map(|a| a.guid).collect();
-    children.into_iter().rev().flat_map(|c| lookup(book, c, name, account_type, commodity)).collect()
-}
-
 impl Scrubber<'_> {
     /// `xaccScrubUtilityGetOrMakeAccount(root, currency, "<prefix>-<CUR>", BANK, FALSE, TRUE)`
     /// (`5.17:libgnucash/engine/Scrub.cpp:1457-1540`): the account found anywhere in the tree, else a new BANK account
@@ -181,7 +194,7 @@ impl Scrubber<'_> {
     /// `Account.cpp:2683`) and no placeholder flag.
     fn get_or_make(&mut self, prefix: &str, currency: &CommodityRef) -> DomainResult<Guid> {
         let name = format!("{prefix}-{}", currency.mnemonic);
-        if let Some(found) = lookup(self.book, self.book.root, &name, AccountType::Bank, currency).first() {
+        if let Some(found) = lookup(self.book, self.book.root, Some(&name), AccountType::Bank, Some(currency)).first() {
             return Ok(*found);
         }
         let mut account = Account::new(self.env.new_guid(), name.clone(), AccountType::Bank, Some(currency.clone()), Some(self.book.root));
@@ -320,20 +333,62 @@ impl Scrubber<'_> {
         Ok(())
     }
 
-    /// `xaccTransScrubImbalance(trans, root, account)` without trading accounts (`Scrub.cpp:845-899`): scrub the
-    /// splits, then balance the values with a split in `account` (when it holds the transaction currency) or in
-    /// `Imbalance-<CUR>`.
+    /// `xaccTransScrubImbalance(trans, root, account)` (`Scrub.cpp:844-895`): scrub the splits, then balance the
+    /// values with a split in `account` (when it holds the transaction currency) or in `Imbalance-<CUR>`. With
+    /// trading accounts, the trading branch instead.
     fn imbalance(&mut self, guid: Guid, account: Option<Guid>) -> DomainResult<()> {
         self.splits(guid)?;
+        if uses_trading_accounts(self.book) {
+            return self.imbalance_trading(guid, account);
+        }
         let t = txn(self.book, guid)?;
         let imbalance = t.splits.iter().try_fold(Numeric::ZERO, |acc, s| acc.add_exact(s.value))?;
         if imbalance.is_zero() {
             return Ok(());
         }
-        if uses_trading_accounts(self.book) {
-            return Err(DomainError::invalid("balancing through trading accounts is not supported"));
-        }
         self.add_balance_split(guid, imbalance, account)
+    }
+
+    /// The trading branch of `xaccTransScrubImbalance` (`Scrub.cpp:864-894`): unless the transaction is balanced with
+    /// trading accounts, remove its trading splits, balance the values with an Imbalance split, and rebuild the
+    /// trading splits.
+    fn imbalance_trading(&mut self, guid: Guid, account: Option<Guid>) -> DomainResult<()> {
+        if trading::is_balanced(self.book, txn(self.book, guid)?)? {
+            return Ok(());
+        }
+        let mut t = txn(self.book, guid)?.clone();
+        let removed = trading::clear(self.book, &mut t);
+        let imbalance = t.imbalance()?;
+        *txn_mut(self.book, guid)? = t;
+        self.repairs.extend(removed.into_iter().map(|s| Repair::TradingSplitRemoved {
+            transaction: guid,
+            split: s.guid,
+            account: s.account.unwrap_or_default(),
+            value: s.value,
+            amount: s.amount,
+        }));
+        if !imbalance.is_zero() {
+            self.add_balance_split(guid, imbalance, account)?;
+        }
+        let mut t = txn(self.book, guid)?.clone();
+        let rebalanced = trading::rebalance(self.book, self.env, &mut t)?;
+        sort_splits(&mut t);
+        let book: &Book = self.book;
+        let created = rebalanced.accounts_created.iter().filter_map(|g| book.account(*g)).filter_map(|a| {
+            // A trading parent made in a Book with no root currency has no commodity, and no repair to describe it.
+            a.commodity.clone().map(|commodity| Repair::AccountCreated { account: a.guid, name: a.name.clone(), commodity })
+        });
+        let added = rebalanced.added.iter().filter_map(|g| t.split(*g)).map(|s| Repair::TradingSplitAdded {
+            transaction: guid,
+            split: s.guid,
+            account: s.account.unwrap_or_default(),
+            value: s.value,
+            amount: s.amount,
+        });
+        let repairs: Vec<Repair> = created.chain(added).collect();
+        self.repairs.extend(repairs);
+        *txn_mut(self.book, guid)? = t;
+        Ok(())
     }
 
     /// `add_balance_split` (`Scrub.cpp:582-636`). A balancing split that comes to zero and has no memo or action is
@@ -438,13 +493,6 @@ fn is_orphan(book: &Book, s: &Split) -> bool {
 /// `gnc_numeric_same(a, b, denom, ROUND_HALF_UP)`: equal once both are rounded to `denom`.
 fn same(a: Numeric, b: Numeric, denom: i64) -> bool {
     matches!((a.to_denom(denom, Round::HalfUp), b.to_denom(denom, Round::HalfUp)), (Ok(x), Ok(y)) if x == y)
-}
-
-/// `xaccSplitSetValue`'s rounding (`5.17:libgnucash/engine/Split.cpp:1279-1312`): a non-zero value that would round
-/// to zero keeps the old value.
-fn set_value(old: Numeric, new: Numeric, fraction: i64) -> DomainResult<Numeric> {
-    let rounded = new.to_denom(fraction, Round::HalfUp)?;
-    Ok(if rounded.is_zero() && !new.is_zero() { old } else { rounded })
 }
 
 /// `xaccSplitSetSharePrice` (`Split.cpp:1205-1224`): value = amount × price; a zero price changes nothing.

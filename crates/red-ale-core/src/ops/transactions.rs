@@ -142,7 +142,7 @@ pub fn update(book: &mut Book, env: &mut dyn Env, guid: Guid, edit: TransactionE
     if t.splits.is_empty() {
         return Err(DomainError::invalid("a transaction needs at least one split; delete it instead"));
     }
-    commit::commit(book, &mut t)?;
+    commit::commit(book, env, &mut t)?;
     book.transactions.insert(guid, Arc::new(t));
     Ok(())
 }
@@ -457,7 +457,7 @@ pub(crate) mod tests {
             proptest::prop_assert_eq!(sorted, expected);
             void::void(&mut f.book, &mut f.env, g, "test").unwrap();
             proptest::prop_assert!(f.book.transaction(g).unwrap().splits.iter().all(|s| s.value.is_zero()));
-            void::unvoid(&mut f.book, g).unwrap();
+            void::unvoid(&mut f.book, &mut f.env, g).unwrap();
             proptest::prop_assert_eq!(f.book.transaction(g).unwrap(), &posted);
             let r = void::reverse(&mut f.book, &mut f.env, g, Date::from_ymd(2024, 6, 2).unwrap()).unwrap();
             let net: i64 = [g, r].iter().flat_map(|t| f.book.transaction(*t).unwrap().splits.iter().map(|s| s.value.num())).sum();

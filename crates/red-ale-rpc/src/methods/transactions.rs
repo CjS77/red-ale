@@ -139,7 +139,7 @@ pub struct TransactionInfo {
     pub reversed_by: Option<Id>,
     /// A book-closing transaction.
     pub closing: bool,
-    /// The split values sum to zero.
+    /// The split values sum to zero; with trading accounts on, trading values and each commodity's amounts too.
     pub balanced: bool,
     /// The document link (`assoc_uri` slot), as stored: a URL, a `file://` URI, or a path relative to the path head.
     pub doc_link: Option<String>,
@@ -183,7 +183,7 @@ pub fn info(book: &Book, t: &Transaction) -> TransactionInfo {
         read_only: t.read_only_reason().map(str::to_owned),
         reversed_by: t.reversed_by().map(Id),
         closing: t.is_closing(),
-        balanced: t.is_balanced(),
+        balanced: red_ale_core::ops::commit::check_committed(book, t).is_ok(),
         doc_link: red_ale_core::ops::doc_links::doc_link(&t.slots).map(str::to_owned),
         splits: t.splits.iter().map(|s| split_info(book, t, s)).collect(),
     }
@@ -523,7 +523,7 @@ fn void_txn(ctx: &mut Context, p: VoidParams) -> Result<TransactionInfo, RpcErro
 fn unvoid(ctx: &mut Context, p: GuidParams) -> Result<TransactionInfo, RpcError> {
     ctx.mutate_rpc(|book, env| {
         check_editable_by_date(book, env, p.guid.0)?;
-        void::unvoid(book, p.guid.0)?;
+        void::unvoid(book, env, p.guid.0)?;
         info_of(book, p.guid.0)
     })
 }

@@ -22,6 +22,10 @@ def main(path):
         sys.exit("the oracle must be GnuCash 5.17")
     engine.xaccTransScrubImbalance.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
     session = Session("xml://" + path, SessionOpenMode.SESSION_NORMAL_OPEN)
+    # As in the GUI, the open book is the current session's: trading parents take its root currency
+    # (`5.17:libgnucash/engine/Scrub.cpp:493-516`).
+    engine.gnc_set_current_session.argtypes = [ctypes.c_void_p]
+    engine.gnc_set_current_session(ptr(session))
     try:
         root = session.book.get_root_account()
         seen, transactions = set(), []
@@ -40,6 +44,7 @@ def main(path):
         root.SetName(root.GetName())
         session.save()
     finally:
+        engine.gnc_set_current_session(None)
         session.end()
 
 

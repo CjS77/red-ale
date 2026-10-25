@@ -1,12 +1,15 @@
 //! The rules GnuCash applies when a transaction is committed, shared by every operation that creates or edits one.
 //!
 //! GnuCash balances an unbalanced transaction at commit by adding an `Imbalance-<CUR>` split. red-ale refuses
-//! unbalanced input instead; the imbalance scrub exists for callers who ask for GnuCash's behaviour.
-//! See `design/notes/engine-accounts-transactions.md` §1.5 and §5.
+//! unbalanced input instead; the imbalance scrub exists for callers who ask for GnuCash's behaviour. In a Book that uses
+//! trading accounts, the commit also rebuilds the transaction's trading splits ([`trading::commit`]).
+//! See `design/notes/engine-accounts-transactions.md` §1.5, §5 and §9.6.
 
 use std::sync::Arc;
 
+use crate::book_options::uses_trading_accounts;
 use crate::currencies::iso_currency;
+use crate::ops::trading;
 use crate::transaction::slot_paths;
 use crate::{Book, CommodityRef, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, Round, SlotValue, Split, Time64, Transaction};
 
@@ -168,7 +171,7 @@ pub fn build_split(book: &Book, env: &mut dyn Env, currency: &CommodityRef, new:
     Ok(split)
 }
 
-/// Check a transaction is balanced.
+/// Check a transaction's values sum to zero.
 pub fn check_balanced(t: &Transaction) -> DomainResult<()> {
     let imbalance = t.imbalance()?;
     if imbalance.is_zero() {
@@ -178,9 +181,17 @@ pub fn check_balanced(t: &Transaction) -> DomainResult<()> {
     }
 }
 
+/// Check a committed transaction is balanced as the Book defines it: its values sum to zero, and, when the Book uses
+/// trading accounts, its trading values and each commodity's amounts do too (`xaccTransIsBalanced`,
+/// `5.17:libgnucash/engine/Transaction.cpp:1078-1121`).
+pub fn check_committed(book: &Book, t: &Transaction) -> DomainResult<()> {
+    check_balanced(t)?;
+    if uses_trading_accounts(book) { trading::check(book, t) } else { Ok(()) }
+}
+
 /// Re-apply the commit rules to an edited transaction: values to the currency fraction, amounts to each account's
-/// SCU, splits sorted, and the result balanced.
-pub fn commit(book: &Book, t: &mut Transaction) -> DomainResult<()> {
+/// SCU, trading splits rebuilt when the Book uses them, splits sorted, and the result balanced.
+pub fn commit(book: &mut Book, env: &mut dyn Env, t: &mut Transaction) -> DomainResult<()> {
     let currency = t.currency.clone();
     t.splits.iter_mut().try_for_each(|s| -> DomainResult<()> {
         s.value = round_value(book, &currency, s.value)?;
@@ -189,8 +200,33 @@ pub fn commit(book: &Book, t: &mut Transaction) -> DomainResult<()> {
         }
         Ok(())
     })?;
+    trading::commit(book, env, t)?;
     sort_splits(t);
-    check_balanced(t)
+    check_committed(book, t)
+}
+
+/// Commit every transaction a Mutation added or changed, as GnuCash's `xaccTransCommitEdit` follows every setter
+/// (`5.17:libgnucash/engine/Transaction.cpp:1521-1574`): with trading accounts on, each one that is not balanced gets
+/// its trading splits rebuilt ([`trading::commit`]). Transactions are taken in book order. Operations that commit
+/// through [`commit`] or [`add_transaction`] have already done this, so it changes nothing for them.
+pub fn commit_changed(before: &Book, after: &mut Book, env: &mut dyn Env) -> DomainResult<()> {
+    if !uses_trading_accounts(after) {
+        return Ok(());
+    }
+    let changed: Vec<Guid> = after
+        .transactions
+        .iter()
+        .filter(|(g, t)| before.transactions.get(*g).is_none_or(|o| !Arc::ptr_eq(o, t) && o != *t))
+        .map(|(g, _)| *g)
+        .collect();
+    changed.into_iter().try_for_each(|guid| {
+        let Some(mut t) = after.transaction(guid).cloned() else { return Ok(()) };
+        if trading::commit(after, env, &mut t)?.is_some() {
+            sort_splits(&mut t);
+            after.transactions.insert(guid, Arc::new(t));
+        }
+        Ok(())
+    })
 }
 
 /// Create a transaction and add it to the book. Its splits are rounded and sorted as GnuCash commits them; an
@@ -218,8 +254,10 @@ pub fn add_transaction(book: &mut Book, env: &mut dyn Env, new: NewTransaction) 
     };
     set_date_posted(&mut t, new.date_posted);
     set_notes(&mut t, new.notes.as_deref());
-    sort_splits(&mut t);
     check_balanced(&t)?;
+    trading::commit(book, env, &mut t)?;
+    sort_splits(&mut t);
+    check_committed(book, &t)?;
     let guid = t.guid;
     book.transactions.insert(guid, Arc::new(t));
     Ok(guid)

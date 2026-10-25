@@ -545,7 +545,7 @@ Both features are GUI logic. red-ale reimplements each as one atomic service ope
   (`xaccTransGetImbalanceValue`, `Transaction.cpp:990-1003`).
   - Without trading accounts, `xaccTransIsBalanced` is just that test (`:1078-1121`).
   - With trading accounts, non-trading and trading values must each sum to 0, and every per-commodity amount must too
-    (`:1006-1075`). Trading accounts make a book read-only in v0.1.
+    (`:1006-1075`; §9.6).
 - **Value** is in the transaction currency (`common_currency`); **amount** (XML `quantity`) is in the account
   commodity. Neither is derived from the other on save.
 - When the account commodity equals the transaction currency, `amount == value` is restored by the scrubs (§9.4).
@@ -1079,7 +1079,7 @@ credit-card payment prompt after Finish are GUI conveniences. They are ordinary 
    5. Otherwise `SetValue(new_value)`. If the account commodity equals the currency, also `SetAmount(new_value)`.
       Then `xaccSplitScrub(split)` and commit.
 4. **With trading accounts:** clear the trading splits, rebalance the value, build `Trading/<namespace>/<mnemonic>`
-   splits, and add more splits for zero-amount gain splits (`:870-898`). v0.1 opens such books read-only.
+   splits, and add more splits for zero-amount gain splits (`:870-898`). See §9.6.
 
 Oracle:
 
@@ -1168,6 +1168,104 @@ progress callback and cancellable with Esc (`gnc_set_abort_scrub`):
   Headless sessions do not.
 - red-ale's file adapter should apply the same load-time normalisations, or knowingly not apply them, so that its
   output matches what GnuCash would write (§11).
+
+### 9.6 Trading accounts
+
+**The option.** "Use Trading Accounts" is the Book slot `options/Accounts/Use Trading Accounts`, a string. It is on
+when the value is exactly `"t"` (`qof_book_use_trading_accounts`, `5.17:libgnucash/engine/qofbook.cpp:919-928`), and
+`xaccTransUseTradingAccounts` asks only that (`5.17:libgnucash/engine/Transaction.cpp:969-972`).
+
+- The Book Options dialog registers it as a boolean, default off (`5.17:libgnucash/engine/gnc-optiondb.cpp:1216-1219`).
+  Saving the dialog writes each changed boolean as `"t"` or `"f"` (`:404-410`, `:465-517`); turning it off writes
+  `"f"`, it does not delete the slot. `qof_book_set_option` only sets the path and marks the Book dirty
+  (`qofbook.cpp:1379-1389`).
+- Changing the option touches no transaction. Existing transactions get trading splits only when they are next
+  committed.
+
+**What "balanced" means with trading accounts** (`xaccTransIsBalanced`, `Transaction.cpp:1078-1121`):
+
+1. the values of the non-trading splits sum to 0, **and** the values of the trading splits (splits in TRADING
+   accounts) sum to 0 — one cannot balance the other;
+2. **and** `xaccTransGetImbalance` (`:1006-1076`) is empty. It walks the splits in order, adding values. As soon as
+   a split's account commodity is not the transaction currency, or its amount ≠ its value, it starts a list with the
+   transaction currency holding the values summed so far, and from then on adds every split's **amount** under its
+   account's commodity. Entries are merged by `gnc_commodity_equiv` and new ones are **prepended**
+   (`gnc_monetary_list_add_monetary`, `5.17:libgnucash/engine/gnc-commodity.cpp:2441-2464`), then zero entries are
+   deleted (`:2469-2481`). For a valid transaction this is: the sum of amounts per account commodity, newest
+   commodity first, the transaction currency last.
+
+Per-commodity **values** are not checked: a rate change that leaves amounts and both value sums at zero leaves the
+old trading splits alone.
+
+**The tree.** `get_trading_split(trans, root, commodity)` (`5.17:libgnucash/engine/Scrub.cpp:518-579`) finds or
+makes, with `xaccScrubUtilityGetOrMakeAccount` (`:1507-1540`):
+
+| Level | Parent | Lookup (type TRADING) | Created as |
+|---|---|---|---|
+| `Trading` (`_("Trading")`) | root | any commodity, **name not checked** | placeholder, commodity = root currency |
+| namespace, e.g. `CURRENCY`, `NASDAQ` | `Trading` | any commodity, name = namespace | placeholder, commodity = root currency |
+| mnemonic, e.g. `EUR`, `ACME` | namespace | commodity equivalent, **name not checked** | not placeholder, commodity = the commodity |
+
+- **Lookup** is `gnc_account_lookup_by_type_and_commodity` (`5.17:libgnucash/engine/Account.cpp:3176-3210`): matching
+  direct children (prepended, so last first); only if none, each child's matches, last child first. With several
+  matches: with no commodity asked for, the first whose commodity is the root currency; then the first whose name
+  equals the name asked for; then the first.
+- **Creation** (`construct_account`, `Scrub.cpp:1457-1475`): appended as the parent's last child, with the given
+  commodity or else the **root currency**, type TRADING and the placeholder flag. `xaccAccountSetCommodity` sets the
+  SCU to the commodity's fraction (`Account.cpp:2683-2684`).
+- **Root currency** (`find_root_currency`, `Scrub.cpp:493-516`): the root account's commodity, else the commodity of
+  the first top-level INCOME account that has one, else none (the account is created with no commodity). It reads
+  the root of **the current session's** Book (`gnc_get_current_session`), which in the GUI is the open Book. A
+  script that never sets the current session gets an empty Book and so trading parents with no commodity (oracle).
+- The names are translated in GnuCash; namespace and mnemonic names are not.
+
+**The commit-time scrub** (`xaccTransScrubImbalance`, `Scrub.cpp:844-895`), run by every `xaccTransCommitEdit`
+(`Transaction.cpp:1521-1574`) — so by every setter, reconcile and lot change included, but never while the XML loader
+parses (`io-gncxml-v2.cpp:761`, `:814`):
+
+1. `xaccTransScrubSplits` (§9.4).
+2. If `xaccTransIsBalanced`, stop. **Trading splits of a balanced transaction are never touched.**
+3. `xaccTransClearTradingSplits` (`Scrub.cpp:684-712`): destroy every split in a TRADING account.
+4. If the values now sum to non-zero, `add_balance_split` (§9.1) into `Imbalance-<CUR>`.
+5. `gnc_transaction_balance_trading` (`:714-782`): for each entry `(commodity, imbalance)` of `xaccTransGetImbalance`,
+   in list order:
+   - take the transaction's split in the commodity's trading account, or append a new one (value and amount 0);
+   - amount = `old amount − imbalance`, rounded to the **commodity's fraction** half up, then to the account SCU by
+     `xaccSplitSetAmount`;
+   - if the commodity is the transaction currency, value = that amount;
+   - otherwise value = `old value − (sum of the values of all splits whose account holds the commodity)`, rounded to
+     the currency fraction half up (`gnc_transaction_get_commodity_imbalance`, `:653-673`). The sum includes the
+     trading split's own value, so the commodity's values come to 0;
+   - `xaccSplitScrub` on it.
+6. If the values still do not sum to 0, `gnc_transaction_balance_trading_more_splits` (`:784-836`): for each split
+   present before this step with value ≠ 0 and amount = 0 (a realized-gain split), the trading split of its account's
+   commodity gets value `old − split value` (currency fraction, half up), amount unchanged. Otherwise GnuCash logs
+   "Balancing currencies unbalanced value".
+7. The commit then removes destroyed splits and stably sorts the rest, debits first (§5.5), so new trading splits
+   end up after the existing splits of the same sign.
+
+Oracle (GnuCash 5.17, current session set, a USD book whose root has no commodity and whose top-level Income is USD):
+
+| Posted | Committed as |
+|---|---|
+| Euro +110.00 USD value / +100.00 EUR, Checking −110.00 | Euro +110/+100, `Trading:CURRENCY:USD` +110/+110, Checking −110, `Trading:CURRENCY:EUR` −110/−100 |
+| ACME +500.00 / +10.000 sh, Checking −500.00 | ACME, `Trading:CURRENCY:USD` +500/+500, Checking, `Trading:NASDAQ:ACME` −500/−10.000 |
+| ACME +25.00 / 0 sh, Gains −25.00 | ACME, `Trading:CURRENCY:USD` +25/+25, Gains, `Trading:NASDAQ:ACME` −25/0 |
+
+`Trading`, `Trading:CURRENCY` and `Trading:NASDAQ` came out USD, SCU 100, placeholder; the commodity accounts in
+their commodity at its fraction, not placeholder.
+
+**Consequences for every operation.** Every operation that creates or changes a transaction commits it, so with the
+option on each one ends with this scrub: post, edit, transfer, reverse (which first commits the original), void and
+unvoid (balanced either way, so no change), stock splits (the share split gets a trading split of −shares and value
+0), capital gains transactions (step 6), business posting and payments in another currency, reconcile and lot
+changes, delete with move. Deleting a transaction commits nothing.
+
+**Elsewhere:** the transfer dialog treats the amount as the split's own amount when trading accounts are on
+(`5.17:gnucash/gnome-utils/dialog-transfer.cpp:2375-2386`); the account dialog offers any commodity for a TRADING
+account (`5.17:gnucash/gnome-utils/dialog-account.c:224-241`) and no opening balance (`:1340-1344`);
+`xaccTransFindCommonCurrency` ignores trading splits (§9.3). TRADING is in `xaccAccountTypesValid`
+(`Account.cpp:4459-4466`) and can only be a child of TRADING or ROOT (§2.2).
 
 ---
 

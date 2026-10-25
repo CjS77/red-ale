@@ -34,6 +34,7 @@ Domain code: `red-ale-core::ops::scrub`; methods: `red-ale-rpc::methods::scrub`.
 | `balanceSplitChanged` | `transaction`, `split`, `account`, `from`, `to` | An existing balancing split was adjusted. |
 | `balanceSplitRemoved` | `transaction`, `split`, `account`, `value` | A balancing split that came to zero, with no memo or action, was deleted. |
 | `lotsRepaired` | `account` | The lot scrub changed the account's lots or splits. |
+| `tradingSplitRemoved`, `tradingSplitAdded` | see [`trading-accounts.md`](trading-accounts.md) | Trading splits replaced, in a book with trading accounts. |
 
 **Effect:** each method is one atomic mutation. Scrubs exist to change data, and can delete a split, so all four are
 marked `destructive`. Nothing is left half-repaired: if any step fails, the book is unchanged.
@@ -75,8 +76,8 @@ opens the book. Running `scrub.checkAndRepair` leaves nothing for GnuCash's load
      left alone.
    - Splits are re-sorted (value ≥ 0 first), as commit does.
 
-Books with trading accounts open read-only in v0.1, so the trading-account branch is not implemented. If it is ever
-reached, it is refused.
+With trading accounts on, "balanced" is `xaccTransIsBalanced`'s rule and the trading branch runs instead: see
+[`trading-accounts.md`](trading-accounts.md), "Scrubs".
 
 ### Orphans (`TransScrubOrphansFast`, `Scrub.cpp:110-136`)
 
@@ -142,8 +143,7 @@ session also requires.
 - **Not modelled:**
   - giving an account with no commodity a commodity (`xaccAccountScrubCommodity`); such splits are left alone;
   - the business scrub that Check & Repair ends with (`gncScrubBusinessAccount`,
-    `5.17:libgnucash/engine/ScrubBusiness.c:736-762`), which belongs to the business package;
-  - the trading-account branch of the imbalance scrub.
+    `5.17:libgnucash/engine/ScrubBusiness.c:736-762`), which belongs to the business package.
 
 ## Tests
 
