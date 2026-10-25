@@ -179,11 +179,11 @@ report code.
 
 | Status | Feature                           | Introduced | Epic | Notes                                                                                                                              |
 |:------:|-----------------------------------|:----------:|------|------------------------------------------------------------------------------------------------------------------------------------|
-|        | Credit notes                      |    2.6     |      | Lifts a v0.1 read-only trigger; sets `Credit Notes` (`gnc-features.h:54`)                                                           |
+|   ✅   | Credit notes                      |    2.6     |      | Lifts a v0.1 read-only trigger; sets `Credit Notes` (`gnc-features.h:54`)                                                           |
 |   ✅   | Duplicate document                |   2.4.1    |      |                                                                                                                                    |
 |   ✅   | Document links                    |    4.2     |      |                                                                                                                                    |
-|        | Payment matching and pre-payments |    2.6     |      | v0.1 already makes lot links and pre-payment lots ([`api/business-posting.md`](api/business-posting.md)); scope what's left first |
-|        | Payment from transaction          |    2.6     |      |                                                                                                                                    |
+|   ✅   | Payment matching and pre-payments |    2.6     |      | v0.1 already makes lot links and pre-payment lots ([`api/business-posting.md`](api/business-posting.md)); scope what's left first |
+|   ✅   | Payment from transaction          |    2.6     |      |                                                                                                                                    |
 
 ## 8. Reports
 

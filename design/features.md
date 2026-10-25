@@ -156,7 +156,7 @@ A feature added in a development series is listed under the stable release that 
 |:------:|--------------------|------------------------------------------------------------------|:----------:|:------:|
 |   ✅   | Invoices and bills | Documents with entries, quantities, prices, discounts and taxes  |    1.8     |  0.1   |
 |   ✅   | Expense vouchers   | Employee expense claims                                          |   1.8.2    |  0.1   |
-|        | Credit notes       | Negative invoices and bills                                      |    2.6     |        |
+|   ✅   | Credit notes       | Negative invoices and bills                                      |    2.6     |  0.2   |
 |   ✅   | Orders             | Groups invoice entries into an order                             |    1.8     |  0.1   |
 |   ✅   | Tax tables         | Named tax rates, as percentages or fixed amounts                 |    1.8     |  0.1   |
 |   ✅   | Billing terms      | Due dates and early-payment discounts                            |    1.8     |  0.1   |
@@ -170,8 +170,8 @@ A feature added in a development series is listed under the stable release that 
 | Status | Name                              | Short description                                                | Introduced | Ported |
 |:------:|-----------------------------------|------------------------------------------------------------------|:----------:|:------:|
 |   ✅   | Process payment                   | Records a payment against an owner's open documents              |    1.8     |  0.1   |
-|        | Payment matching and pre-payments | Links payments to documents through lots, including pre-payments |    2.6     |        |
-|        | Payment from transaction          | Turns an existing transaction into a business payment            |    2.6     |        |
+|   ✅   | Payment matching and pre-payments | Links payments to documents through lots, including pre-payments |    2.6     |  0.2   |
+|   ✅   | Payment from transaction          | Turns an existing transaction into a business payment            |    2.6     |  0.2   |
 |   ✅   | Due reminders                     | Lists bills and invoices that are due soon                       |    2.0     |  0.1   |
 
 ### Business import
