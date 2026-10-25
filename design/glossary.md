@@ -96,6 +96,9 @@ Code names are given in `code font` when they differ from the term.
 | **Raw sign** | Debits positive, credits negative: the sign of every reconcile amount. **⚠** GnuCash's flipped sign for credit Accounts is a display preference. |
 | **Closing the books** (`book.closeBooks`) | GnuCash's *Close Book* (Tools ▸ Close Book…): at a closing date, one Closing transaction per Commodity moves the balances of the income Accounts, and another those of the expense Accounts, into an equity Account. **⚠** Not closing a Session (`book.close`): the books stay open and editable. |
 | **Closing transaction** | A Transaction marked with the slot `book_closing` = 1, made when closing the books. Reports can leave such Transactions out. |
+| **Auto-clear** | Finding the one set of uncleared Splits in an Account that brings its cleared balance to a given figure, and marking them cleared. Fails when no set or more than one set does. |
+| **Document link** (`docLink`) | A link from a Transaction or Business document to a file or URL, kept in its `assoc_uri` slot. A link with no `scheme://` is a path relative to the Path head. **⚠** GnuCash code also says *doclink*; before GnuCash 4 it was an *association*, hence the slot name. |
+| **Path head** | The folder relative Document links start from: a GnuCash user preference, so kept in red-ale's Configuration, never in the Book. |
 
 ## Commodities and prices
 
@@ -157,6 +160,7 @@ Code names are given in `code font` when they differ from the term.
 | **Frozen copy** | A hidden child copy of a Tax table or Billing term made when a document is posted, so later edits to the original do not change posted documents. **⚠** GnuCash calls it the *child*. |
 | **Payment lot** | A Lot in the A/R or A/P Account holding a payment not yet matched to a document. A *pre-payment lot* is one made before the document existed. |
 | **Lot link** | A Transaction of type `L` that moves value between Lots of one Owner to settle documents against payments or credits. |
+| **Duplicate** | A new unposted document copied from another, with the next number, a new date for it and its Entries, and GnuCash's other resets. |
 
 ## red-ale
 
