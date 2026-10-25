@@ -10,7 +10,9 @@ use std::collections::BTreeMap;
 use super::{Nearest, by_date, latest, nearest};
 use crate::ops::commit::commodity_fraction;
 use crate::ops::commodities::canonical;
-use crate::{Book, CommodityRef, DENOM_AUTO, DenomMode, DomainError, DomainResult, How, Numeric, NumericError, Price, Round, Time64, TimeZone};
+use crate::{
+    Book, CommodityRef, DENOM_AUTO, DenomMode, DomainError, DomainResult, How, Numeric, NumericError, Price, Round, Time64, TimeZone,
+};
 
 /// Which price a conversion takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -152,7 +154,12 @@ fn any_currency<'a>(book: &'a Book, commodity: &CommodityRef, at: PriceAt) -> Ve
 
 /// `extract_common_prices` (`:2333-2373`): the first pair, in from-major order, of a price of `from` and a price of
 /// `to` that share a third commodity.
-fn common_prices<'a>(from_prices: &[Quote<'a>], to_prices: &[Quote<'a>], from: &CommodityRef, to: &CommodityRef) -> Option<(Quote<'a>, Quote<'a>)> {
+fn common_prices<'a>(
+    from_prices: &[Quote<'a>],
+    to_prices: &[Quote<'a>],
+    from: &CommodityRef,
+    to: &CommodityRef,
+) -> Option<(Quote<'a>, Quote<'a>)> {
     let third = |c: &CommodityRef| c != from && c != to;
     let shares = |f: &Quote<'_>, t: &Quote<'_>| {
         ((t.commodity == f.commodity || t.commodity == f.currency) && third(&t.commodity))
@@ -265,7 +272,11 @@ mod tests {
 
     #[test]
     fn a_direct_price_wins_and_is_inverted_when_quoted_the_other_way() {
-        let b = book(&[(1, "EUR", "USD", "2024-01-10", 110, 100), (2, "GBP", "USD", "2024-01-10", 125, 100), (3, "EUR", "GBP", "2024-01-10", 9, 10)]);
+        let b = book(&[
+            (1, "EUR", "USD", "2024-01-10", 110, 100),
+            (2, "GBP", "USD", "2024-01-10", 125, 100),
+            (3, "EUR", "GBP", "2024-01-10", 9, 10),
+        ]);
         let at = PriceAt::Before(day("2024-02-01"));
         assert_eq!(rate(&b, &cur("EUR"), &cur("EUR"), at), Ok(Numeric::ONE));
         assert!(rate(&b, &cur("EUR"), &cur("GBP"), at).unwrap().same_repr(r(9, 10)));
@@ -287,7 +298,11 @@ mod tests {
 
     #[test]
     fn modes_pick_their_prices() {
-        let b = book(&[(1, "EUR", "USD", "2024-01-10", 110, 100), (2, "EUR", "USD", "2024-01-20", 120, 100), (3, "EUR", "USD", "2099-01-01", 2, 1)]);
+        let b = book(&[
+            (1, "EUR", "USD", "2024-01-10", 110, 100),
+            (2, "EUR", "USD", "2024-01-20", 120, 100),
+            (3, "EUR", "USD", "2099-01-01", 2, 1),
+        ]);
         let eur_usd = |at| rate(&b, &cur("EUR"), &cur("USD"), at).unwrap();
         assert_eq!(eur_usd(PriceAt::Before(day("2024-01-19"))), r(11, 10));
         assert_eq!(eur_usd(PriceAt::Nearest(day("2024-01-19"))), r(6, 5));
@@ -299,7 +314,11 @@ mod tests {
 
     #[test]
     fn latest_goes_indirect_only_up_to_now() {
-        let b = book(&[(1, "EUR", "USD", "2024-01-10", 110, 100), (2, "GBP", "USD", "2024-01-10", 125, 100), (3, "GBP", "USD", "2099-01-01", 2, 1)]);
+        let b = book(&[
+            (1, "EUR", "USD", "2024-01-10", 110, 100),
+            (2, "GBP", "USD", "2024-01-10", 125, 100),
+            (3, "GBP", "USD", "2099-01-01", 2, 1),
+        ]);
         let latest = |now| rate(&b, &cur("EUR"), &cur("GBP"), PriceAt::Latest { now: day(now) }).unwrap();
         assert_eq!(latest("2024-06-01"), r(22, 25), "the future GBP price is not seen");
         assert_eq!(latest("2100-01-01"), r(11, 20));
@@ -317,7 +336,8 @@ mod tests {
         let ids = |ps: Vec<&Price>| ps.iter().map(|p| p.guid.to_string()[..2].to_owned()).collect::<Vec<_>>();
         assert_eq!(ids(latest_before_any_currency(&b, &cur("EUR"), day("2024-01-19"))), ["05", "03"], "USD: the newer of both directions");
         assert_eq!(ids(nearest_any_currency(&b, &cur("EUR"), day("2024-01-19"))), ["04", "02", "05"], "GBP only after; USD nearer after");
-        assert_eq!(ids(nearest_any_currency(&b, &cur("EUR"), day("2024-01-18"))), ["04", "02", "05", "05"], "a price at the time is listed twice");
+        let at_a_price = nearest_any_currency(&b, &cur("EUR"), day("2024-01-18"));
+        assert_eq!(ids(at_a_price), ["04", "02", "05", "05"], "a price at the time is listed twice");
     }
 
     #[test]

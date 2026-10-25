@@ -15,7 +15,9 @@ use regex::{Regex, RegexBuilder};
 use super::order::split_order;
 use crate::ops::balances::account_splits_between;
 use crate::ops::commodities::canonical;
-use crate::{Book, CommodityRef, Date, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, TimeZone, Transaction};
+use crate::{
+    Book, CommodityRef, Date, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, TimeZone, Transaction,
+};
 
 /// How a string criterion compares (`5.17:gnucash/gnome-search/search-string.c:235-242`, `search-string.h:32-37`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -519,21 +521,25 @@ mod tests {
         let closing_entries = posted(&mut f, 1, "Closing Entries", 100);
         let lunch = posted(&mut f, 2, "lunch", 200);
         let dinner = posted(&mut f, 3, "Dinner", 300);
-        Arc::make_mut(f.book.transactions.get_mut(&dinner).unwrap()).slots.set(crate::transaction::slot_paths::BOOK_CLOSING, crate::SlotValue::Integer(1));
+        let closing = crate::SlotValue::Integer(1);
+        Arc::make_mut(f.book.transactions.get_mut(&dinner).unwrap()).slots.set(crate::transaction::slot_paths::BOOK_CLOSING, closing);
         let voided = posted(&mut f, 2, "voided", 400);
-        Arc::make_mut(f.book.transactions.get_mut(&voided).unwrap()).splits.iter_mut().for_each(|s| s.reconcile_state = ReconcileState::Voided);
+        let void = Arc::make_mut(f.book.transactions.get_mut(&voided).unwrap());
+        void.splits.iter_mut().for_each(|s| s.reconcile_state = ReconcileState::Voided);
         let day = |d| Date::from_ymd(2024, 6, d).unwrap().neutral_time();
         let found = |q: &PeriodQuery| period_splits(&f.book, q).unwrap().iter().map(|(t, _)| t.guid).collect::<Vec<_>>();
         let food = PeriodQuery { accounts: vec![f.food], ..PeriodQuery::default() };
         assert_eq!(found(&food), [closing_entries, lunch, dinner], "the void split is left out");
-        assert_eq!(found(&PeriodQuery { from: Some(day(2)), to: Some(day(3)), ..food.clone() }), [lunch, dinner], "both ends inclusive, to the second");
+        let inclusive = PeriodQuery { from: Some(day(2)), to: Some(day(3)), ..food.clone() };
+        assert_eq!(found(&inclusive), [lunch, dinner], "both ends inclusive, to the second");
         assert_eq!(found(&PeriodQuery { to: Some(Time64(day(3).0 - 1)), ..food.clone() }), [closing_entries, lunch]);
         let pattern = |text: &str, cased, regexp| Some(DescriptionPattern { text: text.into(), cased, regexp });
         assert_eq!(found(&PeriodQuery { description: pattern("closing", false, false), ..food.clone() }), [closing_entries]);
         assert!(found(&PeriodQuery { description: pattern("closing", true, false), ..food.clone() }).is_empty());
         assert_eq!(found(&PeriodQuery { description: pattern("closing", true, false), closing: true, ..food.clone() }), [dinner], "OR'ed");
         assert_eq!(found(&PeriodQuery { description: pattern("^(l|d)", false, true), ..food.clone() }), [lunch, dinner]);
-        assert_eq!(found(&PeriodQuery { description: pattern("", true, false), ..food.clone() }), [closing_entries, lunch, dinner], "empty matches all");
+        let empty = PeriodQuery { description: pattern("", true, false), ..food.clone() };
+        assert_eq!(found(&empty), [closing_entries, lunch, dinner], "empty matches all");
         assert!(period_splits(&f.book, &PeriodQuery { description: pattern("(", false, true), ..food.clone() }).is_err());
         assert!(found(&PeriodQuery::default()).is_empty());
     }
@@ -546,13 +552,17 @@ mod tests {
         new.splits = vec![NewSplit::new(f.bank, usd(-1000)), NewSplit::new(f.eur, usd(1000)).with_amount(Numeric::new(900, 100))];
         let usd_eur = super::super::post(&mut f.book, &mut f.env, new).unwrap();
         let mut new = NewTransaction::new(CommodityRef::currency("GBP"), Date::from_ymd(2024, 6, 1).unwrap());
-        new.splits = vec![NewSplit::new(f.gbp, Numeric::new(500, 100)), NewSplit::new(f.bank, Numeric::new(-500, 100)).with_amount(usd(-640))];
+        new.splits = vec![
+            NewSplit::new(f.gbp, Numeric::new(500, 100)),
+            NewSplit::new(f.bank, Numeric::new(-500, 100)).with_amount(usd(-640)),
+        ];
         let gbp_usd = super::super::post(&mut f.book, &mut f.env, new).unwrap();
         simple(&mut f, 100);
         let accounts = [f.eur, f.bank, f.food, f.gbp];
         let found = |until, commodity: Option<&str>, sorted| {
             let c = commodity.map(CommodityRef::currency);
-            cross_commodity_splits(&f.book, &accounts, until, c.as_ref(), sorted).iter().map(|(t, s)| (t.guid, s.account.unwrap())).collect::<Vec<_>>()
+            let found = cross_commodity_splits(&f.book, &accounts, until, c.as_ref(), sorted);
+            found.iter().map(|(t, s)| (t.guid, s.account.unwrap())).collect::<Vec<_>>()
         };
         assert_eq!(found(None, None, false), [(usd_eur, f.eur), (gbp_usd, f.bank)], "account after account");
         assert_eq!(found(None, None, true), [(gbp_usd, f.bank), (usd_eur, f.eur)], "split order");

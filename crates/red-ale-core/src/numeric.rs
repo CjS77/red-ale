@@ -533,10 +533,11 @@ impl Numeric {
         if !self.is_valid() {
             return Err(NumericError::Arg);
         }
-        let (num, denom) = if self.denom < 0 { (self.num.checked_mul(-self.denom).ok_or(NumericError::Overflow)?, 1) } else { (self.num, self.denom) };
+        let overflow = |x: Option<i64>| x.ok_or(NumericError::Overflow);
+        let (num, denom) = if self.denom < 0 { (overflow(self.num.checked_mul(-self.denom))?, 1) } else { (self.num, self.denom) };
         match num {
             0 => Ok(Self::ZERO),
-            n if n < 0 => Ok(Self { num: denom.checked_neg().ok_or(NumericError::Overflow)?, denom: n.checked_neg().ok_or(NumericError::Overflow)? }),
+            n if n < 0 => Ok(Self { num: overflow(denom.checked_neg())?, denom: overflow(n.checked_neg())? }),
             n => Ok(Self { num: denom, denom: n }),
         }
     }

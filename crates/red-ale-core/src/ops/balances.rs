@@ -71,7 +71,13 @@ pub fn account_splits(book: &Book, account: Guid) -> Vec<(&Transaction, &Split)>
 /// An account's splits posted from `from` to `to`, both inclusive, in split order, and with `include_descendants`
 /// then each descendant's in turn (depth first, children in book order): `gnc_account_foreach_split_between_dates`
 /// (`5.17:libgnucash/engine/Account.hpp:51-85`). `None` leaves that end open.
-pub fn account_splits_between(book: &Book, account: Guid, from: Option<Time64>, to: Option<Time64>, include_descendants: bool) -> Vec<(&Transaction, &Split)> {
+pub fn account_splits_between(
+    book: &Book,
+    account: Guid,
+    from: Option<Time64>,
+    to: Option<Time64>,
+    include_descendants: bool,
+) -> Vec<(&Transaction, &Split)> {
     let descendants = if include_descendants { book.descendants(account).iter().map(|a| a.guid).collect() } else { Vec::new() };
     std::iter::once(account)
         .chain(descendants)
@@ -185,7 +191,10 @@ pub fn balance_as_of_in_commodity(
         return Ok(own);
     }
     let fraction = commodity_fraction(book, &target).ok_or_else(|| DomainError::not_found("commodity", &target))?;
-    book.descendants(account).iter().try_fold(own, |sum, sub| Ok(sum.add(converted_as_of(book, sub, t, total, &target)?, fraction, How::round(Round::HalfUp))?))
+    book.descendants(account).iter().try_fold(own, |sum, sub| {
+        let converted = converted_as_of(book, sub, t, total, &target)?;
+        Ok(sum.add(converted, fraction, How::round(Round::HalfUp))?)
+    })
 }
 
 /// `xaccAccountGetXxxBalanceAsOfDateInCurrency` (`:3634-3647`) and `xaccAccountConvertBalanceToCurrencyAsOfDate`
@@ -215,7 +224,13 @@ pub fn balance_change(book: &Book, account: Guid, from: Time64, to: Time64, tota
 /// given, `elt` of the last item posted at or before it, else what the previous time got, starting from `init`. The
 /// items must be in split order. Times are meant to ascend; GnuCash's cursor only moves forward, and so does this one,
 /// so a time earlier than the one before it repeats that one's result.
-pub fn accumulate_to_dates<I, T: Clone>(items: &[I], posted: impl Fn(&I) -> Time64, times: &[Time64], init: T, mut elt: impl FnMut(&I) -> T) -> Vec<T> {
+pub fn accumulate_to_dates<I, T: Clone>(
+    items: &[I],
+    posted: impl Fn(&I) -> Time64,
+    times: &[Time64],
+    init: T,
+    mut elt: impl FnMut(&I) -> T,
+) -> Vec<T> {
     let mut rest = items.iter().peekable();
     let mut result = init;
     times
@@ -257,7 +272,11 @@ pub fn balances_at_dates(book: &Book, account: Guid, times: &[Time64]) -> Domain
 /// (`5.17:libgnucash/engine/Account.cpp:3669-3740`): each sub-account's balance is added rounded half up to the
 /// commodity's fraction. GnuCash converts a sub-account in another commodity at the latest price; `account.balance`
 /// adds nothing for it (as GnuCash does when no price exists) and reports its balances unconverted, by commodity.
-pub fn balances_with_subaccounts(book: &Book, guid: Guid, before: Option<Time64>) -> DomainResult<(Balances, BTreeMap<CommodityRef, Balances>)> {
+pub fn balances_with_subaccounts(
+    book: &Book,
+    guid: Guid,
+    before: Option<Time64>,
+) -> DomainResult<(Balances, BTreeMap<CommodityRef, Balances>)> {
     let acc = book.account(guid).ok_or_else(|| DomainError::not_found("account", &guid))?;
     let own = balances(book, guid, before)?;
     let Some(commodity) = acc.commodity.clone() else { return Ok((own, BTreeMap::new())) };
@@ -416,10 +435,12 @@ mod tests {
         assert_eq!(balance_as_of(&f.book, bank, day(4), Total::Balance).unwrap(), usd(100));
         assert!(balance_as_of(&f.book, bank, day(2), Total::Balance).unwrap().is_zero());
         let times = [day(1), day(2), day(3), day(4), day(9)];
-        assert_eq!(running_totals_at(&f.book, bank, &times, Total::Balance).unwrap(), [None, Some(usd(100)), Some(usd(100)), Some(usd(300)), Some(usd(300))]);
+        let at = running_totals_at(&f.book, bank, &times, Total::Balance).unwrap();
+        assert_eq!(at, [None, Some(usd(100)), Some(usd(100)), Some(usd(300)), Some(usd(300))]);
         assert_eq!(balances_at_dates(&f.book, bank, &times).unwrap(), [Numeric::ZERO, usd(100), usd(100), usd(300), usd(300)]);
         let unsorted = [day(4), day(2), day(9)];
-        assert_eq!(running_totals_at(&f.book, bank, &unsorted, Total::Balance).unwrap(), [Some(usd(300)); 3], "the cursor only moves forward");
+        let at = running_totals_at(&f.book, bank, &unsorted, Total::Balance).unwrap();
+        assert_eq!(at, [Some(usd(300)); 3], "the cursor only moves forward");
     }
 
     #[test]
@@ -494,12 +515,16 @@ mod tests {
 
     proptest! {
         #[test]
-        fn at_dates_agree_with_as_of_a_second_later(days in proptest::collection::vec((1u32..28, -5000i64..5000), 1..12), probes in proptest::collection::vec(0u32..30, 1..8)) {
+        fn at_dates_agree_with_as_of_a_second_later(
+            days in proptest::collection::vec((1u32..28, -5000i64..5000), 1..12),
+            probes in proptest::collection::vec(0u32..30, 1..8),
+        ) {
             let mut f = Fx::new();
             let bank = f.add(None, "Bank", AccountType::Bank);
             let food = f.add(None, "Food", AccountType::Expense);
             days.iter().filter(|(_, c)| *c != 0).for_each(|(d, c)| { f.post(bank, food, *c, *d); });
-            let mut times: Vec<Time64> = probes.iter().map(|d| Date::from_ymd(2024, 1, 1).unwrap().add_days(i64::from(*d)).neutral_time()).collect();
+            let start = Date::from_ymd(2024, 1, 1).unwrap();
+            let mut times: Vec<Time64> = probes.iter().map(|d| start.add_days(i64::from(*d)).neutral_time()).collect();
             times.sort();
             let at = running_totals_at(&f.book, bank, &times, Total::Balance).unwrap();
             let sums = balances_at_dates(&f.book, bank, &times).unwrap();
