@@ -141,6 +141,8 @@ pub struct TransactionInfo {
     pub closing: bool,
     /// The split values sum to zero.
     pub balanced: bool,
+    /// The document link (`assoc_uri` slot), as stored: a URL, a `file://` URI, or a path relative to the path head.
+    pub doc_link: Option<String>,
     /// Its splits, in stored order (debits first).
     pub splits: Vec<SplitInfo>,
 }
@@ -182,6 +184,7 @@ pub fn info(book: &Book, t: &Transaction) -> TransactionInfo {
         reversed_by: t.reversed_by().map(Id),
         closing: t.is_closing(),
         balanced: t.is_balanced(),
+        doc_link: red_ale_core::ops::doc_links::doc_link(&t.slots).map(str::to_owned),
         splits: t.splits.iter().map(|s| split_info(book, t, s)).collect(),
     }
 }
@@ -257,6 +260,9 @@ pub struct PostParams {
     /// Notes; empty means none.
     #[serde(default)]
     pub notes: Option<String>,
+    /// A document link: a URL, a `file://` URI, or a path relative to the path head. Empty means none.
+    #[serde(default)]
+    pub doc_link: Option<String>,
     /// The splits. Their values must sum to zero.
     pub splits: Vec<SplitParams>,
     /// Record each priced split's value/amount in the price database, as GnuCash's register does
@@ -297,6 +303,10 @@ fn date_or_today(env: &mut dyn Env, d: Option<Day>) -> Result<Date, RpcError> {
     d.map_or_else(|| today(env), |d| Ok(d.0))
 }
 
+fn set_doc_link(book: &mut Book, guid: Guid, link: Option<&str>) -> Result<(), RpcError> {
+    link.map_or(Ok(()), |l| red_ale_core::ops::doc_links::set_transaction_link(book, guid, l).map_err(Into::into))
+}
+
 fn record(book: &mut Book, env: &mut dyn Env, guid: Guid, on: bool) -> Result<(), RpcError> {
     if on {
         transfer::record_prices(book, env, guid, red_ale_core::ops::prices::SPLIT_REGISTER_SOURCE)?;
@@ -323,6 +333,7 @@ fn post(ctx: &mut Context, p: PostParams) -> Result<TransactionInfo, RpcError> {
             splits,
         };
         let guid = ops::post(book, env, new)?;
+        set_doc_link(book, guid, p.doc_link.as_deref())?;
         record(book, env, guid, p.record_price)?;
         info_of(book, guid)
     })
@@ -437,6 +448,9 @@ pub struct UpdateParams {
     /// New notes; empty deletes them.
     #[serde(default)]
     pub notes: Option<String>,
+    /// A new document link; empty deletes it. Refused on a read-only transaction.
+    #[serde(default)]
+    pub doc_link: Option<String>,
     /// Splits to remove, by GUID.
     #[serde(default)]
     pub remove_splits: Vec<Id>,
@@ -469,6 +483,7 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<TransactionInfo, RpcErro
             add_splits: p.add_splits.into_iter().map(|s| s.resolve(book)).collect::<Result<_, _>>()?,
         };
         ops::update(book, env, p.guid.0, edit)?;
+        set_doc_link(book, p.guid.0, p.doc_link.as_deref())?;
         record(book, env, p.guid.0, p.record_price)?;
         info_of(book, p.guid.0)
     })

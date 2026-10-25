@@ -56,7 +56,7 @@ pub enum DocumentKindWire {
     CreditNote,
 }
 
-fn type_wire(book: &Book, inv: &Invoice) -> Option<DocumentKindWire> {
+pub(crate) fn type_wire(book: &Book, inv: &Invoice) -> Option<DocumentKindWire> {
     if inv.is_credit_note() {
         return Some(DocumentKindWire::CreditNote);
     }
@@ -487,6 +487,9 @@ params_pair!(
         billing_id: Option<String>,
         /// Notes.
         notes: Option<String>,
+        /// A document link: a URL, a `file://` URI, or a path relative to the path head. Empty removes it. Posted
+        /// documents accept it too.
+        doc_link: Option<String>,
         /// Bills and vouchers: the customer or job the costs are for; `null` for none.
         #[serde(deserialize_with = "nullable")]
         bill_to: Option<Option<Id>>,
@@ -539,6 +542,8 @@ pub struct InvoiceInfo {
     pub terms: Option<Id>,
     pub billing_id: String,
     pub notes: String,
+    /// The document link (`assoc_uri` slot), as stored.
+    pub doc_link: Option<String>,
     pub active: bool,
     pub bill_to: Option<OwnerInfo>,
     pub charge_amount: Amount,
@@ -572,6 +577,7 @@ fn invoice_info(book: &Book, inv: &Invoice) -> InvoiceInfo {
         terms: inv.terms.map(Into::into),
         billing_id: inv.billing_id.clone(),
         notes: inv.notes.clone(),
+        doc_link: red_ale_core::ops::doc_links::doc_link(&inv.slots).map(str::to_owned),
         active: inv.active,
         bill_to: inv.bill_to.map(Into::into),
         charge_amount: inv.charge_amount.into(),
@@ -582,7 +588,7 @@ fn invoice_info(book: &Book, inv: &Invoice) -> InvoiceInfo {
     }
 }
 
-fn get_invoice(book: &Book, guid: Guid) -> Result<InvoiceDetail, RpcError> {
+pub(super) fn get_invoice(book: &Book, guid: Guid) -> Result<InvoiceDetail, RpcError> {
     let inv = book.business.invoices.get(&guid).ok_or_else(|| RpcError::not_found("invoice", guid))?;
     let entries = entries_of(book, guid).into_iter().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(Into::into).collect();
     Ok(InvoiceDetail { invoice: invoice_info(book, inv), entries })
@@ -633,13 +639,15 @@ fn invoice_matches(book: &Book, p: &InvoiceListParams, inv: &Invoice) -> bool {
         && p.id.as_ref().is_none_or(|id| *id == inv.id)
 }
 
-fn invoice_create(ctx: &mut Context, p: InvoiceFields) -> Result<InvoiceDetail, RpcError> {
+fn invoice_create(ctx: &mut Context, mut p: InvoiceFields) -> Result<InvoiceDetail, RpcError> {
     let owner = p.owner.ok_or_else(|| RpcError::invalid("a document needs an owner"))?;
+    let link = p.doc_link.take();
     ctx.mutate_rpc(|book, env| {
         let owner = resolve_owner(book, owner)?;
         let mut inv = new_invoice(book, env, owner)?;
         p.apply(book, env, &mut inv)?;
         let guid = add_invoice(book, inv)?;
+        set_doc_link(book, guid, link.as_deref())?;
         get_invoice(book, guid)
     })
 }
@@ -681,13 +689,21 @@ fn invoice_list(ctx: &mut Context, p: InvoiceListParams) -> Result<InvoiceList, 
 }
 
 fn invoice_update(ctx: &mut Context, p: InvoiceUpdate) -> Result<InvoiceDetail, RpcError> {
-    let (key, fields) = p.split();
+    let (key, mut fields) = p.split();
+    let link = fields.doc_link.take();
     ctx.mutate_rpc(|book, env| {
         let mut inv = book.business.invoices.get(&key.0).map(|i| (**i).clone()).ok_or_else(|| RpcError::not_found("invoice", key.0))?;
         fields.apply(book, env, &mut inv)?;
         update_invoice(book, inv)?;
+        set_doc_link(book, key.0, link.as_deref())?;
         get_invoice(book, key.0)
     })
+}
+
+/// The link is set apart from the other fields, so a posted document, which takes no other change but its active
+/// flag, can take one.
+fn set_doc_link(book: &mut Book, guid: Guid, link: Option<&str>) -> Result<(), RpcError> {
+    link.map_or(Ok(()), |l| red_ale_core::ops::doc_links::set_invoice_link(book, guid, l).map_err(Into::into))
 }
 
 fn invoice_delete(ctx: &mut Context, p: InvoiceKey) -> Result<Done, RpcError> {

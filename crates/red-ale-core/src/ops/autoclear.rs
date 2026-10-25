@@ -104,11 +104,16 @@ pub fn find_with_limit(book: &Book, account: Guid, target: Numeric, limit: u64) 
 /// refused with its message.
 pub fn apply(book: &mut Book, env: &mut dyn Env, account: Guid, target: Numeric) -> DomainResult<AutoClear> {
     let result = find(book, account, target)?;
+    mark_cleared(book, env, &result)?;
+    Ok(result)
+}
+
+/// Mark cleared the splits a search found; refused, with GnuCash's message, unless it found exactly one set.
+pub fn mark_cleared(book: &mut Book, env: &mut dyn Env, result: &AutoClear) -> DomainResult<()> {
     let Outcome::Found(splits) = &result.outcome else {
         return Err(DomainError::invalid(result.outcome.message().unwrap_or_default()));
     };
-    splits.iter().try_for_each(|s| set_split_state(book, env, *s, ReconcileState::Cleared, None))?;
-    Ok(result)
+    splits.iter().try_for_each(|s| set_split_state(book, env, *s, ReconcileState::Cleared, None))
 }
 
 /// An amount as a whole number of SCUs (`numeric_to_int64`, `5.17:libgnucash/app-utils/gnc-autoclear.cpp:178-184`).
