@@ -30,7 +30,8 @@ In addition the following features from `features.md`:
   window) and the Future Scheduled Transactions Summary that `standard/account-summary.scm:432` defines beside Account
   Summary. Budget and scheduled-transaction reports stay out with §4 and §5.
 - Logo and background images in style sheets.
-- All import and export: §7, and the CSV imports under §6 "Business import". They move to v0.3.
+- All import and export: §7, and the CSV imports under §6 "Business import". They move to v0.3, with the CSV export
+  that the net and category charts offer ([`reports.md`](reports.md) §12).
 - The stock transaction assistant (won't do).
 
 ## Compatibility in v0.2
