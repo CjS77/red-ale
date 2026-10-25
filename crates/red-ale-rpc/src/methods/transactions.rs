@@ -281,7 +281,7 @@ fn date_or_today(env: &mut dyn Env, d: Option<Day>) -> Result<Date, RpcError> {
 
 fn record(book: &mut Book, env: &mut dyn Env, guid: Guid, on: bool) -> Result<(), RpcError> {
     if on {
-        transfer::record_prices(book, env, guid, transfer::SOURCE_SPLIT_REGISTER)?;
+        transfer::record_prices(book, env, guid, red_ale_core::ops::prices::SPLIT_REGISTER_SOURCE)?;
     }
     Ok(())
 }
