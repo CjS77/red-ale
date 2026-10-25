@@ -6,7 +6,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
-use serde_json::Value;
+use serde_json::{Value, json};
 
 const BIN: &str = env!("CARGO_BIN_EXE_red-ale");
 
@@ -104,4 +104,29 @@ fn serve_and_call_over_http() {
     Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
     assert!(server.wait().unwrap().success());
     assert!(!Path::new(&lock).exists(), "SIGTERM closes the book and releases the lock");
+}
+
+#[test]
+fn a_script_drives_several_areas_and_saves_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("new.gnucash").display().to_string();
+    let script = dir.path().join("changes.txt");
+    std::fs::write(
+        &script,
+        r#"account.create {"name": "Checking", "type": "BANK", "commodity": "USD"}
+account.create {"name": "Salary", "type": "INCOME", "commodity": "USD"}
+transaction.post {"datePosted": "2024-06-20", "description": "Pay", "splits": [{"account": "Checking", "value": "1000.00"}, {"account": "Salary", "value": "-1000.00"}]}
+price.add {"commodity": "EUR", "currency": "USD", "value": "1.08", "date": "2024-06-03"}
+customer.create {"name": "Acme", "currency": "USD"}
+"#,
+    )
+    .unwrap();
+    let out = run(&["exec", "--create", "--book", &book, "--script", &script.display().to_string()]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(json(&out.stdout).as_array().unwrap().len(), 5);
+    let info = json(&run(&["exec", "--book", &book, "--read-only", "book.info"]).stdout);
+    let counts = &info["counts"];
+    assert_eq!((&counts["accounts"], &counts["transactions"], &counts["prices"], &counts["customers"]), (&json!(3), &json!(1), &json!(1), &json!(1)));
+    let balance = json(&run(&["exec", "--book", &book, "--read-only", "account.balance", "account=Checking"]).stdout);
+    assert_eq!(balance["balances"]["balance"], json!({ "num": "100000", "denom": "100" }));
 }

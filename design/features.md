@@ -143,21 +143,21 @@ A feature added in a development series is listed under the stable release that 
 
 | Status | Name      | Short description                                               | Introduced | Ported |
 |:------:|-----------|-----------------------------------------------------------------|:----------:|:------:|
-|        | Customers | Customers with addresses, terms, tax settings and credit limits |    1.8     |        |
-|        | Vendors   | Vendors with addresses, terms and tax settings                  |    1.8     |        |
-|        | Employees | Employees with rates, for expense vouchers                      |    1.8     |        |
-|        | Jobs      | Groups invoices or bills for one customer or vendor             |    1.8     |        |
+|   ✅   | Customers | Customers with addresses, terms, tax settings and credit limits |    1.8     |  0.1   |
+|   ✅   | Vendors   | Vendors with addresses, terms and tax settings                  |    1.8     |  0.1   |
+|   ✅   | Employees | Employees with rates, for expense vouchers                      |    1.8     |  0.1   |
+|   ✅   | Jobs      | Groups invoices or bills for one customer or vendor             |    1.8     |  0.1   |
 
 ### Documents
 
 | Status | Name               | Short description                                                | Introduced | Ported |
 |:------:|--------------------|------------------------------------------------------------------|:----------:|:------:|
-|        | Invoices and bills | Documents with entries, quantities, prices, discounts and taxes  |    1.8     |        |
-|        | Expense vouchers   | Employee expense claims                                          |   1.8.2    |        |
+|   ✅   | Invoices and bills | Documents with entries, quantities, prices, discounts and taxes  |    1.8     |  0.1   |
+|   ✅   | Expense vouchers   | Employee expense claims                                          |   1.8.2    |  0.1   |
 |        | Credit notes       | Negative invoices and bills                                      |    2.6     |        |
-|        | Orders             | Groups invoice entries into an order                             |    1.8     |        |
-|        | Tax tables         | Named tax rates, as percentages or fixed amounts                 |    1.8     |        |
-|        | Billing terms      | Due dates and early-payment discounts                            |    1.8     |        |
+|   ✅   | Orders             | Groups invoice entries into an order                             |    1.8     |  0.1   |
+|   ✅   | Tax tables         | Named tax rates, as percentages or fixed amounts                 |    1.8     |  0.1   |
+|   ✅   | Billing terms      | Due dates and early-payment discounts                            |    1.8     |  0.1   |
 |   ✅   | Post to accounts   | Posts a document to A/R or A/P, creating its transaction and lot |    1.8     |  0.1   |
 |   ✅   | Unpost             | Reverses a posting so the document can be edited                 |    1.8     |  0.1   |
 |        | Duplicate document | Copies an invoice or bill                                        |   2.4.1    |        |

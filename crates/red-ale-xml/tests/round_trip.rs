@@ -80,3 +80,29 @@ fn a_split_with_no_account_round_trips() {
     let (again, _) = read_book(write_book_text(&book, &residue).as_bytes()).unwrap();
     assert_eq!(again, book);
 }
+
+/// Every XML fixture, canonical or not: SQL books and version 1 files are refused, so they are left out.
+fn xml_fixtures() -> Vec<String> {
+    let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
+    let mut names: Vec<String> = ["gnucash", "piecash", "synthetic"]
+        .iter()
+        .flat_map(|dir| std::fs::read_dir(format!("{root}/{dir}")).unwrap().map(move |e| format!("{dir}/{}", e.unwrap().file_name().to_string_lossy())))
+        .filter(|n| n.ends_with(".gnucash") && !n.ends_with(".sqlite.gnucash") && n != "gnucash/currency_tree_xml.gnucash")
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn every_xml_fixture_reads_back_as_the_same_book() {
+    let names = xml_fixtures();
+    assert!(names.len() >= 15, "{names:?}");
+    names.iter().for_each(|name| {
+        let (book, mut residue) = read_book(&fixture(name)).unwrap();
+        let (kept, _) = read_book(write_book_text(&book, &residue).as_bytes()).unwrap();
+        assert!(kept == book, "{name}: changed when written with its original elements");
+        residue.forget_originals();
+        let (regenerated, _) = read_book(write_book_text(&book, &residue).as_bytes()).unwrap();
+        assert!(regenerated == book, "{name}: changed when every entity was regenerated");
+    });
+}

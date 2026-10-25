@@ -6,7 +6,7 @@ on XML books written by GnuCash 5.17.
 This file tracks progress towards v0.1. Feature names and versions come from [`features.md`](features.md); when a
 feature here is done, set its Ported column there to `0.1`.
 
-**Progress: 51 of 60 features, 0 of 2 interfaces (both reach every done feature; they are marked done when every feature is).**
+**Progress: 60 of 60 features, 2 of 2 interfaces. Milestone 1 is reached.**
 
 | Status  | Meaning                                                                           |
 |:-------:|-----------------------------------------------------------------------------------|
@@ -142,20 +142,20 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 
 | Status | Feature   | Introduced | Epic | Notes |
 |:------:|-----------|:----------:|------|-------|
-|        | Customers |    1.8     |      |       |
-|        | Vendors   |    1.8     |      |       |
-|        | Employees |    1.8     |      |       |
-|        | Jobs      |    1.8     |      |       |
+|   ✅   | Customers |    1.8     |      |       |
+|   ✅   | Vendors   |    1.8     |      |       |
+|   ✅   | Employees |    1.8     |      |       |
+|   ✅   | Jobs      |    1.8     |      |       |
 
 ### Documents
 
 | Status | Feature            | Introduced | Epic | Notes                                       |
 |:------:|--------------------|:----------:|------|---------------------------------------------|
-|        | Invoices and bills |    1.8     |      | Includes assigning the next document number |
-|        | Expense vouchers   |   1.8.2    |      |                                             |
-|        | Orders             |    1.8     |      |                                             |
-|        | Tax tables         |    1.8     |      |                                             |
-|        | Billing terms      |    1.8     |      |                                             |
+|   ✅   | Invoices and bills |    1.8     |      | Includes assigning the next document number |
+|   ✅   | Expense vouchers   |   1.8.2    |      |                                             |
+|   ✅   | Orders             |    1.8     |      |                                             |
+|   ✅   | Tax tables         |    1.8     |      |                                             |
+|   ✅   | Billing terms      |    1.8     |      |                                             |
 |   ✅   | Post to accounts   |    1.8     |      |                                             |
 |   ✅   | Unpost             |    1.8     |      |                                             |
 
@@ -199,8 +199,8 @@ These are red-ale's own work, not GnuCash features. Each feature above counts as
 
 | Status | Interface    | Notes                                                                                                    |
 |:------:|--------------|----------------------------------------------------------------------------------------------------------|
-|        | JSON-RPC API | Every v0.1 feature as a JSON-RPC 2.0 method, with a versioned schema the v0.2 MCP tools reuse            |
-|        | CLI          | A front end for the API, so every v0.1 feature can be scripted from a shell. Not a port of `gnucash-cli` |
+|   ✅   | JSON-RPC API | Every v0.1 feature as a JSON-RPC 2.0 method, with a versioned schema the v0.2 MCP tools reuse            |
+|   ✅   | CLI          | A front end for the API, so every v0.1 feature can be scripted from a shell. Not a port of `gnucash-cli` |
 
 ## Done when
 

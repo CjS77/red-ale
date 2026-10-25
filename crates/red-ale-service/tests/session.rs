@@ -76,6 +76,36 @@ fn unsupported_feature_opens_read_only_without_a_lock() {
 }
 
 #[test]
+fn number_field_source_and_unknown_features_open_read_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let features = slot("Number Field Source", "string", "User specifies select transaction number source")
+        + &slot("Some Future Feature", "string", "");
+    let path = with_book_slots(dir.path(), &frame("features", &features));
+    let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    let [ReadOnlyReason::UnsupportedFeatures(names)] = session.read_only_reasons() else { panic!("{:?}", session.read_only_reasons()) };
+    assert_eq!(names, &["User specifies select transaction number source", "Some Future Feature"]);
+    assert!(!lock_path(&path).exists());
+}
+
+#[test]
+fn credit_note_fixture_opens_read_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "synthetic/business.gnucash");
+    let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    assert!(matches!(session.read_only_reasons(), [ReadOnlyReason::UnsupportedFeatures(f)] if f.len() == 1), "{:?}", session.read_only_reasons());
+}
+
+#[test]
+fn requested_read_only_takes_no_lock_and_refuses_changes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "synthetic/rich.gnucash");
+    let mut session = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap();
+    assert_eq!(session.read_only_reasons(), [ReadOnlyReason::Requested]);
+    assert!(!lock_path(&path).exists());
+    assert!(matches!(session.mutate(|_, _| Ok(())), Err(ServiceError::ReadOnly { .. })));
+}
+
+#[test]
 fn supported_features_stay_writable() {
     let dir = tempfile::tempdir().unwrap();
     let features = slot("Register sort and filter settings stored in .gcm file", "string", "x")

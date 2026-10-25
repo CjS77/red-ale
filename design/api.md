@@ -127,7 +127,8 @@ deliberate deviations.
 
 ```
 red-ale exec --book books/home.gnucash account.create name=Checking type=BANK parent=Assets commodity=USD
-red-ale exec --book books/home.gnucash transaction.post 'splits:=[...]' description=Rent date=2024-07-01
+red-ale exec --book books/home.gnucash transaction.post description=Rent datePosted=2024-07-01 \
+    'splits:=[{"account": "Assets:Checking", "value": "-750.00"}, {"account": "Expenses:Rent", "value": "750.00"}]'
 red-ale exec --book books/home.gnucash --script changes.txt     # one "method {json}" per line
 red-ale call --url http://127.0.0.1:7878 book.info
 ```
