@@ -1,5 +1,6 @@
 [package]
 name = "red-ale-service"
+description = "Book sessions and use cases for red-ale"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,6 +9,12 @@ publish.workspace = true
 
 [dependencies]
 red-ale-core.workspace = true
+red-ale-xml.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

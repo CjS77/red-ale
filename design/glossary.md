@@ -18,9 +18,9 @@ Code names are given in `code font` when they differ from the term.
 | **Read-only session** | A Session that never takes the lock and refuses every mutation. Carries the *reason* it is read-only. |
 | **Read-only trigger** | A property of a Book that makes red-ale open it read-only: an unknown Book feature, trading accounts, or an auto read-only threshold. |
 | **Book feature** | A string in the Book's `features` slot naming a capability the Book relies on, so that programs lacking it refuse to edit the Book. **⚠** Not a red-ale "feature" in the `features.md` sense; say *Book feature* for this. |
-| **Journal** | GnuCash's `.log` file beside the Book file, recording every transaction change since the last save. **⚠** GnuCash calls it the *transaction log* (`TransLog`); red-ale says *journal* so it is not confused with tracing logs. |
+| **Journal** | GnuCash's `.log` file beside the Book file (`<file>.<YYYYMMDDhhmmss>.log`), recording each transaction change as tab-separated records. Only transactions are journaled; a new journal starts after each save. **⚠** GnuCash calls it the *transaction log* (`TransLog`); red-ale says *journal* so it is not confused with tracing logs. |
 | **Replay** | Re-applying a journal to a Book to recover changes that were never saved. |
-| **Backup** | A timestamped copy of the Book file made before it is overwritten (`<file>.<YYYYMMDDhhmmss>.gnucash`). |
+| **Backup** | The previous Book file, kept under a timestamped name (`<file>.<YYYYMMDDhhmmss>.gnucash`, local time) when a save replaces it. GnuCash makes it as a hard link, falling back to a copy. Old backups and journals are deleted after a retention period (30 days by default). |
 | **Residue** | Content of a Book file that the core model does not represent (unknown elements, out-of-scope objects). The Backend keeps it and writes it back unchanged. |
 | **Round-trip** | Opening a Book file and saving it with no edits. A round-trip must give back a file GnuCash 5.17 considers identical; red-ale aims for byte-identical. |
 | **Oracle** | GnuCash 5.17 itself (library and Python bindings), used by tests as the judge of compatibility. |

@@ -1,3 +1,11 @@
-//! red-ale-service
+//! Book sessions: opening, locking, atomic use cases, the journal, saving and backups.
 
 #![forbid(unsafe_code)]
+#![deny(clippy::float_arithmetic)]
+
+pub mod error;
+pub mod files;
+pub mod journal;
+pub mod lock;
+
+pub use error::ServiceError;

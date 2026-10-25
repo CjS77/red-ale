@@ -462,7 +462,11 @@ dependencies = [
 name = "red-ale-service"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "red-ale-core",
+ "red-ale-xml",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

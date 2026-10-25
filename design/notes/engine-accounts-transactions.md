@@ -1284,3 +1284,14 @@ only when asked: the price is a separate, visible side effect.
 6. The user's default currency and the account separator are GnuCash preferences, not book data. red-ale needs its own
    settings for them.
 7. The `f` (frozen) reconcile state is never set by 5.17 code. Keep it as data and count it as reconciled.
+8. **Local-time rules** need a time zone that red-ale must take from somewhere: the session, the API caller, or a
+   setting. They are:
+   - statement date at 23:59:59 local;
+   - the local calendar date for `SetDatePostedSecsNormalized`;
+   - Find's date boundaries;
+   - accounting-period bounds.
+   Neutral time (10:59 UTC) does not need a time zone, apart from the extreme-offset shift.
+9. **Delete-with-move across commodities** silently reinterprets quantities (§3.2). Should red-ale forbid it, or
+   require explicit per-split quantities?
+10. The reconcile window lists future-dated `n`/`c` splits, with no date filter. Should red-ale's API do the same, or
+    default to splits on or before the statement date?
