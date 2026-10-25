@@ -570,7 +570,10 @@ mod tests {
         assert!(set_split_state(&mut f.book, &mut f.env, split, ReconcileState::Voided, None).is_err());
         assert!(set_split_state(&mut f.book, &mut f.env, split, ReconcileState::Cleared, Some(NOW)).is_err());
         let t = f.book.transaction_of_split(split).unwrap().guid;
-        Arc::make_mut(f.book.transactions.get_mut(&t).unwrap()).slots.set(txn_paths::VOID_REASON, SlotValue::String("x".into()));
+        let voided = Arc::make_mut(f.book.transactions.get_mut(&t).unwrap());
+        voided.slots.set(txn_paths::VOID_REASON, SlotValue::String("x".into()));
+        // Void status follows the void time in 5.17 (Transaction::is_void).
+        voided.slots.set(txn_paths::VOID_TIME, SlotValue::String("2024-06-04 10:00:00.000000000 +0000".into()));
         let err = set_split_state(&mut f.book, &mut f.env, split, ReconcileState::Cleared, None).unwrap_err();
         assert!(matches!(err, DomainError::Conflict(_)));
     }
