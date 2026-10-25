@@ -18,7 +18,7 @@ use crate::business::{Invoice, OwnerKind, OwnerRef};
 use crate::lot::slot_paths as lot_slots;
 use crate::ops::business::calc::{self, InvoiceType};
 use crate::ops::business::contacts;
-use crate::ops::commit::{currency_fraction, round_amount, round_value, sort_splits};
+use crate::ops::commit::{currency_fraction, round_amount, round_value, set_date_posted, sort_splits};
 use crate::transaction::slot_paths as txn_slots;
 use crate::{
     Book, CommodityRef, DENOM_AUTO, DenomMode, DomainError, DomainResult, Env, Frame, Guid, How, Lot, Numeric, ReconcileState, Round, SlotValue, Split,
@@ -84,7 +84,7 @@ impl LotWork {
     }
 
     /// Forget a split that is being destroyed.
-    fn remove_split(&mut self, book: &Book, split: &Split) {
+    pub(crate) fn remove_split(&mut self, book: &Book, split: &Split) {
         if let Some(lot) = split.lot {
             self.splits(book, lot).retain(|g| *g != split.guid);
         }
@@ -92,11 +92,19 @@ impl LotWork {
 
     /// `gnc_lot_get_latest_split`, which also sorts the lot's list by posted date as a side effect
     /// (`5.17:libgnucash/engine/gnc-lot.cpp:668-683`).
-    fn latest_split_date(&mut self, book: &Book, lot: Guid) -> Time64 {
+    pub(crate) fn latest_split_date(&mut self, book: &Book, lot: Guid) -> Time64 {
         let list = self.splits(book, lot);
         let date = |g: &Guid| find_split(book, *g).map_or(Time64(0), |(t, _)| t.date_posted);
         list.sort_by_key(date);
         list.last().map_or(Time64(0), date)
+    }
+
+    /// `gnc_lot_get_earliest_split`, which sorts the list the same way (`5.17:libgnucash/engine/gnc-lot.cpp:656-665`).
+    pub(crate) fn earliest_split_date(&mut self, book: &Book, lot: Guid) -> Time64 {
+        let list = self.splits(book, lot);
+        let date = |g: &Guid| find_split(book, *g).map_or(Time64(0), |(t, _)| t.date_posted);
+        list.sort_by_key(date);
+        list.first().map_or(Time64(0), date)
     }
 
     /// Remove every touched lot left without splits: GnuCash takes an emptied lot out of its account, so it is not
@@ -113,7 +121,7 @@ pub fn find_split(book: &Book, split: Guid) -> Option<(&Transaction, &Split)> {
     book.transactions.values().find_map(|t| t.split(split).map(|s| (t.as_ref(), s)))
 }
 
-fn txn_mut(book: &mut Book, txn: Guid) -> DomainResult<&mut Transaction> {
+pub(crate) fn txn_mut(book: &mut Book, txn: Guid) -> DomainResult<&mut Transaction> {
     book.transactions.get_mut(&txn).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("transaction", &txn))
 }
 
@@ -143,7 +151,7 @@ pub fn lot_slot_owner(book: &Book, lot: Guid) -> Option<OwnerRef> {
 
 /// The end owner of a document lot (through its invoice) or of a pre-payment lot (through its owner slots), as
 /// `gncOwnerLotMatchOwnerFunc` finds it (`5.17:libgnucash/engine/gncOwner.c:705-722`).
-fn lot_end_owner_invoice_first(book: &Book, lot: Guid) -> Option<OwnerRef> {
+pub(crate) fn lot_end_owner_invoice_first(book: &Book, lot: Guid) -> Option<OwnerRef> {
     match lot_invoice(book, lot) {
         Some(inv) => contacts::end_owner(book, inv.owner),
         None => lot_slot_owner(book, lot).and_then(|o| contacts::end_owner(book, o)),
@@ -151,7 +159,7 @@ fn lot_end_owner_invoice_first(book: &Book, lot: Guid) -> Option<OwnerRef> {
 }
 
 /// The same, owner slots first, as `gnc_lot_match_owner_balancing` looks (`5.17:libgnucash/engine/gncInvoice.c:1866-1890`).
-fn lot_end_owner_slots_first(book: &Book, lot: Guid) -> Option<OwnerRef> {
+pub(crate) fn lot_end_owner_slots_first(book: &Book, lot: Guid) -> Option<OwnerRef> {
     match lot_slot_owner(book, lot) {
         Some(o) => contacts::end_owner(book, o),
         None => lot_invoice(book, lot).and_then(|inv| contacts::end_owner(book, inv.owner)),
@@ -166,7 +174,7 @@ pub fn attach_owner(slots: &mut Frame, owner: OwnerRef) {
 
 /// `xaccAccountFindOpenLots` without a sort: the account's open lots in the order they joined it
 /// (`5.17:libgnucash/engine/Account.cpp:3970-4001`), filtered by `keep`.
-fn open_lots(book: &Book, work: &mut LotWork, account: Guid, keep: impl Fn(&mut LotWork, Guid) -> DomainResult<bool>) -> DomainResult<Vec<Guid>> {
+pub(crate) fn open_lots(book: &Book, work: &mut LotWork, account: Guid, keep: impl Fn(&mut LotWork, Guid) -> DomainResult<bool>) -> DomainResult<Vec<Guid>> {
     let lots: Vec<Guid> = book.lots.values().filter(|l| l.account == account).map(|l| l.guid).collect();
     lots.into_iter()
         .filter_map(|l| match work.is_closed(book, l) {
@@ -182,7 +190,7 @@ fn open_lots(book: &Book, work: &mut LotWork, account: Guid, keep: impl Fn(&mut 
 }
 
 /// The end owner's name for descriptions (`5.17:libgnucash/engine/gncOwner.c:771`).
-fn end_owner_name(book: &Book, owner: OwnerRef) -> Option<String> {
+pub(crate) fn end_owner_name(book: &Book, owner: OwnerRef) -> Option<String> {
     contacts::end_owner(book, owner).and_then(|o| contacts::owner_name(book, o))
 }
 
@@ -247,12 +255,35 @@ fn payment_accounts(book: &Book, p: &Payment) -> DomainResult<(CommodityRef, Gui
     Ok((post_comm, xfer, xfer_comm))
 }
 
-/// `gncOwnerCreatePaymentLotSecs` for a new transaction (`5.17:libgnucash/engine/gncOwner.c:749-880`): the
-/// transfer split and the A/R or A/P split, the latter in a new lot carrying the owner.
-fn create_payment_lot(book: &mut Book, env: &mut dyn Env, work: &mut LotWork, p: &Payment) -> DomainResult<(Guid, Guid)> {
+/// `gncOwnerCreatePaymentLotSecs` (`5.17:libgnucash/engine/gncOwner.c:749-883`): the transfer split and the A/R or
+/// A/P split, the latter in a new lot carrying the owner. With `preset`, that transaction is rebuilt instead: every
+/// split but its first in the transfer account is destroyed.
+pub(crate) fn create_payment_lot(
+    book: &mut Book,
+    env: &mut dyn Env,
+    work: &mut LotWork,
+    p: &Payment,
+    preset: Option<Guid>,
+) -> DomainResult<(Guid, Guid)> {
     let (post_comm, xfer, xfer_comm) = payment_accounts(book, p)?;
-    // A new transaction has no currency, so it always takes the transfer account's commodity.
-    let currency = xfer_comm.clone();
+    let mut t = match preset {
+        Some(g) => strip_to_transfer_split(book, work, g, xfer)?,
+        None => Transaction {
+            guid: env.new_guid(),
+            currency: xfer_comm.clone(),
+            num: None,
+            date_posted: p.date,
+            date_entered: env.now(),
+            description: None,
+            slots: Frame::new(),
+            splits: Vec::new(),
+        },
+    };
+    t.description = Some(end_owner_name(book, p.owner).unwrap_or_default());
+    if t.currency != post_comm && t.currency != xfer_comm {
+        t.currency = xfer_comm.clone();
+    }
+    let currency = t.currency.clone();
     let converted = || p.amount.mul(p.exchange_rate, DENOM_AUTO, How::round(Round::HalfUp));
     let xfer_amount = if post_comm == xfer_comm { p.amount } else { converted()? };
     let value = if post_comm == currency { p.amount } else { converted()? };
@@ -262,32 +293,54 @@ fn create_payment_lot(book: &mut Book, env: &mut dyn Env, work: &mut LotWork, p:
         s.action = non_empty(action);
         Ok(s)
     };
-    // The transfer split's action is the payment's num with the num field source on (`gncOwner.c:836`); the A/R or
-    // A/P split's is always "Payment" (`:859`).
-    let xfer_action = num_action_targets(book, &p.num, PAYMENT_ACTION).1.to_owned();
-    let xfer_split = split(book, env, xfer, xfer_amount, value, &xfer_action)?;
+    match t.splits.first_mut() {
+        // A kept transfer split changes only when its figures do, and is then no longer reconciled.
+        Some(kept) if !kept.amount.same_value(xfer_amount) || !kept.value.same_value(value) => {
+            kept.amount = round_amount(book, xfer, xfer_amount)?;
+            kept.value = round_value(book, &currency, value)?;
+            kept.reconcile_state = ReconcileState::New;
+        }
+        Some(_) => {}
+        None => {
+            // The transfer split's action is the payment's num with the num field source on (`gncOwner.c:836`).
+            let xfer_action = num_action_targets(book, &p.num, PAYMENT_ACTION).1.to_owned();
+            let s = split(book, env, xfer, xfer_amount, value, &xfer_action)?;
+            t.splits.push(s);
+        }
+    }
+    // The A/R or A/P split's action is always "Payment" (`gncOwner.c:859`).
     let post_split = split(book, env, p.posted_account, p.amount.neg(), value.neg(), PAYMENT_ACTION)?;
     let lot_guid = env.new_guid();
     let mut lot_frame = Frame::new();
     attach_owner(&mut lot_frame, p.owner);
     book.lots.insert(lot_guid, Arc::new(Lot { guid: lot_guid, account: p.posted_account, slots: lot_frame }));
     let post_guid = post_split.guid;
-    let mut t = Transaction {
-        guid: env.new_guid(),
-        currency,
-        num: non_empty(&p.num),
-        date_posted: p.date,
-        date_entered: env.now(),
-        description: Some(end_owner_name(book, p.owner).unwrap_or_default()),
-        slots: Frame::new(),
-        splits: vec![xfer_split, post_split],
-    };
+    t.splits.push(post_split);
+    t.num = non_empty(&p.num);
     t.slots.set(txn_slots::TXN_TYPE, SlotValue::String(TXN_TYPE_PAYMENT.to_owned()));
+    t.date_entered = env.now();
+    t.date_posted = p.date;
+    // GnuCash leaves a `date-posted` slot as it was; red-ale keeps it naming the posted day.
+    if t.slots.get(txn_slots::DATE_POSTED).is_some()
+        && let Some(day) = p.date.utc_date()
+    {
+        set_date_posted(&mut t, day);
+    }
     sort_splits(&mut t);
     let txn = t.guid;
     book.transactions.insert(txn, Arc::new(t));
     work.add_split(book, lot_guid, post_guid)?;
     Ok((txn, lot_guid))
+}
+
+/// A preset transaction with every split destroyed but the first in the transfer account
+/// (`5.17:libgnucash/engine/gncOwner.c:776-800`). Destroyed splits leave their lots.
+fn strip_to_transfer_split(book: &mut Book, work: &mut LotWork, txn: Guid, xfer: Guid) -> DomainResult<Transaction> {
+    let mut t = book.transaction(txn).cloned().ok_or_else(|| DomainError::not_found("transaction", &txn))?;
+    let keep = t.splits.iter().find(|s| s.account == Some(xfer)).map(|s| s.guid);
+    t.splits.iter().filter(|s| Some(s.guid) != keep).for_each(|s| work.remove_split(book, s));
+    t.splits.retain(|s| Some(s.guid) == keep);
+    Ok(t)
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -556,7 +609,7 @@ pub fn apply_owner_payment(book: &mut Book, env: &mut dyn Env, p: &Payment, lots
     } else {
         Vec::new()
     };
-    let created = (!p.amount.is_zero()).then(|| create_payment_lot(book, env, &mut work, p)).transpose()?;
+    let created = (!p.amount.is_zero()).then(|| create_payment_lot(book, env, &mut work, p, None)).transpose()?;
     if let Some((_, lot)) = created {
         selected.insert(0, Some(lot));
     }
@@ -567,7 +620,7 @@ pub fn apply_owner_payment(book: &mut Book, env: &mut dyn Env, p: &Payment, lots
 }
 
 /// Refuse a payment whose owner or posted account does not exist.
-fn check_owner_and_account(book: &Book, p: &Payment) -> DomainResult<()> {
+pub(crate) fn check_owner_and_account(book: &Book, p: &Payment) -> DomainResult<()> {
     if !contacts::owner_exists(book, p.owner) {
         return Err(DomainError::not_found(p.owner.kind.type_name(), &p.owner.guid));
     }
@@ -590,7 +643,7 @@ pub fn apply_invoice_payment(book: &mut Book, env: &mut dyn Env, invoice: Guid, 
         return Err(DomainError::invalid("a payment needs a transfer account"));
     }
     let mut work = LotWork::default();
-    let (txn, pay_lot) = create_payment_lot(book, env, &mut work, &p)?;
+    let (txn, pay_lot) = create_payment_lot(book, env, &mut work, &p, None)?;
     let mut lots = [Some(pay_lot), Some(lot)];
     auto_apply_with_lots(book, env, &mut work, p.owner, &mut lots)?;
     let payment_lot = Some(pay_lot).filter(|l| work.count(book, *l) > 0);

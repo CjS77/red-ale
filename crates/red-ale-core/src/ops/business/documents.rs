@@ -8,7 +8,9 @@
 use std::sync::Arc;
 
 use crate::business::{Entry, Invoice, Order, OwnerKind, OwnerRef, TaxIncluded};
-use crate::ops::business::contacts::{check_currency, end_owner, job_rate, next_id, note_extra_data, owner_currency, owner_exists};
+use crate::ops::business::contacts::{
+    check_currency, end_owner, job_rate, next_id, note_extra_data, owner_currency, owner_exists, set_feature_used,
+};
 use crate::ops::business::terms::{check_bill_term_ref, check_tax_table_ref, retarget_bill_term, retarget_tax_table};
 use crate::{AccountType, Book, DomainError, DomainResult, Guid, SlotValue, Time64};
 
@@ -22,13 +24,15 @@ pub const COUNTER_EXPENSE_VOUCHER: &str = "gncExpVoucher";
 pub const COUNTER_ORDER: &str = "gncOrder";
 /// The invoice slot flagging a credit note (`5.17:libgnucash/engine/gncInvoice.c:86`).
 pub const CREDIT_NOTE: &str = "credit-note";
+/// The Book feature a credit note sets (`5.17:libgnucash/engine/gnc-features.h:54`).
+pub const CREDIT_NOTES_FEATURE: &str = "Credit Notes";
 /// The book option naming the default tax table for customer documents, as the options dialog writes it
 /// (`5.17:libgnucash/engine/gnc-optiondb.cpp:1338-1345`, under `options/`).
 pub const OPT_DEFAULT_CUSTOMER_TAX_TABLE: &str = "options/Business/Default Customer Tax Table";
 /// The same for vendor documents.
 pub const OPT_DEFAULT_VENDOR_TAX_TABLE: &str = "options/Business/Default Vendor Tax Table";
 
-/// What kind of document an invoice is, from its end owner. Credit notes are not modelled in v0.1.
+/// What kind of document an invoice is, from its end owner. A credit note has the kind of the document it reverses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DocumentKind {
     /// A customer invoice (`GNC_INVOICE_CUST_INVOICE`).
@@ -113,9 +117,6 @@ fn check_invoice(book: &Book, inv: &Invoice, old: Option<&Invoice>) -> DomainRes
     }
     let doc = owner_document_kind(book, inv.owner)
         .ok_or_else(|| DomainError::invalid("a document's owner must be a customer, vendor, employee or job"))?;
-    if inv.is_credit_note() {
-        return Err(DomainError::invalid("credit notes are not supported in red-ale v0.1"));
-    }
     if inv.opened == Time64(i64::MAX) {
         return Err(DomainError::invalid("a document needs an opened date"));
     }
@@ -154,6 +155,10 @@ pub fn add_invoice(book: &mut Book, mut inv: Invoice) -> DomainResult<Guid> {
     if inv.id.is_empty() {
         inv.id = next_id(book, doc.counter());
     }
+    // gncInvoiceSetIsCreditNote (5.17:libgnucash/engine/gncInvoice.c:576-594).
+    if inv.is_credit_note() {
+        set_feature_used(book, CREDIT_NOTES_FEATURE);
+    }
     retarget_bill_term(book, None, inv.terms);
     let guid = inv.guid;
     book.business.invoices.insert(guid, Arc::new(inv));
@@ -178,6 +183,10 @@ pub fn update_invoice(book: &mut Book, inv: Invoice) -> DomainResult<()> {
             return Err(DomainError::invalid("posting fields change only by posting"));
         }
         let doc = check_invoice(book, &inv, Some(&old))?;
+        // GnuCash's dialog sets the flag only on a new or duplicated document (5.17:gnucash/gnome/dialog-invoice.c:420-434).
+        if inv.is_credit_note() != old.is_credit_note() {
+            return Err(DomainError::invalid("whether a document is a credit note is fixed when it is created"));
+        }
         if document_kind(book, &old) != Some(doc) {
             return Err(DomainError::invalid(format!("the owner must stay a {} owner", doc_owner_word(document_kind(book, &old)))));
         }
@@ -405,6 +414,28 @@ pub fn default_entry(book: &Book, guid: Guid, date: Time64, entered: Time64, own
     e
 }
 
+/// A new line for `invoice`: [`default_entry`], except on an employee's credit note. GnuCash's ledger gives that the
+/// owner defaults vouchers skip, and finds no tax table for an employee: untaxed, with tax included as `USEGLOBAL`
+/// gives (`5.17:gnucash/register/ledger-core/gncEntryLedgerLoad.c:376`, `:462-467`).
+pub fn default_document_entry(book: &Book, guid: Guid, date: Time64, entered: Time64, invoice: &Invoice) -> Entry {
+    let mut e = default_entry(book, guid, date, entered, invoice.owner);
+    if invoice.is_credit_note() && owner_document_kind(book, invoice.owner) == Some(DocumentKind::ExpenseVoucher) {
+        (e.b_taxable, e.b_tax_table, e.b_tax_included) = (false, None, true);
+    }
+    e
+}
+
+/// A quantity as printed on a document turned into the stored one, or back: negated on a credit note
+/// (`gncEntrySetDocQuantity`, `gncEntryGetDocQuantity`, `5.17:libgnucash/engine/gncEntry.c:562-570`, `:952-956`).
+pub fn document_quantity(quantity: crate::Numeric, credit_note: bool) -> crate::Numeric {
+    if credit_note { quantity.neg() } else { quantity }
+}
+
+/// Whether an entry is on a credit note.
+pub fn entry_on_credit_note(book: &Book, e: &Entry) -> bool {
+    [e.invoice, e.bill].into_iter().flatten().filter_map(|g| book.business.invoices.get(&g)).any(|i| i.is_credit_note())
+}
+
 /// The book's default tax table, if it names a visible one. `gncTaxTableGetDefault` reads the option without the
 /// space ("TaxTable", `5.17:libgnucash/engine/gncTaxTable.c:680-699`), which the options dialog never writes; both
 /// spellings are read, the dialog's first (`design/notes/xml-format-business.md` §10.2).
@@ -587,9 +618,28 @@ mod tests {
         let mut wrong = new_invoice(&mut w, cust);
         wrong.currency = Some(CommodityRef::currency("USD"));
         assert!(add_invoice(&mut w.book, wrong).is_err());
+    }
+
+    #[test]
+    fn a_credit_note_sets_the_book_feature_and_keeps_its_flag() {
+        let mut w = world();
+        let cust = OwnerRef { kind: OwnerKind::Customer, guid: w.customer };
+        let plain = new_invoice(&mut w, cust);
+        let plain = add_invoice(&mut w.book, plain).unwrap();
+        assert!(crate::book_options::features(&w.book).is_empty(), "an invoice sets no feature");
         let mut cn = new_invoice(&mut w, cust);
         cn.slots.set(CREDIT_NOTE, SlotValue::Integer(1));
-        assert!(add_invoice(&mut w.book, cn).is_err());
+        let cn = add_invoice(&mut w.book, cn).unwrap();
+        assert_eq!(w.book.business.invoices[&cn].id, "000002", "the invoice counter");
+        let features = crate::book_options::features(&w.book);
+        assert_eq!(features.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), [CREDIT_NOTES_FEATURE]);
+        let mut flipped = (*w.book.business.invoices[&plain]).clone();
+        flipped.slots.set(CREDIT_NOTE, SlotValue::Integer(1));
+        assert!(update_invoice(&mut w.book, flipped).is_err());
+        let mut unflagged = (*w.book.business.invoices[&cn]).clone();
+        unflagged.slots.set(CREDIT_NOTE, SlotValue::Integer(0));
+        assert!(update_invoice(&mut w.book, unflagged).is_err());
+        assert_eq!(document_quantity(Numeric::from_int(3), true), Numeric::from_int(-3));
     }
 
     #[test]

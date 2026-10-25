@@ -235,3 +235,57 @@ fn documents_survive_save_and_reopen() {
     assert_eq!((back["notes"].as_str(), back["entries"][0]["description"].as_str()), (Some("kept"), Some("Kept line")));
     assert_eq!(b.call("order.get", json!({ "order": o["guid"] }))["entries"][0]["description"], "Order line");
 }
+
+fn has_feature(b: &mut Book, name: &str) -> bool {
+    b.call("book.info", json!({}))["features"].as_array().unwrap().iter().any(|f| f["name"] == name && f["supported"] == true)
+}
+
+#[test]
+fn credit_notes_store_negated_quantities_and_post_the_other_way() {
+    let mut b = open("synthetic/business-editable.gnucash");
+    assert!(!has_feature(&mut b, "Credit Notes"));
+    let acme = b.guid_of("customer.list", "customers", "000001");
+    let cn = b.call("invoice.create", json!({ "owner": acme, "creditNote": true, "terms": null }));
+    assert_eq!((cn["type"].as_str(), cn["id"].as_str()), (Some("creditNote"), Some("000003")), "the invoice counter");
+    assert!(has_feature(&mut b, "Credit Notes"));
+    let line = b.call(
+        "invoice.addEntry",
+        json!({ "invoice": cn["guid"], "quantity": "2", "price": "15", "account": "Income", "taxable": false, "taxTable": null, "discount": "0" }),
+    );
+    assert_eq!((amount(&line["quantity"]), amount(&line["documentQuantity"])), ((-2, 1), (2, 1)));
+    let line = b.call("invoice.updateEntry", json!({ "entry": line["guid"], "quantity": "3" }));
+    assert_eq!(amount(&line["quantity"]), (-3, 1));
+    assert_eq!(amount(&b.call("invoice.totals", json!({ "invoice": cn["guid"] }))["total"]), (45, 1), "as printed");
+    assert_eq!(b.err("invoice.update", json!({ "invoice": cn["guid"], "creditNote": false })).code, codes::INVALID);
+    assert_eq!(b.call("invoice.update", json!({ "invoice": cn["guid"], "creditNote": true }))["type"], "creditNote");
+    assert_eq!(b.call("invoice.list", json!({ "type": "creditNote" }))["invoices"].as_array().unwrap().len(), 1);
+
+    let posted = b.call("invoice.post", json!({ "invoice": cn["guid"], "account": "Assets:Receivable", "postDate": "2024-06-10" }));
+    let txn = b.call("transaction.get", json!({ "guid": posted["transaction"] }));
+    let splits = txn["splits"].as_array().unwrap();
+    let ar = splits.iter().find(|s| s["lot"] == posted["lot"]).unwrap();
+    assert_eq!(amount(&ar["value"]), (-45, 1), "a customer credit note credits A/R");
+    assert!(splits.iter().all(|s| s["action"] == "Credit Note"));
+    assert_eq!(b.call("lot.get", json!({ "lot": posted["lot"] }))["title"], "Credit Note 000003");
+
+    // A refund settles it: a negative customer payment.
+    b.call("invoice.pay", json!({ "invoice": cn["guid"], "transferAccount": "Assets:Bank", "amount": "-45", "date": "2024-06-12" }));
+    assert_eq!(b.call("lot.get", json!({ "lot": posted["lot"] }))["closed"], true);
+}
+
+#[test]
+fn the_credit_note_fixture_opens_for_editing_and_saves() {
+    let mut b = open("synthetic/business.gnucash");
+    assert_eq!(b.call("book.info", json!({}))["readOnly"], false);
+    let cn = b.call("invoice.list", json!({ "type": "creditNote" }))["invoices"][0].clone();
+    let detail = b.call("invoice.get", json!({ "invoice": cn["guid"] }));
+    let (stored, printed) = (amount(&detail["entries"][0]["quantity"]), amount(&detail["entries"][0]["documentQuantity"]));
+    assert_eq!((stored.0, stored.1), (-printed.0, printed.1));
+    b.call("invoice.update", json!({ "invoice": cn["guid"], "active": false }));
+    b.call("book.save", json!({}));
+    let path = b.dir.path().join("book.gnucash");
+    b.call("book.close", json!({}));
+    b.call("book.open", json!({ "path": path.display().to_string() }));
+    let again = b.call("invoice.get", json!({ "invoice": cn["guid"] }));
+    assert_eq!((again["type"].as_str(), again["active"].as_bool()), (Some("creditNote"), Some(false)));
+}

@@ -5,6 +5,7 @@ pub mod contacts;
 pub mod counters;
 pub mod documents;
 pub mod duplicate;
+pub mod matching;
 pub mod payments;
 pub mod posting;
 pub mod terms;

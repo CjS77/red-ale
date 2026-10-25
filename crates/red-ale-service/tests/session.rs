@@ -67,7 +67,7 @@ fn sql_books_are_refused_before_anything_happens() {
 #[test]
 fn unsupported_feature_opens_read_only_without_a_lock() {
     let dir = tempfile::tempdir().unwrap();
-    let path = with_book_slots(dir.path(), &frame("features", &format!("  {}", slot("Credit Notes", "string", "Customer and vendor credit notes"))));
+    let path = with_book_slots(dir.path(), &frame("features", &format!("  {}", slot("Some Future Feature", "string", "A feature from a later GnuCash"))));
     let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert!(matches!(session.read_only_reasons(), [ReadOnlyReason::UnsupportedFeatures(_)]));
     assert!(!lock_path(&path).exists());
@@ -101,11 +101,12 @@ fn num_field_source_and_red_line_books_open_for_editing() {
 }
 
 #[test]
-fn credit_note_fixture_opens_read_only() {
+fn credit_note_fixture_opens_for_editing() {
     let dir = tempfile::tempdir().unwrap();
     let path = copy_to(dir.path(), "synthetic/business.gnucash");
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
-    assert!(matches!(session.read_only_reasons(), [ReadOnlyReason::UnsupportedFeatures(f)] if f.len() == 1), "{:?}", session.read_only_reasons());
+    assert!(session.read_only_reasons().is_empty(), "{:?}", session.read_only_reasons());
+    assert!(lock_path(&path).exists());
 }
 
 #[test]

@@ -191,7 +191,10 @@ fn ids_continue_from_the_book_counters() {
 #[test]
 fn a_read_only_book_refuses_changes() {
     let mut b = open("synthetic/business.gnucash");
-    assert_eq!(b.call("book.info", json!({}))["readOnly"], true, "it declares credit notes");
+    assert_eq!(b.call("book.info", json!({}))["readOnly"], false, "credit notes are supported");
+    let path = b.call("book.info", json!({}))["path"].clone();
+    b.call("book.close", json!({}));
+    b.call("book.open", json!({ "path": path, "readOnly": true }));
     assert_eq!(b.err("customer.create", json!({ "name": "X", "currency": "EUR" })).code, codes::READ_ONLY);
     assert_eq!(b.call("customer.list", json!({}))["customers"].as_array().unwrap().len(), 1);
 }
