@@ -2,6 +2,7 @@
 
 use crate::dispatch::Method;
 
+pub mod account_properties;
 pub mod accounts;
 pub mod book;
 pub mod business;
@@ -18,6 +19,7 @@ pub fn all() -> Vec<Method> {
     [
         book::methods(),
         accounts::methods(),
+        account_properties::methods(),
         period::methods(),
         transactions::methods(),
         reconcile::methods(),

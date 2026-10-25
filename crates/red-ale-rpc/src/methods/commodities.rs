@@ -107,6 +107,8 @@ pub struct CommodityInfo {
     pub user_symbol: Option<String>,
     /// A currency's built-in symbol.
     pub default_symbol: Option<String>,
+    /// The symbol GnuCash shows amounts with: the user symbol, else the default symbol, else the mnemonic.
+    pub display_symbol: String,
     /// How much of the book refers to it.
     pub usage: UsageInfo,
 }
@@ -139,6 +141,7 @@ fn describe(book: &Book, c: &Commodity, usage: Usage) -> CommodityInfo {
         quote_tz: c.quote_tz.clone(),
         user_symbol: c.slots.get_str(slot_paths::USER_SYMBOL).map(str::to_owned),
         default_symbol: iso.map(|i| i.symbol.to_owned()).filter(|s| !s.is_empty()),
+        display_symbol: ops::display_symbol(book, &c.id).unwrap_or_else(|| c.id.mnemonic.clone()),
         usage: usage.into(),
     }
 }
