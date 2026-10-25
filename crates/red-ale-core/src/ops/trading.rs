@@ -143,7 +143,14 @@ pub fn rebalance(book: &mut Book, env: &mut dyn Env, t: &mut Transaction) -> Dom
 /// One entry of `gnc_transaction_balance_trading`: the commodity's trading split takes the amount that cancels the
 /// imbalance (at the commodity's fraction, then the account's SCU) and the value that cancels the commodity's values,
 /// or, for the transaction currency, a value equal to its amount.
-fn balance_commodity(book: &mut Book, env: &mut dyn Env, t: &mut Transaction, c: Option<&CommodityRef>, imbalance: Numeric, out: &mut Rebalanced) -> DomainResult<()> {
+fn balance_commodity(
+    book: &mut Book,
+    env: &mut dyn Env,
+    t: &mut Transaction,
+    c: Option<&CommodityRef>,
+    imbalance: Numeric,
+    out: &mut Rebalanced,
+) -> DomainResult<()> {
     let c = c.ok_or_else(|| DomainError::invalid("a split's account has no commodity, so it cannot be balanced through trading accounts"))?;
     let index = trading_split(book, env, t, c, out)?;
     let currency_fraction = fraction(book, &t.currency)?;
@@ -152,7 +159,8 @@ fn balance_commodity(book: &mut Book, env: &mut dyn Env, t: &mut Transaction, c:
     let new_value = if *c == t.currency {
         new_amount
     } else {
-        let values = t.splits.iter().filter(|s| commodity_of(book, s).as_ref() == Some(c)).try_fold(Numeric::ZERO, |acc, s| acc.add_exact(s.value))?;
+        let values =
+            t.splits.iter().filter(|s| commodity_of(book, s).as_ref() == Some(c)).try_fold(Numeric::ZERO, |acc, s| acc.add_exact(s.value))?;
         split.value.sub(values, currency_fraction, How::round(Round::HalfUp))?
     };
     let account = split.account.ok_or_else(|| DomainError::invalid("a trading split has no account"))?;
@@ -217,8 +225,10 @@ fn trading_split(book: &mut Book, env: &mut dyn Env, t: &mut Transaction, c: &Co
 /// `get_trading_split` does. New accounts are appended to `created`.
 pub fn trading_account(book: &mut Book, env: &mut dyn Env, c: &CommodityRef, created: &mut Vec<Guid>) -> DomainResult<Guid> {
     let root = book.root;
-    let top = get_or_make(book, env, Wanted { parent: root, commodity: None, name: TRADING, placeholder: true, check_name: false }, created)?;
-    let ns = get_or_make(book, env, Wanted { parent: top, commodity: None, name: &c.namespace, placeholder: true, check_name: true }, created)?;
+    let top_wanted = Wanted { parent: root, commodity: None, name: TRADING, placeholder: true, check_name: false };
+    let top = get_or_make(book, env, top_wanted, created)?;
+    let ns_wanted = Wanted { parent: top, commodity: None, name: &c.namespace, placeholder: true, check_name: true };
+    let ns = get_or_make(book, env, ns_wanted, created)?;
     get_or_make(book, env, Wanted { parent: ns, commodity: Some(c), name: &c.mnemonic, placeholder: false, check_name: false }, created)
 }
 
@@ -237,7 +247,8 @@ fn get_or_make(book: &mut Book, env: &mut dyn Env, w: Wanted<'_>, created: &mut 
     let found = lookup(book, w.parent, w.check_name.then_some(w.name), AccountType::Trading, w.commodity);
     let root_currency = root_currency(book);
     let pick = || {
-        let in_root_currency = || found.iter().find(|g| w.commodity.is_none() && book.account(**g).is_some_and(|a| a.commodity == root_currency));
+        let in_root_currency =
+            || found.iter().find(|g| w.commodity.is_none() && book.account(**g).is_some_and(|a| a.commodity == root_currency));
         let named = || found.iter().find(|g| book.account(**g).is_some_and(|a| a.name == w.name));
         if found.len() > 1 { in_root_currency().or_else(named).or(found.first()) } else { found.first() }.copied()
     };

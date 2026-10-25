@@ -59,6 +59,11 @@ fn n(num: i64, denom: i64) -> Numeric {
     Numeric::new(num, denom)
 }
 
+/// An exchange split: `value` in USD cents for `amount` in the account's own units.
+fn fx(account: Guid, value: i64, amount: i64, denom: i64) -> NewSplit {
+    NewSplit::new(account, n(value, 100)).with_amount(n(amount, denom))
+}
+
 fn post(f: &mut Fixture, splits: Vec<NewSplit>) -> DomainResult<Guid> {
     let mut new = NewTransaction::new(usd(), Date::from_ymd(2024, 3, 1).unwrap());
     new.splits = splits;
@@ -78,7 +83,7 @@ fn row(name: &str, value: Numeric, amount: Numeric) -> (String, Numeric, Numeric
 fn a_currency_exchange_gets_gnucash_trading_splits_and_tree() {
     let mut f = fixture();
     let (euro, checking) = (f.euro, f.checking);
-    let t = post(&mut f, vec![NewSplit::new(euro, n(11000, 100)).with_amount(n(10000, 100)), NewSplit::new(checking, n(-11000, 100))]).unwrap();
+    let t = post(&mut f, vec![fx(euro, 11000, 10000, 100), NewSplit::new(checking, n(-11000, 100))]).unwrap();
     assert_eq!(
         shown(&f.book, t),
         [
@@ -90,7 +95,8 @@ fn a_currency_exchange_gets_gnucash_trading_splits_and_tree() {
     );
     let account = |name: &str| f.book.account_by_full_name(name).unwrap();
     let top = account("Trading");
-    assert_eq!((top.account_type, top.commodity.clone(), top.commodity_scu, top.is_placeholder()), (AccountType::Trading, Some(usd()), Some(100), true));
+    let top_props = (top.account_type, top.commodity.clone(), top.commodity_scu, top.is_placeholder());
+    assert_eq!(top_props, (AccountType::Trading, Some(usd()), Some(100), true));
     assert_eq!(top.parent, Some(f.book.root));
     let ns = account("Trading:CURRENCY");
     assert_eq!((ns.commodity.clone(), ns.is_placeholder()), (Some(usd()), true));
@@ -103,7 +109,7 @@ fn a_currency_exchange_gets_gnucash_trading_splits_and_tree() {
 fn a_purchase_and_a_gain_match_gnucash() {
     let mut f = fixture();
     let (acme_acc, checking, gains) = (f.acme, f.checking, f.gains);
-    let buy = post(&mut f, vec![NewSplit::new(acme_acc, n(50000, 100)).with_amount(n(10000, 1000)), NewSplit::new(checking, n(-50000, 100))]).unwrap();
+    let buy = post(&mut f, vec![fx(acme_acc, 50000, 10000, 1000), NewSplit::new(checking, n(-50000, 100))]).unwrap();
     assert_eq!(
         shown(&f.book, buy),
         [
@@ -113,7 +119,7 @@ fn a_purchase_and_a_gain_match_gnucash() {
             row("Trading:NASDAQ:ACME", n(-50000, 100), n(-10000, 1000)),
         ]
     );
-    let gain = post(&mut f, vec![NewSplit::new(acme_acc, n(2500, 100)).with_amount(n(0, 1000)), NewSplit::new(gains, n(-2500, 100))]).unwrap();
+    let gain = post(&mut f, vec![fx(acme_acc, 2500, 0, 1000), NewSplit::new(gains, n(-2500, 100))]).unwrap();
     assert_eq!(
         shown(&f.book, gain),
         [
@@ -123,7 +129,8 @@ fn a_purchase_and_a_gain_match_gnucash() {
             row("Trading:NASDAQ:ACME", n(-2500, 100), n(0, 1000)),
         ]
     );
-    let names: Vec<String> = f.book.descendants(f.book.root).iter().filter(|a| a.account_type == AccountType::Trading).map(|a| f.book.full_name(a.guid).unwrap()).collect();
+    let trading = f.book.descendants(f.book.root).into_iter().filter(|a| a.account_type == AccountType::Trading);
+    let names: Vec<String> = trading.map(|a| f.book.full_name(a.guid).unwrap()).collect();
     // GnuCash balances the newest commodity first, so ACME's branch is made before the currency's.
     assert_eq!(names, ["Trading", "Trading:NASDAQ", "Trading:NASDAQ:ACME", "Trading:CURRENCY", "Trading:CURRENCY:USD"]);
 }
@@ -135,7 +142,7 @@ fn single_currency_and_option_off_get_no_trading_splits() {
     let t = post(&mut f, vec![NewSplit::new(checking, n(100, 100)), NewSplit::new(gains, n(-100, 100))]).unwrap();
     assert_eq!(f.book.transaction(t).unwrap().splits.len(), 2);
     set_trading_accounts(&mut f.book, false);
-    let t = post(&mut f, vec![NewSplit::new(euro, n(11000, 100)).with_amount(n(10000, 100)), NewSplit::new(checking, n(-11000, 100))]).unwrap();
+    let t = post(&mut f, vec![fx(euro, 11000, 10000, 100), NewSplit::new(checking, n(-11000, 100))]).unwrap();
     assert_eq!(f.book.transaction(t).unwrap().splits.len(), 2);
     assert!(f.book.account_by_full_name("Trading").is_none());
 }
@@ -144,19 +151,19 @@ fn single_currency_and_option_off_get_no_trading_splits() {
 fn unbalanced_values_are_refused_and_balanced_trading_splits_kept() {
     let mut f = fixture();
     let (euro, checking) = (f.euro, f.checking);
-    let err = post(&mut f, vec![NewSplit::new(euro, n(11000, 100)).with_amount(n(10000, 100)), NewSplit::new(checking, n(-10000, 100))]);
+    let err = post(&mut f, vec![fx(euro, 11000, 10000, 100), NewSplit::new(checking, n(-10000, 100))]);
     assert!(matches!(err, Err(DomainError::Unbalanced { .. })));
-    let first = post(&mut f, vec![NewSplit::new(euro, n(11000, 100)).with_amount(n(10000, 100)), NewSplit::new(checking, n(-11000, 100))]).unwrap();
+    let first = post(&mut f, vec![fx(euro, 11000, 10000, 100), NewSplit::new(checking, n(-11000, 100))]).unwrap();
     let (t_usd, t_eur) = {
         let a = |name: &str| f.book.account_by_full_name(name).unwrap().guid;
         (a("Trading:CURRENCY:USD"), a("Trading:CURRENCY:EUR"))
     };
     // A caller's own trading splits that balance stay as given, even at an odd value split between two splits.
     let splits = vec![
-        NewSplit::new(euro, n(1000, 100)).with_amount(n(900, 100)),
+        fx(euro, 1000, 900, 100),
         NewSplit::new(checking, n(-1000, 100)),
         NewSplit::new(t_usd, n(1000, 100)),
-        NewSplit::new(t_eur, n(-1000, 100)).with_amount(n(-900, 100)).with_memo("mine"),
+        fx(t_eur, -1000, -900, 100).with_memo("mine"),
     ];
     let t = post(&mut f, splits).unwrap();
     let memo = f.book.transaction(t).unwrap().splits.iter().find(|s| s.account == Some(t_eur)).unwrap().memo.clone();
@@ -168,7 +175,7 @@ fn unbalanced_values_are_refused_and_balanced_trading_splits_kept() {
 fn trading_splits_are_rebuilt_when_an_edit_unbalances_them() {
     let mut f = fixture();
     let (euro, checking) = (f.euro, f.checking);
-    let g = post(&mut f, vec![NewSplit::new(euro, n(11000, 100)).with_amount(n(10000, 100)), NewSplit::new(checking, n(-11000, 100))]).unwrap();
+    let g = post(&mut f, vec![fx(euro, 11000, 10000, 100), NewSplit::new(checking, n(-11000, 100))]).unwrap();
     let mut t = f.book.transaction(g).unwrap().clone();
     let old: Vec<Guid> = t.splits.iter().filter(|s| is_trading_split(&f.book, s)).map(|s| s.guid).collect();
     t.splits.iter_mut().filter(|s| s.account == Some(euro)).for_each(|s| s.amount = n(9000, 100));
@@ -183,7 +190,7 @@ fn trading_splits_are_rebuilt_when_an_edit_unbalances_them() {
 fn a_rate_change_that_leaves_amounts_balanced_keeps_the_old_trading_splits() {
     let mut f = fixture();
     let (euro, acme_acc) = (f.euro, f.acme);
-    let g = post(&mut f, vec![NewSplit::new(acme_acc, n(11000, 100)).with_amount(n(2000, 1000)), NewSplit::new(euro, n(-11000, 100)).with_amount(n(-10000, 100))]).unwrap();
+    let g = post(&mut f, vec![fx(acme_acc, 11000, 2000, 1000), fx(euro, -11000, -10000, 100)]).unwrap();
     let mut t = f.book.transaction(g).unwrap().clone();
     t.splits.iter_mut().filter(|s| s.account == Some(acme_acc)).for_each(|s| s.value = n(12000, 100));
     t.splits.iter_mut().filter(|s| s.account == Some(euro)).for_each(|s| s.value = n(-12000, 100));
@@ -224,8 +231,8 @@ fn the_session_commit_rebalances_changed_transactions_only() {
     let mut f = fixture();
     let (euro, checking) = (f.euro, f.checking);
     set_trading_accounts(&mut f.book, false);
-    let a = post(&mut f, vec![NewSplit::new(euro, n(11000, 100)).with_amount(n(10000, 100)), NewSplit::new(checking, n(-11000, 100))]).unwrap();
-    let b = post(&mut f, vec![NewSplit::new(euro, n(2200, 100)).with_amount(n(2000, 100)), NewSplit::new(checking, n(-2200, 100))]).unwrap();
+    let a = post(&mut f, vec![fx(euro, 11000, 10000, 100), NewSplit::new(checking, n(-11000, 100))]).unwrap();
+    let b = post(&mut f, vec![fx(euro, 2200, 2000, 100), NewSplit::new(checking, n(-2200, 100))]).unwrap();
     set_trading_accounts(&mut f.book, true);
     let before = f.book.clone();
     Arc::make_mut(f.book.transactions.get_mut(&a).unwrap()).splits[0].memo = Some("edited".into());
@@ -239,7 +246,7 @@ fn the_imbalance_scrub_runs_the_trading_branch() {
     let mut f = fixture();
     let (euro, checking) = (f.euro, f.checking);
     set_trading_accounts(&mut f.book, false);
-    let g = post(&mut f, vec![NewSplit::new(euro, n(11000, 100)).with_amount(n(10000, 100)), NewSplit::new(checking, n(-11000, 100))]).unwrap();
+    let g = post(&mut f, vec![fx(euro, 11000, 10000, 100), NewSplit::new(checking, n(-11000, 100))]).unwrap();
     Arc::make_mut(f.book.transactions.get_mut(&g).unwrap()).splits[0].value = n(11500, 100);
     set_trading_accounts(&mut f.book, true);
     let repairs = scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(g)).unwrap();
@@ -288,7 +295,8 @@ proptest! {
         let (other, trading) = value_sums(&f.book, t).unwrap();
         prop_assert!(other.is_zero() && trading.is_zero());
         for c in [usd(), eur(), acme()] {
-            let sum = t.splits.iter().filter(|s| commodity_of(&f.book, s) == Some(c.clone())).try_fold(Numeric::ZERO, |acc, s| acc.add_exact(s.amount)).unwrap();
+            let mut in_c = t.splits.iter().filter(|s| commodity_of(&f.book, s) == Some(c.clone()));
+            let sum = in_c.try_fold(Numeric::ZERO, |acc, s| acc.add_exact(s.amount)).unwrap();
             prop_assert!(sum.is_zero(), "{c} amounts sum to {sum:?}");
         }
     }

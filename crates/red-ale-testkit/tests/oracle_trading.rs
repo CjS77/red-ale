@@ -87,7 +87,8 @@ fn post_through_api(d: &mut red_ale_rpc::Dispatcher, spec: &Value) {
             .iter()
             .map(|s| json!({ "account": s["account"], "value": amount(&s["value"]), "amount": amount(&s["amount"]) }))
             .collect();
-        call(d, "transaction.post", &json!({ "description": t["description"], "currency": t["currency"], "datePosted": t["date"], "splits": splits }));
+        let params = json!({ "description": t["description"], "currency": t["currency"], "datePosted": t["date"], "splits": splits });
+        call(d, "transaction.post", &params);
     });
 }
 

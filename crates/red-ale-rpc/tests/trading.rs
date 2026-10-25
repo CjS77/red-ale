@@ -50,7 +50,8 @@ fn exchange(d: &mut Dispatcher) -> Value {
 /// `(accountName, value, amount)` of each split, values and amounts as decimal-free `num/denom`.
 fn rows(t: &Value) -> Vec<(String, String, String)> {
     let frac = |n: &Value| format!("{}/{}", n["num"].as_str().unwrap(), n["denom"].as_str().unwrap());
-    t["splits"].as_array().unwrap().iter().map(|s| (s["accountName"].as_str().unwrap().to_owned(), frac(&s["value"]), frac(&s["amount"]))).collect()
+    let row = |s: &Value| (s["accountName"].as_str().unwrap().to_owned(), frac(&s["value"]), frac(&s["amount"]));
+    t["splits"].as_array().unwrap().iter().map(row).collect()
 }
 
 fn row(a: &str, v: &str, q: &str) -> (String, String, String) {
@@ -94,18 +95,22 @@ fn post_update_void_unvoid_and_reverse_keep_trading_splits() {
     let back = call(&mut d, "transaction.unvoid", &json!({ "guid": guid }));
     assert_eq!(rows(&back), rows(&t));
     let reversed = call(&mut d, "transaction.reverse", &json!({ "guid": guid, "date": "2024-03-02" }));
-    let mut negated: Vec<_> = rows(&reversed).into_iter().map(|(a, v, q)| (a, v.trim_start_matches('-').to_owned(), q.trim_start_matches('-').to_owned())).collect();
-    let mut original: Vec<_> = rows(&t).into_iter().map(|(a, v, q)| (a, v.trim_start_matches('-').to_owned(), q.trim_start_matches('-').to_owned())).collect();
-    negated.sort();
-    original.sort();
-    assert_eq!(negated, original);
+    let unsigned = |t: &Value| {
+        let strip = |x: &str| x.trim_start_matches('-').to_owned();
+        let mut r: Vec<_> = rows(t).into_iter().map(|(a, v, q)| (a, strip(&v), strip(&q))).collect();
+        r.sort();
+        r
+    };
+    assert_eq!(unsigned(&reversed), unsigned(&t));
     assert_eq!(reversed["balanced"], true);
 }
 
 #[test]
 fn a_transfer_and_a_stock_purchase_get_trading_splits() {
     let (_dir, mut d) = book(true);
-    let x = call(&mut d, "transaction.transfer", &json!({ "from": "Assets:Checking", "to": "Assets:Euro", "amount": "110.00", "toAmount": "100.00", "date": "2024-03-01" }));
+    let transfer =
+        json!({ "from": "Assets:Checking", "to": "Assets:Euro", "amount": "110.00", "toAmount": "100.00", "date": "2024-03-01" });
+    let x = call(&mut d, "transaction.transfer", &transfer);
     assert_eq!(x["transaction"]["splits"].as_array().unwrap().len(), 4);
     let buy = call(
         &mut d,
@@ -136,7 +141,8 @@ fn a_transaction_from_before_the_option_gets_trading_splits_when_next_changed() 
     call(&mut d, "book.setTradingAccounts", &json!({ "useTradingAccounts": true }));
     let guid = t["guid"].clone();
     let still = call(&mut d, "transaction.get", &json!({ "guid": guid }));
-    assert_eq!((still["splits"].as_array().unwrap().len(), &still["balanced"]), (2, &json!(false)), "turning the option on changes nothing");
+    let split_count = still["splits"].as_array().unwrap().len();
+    assert_eq!((split_count, &still["balanced"]), (2, &json!(false)), "turning the option on changes nothing");
     call(&mut d, "reconcile.setState", &json!({ "split": t["splits"][0]["guid"], "state": "c" }));
     let after = call(&mut d, "transaction.get", &json!({ "guid": guid }));
     assert_eq!(after["splits"].as_array().unwrap().len(), 4, "{after}");
@@ -156,5 +162,6 @@ fn unbalanced_values_are_refused_in_a_trading_book() {
         )
         .unwrap_err();
     assert_eq!(e.code, codes::UNBALANCED);
-    assert!(call(&mut d, "account.list", &json!({}))["accounts"].as_array().unwrap().iter().all(|a| a["type"] != "TRADING"), "nothing is left behind");
+    let accounts = call(&mut d, "account.list", &json!({}));
+    assert!(accounts["accounts"].as_array().unwrap().iter().all(|a| a["type"] != "TRADING"), "nothing is left behind");
 }
