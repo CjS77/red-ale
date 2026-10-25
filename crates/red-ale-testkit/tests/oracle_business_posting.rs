@@ -92,6 +92,9 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
             });
             call(d, "invoice.pay", &params);
         }
+        "numSource" => {
+            call(d, "book.setOptions", &json!({ "splitActionForNum": op["on"] }));
+        }
         other => panic!("unknown op {other}"),
     }
 }
@@ -211,6 +214,24 @@ fn vendor_payment_from_a_foreign_bank() {
         post("BILL1", "Liabilities:Payable", "2024-03-21"),
         { "op": "pay", "owner": "Paper Co", "account": "Liabilities:Payable", "transfer": "Assets:Euro Bank", "amount": "100", "exch": "9/10",
           "date": "2024-03-25", "num": "W1", "applyTo": ["BILL1"] },
+    ]));
+}
+
+/// With the num field source on, posting swaps the document ID and the type word between the transaction's num and
+/// the splits' actions, and a payment's num becomes its transfer split's action (`design/api/book-options.md`).
+#[test]
+fn posting_and_paying_follow_the_num_field_source() {
+    compare(&json!([
+        { "op": "numSource", "on": true },
+        post("INV1", "Assets:Receivable", "2024-03-05"),
+        { "op": "post", "invoice": "BILL1", "account": "Liabilities:Payable", "postDate": "2024-03-21", "accumulate": false, "memo": "bill" },
+        post("EXP1", "Liabilities:Payable", "2024-03-06"),
+        { "op": "payInvoice", "invoice": "INV1", "transfer": "Assets:Bank", "amount": "100", "date": "2024-03-10", "num": "CHK-1" },
+        { "op": "pay", "owner": "Paper Co", "account": "Liabilities:Payable", "transfer": "Assets:Bank", "amount": "40", "date": "2024-03-25",
+          "num": "", "applyTo": ["BILL1"] },
+        post("NEG1", "Assets:Receivable", "2024-03-08"),
+        post("INV2", "Assets:Receivable", "2024-03-09"),
+        { "op": "pay", "owner": "Acme Ltd", "account": "Assets:Receivable", "amount": "0", "date": "2024-03-10", "applyTo": ["NEG1", "INV2"] },
     ]));
 }
 

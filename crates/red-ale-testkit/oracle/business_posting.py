@@ -19,6 +19,7 @@ Operations (a JSON list), using document IDs, account full names and owner names
    "exch": "1", "date": "2024-03-20", "memo": "", "num": "", "applyTo": ["INV1"], "autoPay": false}
   {"op": "payInvoice", "invoice": "INV1", "transfer": "Assets:Bank", "amount": "100", "exch": "1",
    "date": "2024-03-20", "memo": "", "num": ""}
+  {"op": "numSource", "on": true}   set "Use Split Action Field for Number" as the book options dialog does
 Payment amounts are signed as red-ale's API signs them: positive when a customer pays or a vendor is paid.
 """
 import datetime
@@ -36,6 +37,8 @@ from gnucash.gnucash_business import (Bill, BillTerm, Customer, Employee, Entry,
                                       GNC_DISC_SAMETIME, GNC_PAYMENT_CARD)
 from gnucash.gnucash_core_c import (ACCT_TYPE_ASSET, ACCT_TYPE_BANK, ACCT_TYPE_CREDIT, ACCT_TYPE_EXPENSE, ACCT_TYPE_INCOME,
                                     ACCT_TYPE_LIABILITY, ACCT_TYPE_PAYABLE, ACCT_TYPE_RECEIVABLE)
+
+import gnc_engine
 
 
 def num(text):
@@ -325,10 +328,14 @@ def do(path, ops_path):
     with open(ops_path) as f:
         ops = json.load(f)
     s = Session("xml://" + path, SessionOpenMode.SESSION_NORMAL_OPEN)
+    # gnc_set_num_action reads the num field source from the current session's book.
+    gnc_engine.set_current_session(s)
     try:
         book = s.book
         for op in ops:
-            if op["op"] == "post":
+            if op["op"] == "numSource":
+                gnc_engine.set_num_source(book, op["on"])
+            elif op["op"] == "post":
                 post(book, op)
             elif op["op"] == "unpost":
                 find_invoice(book, op["invoice"]).Unpost(op.get("reset", False))
@@ -340,6 +347,7 @@ def do(path, ops_path):
                 raise ValueError(op["op"])
         s.save()
     finally:
+        gnc_engine.clear_current_session()
         s.end()
 
 
