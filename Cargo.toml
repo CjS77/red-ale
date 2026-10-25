@@ -3,6 +3,7 @@ members = [
     "crates/red-ale",
     "crates/red-ale-core",
     "crates/red-ale-mcp",
+    "crates/red-ale-report",
     "crates/red-ale-rpc",
     "crates/red-ale-service",
     "crates/red-ale-testkit",
@@ -26,6 +27,10 @@ flate2 = { version = "1.1", default-features = false, features = ["rust_backend"
 indexmap = "2.14"
 jiff = { version = "0.2.38", default-features = false, features = ["std"] }
 jsonrpsee = { version = "0.25", features = ["server", "http-client", "macros"] }
+num-bigint = "0.4.6"
+num-integer = "0.1.46"
+num-rational = "0.4.2"
+num-traits = "0.2.19"
 proptest = "1.9"
 quick-xml = "0.41"
 regex = "1.12"
@@ -33,12 +38,14 @@ rmcp = { version = "3.7", default-features = false, features = ["server", "trans
 schemars = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
+serde_path_to_error = "0.1.20"
 tempfile = "3.24"
 thiserror = "2.0"
 tokio = { version = "1.49", features = ["macros", "rt-multi-thread", "signal"] }
 
 red-ale-core = { path = "crates/red-ale-core" }
 red-ale-mcp = { path = "crates/red-ale-mcp" }
+red-ale-report = { path = "crates/red-ale-report" }
 red-ale-rpc = { path = "crates/red-ale-rpc" }
 red-ale-service = { path = "crates/red-ale-service" }
 red-ale-testkit = { path = "crates/red-ale-testkit" }

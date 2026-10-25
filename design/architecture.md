@@ -114,7 +114,7 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 |-------|---------|-----|
 | `thiserror` | all libraries | typed errors |
 | `indexmap` | core | ordered entity collections |
-| `chrono` | core, xml, service | calendar arithmetic and formatting (no clock in core) |
+| `chrono` | core, xml, service, report | calendar arithmetic and formatting (no clock in core) |
 | `jiff` | core | time zone rules from TZif data and POSIX strings, with no I/O (default features off: no system zone lookup, no bundled database); the service reads the files |
 | `quick-xml` | xml | XML tokenising; red-ale builds its own small DOM and serialiser to match libxml2's output |
 | `flate2` | xml | gzip, through the pure-Rust `miniz_oxide` |
@@ -124,5 +124,6 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `rmcp` | mcp | the official MCP SDK: protocol types and the stdio transport (Apache-2.0) |
 | `clap`, `anyhow` | binary | CLI |
 | `rhai` | report | report scripting (`no_float`, `no_time`; see [`reports.md`](reports.md)) |
-| `num-bigint`, `num-rational` | report | the unbounded exact Rational of report arithmetic |
+| `num-bigint`, `num-rational`, `num-traits`, `num-integer` | report | the unbounded exact Rational of report arithmetic |
+| `serde_path_to_error` | report | the path of a mismatch in a report result |
 | `proptest`, `tempfile` | tests | property tests and temp directories |

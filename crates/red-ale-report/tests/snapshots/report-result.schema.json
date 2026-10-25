@@ -1,0 +1,1262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReportResult",
+  "description": "A finished report result, as `report.run` returns it.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "description": "The result's version: [`RESULT_VERSION`].",
+      "type": "string"
+    },
+    "report": {
+      "description": "The template and saved configuration that produced it.",
+      "$ref": "#/$defs/ReportIdentity"
+    },
+    "title": {
+      "description": "The document title (`gnc:html-document-set-title!`): the HTML `<title>` and, without a headline, the heading.",
+      "type": "string"
+    },
+    "headline": {
+      "description": "A heading when it differs from the title (`gnc:html-document-set-headline!`).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "now": {
+      "description": "The time the report was run for.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "options": {
+      "description": "Every option's value, in wire form, so the result says exactly what produced it.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "sections": {
+      "description": "The sections, in order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Section"
+      }
+    },
+    "log": {
+      "description": "The report log: what the script printed.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/LogEntry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "report",
+    "title",
+    "now",
+    "options",
+    "sections",
+    "log"
+  ],
+  "$defs": {
+    "ReportIdentity": {
+      "description": "The report a result came from.",
+      "type": "object",
+      "properties": {
+        "guid": {
+          "description": "The template's GUID.",
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{32}$"
+        },
+        "name": {
+          "description": "The template's name.",
+          "type": "string"
+        },
+        "configuration": {
+          "description": "The saved report configuration's GUID, when one was run.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{32}$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "guid",
+        "name"
+      ]
+    },
+    "Section": {
+      "description": "A section: an optional title and ordered blocks.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "The section's title.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "blocks": {
+          "description": "The blocks, in order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Block"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "blocks"
+      ]
+    },
+    "Block": {
+      "description": "A block of a section, told apart by `kind`.",
+      "oneOf": [
+        {
+          "description": "Text: `gnc:make-html-text`, `gnc:html-markup-h3`, `gnc:html-markup-p`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "text"
+            },
+            "text": {
+              "description": "The text.",
+              "type": "string"
+            },
+            "role": {
+              "description": "What the text is.",
+              "$ref": "#/$defs/TextRole",
+              "default": "paragraph"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "text"
+          ]
+        },
+        {
+          "description": "A warning (`gnc:html-make-generic-warning` and those built on it, `5.17:gnucash/report/html-utilities.scm:350-381`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "warning"
+            },
+            "title": {
+              "description": "The warning's title, such as \"No accounts selected\".",
+              "type": "string"
+            },
+            "text": {
+              "description": "What it says.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "title",
+            "text"
+          ]
+        },
+        {
+          "description": "A table.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "table"
+            },
+            "title": {
+              "description": "The table's title.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "columns": {
+              "description": "The columns.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Column"
+              }
+            },
+            "rows": {
+              "description": "The rows; each has one cell per column, counting spans.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Row"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "columns",
+            "rows"
+          ]
+        },
+        {
+          "description": "A chart.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "chart"
+            },
+            "type": {
+              "description": "The kind of chart (`set-type!`).",
+              "$ref": "#/$defs/ChartType"
+            },
+            "title": {
+              "description": "Lines of the title (`set-title!`).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "width": {
+              "description": "Width; default 100 % (`5.17:gnucash/report/html-chart.scm:190-193`).",
+              "$ref": "#/$defs/PlotSize",
+              "default": {
+                "percent": 100
+              }
+            },
+            "height": {
+              "description": "Height; default 100 %.",
+              "$ref": "#/$defs/PlotSize",
+              "default": {
+                "percent": 100
+              }
+            },
+            "stacked": {
+              "description": "Bars stack, or lines accumulate (`set-stacking?!`).",
+              "type": "boolean",
+              "default": false
+            },
+            "grid": {
+              "description": "Grid lines (`set-grid?!`); on by default, as in GnuCash's chart (`:236-239`).",
+              "type": "boolean",
+              "default": true
+            },
+            "legend": {
+              "description": "Show the series (or slice) labels.",
+              "type": "boolean",
+              "default": true
+            },
+            "xAxis": {
+              "description": "The x axis.",
+              "$ref": "#/$defs/Axis",
+              "default": {
+                "label": ""
+              }
+            },
+            "yAxis": {
+              "description": "The y axis.",
+              "$ref": "#/$defs/Axis",
+              "default": {
+                "label": ""
+              }
+            },
+            "labels": {
+              "description": "Category labels (bar, line) or slice labels (pie).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "series": {
+              "description": "The data series (`add-data-series!`).",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Series"
+              }
+            },
+            "tooltip": {
+              "description": "Hover label behaviour.",
+              "$ref": "#/$defs/Tooltip",
+              "default": {
+                "grouped": true,
+                "nonZeroOnly": false
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "type",
+            "series"
+          ]
+        },
+        {
+          "description": "Blocks laid out side by side: the one-row layout tables of the two-column Balance Sheet and Income Statement.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "group"
+            },
+            "blocks": {
+              "description": "The blocks, left to right.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Block"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "blocks"
+          ]
+        },
+        {
+          "description": "Set by the host only: the options that differ from their defaults (`gnc:html-render-options-changed`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "optionsSummary"
+            },
+            "rows": {
+              "description": "One row per changed option, in option order.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/OptionsSummaryRow"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "rows"
+          ]
+        }
+      ]
+    },
+    "TextRole": {
+      "description": "The role of a text block.",
+      "oneOf": [
+        {
+          "description": "A paragraph.",
+          "type": "string",
+          "const": "paragraph"
+        },
+        {
+          "description": "A heading.",
+          "type": "string",
+          "const": "heading"
+        },
+        {
+          "description": "A note.",
+          "type": "string",
+          "const": "note"
+        }
+      ]
+    },
+    "Column": {
+      "description": "A column.",
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "The heading; empty for none.",
+          "type": "string",
+          "default": ""
+        },
+        "role": {
+          "description": "What the column holds.",
+          "$ref": "#/$defs/ColumnRole"
+        },
+        "align": {
+          "description": "Alignment; amounts default to the right.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Align"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "levels": {
+          "description": "For an `amount` column of an account table: the staircase positions, a deeper account's amount further left\nand totals furthest right (`5.17:gnucash/report/html-acct-table.scm:870-923`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "role"
+      ]
+    },
+    "ColumnRole": {
+      "description": "What a column holds.",
+      "oneOf": [
+        {
+          "description": "Account names and row labels.",
+          "type": "string",
+          "const": "label"
+        },
+        {
+          "description": "Other text.",
+          "type": "string",
+          "const": "text"
+        },
+        {
+          "description": "Figures.",
+          "type": "string",
+          "const": "amount"
+        },
+        {
+          "description": "Dates.",
+          "type": "string",
+          "const": "date"
+        }
+      ]
+    },
+    "Align": {
+      "description": "Horizontal alignment.",
+      "type": "string",
+      "enum": [
+        "left",
+        "right",
+        "center"
+      ]
+    },
+    "Row": {
+      "description": "A row.",
+      "type": "object",
+      "properties": {
+        "role": {
+          "description": "What the row is.",
+          "$ref": "#/$defs/RowRole",
+          "default": "data"
+        },
+        "account": {
+          "description": "The account the row is about.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{32}$"
+        },
+        "depth": {
+          "description": "Indentation of the label, in levels (`indented-depth`, `5.17:gnucash/report/html-acct-table.scm:749-763`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "level": {
+          "description": "The amount's staircase position, 0 being the rightmost.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "cells": {
+          "description": "The cells, `null` for an empty one.",
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Cell"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "cells"
+      ]
+    },
+    "RowRole": {
+      "description": "What a row is. The roles stand for GnuCash's row and cell markup (`primary-subheading`, `total-label-cell`,\n`total-number-cell`), which style sheets colour.",
+      "oneOf": [
+        {
+          "description": "Plain data.",
+          "type": "string",
+          "const": "data"
+        },
+        {
+          "description": "A section label such as \"Assets\".",
+          "type": "string",
+          "const": "heading"
+        },
+        {
+          "description": "An account's row.",
+          "type": "string",
+          "const": "account"
+        },
+        {
+          "description": "A subtotal: \"Total Bank1\".",
+          "type": "string",
+          "const": "subtotal"
+        },
+        {
+          "description": "A section total: \"Total Assets\".",
+          "type": "string",
+          "const": "total"
+        },
+        {
+          "description": "A grand total: \"Total Liabilities & Equity\", \"Net income\".",
+          "type": "string",
+          "const": "grandTotal"
+        },
+        {
+          "description": "A horizontal rule across the table (`gnc:html-table-append-ruler!`).",
+          "type": "string",
+          "const": "rule"
+        },
+        {
+          "description": "An empty spacer row.",
+          "type": "string",
+          "const": "spacer"
+        }
+      ]
+    },
+    "Cell": {
+      "description": "A cell. It holds exactly one of `text`, `monetary`, `commodities`, `number`, `price` and `date`; the display fields\nare filled in by the host.",
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "Text.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "monetary": {
+          "description": "An amount of a commodity.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Monetary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commodities": {
+          "description": "GnuCash's nested commodity table: one line per commodity an account holds, with its value in the report\ncurrency (`5.17:gnucash/report/html-acct-table.scm:925-948`).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/CommodityLine"
+          }
+        },
+        "number": {
+          "description": "A plain number, such as a percentage.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rational"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "price": {
+          "description": "A price or exchange rate in `currency`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rational"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "date": {
+          "description": "An instant.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "places": {
+          "description": "For a `number`: decimals shown, default 2.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "suffix": {
+          "description": "For a `number`: text after the figure, such as `\" %\"`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "description": "For a `price`: the currency it is in.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rounded": {
+          "description": "Host: for a `monetary`, the amount at the commodity's SCU, banker's rounding.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rational"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "localDate": {
+          "description": "Host: for a `date`, its local date `YYYY-MM-DD` in the run's time zone.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display": {
+          "description": "Host: the figure as text, for `monetary`, `number`, `price` and `date` cells.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "account": {
+          "description": "The account the cell names or links to.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{32}$"
+        },
+        "link": {
+          "description": "Something a client can open.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Link"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule": {
+          "description": "An accounting rule above the figure (\"Show accounting-style rules\",\n`5.17:gnucash/report/html-acct-table.scm:901-906`).",
+          "type": "boolean"
+        },
+        "span": {
+          "description": "Columns the cell covers, default 1.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "text"
+          ]
+        },
+        {
+          "required": [
+            "monetary"
+          ]
+        },
+        {
+          "required": [
+            "commodities"
+          ]
+        },
+        {
+          "required": [
+            "number"
+          ]
+        },
+        {
+          "required": [
+            "price"
+          ]
+        },
+        {
+          "required": [
+            "date"
+          ]
+        }
+      ]
+    },
+    "Monetary": {
+      "description": "An exact amount of one commodity. On the wire: `{ \"amount\": Rational, \"commodity\": \"CURRENCY::USD\" }`.",
+      "type": "object",
+      "properties": {
+        "amount": {
+          "description": "The amount.",
+          "$ref": "#/$defs/Rational"
+        },
+        "commodity": {
+          "description": "The commodity.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "amount",
+        "commodity"
+      ]
+    },
+    "Rational": {
+      "description": "An exact rational of any size, reduced, with a positive denominator. Never a JSON number.",
+      "type": "object",
+      "properties": {
+        "num": {
+          "type": "string",
+          "pattern": "^-?\\d+$"
+        },
+        "denom": {
+          "type": "string",
+          "pattern": "^[1-9]\\d*$"
+        }
+      },
+      "required": [
+        "num",
+        "denom"
+      ],
+      "additionalProperties": false
+    },
+    "CommodityLine": {
+      "description": "One commodity of a `commodities` cell.",
+      "type": "object",
+      "properties": {
+        "monetary": {
+          "description": "The native amount.",
+          "$ref": "#/$defs/Monetary"
+        },
+        "converted": {
+          "description": "Its value in the report currency, when converted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Monetary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "display": {
+          "description": "Host: the native amount as text.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "convertedDisplay": {
+          "description": "Host: the converted value as text.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "monetary"
+      ]
+    },
+    "Link": {
+      "description": "Something a client can open: an account register (`5.17:gnucash/report/html-utilities.scm:82-88`) or another\nreport, GnuCash's drill-down (`5.17:gnucash/report/reports/standard/category-barchart.scm:589-609`). GnuCash makes\na report instance for a report link at render time; red-ale only describes it, and a client runs it.",
+      "oneOf": [
+        {
+          "description": "`{ \"account\": \"<guid>\" }`.",
+          "type": "object",
+          "properties": {
+            "account": {
+              "description": "A GUID: 32 hexadecimal digits.",
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          "required": [
+            "account"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "`{ \"report\": { \"template\": \"<guid>\", \"options\": { … } } }`.",
+          "type": "object",
+          "properties": {
+            "report": {
+              "$ref": "#/$defs/ReportLink"
+            }
+          },
+          "required": [
+            "report"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ReportLink": {
+      "description": "A link to a report run.",
+      "type": "object",
+      "properties": {
+        "template": {
+          "description": "The template to run.",
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{32}$"
+        },
+        "options": {
+          "description": "The options to change, in the form `report.run` takes.",
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "template"
+      ]
+    },
+    "ChartType": {
+      "description": "The kind of a chart.",
+      "type": "string",
+      "enum": [
+        "bar",
+        "line",
+        "pie",
+        "scatter"
+      ]
+    },
+    "PlotSize": {
+      "description": "A plot size: GnuCash's `(percent . n)` or `(pixels . n)` (`5.17:bindings/guile/gnc-optiondb.i:1094-1108`).",
+      "oneOf": [
+        {
+          "description": "A percentage of the space available.",
+          "type": "object",
+          "properties": {
+            "percent": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "percent"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Pixels.",
+          "type": "object",
+          "properties": {
+            "pixels": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "pixels"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Axis": {
+      "description": "An axis.",
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "The axis label; empty for none.",
+          "type": "string",
+          "default": ""
+        },
+        "scale": {
+          "description": "How positions are laid out; `category` for bar and line, `linear` for scatter, by default.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Scale"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "format": {
+          "description": "How values show; `number` by default.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AxisFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commodity": {
+          "description": "The currency of a `currency` axis.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Scale": {
+      "description": "How axis positions are laid out.",
+      "oneOf": [
+        {
+          "description": "One slot per label.",
+          "type": "string",
+          "const": "category"
+        },
+        {
+          "description": "Numeric x, for scatter.",
+          "type": "string",
+          "const": "linear"
+        }
+      ]
+    },
+    "AxisFormat": {
+      "description": "How values on an axis show.",
+      "oneOf": [
+        {
+          "description": "Amounts in the axis's `commodity`.",
+          "type": "string",
+          "const": "currency"
+        },
+        {
+          "description": "Percentages: two decimals and `%`.",
+          "type": "string",
+          "const": "percent"
+        },
+        {
+          "description": "Plain numbers, exact.",
+          "type": "string",
+          "const": "number"
+        }
+      ]
+    },
+    "Series": {
+      "description": "A data series.",
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "The series label.",
+          "type": "string"
+        },
+        "color": {
+          "description": "Its colour.",
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "values": {
+          "description": "One value per label, `null` for none; every chart but `scatter`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Rational"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "points": {
+          "description": "The points of a `scatter` series.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Point"
+          }
+        },
+        "colors": {
+          "description": "One colour per value: a pie's slices.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "description": "A colour, #rrggbb.",
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          }
+        },
+        "fill": {
+          "description": "Fill the area under a line, or fill a bar.",
+          "type": "boolean"
+        },
+        "lineWidth": {
+          "description": "Line width.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rational"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stack": {
+          "description": "Series with the same stack name stack together.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "description": "Draw this series as bars or a line, to mix them.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeriesKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "link": {
+          "description": "A link for the whole series.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Link"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "links": {
+          "description": "One link per value.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Link"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "line": {
+          "description": "For `scatter`: join the points with a line of this colour (`5.17:gnucash/report/reports/standard/price-scatter.scm:269-274`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "marker": {
+          "description": "The point marker.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Marker"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "displays": {
+          "description": "Host: each value as its hover label shows it, under the y axis's format.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "color"
+      ]
+    },
+    "Point": {
+      "description": "A point of a scatter series.",
+      "type": "object",
+      "properties": {
+        "x": {
+          "description": "x.",
+          "$ref": "#/$defs/Rational"
+        },
+        "y": {
+          "description": "y.",
+          "$ref": "#/$defs/Rational"
+        },
+        "label": {
+          "description": "The hover label's title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display": {
+          "description": "Host: y as its hover label shows it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "SeriesKind": {
+      "description": "How a series is drawn when a chart mixes them.",
+      "type": "string",
+      "enum": [
+        "bar",
+        "line"
+      ]
+    },
+    "Marker": {
+      "description": "A point marker.",
+      "type": "string",
+      "enum": [
+        "circle",
+        "square",
+        "diamond",
+        "cross",
+        "plus"
+      ]
+    },
+    "Tooltip": {
+      "description": "How hover labels work (`set-tooltip-mode!`, `set-tooltip-non-zero-only!`, `5.17:gnucash/report/html-chart.scm:309-328`).",
+      "type": "object",
+      "properties": {
+        "grouped": {
+          "description": "One label for all series at a category; GnuCash's default `index` mode (`:220-221`).",
+          "type": "boolean",
+          "default": true
+        },
+        "nonZeroOnly": {
+          "description": "Leave zero values out of the label.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "OptionsSummaryRow": {
+      "description": "One changed option in the options summary.",
+      "type": "object",
+      "properties": {
+        "section": {
+          "description": "The option's section.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The option's name.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Its value as text.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "section",
+        "name",
+        "value"
+      ]
+    },
+    "LogEntry": {
+      "description": "An entry of the report log.",
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Which call wrote it.",
+          "$ref": "#/$defs/LogLevel"
+        },
+        "text": {
+          "description": "The text.",
+          "type": "string"
+        },
+        "source": {
+          "description": "The script it came from, when known.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line": {
+          "description": "The line, from 1, when known.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "text"
+      ]
+    },
+    "LogLevel": {
+      "description": "The call that wrote a log entry.",
+      "oneOf": [
+        {
+          "description": "Rhai's `print`.",
+          "type": "string",
+          "const": "print"
+        },
+        {
+          "description": "Rhai's `debug`.",
+          "type": "string",
+          "const": "debug"
+        }
+      ]
+    }
+  }
+}

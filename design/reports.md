@@ -44,7 +44,8 @@ The renderer depends only on `result` and `number`, never on the engine or the q
 as JSON renders the same way.
 
 The crate depends on `red-ale-core`, `rhai`, `num-bigint`, `num-rational`, `num-traits`, `num-integer`, `serde`,
-`serde_json` and `schemars`. It does no I/O: script sources, the report settings and the time zone come in as
+`serde_json`, `schemars`, `chrono` (RFC 3339 timestamps on the wire, as `red-ale-rpc` writes them) and
+`serde_path_to_error` (the path of a `report-result` mismatch). It does no I/O: script sources, the report settings and the time zone come in as
 values. It denies `clippy::float_arithmetic`, as core and the backends do, and has `#![forbid(unsafe_code)]`.
 
 `red-ale-rpc` gains the `report.*` methods and depends on `red-ale-report`. `red-ale-service` gains the
@@ -408,7 +409,7 @@ Option types used by the reports in scope and the style sheets, and their wire v
 | `multichoice` | `GncOptionMultichoiceValue`, keys of type symbol, string or number (`5.17:bindings/guile/gnc-optiondb.i:623-655`) | the key: a string, or an integer for number keys (account levels `1`–`6`) | string or integer |
 | `list` | the same with several keys selected | array of keys; empty reads as the default (`gnc-optiondb.i:1073-1081`) | array |
 | `numberRange` | `GncOptionRangeValue<double>`: value, min, max, step (`5.17:libgnucash/engine/gnc-option-impl.hpp:410-439`) | decimal string (`"1.5"`) or integer | Rational |
-| `plotSize` | `GncOptionRangeValue<int>`, 10–65535; above 100 means pixels (`gnc-optiondb.i:1094-1108`) | `{ "percent": n }` or `{ "pixels": n }`, or a bare integer read GnuCash's way | `#{ unit, value }` |
+| `plotSize` | `GncOptionRangeValue<int>`, 10–65535; above 100 means pixels (`gnc-optiondb.i:1094-1108`) | `{ "percent": n }` (10–100) or `{ "pixels": n }` (101–65535), since GnuCash stores only the number; or a bare integer read GnuCash's way | `#{ unit, value }` |
 | `color` | hex string `rrggbb` or `rrggbbaa` (`gnc-optiondb.i:1326-1344`) | that string, a leading `#` accepted | string |
 | `date` | `GncOptionDateValue` (`gnc-option-impl.hpp:1045-1165`) | `{ "absolute": Date or Timestamp }` or `{ "relative": name }` | Time64 (resolved) |
 | `accountList` | `GncOptionAccountListValue`: GUIDs, allowed types, multi-select (`5.17:libgnucash/engine/gnc-option-impl.cpp:384-444`) | array of AccountRef (GUID or full name); written as GUIDs | Account[] |
@@ -456,7 +457,7 @@ The builder passed to `options()` mirrors GnuCash's `gnc-register-*-option` func
 | `o.number_range(…, default, min, max, step)` | `gnc-register-number-range-option`; numbers as integers or decimal strings |
 | `o.plot_size(…, default)` | `gnc-register-number-plot-size-option` |
 | `o.date(…, #{ default, ui, relative })` | `gnc-register-date-option-set` |
-| `o.start_date(…)`, `o.end_date(…)` | `gnc-register-start-date-option`, `-end-date-option`: UI `both`, the eight start or end choices, default the accounting period's start or end (`gnc-optiondb.cpp:1052-1098`) |
+| `o.start_date(…, both)`, `o.end_date(…, both)` | `gnc-register-start-date-option`, `-end-date-option`: UI `both` (`relative` when `both` is false), the eight start or end choices, default the accounting period's start or end (`gnc-optiondb.cpp:1052-1098`) |
 | `o.account_list(…, default, #{ types, multiple })` | `gnc-register-account-list-option`, `-limited-option` |
 | `o.account_sel(…, default, #{ types })` | `gnc-register-account-sel-limited-option` |
 | `o.currency(…, default)`, `o.commodity(…, default)` | `gnc-register-currency-option`, `-commodity-option` |
@@ -520,10 +521,19 @@ rest of the API. It carries data, not markup: exact figures with their display f
 `render()` returns it as a Rhai map of the same shape, without the fields the host fills in (marked *host*). The host
 checks it against the schema and fills those fields; a mismatch is a `report-result` error naming the path.
 
+Beyond the schema, a result is valid when every cell holds exactly one content (`text`, `monetary`, `commodities`,
+`number`, `price` or `date`), `places` and `suffix` appear only on number cells and `currency` on every price cell and
+nowhere else, each row covers exactly the table's columns (a `null` cell covers one, a cell its `span`), a row's
+`level` is below the `levels` of the table's amount columns, `levels` appears only on amount columns, a chart's series
+have one value per label (scatter series have `points` instead), `colors` and `links` have one entry per value, a
+`currency` axis names its `commodity`, a pie chart has one series, plot sizes are 1–100 % or at least one pixel, and
+no *host* field is set by the script. `optionsSummary` blocks come only from the host.
+
 ### Top level
 
 ```json
 {
+  "version": "0.2.0",
   "report": { "guid": "c4173ac99b2b448289bf4d11c731af13", "name": "Balance Sheet", "configuration": null },
   "title": "Acme Ltd Balance Sheet 12/31/24",
   "headline": null,
@@ -536,6 +546,7 @@ checks it against the schema and fills those fields; a mismatch is a `report-res
 
 | Field | Meaning |
 |-------|---------|
+| `version` | *host*. The `redAleApi` version the result was published with, `0.2.0` |
 | `report` | *host*. The template's GUID and name, and the saved configuration's GUID when one was run |
 | `title` | The document title (GnuCash's `gnc:html-document-set-title!`); the HTML `<title>` and, without a headline, the heading |
 | `headline` | Optional heading when it differs from the title (`gnc:html-document-set-headline!`) |
@@ -569,8 +580,8 @@ checks it against the schema and fills those fields; a mismatch is a `report-res
     { "role": "heading", "cells": [ { "text": "Assets" }, null ] },
     { "role": "account", "account": "4a1c…", "depth": 1, "level": 1,
       "cells": [ { "text": "Bank", "account": "4a1c…" },
-                 { "monetary": { "amount": { "num": "218600", "denom": "100" }, "commodity": "CURRENCY::USD" },
-                   "rounded": { "num": "218600", "denom": "100" }, "display": "$2,186.00" } ] },
+                 { "monetary": { "amount": { "num": "2186", "denom": "1" }, "commodity": "CURRENCY::USD" },
+                   "rounded": { "num": "2186", "denom": "1" }, "display": "$2,186.00" } ] },
     { "role": "total", "level": 0,
       "cells": [ { "text": "Total Assets" }, { "monetary": …, "display": "$116,006.33", "rule": true } ] }
   ]
@@ -605,7 +616,7 @@ colour (section 8).
 | commodities | `commodities: [{ monetary, converted }]` | each line's `display` and `convertedDisplay` |
 | number | `number: Rational`, `places` (default 2), `suffix` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`) |
 | price | `price: Rational`, `currency` | `display` with the currency's price print info |
-| date | `date: Time64` | `date` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat` |
+| date | `date: Time64` (a Timestamp on the wire) | `localDate` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat` |
 
 A `commodities` cell is GnuCash's nested commodity table for an account holding foreign commodities: one line per
 commodity, the native amount and its value in the report currency (`report/html-acct-table.scm:925-948`).
@@ -653,7 +664,7 @@ instance at render time for a report link; red-ale only describes it, and a clie
 | `xAxis`, `yAxis` | `label`; `scale`: `category` (one slot per label), `linear` (numeric x, for scatter); `format` of y values: `currency`, `percent` or `number`; `commodity` for currency | `set-x-axis-label!`, `set-y-axis-label!`, `set-axes-display!`, currency ISO and format style (`:173-178`, `:389-401`) |
 | `labels` | category labels (bar, line), slice labels (pie) | `set-data-labels!` (`:299-300`) |
 | `series` | below | `add-data-series!` (`:370-384`) |
-| `tooltip` | `grouped`: one tooltip for all series at a label; `nonZeroOnly`: leave zero values out of it | `set-tooltip-mode!`, `set-tooltip-non-zero-only!` (`:309-328`) |
+| `tooltip` | `grouped` (default true, GnuCash's `index` mode, `:220-221`): one tooltip for all series at a label; `nonZeroOnly`: leave zero values out of it | `set-tooltip-mode!`, `set-tooltip-non-zero-only!` (`:309-328`) |
 
 A series has `label`, `color` (`#rrggbb`), `values` (Rational or `null`, one per label), and optionally `colors` (one
 per value: a pie's slices), `fill` (area under a line, or a filled bar), `lineWidth` (Rational), `stack` (series with
@@ -675,7 +686,9 @@ These cover every chart in scope:
 
 ### Hover labels
 
-The renderer writes each value's hover label into an SVG `<title>`. The text follows GnuCash's tooltip: the label,
+The host fills in each value's display form under the y axis's format: `displays` on a series (one per value, `null`
+for a missing value) and `display` on a scatter point. The renderer, which has no Book, builds each hover label from
+them and writes it into an SVG `<title>`. The text follows GnuCash's tooltip: the label,
 then `series : value` lines (`report/html-chart.scm:433-449`), with the value in the display form of section 3 for a
 `currency` axis, two decimals and `%` for `percent`, and the exact decimal for `number`. GnuCash formats these in the
 browser with `Intl.NumberFormat` from doubles; red-ale formats the exact value its own way, so hover text is
