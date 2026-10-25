@@ -6,7 +6,9 @@ transport-free dispatcher (`red-ale-rpc::Dispatcher`), so every door runs the sa
 - **HTTP:** `red-ale serve` (default `127.0.0.1:7878`; keep it on localhost, as there is no authentication yet);
 - **CLI:** `red-ale exec --book <file> <method> [params]` runs methods in process; `red-ale call <method> [params]`
   calls a running server;
-- **MCP** (v0.2): each tool maps to one method and shares its params schema.
+- **MCP:** `red-ale mcp` serves every method as an MCP tool over stdio, with the method's name, its params schema and
+  hints from its Effect. Errors come back as tool results with `isError: true` carrying the error object below. See
+  [`mcp.md`](mcp.md).
 
 The authoritative list of methods, with every params and result schema, is the schema document: `red-ale schema`,
 or the `api.schema` method. This page gives the conventions; `api/` holds one page per area.
@@ -130,6 +132,7 @@ red-ale exec --book books/home.gnucash account.create name=Checking type=BANK pa
 red-ale exec --book books/home.gnucash transaction.post description=Rent datePosted=2024-07-01 \
     'splits:=[{"account": "Assets:Checking", "value": "-750.00"}, {"account": "Expenses:Rent", "value": "750.00"}]'
 red-ale exec --book books/home.gnucash --script changes.txt     # one "method {json}" per line
+red-ale mcp --book books/home.gnucash                            # MCP over stdio, for an AI agent
 red-ale call --url http://127.0.0.1:7878 book.info
 ```
 

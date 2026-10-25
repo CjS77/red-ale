@@ -1,4 +1,4 @@
-//! The red-ale binary: the JSON-RPC server, and a command-line front end for the same methods.
+//! The red-ale binary: the JSON-RPC server, the MCP server, and a command-line front end for the same methods.
 
 #![forbid(unsafe_code)]
 
@@ -33,6 +33,8 @@ struct Cli {
 enum Command {
     /// Serve the JSON-RPC API over HTTP.
     Serve(ServeArgs),
+    /// Serve every method as an MCP tool over standard input and output, for AI agents.
+    Mcp(McpArgs),
     /// Call a method on a running server.
     Call(CallArgs),
     /// Open a book, run methods on it in this process, save if anything changed, and close it.
@@ -74,6 +76,18 @@ struct ServeArgs {
     /// Address to listen on. Keep it on localhost: the API has no authentication.
     #[arg(long, default_value = "127.0.0.1:7878")]
     listen: SocketAddr,
+    /// Open this book at start.
+    #[arg(long)]
+    book: Option<String>,
+    /// Open the book read-only.
+    #[arg(long, requires = "book")]
+    read_only: bool,
+    #[command(flatten)]
+    settings: SettingsArgs,
+}
+
+#[derive(Debug, Args)]
+struct McpArgs {
     /// Open this book at start.
     #[arg(long)]
     book: Option<String>,
@@ -127,6 +141,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let outcome = match cli.command {
         Command::Serve(args) => serve(&args),
+        Command::Mcp(args) => mcp(&args),
         Command::Call(args) => call(&args),
         Command::Exec(args) => exec(&args),
         Command::Methods => {
@@ -160,14 +175,19 @@ fn methods() {
     dispatcher.methods().for_each(|m| println!("{:<32} {:<12} {}", m.name, format!("{:?}", m.effect).to_lowercase(), m.summary));
 }
 
-/// Run the server until interrupted. An RPC error is never returned from here, so `Ok(None)` on success.
-fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
-    let mut dispatcher = Dispatcher::new(args.settings.settings());
-    if let Some(book) = &args.book {
-        let info = dispatcher.call("book.open", json!({ "path": book, "readOnly": args.read_only })).map_err(|e| anyhow::anyhow!("{e}"))?;
+/// A dispatcher for a server, with `book` opened in it if given. Reports go to standard error, never standard output.
+fn server_dispatcher(settings: &SettingsArgs, book: Option<&str>, read_only: bool) -> Result<Arc<Mutex<Dispatcher>>> {
+    let mut dispatcher = Dispatcher::new(settings.settings());
+    if let Some(book) = book {
+        let info = dispatcher.call("book.open", json!({ "path": book, "readOnly": read_only })).map_err(|e| anyhow::anyhow!("{e}"))?;
         eprintln!("red-ale: opened {}", info["path"].as_str().unwrap_or_default());
     }
-    let dispatcher = Arc::new(Mutex::new(dispatcher));
+    Ok(Arc::new(Mutex::new(dispatcher)))
+}
+
+/// Run the server until interrupted. An RPC error is never returned from here, so `Ok(None)` on success.
+fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
+    let dispatcher = server_dispatcher(&args.settings, args.book.as_deref(), args.read_only)?;
     let runtime = tokio::runtime::Runtime::new()?;
     runtime.block_on(async {
         let (addr, handle) = red_ale_rpc::server::serve(dispatcher.clone(), args.listen).await?;
@@ -179,6 +199,23 @@ fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
     })?;
     shut_down(&dispatcher);
     Ok(None)
+}
+
+/// Serve MCP on standard input and output until the client closes standard input or a signal arrives, then close
+/// the book as `serve` does. Standard output carries the protocol only.
+fn mcp(args: &McpArgs) -> Result<Option<RpcError>> {
+    let dispatcher = server_dispatcher(&args.settings, args.book.as_deref(), args.read_only)?;
+    let runtime = tokio::runtime::Runtime::new()?;
+    let outcome = runtime.block_on(async {
+        tokio::select! {
+            served = red_ale_mcp::serve_stdio(dispatcher.clone()) => served.map_err(anyhow::Error::from),
+            signalled = shutdown_signal() => signalled,
+        }
+    });
+    shut_down(&dispatcher);
+    // Reading standard input blocks a thread that a plain drop of the runtime would wait for.
+    runtime.shutdown_background();
+    outcome.map(|()| None)
 }
 
 /// Wait for Ctrl-C (SIGINT) or SIGTERM, so a service manager stopping the server also releases the book's lock.

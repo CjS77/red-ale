@@ -1,6 +1,6 @@
 # red-ale
 
-The `red-ale` command: the JSON-RPC server, and a command-line front end to the same methods.
+The `red-ale` command: the JSON-RPC server, the MCP server, and a command-line front end to the same methods.
 
 ## Role
 
@@ -12,6 +12,7 @@ route into red-ale behave the same.
 |------------------------------------------------|---------------------------------------------------------------------------------------------|
 | `red-ale exec --book <file> <method> [params]` | Opens a book, runs one method or a script of them, saves if anything changed, and closes it |
 | `red-ale serve [--book <file>]`                | Keeps a book open and serves the API over HTTP, on `127.0.0.1:7878` by default              |
+| `red-ale mcp [--book <file>]`                  | Serves every method as an MCP tool over standard input and output, for AI agents            |
 | `red-ale call <method> [params]`               | Sends one method to a running server                                                        |
 | `red-ale methods`                              | Lists every method, with its effect and a one-line summary                                  |
 | `red-ale schema`                               | Prints the API's JSON Schema                                                                |
@@ -26,10 +27,10 @@ This crate puts the others together and is the only one with a `main`. It is als
 the library crates return typed errors.
 
 ```text
-red-ale (CLI, HTTP)  ->  red-ale-rpc  ->  red-ale-service  ->  red-ale-core, red-ale-xml
+red-ale (CLI, HTTP, MCP)  ->  red-ale-rpc  ->  red-ale-service  ->  red-ale-core, red-ale-xml
 ```
 
-The MCP server (v0.2) will be added here as another front end over the same dispatcher.
+`red-ale mcp` runs `red-ale-mcp`'s server over the same dispatcher.
 
 ## Usage
 
@@ -52,5 +53,9 @@ red-ale call book.save
 
 The [walkthrough in the main README](../../README.md#walkthrough) goes through these step by step.
 
-Ctrl-C or SIGTERM stops the server: it closes the book and releases the lock without saving. Unsaved changes stay in
+An MCP client starts `red-ale mcp` itself, for example with
+`{"command": "red-ale", "args": ["mcp", "--config", "/home/me/.config/red-ale.json"]}`. Standard output carries only
+MCP messages; reports go to standard error. The server stops when the client closes its standard input.
+
+Ctrl-C or SIGTERM stops either server: it closes the book and releases the lock without saving. Unsaved changes stay in
 the journal, and `book.replayJournal` can recover them.

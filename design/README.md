@@ -12,6 +12,7 @@ Design comes before code. Read in this order:
 8. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods.
 9. [`testing.md`](testing.md): fixtures, round-trip tests and the GnuCash oracle.
 10. [`open-questions.md`](open-questions.md): decisions not yet made.
+11. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.
 
 `GNUCASH_REV` pins the GnuCash release red-ale matches (tag, then commit).
 

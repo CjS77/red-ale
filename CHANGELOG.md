@@ -4,6 +4,16 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## 0.2.0 - Unreleased
+
+### Added
+
+#### Interfaces
+
+- `red-ale mcp`, an MCP server over standard input and output for AI agents. Every JSON-RPC method is a tool with the
+  same name and params schema, marked read-only or destructive from the method's effect. Errors come back with
+  red-ale's error codes.
+
 ## 0.1.0 - Unreleased
 
 The first release: milestone 1. It covers every GnuCash feature introduced up to version 2.0 in books and accounts,

@@ -1,0 +1,178 @@
+//! The MCP server over an in-memory pipe, spoken to in raw JSON-RPC as an agent's client would.
+
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
+use std::collections::BTreeSet;
+use std::sync::{Arc, Mutex};
+
+use red_ale_mcp::McpServer;
+use red_ale_testkit::TempBook;
+use serde_json::{Map, Value, json};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, Lines, ReadHalf, WriteHalf};
+
+/// A raw MCP client: one JSON-RPC message per line.
+struct Client {
+    lines: Lines<BufReader<ReadHalf<DuplexStream>>>,
+    writer: WriteHalf<DuplexStream>,
+    next_id: u64,
+}
+
+impl Client {
+    /// Start a server over a fresh deterministic dispatcher and complete the handshake.
+    async fn start() -> Self {
+        let (ours, theirs) = tokio::io::duplex(1 << 16);
+        let (server_in, server_out) = tokio::io::split(theirs);
+        let server = McpServer::new(Arc::new(Mutex::new(red_ale_testkit::dispatcher())));
+        tokio::spawn(server.serve(server_in, server_out));
+        let (reader, writer) = tokio::io::split(ours);
+        let mut client = Self { lines: BufReader::new(reader).lines(), writer, next_id: 0 };
+        let init = client
+            .request("initialize", json!({ "protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": { "name": "test", "version": "0" } }))
+            .await;
+        assert_eq!(init["result"]["protocolVersion"], "2025-11-25", "{init}");
+        assert_eq!(init["result"]["serverInfo"]["name"], "red-ale");
+        let capabilities = init["result"]["capabilities"].as_object().unwrap();
+        assert_eq!(capabilities.keys().collect::<Vec<_>>(), ["tools"], "tools only");
+        client.send(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" })).await;
+        client
+    }
+
+    async fn send(&mut self, message: &Value) {
+        self.writer.write_all(format!("{message}\n").as_bytes()).await.unwrap();
+        self.writer.flush().await.unwrap();
+    }
+
+    /// Send a request and return its response, skipping any notifications.
+    async fn request(&mut self, method: &str, params: Value) -> Value {
+        self.next_id += 1;
+        let id = self.next_id;
+        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params })).await;
+        loop {
+            let line = self.lines.next_line().await.unwrap().expect("the server closed the connection");
+            let message: Value = serde_json::from_str(&line).unwrap();
+            if message["id"] == id {
+                return message;
+            }
+        }
+    }
+
+    /// Call a tool and return its result.
+    async fn call(&mut self, tool: &str, arguments: Value) -> Value {
+        let response = self.request("tools/call", json!({ "name": tool, "arguments": arguments })).await;
+        response.get("result").cloned().unwrap_or_else(|| panic!("{tool}: {response}"))
+    }
+}
+
+fn defs(schema: &Value) -> &Map<String, Value> {
+    schema["$defs"].as_object().unwrap()
+}
+
+/// Every `$ref` in `schema`.
+fn refs(schema: &Value) -> Vec<String> {
+    match schema {
+        Value::Object(map) => map.iter().flat_map(|(k, v)| if k == "$ref" { vec![v.as_str().unwrap().to_owned()] } else { refs(v) }).collect(),
+        Value::Array(items) => items.iter().flat_map(refs).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// `tool`'s input schema is `params` made self-contained: the definition `params` names, with the same definitions
+/// beside it, every one of them resolvable inside the tool's own schema.
+fn assert_same_params(name: &str, tool_schema: &Value, params: &Value, document: &Value) {
+    assert_eq!(tool_schema["type"], "object", "{name}: MCP needs an object schema");
+    let root = params["$ref"].as_str().unwrap().strip_prefix("#/$defs/").unwrap();
+    let mut own = tool_schema.as_object().unwrap().clone();
+    let own_defs = own.remove("$defs").unwrap_or_else(|| json!({}));
+    assert_eq!(Value::Object(own), defs(document)[root], "{name}: the params definition");
+    own_defs.as_object().unwrap().iter().for_each(|(def, schema)| assert_eq!(schema, &defs(document)[def], "{name}: $defs.{def}"));
+    refs(tool_schema).iter().for_each(|r| {
+        let def = r.strip_prefix("#/$defs/").unwrap_or_else(|| panic!("{name}: {r} points outside the schema"));
+        assert!(own_defs.get(def).is_some(), "{name}: {r} does not resolve inside the tool's schema");
+    });
+}
+
+fn expected_hints(effect: &str) -> Value {
+    match effect {
+        "read" => json!({ "readOnlyHint": true }),
+        "write" => json!({ "readOnlyHint": false, "destructiveHint": false }),
+        "destructive" => json!({ "readOnlyHint": false, "destructiveHint": true }),
+        other => panic!("unknown effect {other}"),
+    }
+}
+
+/// Done-when check for milestone 2: every JSON-RPC method is an MCP tool with the same name and params schema, and
+/// hints that match its Effect; there are no other tools.
+#[tokio::test]
+async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
+    let document = red_ale_testkit::dispatcher().schema();
+    let mut client = Client::start().await;
+    let listed = client.request("tools/list", json!({})).await;
+    assert!(listed["result"].get("nextCursor").is_none(), "one page");
+    let tools = listed["result"]["tools"].as_array().unwrap();
+
+    let methods = document["methods"].as_array().unwrap();
+    let method_names: BTreeSet<&str> = methods.iter().map(|m| m["name"].as_str().unwrap()).chain(["api.schema"]).collect();
+    let tool_names: BTreeSet<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
+    assert_eq!(tool_names, method_names, "one tool per method, and nothing else");
+    assert_eq!(tools.len(), tool_names.len(), "no tool is listed twice");
+
+    let tool = |name: &str| tools.iter().find(|t| t["name"] == name).unwrap();
+    methods.iter().for_each(|m| {
+        let name = m["name"].as_str().unwrap();
+        let t = tool(name);
+        assert_eq!(t["description"], m["summary"], "{name}");
+        assert_eq!(t["annotations"], expected_hints(m["effect"].as_str().unwrap()), "{name}");
+        assert_same_params(name, &t["inputSchema"], &m["params"], &document);
+    });
+    let schema_tool = tool("api.schema");
+    assert_eq!(schema_tool["annotations"], expected_hints("read"));
+    assert_eq!(schema_tool["inputSchema"]["type"], "object");
+
+    let schema = client.call("api.schema", json!({})).await;
+    assert_eq!(schema["structuredContent"]["redAleApi"], document["redAleApi"]);
+}
+
+#[tokio::test]
+async fn an_agent_creates_a_book_adds_an_account_and_saves() {
+    let book = TempBook::new_path();
+    let mut client = Client::start().await;
+
+    let created = client.call("book.create", json!({ "path": book.path_str() })).await;
+    assert_eq!(created["isError"], false, "{created}");
+    assert_eq!(created["structuredContent"]["counts"]["accounts"], 1);
+    let text: Value = serde_json::from_str(created["content"][0]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(text, created["structuredContent"], "the text block holds the same JSON");
+
+    let account = client.call("account.create", json!({ "name": "Assets", "type": "ASSET", "commodity": "USD" })).await;
+    assert_eq!(account["isError"], false, "{account}");
+    assert_eq!(account["structuredContent"]["fullName"], "Assets");
+
+    let saved = client.call("book.save", json!({})).await;
+    assert_eq!(saved["isError"], false, "{saved}");
+    let mut reader = red_ale_testkit::dispatcher();
+    red_ale_testkit::call(&mut reader, "book.open", &json!({ "path": book.path_str(), "readOnly": true }));
+    let accounts = red_ale_testkit::call(&mut reader, "account.list", &json!({}));
+    assert!(accounts.to_string().contains("\"fullName\":\"Assets\""), "the saved file holds the account: {accounts}");
+
+    let info = client.request("tools/call", json!({ "name": "book.info" })).await;
+    assert_eq!(info["result"]["structuredContent"]["dirty"], false, "absent arguments read as no params: {info}");
+}
+
+#[tokio::test]
+async fn errors_are_tool_results_with_red_ales_error_object() {
+    let mut client = Client::start().await;
+
+    let no_book = client.call("account.list", json!({})).await;
+    assert_eq!(no_book["isError"], true);
+    assert_eq!(no_book["structuredContent"]["error"]["code"], 1000);
+    assert_eq!(no_book["structuredContent"]["error"]["name"], "no-book");
+    let text: Value = serde_json::from_str(no_book["content"][0]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(text, no_book["structuredContent"]);
+
+    let typo = client.call("book.create", json!({ "path": "x.gnucash", "compresed": false })).await;
+    assert_eq!(typo["isError"], true, "invalid params are shown to the model, which can correct them");
+    assert_eq!(typo["structuredContent"]["error"]["name"], "invalid-params");
+
+    let unknown = client.request("tools/call", json!({ "name": "no.such.tool", "arguments": {} })).await;
+    assert_eq!(unknown["error"]["code"], -32602, "an unknown tool is a protocol error: {unknown}");
+}
