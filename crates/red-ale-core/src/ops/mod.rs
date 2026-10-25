@@ -4,10 +4,12 @@
 
 pub mod account_properties;
 pub mod accounts;
+pub mod autoclear;
 pub mod business;
 pub mod close_book;
 pub mod commit;
 pub mod commodities;
+pub mod doc_links;
 pub mod lots;
 pub mod period;
 pub mod prices;
