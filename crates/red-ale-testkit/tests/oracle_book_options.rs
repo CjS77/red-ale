@@ -4,7 +4,8 @@
 //! transactions red-ale refuses to change.
 //!
 //! GnuCash computes the threshold from the real clock, so red-ale's clock here is noon UTC today: the same calendar
-//! day in GnuCash's `TZ=UTC` and in any zone from UTC−11 to UTC+11.
+//! day in GnuCash's `TZ=UTC` and in any zone from UTC−11 to UTC+11. The extreme-zone test runs both on the real clock
+//! in the same zone instead.
 
 #![cfg(feature = "oracle")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -12,7 +13,7 @@
 use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use red_ale_core::{FixedEnv, Time64};
+use red_ale_core::{Date, FixedEnv, Time64, TimeZone};
 use red_ale_rpc::Dispatcher;
 use red_ale_service::Settings;
 use red_ale_testkit::{TempBook, call, oracle, oracle_check};
@@ -22,8 +23,16 @@ const RICH: &str = "synthetic/rich.gnucash";
 const CHECKING: &str = "c080059e1aec4c0b9ad4671e80965686";
 
 fn script(args: &[&str]) -> String {
+    script_in(args, "UTC")
+}
+
+fn script_in(args: &[&str], tz: &str) -> String {
     oracle::check_version().unwrap();
-    oracle::run_script(&oracle::scripts_dir().join("book_options.py"), args).unwrap_or_else(|e| panic!("oracle: {e}"))
+    oracle::run_script_in(&oracle::scripts_dir().join("book_options.py"), args, Some(tz)).unwrap_or_else(|e| panic!("oracle: {e}"))
+}
+
+fn real_now() -> Time64 {
+    Time64(i64::try_from(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()).unwrap())
 }
 
 /// Noon UTC on today's UTC date.
@@ -137,4 +146,31 @@ fn a_threshold_of_zero_makes_nothing_read_only_in_either() {
     let gnucash: Value = serde_json::from_str(&script(&["inspect", &book.path_str()])).unwrap();
     assert!(gnucash["transactions"].as_object().unwrap().values().all(|t| t["readOnlyByDate"] == false));
     assert_eq!(gnucash["threshold"], Value::Null);
+}
+
+/// GnuCash's threshold is today in its local zone (`qof_book_get_autoreadonly_gdate`, `5.17:libgnucash/engine/qofbook.cpp:1006-1019`)
+/// minus the days; red-ale's is the same in the same zone, at the zones a day apart from each other and from UTC.
+#[test]
+fn the_threshold_counts_from_the_local_today_at_both_extremes() {
+    let thresholds: Vec<Date> = ["Pacific/Pago_Pago", "Pacific/Kiritimati"]
+        .iter()
+        .map(|tz| {
+            let zone = TimeZone::from_tzif(tz, &std::fs::read(format!("/usr/share/zoneinfo/{tz}")).unwrap()).unwrap();
+            let book = TempBook::copy(RICH);
+            let mut d = Dispatcher::new(Settings::default());
+            let env = move || FixedEnv::new(real_now(), 0x00ed_0000_0000_0000_0000_0000_0000_0000).with_zone(zone.clone());
+            d.set_env_factory(Box::new(move || Box::new(env())));
+            call(&mut d, "book.open", &json!({ "path": book.path_str() }));
+            let options = call(&mut d, "book.setOptions", &json!({ "autoReadOnlyDays": 10 }));
+            let txns = call(&mut d, "transaction.list", &json!({}))["transactions"].as_array().unwrap().clone();
+            let refused = refused_by_date(&mut d, &txns);
+            call(&mut d, "book.close", &json!({ "save": true }));
+            let gnucash: Value = serde_json::from_str(&script_in(&["inspect", &book.path_str()], tz)).unwrap();
+            assert_eq!(gnucash["threshold"], options["readOnlyThreshold"], "{tz}");
+            let theirs = gnucash["transactions"].as_object().unwrap();
+            refused.iter().for_each(|(g, r)| assert_eq!(theirs[g]["readOnlyByDate"], *r, "{tz}: read-only by date: {g}"));
+            Date::parse(options["readOnlyThreshold"].as_str().unwrap()).unwrap()
+        })
+        .collect();
+    assert!(thresholds[0] < thresholds[1], "Kiritimati's today is always after Pago Pago's: {thresholds:?}");
 }

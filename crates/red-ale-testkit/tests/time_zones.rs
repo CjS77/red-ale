@@ -87,3 +87,70 @@ fn reconcile_reads_statement_dates_in_the_local_zone() {
     let fixed = call(&mut d, "reconcile.start", &json!({ "account": "Bank", "statementDate": "2024-06-30", "utcOffsetMinutes": 0 }));
     assert_eq!(fixed["statementTime"], "2024-06-30T23:59:59Z", "a given offset overrides the local zone");
 }
+
+/// A book with income posted on 29 June at its neutral time and at 2024-06-30 12:00:00 UTC, an instant GnuCash 2.x
+/// and imports leave: still 30 June in UTC, already 1 July 02:00 in Kiritimati.
+fn income_at_noon_utc() -> TempBook {
+    let book = TempBook::new_path();
+    let mut d = dispatcher_in(TimeZone::utc());
+    call(&mut d, "book.create", &json!({ "path": book.path_str() }));
+    call(&mut d, "account.create", &json!({ "name": "Bank", "type": "BANK", "commodity": "USD" }));
+    call(&mut d, "account.create", &json!({ "name": "Salary", "type": "INCOME", "commodity": "USD" }));
+    call(&mut d, "account.create", &json!({ "name": "Retained", "type": "EQUITY", "commodity": "USD" }));
+    ["2024-06-29", "2024-06-30"].iter().for_each(|day| {
+        let splits = json!([{ "account": "Bank", "value": "50" }, { "account": "Salary", "value": "-50" }]);
+        call(&mut d, "transaction.post", &json!({ "datePosted": day, "splits": splits }));
+    });
+    call(&mut d, "book.save", &json!({ "compressed": false }));
+    call(&mut d, "book.close", &json!({}));
+    let xml = std::fs::read_to_string(&book.path).unwrap();
+    assert_eq!(xml.matches("2024-06-30 10:59:00 +0000").count(), 1, "one posted time to move");
+    std::fs::write(&book.path, xml.replace("2024-06-30 10:59:00 +0000", "2024-06-30 12:00:00 +0000")).unwrap();
+    book
+}
+
+fn open_in(book: &TempBook, hours: i32) -> red_ale_rpc::Dispatcher {
+    let mut d = dispatcher_in(TimeZone::fixed(hours * 3600).unwrap());
+    call(&mut d, "book.open", &json!({ "path": book.path_str() }));
+    d
+}
+
+#[test]
+fn close_book_closes_balances_at_the_local_day_end() {
+    let close = |hours: i32| {
+        let book = income_at_noon_utc();
+        let mut d = open_in(&book, hours);
+        let params = json!({ "date": "2024-06-30", "incomeTotalAccount": "Retained", "expenseTotalAccount": "Retained" });
+        let closing = call(&mut d, "book.closeBooks", &params)["transactions"][0].clone();
+        let txn = call(&mut d, "transaction.get", &json!({ "guid": closing["guid"] }));
+        (closing["total"]["num"].as_str().unwrap().to_owned(), txn["datePostedTime"].as_str().unwrap().to_owned())
+    };
+    assert_eq!(close(0), ("-10000".to_owned(), "2024-06-30T10:59:00Z".to_owned()), "UTC: both incomes by 23:59:59 UTC");
+    assert_eq!(close(14), ("-5000".to_owned(), "2024-06-30T09:59:00Z".to_owned()), "Kiritimati: 30 June ends at 09:59:59 UTC");
+}
+
+#[test]
+fn balance_limits_take_the_balance_at_the_local_day_end() {
+    let balance = |hours: i32| {
+        let book = income_at_noon_utc();
+        let mut d = open_in(&book, hours);
+        let checked = call(&mut d, "account.checkBalanceLimit", &json!({ "account": "Salary", "asOf": "2024-06-30" }));
+        checked["balance"]["num"].as_str().unwrap().to_owned()
+    };
+    assert_eq!(balance(0), "-10000");
+    assert_eq!(balance(14), "-5000");
+}
+
+#[test]
+fn the_read_only_threshold_counts_from_the_local_today() {
+    // TEST_NOW is 2 July in Kiritimati and 1 July in Pago Pago.
+    let check = |hours: i32| {
+        let (_book, mut d) = book_in(hours);
+        let guid = post(&mut d, Some("2024-06-30"))["guid"].clone();
+        let options = call(&mut d, "book.setOptions", &json!({ "autoReadOnlyDays": 1 }));
+        let refused = d.call("transaction.update", json!({ "guid": guid, "description": "x" })).is_err();
+        (options["readOnlyThreshold"].as_str().unwrap().to_owned(), refused)
+    };
+    assert_eq!(check(14), ("2024-07-01".to_owned(), true));
+    assert_eq!(check(-11), ("2024-06-30".to_owned(), false));
+}
