@@ -23,6 +23,10 @@ Conventions used throughout:
 - **Read-only transactions** (with a `trans-read-only` slot: voided ones, and ones posted from a business document)
   cannot be updated or deleted (`conflict`). GnuCash refuses to destroy them (`Transaction.cpp:1363-1374`), and its
   register refuses to edit them.
+- **Read-only by date.** With an auto read-only threshold, a transaction posted before the threshold date cannot be
+  updated, deleted, voided or unvoided (`conflict`), and `post` and `update` refuse a posted date before it
+  (`invalid`), both with `data.reason` `auto-read-only`; `reverse` and `transfer` are allowed, as in GnuCash. See
+  [`book-options.md`](book-options.md).
 - **Placeholder accounts** cannot take new splits (`invalid`), as the register refuses them
   (`gnucash/register/ledger-core/split-register.c:2102-2110`). The root account cannot take splits either.
 - **Times.** "Today" and the find dialog's day boundaries use UTC. GnuCash uses the local time zone; red-ale has none
@@ -42,7 +46,7 @@ Every method that returns a transaction returns it in this form.
 | `readOnly` | The read-only reason, if any |
 | `reversedBy` | The transaction that reverses this one (`reversed-by` slot) |
 | `closing`, `balanced` | A book-closing entry (`book_closing` slot); the values sum to zero |
-| `splits` | In stored order: `guid`, `account`, `accountName` (full name), `commodity`, `value`, `amount`, `memo`, `action`, `reconcileState` (`n` `c` `y` `f` `v`), `reconcileDate`, `lot` |
+| `splits` | In stored order: `guid`, `account`, `accountName` (full name), `commodity`, `value`, `amount`, `memo`, `action`, `reconcileState` (`n` `c` `y` `f` `v`), `reconcileDate`, `lot`, `number` (the split's Number: its action when the book's num field source is on, else the transaction's num; see [`book-options.md`](book-options.md)) |
 
 ## Methods
 

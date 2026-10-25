@@ -68,6 +68,8 @@ Result: `transaction`, `lot` (GUIDs) and `due` (Timestamp).
 
 Matches `gncInvoicePostToAccount` (`5.17:libgnucash/engine/gncInvoice.c:1442-1731`):
 
+- **Num field source:** with the book's num field source on, the document ID and the type word swap places: num =
+  the type word, every split's action = the document ID ([`book-options.md`](book-options.md)).
 - **Transaction:** description = the end owner's name; num = the document ID; currency = the document's; posted at
   10:59 UTC of `postDate` with the `date-posted` slot; date entered = now. Slots `gncInvoice/invoice-guid`,
   `trans-date-due`, `trans-read-only` ("Generated from an invoice. Try unposting the invoice.") and
@@ -122,7 +124,7 @@ Matches `gncOwnerApplyPaymentSecs` (`5.17:libgnucash/engine/gncOwner.c:1404-1440
 - **Transaction** (`gncOwnerCreatePaymentLotSecs`, `5.17:libgnucash/engine/gncOwner.c:749-880`): currency = the
   transfer account's; transfer split amount = amount (× `exchangeRate` when the commodities differ), value likewise;
   A/R or A/P split = the negation, in a new lot with the owner's `gncOwner` slots. Both splits have action `Payment`
-  and memo `memo`. num = `num`; slot `trans-txn-type` = `P`; posted at 10:59 UTC of `date` with **no** `date-posted`
+  and memo `memo` (with the num field source on, the transfer split's action is `num` instead). num = `num`; slot `trans-txn-type` = `P`; posted at 10:59 UTC of `date` with **no** `date-posted`
   slot, as GnuCash.
 - **Applying** (`gncOwnerAutoApplyPaymentsWithLots`, `5.17:libgnucash/engine/gncOwner.c:1256-1394`): the payment lot
   first, then `applyTo`, or, with no `applyTo` and `autoPay`, every open lot of the owner in the account in the order

@@ -49,10 +49,16 @@ pub fn trans_order(a: &Transaction, b: &Transaction) -> Ordering {
 }
 
 /// `xaccSplitOrder`: transaction order, then memo, action, reconcile flag (as a byte), amount, value, reconcile date
-/// and GUID (`5.17:libgnucash/engine/Split.cpp:1535-1597`).
-pub fn split_order(ta: &Transaction, sa: &Split, tb: &Transaction, sb: &Split) -> Ordering {
+/// and GUID (`5.17:libgnucash/engine/Split.cpp:1535-1597`). With `num_action` (the book's num field source), the
+/// transactions' nums are replaced by the two splits' actions (`:1550-1556`).
+pub fn split_order(ta: &Transaction, sa: &Split, tb: &Transaction, sb: &Split, num_action: bool) -> Ordering {
     let text = |s: &Option<String>| s.as_deref().unwrap_or("").to_owned();
-    trans_order(ta, tb)
+    let by_txn = if num_action {
+        crate::ops::lots::trans_order(ta, Some(&text(&sa.action)), tb, Some(&text(&sb.action)))
+    } else {
+        trans_order(ta, tb)
+    };
+    by_txn
         .then_with(|| text(&sa.memo).cmp(&text(&sb.memo)))
         .then_with(|| text(&sa.action).cmp(&text(&sb.action)))
         .then_with(|| sa.reconcile_state.as_char().cmp(&sb.reconcile_state.as_char()))

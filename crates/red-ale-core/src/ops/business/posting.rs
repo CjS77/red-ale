@@ -7,6 +7,7 @@
 
 use std::sync::Arc;
 
+use crate::book_options::num_action_targets;
 use crate::business::{BillTerm, Entry, Invoice, OwnerKind, PaymentType, TaxTable};
 use crate::lot::slot_paths as lot_slots;
 use crate::ops::business::calc::{self, AccountValues, InvoiceType};
@@ -137,7 +138,8 @@ impl SplitPlan {
 
 /// Build the splits as `gncInvoicePostToAccount` does (`5.17:libgnucash/engine/gncInvoice.c:1516-1708`).
 fn plan_splits(book: &Book, req: &PostRequest, p: &Plan) -> DomainResult<SplitPlan> {
-    let type_str = p.kind.type_string();
+    // Each split's action is the type word, or the document ID with the num field source on (`gnc_set_num_action`).
+    let (_, type_str) = num_action_targets(book, &p.inv.id, p.kind.type_string());
     let scu = account_scu(book, req.account)?;
     let totals = calc::document_totals(book, &p.inv)?;
     let flip = |n: Numeric| if p.kind.negate_for_balance() { n.neg() } else { n };
@@ -227,12 +229,13 @@ pub fn post(book: &mut Book, env: &mut dyn Env, req: &PostRequest) -> DomainResu
     Ok(Posted { transaction: txn_guid, lot, due })
 }
 
-/// The posted transaction with GnuCash's strings and slots (`5.17:libgnucash/engine/gncInvoice.c:1495-1515`, `:1705-1716`).
+/// The posted transaction with GnuCash's strings and slots (`5.17:libgnucash/engine/gncInvoice.c:1495-1515`, `:1705-1716`). Its num is the document
+/// ID, or the type word with the num field source on (`gnc_set_num_action`, `:1504`).
 fn posted_transaction(book: &Book, env: &mut dyn Env, req: &PostRequest, p: &Plan, due: Time64, splits: Vec<crate::Split>) -> DomainResult<Transaction> {
     let mut t = Transaction {
         guid: env.new_guid(),
         currency: p.currency.clone(),
-        num: (!p.inv.id.is_empty()).then(|| p.inv.id.clone()),
+        num: Some(num_action_targets(book, &p.inv.id, p.kind.type_string()).0).filter(|n| !n.is_empty()).map(str::to_owned),
         date_posted: req.post_date.neutral_time(),
         date_entered: env.now(),
         description: Some(contacts::owner_name(book, p.kind.end_owner).unwrap_or_default()),

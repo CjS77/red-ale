@@ -249,6 +249,8 @@ pub struct SplitView {
     pub memo: Option<String>,
     /// Action.
     pub action: Option<String>,
+    /// The split's Number, as the lot viewer's Num column shows it (`gnc_get_num_action`).
+    pub number: Option<String>,
     /// Amount.
     pub amount: Numeric,
     /// Amount in units after later stock splits.
@@ -329,6 +331,7 @@ fn split_view(book: &Book, e: &Entry, gain: Option<Numeric>) -> Option<SplitView
         description: t.description.clone(),
         memo: s.memo.clone(),
         action: s.action.clone(),
+        number: crate::book_options::number(book, t, s).map(str::to_owned),
         amount: s.amount,
         adjusted_amount: e.adjusted,
         value: s.value,

@@ -76,15 +76,28 @@ fn unsupported_feature_opens_read_only_without_a_lock() {
 }
 
 #[test]
-fn number_field_source_and_unknown_features_open_read_only() {
+fn unknown_features_open_read_only_but_number_field_source_does_not() {
     let dir = tempfile::tempdir().unwrap();
     let features = slot("Number Field Source", "string", "User specifies select transaction number source")
         + &slot("Some Future Feature", "string", "");
     let path = with_book_slots(dir.path(), &frame("features", &features));
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     let [ReadOnlyReason::UnsupportedFeatures(names)] = session.read_only_reasons() else { panic!("{:?}", session.read_only_reasons()) };
-    assert_eq!(names, &["User specifies select transaction number source", "Some Future Feature"]);
+    assert_eq!(names, &["Some Future Feature"]);
     assert!(!lock_path(&path).exists());
+}
+
+#[test]
+fn num_field_source_and_red_line_books_open_for_editing() {
+    let dir = tempfile::tempdir().unwrap();
+    let accounts = slot("Day Threshold for Read-Only Transactions (red line)", "double", "30")
+        + &slot("Use Split Action Field for Number", "string", "t");
+    let features = slot("Number Field Source", "string", "User specifies source of 'num' field'; either transaction number or split action (requires at least GnuCash 2.5.0)");
+    let path = with_book_slots(dir.path(), &(frame("features", &features) + &frame("options", &frame("Accounts", &accounts))));
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    assert!(!session.is_read_only(), "{:?}", session.read_only_reasons());
+    assert!(lock_path(&path).exists());
+    session.mutate(|_, _| Ok(())).unwrap();
 }
 
 #[test]
@@ -116,22 +129,21 @@ fn supported_features_stay_writable() {
 }
 
 #[test]
-fn trading_accounts_and_red_line_open_read_only() {
+fn trading_accounts_and_red_line_open_read_only_for_trading_accounts_only() {
     let dir = tempfile::tempdir().unwrap();
     let accounts = slot("Use Trading Accounts", "string", "t") + &slot("Day Threshold for Read-Only Transactions (red line)", "double", "30");
     let path = with_book_slots(dir.path(), &frame("options", &frame("Accounts", &accounts)));
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
-    assert_eq!(session.read_only_reasons(), [ReadOnlyReason::TradingAccounts, ReadOnlyReason::AutoReadOnly(30)]);
+    assert_eq!(session.read_only_reasons(), [ReadOnlyReason::TradingAccounts]);
 }
 
 #[test]
-fn num_field_source_option_alone_opens_read_only() {
+fn num_field_source_option_alone_opens_for_editing() {
     let dir = tempfile::tempdir().unwrap();
     let option = slot("Use Split Action Field for Number", "string", "t");
     let path = with_book_slots(dir.path(), &frame("options", &frame("Accounts", &option)));
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
-    assert!(matches!(session.read_only_reasons(), [ReadOnlyReason::UnsupportedFeatures(f)] if f[0].contains("Number Field Source")));
-    assert!(!lock_path(&path).exists());
+    assert!(!session.is_read_only(), "{:?}", session.read_only_reasons());
 }
 
 #[test]

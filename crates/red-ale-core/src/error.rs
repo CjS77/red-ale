@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::NumericError;
+use crate::{Date, NumericError};
 
 /// Why a domain operation was refused. Every variant leaves the Book unchanged.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -29,6 +29,22 @@ pub enum DomainError {
     /// The entity exists but may not be changed this way.
     #[error("{0}")]
     Conflict(String),
+    /// The transaction is posted before the book's auto read-only threshold, so it may not be changed.
+    #[error("the transaction is posted on {date}, before the book's read-only threshold {threshold}")]
+    ReadOnlyByDate {
+        /// The transaction's posted date.
+        date: Date,
+        /// The threshold date.
+        threshold: Date,
+    },
+    /// A posted date before the book's auto read-only threshold.
+    #[error("the date {date} is before the book's read-only threshold {threshold}")]
+    BeforeReadOnlyThreshold {
+        /// The date asked for.
+        date: Date,
+        /// The threshold date.
+        threshold: Date,
+    },
     /// Arithmetic failed.
     #[error("arithmetic error: {0}")]
     Numeric(#[from] NumericError),

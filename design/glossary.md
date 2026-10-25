@@ -16,8 +16,11 @@ Code names are given in `code font` when they differ from the term.
 | **Session** | An open Book file: the Book, its lock, its journal and whether it is read-only. Opened, edited, saved and closed through the API. |
 | **Lock** | The `<file>.LCK` marker that stops two programs writing one Book file. A Session either holds the lock or is read-only. |
 | **Read-only session** | A Session that never takes the lock and refuses every mutation. Carries the *reason* it is read-only. |
-| **Read-only trigger** | A property of a Book that makes red-ale open it read-only: an unknown Book feature, trading accounts, or an auto read-only threshold. |
+| **Read-only trigger** | A property of a Book that makes red-ale open it read-only: an unknown Book feature, or trading accounts. |
 | **Book feature** | A string in the Book's `features` slot naming a capability the Book relies on, so that programs lacking it refuse to edit the Book. **⚠** Not a red-ale "feature" in the `features.md` sense; say *Book feature* for this. |
+| **Book option** | A setting stored in the Book's `options` Frame, edited in GnuCash's File > Properties. Book data, unlike the Configuration. |
+| **Num field source** (`splitActionForNum`) | The Book option "Use Split Action Field for Number". When on, a Split's Number is its Action, and the Transaction's Num is shown as *T-Num*. Turning it on sets the Book feature `Number Field Source`. |
+| **Auto read-only threshold** (`autoReadOnlyDays`) | The Book option "Day Threshold for Read-Only Transactions (red line)": a number of days *N*. The *threshold date* is today minus *N* days; a Transaction posted strictly before it is *read-only by date*, and GnuCash's register refuses to change it. **⚠** GnuCash's GUI calls it the *red line*. |
 | **Journal** | GnuCash's `.log` file beside the Book file (`<file>.<YYYYMMDDhhmmss>.log`), recording each transaction change as tab-separated records. Only transactions are journaled; a new journal starts after each save. **⚠** GnuCash calls it the *transaction log* (`TransLog`); red-ale says *journal* so it is not confused with tracing logs. |
 | **Replay** | Re-applying a journal to a Book to recover changes that were never saved. |
 | **Backup** | The previous Book file, kept under a timestamped name (`<file>.<YYYYMMDDhhmmss>.gnucash`, local time) when a save replaces it. GnuCash makes it as a hard link, falling back to a copy. Old backups and journals are deleted after a retention period (30 days by default). |
@@ -75,6 +78,7 @@ Code names are given in `code font` when they differ from the term.
 | **Date posted** | The date a Transaction takes effect. Stored as a Time64 at 10:59:00 UTC of that date (GnuCash's *neutral time*). |
 | **Date entered** | When a Transaction was first recorded. |
 | **Num** | A Transaction's free-text check or reference number. |
+| **Number** (of a Split) | What GnuCash shows as a Split's "Num": its Action when the Book's Num field source is on, otherwise its Transaction's Num (`gnc_get_num_action`). **⚠** Not always the Transaction's Num. |
 | **Action** | A Split's free-text action field (`Buy`, `Sell`, `Split`, …). |
 | **Memo** | A Split's free-text note. **⚠** Distinct from the Transaction's *notes*. |
 | **Reconcile state** | A Split's state: `n` new, `c` cleared, `y` reconciled, `f` frozen, `v` voided. |

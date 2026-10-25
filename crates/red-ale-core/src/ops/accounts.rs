@@ -916,12 +916,18 @@ pub fn transaction_order(a: &Transaction, b: &Transaction) -> Ordering {
 }
 
 /// `xaccSplitOrder` (`5.17:libgnucash/engine/Split.cpp:1536`): the order of splits in an account, which running
-/// balances follow.
-pub fn split_order(a: (&Transaction, &Split), b: (&Transaction, &Split)) -> Ordering {
+/// balances follow. With `num_action` (the book's num field source), split actions stand in for transaction nums
+/// (`:1550-1556`).
+pub fn split_order(a: (&Transaction, &Split), b: (&Transaction, &Split), num_action: bool) -> Ordering {
     let (ta, sa) = a;
     let (tb, sb) = b;
     let text = |s: &Option<String>| s.clone().unwrap_or_default();
-    transaction_order(ta, tb)
+    let by_txn = if num_action {
+        crate::ops::lots::trans_order(ta, Some(&text(&sa.action)), tb, Some(&text(&sb.action)))
+    } else {
+        transaction_order(ta, tb)
+    };
+    by_txn
         .then_with(|| text(&sa.memo).cmp(&text(&sb.memo)))
         .then_with(|| text(&sa.action).cmp(&text(&sb.action)))
         .then_with(|| sa.reconcile_state.as_char().cmp(&sb.reconcile_state.as_char()))
@@ -966,7 +972,8 @@ pub fn balances(book: &Book, guid: Guid, before: Option<Time64>) -> DomainResult
     account(book, guid)?;
     let scu = crate::ops::commit::account_scu(book, guid).ok();
     let mut splits: Vec<(&Transaction, &Split)> = book.splits_of(guid).collect();
-    splits.sort_by(|a, b| split_order(*a, *b));
+    let num_action = crate::book_options::uses_split_action_for_num(book);
+    splits.sort_by(|a, b| split_order(*a, *b, num_action));
     let mut running = Balances::ZERO;
     let mut at = Balances::ZERO;
     splits.iter().try_for_each(|(t, s)| -> DomainResult<()> {

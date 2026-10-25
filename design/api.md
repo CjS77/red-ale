@@ -98,11 +98,15 @@ is used only for protocol errors.
 | `book.close`         | write  | Release the lock. Refuses unsaved changes unless `save` or `discard`.                  |
 | `book.replayJournal` | write  | Replay a GnuCash `.log` journal: transactions created, updated or deleted by GUID.     |
 | `book.closeBooks`    | write  | Close the books: zero income and expense into equity at a date ([`api/close-book.md`](api/close-book.md)). Not `book.close`. |
+| `book.options`       | read   | The num field source and auto read-only threshold Book options ([`api/book-options.md`](api/book-options.md)). |
+| `book.setOptions`    | write  | Change them as GnuCash's book options dialog does, setting `Number Field Source` when the num field source is turned on. |
 
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
-feature v0.1 does not implement (`unsupported-features`), uses trading accounts (`trading-accounts`), sets an auto
-read-only threshold (`auto-read-only`), holds content red-ale can keep but not edit safely (`unrecognised-content`),
-or the caller asked (`requested`). A read-only book is never locked and never written.
+feature red-ale does not implement (`unsupported-features`), uses trading accounts (`trading-accounts`), holds
+content red-ale can keep but not edit safely (`unrecognised-content`), or the caller asked (`requested`). A read-only
+book is never locked and never written. Since v0.2 the num field source (and its Book feature `Number Field Source`)
+and an auto read-only threshold no longer make a book read-only; the threshold makes old transactions read-only
+instead ([`api/book-options.md`](api/book-options.md)), and the reason `auto-read-only` is no longer given.
 
 Replay differs from GnuCash in two ways, both to protect the book: a record with an unreadable line is skipped
 whole, and an unbalanced replayed transaction is refused (or skipped with `skipInvalid`) instead of getting an
@@ -126,6 +130,7 @@ deliberate deviations.
 | [`api/business-documents.md`](api/business-documents.md)   | invoices, bills, expense vouchers, entries, orders          |
 | [`api/business-posting.md`](api/business-posting.md)       | totals, post, unpost, payments, due reminders               |
 | [`api/close-book.md`](api/close-book.md)                   | `book.closeBooks`: closing the books                        |
+| [`api/book-options.md`](api/book-options.md)               | `book.options`, `book.setOptions`: num field source, auto read-only threshold |
 
 ## CLI
 
