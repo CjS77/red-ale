@@ -4,6 +4,7 @@
 
 pub mod accounts;
 pub mod business;
+pub mod close_book;
 pub mod commit;
 pub mod commodities;
 pub mod lots;

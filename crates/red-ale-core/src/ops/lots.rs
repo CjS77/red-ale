@@ -18,6 +18,7 @@ pub use gains::{
     ORPHANED_GAINS, ORPHANED_GAINS_NOTES, REALIZED_GAIN_LOSS, balance_before, compute_lot_gains, compute_split_gains, free_split_gain,
     gains_account, recorded_gain,
 };
+pub(crate) use gains::lookup_by_name;
 pub use ledger::{Entry, Ledger, trans_order};
 pub use scrub::{Placed, assign_lots, assign_to_lot, has_trades, scrub_account_lots, scrub_lot, scrub_tree_lots, split_assign};
 pub use stock_split::{PRICE_SOURCE_STOCK_SPLIT, PriceOutcome, STOCK_SPLIT_ACTION, StockSplit, StockSplitOutcome, stock_split};
