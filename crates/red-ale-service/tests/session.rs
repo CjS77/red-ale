@@ -95,6 +95,25 @@ fn trading_accounts_and_red_line_open_read_only() {
 }
 
 #[test]
+fn num_field_source_option_alone_opens_read_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let option = slot("Use Split Action Field for Number", "string", "t");
+    let path = with_book_slots(dir.path(), &frame("options", &frame("Accounts", &option)));
+    let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    assert!(matches!(session.read_only_reasons(), [ReadOnlyReason::UnsupportedFeatures(f)] if f[0].contains("Number Field Source")));
+    assert!(!lock_path(&path).exists());
+}
+
+#[test]
+fn a_failed_open_leaves_no_lock() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("broken.gnucash");
+    std::fs::write(&path, "<?xml version=\"1.0\"?>\n<gnc-v2>\n<gnc:book version=\"2.0.0\">\n").unwrap();
+    assert!(matches!(Session::open(path.to_str().unwrap(), false, Settings::default()), Err(ServiceError::Xml { .. })));
+    assert!(!lock_path(&path).exists());
+}
+
+#[test]
 fn unknown_elements_open_read_only() {
     let dir = tempfile::tempdir().unwrap();
     let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash")).unwrap().replacen("<act:type>ASSET</act:type>", "<act:type>ASSET</act:type>\n  <act:frobnicate/>", 1);

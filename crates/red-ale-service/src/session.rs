@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, auto_readonly_days, features, uses_trading_accounts};
+use red_ale_core::book_options::{
+    GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, auto_readonly_days, features, uses_split_action_for_num, uses_trading_accounts,
+};
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
 use red_ale_xml::{XmlResidue, read_book, write_book};
 
@@ -85,11 +87,17 @@ impl fmt::Display for ReadOnlyReason {
 
 /// The read-only triggers a book sets off.
 pub fn read_only_triggers(book: &Book, residue: &XmlResidue) -> Vec<ReadOnlyReason> {
-    let unsupported: Vec<String> = features(book)
-        .into_iter()
+    let declared = features(book);
+    let mut unsupported: Vec<String> = declared
+        .iter()
         .filter(|(name, _)| name != OBSOLETE_BOOK_CURRENCY && !SUPPORTED_FEATURES.contains(&name.as_str()))
-        .map(|(name, description)| if description.is_empty() { name } else { description })
+        .map(|(name, description)| if description.is_empty() { name.clone() } else { description.clone() })
         .collect();
+    // GnuCash declares the feature when the option is set, but a book can carry the option alone; it changes what
+    // "number" means either way.
+    if uses_split_action_for_num(book) && !declared.iter().any(|(name, _)| name == "Number Field Source") {
+        unsupported.push("Number Field Source (the book option to use the split action as the number)".to_owned());
+    }
     let mut reasons = Vec::new();
     if !unsupported.is_empty() {
         reasons.push(ReadOnlyReason::UnsupportedFeatures(unsupported));
