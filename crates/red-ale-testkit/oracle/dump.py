@@ -16,6 +16,7 @@ import json
 import math
 import os
 import sys
+from fractions import Fraction
 
 from gnucash import Account, GncLot, Query, Session, SessionOpenMode, Transaction, _sw_core_utils
 from gnucash import gnucash_core_c as c
@@ -175,11 +176,26 @@ def prices(book):
     return sorted(out, key=lambda x: (x["commodity"], x["currency"], x["time"], x["source"] or "", x["type"] or "", x["value"]))
 
 
+def lot_gains(lot):
+    """The lot viewer's realised gains: the values of the zero-amount splits in the currency of the first one
+    (find_first_currency, get_realized_gains, 5.17:gnucash/gnome/dialog-lot-viewer.c:146-187)."""
+    lot.get_earliest_split()  # sorts the split list by date, as the viewer's fill does first
+    zero = [s for s in lot.get_split_list() if s.GetAmount().zero_p()]
+    if not zero:
+        return None, "0/1"
+    currency = commodity_id(zero[0].GetParent().GetCurrency())
+    total = sum((Fraction(s.GetValue().num(), s.GetValue().denom()) for s in zero
+                 if commodity_id(s.GetParent().GetCurrency()) == currency), Fraction(0))
+    return currency, f"{total.numerator}/{total.denominator}"
+
+
 def lots(root):
     out = []
     for a in root.get_descendants():
         for lot in a.GetLotList():
             split_guids = sorted(guid(s) for s in lot.get_split_list())
+            earliest, latest = lot.get_earliest_split(), lot.get_latest_split()
+            gains_currency, gains = lot_gains(lot)
             out.append({
                 "account": guid(a),
                 "title": text(lot.get_title()),
@@ -187,6 +203,10 @@ def lots(root):
                 "splits": split_guids,
                 "balance": frac(lot.get_balance()),
                 "closed": bool(lot.is_closed()),
+                "openDate": ts(earliest.GetParent().GetDate()) if earliest else None,
+                "closeDate": ts(latest.GetParent().GetDate()) if latest and lot.is_closed() else None,
+                "gainsCurrency": gains_currency,
+                "gains": gains,
             })
     return sorted(out, key=lambda x: (x["account"], x["splits"], x["title"] or ""))
 
