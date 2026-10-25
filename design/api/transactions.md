@@ -339,8 +339,10 @@ it a *document link*.
 - **Stored** in the transaction's `assoc_uri` string slot, the name from before GnuCash 4 kept for compatibility
   (`5.17:libgnucash/engine/Transaction.cpp:179`). `xaccTransSetDocLink` writes it; an empty link deletes the slot
   (`:2027-2031`, `set_kvp_string_path` at `:1845-1853`).
-- **Read-only transactions refuse a link** (`conflict`): the register's Manage Document Link and Remove Document Link
-  both stop at `is_trans_readonly_and_warn` (`5.17:gnucash/gnome/gnc-split-reg.c:1255-1256`, `:1325-1326`).
+- **Read-only transactions refuse a link** (`conflict`), whether read-only by a `trans-read-only` slot or by date
+  under the book's auto read-only threshold ([`book-options.md`](book-options.md)): the register's Manage Document
+  Link and Remove Document Link both stop at `is_trans_readonly_and_warn`
+  (`5.17:gnucash/gnome/gnc-split-reg.c:1118-1158`, called at `:1255-1256` and `:1325-1326`).
 - **Three forms**, told apart as GnuCash does: a link with `://` has a scheme (the text before it), and one without is
   a relative path (`gnc_uri_get_components`, `5.17:libgnucash/engine/gnc-uri-utils.c:164-172`):
   - a URL, such as `https://example.com/receipt/42`. GnuCash's location box accepts only text with a scheme

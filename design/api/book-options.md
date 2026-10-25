@@ -62,7 +62,7 @@ red-ale's API keeps the stored fields under their own names in both modes: `num`
 | Where | Option off | Option on | GnuCash |
 |---|---|---|---|
 | **`number`**, new on each split in `TransactionInfo` and on each `LotSplitInfo` | the transaction's num | the split's action | `gnc_get_num_action(trans, split)`, as the register's Num cell (`gnucash/register/ledger-core/split-register-model.c:1037-1050`) and the lot viewer (`gnucash/gnome/dialog-lot-viewer.c:522-524`) show it |
-| **Split order**: `transaction.find` results, the lot ledger behind FIFO and gains, the running balances behind `account.balance` | `xaccTransOrder` compares transaction nums | compares the two splits' actions (`""` when absent) | `xaccSplitOrder`, `libgnucash/engine/Split.cpp:1550-1556`; `xaccTransOrder_num_action`, `libgnucash/engine/Transaction.cpp:1794-1835` |
+| **Split order**: `transaction.find` results, the lot ledger behind FIFO and gains, the running balances behind `account.balance`, the account order of `reconcile.findAutoClear` | `xaccTransOrder` compares transaction nums | compares the two splits' actions (`""` when absent) | `xaccSplitOrder`, `libgnucash/engine/Split.cpp:1550-1556`; `xaccTransOrder_num_action`, `libgnucash/engine/Transaction.cpp:1794-1835` |
 | **`transaction.transfer`** `num` | the transaction's num | the from split's action; the transaction gets no num | `gnc_set_num_action(trans, from_split, num, NULL)`, `gnucash/gnome-utils/dialog-transfer.cpp:1514-1516` |
 | **`invoice.post`** | num = the document ID; every split's action = `Invoice`, `Bill`, `Expense` or `Credit Note` | num = that word; every split's action = the document ID | `gnc_set_num_action`, `libgnucash/engine/gncInvoice.c:1387`, `:1504`, `:1612`, `:1675`, `:1696` |
 | **`payment.process`, `invoice.pay`** `num` | transaction num = `num`; transfer split action `Payment` | transaction num = `num`; transfer split action = `num` (none when `num` is empty) | `gnc_set_num_action(NULL, xfer_split, num, _("Payment"))`, `libgnucash/engine/gncOwner.c:836`; the dialog always passes the entry's text (`gnucash/gnome/dialog-payment.c`), so an empty num is `""`, not `NULL` |
@@ -80,6 +80,9 @@ Unchanged by the option, as in GnuCash:
   sets the action whatever the option (`engine-helpers.c:127-131`; `gncOwner.c:1187`, `:1197`;
   `libgnucash/engine/cap-gains.cpp:405`; `gnucash/gnome/assistant-stock-split.c:391`).
 - `transaction.reverse` copies num and actions unchanged (`xaccTransReverse`, `Transaction.cpp:2575-2610`).
+- `invoice.duplicate` numbers the copy from its document counter, not a transaction num, and makes no transaction:
+  the copy is unposted (`gnc_ui_invoice_duplicate`, `gnucash/gnome/dialog-invoice.c:3181-3238`). Posting it later
+  follows the `invoice.post` row.
 
 Reports (v0.2) read the number through the same rule.
 

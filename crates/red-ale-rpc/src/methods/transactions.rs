@@ -303,8 +303,12 @@ fn date_or_today(env: &mut dyn Env, d: Option<Day>) -> Result<Date, RpcError> {
     d.map_or_else(|| today(env), |d| Ok(d.0))
 }
 
-fn set_doc_link(book: &mut Book, guid: Guid, link: Option<&str>) -> Result<(), RpcError> {
-    link.map_or(Ok(()), |l| red_ale_core::ops::doc_links::set_transaction_link(book, guid, l).map_err(Into::into))
+/// Set or remove the document link, refused on a transaction read-only by date as the register refuses it
+/// (`design/api/book-options.md`).
+fn set_doc_link(book: &mut Book, env: &mut dyn Env, guid: Guid, link: Option<&str>) -> Result<(), RpcError> {
+    let Some(link) = link else { return Ok(()) };
+    let today = today(env)?;
+    Ok(red_ale_core::ops::doc_links::set_transaction_link(book, guid, link, today)?)
 }
 
 fn record(book: &mut Book, env: &mut dyn Env, guid: Guid, on: bool) -> Result<(), RpcError> {
@@ -333,7 +337,7 @@ fn post(ctx: &mut Context, p: PostParams) -> Result<TransactionInfo, RpcError> {
             splits,
         };
         let guid = ops::post(book, env, new)?;
-        set_doc_link(book, guid, p.doc_link.as_deref())?;
+        set_doc_link(book, env, guid, p.doc_link.as_deref())?;
         record(book, env, guid, p.record_price)?;
         info_of(book, guid)
     })
@@ -483,7 +487,7 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<TransactionInfo, RpcErro
             add_splits: p.add_splits.into_iter().map(|s| s.resolve(book)).collect::<Result<_, _>>()?,
         };
         ops::update(book, env, p.guid.0, edit)?;
-        set_doc_link(book, p.guid.0, p.doc_link.as_deref())?;
+        set_doc_link(book, env, p.guid.0, p.doc_link.as_deref())?;
         record(book, env, p.guid.0, p.record_price)?;
         info_of(book, p.guid.0)
     })

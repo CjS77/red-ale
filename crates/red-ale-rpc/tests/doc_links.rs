@@ -55,6 +55,17 @@ fn transactions_take_change_and_drop_links() {
 }
 
 #[test]
+fn transactions_read_only_by_date_keep_their_links() {
+    let (_dir, mut d) = open("synthetic/rich.gnucash");
+    let guid = post(&mut d, "receipts/june.pdf")["guid"].clone();
+    // Today is 2024-07-01, so ten days puts the threshold at 2024-06-21, after the 2024-06-20 transaction.
+    call(&mut d, "book.setOptions", json!({ "autoReadOnlyDays": 10 }));
+    let e = d.call("transaction.update", json!({ "guid": guid, "docLink": "" })).unwrap_err();
+    assert_eq!((e.code, e.data.unwrap()["reason"].as_str()), (codes::CONFLICT, Some("auto-read-only")));
+    assert_eq!(call(&mut d, "transaction.get", json!({ "guid": guid }))["docLink"], "receipts/june.pdf");
+}
+
+#[test]
 fn listings_resolve_relative_links_against_the_path_head() {
     let (_dir, mut d) = open("synthetic/rich.gnucash");
     post(&mut d, "receipts/june.pdf");

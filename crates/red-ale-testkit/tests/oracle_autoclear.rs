@@ -59,18 +59,21 @@ fn rich_book_clears_as_gnucash_does() {
     assert_eq!(after[0]["code"], 1, "GnuCash sees the account at the cleared balance");
 }
 
+/// One split per entry: its amount in cents and whether it starts cleared.
+type Splits = [(i64, bool)];
+
 /// A fresh book with one bank account holding `cents` as splits, cleared where flagged; returns the account GUID.
 fn bank_with(d: &mut red_ale_rpc::Dispatcher, data: &[(i64, bool)]) -> String {
     let bank = call(d, "account.create", &json!({ "name": "Bank", "type": "BANK", "commodity": "USD" }))["guid"].as_str().unwrap().to_owned();
     call(d, "account.create", &json!({ "name": "Other", "type": "EXPENSE", "commodity": "USD" }));
     data.iter().zip(1..).for_each(|(&(cents, cleared), n)| {
-        let date = format!("2024-{:02}-{:02}", 1 + (n - 1) / 28, 1 + (n - 1) % 28);
+        let posted = format!("2024-{:02}-{:02}", 1 + (n - 1) / 28, 1 + (n - 1) % 28);
         let state = if cleared { "c" } else { "n" };
         let splits = json!([
             { "account": bank, "value": format!("{cents}/100"), "reconcileState": state },
             { "account": "Other", "value": format!("{}/100", -cents) },
         ]);
-        call(d, "transaction.post", &json!({ "datePosted": date, "splits": splits }));
+        call(d, "transaction.post", &json!({ "datePosted": posted, "splits": splits }));
     });
     bank
 }
@@ -93,7 +96,7 @@ fn gnucash_test_cases_clear_alike() {
         [160_000, -63610, -2702, -15400, -3900, -22042, -2900, -10900, -44400, -9200, -7900, -1990, -7901, -61200].iter().map(|&a| (a, false)),
     )
     .collect();
-    let cases: [(&[(i64, bool)], &[i64]); 4] = [
+    let cases: [(&Splits, &[i64]); 4] = [
         (&easy, &[0, -869_227, -869_300, -869_230, -963_272]),
         (&[(-10, false), (-10, false), (-10, false)], &[-10, -20, -30]),
         (&[(2, false), (3, false), (5, false), (5, false)], &[2, 3, 5, 7, 10, 12, 13, 15]),

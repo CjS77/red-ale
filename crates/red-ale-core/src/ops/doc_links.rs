@@ -6,8 +6,9 @@
 
 use std::sync::Arc;
 
+use crate::book_options::check_not_read_only_by_date;
 use crate::ops::transactions::check_writable;
-use crate::{Book, DomainError, DomainResult, Frame, Guid, SlotValue};
+use crate::{Book, Date, DomainError, DomainResult, Frame, Guid, SlotValue};
 
 /// The slot holding a transaction's or document's link.
 pub const DOC_LINK: &str = "assoc_uri";
@@ -23,11 +24,14 @@ pub fn set_doc_link_slot(slots: &mut Frame, link: &str) {
     slots.set_opt_str(DOC_LINK, Some(link));
 }
 
-/// Set or remove a transaction's link. A read-only transaction is refused, as the register refuses it
-/// (`is_trans_readonly_and_warn`, `5.17:gnucash/gnome/gnc-split-reg.c:1255-1256`, `:1325-1326`).
-pub fn set_transaction_link(book: &mut Book, transaction: Guid, link: &str) -> DomainResult<()> {
-    let t = book.transactions.get_mut(&transaction).ok_or_else(|| DomainError::not_found("transaction", &transaction))?;
+/// Set or remove a transaction's link. A read-only transaction, or one read-only by date on `today` (the book's auto
+/// read-only threshold), is refused, as the register refuses both (`is_trans_readonly_and_warn`,
+/// `5.17:gnucash/gnome/gnc-split-reg.c:1118-1158`, called at `:1255-1256` and `:1325-1326`).
+pub fn set_transaction_link(book: &mut Book, transaction: Guid, link: &str, today: Date) -> DomainResult<()> {
+    let t = book.transaction(transaction).ok_or_else(|| DomainError::not_found("transaction", &transaction))?;
     check_writable(t)?;
+    check_not_read_only_by_date(book, t, today)?;
+    let t = book.transactions.get_mut(&transaction).ok_or_else(|| DomainError::not_found("transaction", &transaction))?;
     set_doc_link_slot(&mut Arc::make_mut(t).slots, link);
     Ok(())
 }
@@ -94,6 +98,38 @@ mod tests {
         assert_eq!(doc_link(&f), Some("https://example.com/r/1"));
         set_doc_link_slot(&mut f, "");
         assert!(f.is_empty());
+    }
+
+    #[test]
+    fn read_only_transactions_keep_their_links() {
+        use crate::book_options::set_auto_readonly_days;
+        use crate::ops::commit::{NewSplit, NewTransaction, add_transaction};
+        use crate::{Account, AccountType, CommodityRef, Env, FixedEnv, Numeric, Time64};
+
+        let mut env = FixedEnv::new(Time64(1_719_835_200), 5);
+        let mut book = Book::new_empty(&mut env);
+        let usd = CommodityRef::currency("USD");
+        let accounts: Vec<Guid> = ["Bank", "Food"]
+            .iter()
+            .map(|name| {
+                let a = Account::new(env.new_guid(), *name, AccountType::Bank, Some(usd.clone()), Some(book.root));
+                let g = a.guid;
+                book.accounts.insert(g, Arc::new(a));
+                g
+            })
+            .collect();
+        let mut new = NewTransaction::new(usd, Date::from_ymd(2024, 6, 20).unwrap());
+        new.splits = vec![NewSplit::new(accounts[0], Numeric::new(-5, 1)), NewSplit::new(accounts[1], Numeric::new(5, 1))];
+        let t = add_transaction(&mut book, &mut env, new).unwrap();
+        let today = Date::from_ymd(2024, 7, 1).unwrap();
+        set_transaction_link(&mut book, t, "a.pdf", today).unwrap();
+        set_auto_readonly_days(&mut book, 10).unwrap();
+        assert!(matches!(set_transaction_link(&mut book, t, "", today), Err(DomainError::ReadOnlyByDate { .. })));
+        assert_eq!(book.transaction(t).and_then(|t| doc_link(&t.slots)), Some("a.pdf"));
+        set_auto_readonly_days(&mut book, 0).unwrap();
+        let tx = Arc::make_mut(book.transactions.get_mut(&t).unwrap());
+        tx.slots.set(crate::transaction::slot_paths::READ_ONLY, SlotValue::String("Generated from an invoice".into()));
+        assert!(matches!(set_transaction_link(&mut book, t, "", today), Err(DomainError::Conflict(_))));
     }
 
     #[test]
