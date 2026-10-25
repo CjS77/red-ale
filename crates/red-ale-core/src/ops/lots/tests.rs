@@ -223,6 +223,21 @@ fn merged_pieces_drop_their_gains_and_refill() {
 }
 
 #[test]
+fn a_reassigned_sale_keeps_its_one_gains_transaction() {
+    // GnuCash 5.17 meets the gains split before the re-added sale, so it does not know the sale's gains split and
+    // makes a second gains transaction; red-ale follows the slots and updates the one it has.
+    let mut f = fx();
+    f.trade(1, "10", "100.00");
+    let sale = f.trade(2, "-4", "-60.00");
+    f.scrub();
+    let sale_split = f.stock_splits_of(sale)[0].guid;
+    remove_split(&mut f.book, sale_split).unwrap();
+    f.scrub();
+    assert_eq!(f.gains_txns().len(), 1);
+    assert_eq!(f.lots()[0].gains, n("20.00"));
+}
+
+#[test]
 fn lots_are_made_titled_edited_and_deleted() {
     let mut f = fx();
     let a = create_lot(&mut f.book, &mut f.env, f.stock, None, None).unwrap();
@@ -361,3 +376,4 @@ proptest! {
         prop_assert_eq!(&f.book, &once);
     }
 }
+

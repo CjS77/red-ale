@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use super::ledger::{Ledger, trans_order};
+use super::ledger::{Ledger, Touched, trans_order};
 use super::{edit_split, edit_txn, locate};
 use crate::account::slot_paths as acct_slots;
 use crate::lot::{account_slots, gains_source, gains_split, is_stock_split, split_slots};
@@ -70,7 +70,11 @@ struct Sale {
 /// for a new gains transaction when its commodity is the transaction currency; otherwise the lot account's gains
 /// account is used, made if needed.
 pub fn compute_split_gains(book: &mut Book, env: &mut dyn Env, split: Guid, gain_account: Option<Guid>) -> DomainResult<()> {
-    let Some(sale) = sale(book, split)? else { return Ok(()) };
+    compute_split_gains_in(book, env, &Touched::default(), split, gain_account)
+}
+
+fn compute_split_gains_in(book: &mut Book, env: &mut dyn Env, touched: &Touched, split: Guid, gain_account: Option<Guid>) -> DomainResult<()> {
+    let Some(sale) = sale(book, touched, split)? else { return Ok(()) };
     match sale.gains_split.filter(|g| locate(book, *g).is_some()) {
         None => create_gains_txn(book, env, &sale, gain_account),
         Some(lot_split) => update_gains_txn(book, env, &sale, lot_split),
@@ -78,7 +82,7 @@ pub fn compute_split_gains(book: &mut Book, env: &mut dyn Env, split: Guid, gain
 }
 
 /// The sale whose gain `split` determines, or `None` where GnuCash records nothing.
-fn sale(book: &Book, split: Guid) -> DomainResult<Option<Sale>> {
+fn sale(book: &Book, touched: &Touched, split: Guid) -> DomainResult<Option<Sale>> {
     let Some((txn, s)) = locate(book, split) else { return Err(crate::DomainError::not_found("split", &split)) };
     let (Some(lot), Some(account)) = (s.lot, s.account) else { return Ok(None) };
     let Some(lot_account) = book.lot(lot).map(|l| l.account) else { return Ok(None) };
@@ -86,7 +90,7 @@ fn sale(book: &Book, split: Guid) -> DomainResult<Option<Sale>> {
     if book.account(account).and_then(|a| a.commodity.as_ref()) == Some(&currency) {
         return Ok(None);
     }
-    let ledger = Ledger::build(book, lot_account)?;
+    let ledger = Ledger::build_touched(book, lot_account, touched)?;
     if ledger.earliest(lot).map(|e| e.split) == Some(split) || is_stock_split(s) {
         return Ok(None);
     }
@@ -204,9 +208,14 @@ fn update_gains_txn(book: &mut Book, env: &mut dyn Env, sale: &Sale, lot_split: 
 
 /// Compute the gains of every split in a lot (`xaccLotComputeCapGains`, `5.17:libgnucash/engine/cap-gains.cpp:1070-1112`).
 pub fn compute_lot_gains(book: &mut Book, env: &mut dyn Env, lot: Guid, gain_account: Option<Guid>) -> DomainResult<()> {
+    compute_lot_gains_in(book, env, &Touched::default(), lot, gain_account)
+}
+
+/// [`compute_lot_gains`] within a larger operation that has set the amounts of `touched`.
+pub(super) fn compute_lot_gains_in(book: &mut Book, env: &mut dyn Env, touched: &Touched, lot: Guid, gain_account: Option<Guid>) -> DomainResult<()> {
     let account = book.lot(lot).map(|l| l.account).ok_or_else(|| crate::DomainError::not_found("lot", &lot))?;
-    let splits: Vec<Guid> = Ledger::build(book, account)?.lot_entries(lot).iter().map(|e| e.split).collect();
-    splits.into_iter().try_for_each(|s| if locate(book, s).is_some() { compute_split_gains(book, env, s, gain_account) } else { Ok(()) })
+    let splits: Vec<Guid> = Ledger::build_touched(book, account, touched)?.lot_entries(lot).iter().map(|e| e.split).collect();
+    splits.into_iter().try_for_each(|s| if locate(book, s).is_some() { compute_split_gains_in(book, env, touched, s, gain_account) } else { Ok(()) })
 }
 
 /// The gain a split not in `lot` would realise against it, for the lot viewer; nothing is written

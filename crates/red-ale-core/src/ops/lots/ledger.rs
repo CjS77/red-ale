@@ -38,6 +38,25 @@ pub struct Entry {
     pub voided: bool,
 }
 
+/// Splits whose amount the current operation has set.
+///
+/// Setting a split's amount resets its adjusted amount to the amount (`xaccSplitSetAmount`,
+/// `5.17:libgnucash/engine/Split.cpp:1260`); GnuCash restates it for stock splits only when it recomputes the
+/// account's balances, which a scrub defers to the end of the account edit wrapping it
+/// (`5.17:libgnucash/engine/Account.cpp:2266`). Until then, lot balances, FIFO and gains read the reset value. red-ale
+/// reproduces this so its lots and gains match GnuCash's when a sale before a stock split is cut.
+#[derive(Debug, Clone, Default)]
+pub struct Touched(Vec<Guid>);
+
+impl Touched {
+    /// Record that a split's amount was set.
+    pub fn add(&mut self, split: Guid) {
+        if !self.0.contains(&split) {
+            self.0.push(split);
+        }
+    }
+}
+
 /// An account's splits in account order.
 #[derive(Debug, Clone)]
 pub struct Ledger {
@@ -77,6 +96,14 @@ impl Ledger {
             .collect();
         adjust_for_stock_splits(&mut entries, scu)?;
         Ok(Self { account, entries })
+    }
+
+    /// Build the ledger as GnuCash sees it during an operation: splits in `touched` keep their amount as their
+    /// adjusted amount.
+    pub fn build_touched(book: &Book, account: Guid, touched: &Touched) -> DomainResult<Self> {
+        let mut ledger = Self::build(book, account)?;
+        ledger.entries.iter_mut().filter(|e| touched.0.contains(&e.split)).for_each(|e| e.adjusted = e.amount);
+        Ok(ledger)
     }
 
     /// The entry of a split.

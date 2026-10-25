@@ -187,15 +187,22 @@ fn lots(book: &Book) -> Vec<Value> {
         .map(|l| {
             let mut splits: Vec<String> = book.splits_in_lot(l.guid).map(|(_, s)| s.guid.to_string()).collect();
             splits.sort();
-            let balance = sum(book.splits_in_lot(l.guid).map(|(_, s)| s.amount));
+            // Balance and closure use amounts adjusted for stock splits, gains are the lot viewer's realised gains
+            // (gnc_lot_get_balance, 5.17:libgnucash/engine/gnc-lot.cpp:487-525; dialog-lot-viewer.c:146-187).
+            let summary = red_ale_core::ops::lots::lot_summary(book, l.guid).ok();
+            let balance = summary.as_ref().map_or_else(|| sum(book.splits_in_lot(l.guid).map(|(_, s)| s.amount)), |s| s.balance);
+            let closed = summary.as_ref().is_some_and(|s| s.closed);
             json!({
                 "account": l.account.to_string(),
                 "title": text(l.title()),
                 "notes": text(l.notes()),
                 "splits": splits,
                 "balance": frac(balance),
-                // gnc_lot_is_closed: a lot whose balance is zero is closed (5.17:libgnucash/engine/gnc-lot.cpp).
-                "closed": balance.is_zero(),
+                "closed": closed,
+                "openDate": summary.as_ref().and_then(|s| s.opened).map(|t| t.0),
+                "closeDate": summary.as_ref().and_then(|s| s.closed_at).map(|t| t.0),
+                "gainsCurrency": summary.as_ref().and_then(|s| s.gains_currency.as_ref()).map(ToString::to_string),
+                "gains": frac(summary.as_ref().map_or(Numeric::ZERO, |s| s.gains)),
             })
         })
         .collect();
