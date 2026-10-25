@@ -198,8 +198,13 @@ impl Account {
         }
     }
 
+    /// `get_kvp_boolean_path`: a non-zero integer or the string `"true"` (`5.17:libgnucash/engine/Account.cpp:2564-2577`).
     fn flag(&self, path: &str) -> bool {
-        self.slots.get_str(path) == Some("true")
+        match self.slots.get(path) {
+            Some(SlotValue::Integer(i)) => *i != 0,
+            Some(SlotValue::String(s)) => s == "true",
+            _ => false,
+        }
     }
 
     fn set_flag(&mut self, path: &str, on: bool) {

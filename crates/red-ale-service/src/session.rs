@@ -234,6 +234,11 @@ impl Session {
         self.env = Box::new(env);
     }
 
+    /// [`Session::set_env`] for an environment that is already boxed.
+    pub fn set_env_boxed(&mut self, env: Box<dyn EnvDebug>) {
+        self.env = env;
+    }
+
     /// The book's path.
     pub fn path(&self) -> &Path {
         &self.path
@@ -282,8 +287,13 @@ impl Session {
     /// Apply a Mutation atomically: `f` edits a copy of the book; the copy replaces the book only if `f` succeeds and
     /// every changed transaction is balanced and refers to existing accounts. Transaction changes are journaled.
     pub fn mutate<T>(&mut self, f: impl FnOnce(&mut Book, &mut dyn Env) -> Result<T, DomainError>) -> Result<T, ServiceError> {
+        self.try_mutate(|book, env| f(book, env).map_err(ServiceError::from))
+    }
+
+    /// [`Session::mutate`] for callers with their own error type, such as one that also resolves wire references.
+    pub fn try_mutate<T, E: From<ServiceError>>(&mut self, f: impl FnOnce(&mut Book, &mut dyn Env) -> Result<T, E>) -> Result<T, E> {
         if let Some(reason) = self.read_only.first() {
-            return Err(ServiceError::ReadOnly { reason: reason.to_string() });
+            return Err(ServiceError::ReadOnly { reason: reason.to_string() }.into());
         }
         let mut next = self.book.clone();
         let out = f(&mut next, &mut *self.env)?;

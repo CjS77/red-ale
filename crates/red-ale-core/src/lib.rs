@@ -18,6 +18,7 @@ mod iso4217_table;
 pub mod guid;
 pub mod lot;
 pub mod numeric;
+pub mod ops;
 pub mod price;
 pub mod slots;
 pub mod time;

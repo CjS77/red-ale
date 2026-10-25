@@ -635,6 +635,52 @@ impl Numeric {
     pub fn parse(s: &str) -> Result<Self, ParseNumericError> {
         s.parse()
     }
+
+    /// Parse a decimal such as `12.34`, `-0.5` or `100`, keeping the denominator the digits imply: `12.30` is
+    /// `1230/100`. No exponent, no grouping separators.
+    pub fn parse_decimal(s: &str) -> Result<Self, ParseNumericError> {
+        let err = || ParseNumericError(s.to_owned());
+        let t = s.trim();
+        let (negative, digits) = match t.strip_prefix('-') {
+            Some(rest) => (true, rest),
+            None => (false, t.strip_prefix('+').unwrap_or(t)),
+        };
+        let (whole, frac) = digits.split_once('.').unwrap_or((digits, ""));
+        let valid = |part: &str| part.bytes().all(|b| b.is_ascii_digit());
+        if (whole.is_empty() && frac.is_empty()) || !valid(whole) || !valid(frac) {
+            return Err(err());
+        }
+        let scale = u32::try_from(frac.len()).map_err(|_| err())?;
+        let denom = 10_i64.checked_pow(scale).ok_or_else(err)?;
+        let magnitude: i64 = format!("{whole}{frac}").parse().map_err(|_| err())?;
+        Ok(Self { num: if negative { -magnitude } else { magnitude }, denom })
+    }
+
+    /// Parse either form: `num/denom` (or a bare integer) or a decimal.
+    pub fn parse_any(s: &str) -> Result<Self, ParseNumericError> {
+        if s.contains('/') { s.parse() } else { Self::parse_decimal(s) }
+    }
+
+    /// The value as a decimal string when the denominator is a power of ten, such as `12.34`; otherwise `num/denom`.
+    pub fn to_decimal_string(self) -> String {
+        let mut scale = 0_usize;
+        let mut d = self.denom;
+        while d > 1 && d % 10 == 0 {
+            d /= 10;
+            scale += 1;
+        }
+        if d != 1 || self.denom <= 0 {
+            return self.to_string();
+        }
+        let sign = if self.num < 0 { "-" } else { "" };
+        let digits = self.num.unsigned_abs().to_string();
+        if scale == 0 {
+            return format!("{sign}{digits}");
+        }
+        let padded = format!("{digits:0>width$}", width = scale + 1);
+        let (whole, frac) = padded.split_at(padded.len() - scale);
+        format!("{sign}{whole}.{frac}")
+    }
 }
 
 impl PartialEq for Numeric {
@@ -685,6 +731,20 @@ mod tests {
 
     fn n(num: i64, denom: i64) -> Numeric {
         Numeric::new(num, denom)
+    }
+
+    #[test]
+    fn decimal_text() {
+        assert!(Numeric::parse_decimal("12.30").unwrap().same_repr(n(1230, 100)));
+        assert!(Numeric::parse_decimal("-0.5").unwrap().same_repr(n(-5, 10)));
+        assert!(Numeric::parse_decimal("7").unwrap().same_repr(n(7, 1)));
+        assert!(Numeric::parse_decimal(".25").unwrap().same_repr(n(25, 100)));
+        assert!(Numeric::parse_decimal("1e3").is_err() && Numeric::parse_decimal("").is_err() && Numeric::parse_decimal("1,000").is_err());
+        assert!(Numeric::parse_any("1234/100").unwrap().same_repr(n(1234, 100)));
+        assert_eq!(n(-5, 100).to_decimal_string(), "-0.05");
+        assert_eq!(n(1230, 100).to_decimal_string(), "12.30");
+        assert_eq!(n(7, 1).to_decimal_string(), "7");
+        assert_eq!(n(1, 3).to_decimal_string(), "1/3");
     }
 
     #[test]

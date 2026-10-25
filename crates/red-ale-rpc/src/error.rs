@@ -1,0 +1,171 @@
+//! JSON-RPC errors and red-ale's stable error codes.
+//!
+//! Codes are part of the published language: a code, once released, keeps its meaning. `design/api.md` lists them.
+
+use red_ale_core::DomainError;
+use red_ale_service::ServiceError;
+use serde::Serialize;
+use serde_json::{Value, json};
+
+/// Stable error codes. The JSON-RPC 2.0 range (-32768 to -32000) is used only for the protocol errors it defines.
+pub mod codes {
+    /// The request is not valid JSON.
+    pub const PARSE_ERROR: i32 = -32700;
+    /// The JSON is not a valid request object.
+    pub const INVALID_REQUEST: i32 = -32600;
+    /// No such method.
+    pub const METHOD_NOT_FOUND: i32 = -32601;
+    /// The params do not match the method's schema.
+    pub const INVALID_PARAMS: i32 = -32602;
+    /// A bug in red-ale.
+    pub const INTERNAL_ERROR: i32 = -32603;
+
+    /// No book is open.
+    pub const NO_BOOK: i32 = 1000;
+    /// A book is already open in this server.
+    pub const BOOK_ALREADY_OPEN: i32 = 1001;
+    /// Another program holds the book's lock.
+    pub const BOOK_LOCKED: i32 = 1002;
+    /// The lock file could not be created.
+    pub const CANNOT_LOCK: i32 = 1003;
+    /// The book is an SQL book, which v0.1 refuses.
+    pub const SQL_BOOK: i32 = 1004;
+    /// The URI scheme is not supported.
+    pub const UNSUPPORTED_URI: i32 = 1005;
+    /// The book is open read-only.
+    pub const READ_ONLY: i32 = 1006;
+    /// The file to create exists.
+    pub const FILE_EXISTS: i32 = 1007;
+    /// A file operation failed.
+    pub const IO_ERROR: i32 = 1008;
+    /// The file is not a readable XML book.
+    pub const FILE_FORMAT: i32 = 1009;
+    /// The written book did not read back identically; nothing was saved.
+    pub const SAVE_VERIFICATION: i32 = 1010;
+    /// The backup could not be made; nothing was saved.
+    pub const BACKUP_FAILED: i32 = 1011;
+    /// The book has unsaved changes.
+    pub const UNSAVED_CHANGES: i32 = 1012;
+
+    /// An entity named in the request does not exist.
+    pub const NOT_FOUND: i32 = 2000;
+    /// The request is not valid for the book as it stands.
+    pub const INVALID: i32 = 2001;
+    /// A transaction would not balance.
+    pub const UNBALANCED: i32 = 2002;
+    /// The entity exists but may not be changed this way.
+    pub const CONFLICT: i32 = 2003;
+    /// Exact arithmetic overflowed or was undefined.
+    pub const ARITHMETIC: i32 = 2004;
+
+    /// Every code with its name, for the schema document.
+    pub const ALL: [(i32, &str); 23] = [
+        (PARSE_ERROR, "parse-error"),
+        (INVALID_REQUEST, "invalid-request"),
+        (METHOD_NOT_FOUND, "method-not-found"),
+        (INVALID_PARAMS, "invalid-params"),
+        (INTERNAL_ERROR, "internal-error"),
+        (NO_BOOK, "no-book"),
+        (BOOK_ALREADY_OPEN, "book-already-open"),
+        (BOOK_LOCKED, "book-locked"),
+        (CANNOT_LOCK, "cannot-lock"),
+        (SQL_BOOK, "sql-book"),
+        (UNSUPPORTED_URI, "unsupported-uri"),
+        (READ_ONLY, "read-only"),
+        (FILE_EXISTS, "file-exists"),
+        (IO_ERROR, "io-error"),
+        (FILE_FORMAT, "file-format"),
+        (SAVE_VERIFICATION, "save-verification"),
+        (BACKUP_FAILED, "backup-failed"),
+        (UNSAVED_CHANGES, "unsaved-changes"),
+        (NOT_FOUND, "not-found"),
+        (INVALID, "invalid"),
+        (UNBALANCED, "unbalanced"),
+        (CONFLICT, "conflict"),
+        (ARITHMETIC, "arithmetic"),
+    ];
+}
+
+/// A JSON-RPC error object.
+#[derive(Debug, Clone, PartialEq, Serialize, thiserror::Error)]
+#[error("{message} (code {code})")]
+pub struct RpcError {
+    /// One of [`codes`].
+    pub code: i32,
+    /// A human-readable message.
+    pub message: String,
+    /// Structured detail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+}
+
+impl RpcError {
+    /// An error with a code and message.
+    pub fn new(code: i32, message: impl Into<String>) -> Self {
+        Self { code, message: message.into(), data: None }
+    }
+
+    /// The same error with structured detail.
+    #[must_use]
+    pub fn with_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    /// Invalid params.
+    pub fn invalid_params(message: impl Into<String>) -> Self {
+        Self::new(codes::INVALID_PARAMS, message)
+    }
+
+    /// An entity was not found.
+    pub fn not_found(kind: &str, id: impl std::fmt::Display) -> Self {
+        Self::new(codes::NOT_FOUND, format!("{kind} {id} not found")).with_data(json!({ "kind": kind, "id": id.to_string() }))
+    }
+
+    /// The request is not valid for the book.
+    pub fn invalid(message: impl Into<String>) -> Self {
+        Self::new(codes::INVALID, message)
+    }
+
+    /// A bug.
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::new(codes::INTERNAL_ERROR, message)
+    }
+}
+
+impl From<DomainError> for RpcError {
+    fn from(e: DomainError) -> Self {
+        let message = e.to_string();
+        match e {
+            DomainError::NotFound { kind, id } => Self::new(codes::NOT_FOUND, message).with_data(json!({ "kind": kind, "id": id })),
+            DomainError::Invalid(_) => Self::new(codes::INVALID, message),
+            DomainError::Unbalanced { imbalance, currency } => {
+                Self::new(codes::UNBALANCED, message).with_data(json!({ "imbalance": imbalance, "currency": currency }))
+            }
+            DomainError::Conflict(_) => Self::new(codes::CONFLICT, message),
+            DomainError::Numeric(_) => Self::new(codes::ARITHMETIC, message),
+        }
+    }
+}
+
+impl From<ServiceError> for RpcError {
+    fn from(e: ServiceError) -> Self {
+        let message = e.to_string();
+        let path = |p: &std::path::Path| json!({ "path": p.display().to_string() });
+        match e {
+            ServiceError::Domain(d) => d.into(),
+            ServiceError::Locked { lock_file } => Self::new(codes::BOOK_LOCKED, message).with_data(path(&lock_file)),
+            ServiceError::CannotLock { lock_file, .. } => Self::new(codes::CANNOT_LOCK, message).with_data(path(&lock_file)),
+            ServiceError::Io { path: p, .. } => Self::new(codes::IO_ERROR, message).with_data(path(&p)),
+            ServiceError::Backup { path: p, .. } => Self::new(codes::BACKUP_FAILED, message).with_data(path(&p)),
+            ServiceError::SqlBook { path: p } => Self::new(codes::SQL_BOOK, message).with_data(json!({ "path": p })),
+            ServiceError::UnsupportedUri { uri } => Self::new(codes::UNSUPPORTED_URI, message).with_data(json!({ "uri": uri })),
+            ServiceError::Xml { path: p, .. } => Self::new(codes::FILE_FORMAT, message).with_data(path(&p)),
+            ServiceError::ReadOnly { reason } => Self::new(codes::READ_ONLY, message).with_data(json!({ "reason": reason })),
+            ServiceError::Exists { path: p } => Self::new(codes::FILE_EXISTS, message).with_data(path(&p)),
+            ServiceError::Verification { detail } => Self::new(codes::SAVE_VERIFICATION, message).with_data(json!({ "detail": detail })),
+            ServiceError::NoSession => Self::new(codes::NO_BOOK, message),
+            ServiceError::AlreadyOpen { path: p } => Self::new(codes::BOOK_ALREADY_OPEN, message).with_data(path(&p)),
+        }
+    }
+}

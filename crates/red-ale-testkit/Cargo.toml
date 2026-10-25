@@ -6,8 +6,17 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+# Tests that run the GnuCash 5.17 oracle.
+oracle = []
+
 [dependencies]
 red-ale-core.workspace = true
+red-ale-rpc.workspace = true
+red-ale-service.workspace = true
+red-ale-xml.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

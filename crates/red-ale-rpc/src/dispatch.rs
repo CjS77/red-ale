@@ -1,0 +1,257 @@
+//! The transport-free dispatcher: a registry of methods over one [`Context`], and JSON-RPC 2.0 framing.
+//!
+//! The HTTP server, the CLI and (from v0.2) the MCP server all call [`Dispatcher::call`], so every door runs the same
+//! code.
+
+use std::collections::BTreeMap;
+
+use red_ale_core::{Book, DomainResult, Env};
+use red_ale_service::session::EnvDebug;
+use red_ale_service::{ServiceError, Session, Settings};
+use schemars::{JsonSchema, Schema, SchemaGenerator};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde_json::{Map, Value, json};
+
+use crate::error::{RpcError, codes};
+
+/// What a method does to the book: MCP's `readOnlyHint` and `destructiveHint` come from this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Effect {
+    /// Reads only.
+    Read,
+    /// Adds or changes data.
+    Write,
+    /// Deletes or overwrites data.
+    Destructive,
+}
+
+type Handler = Box<dyn Fn(&mut Context, Value) -> Result<Value, RpcError> + Send + Sync>;
+type SchemaFn = fn(&mut SchemaGenerator) -> Schema;
+
+/// One JSON-RPC method.
+pub struct Method {
+    /// Name, namespaced by context: `account.create`.
+    pub name: &'static str,
+    /// One line saying what it does.
+    pub summary: &'static str,
+    /// What it does to the book.
+    pub effect: Effect,
+    params: SchemaFn,
+    result: SchemaFn,
+    handler: Handler,
+}
+
+impl std::fmt::Debug for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Method").field("name", &self.name).field("effect", &self.effect).finish_non_exhaustive()
+    }
+}
+
+/// Build a method from a typed handler. Params are by name (a JSON object); absent params read as `{}`.
+pub fn method<P, R>(name: &'static str, summary: &'static str, effect: Effect, f: fn(&mut Context, P) -> Result<R, RpcError>) -> Method
+where
+    P: DeserializeOwned + JsonSchema + 'static,
+    R: Serialize + JsonSchema + 'static,
+{
+    Method {
+        name,
+        summary,
+        effect,
+        params: |g| g.subschema_for::<P>(),
+        result: |g| g.subschema_for::<R>(),
+        handler: Box::new(move |ctx, params| {
+            let params = match params {
+                Value::Null => Value::Object(Map::new()),
+                Value::Object(_) => params,
+                _ => return Err(RpcError::invalid_params("params must be an object (by-name)")),
+            };
+            let typed: P = serde_json::from_value(params).map_err(|e| RpcError::invalid_params(e.to_string()))?;
+            let out = f(ctx, typed)?;
+            serde_json::to_value(out).map_err(|e| RpcError::internal(format!("cannot encode the result: {e}")))
+        }),
+    }
+}
+
+/// Makes the environment (clock and GUIDs) for each new session; tests pass a deterministic one.
+pub type EnvFactory = Box<dyn Fn() -> Box<dyn EnvDebug> + Send + Sync>;
+
+/// The state methods run against: at most one open session.
+pub struct Context {
+    session: Option<Session>,
+    /// Settings for new sessions.
+    pub settings: Settings,
+    env_factory: Option<EnvFactory>,
+}
+
+impl std::fmt::Debug for Context {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Context").field("session", &self.session).field("settings", &self.settings).finish_non_exhaustive()
+    }
+}
+
+impl Context {
+    /// The open session.
+    pub fn session(&mut self) -> Result<&mut Session, RpcError> {
+        self.session.as_mut().ok_or_else(|| ServiceError::NoSession.into())
+    }
+
+    /// True when a book is open.
+    pub fn has_session(&self) -> bool {
+        self.session.is_some()
+    }
+
+    /// Install a newly opened session, giving it the configured environment. Fails if one is open.
+    pub fn install(&mut self, mut session: Session) -> Result<&mut Session, RpcError> {
+        if let Some(open) = &self.session {
+            return Err(ServiceError::AlreadyOpen { path: open.path().to_owned() }.into());
+        }
+        if let Some(factory) = &self.env_factory {
+            session.set_env_boxed(factory());
+        }
+        Ok(self.session.insert(session))
+    }
+
+    /// Refuse if a book is already open.
+    pub fn require_no_session(&self) -> Result<(), RpcError> {
+        match &self.session {
+            Some(open) => Err(ServiceError::AlreadyOpen { path: open.path().to_owned() }.into()),
+            None => Ok(()),
+        }
+    }
+
+    /// Remove the open session.
+    pub fn take_session(&mut self) -> Result<Session, RpcError> {
+        self.session.take().ok_or_else(|| ServiceError::NoSession.into())
+    }
+
+    /// The open book.
+    pub fn book(&mut self) -> Result<&Book, RpcError> {
+        self.session().map(|s| s.book())
+    }
+
+    /// Run a query that needs the environment (for "today").
+    pub fn query<T>(&mut self, f: impl FnOnce(&Book, &mut dyn Env) -> Result<T, RpcError>) -> Result<T, RpcError> {
+        self.session()?.query(f)
+    }
+
+    /// Run a Mutation atomically.
+    pub fn mutate<T>(&mut self, f: impl FnOnce(&mut Book, &mut dyn Env) -> DomainResult<T>) -> Result<T, RpcError> {
+        self.session()?.try_mutate(|book, env| f(book, env).map_err(RpcError::from))
+    }
+
+    /// Run a Mutation whose closure also resolves wire references, and so fails with an [`RpcError`]. Atomic like
+    /// [`Context::mutate`].
+    pub fn mutate_rpc<T>(&mut self, f: impl FnOnce(&mut Book, &mut dyn Env) -> Result<T, RpcError>) -> Result<T, RpcError> {
+        self.session()?.try_mutate(f)
+    }
+}
+
+/// The method registry and the context it runs against.
+pub struct Dispatcher {
+    ctx: Context,
+    methods: BTreeMap<&'static str, Method>,
+}
+
+impl std::fmt::Debug for Dispatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Dispatcher").field("ctx", &self.ctx).field("methods", &self.methods.keys().collect::<Vec<_>>()).finish()
+    }
+}
+
+impl Dispatcher {
+    /// A dispatcher with every red-ale method and no book open.
+    pub fn new(settings: Settings) -> Self {
+        let methods = crate::methods::all().into_iter().map(|m| (m.name, m)).collect();
+        Self { ctx: Context { session: None, settings, env_factory: None }, methods }
+    }
+
+    /// Use `factory` for the environment of every session opened from now on.
+    pub fn set_env_factory(&mut self, factory: EnvFactory) {
+        self.ctx.env_factory = Some(factory);
+    }
+
+    /// The context, for a caller that opens a session directly.
+    pub fn context(&mut self) -> &mut Context {
+        &mut self.ctx
+    }
+
+    /// Every method, by name.
+    pub fn methods(&self) -> impl Iterator<Item = &Method> {
+        self.methods.values()
+    }
+
+    /// Call a method with by-name params.
+    pub fn call(&mut self, name: &str, params: Value) -> Result<Value, RpcError> {
+        if name == "api.schema" {
+            return Ok(self.schema());
+        }
+        let method = self.methods.get(name).ok_or_else(|| RpcError::new(codes::METHOD_NOT_FOUND, format!("no method {name}")))?;
+        (method.handler)(&mut self.ctx, params)
+    }
+
+    /// Handle one JSON-RPC 2.0 message, single or batch. Returns `None` when nothing should be sent back (a
+    /// notification, or a batch of notifications).
+    pub fn handle_text(&mut self, text: &str) -> Option<String> {
+        let response = match serde_json::from_str::<Value>(text) {
+            Err(e) => Some(error_response(Value::Null, &RpcError::new(codes::PARSE_ERROR, e.to_string()))),
+            Ok(Value::Array(batch)) if batch.is_empty() => {
+                Some(error_response(Value::Null, &RpcError::new(codes::INVALID_REQUEST, "empty batch")))
+            }
+            Ok(Value::Array(batch)) => {
+                let replies: Vec<Value> = batch.into_iter().filter_map(|r| self.handle_value(r)).collect();
+                (!replies.is_empty()).then_some(Value::Array(replies))
+            }
+            Ok(single) => self.handle_value(single),
+        };
+        response.map(|v| v.to_string())
+    }
+
+    fn handle_value(&mut self, request: Value) -> Option<Value> {
+        let Value::Object(mut obj) = request else {
+            return Some(error_response(Value::Null, &RpcError::new(codes::INVALID_REQUEST, "a request must be an object")));
+        };
+        let id = obj.remove("id");
+        let reply_id = id.clone().unwrap_or(Value::Null);
+        let valid_id = id.as_ref().is_none_or(|v| v.is_string() || v.is_number() || v.is_null());
+        let method = obj.remove("method");
+        let (Some(Value::String(method)), true, Some("2.0")) = (method, valid_id, obj.get("jsonrpc").and_then(Value::as_str)) else {
+            return Some(error_response(reply_id, &RpcError::new(codes::INVALID_REQUEST, "not a JSON-RPC 2.0 request")));
+        };
+        let result = self.call(&method, obj.remove("params").unwrap_or(Value::Null));
+        id.map(|id| match result {
+            Ok(value) => json!({ "jsonrpc": "2.0", "id": id, "result": value }),
+            Err(e) => error_response(id, &e),
+        })
+    }
+
+    /// The API's schema document: every method with its params and result schemas, and the error codes.
+    pub fn schema(&self) -> Value {
+        let mut generator = SchemaGenerator::default();
+        let methods: Vec<Value> = self
+            .methods
+            .values()
+            .map(|m| {
+                json!({
+                    "name": m.name,
+                    "summary": m.summary,
+                    "effect": m.effect,
+                    "params": (m.params)(&mut generator),
+                    "result": (m.result)(&mut generator),
+                })
+            })
+            .collect();
+        let errors: Vec<Value> = codes::ALL.iter().map(|(code, name)| json!({ "code": code, "name": name })).collect();
+        json!({
+            "redAleApi": crate::API_VERSION,
+            "methods": methods,
+            "errors": errors,
+            "$defs": generator.take_definitions(true),
+        })
+    }
+}
+
+fn error_response(id: Value, e: &RpcError) -> Value {
+    json!({ "jsonrpc": "2.0", "id": id, "error": e })
+}
