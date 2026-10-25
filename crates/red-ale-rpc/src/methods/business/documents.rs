@@ -394,18 +394,21 @@ fn get_entry(book: &Book, guid: Guid) -> Result<EntryInfo, RpcError> {
     book.business.entries.get(&guid).map(|e| e.as_ref().into()).ok_or_else(|| RpcError::not_found("entry", guid))
 }
 
-/// Make a new line for a document or order owned by `owner`, with GnuCash's defaults, then the caller's fields.
-fn new_line(book: &Book, env: &mut dyn Env, owner_doc: Guid, fields: LineFields, link: impl FnOnce(&mut Entry)) -> Result<Entry, RpcError> {
-    let owner = book
-        .business
-        .invoices
-        .get(&owner_doc)
-        .map(|i| i.owner)
-        .or_else(|| book.business.orders.get(&owner_doc).map(|o| o.owner))
-        .ok_or_else(|| RpcError::not_found("document", owner_doc))?;
-    let doc = document_type(book, owner).ok_or_else(|| RpcError::invalid("the document has no valid owner"))?;
+/// Make a new line for a document or order, with GnuCash's defaults, then the caller's fields. A document's lines
+/// take the entry ledger's owner defaults; an order's take the engine's only, as GnuCash's order ledger has no
+/// document to take them from (`5.17:gnucash/register/ledger-core/gncEntryLedgerLoad.c:354-366`), and use the
+/// invoice side.
+fn new_line(book: &Book, env: &mut dyn Env, parent: Guid, fields: LineFields, link: impl FnOnce(&mut Entry)) -> Result<Entry, RpcError> {
     let date = date_or_today(env, None)?;
-    let mut e = default_entry(book, env.new_guid(), date, env.now(), owner);
+    let (guid, now) = (env.new_guid(), env.now());
+    let (mut e, doc) = if let Some(inv) = book.business.invoices.get(&parent) {
+        let doc = document_type(book, inv.owner).ok_or_else(|| RpcError::invalid("the document has no valid owner"))?;
+        (default_entry(book, guid, date, now, inv.owner), doc)
+    } else if book.business.orders.contains_key(&parent) {
+        (Entry::new(guid, date, now), DocumentType::Invoice)
+    } else {
+        return Err(RpcError::not_found("document", parent));
+    };
     link(&mut e);
     fields.apply(book, &mut e, doc)?;
     Ok(e)

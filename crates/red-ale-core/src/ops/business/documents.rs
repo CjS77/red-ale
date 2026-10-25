@@ -252,16 +252,16 @@ pub fn lines_of(book: &Book, doc: Guid) -> Vec<&Entry> {
     lines
 }
 
-/// The document type of the side a line belongs to: its invoice, else its bill, else its order's owner.
+/// The document type of the side a line belongs to: its invoice, else its bill. Order lines use the invoice side
+/// whoever owns the order: GnuCash's order ledger is a customer-document ledger
+/// (`5.17:gnucash/register/ledger-core/gncEntryLedger.c:286-294`).
 pub fn line_type(book: &Book, e: &Entry) -> Option<DocumentType> {
     let of_invoice = |g: Option<Guid>| g.and_then(|g| book.business.invoices.get(&g)).and_then(|i| invoice_type(book, i));
-    of_invoice(e.invoice)
-        .or_else(|| of_invoice(e.bill))
-        .or_else(|| e.order.and_then(|o| book.business.orders.get(&o)).and_then(|o| document_type(book, o.owner)))
+    of_invoice(e.invoice).or_else(|| of_invoice(e.bill)).or_else(|| e.order.map(|_| DocumentType::Invoice))
 }
 
-/// A line's links: its invoice must be a customer invoice and its bill a bill or voucher, both unposted; its order
-/// must be open; and an order and a document it shares a line with must be for the same side.
+/// A line's links: its invoice must be a customer invoice and its bill a bill or voucher, both unposted, and its
+/// order must be open.
 fn check_line_links(book: &Book, e: &Entry) -> DomainResult<()> {
     if e.invoice.is_none() && e.bill.is_none() && e.order.is_none() {
         return Err(DomainError::invalid("a line must be on a document or an order"));
@@ -284,10 +284,6 @@ fn check_line_links(book: &Book, e: &Entry) -> DomainResult<()> {
         let o = order(book, g)?;
         if o.closed.is_some() {
             return Err(DomainError::conflict(format!("order {} is closed", o.id)));
-        }
-        let doc = e.invoice.or(e.bill).and_then(|d| book.business.invoices.get(&d)).and_then(|i| invoice_type(book, i));
-        if doc.is_some() && doc.map(DocumentType::is_customer) != document_type(book, o.owner).map(DocumentType::is_customer) {
-            return Err(DomainError::invalid("an order and a document sharing a line must be for the same side"));
         }
     }
     Ok(())
@@ -329,6 +325,9 @@ fn check_line(book: &Book, e: &Entry, old: Option<&Entry>) -> DomainResult<()> {
 pub fn add_entry(book: &mut Book, e: Entry) -> DomainResult<Guid> {
     if book.business.entries.contains_key(&e.guid) {
         return Err(DomainError::conflict(format!("{} is already in use", e.guid)));
+    }
+    if e.order.is_some() && e.bill.is_some() {
+        return Err(DomainError::invalid("order lines use the invoice side, so a new one cannot be on a bill or voucher"));
     }
     check_line(book, &e, None)?;
     retarget_tax_table(book, None, e.i_tax_table);
