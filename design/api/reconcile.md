@@ -146,12 +146,13 @@ Nothing is stored without a previous last date, or if the result is negative.
 
 ### Time zone
 
-GnuCash's statement date is the end of the chosen day in **local time** (`gnc_date_edit_get_date_end`). red-ale has no
-local time zone, so the caller gives one: `utcOffsetMinutes` (default 0, within ±18 hours).
+GnuCash's statement date is the end of the chosen day in **local time** (`gnc_date_edit_get_date_end`). red-ale uses
+the server's local time zone (see [`../api.md`](../api.md), "Dates, times and the local time zone"), with its
+daylight-saving rules. A caller in another zone may give `utcOffsetMinutes` (within ±18 hours) to use that fixed
+offset instead; v0.1 used 0 when it was absent.
 
-- The statement date is stored as 23:59:59 at that offset.
-- "Today" and the local dates used for defaults and intervals use the same offset.
-- **Deviation:** a fixed offset, not a time zone with daylight saving. Pass the offset in force on the statement date.
+- The statement date is stored as 23:59:59 local time on the chosen day.
+- "Today" and the local dates used for defaults and intervals use the same zone.
 
 ## Auto-clear
 

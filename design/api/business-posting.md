@@ -46,7 +46,7 @@ The bill side (bills and vouchers) has no discount. The oracle dump (`oracle/dum
 ### `invoice.dueDate`
 
 Params: `postDate` and exactly one of `invoice` (use its billing term) or `term`. Result: `dueDate` and `due` (the
-instant GnuCash stores: 10:59 UTC of the due date). Matches `gncBillTermComputeDueDate`
+instant GnuCash stores: the due date's neutral time). Matches `gncBillTermComputeDueDate`
 (`5.17:libgnucash/engine/gncBillTerm.c:751-825`): *days* terms add the due days; *proximo* terms fall due on the due
 day (clamped to the month's end) of the next month, or of the month after when the posting day is past the cutoff
 (a cutoff of 0 or less counts back from the end of the posting month). No term: the posting date.
@@ -73,7 +73,7 @@ Matches `gncInvoicePostToAccount` (`5.17:libgnucash/engine/gncInvoice.c:1442-173
 - **Num field source:** with the book's num field source on, the document ID and the type word swap places: num =
   the type word, every split's action = the document ID ([`book-options.md`](book-options.md)).
 - **Transaction:** description = the end owner's name; num = the document ID; currency = the document's; posted at
-  10:59 UTC of `postDate` with the `date-posted` slot; date entered = now. Slots `gncInvoice/invoice-guid`,
+  the neutral time of `postDate` with the `date-posted` slot; date entered = now. Slots `gncInvoice/invoice-guid`,
   `trans-date-due`, `trans-read-only` ("Generated from an invoice. Try unposting the invoice.") and
   `trans-txn-type` = `I`.
 - **Splits**, every one with action `Invoice`, `Bill`, `Expense` or `Credit Note`: with `accumulateSplits`, one per
@@ -92,9 +92,11 @@ Matches `gncInvoicePostToAccount` (`5.17:libgnucash/engine/gncInvoice.c:1442-173
   the original keeps it (`gncTaxTableReturnChild`, `gncBillTermReturnChild`). Each replacement lowers the original's
   refcount as GnuCash's setters do. A billable bill line copies its net (pre-tax) unit price to its invoice side and
   clears its invoice-side tax-included flag.
-- **Due date:** `dueDate` is stored as midnight UTC of that day, as GnuCash's date field gives; without it, the
-  billing term's due date (10:59 UTC), as GnuCash's post dialog computes it; with neither, midnight of the posting
-  date.
+- **Due date:** `dueDate` is stored at its neutral time, as GnuCash's date field gives it
+  (`gnc_date_edit_get_date`, `5.17:gnucash/gnome-utils/gnc-date-edit.c:1069`); without it, the billing term's due
+  date, as GnuCash's post dialog computes it from the local date of the posting time; with neither, the posting
+  time itself (the dialog's due date starts as the post date, `5.17:gnucash/gnome/dialog-invoice.c:1072`). v0.1
+  stored midnight UTC in the first and last cases.
 - **`autoPay`:** then `gncInvoiceAutoApplyPayments` (below).
 
 Refused (`invalid`, nothing changed): a document with no entries, no currency or an entry without an account; a
@@ -126,7 +128,7 @@ Matches `gncOwnerApplyPaymentSecs` (`5.17:libgnucash/engine/gncOwner.c:1404-1440
 - **Transaction** (`gncOwnerCreatePaymentLotSecs`, `5.17:libgnucash/engine/gncOwner.c:749-880`): currency = the
   transfer account's; transfer split amount = amount (× `exchangeRate` when the commodities differ), value likewise;
   A/R or A/P split = the negation, in a new lot with the owner's `gncOwner` slots. Both splits have action `Payment`
-  and memo `memo` (with the num field source on, the transfer split's action is `num` instead). num = `num`; slot `trans-txn-type` = `P`; posted at 10:59 UTC of `date` with **no** `date-posted`
+  and memo `memo` (with the num field source on, the transfer split's action is `num` instead). num = `num`; slot `trans-txn-type` = `P`; posted at the neutral time of `date` with **no** `date-posted`
   slot, as GnuCash.
 - **Applying** (`gncOwnerAutoApplyPaymentsWithLots`, `5.17:libgnucash/engine/gncOwner.c:1256-1394`): the payment lot
   first, then `applyTo`, or, with no `applyTo` and `autoPay`, every open lot of the owner in the account in the order

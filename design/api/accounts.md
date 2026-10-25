@@ -157,9 +157,8 @@ Balances are amounts in the account's commodity (`balances` is null for an accou
 - `xaccAccountRecomputeBalance` (`Account.cpp:2263-2335`): splits in `xaccSplitOrder` order (`Split.cpp:1536`), each
   amount at the account's SCU as GnuCash holds it once loaded; `cleared` counts every state but `n`, `reconciled` counts
   `y` and `f`; a stock-split split is skipped while the balance is zero or when it would make it zero.
-- `asOf`: the running balances at the last split posted before the end of that day, 23:59:59 UTC
-  (`GetBalanceAsOfDate`, `:3506`; GnuCash's cut-off is local, and posted dates at 10:59 UTC make the two agree from
-  UTC−10 to UTC+13).
+- `asOf`: the running balances at the last split posted before the end of that day, 23:59:59 local time
+  (`GetBalanceAsOfDate`, `:3506`, given `gnc_time64_get_day_end_gdate`; v0.1 used 23:59:59 UTC).
 - `includeSubaccounts` (`xaccAccountGetXxxBalanceInCurrencyRecursive`, `:3669-3740`): each sub-account's balance is
   added rounded half up to the commodity's fraction. GnuCash converts sub-accounts in other commodities at the latest
   price; **red-ale v0.1 does not**: it adds nothing for them (GnuCash's figure when no price exists) and lists their
@@ -335,14 +334,16 @@ without a fiscal year end is refused.
 
 ### `period.dates` (read)
 
-`{ date?, start?, end?, fiscalYearEnd? }` → `{ today, start, end }`: the first and last days of the period containing
-`date`, by default today by the session's clock (the server's without a book), as a UTC date. The optional bounds
+`{ date?, start?, end?, fiscalYearEnd? }` → `{ today, start, end, startTime, endTime }`: the first and last days of
+the period containing `date`, by default today (the local date of the session's clock, or the server's without a
+book). The optional bounds
 override the configured ones for this call. The computation is `gnc_accounting_period_start_gdate` and `_end_gdate`
 (`5.17:libgnucash/engine/gnc-accounting-period.c:138-290`) with the date helpers of
 `5.17:libgnucash/engine/gnc-date.cpp:1524-1716`, including their quirks: a fiscal year starts on the day after this
 year's fiscal year end moved back a year, so with a year ending 28 February the start can be 28 February. The oracle
-test compares every choice on edge dates with GnuCash's own functions. GnuCash turns the days into local 00:00:00
-and 23:59:59; red-ale reports dates only, as time zones are an open question.
+test compares every choice on edge dates with GnuCash's own functions. `startTime` and `endTime` are the instants
+GnuCash uses: local 00:00:00 of the first day and 23:59:59 of the last (`gnc_accounting_period_fiscal_start` and
+`_end`, `5.17:libgnucash/engine/gnc-accounting-period.c:60-100`).
 
 ## Deviations, in short
 
@@ -353,4 +354,4 @@ and 23:59:59; red-ale reports dates only, as time zones are an open question.
 - Sub-account balances in other commodities are reported unconverted, also when checking balance limits.
 - Colours are checked and written as the dialog writes them; `Not Set` reads as no colour without the GUI's scrub.
 - The opening balance account lookup never creates or flags an account.
-- The accounting period lives in red-ale's configuration; dates are UTC dates.
+- The accounting period lives in red-ale's configuration.

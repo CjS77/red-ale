@@ -14,6 +14,11 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale` | Binary | `red-ale serve` (the JSON-RPC server), `red-ale mcp` (the MCP server) and the CLI front end. The only crate that uses `anyhow`. | rpc, mcp, service |
 | `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, and the GnuCash oracle harness. Used only by tests. | core, xml, service, rpc |
 
+The core reaches the outside world only through `Env`: the clock, fresh GUIDs and the Local time zone. The zone is a
+value (`TimeZone`) built from data, never from the environment; `red-ale-service` reads `TZ`, `TZDIR` and the zone
+files once per process, in GnuCash's order, and hands the zone to every session's `Env`. Tests pin a zone with
+`FixedEnv::with_zone`.
+
 `red-ale-sql` arrives in v0.3 as a second Backend beside `red-ale-xml`.
 
 ## Context map
@@ -97,6 +102,7 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `thiserror` | all libraries | typed errors |
 | `indexmap` | core | ordered entity collections |
 | `chrono` | core, xml, service | calendar arithmetic and formatting (no clock in core) |
+| `jiff` | core | time zone rules from TZif data and POSIX strings, with no I/O (default features off: no system zone lookup, no bundled database); the service reads the files |
 | `quick-xml` | xml | XML tokenising; red-ale builds its own small DOM and serialiser to match libxml2's output |
 | `flate2` | xml | gzip, through the pure-Rust `miniz_oxide` |
 | `serde`, `serde_json`, `schemars` | rpc | wire types and their JSON Schema |

@@ -36,7 +36,7 @@ Its totals, posting and payments are in [`business-posting.md`](business-posting
 ## Dates
 
 `dateOpened` and an entry's `date` are calendar dates (`YYYY-MM-DD`) and default to today. They are stored as **noon
-in the server's local time zone**, as GnuCash's dialogs and register store them (`time64CanonicalDayTime`,
+in the server's local time zone** (see [`../api.md`](../api.md), "Dates, times and the local time zone"), as GnuCash's dialogs and register store them (`time64CanonicalDayTime`,
 `5.17:libgnucash/engine/gnc-date.cpp:404-410`), so GnuCash shows the same day. Results give them as UTC timestamps.
 An entry's `dateEntered` is the time it was created.
 

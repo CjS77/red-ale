@@ -56,6 +56,28 @@ change the book in memory and the journal; `book.save` writes the file.
 Value and amount keep GnuCash's meanings (see the glossary): a split's *value* is in the transaction currency, its
 *amount* in the account's commodity.
 
+### Dates, times and the local time zone
+
+red-ale handles time zones as GnuCash 5.17 does ([`notes/time-zones.md`](notes/time-zones.md)), so a red-ale server
+and a GnuCash in the same zone agree on every date:
+
+- **The local time zone** is the server process's, read once at start-up in GnuCash's order: `TZ` as a zone file
+  (IANA name or path, `TZDIR` respected), else `TZ` as a POSIX string **with GnuCash's (Boost's) reversed sign**
+  (`XYZ11` is UTC+11), else `/etc/localtime`, else UTC. A `TZ` that GnuCash would reject is rejected the same way.
+- **A date given as a Date** (a posted date, a price's day, a due date, a find dialog's "before") is stored at the
+  day-neutral time: 10:59:00 UTC, moved to 11:59 UTC in zones west of UTC−10 and to 09:59 UTC in zones east of
+  UTC+13, so the stored instant is on that day in the local zone.
+- **A Date derived from an instant** is the local date, except a posted date with no `date-posted` slot, which is the
+  instant's UTC date, as GnuCash reads it.
+- **Day boundaries** are local: a day starts at 00:00:00 and ends at 23:59:59 local time. A time in a daylight-saving
+  gap is moved an hour later; an ambiguous one takes the later instant.
+- **"Today"** is the local date of the session's clock (the server's without a book).
+- Timestamps on the wire stay UTC (RFC 3339 with `Z`); only the meaning of Dates depends on the zone.
+
+Where v0.1 used UTC days instead, v0.2 uses local ones: same-day prices, "today" and the find dialog's day
+boundaries, the accounting period, balances "as of" a day, lot dates and price dates. Under `TZ=UTC` nothing
+changes.
+
 ## Errors
 
 Errors are JSON-RPC error objects with a stable `code`, a human `message` and structured `data`. The JSON-RPC range

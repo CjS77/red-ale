@@ -37,6 +37,10 @@ Code names are given in `code font` when they differ from the term.
 | **SCU** | Smallest commodity unit: the denominator a Commodity's quantities are kept in (100 for USD, 1 for JPY). Also called the commodity's *fraction*. |
 | **Time64** | An instant, in whole seconds since 1970-01-01 UTC. GnuCash's `time64`. |
 | **Date** | A calendar date with no time (GnuCash's `GDate`). |
+| **Local time zone** (`TimeZone`) | The time zone of the server process, read once at start-up as GnuCash reads it: `TZ` as a zone file, else `TZ` as a POSIX string with Boost's reversed sign, else `/etc/localtime`, else UTC. Day boundaries, "today", same-day prices and file-name timestamps use it. |
+| **Local day** | The calendar date an instant falls on in the Local time zone; it runs from local 00:00:00 (*day start*) to 23:59:59 (*day end*). |
+| **Day-neutral time** | The instant a Date chosen by the user is stored at: 10:59:00 UTC, moved to 11:59 UTC in zones west of UTC−10 and 09:59 UTC east of UTC+13, so it falls on that Date in the Local time zone. GnuCash's *neutral time* (`DayPart::neutral`). |
+| **Relative date** | A date given relative to now, as GnuCash's report date options give them (`RelativeDatePeriod`): `today`, `one-month-ago`, `start-this-month`, `end-prev-quarter`, `start-prev-fin-year` and so on, under GnuCash's storage names. |
 | **Slot** | One key-value entry attached to an entity. Values are integer, double, numeric, string, GUID, timespec, date, list or frame. |
 | **Frame** | A Slot value holding nested Slots, so keys form paths such as `tax-US/code`. An entity's slots are its root Frame. **⚠** GnuCash code says *KVP*; red-ale says Slot and Frame. |
 
@@ -75,7 +79,7 @@ Code names are given in `code font` when they differ from the term.
 | **Value** | A Split's size in the Transaction currency. The values of a Transaction's Splits sum to exactly zero. **⚠** Always transaction-currency value, never "a number". |
 | **Amount** | A Split's size in its Account's Commodity. **⚠** GnuCash *amount* means this quantity, not a generic number; the XML calls it `quantity`. Value and Amount are both stored; neither is derived from the other on save. |
 | **Price of a split** | `value / amount`: the exchange rate a Split implies. |
-| **Date posted** | The date a Transaction takes effect. Stored as a Time64 at 10:59:00 UTC of that date (GnuCash's *neutral time*). |
+| **Date posted** | The date a Transaction takes effect. Stored as a Time64 at the Day-neutral time of that date, with a `date-posted` slot holding the Date. Without the slot it reads as the UTC date of the Time64. |
 | **Date entered** | When a Transaction was first recorded. |
 | **Num** | A Transaction's free-text check or reference number. |
 | **Number** (of a Split) | What GnuCash shows as a Split's "Num": its Action when the Book's Num field source is on, otherwise its Transaction's Num (`gnc_get_num_action`). **⚠** Not always the Transaction's Num. |
@@ -116,7 +120,7 @@ Code names are given in `code font` when they differ from the term.
 | **Price** | The value of one Commodity in another (usually a currency) at a time, with a source and a type. |
 | **Price database** (`PriceDb`) | All Prices of a Book. |
 | **Price source rank** | The precedence of a Price's source (user entries before fetched quotes before prices recorded from Transactions). On the same day, a Price of a lower rank replaces one of a higher rank and is not replaced by it. Unknown sources rank lowest (`invalid`). |
-| **Same day** (Prices) | The UTC calendar day in red-ale. **⚠** GnuCash uses its local time zone. |
+| **Same day** (Prices) | The same Local day. GnuCash compares local noon of each price's local day (`time64CanonicalDayTime`). |
 | **Built-in currency** | One of the 227 ISO 4217 currencies every Book has. Stored in the Book file only when it has quotes on or Slots. |
 | **Usage** (of a Commodity) | What refers to it. **⚠** GnuCash's usage count is Accounts only; red-ale also reports Transactions, Prices and business objects. |
 | **Auto quote control** | GnuCash's `auto_quote_control` slot on a currency: `"false"` means the user overrode the quote flag GnuCash sets for currencies Accounts use. |
