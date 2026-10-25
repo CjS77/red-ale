@@ -203,6 +203,25 @@ pub fn sorted_children(book: &Book, parent: Guid) -> Vec<&Account> {
     children
 }
 
+/// Every descendant of an account in display order, depth first: each child, in display order among its siblings,
+/// followed by its own descendants (`gnc_account_get_descendants_sorted`, `5.17:libgnucash/engine/Account.cpp:2807-2822`,
+/// `:3039-3045`).
+pub fn descendants_sorted(book: &Book, parent: Guid) -> Vec<&Account> {
+    sorted_children(book, parent).into_iter().flat_map(|child| std::iter::once(child).chain(descendants_sorted(book, child.guid))).collect()
+}
+
+/// How many levels an account is below the root account: 0 for the root, 1 for its children
+/// (`gnc_account_get_current_depth`, `5.17:libgnucash/engine/Account.cpp:2997-3013`).
+pub fn depth(book: &Book, guid: Guid) -> usize {
+    book.ancestors(guid).len() + usize::from(guid != book.root)
+}
+
+/// The number of levels in an account's subtree, counting the account itself: 1 for an account without children
+/// (`gnc_account_get_tree_depth`, `5.17:libgnucash/engine/Account.cpp:3016-3029`).
+pub fn tree_depth(book: &Book, guid: Guid) -> usize {
+    1 + book.children(guid).map(|child| tree_depth(book, child.guid)).max().unwrap_or(0)
+}
+
 /// True when the account or one of its ancestors is hidden (`xaccAccountIsHidden`,
 /// `5.17:libgnucash/engine/Account.cpp:4190`).
 pub fn is_hidden_in_tree(book: &Book, guid: Guid) -> bool {
@@ -1044,6 +1063,22 @@ mod tests {
         assert_eq!(r.reparented, Some(child));
         assert_eq!(f.book.full_name(child).unwrap(), "B:Child");
         assert_eq!(f.order(), ["B", "Child", "E"]);
+    }
+
+    #[test]
+    fn sorted_descendants_and_depths_walk_the_tree() {
+        let mut f = Fx::new();
+        let z = f.add(Guid::NULL, "Z", AccountType::Asset);
+        let zb = f.add(z, "B", AccountType::Asset);
+        f.add(zb, "C", AccountType::Asset);
+        f.add(z, "A", AccountType::Asset);
+        f.add(Guid::NULL, "Y", AccountType::Asset);
+        let names = |v: Vec<&Account>| v.iter().map(|a| a.name.clone()).collect::<Vec<_>>();
+        assert_eq!(names(descendants_sorted(&f.book, f.book.root)), ["Y", "Z", "A", "B", "C"]);
+        assert_eq!(names(f.book.descendants(f.book.root)), ["Z", "B", "C", "A", "Y"], "book order for comparison");
+        let root = f.book.root;
+        assert_eq!((depth(&f.book, root), depth(&f.book, z), depth(&f.book, zb)), (0, 1, 2));
+        assert_eq!((tree_depth(&f.book, root), tree_depth(&f.book, z), tree_depth(&f.book, zb)), (4, 3, 2));
     }
 
     #[test]
