@@ -13,7 +13,9 @@ use std::cmp::Ordering;
 use regex::{Regex, RegexBuilder};
 
 use super::order::split_order;
-use crate::{Book, Date, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, TimeZone, Transaction};
+use crate::ops::balances::account_splits_between;
+use crate::ops::commodities::canonical;
+use crate::{Book, CommodityRef, Date, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, TimeZone, Transaction};
 
 /// How a string criterion compares (`5.17:gnucash/gnome-search/search-string.c:235-242`, `search-string.h:32-37`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -213,6 +215,8 @@ pub enum Query {
     Action(StringMatch),
     /// Date posted.
     DatePosted(DateMatch),
+    /// Time posted against an instant, to the second (`xaccQueryAddDateMatchTT`'s `QOF_DATE_MATCH_NORMAL`).
+    PostedAt(Compare, Time64),
     /// Date entered (registered as a query parameter, not offered by the dialog).
     DateEntered(DateMatch),
     /// Date reconciled; a split never reconciled has date zero.
@@ -267,6 +271,7 @@ impl Query {
             Self::Num(m) => m.matches(t.num.as_deref()),
             Self::Action(m) => m.matches(s.action.as_deref()),
             Self::DatePosted(d) => d.matches(t.date_posted, zone),
+            Self::PostedAt(c, at) => c.holds(t.date_posted.cmp(at)),
             Self::DateEntered(d) => d.matches(t.date_entered, zone),
             Self::DateReconciled(d) => d.matches(s.reconcile_date.unwrap_or_default(), zone),
             Self::Value(n) => n.matches(s.value),
@@ -312,12 +317,119 @@ pub struct Found {
 /// Dates are compared in the local time zone `zone`.
 pub fn find(book: &Book, query: &Query, limit: Option<usize>, zone: &TimeZone) -> DomainResult<Vec<Found>> {
     query.check(book)?;
+    let hits = matching(book, query, zone);
+    let skip = limit.map_or(0, |n| hits.len().saturating_sub(n));
+    Ok(hits.into_iter().skip(skip).map(|(t, s)| Found { transaction: t.guid, split: s.guid }).collect())
+}
+
+/// Every split matching `query`, with its transaction, in `xaccSplitOrder`.
+fn matching<'a>(book: &'a Book, query: &Query, zone: &TimeZone) -> Vec<(&'a Transaction, &'a Split)> {
     let mut hits: Vec<(&Transaction, &Split)> =
         book.transactions.values().flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s))).filter(|(t, s)| query.matches(t, s, zone)).collect();
     let num_action = crate::book_options::uses_split_action_for_num(book);
     hits.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
-    let skip = limit.map_or(0, |n| hits.len().saturating_sub(n));
-    Ok(hits.into_iter().skip(skip).map(|(t, s)| Found { transaction: t.guid, split: s.guid }).collect())
+    hits
+}
+
+/// A transaction description pattern of a report's split query: GnuCash's `str`, `cased` and `regexp`
+/// (`5.17:gnucash/report/report-utilities.scm:681-692`), matched as `xaccQueryAddDescriptionMatch` with
+/// `QOF_COMPARE_CONTAINS` matches it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DescriptionPattern {
+    /// The text the description contains, or the regular expression it matches.
+    pub text: String,
+    /// Case matters.
+    pub cased: bool,
+    /// `text` is a regular expression, matched anywhere in the description.
+    pub regexp: bool,
+}
+
+/// The split query of `gnc:account-get-trans-type-splits-interval` (`5.17:gnucash/report/report-utilities.scm:693-725`),
+/// which the Income Statement and the average-balance report also run (`5.17:gnucash/report/reports/example/average-balance.scm:300-345`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PeriodQuery {
+    /// The accounts the splits are in; none gives no splits.
+    pub accounts: Vec<Guid>,
+    /// Posted at or after this time (`xaccQueryAddDateMatchTT`, `5.17:libgnucash/engine/Query.cpp:383-430`).
+    pub from: Option<Time64>,
+    /// Posted at or before this time.
+    pub to: Option<Time64>,
+    /// Only transactions whose description matches, or (with `closing`) that are Closing transactions.
+    pub description: Option<DescriptionPattern>,
+    /// Only Closing transactions, or (with `description`) transactions whose description matches.
+    pub closing: bool,
+}
+
+impl PeriodQuery {
+    /// The query as a find query. A split in state `v` never matches (`CLEARED-ALL` less `CLEARED-VOIDED`); the
+    /// description and closing criteria are OR'ed and the result AND'ed with the rest, as GnuCash merges them. An
+    /// empty pattern matches every description, as GnuCash's `strstr` does.
+    fn to_query(&self) -> DomainResult<Query> {
+        let open = |t: Option<Time64>| t.map_or(Query::All(Vec::new()), |t| Query::PostedAt(Compare::GreaterOrEqual, t));
+        let close = |t: Option<Time64>| t.map_or(Query::All(Vec::new()), |t| Query::PostedAt(Compare::LessOrEqual, t));
+        let description = self.description.as_ref().map(DescriptionPattern::to_query).transpose()?;
+        let kind = match (description, self.closing) {
+            (None, false) => Query::All(Vec::new()),
+            (description, closing) => Query::Any(description.into_iter().chain(closing.then_some(Query::Closing(true))).collect()),
+        };
+        Ok(Query::All(vec![
+            Query::Reconcile { states: vec![ReconcileState::Voided], negate: true },
+            Query::Accounts { how: AccountMatch::Any, accounts: self.accounts.clone() },
+            open(self.from),
+            close(self.to),
+            kind,
+        ]))
+    }
+}
+
+impl DescriptionPattern {
+    fn to_query(&self) -> DomainResult<Query> {
+        if self.text.is_empty() {
+            return Ok(Query::All(Vec::new()));
+        }
+        let op = if self.regexp { StringOp::MatchesRegex } else { StringOp::Contains };
+        Ok(Query::Description(StringMatch::new(op, &self.text, self.cased)?))
+    }
+}
+
+/// The splits a report's split query finds, with their transactions, in `xaccSplitOrder` (the query's default sort).
+/// An unknown account, or a regular expression that does not compile, is an error; GnuCash drops the criterion.
+pub fn period_splits<'a>(book: &'a Book, query: &PeriodQuery) -> DomainResult<Vec<(&'a Transaction, &'a Split)>> {
+    if query.accounts.is_empty() {
+        return Ok(Vec::new());
+    }
+    let q = query.to_query()?;
+    q.check(book)?;
+    // No criterion of a period query reads the local day.
+    Ok(matching(book, &q, &TimeZone::utc()))
+}
+
+/// The non-void splits of `accounts` posted up to `until` (inclusive) whose transaction currency is not their account's
+/// commodity and, with `commodity`, one of the two is it: `gnc_get_match_commodity_splits`
+/// (`5.17:bindings/engine.i:167-193`), which the reports' exchange-rate helpers derive prices from. Unsorted, each
+/// account's splits come in split order, account after account; `sorted` puts them all in split order.
+pub fn cross_commodity_splits<'a>(
+    book: &'a Book,
+    accounts: &[Guid],
+    until: Option<Time64>,
+    commodity: Option<&CommodityRef>,
+    sorted: bool,
+) -> Vec<(&'a Transaction, &'a Split)> {
+    let commodity = commodity.map(canonical);
+    let wanted = |t: &Transaction, s: &Split| {
+        let txn = canonical(&t.currency);
+        let acc = s.account.and_then(|a| book.account(a)).and_then(|a| a.commodity.as_ref()).map(canonical);
+        s.reconcile_state != ReconcileState::Voided
+            && acc.as_ref() != Some(&txn)
+            && commodity.as_ref().is_none_or(|c| *c == txn || acc.as_ref() == Some(c))
+    };
+    let mut found: Vec<(&Transaction, &Split)> =
+        accounts.iter().flat_map(|a| account_splits_between(book, *a, None, until, false)).filter(|(t, s)| wanted(t, s)).collect();
+    if sorted {
+        let num_action = crate::book_options::uses_split_action_for_num(book);
+        found.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
+    }
+    found
 }
 
 #[cfg(test)]
@@ -390,5 +502,62 @@ mod tests {
         assert_eq!(find(&f.book, &Query::Not(Box::new(Query::All(vec![]))), None, &TimeZone::utc()).unwrap().len(), 0);
         let none = Query::Accounts { how: AccountMatch::Any, accounts: vec![] };
         assert!(find(&f.book, &none, None, &TimeZone::utc()).is_err());
+    }
+
+    fn posted(f: &mut super::super::tests::Fixture, d: u32, description: &str, cents: i64) -> Guid {
+        use crate::ops::commit::{NewSplit, NewTransaction};
+        let mut new = NewTransaction::new(CommodityRef::currency("USD"), Date::from_ymd(2024, 6, d).unwrap());
+        new.description = Some(description.into());
+        new.splits = vec![NewSplit::new(f.bank, usd(-cents)), NewSplit::new(f.food, usd(cents))];
+        super::super::post(&mut f.book, &mut f.env, new).unwrap()
+    }
+
+    #[test]
+    fn period_queries_match_accounts_dates_and_kinds_without_void_splits() {
+        use std::sync::Arc;
+        let mut f = fixture();
+        let closing_entries = posted(&mut f, 1, "Closing Entries", 100);
+        let lunch = posted(&mut f, 2, "lunch", 200);
+        let dinner = posted(&mut f, 3, "Dinner", 300);
+        Arc::make_mut(f.book.transactions.get_mut(&dinner).unwrap()).slots.set(crate::transaction::slot_paths::BOOK_CLOSING, crate::SlotValue::Integer(1));
+        let voided = posted(&mut f, 2, "voided", 400);
+        Arc::make_mut(f.book.transactions.get_mut(&voided).unwrap()).splits.iter_mut().for_each(|s| s.reconcile_state = ReconcileState::Voided);
+        let day = |d| Date::from_ymd(2024, 6, d).unwrap().neutral_time();
+        let found = |q: &PeriodQuery| period_splits(&f.book, q).unwrap().iter().map(|(t, _)| t.guid).collect::<Vec<_>>();
+        let food = PeriodQuery { accounts: vec![f.food], ..PeriodQuery::default() };
+        assert_eq!(found(&food), [closing_entries, lunch, dinner], "the void split is left out");
+        assert_eq!(found(&PeriodQuery { from: Some(day(2)), to: Some(day(3)), ..food.clone() }), [lunch, dinner], "both ends inclusive, to the second");
+        assert_eq!(found(&PeriodQuery { to: Some(Time64(day(3).0 - 1)), ..food.clone() }), [closing_entries, lunch]);
+        let pattern = |text: &str, cased, regexp| Some(DescriptionPattern { text: text.into(), cased, regexp });
+        assert_eq!(found(&PeriodQuery { description: pattern("closing", false, false), ..food.clone() }), [closing_entries]);
+        assert!(found(&PeriodQuery { description: pattern("closing", true, false), ..food.clone() }).is_empty());
+        assert_eq!(found(&PeriodQuery { description: pattern("closing", true, false), closing: true, ..food.clone() }), [dinner], "OR'ed");
+        assert_eq!(found(&PeriodQuery { description: pattern("^(l|d)", false, true), ..food.clone() }), [lunch, dinner]);
+        assert_eq!(found(&PeriodQuery { description: pattern("", true, false), ..food.clone() }), [closing_entries, lunch, dinner], "empty matches all");
+        assert!(period_splits(&f.book, &PeriodQuery { description: pattern("(", false, true), ..food.clone() }).is_err());
+        assert!(found(&PeriodQuery::default()).is_empty());
+    }
+
+    #[test]
+    fn cross_commodity_splits_differ_from_their_transaction_currency() {
+        use crate::ops::commit::{NewSplit, NewTransaction};
+        let mut f = fixture();
+        let mut new = NewTransaction::new(CommodityRef::currency("USD"), Date::from_ymd(2024, 6, 2).unwrap());
+        new.splits = vec![NewSplit::new(f.bank, usd(-1000)), NewSplit::new(f.eur, usd(1000)).with_amount(Numeric::new(900, 100))];
+        let usd_eur = super::super::post(&mut f.book, &mut f.env, new).unwrap();
+        let mut new = NewTransaction::new(CommodityRef::currency("GBP"), Date::from_ymd(2024, 6, 1).unwrap());
+        new.splits = vec![NewSplit::new(f.gbp, Numeric::new(500, 100)), NewSplit::new(f.bank, Numeric::new(-500, 100)).with_amount(usd(-640))];
+        let gbp_usd = super::super::post(&mut f.book, &mut f.env, new).unwrap();
+        simple(&mut f, 100);
+        let accounts = [f.eur, f.bank, f.food, f.gbp];
+        let found = |until, commodity: Option<&str>, sorted| {
+            let c = commodity.map(CommodityRef::currency);
+            cross_commodity_splits(&f.book, &accounts, until, c.as_ref(), sorted).iter().map(|(t, s)| (t.guid, s.account.unwrap())).collect::<Vec<_>>()
+        };
+        assert_eq!(found(None, None, false), [(usd_eur, f.eur), (gbp_usd, f.bank)], "account after account");
+        assert_eq!(found(None, None, true), [(gbp_usd, f.bank), (usd_eur, f.eur)], "split order");
+        assert_eq!(found(None, Some("EUR"), false), [(usd_eur, f.eur)]);
+        assert_eq!(found(None, Some("GBP"), false), [(gbp_usd, f.bank)], "the transaction currency counts too");
+        assert_eq!(found(Some(Date::from_ymd(2024, 6, 1).unwrap().neutral_time()), None, false), [(gbp_usd, f.bank)]);
     }
 }
