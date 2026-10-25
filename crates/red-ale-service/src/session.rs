@@ -13,6 +13,7 @@ use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files, write_book_file};
 use crate::journal::{Journal, RecordKind, record_lines};
 use crate::lock::BookLock;
+use crate::replay::{ReplayReport, replay};
 
 /// Book features v0.1 can edit safely: their data lives in slots or files red-ale keeps unchanged. Credit notes and
 /// the num-field source are not implemented, so books declaring them open read-only.
@@ -330,6 +331,21 @@ impl Session {
         self.journal.rotate().map_err(|e| ServiceError::Io { path: self.path.clone(), source: e })?;
         let removed = remove_old_files(&self.path, self.settings.retention, self.journal.current_path());
         Ok(SaveReport { backup, removed, compressed })
+    }
+
+    /// Replay a journal onto the book as one atomic Mutation (see [`crate::replay`]). The journal this session is
+    /// writing is refused, as GnuCash refuses it.
+    pub fn replay_journal(&mut self, journal: &Path, skip_invalid: bool) -> Result<ReplayReport, ServiceError> {
+        let journal = resolve_path(&journal.display().to_string())?;
+        if self.journal.current_path().is_some_and(|current| current == journal) {
+            return Err(ServiceError::CurrentJournal { path: journal });
+        }
+        let text = std::fs::read(&journal).map_err(|e| ServiceError::Io { path: journal.clone(), source: e })?;
+        let (records, skipped_lines) =
+            crate::journal::parse(&String::from_utf8_lossy(&text)).map_err(|source| ServiceError::Journal { path: journal.clone(), source })?;
+        let mut report = self.mutate(|book, _| replay(book, &records, skip_invalid))?;
+        report.skipped_lines = skipped_lines;
+        Ok(report)
     }
 
     /// Close the session, releasing the lock. Unsaved changes are discarded unless `save` is set.

@@ -7,6 +7,7 @@ pub mod error;
 pub mod files;
 pub mod journal;
 pub mod lock;
+pub mod replay;
 pub mod session;
 
 pub use error::ServiceError;

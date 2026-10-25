@@ -18,6 +18,12 @@ pub fn methods() -> Vec<Method> {
         method("book.info", "Describe the open book: path, read-only state, features and counts.", Effect::Read, info),
         method("book.save", "Save the open book, backing up the previous file first.", Effect::Write, save),
         method("book.close", "Close the open book and release its lock.", Effect::Write, close),
+        method(
+            "book.replayJournal",
+            "Replay a GnuCash .log journal onto the open book: create, update or delete transactions by GUID.",
+            Effect::Write,
+            replay_journal,
+        ),
     ]
 }
 
@@ -62,6 +68,37 @@ pub struct CloseParams {
     /// Discard unsaved changes. Without `save` or `discard`, closing a book with unsaved changes is refused.
     #[serde(default)]
     pub discard: bool,
+}
+
+/// Params of `book.replayJournal`.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ReplayParams {
+    /// The journal: a `<book>.<timestamp>.log` file.
+    pub path: String,
+    /// Skip records that cannot be applied (for example an unbalanced transaction) instead of refusing the replay.
+    #[serde(default)]
+    pub skip_invalid: bool,
+}
+
+/// What `book.replayJournal` did.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplayResult {
+    /// Records read.
+    pub records: usize,
+    /// Transactions created.
+    pub created: Vec<Id>,
+    /// Transactions updated.
+    pub updated: Vec<Id>,
+    /// Transactions deleted.
+    pub deleted: Vec<Id>,
+    /// Deletions of transactions the book does not have.
+    pub not_found: Vec<Id>,
+    /// Records skipped, with why.
+    pub skipped_records: Vec<String>,
+    /// Lines that could not be read, as `line N: reason`.
+    pub skipped_lines: Vec<String>,
 }
 
 /// Why a book is read-only.
@@ -236,4 +273,18 @@ fn close(ctx: &mut Context, p: CloseParams) -> Result<CloseResult, RpcError> {
     }
     ctx.take_session()?.close(false)?;
     Ok(CloseResult { saved: save, discarded: dirty && !p.save })
+}
+
+fn replay_journal(ctx: &mut Context, p: ReplayParams) -> Result<ReplayResult, RpcError> {
+    let r = ctx.session()?.replay_journal(std::path::Path::new(&p.path), p.skip_invalid)?;
+    let ids = |v: &[red_ale_core::Guid]| v.iter().copied().map(Id).collect();
+    Ok(ReplayResult {
+        records: r.records,
+        created: ids(&r.created),
+        updated: ids(&r.updated),
+        deleted: ids(&r.deleted),
+        not_found: ids(&r.not_found),
+        skipped_records: r.skipped_records,
+        skipped_lines: r.skipped_lines.iter().map(|l| format!("line {}: {}", l.line, l.reason)).collect(),
+    })
 }

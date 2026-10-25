@@ -175,8 +175,12 @@ pub struct JournalLine {
 /// A parsed record.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JournalRecord {
+    /// 1-based line number of its `===== START`.
+    pub start_line: usize,
     /// The record's split lines.
     pub lines: Vec<JournalLine>,
+    /// False when some of its lines could not be read; replaying it would apply part of a transaction.
+    pub complete: bool,
 }
 
 /// A line replay could not use, with why.
@@ -249,12 +253,15 @@ pub fn parse(text: &str) -> Result<(Vec<JournalRecord>, Vec<SkippedLine>), Journ
     let mut current: Option<JournalRecord> = None;
     for (idx, line) in lines {
         match line {
-            "===== START" => current = Some(JournalRecord { lines: Vec::new() }),
+            "===== START" => current = Some(JournalRecord { start_line: idx + 1, lines: Vec::new(), complete: true }),
             "===== END" => records.extend(current.take()),
             _ if line.starts_with(HEADER) || line.starts_with("-----") => {}
             _ => match (&mut current, parse_line(line)) {
                 (Some(rec), Ok(parsed)) => rec.lines.push(parsed),
-                (Some(_), Err(reason)) => skipped.push(SkippedLine { line: idx + 1, reason }),
+                (Some(rec), Err(reason)) => {
+                    rec.complete = false;
+                    skipped.push(SkippedLine { line: idx + 1, reason });
+                }
                 (None, _) => skipped.push(SkippedLine { line: idx + 1, reason: "outside a record".into() }),
             },
         }
