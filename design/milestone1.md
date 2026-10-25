@@ -6,7 +6,7 @@ on XML books written by GnuCash 5.17.
 This file tracks progress towards v0.1. Feature names and versions come from [`features.md`](features.md); when a
 feature here is done, set its Ported column there to `0.1`.
 
-**Progress: 0 of 60 features, 0 of 2 interfaces.**
+**Progress: 42 of 60 features, 0 of 2 interfaces (both reach every done feature; they are marked done when every feature is).**
 
 | Status  | Meaning                                                                           |
 |:-------:|-----------------------------------------------------------------------------------|
@@ -57,23 +57,23 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 
 | Status | Feature                          | Introduced | Epic | Notes                                         |
 |:------:|----------------------------------|:----------:|------|-----------------------------------------------|
-|        | Account hierarchy                |   ≤ 1.4    |      |                                               |
-|        | Standard account types           |   ≤ 1.4    |      |                                               |
-|        | A/Receivable and A/Payable types |    1.8     |      |                                               |
-|        | Placeholder accounts             |   1.6.7    |      |                                               |
-|        | Hidden accounts                  |    2.0     |      |                                               |
-|        | Account codes                    |   ≤ 1.4    |      |                                               |
-|        | Account description and notes    |   ≤ 1.4    |      |                                               |
-|        | Tax-related flag                 |    1.6     |      |                                               |
-|        | US tax (TXF) codes               |    1.6     |      | Codes stored and edited; the TXF report is §8 |
-|        | Renumber sub-accounts            |    2.0     |      |                                               |
-|        | Delete with move                 |    1.8     |      |                                               |
+|   ✅   | Account hierarchy                |   ≤ 1.4    |      |                                               |
+|   ✅   | Standard account types           |   ≤ 1.4    |      |                                               |
+|   ✅   | A/Receivable and A/Payable types |    1.8     |      |                                               |
+|   ✅   | Placeholder accounts             |   1.6.7    |      |                                               |
+|   ✅   | Hidden accounts                  |    2.0     |      |                                               |
+|   ✅   | Account codes                    |   ≤ 1.4    |      |                                               |
+|   ✅   | Account description and notes    |   ≤ 1.4    |      |                                               |
+|   ✅   | Tax-related flag                 |    1.6     |      |                                               |
+|   ✅   | US tax (TXF) codes               |    1.6     |      | Codes stored and edited; the TXF report is §8 |
+|   ✅   | Renumber sub-accounts            |    2.0     |      |                                               |
+|   ✅   | Delete with move                 |    1.8     |      |                                               |
 
 ### Book settings
 
 | Status | Feature           | Introduced | Epic | Notes |
 |:------:|-------------------|:----------:|------|-------|
-|        | Accounting period |    2.0     |      |       |
+|   ✅   | Accounting period |    2.0     |      |       |
 
 ## 2. Transactions
 
@@ -81,30 +81,30 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 
 | Status | Feature                     | Introduced | Epic | Notes                                              |
 |:------:|-----------------------------|:----------:|------|----------------------------------------------------|
-|        | Double-entry transactions   |   ≤ 1.4    |      |                                                    |
-|        | Multi-currency transactions |    1.6     |      |                                                    |
-|        | Exchange rates on transfer  |    1.8     |      |                                                    |
-|        | Transaction notes           |    1.6     |      |                                                    |
-|        | Date entered                |   ≤ 1.4    |      |                                                    |
-|        | Split action and memo       |   ≤ 1.4    |      |                                                    |
-|        | Void and unvoid             |    1.8     |      | Void status follows the void timestamp, as in 5.17 |
-|        | Reverse transaction         |    2.0     |      |                                                    |
-|        | Find transactions           |   ≤ 1.4    |      |                                                    |
+|   ✅   | Double-entry transactions   |   ≤ 1.4    |      |                                                    |
+|   ✅   | Multi-currency transactions |    1.6     |      |                                                    |
+|   ✅   | Exchange rates on transfer  |    1.8     |      |                                                    |
+|   ✅   | Transaction notes           |    1.6     |      |                                                    |
+|   ✅   | Date entered                |   ≤ 1.4    |      |                                                    |
+|   ✅   | Split action and memo       |   ≤ 1.4    |      |                                                    |
+|   ✅   | Void and unvoid             |    1.8     |      | Void status follows the void timestamp, as in 5.17 |
+|   ✅   | Reverse transaction         |    2.0     |      |                                                    |
+|   ✅   | Find transactions           |   ≤ 1.4    |      |                                                    |
 
 ### Reconciliation
 
 | Status | Feature                       | Introduced | Epic | Notes |
 |:------:|-------------------------------|:----------:|------|-------|
-|        | Reconcile states              |   ≤ 1.4    |      |       |
-|        | Reconcile against a statement |   ≤ 1.4    |      |       |
-|        | Last reconcile date           |    1.6     |      |       |
+|   ✅   | Reconcile states              |   ≤ 1.4    |      |       |
+|   ✅   | Reconcile against a statement |   ≤ 1.4    |      |       |
+|   ✅   | Last reconcile date           |    1.6     |      |       |
 
 ### Data integrity
 
 | Status | Feature         | Introduced | Epic | Notes                                               |
 |:------:|-----------------|:----------:|------|-----------------------------------------------------|
-|        | Imbalance scrub |    1.6     |      | Match 5.17: zero-value imbalance splits are removed |
-|        | Orphan scrub    |    1.6     |      |                                                     |
+|   ✅   | Imbalance scrub |    1.6     |      | Match 5.17: zero-value imbalance splits are removed |
+|   ✅   | Orphan scrub    |    1.6     |      |                                                     |
 |        | Check & Repair  |   1.6.3    |      |                                                     |
 
 ## 3. Commodities, prices and investments
@@ -113,19 +113,19 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 
 | Status | Feature                | Introduced | Epic | Notes                                                                   |
 |:------:|------------------------|:----------:|------|-------------------------------------------------------------------------|
-|        | Commodity table        |    1.6     |      |                                                                         |
-|        | ISO 4217 currencies    |    1.6     |      | Use the 5.17 table, including the KRW fraction fix and BGN's retirement |
-|        | Security editor        |    1.6     |      |                                                                         |
-|        | Euro legacy currencies |   ≤ 1.4    |      |                                                                         |
+|   ✅   | Commodity table        |    1.6     |      |                                                                         |
+|   ✅   | ISO 4217 currencies    |    1.6     |      | Use the 5.17 table, including the KRW fraction fix and BGN's retirement |
+|   ✅   | Security editor        |    1.6     |      |                                                                         |
+|   ✅   | Euro legacy currencies |   ≤ 1.4    |      |                                                                         |
 
 ### Prices
 
 | Status | Feature                    | Introduced | Epic | Notes                                                                  |
 |:------:|----------------------------|:----------:|------|------------------------------------------------------------------------|
-|        | Price database             |    1.6     |      |                                                                        |
-|        | Price editor               |    1.6     |      |                                                                        |
-|        | Remove old prices          |    2.0     |      |                                                                        |
-|        | Quote source and time zone |    1.6     |      | Stored and edited only; fetching quotes is later. Keep unknown sources |
+|   ✅   | Price database             |    1.6     |      |                                                                        |
+|   ✅   | Price editor               |    1.6     |      |                                                                        |
+|   ✅   | Remove old prices          |    2.0     |      |                                                                        |
+|   ✅   | Quote source and time zone |    1.6     |      | Stored and edited only; fetching quotes is later. Keep unknown sources |
 
 ### Investments
 
@@ -172,17 +172,17 @@ Out of scope never means lost. A v0.1 book must still open in GnuCash 5.17 uncha
 
 | Status | Feature         | Introduced | Epic | Notes                       |
 |:------:|-----------------|:----------:|------|-----------------------------|
-|        | XML file format |    1.6     |      | Read and write as 5.17 does |
-|        | Compressed XML  |    1.8     |      |                             |
+|   ✅   | XML file format |    1.6     |      | Read and write as 5.17 does |
+|   ✅   | Compressed XML  |    1.8     |      |                             |
 
 ### Safety
 
 | Status | Feature               | Introduced | Epic | Notes                                            |
 |:------:|-----------------------|:----------:|------|--------------------------------------------------|
-|        | Book locking          |   ≤ 1.4    |      | `.LCK` file; always released, including on error |
-|        | Transaction journal   |   ≤ 1.4    |      |                                                  |
-|        | Replay journal        |   1.8.5    |      |                                                  |
-|        | Backups and retention |    1.8     |      |                                                  |
+|   ✅   | Book locking          |   ≤ 1.4    |      | `.LCK` file; always released, including on error |
+|   ✅   | Transaction journal   |   ≤ 1.4    |      |                                                  |
+|   ✅   | Replay journal        |   1.8.5    |      |                                                  |
+|   ✅   | Backups and retention |    1.8     |      |                                                  |
 
 ### Added for compatibility
 
@@ -190,8 +190,8 @@ These come from after 2.0, but v0.1 can't open 5.17 books safely without them.
 
 | Status | Feature        | Introduced | Epic | Notes                                                            |
 |:------:|----------------|:----------:|------|------------------------------------------------------------------|
-|        | Book features  |    2.6     |      | Read the `features` slot; trigger read-only for unknown features |
-|        | Open read-only |    2.6     |      | Used for every read-only trigger above                           |
+|   ✅   | Book features  |    2.6     |      | Read the `features` slot; trigger read-only for unknown features |
+|   ✅   | Open read-only |    2.6     |      | Used for every read-only trigger above                           |
 
 ## Interfaces
 
