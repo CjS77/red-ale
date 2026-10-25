@@ -1,8 +1,9 @@
 # API: accounts and the accounting period
 
 The account tree, account settings, renumbering, delete with move, balances, and the accounting period. Domain code:
-`crates/red-ale-core/src/ops/accounts.rs` and `ops/period.rs`; configuration: `crates/red-ale-service/src/config.rs`;
-methods: `crates/red-ale-rpc/src/methods/accounts.rs` and `methods/period.rs`. Research:
+`crates/red-ale-core/src/ops/accounts.rs`, `ops/balances.rs` and `ops/period.rs`; configuration:
+`crates/red-ale-service/src/config.rs`; methods: `crates/red-ale-rpc/src/methods/accounts.rs` and `methods/period.rs`.
+Research:
 [`notes/engine-accounts-transactions.md`](../notes/engine-accounts-transactions.md) §2–§4.
 
 GnuCash's engine accepts almost any account edit; its rules live in the account dialog
@@ -158,7 +159,9 @@ Balances are amounts in the account's commodity (`balances` is null for an accou
   amount at the account's SCU as GnuCash holds it once loaded; `cleared` counts every state but `n`, `reconciled` counts
   `y` and `f`; a stock-split split is skipped while the balance is zero or when it would make it zero.
 - `asOf`: the running balances at the last split posted before the end of that day, 23:59:59 local time
-  (`GetBalanceAsOfDate`, `:3506`, given `gnc_time64_get_day_end_gdate`; v0.1 used 23:59:59 UTC).
+  (`GetBalanceAsOfDate`, `:3506`, given `gnc_time64_get_day_end_gdate`; v0.1 used 23:59:59 UTC). A stock split
+  GnuCash skips never has its running balances set, so when it is that last split the balances read as zero, as
+  GnuCash 5.17 reads them (oracle-checked in `oracle_report_reads.rs`; v0.1 took the running totals instead).
 - `includeSubaccounts` (`xaccAccountGetXxxBalanceInCurrencyRecursive`, `:3669-3740`): each sub-account's balance is
   added rounded half up to the commodity's fraction. GnuCash converts sub-accounts in other commodities at the latest
   price; **red-ale v0.1 does not**: it adds nothing for them (GnuCash's figure when no price exists) and lists their
