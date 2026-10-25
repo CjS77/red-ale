@@ -69,9 +69,9 @@ v0.1 used UTC in three places where GnuCash uses local time. Business documents 
 
 | Status | Change                                                     | Where v0.1 differs                                              |
 |:------:|------------------------------------------------------------|-----------------------------------------------------------------|
-|        | Same-day prices decided in local time                      | [`api/prices.md`](api/prices.md), "Same day, source precedence" |
-|        | "Today" and the find dialog's day boundaries in local time | [`api/transactions.md`](api/transactions.md), "Times"           |
-|        | Accounting period turned into local 00:00:00 and 23:59:59  | [`api/accounts.md`](api/accounts.md), accounting period         |
+|   ✅   | Same-day prices decided in local time                      | [`api/prices.md`](api/prices.md), "Same day, source precedence" |
+|   ✅   | "Today" and the find dialog's day boundaries in local time | [`api/transactions.md`](api/transactions.md), "Times"           |
+|   ✅   | Accounting period turned into local 00:00:00 and 23:59:59  | [`api/accounts.md`](api/accounts.md), accounting period         |
 
 ## Report scripting
 
