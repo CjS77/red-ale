@@ -10,7 +10,8 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::ops::accounts::{AccountEdit, balances, has_splits};
+use crate::ops::accounts::{AccountEdit, has_splits};
+use crate::ops::balances::balances;
 use crate::ops::business::contacts::set_feature_used;
 use crate::{Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Guid, Numeric, Time64};
 

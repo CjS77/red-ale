@@ -5,7 +5,8 @@
 
 use std::sync::Arc;
 
-use crate::ops::accounts::{AccountEdit, balances, create_account};
+use crate::ops::accounts::{AccountEdit, create_account};
+use crate::ops::balances::balances;
 use crate::ops::commit::{NewSplit, NewTransaction, add_transaction};
 use crate::ops::lots::lookup_by_name;
 use crate::transaction::slot_paths;
