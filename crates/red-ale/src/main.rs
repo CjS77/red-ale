@@ -17,6 +17,7 @@ use jsonrpsee::core::params::ObjectParams;
 use jsonrpsee::http_client::HttpClientBuilder;
 use red_ale_rpc::{Dispatcher, RpcError};
 use red_ale_service::Settings;
+use red_ale_service::config::ConfigStore;
 use red_ale_service::files::Retention;
 use serde_json::{Value, json};
 
@@ -50,6 +51,10 @@ struct SettingsArgs {
     /// Never delete backups or old journals.
     #[arg(long)]
     keep_backups_forever: bool,
+    /// red-ale's configuration file (JSON), holding settings such as the accounting period. Without it they last
+    /// only as long as the process.
+    #[arg(long)]
+    config: Option<PathBuf>,
 }
 
 impl SettingsArgs {
@@ -59,7 +64,8 @@ impl SettingsArgs {
             (false, 0) => Retention::Never,
             (false, days) => Retention::Days(days),
         };
-        Settings { retention, ..Settings::default() }
+        let config = self.config.as_ref().map_or_else(ConfigStore::in_memory, ConfigStore::at);
+        Settings { retention, config, ..Settings::default() }
     }
 }
 
