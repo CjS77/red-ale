@@ -259,7 +259,8 @@ impl LineFields {
     /// Refuse fields that do not exist on this kind of document, as GnuCash's entry ledger shows no column for them
     /// (`5.17:gnucash/register/ledger-core/gncEntryLedgerLayout.c:218-282`).
     fn check_side(&self, doc: DocumentType) -> Result<(), RpcError> {
-        let refuse = |present: bool, what: &str| if present { Err(RpcError::invalid(format!("{what} not on this document type"))) } else { Ok(()) };
+        let refuse =
+            |present: bool, what: &str| if present { Err(RpcError::invalid(format!("{what} not on this document type"))) } else { Ok(()) };
         match doc {
             DocumentType::Invoice => {
                 refuse(self.billable.is_some() || self.bill_to.is_some(), "billable and billTo are")?;

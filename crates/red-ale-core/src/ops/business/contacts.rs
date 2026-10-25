@@ -390,7 +390,8 @@ fn check_employee(book: &Book, e: &Employee, old: Option<&Employee>) -> DomainRe
         Some(acc) if old.and_then(|o| o.ccard) != Some(acc) => {
             let a = book.account(acc).ok_or_else(|| DomainError::not_found("account", &acc))?;
             if a.account_type != AccountType::Credit {
-                return Err(DomainError::invalid(format!("the credit card account must be of type CREDIT, not {}", a.account_type.as_str())));
+                let kind = a.account_type.as_str();
+                return Err(DomainError::invalid(format!("the credit card account must be of type CREDIT, not {kind}")));
             }
             Ok(())
         }

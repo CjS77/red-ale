@@ -4,7 +4,8 @@ use std::borrow::Cow;
 
 use red_ale_core::business::{AmountType, BillTerm, BillTermKind, TaxTable, TaxTableEntry};
 use red_ale_core::ops::business::terms::{
-    add_bill_term, add_tax_table, bill_term_by_name, delete_bill_term, delete_tax_table, tax_table_by_name, update_bill_term, update_tax_table,
+    add_bill_term, add_tax_table, bill_term_by_name, delete_bill_term, delete_tax_table, tax_table_by_name, update_bill_term,
+    update_tax_table,
 };
 use red_ale_core::{Book, Guid, Numeric};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -215,7 +216,10 @@ pub struct TaxTableList {
 }
 
 fn tax_lines(book: &Book, lines: Vec<TaxLineParams>) -> Result<Vec<TaxTableEntry>, RpcError> {
-    lines.into_iter().map(|l| Ok(TaxTableEntry { account: Some(l.account.resolve(book)?), amount: l.amount.0, kind: l.kind.into() })).collect()
+    lines
+        .into_iter()
+        .map(|l| Ok(TaxTableEntry { account: Some(l.account.resolve(book)?), amount: l.amount.0, kind: l.kind.into() }))
+        .collect()
 }
 
 fn get_tax_table(book: &Book, guid: Guid) -> Result<TaxTableInfo, RpcError> {
@@ -444,7 +448,8 @@ fn bill_term_update(ctx: &mut Context, p: BillTermUpdate) -> Result<BillTermInfo
         let guid = p.bill_term.resolve(book)?;
         let current = book.business.bill_terms.get(&guid).ok_or_else(|| RpcError::not_found("billing term", guid))?;
         let (kind, due, disc, discount, cutoff) = kind_parts(current.kind);
-        let changes_kind = p.kind.is_some() || p.due_days.is_some() || p.discount_days.is_some() || p.discount.is_some() || p.cutoff.is_some();
+        let changes_kind =
+            p.kind.is_some() || p.due_days.is_some() || p.discount_days.is_some() || p.discount.is_some() || p.cutoff.is_some();
         let new_kind = if changes_kind {
             let kind = p.kind.or(kind).ok_or_else(|| RpcError::invalid("the billing term needs a type"))?;
             let discount = p.discount.map_or(discount, |d| d.0);

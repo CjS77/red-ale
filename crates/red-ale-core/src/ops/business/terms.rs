@@ -49,8 +49,10 @@ pub fn retarget_bill_term(book: &mut Book, old: Option<Guid>, new: Option<Guid>)
 /// counts (`5.17:libgnucash/backend/xml/gnc-tax-table-xml-v2.cpp:530-633`).
 pub fn tax_table_references(book: &Book, table: Guid) -> usize {
     let b = &book.business;
-    let owners = b.customers.values().filter(|c| c.tax_table == Some(table)).count() + b.vendors.values().filter(|v| v.tax_table == Some(table)).count();
-    let entries = b.entries.values().map(|e| usize::from(e.i_tax_table == Some(table)) + usize::from(e.b_tax_table == Some(table))).sum::<usize>();
+    let owners = b.customers.values().filter(|c| c.tax_table == Some(table)).count()
+        + b.vendors.values().filter(|v| v.tax_table == Some(table)).count();
+    let entries =
+        b.entries.values().map(|e| usize::from(e.i_tax_table == Some(table)) + usize::from(e.b_tax_table == Some(table))).sum::<usize>();
     owners + entries
 }
 
@@ -150,7 +152,8 @@ pub fn add_tax_table(book: &mut Book, env: &mut dyn Env, name: &str, mut entries
     let guid = env.new_guid();
     check_tax_table(book, guid, name, &entries)?;
     sort_tax_lines(book, &mut entries);
-    let table = TaxTable { guid, name: name.to_owned(), refcount: 0, invisible: false, child: None, parent: None, entries, slots: Frame::new() };
+    let table =
+        TaxTable { guid, name: name.to_owned(), refcount: 0, invisible: false, child: None, parent: None, entries, slots: Frame::new() };
     book.business.tax_tables.insert(guid, Arc::new(table));
     Ok(guid)
 }
@@ -262,7 +265,13 @@ pub fn add_bill_term(book: &mut Book, env: &mut dyn Env, name: &str, description
 
 /// Change a visible billing term. Any change drops the cached frozen copy, as the dialog does with
 /// `gncBillTermChanged` (`5.17:gnucash/gnome/dialog-billterms.c:359-360`).
-pub fn update_bill_term(book: &mut Book, guid: Guid, name: Option<&str>, description: Option<&str>, kind: Option<BillTermKind>) -> DomainResult<()> {
+pub fn update_bill_term(
+    book: &mut Book,
+    guid: Guid,
+    name: Option<&str>,
+    description: Option<&str>,
+    kind: Option<BillTermKind>,
+) -> DomainResult<()> {
     let old = visible_bill_term(book, guid)?;
     let mut t = old.clone();
     if let Some(n) = name {
@@ -319,7 +328,8 @@ mod tests {
     #[test]
     fn tax_lines_are_sorted_by_account_name_and_checked() {
         let (mut book, mut env, tax, levy) = setup();
-        let g = add_tax_table(&mut book, &mut env, "GST", vec![line(tax, 10, AmountType::Percent), line(levy, 2, AmountType::Value)]).unwrap();
+        let lines = vec![line(tax, 10, AmountType::Percent), line(levy, 2, AmountType::Value)];
+        let g = add_tax_table(&mut book, &mut env, "GST", lines).unwrap();
         let t = &book.business.tax_tables[&g];
         assert_eq!(t.entries.iter().map(|e| e.account).collect::<Vec<_>>(), [Some(levy), Some(tax)]);
         assert!(add_tax_table(&mut book, &mut env, "GST", vec![line(tax, 1, AmountType::Percent)]).is_err(), "duplicate name");

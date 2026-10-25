@@ -36,7 +36,12 @@ pub fn methods() -> Vec<Method> {
         method("employee.get", "An employee.", Effect::Read, employee_get),
         method("employee.list", "Employees, optionally filtered by name, ID or active state.", Effect::Read, employee_list),
         method("employee.update", "Change an employee; `active: false` deactivates it.", Effect::Write, employee_update),
-        method("job.create", "Create a job for a customer or vendor; its ID comes from the book's counter unless given.", Effect::Write, job_create),
+        method(
+            "job.create",
+            "Create a job for a customer or vendor; its ID comes from the book's counter unless given.",
+            Effect::Write,
+            job_create,
+        ),
         method("job.get", "A job.", Effect::Read, job_get),
         method("job.list", "Jobs, optionally filtered by owner, name, ID or active state.", Effect::Read, job_list),
         method("job.update", "Change a job; `active: false` deactivates it.", Effect::Write, job_update),
@@ -49,7 +54,12 @@ pub fn methods() -> Vec<Method> {
 /// Declares a create params struct and an update params struct with the same optional fields; the update struct
 /// also names the entity it changes. `split` turns an update into the entity's key and the shared fields.
 macro_rules! params_pair {
-    ($(#[$cm:meta])* $create:ident, $(#[$um:meta])* $update:ident, $(#[$km:meta])* $key:ident: $kt:ty, { $($(#[$m:meta])* $f:ident: $t:ty,)* }) => {
+    (
+        $(#[$cm:meta])* $create:ident,
+        $(#[$um:meta])* $update:ident,
+        $(#[$km:meta])* $key:ident: $kt:ty,
+        { $($(#[$m:meta])* $f:ident: $t:ty,)* }
+    ) => {
         $(#[$cm])*
         #[derive(Debug, Default, serde::Deserialize, schemars::JsonSchema)]
         #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -790,7 +800,8 @@ fn employee_get(ctx: &mut Context, p: EmployeeKey) -> Result<EmployeeInfo, RpcEr
 
 fn employee_list(ctx: &mut Context, p: ListParams) -> Result<EmployeeList, RpcError> {
     let book = ctx.book()?;
-    let employees = book.business.employees.values().filter(|e| p.matches(&e.addr.name, &e.id, e.active)).map(|e| e.as_ref().into()).collect();
+    let employees =
+        book.business.employees.values().filter(|e| p.matches(&e.addr.name, &e.id, e.active)).map(|e| e.as_ref().into()).collect();
     Ok(EmployeeList { employees })
 }
 
@@ -916,7 +927,15 @@ fn job_create(ctx: &mut Context, p: JobFields) -> Result<JobInfo, RpcError> {
     ctx.mutate_rpc(|book, env| {
         // gncJobCreate (5.17:libgnucash/engine/gncJob.c:212-232): empty strings, active.
         let owner = resolve_owner(book, owner)?;
-        let mut j = Job { guid: env.new_guid(), id: String::new(), name: String::new(), reference: String::new(), owner, active: true, slots: Frame::new() };
+        let mut j = Job {
+            guid: env.new_guid(),
+            id: String::new(),
+            name: String::new(),
+            reference: String::new(),
+            owner,
+            active: true,
+            slots: Frame::new(),
+        };
         p.apply(book, &mut j)?;
         let guid = add_job(book, j)?;
         get_job(book, guid)

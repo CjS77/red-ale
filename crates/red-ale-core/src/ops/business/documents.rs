@@ -111,7 +111,8 @@ fn check_invoice(book: &Book, inv: &Invoice, old: Option<&Invoice>) -> DomainRes
     if !owner_exists(book, inv.owner) {
         return Err(DomainError::not_found("owner", &inv.owner.guid));
     }
-    let doc = document_type(book, inv.owner).ok_or_else(|| DomainError::invalid("a document's owner must be a customer, vendor, employee or job"))?;
+    let doc = document_type(book, inv.owner)
+        .ok_or_else(|| DomainError::invalid("a document's owner must be a customer, vendor, employee or job"))?;
     if inv.is_credit_note() {
         return Err(DomainError::invalid("credit notes are not supported in red-ale v0.1"));
     }
@@ -205,7 +206,8 @@ pub fn delete_invoice(book: &mut Book, guid: Guid) -> DomainResult<()> {
     if book.lots.values().any(|l| l.slots.get("gncInvoice/invoice-guid").and_then(SlotValue::as_guid) == Some(guid)) {
         return Err(DomainError::conflict("a lot still refers to this document"));
     }
-    let lines: Vec<Guid> = book.business.entries.values().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(|e| e.guid).collect();
+    let lines: Vec<Guid> =
+        book.business.entries.values().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(|e| e.guid).collect();
     lines.into_iter().for_each(|g| detach_line(book, g, guid));
     retarget_bill_term(book, inv.terms, None);
     book.business.invoices.remove(&guid);
@@ -247,7 +249,12 @@ pub fn line_order(a: &Entry, b: &Entry) -> std::cmp::Ordering {
 /// The lines of a document or order, in GnuCash's order.
 pub fn lines_of(book: &Book, doc: Guid) -> Vec<&Entry> {
     let mut lines: Vec<&Entry> =
-        book.business.entries.values().map(AsRef::as_ref).filter(|e| e.invoice == Some(doc) || e.bill == Some(doc) || e.order == Some(doc)).collect();
+        book.business
+            .entries
+            .values()
+            .map(AsRef::as_ref)
+            .filter(|e| e.invoice == Some(doc) || e.bill == Some(doc) || e.order == Some(doc))
+            .collect();
     lines.sort_by(|a, b| line_order(a, b));
     lines
 }
@@ -295,7 +302,8 @@ fn check_line_links(book: &Book, e: &Entry) -> DomainResult<()> {
 fn check_line_account(book: &Book, account: Option<Guid>, old: Option<Guid>, customer: bool) -> DomainResult<()> {
     let Some(g) = account.filter(|_| account != old) else { return Ok(()) };
     let a = book.account(g).filter(|_| g != book.root).ok_or_else(|| DomainError::not_found("account", &g))?;
-    let excluded = [AccountType::Payable, AccountType::Receivable, AccountType::Cash, AccountType::Bank, AccountType::Equity, AccountType::Trading];
+    let excluded =
+        [AccountType::Payable, AccountType::Receivable, AccountType::Cash, AccountType::Bank, AccountType::Equity, AccountType::Trading];
     let wrong_side = if customer { AccountType::Expense } else { AccountType::Income };
     if excluded.contains(&a.account_type) || a.account_type == wrong_side {
         return Err(DomainError::invalid(format!("a line cannot use a {} account", a.account_type.as_str())));
@@ -372,7 +380,8 @@ pub fn default_entry(book: &Book, guid: Guid, date: Time64, entered: Time64, own
     if doc == DocumentType::ExpenseVoucher {
         return e;
     }
-    let price = (owner.kind == OwnerKind::Job).then(|| book.business.jobs.get(&owner.guid).map(|j| job_rate(j))).flatten().unwrap_or_default();
+    let price =
+        (owner.kind == OwnerKind::Job).then(|| book.business.jobs.get(&owner.guid).map(|j| job_rate(j))).flatten().unwrap_or_default();
     let b = &book.business;
     let end = end_owner(book, owner).map(|o| o.guid).unwrap_or_default();
     let (included, override_table, discount, option) = match doc {
