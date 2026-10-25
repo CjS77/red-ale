@@ -1,10 +1,9 @@
 //! The stock split assistant: a share-only split in a security account, with an optional price and cash in lieu
 //! (`gnc_stock_split_assistant_finish`, `5.17:gnucash/gnome/assistant-stock-split.c:339-473`).
 
-use std::sync::Arc;
-
 use super::edit_txn;
 use crate::lot::split_slots;
+use crate::ops::prices;
 use crate::ops::commit::{NewSplit, NewTransaction, add_transaction, currency_fraction, round_amount};
 use crate::{AccountType, Book, CommodityRef, Date, DomainError, DomainResult, Env, Guid, Numeric, Price, SlotValue, Time64};
 
@@ -111,7 +110,7 @@ pub fn stock_split(book: &mut Book, env: &mut dyn Env, req: &StockSplit) -> Doma
     let price = match req.price.filter(|p| p.is_positive()) {
         Some(value) => {
             let price_currency = req.price_currency.clone().unwrap_or_else(|| latest_price_currency(book, &commodity).unwrap_or(currency));
-            add_price(book, env, &commodity, price_currency, req.date.neutral_time(), value)
+            add_price(book, env, &commodity, price_currency, req.date.neutral_time(), value)?
         }
         None => PriceOutcome::None,
     };
@@ -173,52 +172,15 @@ fn latest_price_currency(book: &Book, commodity: &CommodityRef) -> Option<Commod
     latest.map(|p| if &p.currency == commodity { p.commodity.clone() } else { p.currency.clone() })
 }
 
-// LOCAL COPY (lots package): GnuCash's same-day price rules from `add_price`
-// (5.17:libgnucash/engine/gnc-pricedb.cpp:1013-1110), kept minimal for the stock split's price. The prices package
-// owns these rules; replace this with `ops::prices` when merging.
-const PRICE_SOURCES: [&str; 11] = [
-    "user:price-editor",
-    "Finance::Quote",
-    "user:price",
-    "user:xfer-dialog",
-    "user:split-register",
-    "user:split-import",
-    "user:stock-split",
-    "user:stock-transaction",
-    "user:invoice-post",
-    "temporary",
-    "invalid",
-];
-
-/// Precedence of a source: its place in GnuCash's `PriceSource` enum; unknown strings read as `invalid`.
-fn source_rank(source: Option<&str>) -> usize {
-    source.and_then(|s| PRICE_SOURCES.iter().position(|k| *k == s)).unwrap_or(PRICE_SOURCES.len() - 1)
-}
-
-/// Add a price, applying the same-day rules: the nearest same-day price of the pair in either direction is replaced
-/// unless its source has higher precedence, and an equal same-day price makes the new one a silent duplicate. GnuCash
-/// takes "same day" in the local time zone; red-ale uses UTC.
-fn add_price(book: &mut Book, env: &mut dyn Env, commodity: &CommodityRef, currency: CommodityRef, time: Time64, value: Numeric) -> PriceOutcome {
-    let same_day = |t: Time64| t.utc_date() == time.utc_date();
-    let pair = |p: &Price| {
-        (&p.commodity == commodity && p.currency == currency) || (p.commodity == currency && &p.currency == commodity)
-    };
-    let old = book
-        .prices
-        .values()
-        .filter(|p| pair(p) && same_day(p.time))
-        .min_by_key(|p| ((p.time.0 - time.0).abs(), p.time.0))
-        .map(|p| (p.guid, source_rank(p.source.as_deref())));
-    if let Some((existing, rank)) = old {
-        if source_rank(Some(PRICE_SOURCE_STOCK_SPLIT)) > rank {
-            return PriceOutcome::Rejected { existing };
-        }
-        book.prices.shift_remove(&existing);
-    }
-    let duplicate = book.prices.values().any(|p| &p.commodity == commodity && p.currency == currency && same_day(p.time) && p.value == value);
-    if duplicate {
-        return PriceOutcome::Duplicate;
-    }
+/// Add the assistant's price under the price database's same-day rules (`ops::prices::add_price`).
+fn add_price(
+    book: &mut Book,
+    env: &mut dyn Env,
+    commodity: &CommodityRef,
+    currency: CommodityRef,
+    time: Time64,
+    value: Numeric,
+) -> DomainResult<PriceOutcome> {
     let price = Price {
         guid: env.new_guid(),
         commodity: commodity.clone(),
@@ -228,7 +190,10 @@ fn add_price(book: &mut Book, env: &mut dyn Env, commodity: &CommodityRef, curre
         price_type: Some(PRICE_TYPE_UNKNOWN.to_owned()),
         value,
     };
-    let guid = price.guid;
-    book.prices.insert(guid, Arc::new(price));
-    PriceOutcome::Added(guid)
+    let result = prices::add_price(book, price)?;
+    Ok(match (result.added, result.rejected_by) {
+        (Some(guid), _) => PriceOutcome::Added(guid),
+        (None, Some(existing)) => PriceOutcome::Rejected { existing },
+        (None, None) => PriceOutcome::Duplicate,
+    })
 }

@@ -111,7 +111,11 @@ Code names are given in `code font` when they differ from the term.
 | **Lot** | A group of Splits in one Account that buy and then sell the same holding. *Closed* when its amount sums to zero. |
 | **Capital gain** | The realised gain or loss of a Lot, recorded as a gains Split in a separate gains Transaction. |
 | **Lot policy** | The rule picking which Lot a selling Split draws from. GnuCash 5.17 uses FIFO. |
-| **Stock split** | A change in the number of shares held with no change in value, recorded as a Split with zero value and action `Split`. |
+| **Stock split** | A change in the number of shares held with no change in value, recorded as a *stock-split Split*: value `0/1`, action `Split` and slot `split-type = stock-split`. Such Splits never join Lots and never produce gains. |
+| **Adjusted amount** | A Split's Amount restated in the units after any later Stock split in its Account. Lot balances, closure, FIFO and gains use it. New in GnuCash 5.17; never stored in the file. |
+| **Gains transaction** | The Transaction recording a Capital gain, described `Realized Gain/Loss`: a *gains Split* in the Lot (Amount zero, Value the gain, slot `gains-source` naming the selling Split) and a Split in the Gains account. The selling Split names the gains Split in its slot `gains-split`. |
+| **Gains account** | Where a Lot Account's gains go: the Account named by its `lot-mgmt/gains-acct/<currency>` slot, or else an INCOME Account `Orphaned Gains-<CUR>` under the Root account, found by name or created. |
+| **Cut split** | A Split cut in two because it would overfill a Lot. Each piece names the other in its `lot-split` Frame (its *peer*). |
 
 ## Business
 

@@ -121,9 +121,15 @@ fn walk(path: &str, expected: &Value, actual: &Value, ignore: &[&str], out: &mut
 pub const TEST_NOW: red_ale_core::Time64 = red_ale_core::Time64(1_719_835_200);
 
 /// A dispatcher whose sessions use a fixed clock ([`TEST_NOW`]) and sequential GUIDs, so results are reproducible.
+/// Each session counts from its own seed, so a book reopened in the same test never gets a GUID it already holds.
 pub fn dispatcher() -> red_ale_rpc::Dispatcher {
     let mut d = red_ale_rpc::Dispatcher::new(red_ale_service::Settings::default());
-    d.set_env_factory(Box::new(|| Box::new(red_ale_core::FixedEnv::new(TEST_NOW, 0x00ed_0000_0000_0000_0000_0000_0000_0000))));
+    let sessions = std::sync::atomic::AtomicU32::new(0);
+    d.set_env_factory(Box::new(move || {
+        let session = sessions.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let seed = (0x00ed_u128 << 112) | (u128::from(session) << 80);
+        Box::new(red_ale_core::FixedEnv::new(TEST_NOW, seed))
+    }));
     d
 }
 
