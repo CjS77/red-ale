@@ -174,12 +174,14 @@ fn check_no_sibling(book: &Book, parent: Guid, name: &str, except: Option<Guid>)
     }
 }
 
-/// Rank of a type in the display order (`typeorder`, `5.17:libgnucash/engine/Account.cpp:2348`).
+/// Rank of a type in the display order, as GnuCash 5.17 actually computes it. `typeorder` lists BANK first, but it
+/// has 15 slots and 14 initialisers, so its last slot is 0 (BANK) and the loop that fills `revorder` ranks BANK 14,
+/// after TRADING; ROOT keeps rank 0 (`5.17:libgnucash/engine/Account.cpp:2348-2400`). The oracle confirms it.
 fn type_rank(t: AccountType) -> usize {
     use AccountType as T;
-    const ORDER: [AccountType; 14] = [
-        T::Bank, T::Stock, T::Mutual, T::Currency, T::Cash, T::Asset, T::Receivable, T::Credit, T::Liability, T::Payable, T::Income, T::Expense,
-        T::Equity, T::Trading,
+    const ORDER: [AccountType; 15] = [
+        T::Root, T::Stock, T::Mutual, T::Currency, T::Cash, T::Asset, T::Receivable, T::Credit, T::Liability, T::Payable, T::Income, T::Expense,
+        T::Equity, T::Trading, T::Bank,
     ];
     ORDER.iter().position(|o| *o == t).unwrap_or(ORDER.len())
 }
@@ -1206,6 +1208,19 @@ mod tests {
         let (total, other) = balances_with_subaccounts(&f.book, bank, None).unwrap();
         assert_eq!(total.balance, Numeric::new(1255, 100));
         assert!(other.is_empty());
+    }
+
+    #[test]
+    fn display_order_puts_bank_after_trading_as_gnucash_does() {
+        let usd = Some(CommodityRef::currency("USD"));
+        let acc = |name: &str, t, code: Option<&str>| {
+            let mut a = Account::new(Guid::NULL, name, t, usd.clone(), None);
+            a.code = code.map(Into::into);
+            a
+        };
+        let mut v = [acc("A", AccountType::Bank, None), acc("B", AccountType::Trading, None), acc("C", AccountType::Cash, None), acc("D", AccountType::Bank, Some("1"))];
+        v.sort_by(account_order);
+        assert_eq!(v.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["C", "B", "A", "D"]);
     }
 
     #[test]

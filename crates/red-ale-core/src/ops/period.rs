@@ -209,8 +209,8 @@ fn start_of(p: RelativePeriod, today: Date, fy: Option<FiscalYearEnd>) -> Domain
         RelativePeriod::PreviousQuarter => quarter_start(today.add_months(-3))?,
         RelativePeriod::Year => first_of(today.year(), 1)?,
         RelativePeriod::PreviousYear => first_of(today.year() - 1, 1)?,
-        RelativePeriod::FiscalYear => fiscal_end_in(today, need_fy(fy)?, 1)?.add_days(1),
-        RelativePeriod::PreviousFiscalYear => fiscal_end_in(today, need_fy(fy)?, 2)?.add_days(1),
+        RelativePeriod::FiscalYear => fiscal_start(today, need_fy(fy)?)?,
+        RelativePeriod::PreviousFiscalYear => fiscal_start(today, need_fy(fy)?)?.add_months(-12),
     })
 }
 
@@ -224,8 +224,8 @@ fn end_of(p: RelativePeriod, today: Date, fy: Option<FiscalYearEnd>) -> DomainRe
         RelativePeriod::PreviousQuarter => quarter_start(today.add_months(-3))?.add_months(2).end_of_month(),
         RelativePeriod::Year => first_of(today.year(), 12)?.end_of_month(),
         RelativePeriod::PreviousYear => first_of(today.year() - 1, 12)?.end_of_month(),
-        RelativePeriod::FiscalYear => fiscal_end_in(today, need_fy(fy)?, 0)?,
-        RelativePeriod::PreviousFiscalYear => fiscal_end_in(today, need_fy(fy)?, 1)?,
+        RelativePeriod::FiscalYear => fiscal_end(today, need_fy(fy)?)?,
+        RelativePeriod::PreviousFiscalYear => fiscal_end(today, need_fy(fy)?)?.add_months(-12),
     })
 }
 
@@ -235,13 +235,20 @@ fn need_fy(fy: Option<FiscalYearEnd>) -> DomainResult<FiscalYearEnd> {
     fy.ok_or_else(|| DomainError::invalid("a fiscal-year period needs a fiscal year end (MM-DD)"))
 }
 
-/// The fiscal year end `back` years before the one that closes the fiscal year containing `today`. That one is this
-/// calendar year's if it has not passed, else next year's (`gnc_gdate_set_fiscal_year_end`); a fiscal year starts the
-/// day after the previous end (`gnc_gdate_set_fiscal_year_start`, `5.17:libgnucash/engine/gnc-date.cpp:1650-1716`).
-fn fiscal_end_in(today: Date, fy: FiscalYearEnd, back: i32) -> DomainResult<Date> {
-    let this_year = fy.in_year(today.year())?;
-    let closing = if today > this_year { today.year() + 1 } else { today.year() };
-    fy.in_year(closing - back)
+/// `gnc_gdate_set_fiscal_year_start` (`5.17:libgnucash/engine/gnc-date.cpp:1650-1672`): the day after this calendar
+/// year's fiscal year end if that has passed, else that day less a year. GnuCash moves the start back a year rather
+/// than recomputing it, so 29 February becomes the 28th (the oracle confirms it); "previous" subtracts another year.
+fn fiscal_start(today: Date, fy: FiscalYearEnd) -> DomainResult<Date> {
+    let end = fy.in_year(today.year())?;
+    let start = end.add_days(1);
+    Ok(if today > end { start } else { start.add_months(-12) })
+}
+
+/// `gnc_gdate_set_fiscal_year_end` (`gnc-date.cpp:1674-1695`): this calendar year's fiscal year end, or that day a year
+/// later if it has passed.
+fn fiscal_end(today: Date, fy: FiscalYearEnd) -> DomainResult<Date> {
+    let end = fy.in_year(today.year())?;
+    Ok(if today > end { end.add_months(12) } else { end })
 }
 
 /// The first and last days of the accounting period that contains `today`. GnuCash turns them into the start of the
@@ -305,8 +312,10 @@ mod tests {
         assert!(period_dates(&period, d("2024-05-31"), None).is_err());
         assert!(check_period(&period, None).is_err() && check_period(&AccountingPeriod::default(), None).is_ok());
         assert!("02-30".parse::<FiscalYearEnd>().is_err());
-        let leap: FiscalYearEnd = "02-29".parse().unwrap();
-        assert_eq!(both(RelativePeriod::FiscalYear, "2023-05-01", Some(leap)).1, "2024-02-29");
+        let feb: FiscalYearEnd = "02-28".parse().unwrap();
+        assert_eq!(both(RelativePeriod::FiscalYear, "2024-01-01", Some(feb)), ("2023-02-28".into(), "2024-02-28".into()), "as GnuCash");
+        assert_eq!(both(RelativePeriod::FiscalYear, "2025-02-28", Some(feb)), ("2024-03-01".into(), "2025-02-28".into()));
+        assert!("02-29".parse::<FiscalYearEnd>().is_ok());
     }
 
     #[test]
