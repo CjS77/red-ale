@@ -2,7 +2,7 @@
 
 Customers, vendors, employees and jobs (GnuCash's *owners*), the book counters that number them, and the tax
 tables and billing terms they and their documents refer to. Documents (invoices, bills, expense vouchers, their
-lines and orders) are in [`business-documents.md`](business-documents.md). Posting, totals, due dates and payments
+entries and orders) are in [`business-documents.md`](business-documents.md). Posting, totals, due dates and payments
 are in [`business-posting.md`](business-posting.md).
 
 Code: `red-ale-core/src/ops/business/{contacts,terms}.rs`, `red-ale-rpc/src/methods/business/{contacts,terms}.rs`.
@@ -56,8 +56,8 @@ job owner change once it has documents.
 | `customer.update` | write  | `{customer, …CustomerFields}` | `CustomerInfo` |
 
 `CustomerFields`: `name` (company name; required on create), `id`, `currency` (required on create), `addr`,
-`shipAddr`, `notes`, `terms` (billing term), `taxTable`, `taxTableOverride` (new lines use `taxTable` instead of the
-book default), `taxIncluded` (`yes`, `no`, `useGlobal`), `discount` (default line discount, a percentage),
+`shipAddr`, `notes`, `terms` (billing term), `taxTable`, `taxTableOverride` (new entries use `taxTable` instead of the
+book default), `taxIncluded` (`yes`, `no`, `useGlobal`), `discount` (default entry discount, a percentage),
 `credit` (credit limit), `active`.
 
 Checks, as GnuCash's customer dialog: a company name, a discount from 0 to 100, a credit limit that is not negative
@@ -83,7 +83,7 @@ Checks, as GnuCash's customer dialog: a company name, a discount from 0 to 100, 
 - An employee's name is its address name, as in GnuCash (`gncOwnerGetName`, `5.17:libgnucash/engine/gncOwner.c:439-457`;
   `5.17:libgnucash/engine/gncEmployee.c:512-520`). `name` overrides `addr.name` when both are given.
 - `creditCardAccount` must be a `CREDIT` account: the dialog offers only those
-  (`5.17:gnucash/gnome/dialog-employee.c:458`). Expense voucher lines paid by card are charged to it when posted.
+  (`5.17:gnucash/gnome/dialog-employee.c:458`). Expense voucher entries paid by card are charged to it when posted.
 - Defaults from `gncEmployeeCreate` (`5.17:libgnucash/engine/gncEmployee.c:428-453`).
 
 ## Jobs
@@ -95,7 +95,7 @@ Checks, as GnuCash's customer dialog: a company name, a discount from 0 to 100, 
 - A job needs a name and an owner that is a customer or vendor (`5.17:gnucash/gnome/dialog-job.c:134-150`,
   `5.17:libgnucash/engine/gncJob.c:336-352`).
 - `rate` is kept in the job's `job-rate` slot, as GnuCash does; zero removes the slot (`gncJobSetRate`,
-  `5.17:libgnucash/engine/gncJob.c:314-335`, `:459-466`). New lines on the job's documents take it as their price.
+  `5.17:libgnucash/engine/gncJob.c:314-335`, `:459-466`). New entries on the job's documents take it as their price.
 - `job.list {owner}` lists that customer's or vendor's jobs.
 
 ## Tax tables
@@ -108,19 +108,20 @@ Checks, as GnuCash's customer dialog: a company name, a discount from 0 to 100, 
 | `taxTable.update` | write       | `{taxTable, name?, entries?}`        | `TaxTableInfo`  |
 | `taxTable.delete` | destructive | `{taxTable}`                         | `Done`          |
 
-An entry is `{account, amount, type: percent|value}`. `TaxTableInfo`: `guid`, `name`, `refcount`, `invisible`,
-`parent`, `child`, `entries` (each with `accountName`).
+A tax table line is `{account, amount, type: percent|value}`; the wire calls the list `entries`, but a tax table line
+is not an Entry of a document. `TaxTableInfo`: `guid`, `name`, `refcount`, `invisible`, `parent`, `child`,
+`entries` (each with `accountName`).
 
 - **Checks** (the tax table dialog's, `5.17:gnucash/gnome-utils/dialog-tax-table.c:153-198`): a name no other visible
   table has, each line with an account, and a percentage from -100 to 100. A table needs at least one line: GnuCash
   deletes empty tables when it loads a book (`5.17:libgnucash/backend/xml/gnc-tax-table-xml-v2.cpp:517-524`).
 - **Line order** is GnuCash's: by account full name, then amount (`gncTaxTableAddEntry`,
   `5.17:libgnucash/engine/gncTaxTable.c:594-608`). That order is written to the file.
-- **Frozen copies.** Posting a document freezes the tables its lines use into invisible children (`parent` set), so
+- **Frozen copies.** Posting a document freezes the tables its entries use into invisible children (`parent` set), so
   later edits do not change posted documents. Frozen copies cannot be changed or deleted here and are listed only with
   `includeFrozen`. Replacing the lines drops the cached child, as the dialog's `gncTaxTableChanged` does; renaming
   alone keeps it (`5.17:gnucash/gnome-utils/dialog-tax-table.c:240`, `:690-709`).
-- **Refcounts** are kept as GnuCash keeps them: customers, vendors and each side of each line (invoice side and bill
+- **Refcounts** are kept as GnuCash keeps them: customers, vendors and each side of each entry (invoice side and bill
   side separately) count; increments and decrements on frozen copies are no-ops, and a count never goes below zero
   (`5.17:libgnucash/engine/gncTaxTable.c:516-535`). On load GnuCash recounts the references
   (`5.17:libgnucash/backend/xml/gnc-tax-table-xml-v2.cpp:530-633`); red-ale's counts agree, which the oracle tests

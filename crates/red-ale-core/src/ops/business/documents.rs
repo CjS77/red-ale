@@ -1,7 +1,7 @@
 //! Business documents: invoices, bills and expense vouchers (GnuCash's `GncInvoice`), their lines (entries) and
 //! orders.
 //!
-//! The document type is never stored: it follows from the owner, through a job to the job's owner
+//! The document kind is never stored: it follows from the owner, through a job to the job's owner
 //! (`gncInvoiceGetType`, `5.17:libgnucash/engine/gncInvoice.c:1065-1087`). A posted document is frozen: only its
 //! active flag may change here. Posting, unposting, totals and payments are separate operations.
 
@@ -75,7 +75,7 @@ impl DocumentType {
     }
 }
 
-/// The document type for an owner, following a job to its owner.
+/// The document kind for an owner, following a job to its owner.
 pub fn document_type(book: &Book, owner: OwnerRef) -> Option<DocumentType> {
     end_owner(book, owner).and_then(|o| DocumentType::of_end_owner(o.kind))
 }
@@ -259,7 +259,7 @@ pub fn lines_of(book: &Book, doc: Guid) -> Vec<&Entry> {
     lines
 }
 
-/// The document type of the side a line belongs to: its invoice, else its bill. Order lines use the invoice side
+/// The document kind of the side an entry belongs to: its invoice, else its bill. Order lines use the invoice side
 /// whoever owns the order: GnuCash's order ledger is a customer-document ledger
 /// (`5.17:gnucash/register/ledger-core/gncEntryLedger.c:286-294`).
 pub fn line_type(book: &Book, e: &Entry) -> Option<DocumentType> {

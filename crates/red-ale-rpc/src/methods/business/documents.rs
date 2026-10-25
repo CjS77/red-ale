@@ -261,7 +261,7 @@ impl LineFields {
     /// (`5.17:gnucash/register/ledger-core/gncEntryLedgerLayout.c:218-282`).
     fn check_side(&self, doc: DocumentType) -> Result<(), RpcError> {
         let refuse =
-            |present: bool, what: &str| if present { Err(RpcError::invalid(format!("{what} not on this document type"))) } else { Ok(()) };
+            |present: bool, what: &str| if present { Err(RpcError::invalid(format!("{what} not on this kind of document"))) } else { Ok(()) };
         match doc {
             DocumentType::Invoice => {
                 refuse(self.billable.is_some() || self.bill_to.is_some(), "billable and billTo are")?;
