@@ -1,5 +1,6 @@
 //! Domain operations on business objects.
 
+pub mod calc;
 pub mod contacts;
 pub mod documents;
 pub mod payments;
