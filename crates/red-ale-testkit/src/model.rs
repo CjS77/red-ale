@@ -7,7 +7,9 @@ use std::collections::BTreeSet;
 
 use red_ale_core::account::slot_paths as acct;
 use red_ale_core::business::{Address, AmountType, DiscountHow, OwnerKind, OwnerRef, PaymentType, TaxIncluded};
+use red_ale_core::ops::business::calc;
 use red_ale_core::ops::commit::commodity_fraction;
+use red_ale_core::ops::commodities::{effective_quote, lookup, slot_paths, usage_table};
 use red_ale_core::transaction::slot_paths as txn;
 use red_ale_core::{Book, CommodityRef, Guid, Numeric, SlotValue, Transaction};
 use serde_json::{Value, json};
@@ -44,7 +46,9 @@ fn accounts(book: &Book) -> Vec<Value> {
                 "type": a.account_type.as_str(),
                 "commodity": a.commodity.as_ref().map(ToString::to_string),
                 "scu": a.scu(fraction),
-                "nonStandardScu": a.non_standard_scu,
+                // xaccAccountSetCommoditySCU marks the account non-standard when the SCU read differs from the commodity's
+                // fraction (5.17:libgnucash/engine/Account.cpp:2719-2720).
+                "nonStandardScu": a.non_standard_scu || a.commodity_scu.is_some_and(|scu| scu != fraction),
                 "parent": a.parent.filter(|p| *p != book.root).map(|p| p.to_string()),
                 "code": text(a.code.as_deref()),
                 "description": text(a.description.as_deref()),
@@ -65,7 +69,8 @@ fn accounts(book: &Book) -> Vec<Value> {
 }
 
 fn lot_title(book: &Book, lot: Option<Guid>) -> Value {
-    lot.and_then(|l| book.lot(l)).map_or(Value::Null, |l| Value::String(l.title().unwrap_or_default().to_owned()))
+    // gnc_lot_get_title is NULL for a lot without a title, such as a pre-payment lot.
+    lot.and_then(|l| book.lot(l)).and_then(|l| l.title()).map_or(Value::Null, |t| Value::String(t.to_owned()))
 }
 
 fn transaction(book: &Book, t: &Transaction) -> Value {
@@ -117,22 +122,21 @@ fn used_currencies(book: &Book) -> BTreeSet<CommodityRef> {
 }
 
 fn commodities(book: &Book) -> Vec<Value> {
-    let account_currencies: BTreeSet<CommodityRef> = book.accounts.values().filter_map(|a| a.commodity.clone()).filter(CommodityRef::is_currency).collect();
+    let usage = usage_table(book);
     let currencies = used_currencies(book).into_iter().map(|id| {
-        let stored = book.commodity(&id);
-        // Setting an account's commodity to a currency turns on its quotes with the "currency" source
-        // (xaccAccountSetCommodity, 5.17:libgnucash/engine/Account.cpp:2666-2701), and the XML loader does that.
-        let (flag, source) = if account_currencies.contains(&id) {
-            (true, Some("currency".to_owned()))
-        } else {
-            (stored.is_some_and(|c| c.quote_flag), stored.and_then(|c| c.quote_source.clone()))
-        };
+        let stored = lookup(book, &id);
+        let accounts = usage.get(&id).map_or(0, |u| u.accounts);
+        // Loading a book turns quotes on for a currency an account uses, unless auto_quote_control is "false"
+        // (gnc_commodity_increment_usage_count, 5.17:libgnucash/engine/gnc-commodity.cpp:1402-1425).
+        let quote = stored.as_deref().map(|c| effective_quote(c, accounts));
+        let flag = quote.as_ref().is_some_and(|q| q.flag);
         json!({
             "id": id.to_string(),
             "fraction": commodity_fraction(book, &id),
             "quoteFlag": flag,
-            "quoteSource": if flag { source.map_or(Value::Null, Value::String) } else { Value::Null },
-            "quoteTz": text(stored.and_then(|c| c.quote_tz.as_deref())),
+            "quoteSource": if flag { quote.and_then(|q| q.source).map_or(Value::Null, Value::String) } else { Value::Null },
+            "quoteTz": text(stored.as_deref().and_then(|c| c.quote_tz.as_deref())),
+            "userSymbol": text(stored.as_deref().and_then(|c| c.slots.get_str(slot_paths::USER_SYMBOL))),
         })
     });
     let securities = book.commodities.values().filter(|c| !c.id.is_currency() && c.id.namespace != "template").map(|c| {
@@ -144,6 +148,7 @@ fn commodities(book: &Book) -> Vec<Value> {
             "quoteTz": text(c.quote_tz.as_deref()),
             "fullname": text(c.fullname.as_deref()),
             "cusip": text(c.cusip.as_deref()),
+            "userSymbol": text(c.slots.get_str(slot_paths::USER_SYMBOL)),
         })
     });
     let mut out: Vec<Value> = currencies.chain(securities).collect();
@@ -292,6 +297,8 @@ fn invoices(book: &Book) -> Vec<Value> {
             let post_txn = inv.post_txn.and_then(|g| book.transaction(g));
             let due = post_txn.map(|t| t.slots.get("trans-date-due").and_then(SlotValue::as_time).unwrap_or(t.date_posted).0);
             let lot_balance = inv.post_lot.map(|l| sum(book.splits_in_lot(l).map(|(_, s)| s.amount)));
+            // gncInvoiceGetTotal, GetTotalSubtotal and GetTotalTax (5.17:libgnucash/engine/gncInvoice.c:997-1018).
+            let totals = calc::document_totals(book, inv).ok();
             let mut entries: Vec<String> =
                 b.entries.values().filter(|e| e.invoice == Some(inv.guid) || e.bill == Some(inv.guid)).map(|e| e.guid.to_string()).collect();
             entries.sort();
@@ -310,8 +317,9 @@ fn invoices(book: &Book) -> Vec<Value> {
                 "postedAccount": guid(inv.post_acc),
                 "postedTxn": guid(inv.post_txn),
                 "toChargeAmount": frac(inv.charge_amount),
-                // Filled in by the business work package (invoice totals); ignored by comparisons until then.
-                "total": Value::Null,
+                "subtotal": totals.as_ref().map(|t| frac(t.subtotal)),
+                "tax": totals.as_ref().map(|t| frac(t.tax)),
+                "total": totals.as_ref().map(|t| frac(t.total)),
                 // gncInvoiceIsPaid: posted and its lot is closed.
                 "paid": if posted { Some(lot_balance.is_some_and(Numeric::is_zero)) } else { None },
                 "entries": entries,
@@ -436,4 +444,4 @@ pub fn dump(book: &Book) -> Value {
 }
 
 /// Paths the comparison skips until red-ale computes them.
-pub const NOT_YET_COMPUTED: [&str; 1] = ["business.invoices.*.total"];
+pub const NOT_YET_COMPUTED: [&str; 0] = [];

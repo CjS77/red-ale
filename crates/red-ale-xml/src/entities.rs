@@ -261,7 +261,9 @@ fn parse_split(el: &Element, notices: &mut Notices) -> Result<Split, XmlError> {
         reconcile_date: el.find("split:reconcile-date").map(parse_time).transpose()?,
         value: parse_numeric(req("split:value")?)?,
         amount: parse_numeric(req("split:quantity")?)?,
-        account: el.find("split:account").map(parse_guid).transpose()?,
+        // GnuCash writes the null GUID for a split with no account and finds no account for it on load
+        // (5.17:libgnucash/backend/xml/gnc-transaction-xml-v2.cpp:114-117, :274-292).
+        account: el.find("split:account").map(parse_guid).transpose()?.filter(|g| !g.is_null()),
         lot: el.find("split:lot").map(parse_guid).transpose()?,
         slots: el.find("split:slots").map(|s| parse_slots(s, notices)).transpose()?.unwrap_or_default(),
     })

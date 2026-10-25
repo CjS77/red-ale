@@ -51,6 +51,11 @@ Code names are given in `code font` when they differ from the term.
 | **Full name** | An Account's name prefixed by its ancestors' names, joined by the separator `:`. |
 | **Tax-related** | A flag marking Accounts that feed tax reports. |
 | **TXF code** | A US tax form-and-line code stored on an Account (`tax-US/code`). |
+| **Display order** | GnuCash's order of sibling Accounts: code, then type rank, then name, then GUID. **⚠** Not the Book's storage order, which keeps parents before children as read. |
+| **Name violation** | An Account name containing the separator `:`. red-ale refuses new ones and reports existing ones. |
+| **Delete with move** | Deleting an Account while moving its Splits to another Account, or re-parenting its single sub-account, instead of deleting them. |
+| **Accounting period** | Start and end bounds (a relative choice such as *start of this quarter*, or a date) and a fiscal year end. A user setting kept in red-ale's Configuration, not Book data. |
+| **Fiscal year end** | The month and day a fiscal year ends, from the Configuration or the Book's `fy_end` slot. |
 
 ## Transactions
 
@@ -68,12 +73,18 @@ Code names are given in `code font` when they differ from the term.
 | **Action** | A Split's free-text action field (`Buy`, `Sell`, `Split`, …). |
 | **Memo** | A Split's free-text note. **⚠** Distinct from the Transaction's *notes*. |
 | **Reconcile state** | A Split's state: `n` new, `c` cleared, `y` reconciled, `f` frozen, `v` voided. |
-| **Void** | Marks a Transaction void: values and amounts become zero, the former figures and a reason are kept in Slots. *Unvoid* restores them. |
-| **Reverse** | Creates a new Transaction with every Split's value and amount negated, linked to the original. |
+| **Void** | Marks a Transaction void: values and amounts become zero, the former figures and a reason are kept in Slots. *Unvoid* restores them. A Transaction is void when its `void-time` slot holds a timestamp GnuCash can parse (the 5.17 rule); the reason does not decide it. |
+| **Reverse** | Creates a new *reversing Transaction* with every Split's value and amount negated; the original's `reversed-by` slot points to it. |
+| **Transfer** | GnuCash's Transfer dialog as one operation: a Transaction between two Accounts, possibly in different Commodities, with its rate (to-commodity per from-currency) optionally recorded as a Price. |
+| **Find query** | Criteria over Splits (text, amounts, dates, states, Accounts) combined with all, any or not, as GnuCash's Find dialog builds them. |
 | **Imbalance** | The amount by which a Transaction's values fail to sum to zero. A *scrub* moves it to an `Imbalance-<CUR>` Account. |
 | **Orphan** | A Split with no Account. A scrub moves it to an `Orphan-<CUR>` Account. |
 | **Scrub** | A repair that restores an invariant (imbalance, orphans, lots). *Check & Repair* runs the scrubs over an Account, a subtree or the Book. |
-| **Statement** | A bank statement's ending date and balance, used to reconcile an Account. |
+| **Statement** | One reconciliation's Account, statement date (the last second of the local day), ending balance and include-subaccounts flag. |
+| **Ticked split** | A Split marked to reconcile during a reconciliation. Held by the caller, never by the Book, until the reconciliation finishes. |
+| **Postponed reconciliation** | A reconciliation saved for later: its date and balance in the Account's `reconcile-info/postpone` slots, its ticked Splits cleared. |
+| **Repair** | One change a Scrub made, as the scrub methods report it. |
+| **Raw sign** | Debits positive, credits negative: the sign of every reconcile amount. **⚠** GnuCash's flipped sign for credit Accounts is a display preference. |
 
 ## Commodities and prices
 
@@ -86,6 +97,11 @@ Code names are given in `code font` when they differ from the term.
 | **Quote source** | The named source online quotes would come from. Stored and edited in v0.1, never fetched. |
 | **Price** | The value of one Commodity in another (usually a currency) at a time, with a source and a type. |
 | **Price database** (`PriceDb`) | All Prices of a Book. |
+| **Price source rank** | The precedence of a Price's source (user entries before fetched quotes before prices recorded from Transactions). On the same day, a Price of a lower rank replaces one of a higher rank and is not replaced by it. Unknown sources rank lowest (`invalid`). |
+| **Same day** (Prices) | The UTC calendar day in red-ale. **⚠** GnuCash uses its local time zone. |
+| **Built-in currency** | One of the 227 ISO 4217 currencies every Book has. Stored in the Book file only when it has quotes on or Slots. |
+| **Usage** (of a Commodity) | What refers to it. **⚠** GnuCash's usage count is Accounts only; red-ale also reports Transactions, Prices and business objects. |
+| **Auto quote control** | GnuCash's `auto_quote_control` slot on a currency: `"false"` means the user overrode the quote flag GnuCash sets for currencies Accounts use. |
 | **Euro legacy currency** | A currency replaced by the euro at a fixed rate (DEM, FRF, …). |
 
 ## Investments
@@ -114,6 +130,11 @@ Code names are given in `code font` when they differ from the term.
 | **Payment** | A Transaction that settles an Owner's open documents through their Lots. |
 | **Due reminder** | The list of posted, unpaid documents falling due within a number of days. |
 | **Counter** | The next number for a kind of document or Owner, kept in the Book's `counters` slot. |
+| **End owner** | The Owner a document finally belongs to: a Job's Customer or Vendor, otherwise the Owner itself. Decides the document kind. |
+| **Document kind** | Invoice (Customer), bill (Vendor) or expense voucher (Employee), from the End owner. |
+| **Frozen copy** | A hidden child copy of a Tax table or Billing term made when a document is posted, so later edits to the original do not change posted documents. **⚠** GnuCash calls it the *child*. |
+| **Payment lot** | A Lot in the A/R or A/P Account holding a payment not yet matched to a document. A *pre-payment lot* is one made before the document existed. |
+| **Lot link** | A Transaction of type `L` that moves value between Lots of one Owner to settle documents against payments or credits. |
 
 ## red-ale
 
@@ -122,3 +143,5 @@ Code names are given in `code font` when they differ from the term.
 | **Use case** | One operation on a Session, such as posting a Transaction. Each JSON-RPC method calls exactly one use case. |
 | **Mutation** | A use case that changes the Book. Applies completely or not at all, and leaves the Book balanced. |
 | **Published language** | The JSON-RPC schema: versioned, documented, and changed only additively within a major version. |
+| **Effect** | What a method does to the Book: *read*, *write* or *destructive*. MCP's read-only and destructive hints come from it. |
+| **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps as user preferences (the Accounting period). Never stored in the Book. |

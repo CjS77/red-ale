@@ -37,11 +37,13 @@ pub struct Settings {
     pub retention: Retention,
     /// Whether new books are gzip-compressed (GnuCash's default is yes).
     pub compress_new_books: bool,
+    /// red-ale's own configuration (the accounting period), shared by every clone of these settings.
+    pub config: crate::config::ConfigStore,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { retention: Retention::default(), compress_new_books: true }
+        Self { retention: Retention::default(), compress_new_books: true, config: crate::config::ConfigStore::in_memory() }
     }
 }
 

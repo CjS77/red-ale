@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
 
+pub mod config;
 pub mod error;
 pub mod files;
 pub mod journal;

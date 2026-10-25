@@ -12,6 +12,7 @@ red-ale-core.workspace = true
 red-ale-xml.workspace = true
 chrono.workspace = true
 getrandom.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

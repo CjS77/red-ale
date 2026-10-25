@@ -18,29 +18,29 @@ A feature added in a development series is listed under the stable release that 
 
 | Status | Name                             | Short description                                                                                | Introduced | Ported |
 |:------:|----------------------------------|--------------------------------------------------------------------------------------------------|:----------:|:------:|
-|        | Account hierarchy                | Accounts nest under a single root to any depth                                                   |   ≤ 1.4    |        |
-|        | Standard account types           | Bank, Cash, Asset, Credit Card, Liability, Stock, Mutual Fund, Currency, Income, Expense, Equity |   ≤ 1.4    |        |
-|        | A/Receivable and A/Payable types | Account types that carry business documents and payments                                         |    1.8     |        |
+|   ✅   | Account hierarchy                | Accounts nest under a single root to any depth                                                   |   ≤ 1.4    |  0.1   |
+|   ✅   | Standard account types           | Bank, Cash, Asset, Credit Card, Liability, Stock, Mutual Fund, Currency, Income, Expense, Equity |   ≤ 1.4    |  0.1   |
+|   ✅   | A/Receivable and A/Payable types | Account types that carry business documents and payments                                         |    1.8     |  0.1   |
 |        | Trading account type             | Account type that balances multi-commodity transactions                                          |    2.4     |        |
-|        | Placeholder accounts             | Accounts that group others and accept no transactions                                            |   1.6.7    |        |
-|        | Hidden accounts                  | Accounts kept but hidden from everyday views                                                     |    2.0     |        |
-|        | Account codes                    | A user code per account, used for sorting and numbering                                          |   ≤ 1.4    |        |
-|        | Account description and notes    | Free-text description and notes per account                                                      |   ≤ 1.4    |        |
+|   ✅   | Placeholder accounts             | Accounts that group others and accept no transactions                                            |   1.6.7    |  0.1   |
+|   ✅   | Hidden accounts                  | Accounts kept but hidden from everyday views                                                     |    2.0     |  0.1   |
+|   ✅   | Account codes                    | A user code per account, used for sorting and numbering                                          |   ≤ 1.4    |  0.1   |
+|   ✅   | Account description and notes    | Free-text description and notes per account                                                      |   ≤ 1.4    |  0.1   |
 |        | Account colours                  | A display colour per account                                                                     |    2.4     |        |
-|        | Tax-related flag                 | Marks accounts that feed tax reports                                                             |    1.6     |        |
-|        | US tax (TXF) codes               | Per-account TXF form and line codes for US tax export                                            |    1.6     |        |
+|   ✅   | Tax-related flag                 | Marks accounts that feed tax reports                                                             |    1.6     |  0.1   |
+|   ✅   | US tax (TXF) codes               | Per-account TXF form and line codes for US tax export                                            |    1.6     |  0.1   |
 |        | Balance limits                   | Upper and lower balance limits that warn when crossed                                            |    5.0     |        |
 |        | Opening balance account          | A dedicated equity account for opening balances (`equity-type` slot)                             |    4.3     |        |
 |        | Associated accounts              | Remembers the proceeds, fees, dividend and gains accounts for a security                         |    5.6     |        |
-|        | Renumber sub-accounts            | Assigns sequential codes to an account's children                                                |    2.0     |        |
+|   ✅   | Renumber sub-accounts            | Assigns sequential codes to an account's children                                                |    2.0     |  0.1   |
 |        | Cascade account properties       | Copies colour, placeholder or hidden settings to sub-accounts                                    |    4.0     |        |
-|        | Delete with move                 | Deletes an account after moving its sub-accounts and splits elsewhere                            |    1.8     |        |
+|   ✅   | Delete with move                 | Deletes an account after moving its sub-accounts and splits elsewhere                            |    1.8     |  0.1   |
 
 ### Book settings
 
 | Status | Name                        | Short description                                                            | Introduced | Ported |
 |:------:|-----------------------------|------------------------------------------------------------------------------|:----------:|:------:|
-|        | Accounting period           | Fiscal year start and end, used by reports and date ranges                   |    2.0     |        |
+|   ✅   | Accounting period           | Fiscal year start and end, used by reports and date ranges                   |    2.0     |  0.1   |
 |        | Number counters and formats | Next numbers and formats for invoices, bills, customers and others           |   2.4.1    |        |
 |        | Auto read-only threshold    | Transactions older than N days become read-only                              |    2.6     |        |
 |        | Num field source            | Use the split action field as the transaction number                         |    2.6     |        |
@@ -53,32 +53,32 @@ A feature added in a development series is listed under the stable release that 
 
 | Status | Name                        | Short description                                                             | Introduced | Ported |
 |:------:|-----------------------------|-------------------------------------------------------------------------------|:----------:|:------:|
-|        | Double-entry transactions   | Transactions made of splits whose values sum to zero                          |   ≤ 1.4    |        |
-|        | Multi-currency transactions | A transaction currency, with each split's quantity in its account's commodity |    1.6     |        |
-|        | Exchange rates on transfer  | Enter a rate or amount when a transfer crosses currencies                     |    1.8     |        |
-|        | Transaction notes           | Free-text notes per transaction                                               |    1.6     |        |
-|        | Date entered                | Records when a transaction was entered, separate from the posted date         |   ≤ 1.4    |        |
-|        | Split action and memo       | Per-split action and memo fields                                              |   ≤ 1.4    |        |
+|   ✅   | Double-entry transactions   | Transactions made of splits whose values sum to zero                          |   ≤ 1.4    |  0.1   |
+|   ✅   | Multi-currency transactions | A transaction currency, with each split's quantity in its account's commodity |    1.6     |  0.1   |
+|   ✅   | Exchange rates on transfer  | Enter a rate or amount when a transfer crosses currencies                     |    1.8     |  0.1   |
+|   ✅   | Transaction notes           | Free-text notes per transaction                                               |    1.6     |  0.1   |
+|   ✅   | Date entered                | Records when a transaction was entered, separate from the posted date         |   ≤ 1.4    |  0.1   |
+|   ✅   | Split action and memo       | Per-split action and memo fields                                              |   ≤ 1.4    |  0.1   |
 |        | Document links              | Links a transaction to a file or URL                                          |    2.6     |        |
-|        | Void and unvoid             | Voids a transaction, keeping it with a reason and timestamp                   |    1.8     |        |
-|        | Reverse transaction         | Creates the opposite of an existing transaction                               |    2.0     |        |
-|        | Find transactions           | Search splits by any combination of fields                                    |   ≤ 1.4    |        |
+|   ✅   | Void and unvoid             | Voids a transaction, keeping it with a reason and timestamp                   |    1.8     |  0.1   |
+|   ✅   | Reverse transaction         | Creates the opposite of an existing transaction                               |    2.0     |  0.1   |
+|   ✅   | Find transactions           | Search splits by any combination of fields                                    |   ≤ 1.4    |  0.1   |
 
 ### Reconciliation
 
 | Status | Name                          | Short description                                          | Introduced | Ported |
 |:------:|-------------------------------|------------------------------------------------------------|:----------:|:------:|
-|        | Reconcile states              | New, cleared, reconciled, frozen and void states per split |   ≤ 1.4    |        |
-|        | Reconcile against a statement | Matches splits to a statement's ending balance and date    |   ≤ 1.4    |        |
-|        | Last reconcile date           | Remembers each account's last reconciliation               |    1.6     |        |
+|   ✅   | Reconcile states              | New, cleared, reconciled, frozen and void states per split |   ≤ 1.4    |  0.1   |
+|   ✅   | Reconcile against a statement | Matches splits to a statement's ending balance and date    |   ≤ 1.4    |  0.1   |
+|   ✅   | Last reconcile date           | Remembers each account's last reconciliation               |    1.6     |  0.1   |
 |        | Auto-clear                    | Finds the splits that make up a given cleared balance      |    2.4     |        |
 
 ### Data integrity
 
 | Status | Name            | Short description                                                | Introduced | Ported |
 |:------:|-----------------|------------------------------------------------------------------|:----------:|:------:|
-|        | Imbalance scrub | Balances a transaction through an `Imbalance-<currency>` account |    1.6     |        |
-|        | Orphan scrub    | Moves splits with no account to an `Orphan-<currency>` account   |    1.6     |        |
+|   ✅   | Imbalance scrub | Balances a transaction through an `Imbalance-<currency>` account |    1.6     |  0.1   |
+|   ✅   | Orphan scrub    | Moves splits with no account to an `Orphan-<currency>` account   |    1.6     |  0.1   |
 |        | Check & Repair  | Runs the scrubbers on an account, a subtree or the whole book    |   1.6.3    |        |
 
 ## 3. Commodities, prices and investments
@@ -87,21 +87,21 @@ A feature added in a development series is listed under the stable release that 
 
 | Status | Name                   | Short description                                          | Introduced | Ported |
 |:------:|------------------------|------------------------------------------------------------|:----------:|:------:|
-|        | Commodity table        | Currencies and securities grouped by namespace             |    1.6     |        |
-|        | ISO 4217 currencies    | Built-in table of ISO currencies and their fractions       |    1.6     |        |
-|        | Security editor        | Create, edit and delete securities and namespaces          |    1.6     |        |
+|   ✅   | Commodity table        | Currencies and securities grouped by namespace             |    1.6     |  0.1   |
+|   ✅   | ISO 4217 currencies    | Built-in table of ISO currencies and their fractions       |    1.6     |  0.1   |
+|   ✅   | Security editor        | Create, edit and delete securities and namespaces          |    1.6     |  0.1   |
 |        | User currency symbols  | Overrides a currency's display symbol                      |    2.6     |        |
-|        | Euro legacy currencies | Fixed conversion rates for currencies replaced by the euro |   ≤ 1.4    |        |
+|   ✅   | Euro legacy currencies | Fixed conversion rates for currencies replaced by the euro |   ≤ 1.4    |  0.1   |
 
 ### Prices
 
 | Status | Name                       | Short description                            | Introduced | Ported |
 |:------:|----------------------------|----------------------------------------------|:----------:|:------:|
-|        | Price database             | Dated prices of one commodity in another     |    1.6     |        |
-|        | Price editor               | Add, edit and delete prices                  |    1.6     |        |
-|        | Remove old prices          | Thins out prices before a date, by namespace |    2.0     |        |
+|   ✅   | Price database             | Dated prices of one commodity in another     |    1.6     |  0.1   |
+|   ✅   | Price editor               | Add, edit and delete prices                  |    1.6     |  0.1   |
+|   ✅   | Remove old prices          | Thins out prices before a date, by namespace |    2.0     |  0.1   |
 |        | Online quotes              | Fetches prices through Finance::Quote        |   ≤ 1.4    |        |
-|        | Quote source and time zone | Per-security quote source and time zone      |    1.6     |        |
+|   ✅   | Quote source and time zone | Per-security quote source and time zone      |    1.6     |  0.1   |
 
 ### Investments
 
@@ -158,8 +158,8 @@ A feature added in a development series is listed under the stable release that 
 |        | Orders             | Groups invoice entries into an order                             |    1.8     |        |
 |        | Tax tables         | Named tax rates, as percentages or fixed amounts                 |    1.8     |        |
 |        | Billing terms      | Due dates and early-payment discounts                            |    1.8     |        |
-|        | Post to accounts   | Posts a document to A/R or A/P, creating its transaction and lot |    1.8     |        |
-|        | Unpost             | Reverses a posting so the document can be edited                 |    1.8     |        |
+|   ✅   | Post to accounts   | Posts a document to A/R or A/P, creating its transaction and lot |    1.8     |  0.1   |
+|   ✅   | Unpost             | Reverses a posting so the document can be edited                 |    1.8     |  0.1   |
 |        | Duplicate document | Copies an invoice or bill                                        |   2.4.1    |        |
 |        | Document links     | Links an invoice or bill to a file or URL                        |    4.2     |        |
 
@@ -167,10 +167,10 @@ A feature added in a development series is listed under the stable release that 
 
 | Status | Name                              | Short description                                                | Introduced | Ported |
 |:------:|-----------------------------------|------------------------------------------------------------------|:----------:|:------:|
-|        | Process payment                   | Records a payment against an owner's open documents              |    1.8     |        |
+|   ✅   | Process payment                   | Records a payment against an owner's open documents              |    1.8     |  0.1   |
 |        | Payment matching and pre-payments | Links payments to documents through lots, including pre-payments |    2.6     |        |
 |        | Payment from transaction          | Turns an existing transaction into a business payment            |    2.6     |        |
-|        | Due reminders                     | Lists bills and invoices that are due soon                       |    2.0     |        |
+|   ✅   | Due reminders                     | Lists bills and invoices that are due soon                       |    2.0     |  0.1   |
 
 ### Business import
 
@@ -320,8 +320,8 @@ figures and options, not the same code.
 
 | Status | Name                | Short description                               | Introduced | Ported |
 |:------:|---------------------|-------------------------------------------------|:----------:|:------:|
-|        | XML file format     | The v2 XML book format                          |    1.6     |        |
-|        | Compressed XML      | Gzip-compressed XML books                       |    1.8     |        |
+|   ✅   | XML file format     | The v2 XML book format                          |    1.6     |  0.1   |
+|   ✅   | Compressed XML      | Gzip-compressed XML books                       |    1.8     |  0.1   |
 |        | SQLite books        | Books stored in SQLite through libdbi           |    2.4     |        |
 |        | MySQL/MariaDB books | Books stored in MySQL or MariaDB through libdbi |    2.4     |        |
 |        | PostgreSQL books    | Books stored in PostgreSQL through libdbi       |    2.4     |        |
@@ -331,13 +331,13 @@ figures and options, not the same code.
 
 | Status | Name                  | Short description                                                   | Introduced | Ported |
 |:------:|-----------------------|---------------------------------------------------------------------|:----------:|:------:|
-|        | Book locking          | `.LCK` file or `gnclock` table stops two programs writing one book  |   ≤ 1.4    |        |
-|        | Book features         | Lists the features a book uses, so older versions refuse to open it |    2.6     |        |
-|        | Transaction journal   | Writes every change to a `.log` file beside the book                |   ≤ 1.4    |        |
-|        | Replay journal        | Re-applies a `.log` file to recover lost changes                    |   1.8.5    |        |
-|        | Backups and retention | Timestamped backups on save, deleted after a set time               |    1.8     |        |
+|   ✅   | Book locking          | `.LCK` file or `gnclock` table stops two programs writing one book  |   ≤ 1.4    |  0.1   |
+|   ✅   | Book features         | Lists the features a book uses, so older versions refuse to open it |    2.6     |  0.1   |
+|   ✅   | Transaction journal   | Writes every change to a `.log` file beside the book                |   ≤ 1.4    |  0.1   |
+|   ✅   | Replay journal        | Re-applies a `.log` file to recover lost changes                    |   1.8.5    |  0.1   |
+|   ✅   | Backups and retention | Timestamped backups on save, deleted after a set time               |    1.8     |  0.1   |
 |        | Autosave              | Saves the book on a timer                                           |    2.2     |        |
-|        | Open read-only        | Opens a book without taking the lock                                |    2.6     |        |
+|   ✅   | Open read-only        | Opens a book without taking the lock                                |    2.6     |  0.1   |
 
 ### Other
 
