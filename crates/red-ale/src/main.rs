@@ -166,13 +166,23 @@ fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
     runtime.block_on(async {
         let (addr, handle) = red_ale_rpc::server::serve(dispatcher.clone(), args.listen).await?;
         eprintln!("red-ale: serving JSON-RPC on http://{addr}");
-        tokio::signal::ctrl_c().await.context("waiting for Ctrl-C")?;
+        shutdown_signal().await?;
         handle.stop().ok();
         handle.stopped().await;
         anyhow::Ok(())
     })?;
     shut_down(&dispatcher);
     Ok(None)
+}
+
+/// Wait for Ctrl-C (SIGINT) or SIGTERM, so a service manager stopping the server also releases the book's lock.
+async fn shutdown_signal() -> Result<()> {
+    let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).context("installing the SIGTERM handler")?;
+    tokio::select! {
+        r = tokio::signal::ctrl_c() => r.context("waiting for Ctrl-C")?,
+        _ = term.recv() => {}
+    }
+    Ok(())
 }
 
 /// Close the open book, if any. Unsaved changes are not saved without being asked; the journal still holds them.

@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, auto_readonly_days, features, uses_trading_accounts};
+use red_ale_core::book_options::{
+    GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, auto_readonly_days, features, uses_split_action_for_num, uses_trading_accounts,
+};
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
 use red_ale_xml::{XmlResidue, read_book, write_book};
 
@@ -13,6 +15,7 @@ use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files, write_book_file};
 use crate::journal::{Journal, RecordKind, record_lines};
 use crate::lock::BookLock;
+use crate::replay::{ReplayReport, replay};
 
 /// Book features v0.1 can edit safely: their data lives in slots or files red-ale keeps unchanged. Credit notes and
 /// the num-field source are not implemented, so books declaring them open read-only.
@@ -84,11 +87,17 @@ impl fmt::Display for ReadOnlyReason {
 
 /// The read-only triggers a book sets off.
 pub fn read_only_triggers(book: &Book, residue: &XmlResidue) -> Vec<ReadOnlyReason> {
-    let unsupported: Vec<String> = features(book)
-        .into_iter()
+    let declared = features(book);
+    let mut unsupported: Vec<String> = declared
+        .iter()
         .filter(|(name, _)| name != OBSOLETE_BOOK_CURRENCY && !SUPPORTED_FEATURES.contains(&name.as_str()))
-        .map(|(name, description)| if description.is_empty() { name } else { description })
+        .map(|(name, description)| if description.is_empty() { name.clone() } else { description.clone() })
         .collect();
+    // GnuCash declares the feature when the option is set, but a book can carry the option alone; it changes what
+    // "number" means either way.
+    if uses_split_action_for_num(book) && !declared.iter().any(|(name, _)| name == "Number Field Source") {
+        unsupported.push("Number Field Source (the book option to use the split action as the number)".to_owned());
+    }
     let mut reasons = Vec::new();
     if !unsupported.is_empty() {
         reasons.push(ReadOnlyReason::UnsupportedFeatures(unsupported));
@@ -330,6 +339,21 @@ impl Session {
         self.journal.rotate().map_err(|e| ServiceError::Io { path: self.path.clone(), source: e })?;
         let removed = remove_old_files(&self.path, self.settings.retention, self.journal.current_path());
         Ok(SaveReport { backup, removed, compressed })
+    }
+
+    /// Replay a journal onto the book as one atomic Mutation (see [`crate::replay`]). The journal this session is
+    /// writing is refused, as GnuCash refuses it.
+    pub fn replay_journal(&mut self, journal: &Path, skip_invalid: bool) -> Result<ReplayReport, ServiceError> {
+        let journal = resolve_path(&journal.display().to_string())?;
+        if self.journal.current_path().is_some_and(|current| current == journal) {
+            return Err(ServiceError::CurrentJournal { path: journal });
+        }
+        let text = std::fs::read(&journal).map_err(|e| ServiceError::Io { path: journal.clone(), source: e })?;
+        let (records, skipped_lines) =
+            crate::journal::parse(&String::from_utf8_lossy(&text)).map_err(|source| ServiceError::Journal { path: journal.clone(), source })?;
+        let mut report = self.mutate(|book, _| replay(book, &records, skip_invalid))?;
+        report.skipped_lines = skipped_lines;
+        Ok(report)
     }
 
     /// Close the session, releasing the lock. Unsaved changes are discarded unless `save` is set.

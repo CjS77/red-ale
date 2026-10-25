@@ -78,6 +78,20 @@ pub enum ServiceError {
     /// A domain rule refused the operation.
     #[error(transparent)]
     Domain(#[from] red_ale_core::DomainError),
+    /// The journal could not be read.
+    #[error("{path}: {source}")]
+    Journal {
+        /// The journal.
+        path: PathBuf,
+        /// The cause.
+        source: crate::journal::JournalError,
+    },
+    /// The journal is the one this session is writing.
+    #[error("{path} is the journal this session is writing; replay another")]
+    CurrentJournal {
+        /// The journal.
+        path: PathBuf,
+    },
     /// No book is open.
     #[error("no book is open")]
     NoSession,

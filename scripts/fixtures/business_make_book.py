@@ -12,6 +12,9 @@ from gnucash.gnucash_core_c import (ACCT_TYPE_ASSET, ACCT_TYPE_RECEIVABLE, ACCT_
 assert _sw_core_utils.gnc_version() == '5.17', _sw_core_utils.gnc_version()
 
 path = sys.argv[1]
+# --no-credit-note makes the job's invoice an ordinary one, so the book does not declare the Credit Notes feature
+# (which red-ale v0.1 opens read-only).
+credit_note = '--no-credit-note' not in sys.argv[2:]
 s = Session("xml://" + path, SessionOpenMode.SESSION_NEW_OVERWRITE)
 try:
     book = s.book
@@ -172,9 +175,9 @@ try:
     vou.AddEntry(ve)
     vou.PostToAccount(ap, d_post, d_due, '', True, False)
 
-    # Unposted invoice owned by the job, flagged as a credit note
+    # Unposted invoice owned by the job, flagged as a credit note unless --no-credit-note
     cn = Invoice(book, book.InvoiceNextID(cust), EUR, job, d_open)
-    cn.SetIsCreditNote(True)
+    cn.SetIsCreditNote(credit_note)
     ce = Entry(book, cn, datetime.date(2024, 3, 6))
     ce.SetDescription('Refund')
     ce.SetQuantity(GncNumeric(1, 1))

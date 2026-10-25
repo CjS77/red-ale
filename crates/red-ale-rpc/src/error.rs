@@ -160,10 +160,11 @@ impl From<ServiceError> for RpcError {
             ServiceError::Backup { path: p, .. } => Self::new(codes::BACKUP_FAILED, message).with_data(path(&p)),
             ServiceError::SqlBook { path: p } => Self::new(codes::SQL_BOOK, message).with_data(json!({ "path": p })),
             ServiceError::UnsupportedUri { uri } => Self::new(codes::UNSUPPORTED_URI, message).with_data(json!({ "uri": uri })),
-            ServiceError::Xml { path: p, .. } => Self::new(codes::FILE_FORMAT, message).with_data(path(&p)),
+            ServiceError::Xml { path: p, .. } | ServiceError::Journal { path: p, .. } => Self::new(codes::FILE_FORMAT, message).with_data(path(&p)),
             ServiceError::ReadOnly { reason } => Self::new(codes::READ_ONLY, message).with_data(json!({ "reason": reason })),
             ServiceError::Exists { path: p } => Self::new(codes::FILE_EXISTS, message).with_data(path(&p)),
             ServiceError::Verification { detail } => Self::new(codes::SAVE_VERIFICATION, message).with_data(json!({ "detail": detail })),
+            ServiceError::CurrentJournal { path: p } => Self::new(codes::INVALID, message).with_data(path(&p)),
             ServiceError::NoSession => Self::new(codes::NO_BOOK, message),
             ServiceError::AlreadyOpen { path: p } => Self::new(codes::BOOK_ALREADY_OPEN, message).with_data(path(&p)),
         }
