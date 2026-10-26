@@ -127,13 +127,13 @@ quote sources' services in its own Rust code. Books stay compatible with GnuCash
 Which sources v0.3 implements, and how API keys and network access are configured, are for the v0.3 milestone.
 
 **Import and export move to v0.3**: all of `features.md` §7 except online banking, and the CSV imports under §6
-"Business import". Two questions come with them:
+"Business import". Two questions came with them, settled in [`milestone3.md`](milestone3.md):
 
 - **Importers without C libraries.** GnuCash reads OFX/QFX through LibOFX, and MT940, MT942, DTAUS and CAMT through
-  AqBanking, both C libraries. The proposal, as for quotes: parsers in Rust. DTAUS has been retired for years and
-  could be dropped.
-- **The QIF importer** is Guile Scheme in GnuCash (`5.17:gnucash/import-export/qif-imp/`). red-ale either translates
-  it, as it does reports, or designs it from notes, the `CLAUDE.md` default.
+  AqBanking, both C libraries. *Decided:* red-ale links no C library, and those formats are dropped (❌): GnuCash has
+  no parsing code of its own for them to translate. The importers red-ale keeps are translated from GnuCash's code.
+- **The QIF importer** is Guile Scheme in GnuCash (`5.17:gnucash/import-export/qif-imp/`). *Decided:* translated
+  into Rust, as reports are.
 
 Two facts to carry over: Bayesian account matching sets two book features (`5.17:libgnucash/engine/gnc-features.h:58-59`),
 and GnuCash keeps CSV import layouts in its state file, not the book

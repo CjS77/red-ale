@@ -10,13 +10,13 @@ rows are ✅. This page says which version each open row belongs to, and why in 
 ## Where things stand
 
 v0.2 is done: every row of [`milestone2.md`](milestone2.md) is ✅ and its "Done when" list holds. `features.md` has
-183 rows: 94 are ✅ (60 ported in v0.1, 34 in v0.2), 15 are ❌ (won't do), and 74 are open, all placed below.
+183 rows: 94 are ✅ (60 ported in v0.1, 34 in v0.2), 18 are ❌ (won't do), and 71 are open, all placed below.
 
 | Version | Theme                                                             | Open rows | Status                                         |
 |---------|-------------------------------------------------------------------|----------:|------------------------------------------------|
 | v0.1    | GnuCash ≤ 2.0 features on XML books; JSON-RPC and CLI             |         — | Released ([`milestone1.md`](milestone1.md))    |
 | v0.2    | MCP; reports ≤ 1.6 in Rhai; rest of books, transactions, business |         — | Done ([`milestone2.md`](milestone2.md))        |
-| v0.3    | Memory and scale; import and export; online quotes                |        14 | Next; partly decided                           |
+| v0.3    | Memory and scale; import and export; online quotes                |        11 | Next; [`milestone3.md`](milestone3.md) drafted |
 | v0.4    | SQLite books; scheduled transactions and budgets, with reports    |        19 | Proposed                                       |
 | v0.5    | Ledgers, statements, analysis and investment reports              |        17 | Proposed                                       |
 | v0.6    | The manual; business and tax reports, invoices, PDF export        |        14 | Proposed                                       |
@@ -46,7 +46,7 @@ Already decided: [`mission-statement.md`](mission-statement.md) ("Releases"), [`
 
 | Area               | Rows                                                                                                     |
 |--------------------|----------------------------------------------------------------------------------------------------------|
-| §7 File import     | QIF, OFX/QFX, CSV transaction, CSV account, CSV price, AqBanking file import (MT940, MT942, DTAUS), CAMT |
+| §7 File import     | QIF, CSV transaction, CSV account, CSV price. OFX/QFX, AqBanking file import and CAMT become ❌        |
 | §7 Matching        | Import matcher, Bayesian account matching, Import map editor                                             |
 | §7 Export          | CSV export, Export accounts                                                                              |
 | §6 Business import | Import invoices and bills, Import customers and vendors                                                  |
@@ -125,12 +125,9 @@ Outside the rows above:
     `5.17:libgnucash/app-utils/gnc-ui-util.cpp:748-822`);
   - the first day of the week (`weekStart`, `5.17:libgnucash/engine/gnc-date.cpp:195-215`).
 
-To settle in `milestone3.md`: the importer parsers in Rust instead of LibOFX and AqBanking, whether DTAUS is
-dropped, whether the QIF importer is translated from GnuCash's Scheme or designed from notes, and how quote sources'
-API keys and network access are configured. For locales: where the locale is set (the Configuration, each report
-run, or both), where the locale data comes from (CLDR through a Rust crate, with its licence checked against
-`deny.toml`), and whether name sorting follows the locale's collation too (bytewise today, [`reports.md`](reports.md)
-§14).
+[`milestone3.md`](milestone3.md) settles the rest: OFX/QFX, MT940, MT942, DTAUS and CAMT are dropped, since only
+LibOFX and AqBanking parse them; the other importers and QIF are translated from GnuCash's code; quote services are
+configurable URLs, fetched in the background; and the locale is a Configuration setting, with its data from glibc.
 
 If v0.3 runs long, the memory work ships first as v0.3, and import, export and quotes follow as v0.3.x.
 

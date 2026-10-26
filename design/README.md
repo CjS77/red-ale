@@ -8,15 +8,17 @@ Design comes before code. Read in this order:
 4. [`milestone1.md`](milestone1.md): the v0.1 scope and its progress.
 5. [`milestone2.md`](milestone2.md): the v0.2 scope (MCP server, reports, the rest of books, transactions and business) and its progress. Draft.
 6. [`roadmap.md`](roadmap.md): the versions from v0.3 to parity, and which `features.md` rows each one ports. Proposed.
-7. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
-8. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
-9. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods.
-10. [`reports.md`](reports.md): report scripting: the Rhai engine, the query API, options, the report result,
+7. [`milestone3.md`](milestone3.md): the v0.3 scope (memory and scale, import and export, online quotes, locales)
+   and its progress. Draft.
+8. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
+9. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
+10. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods.
+11. [`reports.md`](reports.md): report scripting: the Rhai engine, the query API, options, the report result,
     rendering, saved configurations, and the plan for translating and testing GnuCash's reports.
-11. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.
-12. [`manual.md`](manual.md): the Manual: user documentation for agents, users and the website, from one core. Proposed.
-13. [`testing.md`](testing.md): fixtures, round-trip tests and the GnuCash oracle.
-14. [`open-questions.md`](open-questions.md): decisions not yet made.
+12. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.
+13. [`manual.md`](manual.md): the Manual: user documentation for agents, users and the website, from one core. Proposed.
+14. [`testing.md`](testing.md): fixtures, round-trip tests and the GnuCash oracle.
+15. [`open-questions.md`](open-questions.md): decisions not yet made.
 
 `GNUCASH_REV` pins the GnuCash release red-ale matches (tag, then commit).
 

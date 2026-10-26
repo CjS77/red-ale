@@ -62,8 +62,9 @@ Both backends are in scope: XML (gzipped or plain) and SQL (SQLite first; Postgr
   `libgnucash/backend/xml/` and `libgnucash/backend/sql/`, not by the wiki.
 - **No Guile, ever.** GnuCash's reports are Guile Scheme. red-ale never embeds or runs Guile. From v0.2 each report
   is translated from its GnuCash `.scm` file into a Rhai script (`.rhai`), keeping its options, logic and figures.
-  Reports are the one exception to "port only when the behaviour can't be matched any other way" (see "Licensing"
-  and `design/milestone2.md`).
+  Reports, and from v0.3 the importers (translated from GnuCash's C, C++ and, for QIF, Scheme), are the exceptions
+  to "port only when the behaviour can't be matched any other way" (see "Licensing", `design/milestone2.md` and
+  `design/milestone3.md`).
 - **GnuCash is the test oracle.** Compatibility tests write a book with red-ale, open it with GnuCash, and compare. The
   oracle must run the pinned version; if its version differs from the pin, the tests say so and fail.
   - The oracle is GnuCash 5.17: the library and Python bindings, with no GUI. It is installed in
@@ -90,7 +91,7 @@ Both backends are in scope: XML (gzipped or plain) and SQL (SQLite first; Postgr
   - GnuCash is GPL-2.0 or GPL-3.0 (most files GPL-2.0-or-later), so its code may be ported under GPL-3.0. Check the
     header of each file you port. Keep the original copyright lines, and cite the source file in the ported code.
   - Port only when the behaviour can't be matched any other way. Rust code designed from our notes in `design/` is the
-    default.
+    default. Reports and importers are the exceptions: they are translated from GnuCash's source.
   - Test files taken from GnuCash's repository keep their licence notice.
   - Every dependency must be GPL-3.0 compatible (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Zlib, and so on).
     `cargo deny` enforces the allow-list in `deny.toml`.
