@@ -2,6 +2,8 @@
 members = [
     "crates/red-ale",
     "crates/red-ale-core",
+    "crates/red-ale-import",
+    "crates/red-ale-locale",
     "crates/red-ale-mcp",
     "crates/red-ale-report",
     "crates/red-ale-rpc",
@@ -45,6 +47,8 @@ thiserror = "2.0"
 tokio = { version = "1.49", features = ["macros", "rt-multi-thread", "signal"] }
 
 red-ale-core = { path = "crates/red-ale-core" }
+red-ale-import = { path = "crates/red-ale-import" }
+red-ale-locale = { path = "crates/red-ale-locale" }
 red-ale-mcp = { path = "crates/red-ale-mcp" }
 red-ale-report = { path = "crates/red-ale-report" }
 red-ale-rpc = { path = "crates/red-ale-rpc" }
