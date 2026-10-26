@@ -192,7 +192,7 @@ A feature added in a development series is listed under the stable release that 
 |:------:|------------------------|----------------------------------------------------------|:----------:|:------:|
 |        | QIF import             | Imports Quicken Interchange Format files                 |   ≤ 1.4    |        |
 |   ❌   | OFX/QFX import         | Imports OFX and QFX statements through LibOFX            |    1.8     |        |
-|        | CSV transaction import | Imports transactions from CSV, with saved column layouts |    2.6     |        |
+|   ✅   | CSV transaction import | Imports transactions from CSV, with saved column layouts |    2.6     |  0.3   |
 |        | CSV account import     | Imports an account tree from CSV                         |    2.6     |        |
 |        | CSV price import       | Imports prices from CSV                                  |    3.0     |        |
 |   ❌   | AqBanking file import  | MT940, MT942 and DTAUS statements through AqBanking      |   1.8.9    |        |
@@ -205,9 +205,9 @@ links no C library and has no GnuCash parsing code to translate for them, so the
 
 | Status | Name                      | Short description                                                     | Introduced | Ported |
 |:------:|---------------------------|-----------------------------------------------------------------------|:----------:|:------:|
-|        | Import matcher            | Detects duplicates and matches imported transactions to existing ones |    1.8     |        |
-|        | Bayesian account matching | Learns which account an imported transaction belongs to               |   1.8.3    |        |
-|        | Import map editor         | View and delete learned import mappings                               |    3.0     |        |
+|   ✅   | Import matcher            | Detects duplicates and matches imported transactions to existing ones |    1.8     |  0.3   |
+|   ✅   | Bayesian account matching | Learns which account an imported transaction belongs to               |   1.8.3    |  0.3   |
+|   ✅   | Import map editor         | View and delete learned import mappings                               |    3.0     |  0.3   |
 
 ### Online banking
 
