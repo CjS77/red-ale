@@ -263,7 +263,7 @@ fn rationals_and_handles_become_their_wire_forms() {
 }
 
 /// `o.default_report_currency()` is `gnc-default-report-currency`: the report settings' currency, which
-/// `lib/options`' `add_currency` defaults to (`5.17:gnucash/report/options-utilities.scm:127-134`).
+/// `lib/options`' `add_currency` defaults to (`5.17:gnucash/report/options-utilities.scm:124-130`).
 #[test]
 fn options_read_the_default_report_currency() {
     let script = format!(

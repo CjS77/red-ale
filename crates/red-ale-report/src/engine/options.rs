@@ -192,7 +192,7 @@ pub(super) fn register_builder(engine: &mut Engine) {
     });
     engine.register_fn("set_default_section", |o: &mut OptionBuilder, s: &str| o.db.borrow_mut().set_default_section(s));
     // `gnc-default-report-currency`, the default of `gnc:options-add-currency!`
-    // (`5.17:gnucash/report/options-utilities.scm:127-134`): the report settings' currency, since `options()` has no
+    // (`5.17:gnucash/report/options-utilities.scm:124-130`): the report settings' currency, since `options()` has no
     // run context.
     engine.register_fn("default_report_currency", |o: &mut OptionBuilder| o.book.commodity(&o.report_currency));
 }
