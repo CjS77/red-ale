@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use red_ale_core::{Book, DomainResult, Env, TimeZone};
-use red_ale_service::session::EnvDebug;
+use red_ale_service::session::{EnvDebug, SystemEnv};
 use red_ale_service::{ServiceError, Session, Settings};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::Serialize;
@@ -168,6 +168,16 @@ impl Context {
     /// Run a query that needs the environment (for "today").
     pub fn query<T>(&mut self, f: impl FnOnce(&Book, &mut dyn Env) -> Result<T, RpcError>) -> Result<T, RpcError> {
         self.session()?.query(f)
+    }
+
+    /// Run a read that works with or without a book: `f` gets the open Book and its session's environment, or no Book
+    /// and the environment a new session would get when none is open.
+    pub fn query_any<T>(&mut self, f: impl FnOnce(Option<&Book>, &mut dyn Env) -> Result<T, RpcError>) -> Result<T, RpcError> {
+        match (&mut self.session, &self.env_factory) {
+            (Some(s), _) => s.query(|book, env| f(Some(book), env)),
+            (None, Some(factory)) => f(None, &mut *factory()),
+            (None, None) => f(None, &mut SystemEnv),
+        }
     }
 
     /// Run a Mutation atomically.

@@ -15,6 +15,7 @@ pub mod lots;
 pub mod period;
 pub mod prices;
 pub mod reconcile;
+pub mod reports;
 pub mod scrub;
 pub mod transactions;
 
@@ -36,6 +37,7 @@ pub fn all() -> Vec<Method> {
         lots::methods(),
         business::methods(),
         close_book::methods(),
+        reports::methods(),
     ]
     .into_iter()
     .flatten()

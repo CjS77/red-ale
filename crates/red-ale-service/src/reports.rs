@@ -241,7 +241,8 @@ pub struct ReportScripts {
 pub fn load_report_scripts(dir: &Path) -> ReportScripts {
     let message = match dir.canonicalize() {
         Ok(root) if root.is_dir() => {
-            let mut walk = Walk { root: root.clone(), visited: BTreeSet::from([root.clone()]), found: ReportScripts::default(), full: false };
+            let visited = BTreeSet::from([root.clone()]);
+            let mut walk = Walk { root: root.clone(), visited, found: ReportScripts::default(), full: false };
             walk.directory(&root, "");
             return walk.found;
         }
