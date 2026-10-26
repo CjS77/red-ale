@@ -8,6 +8,7 @@ directory before opening it, so these files are never written.
 | `gnucash/` | Books from GnuCash's own repository (see its README) | GPL-2.0-or-later, as GnuCash |
 | `synthetic/` | Books generated with the GnuCash 5.17 oracle by `scripts/fixtures/`, and one report rendered by GnuCash 5.5 (see below) | as red-ale |
 | `piecash/` | Books from [piecash](https://github.com/sdementen/piecash/tree/master/gnucash_books), converted from SQLite to XML by the oracle with `scripts/sqlite-to-xml.py`; `simple_sample.sqlite.gnucash` is the unconverted SQLite original | MIT, see `piecash/LICENSE` |
+| `csv/` | Import files from GnuCash's CSV importer tests (see its README) | GPL-2.0-or-later, as GnuCash |
 | `reports/` | The books of GnuCash 5.17's report tests, rebuilt in GnuCash's engine by `scripts/report-fixtures/`, and the tests' expected figures (see below) | GPL-2.0-or-later, as GnuCash |
 
 ## Canonical books
