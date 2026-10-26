@@ -43,8 +43,10 @@ pub struct McpServer {
 }
 
 impl McpServer {
-    /// A server over `dispatcher`, with its tools generated from the dispatcher's methods.
+    /// A server over `dispatcher`, with its tools generated from the dispatcher's methods. A Quote fetch's prices are
+    /// stored as soon as its requests are done.
     pub fn new(dispatcher: Arc<Mutex<Dispatcher>>) -> Self {
+        red_ale_rpc::quote_fetches::settle_when_fetched(&dispatcher);
         let tools = tools::tools(&lock(&dispatcher)).into();
         Self { dispatcher, tools, max_request_bytes: DEFAULT_MAX_LINE_LENGTH }
     }

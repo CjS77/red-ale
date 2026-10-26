@@ -70,8 +70,11 @@ pub mod codes {
     /// A user report script does not load.
     pub const REPORT_LOAD: i32 = 3004;
 
+    /// A method needs the network and the Configuration has it off; nothing was sent.
+    pub const NETWORK_DISABLED: i32 = 5000;
+
     /// Every code with its name, for the schema document.
-    pub const ALL: [(i32, &str); 28] = [
+    pub const ALL: [(i32, &str); 29] = [
         (PARSE_ERROR, "parse-error"),
         (INVALID_REQUEST, "invalid-request"),
         (METHOD_NOT_FOUND, "method-not-found"),
@@ -100,6 +103,7 @@ pub mod codes {
         (REPORT_OPTION, "report-option"),
         (REPORT_RESULT, "report-result"),
         (REPORT_LOAD, "report-load"),
+        (NETWORK_DISABLED, "network-disabled"),
     ];
 }
 

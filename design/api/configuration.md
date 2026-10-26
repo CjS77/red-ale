@@ -135,7 +135,7 @@ Every setting, with its default. Settings declared in v0.3 ahead of the work tha
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
 | `locale` | `C`, the supported locales (`fr_FR` …), `environment` | `C` | The Locale reports format in, unless `report.run` or `report.export` names one, and the default of an unset `reports.currency` and `reports.weekStart` ([`../milestone3.md`](../milestone3.md), "Locales"; [`../reports.md`](../reports.md) §4). `environment` takes each category from `LC_ALL`, else `LC_NUMERIC`, `LC_MONETARY`, `LC_TIME` or `LC_MESSAGES`, else `LANG`, as the C library does; an unsupported value there fails the run. |
-| `defaultCurrency` | `commodity-id` or null | null | GnuCash's default currency: what currencies are quoted in, and the currency of new Owners and QIF imports. Unset, the Locale's currency, else `USD` ([`quotes.md`](quotes.md)). *Declared.* |
+| `defaultCurrency` | `commodity-id` or null | null | GnuCash's default currency: what currencies are quoted in, and the currency of new Owners and QIF imports. Unset, the Locale's currency, else `USD` ([`quotes.md`](quotes.md)). Read by Quote fetches; *declared* for new Owners and QIF imports. |
 | `jsonRpc.maxRequestBytes` | integer, 1 MiB to 4 GiB − 1 | 64 MiB | The largest request `red-ale serve` accepts (jsonrpsee's default is 10 MB). Read when the server starts. |
 | `jsonRpc.maxResponseBytes` | integer, 1 MiB to 4 GiB − 1 | 256 MiB | The largest response `red-ale serve` sends (jsonrpsee's default is 10 MB, which a CSV export of a few years of transactions passes; [`export.md`](export.md)). A larger result is an error. Read when the server starts. `red-ale call` takes a response of any size. |
 | `mcp.maxRequestBytes` | integer, 1 MiB to 4 GiB − 1 | 64 MiB | The largest message `red-ale mcp` accepts (rmcp's default is 16 MiB). Read when the server starts. |
@@ -151,10 +151,10 @@ Every setting, with its default. Settings declared in v0.3 ahead of the work tha
 | `import.csvLayouts.<name>` | object | none | A CSV transaction import layout ([`import.md`](import.md)). Its fields are declared with CSV import. *Declared.* |
 | `import.csvPriceLayouts.<name>` | object | none | A CSV price import layout. *Declared.* |
 | `import.qifAccountMap` | object | `{}` | The QIF account map, saved by `import.apply`. *Declared.* |
-| `quotes.network` | boolean | `false` | Let Quote fetches reach the network; nothing else does. Refused over MCP. *Declared.* |
-| `quotes.timeoutSeconds` | integer 1–600 | `30` | How long one request may take. *Declared.* |
-| `quotes.services.<name>` | Quote service | below | Where quotes are fetched from. *Declared.* |
-| `quotes.sources.<source>` | list of service names, at least one | below | The services that answer a Finance::Quote source, in order. *Declared.* |
+| `quotes.network` | boolean | `false` | Let Quote fetches reach the network; nothing else does. Refused over MCP. |
+| `quotes.timeoutSeconds` | integer 1–600 | `30` | How long one request may take. |
+| `quotes.services.<name>` | Quote service | below | Where quotes are fetched from. |
+| `quotes.sources.<source>` | list of service names, at least one | below | The services that answer a Finance::Quote source, in order. |
 
 The Import settings are GnuCash's, with its defaults
 (`5.17:gnucash/gschemas/org.gnucash.GnuCash.dialogs.import.generic.gschema.xml.in:3-47`). GnuCash reads the numbers

@@ -14,6 +14,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
 use crate::error::{RpcError, codes};
+use crate::quote_fetches::{Notifier, QuoteFetches};
 
 /// What a method does to the book: MCP's `readOnlyHint` and `destructiveHint` come from this.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -120,6 +121,9 @@ pub struct Context {
     pub settings: Settings,
     env_factory: Option<EnvFactory>,
     origin: Origin,
+    /// The open book's Quote fetches; cleared, cancelling a running one, when the book closes.
+    pub(crate) quote_fetches: QuoteFetches,
+    quote_notifier: Option<Notifier>,
 }
 
 impl std::fmt::Debug for Context {
@@ -152,6 +156,7 @@ impl Context {
         if let Some(factory) = &self.env_factory {
             session.set_env_boxed(factory());
         }
+        self.quote_fetches.clear();
         Ok(self.session.insert(session))
     }
 
@@ -163,9 +168,15 @@ impl Context {
         }
     }
 
-    /// Remove the open session.
+    /// Remove the open session. Its Quote fetches go with it: a running one is cancelled and stores nothing.
     pub fn take_session(&mut self) -> Result<Session, RpcError> {
+        self.quote_fetches.clear();
         self.session.take().ok_or_else(|| ServiceError::NoSession.into())
+    }
+
+    /// What a Quote fetch calls when its requests are done, if a server installed something.
+    pub(crate) fn quote_notifier(&self) -> Option<Notifier> {
+        self.quote_notifier.clone()
     }
 
     /// The local time zone: the open session's, else the one new sessions get, else the server process's.
@@ -225,12 +236,37 @@ impl Dispatcher {
     /// A dispatcher with every red-ale method and no book open.
     pub fn new(settings: Settings) -> Self {
         let methods = crate::methods::all().into_iter().map(|m| (m.name, m)).collect();
-        Self { ctx: Context { session: None, settings, env_factory: None, origin: Origin::default() }, methods }
+        let ctx = Context {
+            session: None,
+            settings,
+            env_factory: None,
+            origin: Origin::default(),
+            quote_fetches: QuoteFetches::default(),
+            quote_notifier: None,
+        };
+        Self { ctx, methods }
     }
 
     /// Use `factory` for the environment of every session opened from now on.
     pub fn set_env_factory(&mut self, factory: EnvFactory) {
         self.ctx.env_factory = Some(factory);
+    }
+
+    /// Call `notify` from a Quote fetch's thread when its requests are done (see
+    /// [`crate::quote_fetches::settle_when_fetched`]).
+    pub fn set_quote_notifier(&mut self, notify: Notifier) {
+        self.ctx.quote_notifier = Some(notify);
+    }
+
+    /// Store a finished Quote fetch's prices, if its requests are done. Every call does this first.
+    pub fn settle_quotes(&mut self) {
+        self.ctx.settle_quotes();
+    }
+
+    /// Wait for the running Quote fetch's requests, if one is running, then store its prices: what
+    /// `red-ale exec` does after `price.fetchQuotes`.
+    pub fn wait_for_quotes(&mut self) {
+        self.ctx.wait_for_quotes();
     }
 
     /// The context, for a caller that opens a session directly.
@@ -251,6 +287,7 @@ impl Dispatcher {
     /// Call a method with by-name params, saying which door the call came through.
     pub fn call_from(&mut self, origin: Origin, name: &str, params: Value) -> Result<Value, RpcError> {
         self.ctx.origin = origin;
+        self.ctx.settle_quotes();
         if name == "api.schema" {
             return Ok(self.schema());
         }

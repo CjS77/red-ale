@@ -1745,6 +1745,7 @@ dependencies = [
  "red-ale-mcp",
  "red-ale-rpc",
  "red-ale-service",
+ "red-ale-testkit",
  "serde_json",
  "tempfile",
  "tokio",
@@ -1811,6 +1812,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "red-ale-quotes"
+version = "0.2.0"
+dependencies = [
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "red-ale-core",
+ "red-ale-service",
+ "rustls",
+ "rustls-native-certs",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "red-ale-report"
 version = "0.2.0"
 dependencies = [
@@ -1841,8 +1860,10 @@ dependencies = [
  "red-ale-core",
  "red-ale-export",
  "red-ale-locale",
+ "red-ale-quotes",
  "red-ale-report",
  "red-ale-service",
+ "regex",
  "schemars",
  "serde",
  "serde_json",
@@ -1878,6 +1899,7 @@ dependencies = [
  "red-ale-xml",
  "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

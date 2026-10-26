@@ -401,3 +401,34 @@ fn the_request_size_limit_comes_from_the_configuration() {
     assert!(status.contains("413"), "{status}");
     stop(server);
 }
+
+/// `exec price.fetchQuotes` waits for the Quote fetch, prints its status, saves the prices it stored and exits 2
+/// when a commodity got no price, as `gnucash-cli --quotes get` does.
+#[test]
+fn exec_fetches_quotes_and_waits_for_them() {
+    use red_ale_testkit::quote_server::{Answer, QuoteServer};
+    let server = QuoteServer::start(vec![("/quote/HPE", Answer::ok(r#"{"price": "13.37", "ccy": "USD", "date": "2022-09-01"}"#))]);
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("quotes.gnucash").display().to_string();
+    let config = dir.path().join("red-ale.json");
+    let service = json!({ "format": "json", "securityUrl": format!("{}/quote/{{symbol}}", server.url()),
+        "pointers": { "price": "/price", "currency": "/ccy", "date": "/date" } });
+    let settings = json!({ "quotes": { "network": true, "services": { "local": service }, "sources": { "alphavantage": ["local"] } } });
+    std::fs::write(&config, settings.to_string()).unwrap();
+    let config = config.display().to_string();
+    let script = dir.path().join("setup.txt");
+    let security = |m: &str| {
+        let params = json!({ "namespace": "NYSE", "mnemonic": m, "fullname": m, "fraction": 10000, "quoteFlag": true, "quoteSource": "alphavantage" });
+        format!("commodity.create {params}")
+    };
+    std::fs::write(&script, [security("HPE"), security("GONE")].join("\n")).unwrap();
+    let out = run(&["exec", "--create", "--book", &book, "--script", &script.display().to_string()]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let out = run(&["exec", "--config", &config, "--book", &book, "price.fetchQuotes"]);
+    assert_eq!(out.status.code(), Some(2), "{}", String::from_utf8_lossy(&out.stderr));
+    let status = json(&out.stdout);
+    assert_eq!((status["state"].as_str(), status["stored"].as_u64(), status["failed"].as_u64()), (Some("finished"), Some(1), Some(1)));
+    let out = run(&["exec", "--book", &book, "price.list"]);
+    let prices = json(&out.stdout);
+    assert_eq!((prices[0]["commodity"].as_str(), prices[0]["source"].as_str()), (Some("NYSE::HPE"), Some("Finance::Quote")));
+}

@@ -11,6 +11,7 @@
 pub mod memory;
 pub mod model;
 pub mod oracle;
+pub mod quote_server;
 pub mod synthetic;
 
 use std::path::{Path, PathBuf};

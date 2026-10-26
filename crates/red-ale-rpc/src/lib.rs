@@ -9,6 +9,7 @@
 pub mod dispatch;
 pub mod error;
 pub mod methods;
+pub mod quote_fetches;
 pub mod server;
 pub mod wire;
 

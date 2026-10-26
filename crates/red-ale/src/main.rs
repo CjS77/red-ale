@@ -173,20 +173,41 @@ struct ExecArgs {
     settings: SettingsArgs,
 }
 
+/// How a command ended, short of a failure it could not report as an RPC error.
+enum Ended {
+    /// Everything succeeded.
+    Done,
+    /// A method failed.
+    Failed(RpcError),
+    /// A Quote fetch finished with this many commodities getting no price; its status was printed.
+    QuotesFailed(usize),
+}
+
+impl From<Option<RpcError>> for Ended {
+    fn from(error: Option<RpcError>) -> Self {
+        error.map_or(Self::Done, Self::Failed)
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let outcome = match cli.command {
-        Command::Serve(args) => serve(&args),
-        Command::Mcp(args) => mcp(&args),
-        Command::Call(args) => call(&args),
+        Command::Serve(args) => serve(&args).map(Ended::from),
+        Command::Mcp(args) => mcp(&args).map(Ended::from),
+        Command::Call(args) => call(&args).map(Ended::from),
         Command::Exec(args) => exec(&args),
-        Command::Methods => methods().map(|()| None),
-        Command::Schema => print_json(&Dispatcher::new(Settings::default()).schema()).map(|()| None),
+        Command::Methods => methods().map(|()| Ended::Done),
+        Command::Schema => print_json(&Dispatcher::new(Settings::default()).schema()).map(|()| Ended::Done),
     };
     match outcome {
-        Ok(None) => ExitCode::SUCCESS,
-        Ok(Some(e)) => {
+        Ok(Ended::Done) => ExitCode::SUCCESS,
+        Ok(Ended::Failed(e)) => {
             eprintln!("{}", serde_json::to_string_pretty(&json!({ "error": e })).unwrap_or_else(|_| e.to_string()));
+            ExitCode::from(2)
+        }
+        // As `gnucash-cli --quotes get` exits when a quote failed (`5.17:gnucash/gnucash-commands.cpp:368-372`).
+        Ok(Ended::QuotesFailed(count)) => {
+            eprintln!("red-ale: the Quote fetch found no price for {count} commodit{}", if count == 1 { "y" } else { "ies" });
             ExitCode::from(2)
         }
         // A reader that stops early, as `red-ale schema | head` does, is not a failure. Every command closes its book
@@ -312,7 +333,7 @@ fn call(args: &CallArgs) -> Result<Option<RpcError>> {
     }
 }
 
-fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
+fn exec(args: &ExecArgs) -> Result<Ended> {
     if args.script.is_some() && args.output.output.is_some() {
         bail!("--output writes one method's result; it does not combine with --script");
     }
@@ -323,7 +344,7 @@ fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
     };
     let mut d = Dispatcher::new(args.settings.settings());
     if let Err(e) = open_book(&mut d, args) {
-        return Ok(Some(e));
+        return Ok(Ended::Failed(e));
     }
     let outcome = run_calls(&mut d, calls);
     let finish = match &outcome {
@@ -331,11 +352,16 @@ fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
         Ok(_) if !args.no_save => d.call("book.close", json!({ "save": true })),
         _ => d.call("book.close", json!({ "discard": true })),
     };
-    match (outcome, finish) {
-        (Err(e), _) | (Ok(_), Err(e)) => Ok(Some(e)),
-        (Ok(results), Ok(_)) if args.script.is_some() => print_json(&Value::Array(results)).map(|()| None),
-        (Ok(results), Ok(_)) => args.output.emit(&results.into_iter().next().unwrap_or(Value::Null)).map(|()| None),
+    let (results, quotes_failed) = match (outcome, finish) {
+        (Err(e), _) | (Ok(_), Err(e)) => return Ok(Ended::Failed(e)),
+        (Ok(results), Ok(_)) => results,
+    };
+    if args.script.is_some() {
+        print_json(&Value::Array(results))?;
+    } else {
+        args.output.emit(&results.into_iter().next().unwrap_or(Value::Null))?;
     }
+    Ok(if quotes_failed > 0 { Ended::QuotesFailed(quotes_failed) } else { Ended::Done })
 }
 
 /// Open or create `--book`, if given.
@@ -348,8 +374,24 @@ fn open_book(d: &mut Dispatcher, args: &ExecArgs) -> Result<(), RpcError> {
     opened.map(drop)
 }
 
-fn run_calls(d: &mut Dispatcher, calls: Vec<(String, Value)>) -> Result<Vec<Value>, RpcError> {
-    calls.into_iter().map(|(method, params)| d.call(&method, params)).collect()
+/// Run the calls in order: their results, and how many commodities their Quote fetches found no price for.
+fn run_calls(d: &mut Dispatcher, calls: Vec<(String, Value)>) -> Result<(Vec<Value>, usize), RpcError> {
+    let results = calls.into_iter().map(|(method, params)| run_call(d, &method, params)).collect::<Result<Vec<_>, _>>()?;
+    let failed = results.iter().map(|(_, failed)| failed).sum();
+    Ok((results.into_iter().map(|(result, _)| result).collect(), failed))
+}
+
+/// Run one method. `price.fetchQuotes` waits for its Quote fetch and gives the fetch's final status, as
+/// `gnucash-cli --quotes get` waits for Finance::Quote.
+fn run_call(d: &mut Dispatcher, method: &str, params: Value) -> Result<(Value, usize), RpcError> {
+    let result = d.call(method, params)?;
+    if method != "price.fetchQuotes" {
+        return Ok((result, 0));
+    }
+    d.wait_for_quotes();
+    let status = d.call("price.fetchStatus", json!({ "fetch": result["fetch"] }))?;
+    let failed = status["failed"].as_u64().map_or(0, |n| usize::try_from(n).unwrap_or(usize::MAX));
+    Ok((status, failed))
 }
 
 fn read_script(path: &Path) -> Result<Vec<(String, Value)>> {

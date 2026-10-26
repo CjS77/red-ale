@@ -16,6 +16,7 @@ pub mod export;
 pub mod lots;
 pub mod period;
 pub mod prices;
+pub mod quotes;
 pub mod reconcile;
 pub mod reports;
 pub mod scrub;
@@ -37,6 +38,7 @@ pub fn all() -> Vec<Method> {
         scrub::methods(),
         commodities::methods(),
         prices::methods(),
+        quotes::methods(),
         lots::methods(),
         business::methods(),
         close_book::methods(),

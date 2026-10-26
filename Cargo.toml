@@ -6,6 +6,7 @@ members = [
     "crates/red-ale-import",
     "crates/red-ale-locale",
     "crates/red-ale-mcp",
+    "crates/red-ale-quotes",
     "crates/red-ale-report",
     "crates/red-ale-rpc",
     "crates/red-ale-service",
@@ -26,6 +27,11 @@ anyhow = "1.0"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.5", features = ["derive"] }
 getrandom = "0.3"
+http-body-util = "0.1.3"
+hyper = { version = "1.5", default-features = false, features = ["client", "http1"] }
+# HTTPS for Quote fetches, with ring as rustls's only crypto provider (design/architecture.md, "Dependencies").
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "tls12", "ring"] }
+hyper-util = { version = "0.1.19", default-features = false, features = ["client-legacy", "http1", "tokio"] }
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 icu_calendar = { version = "2.4", default-features = false, features = ["compiled_data"] }
 # `range` (date intervals) is behind `unstable`, whose API may change in a minor release: pinned exactly.
@@ -44,7 +50,9 @@ proptest = "1.9"
 quick-xml = "0.41"
 regex = "1.12"
 rhai = { version = "1.27.0", default-features = false, features = ["std", "no_float", "no_time", "serde"] }
-rmcp = { version = "3.7", default-features = false, features = ["server", "transport-io"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-native-certs = "0.8"
+rmcp ={ version = "3.7", default-features = false, features = ["server", "transport-io"] }
 schemars = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -59,6 +67,7 @@ red-ale-export = { path = "crates/red-ale-export" }
 red-ale-import = { path = "crates/red-ale-import" }
 red-ale-locale = { path = "crates/red-ale-locale" }
 red-ale-mcp = { path = "crates/red-ale-mcp" }
+red-ale-quotes = { path = "crates/red-ale-quotes" }
 red-ale-report = { path = "crates/red-ale-report" }
 red-ale-rpc = { path = "crates/red-ale-rpc" }
 red-ale-service = { path = "crates/red-ale-service" }

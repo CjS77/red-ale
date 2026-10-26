@@ -255,9 +255,9 @@ builds them (`5.17:libgnucash/app-utils/gnc-quotes.cpp:546-760`).
 
 | Status | Feature                    | Introduced | Epic | Notes                                                                                                   |
 |:------:|----------------------------|:----------:|------|---------------------------------------------------------------------------------------------------------|
-|        | Online quotes (red-ale)    |   ≤ 1.4    |      | New `features.md` row beside the ❌ Finance::Quote one. Fetches in the background (below)                |
-|        | Currency quotes            |   ≤ 1.4    |      | The `currency` source (`5.17:libgnucash/engine/gnc-commodity.cpp:182`): rates for the currencies Accounts use |
-|        | Quote services             |     —      |      | Configurable services, below                                                                             |
+|   ✅   | Online quotes (red-ale)    |   ≤ 1.4    |      | New `features.md` row beside the ❌ Finance::Quote one. Fetches in the background (below); [`api/quotes.md`](api/quotes.md) |
+|   ✅   | Currency quotes            |   ≤ 1.4    |      | The `currency` source (`5.17:libgnucash/engine/gnc-commodity.cpp:182`): rates for the currencies Accounts use |
+|   ✅   | Quote services             |     —      |      | Configurable services, below                                                                             |
 
 ### Quote services
 

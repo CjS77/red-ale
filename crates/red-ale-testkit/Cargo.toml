@@ -22,6 +22,7 @@ tempfile.workspace = true
 red-ale-import.workspace = true
 red-ale-locale.workspace = true
 peak_alloc.workspace = true
+tokio.workspace = true
 
 [lints]
 workspace = true

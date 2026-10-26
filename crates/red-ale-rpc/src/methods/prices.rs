@@ -24,7 +24,7 @@ pub fn methods() -> Vec<Method> {
 }
 
 /// A price.
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PriceInfo {
     /// Identity.
@@ -47,7 +47,8 @@ pub struct PriceInfo {
     pub value: Amount,
 }
 
-fn info(p: &Price, zone: &TimeZone) -> PriceInfo {
+/// A price as the wire shows it.
+pub(crate) fn info(p: &Price, zone: &TimeZone) -> PriceInfo {
     PriceInfo {
         guid: p.guid.into(),
         commodity: p.commodity.clone().into(),
@@ -112,15 +113,19 @@ pub struct AddOutcome {
     pub existing: Option<Id>,
 }
 
-fn outcome(book: &Book, r: &AddResult, zone: &TimeZone) -> AddOutcome {
-    let name = match (r.added, r.replaced, r.rejected_by) {
+/// `price.add`'s outcome name for what adding a price did.
+pub(crate) fn outcome_name(r: &AddResult) -> &'static str {
+    match (r.added, r.replaced, r.rejected_by) {
         (_, _, Some(_)) => "rejected",
         (None, _, None) => "duplicate",
         (Some(_), Some(_), None) => "replaced",
         (Some(_), None, None) => "added",
-    };
+    }
+}
+
+fn outcome(book: &Book, r: &AddResult, zone: &TimeZone) -> AddOutcome {
     AddOutcome {
-        outcome: name,
+        outcome: outcome_name(r),
         price: r.added.and_then(|g| book.prices.get(&g)).map(|p| info(p, zone)),
         replaced: r.replaced.map(Id),
         existing: r.rejected_by.or(r.duplicate_of).map(Id),
