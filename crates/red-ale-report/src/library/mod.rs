@@ -23,6 +23,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
     "lib/exchange.rhai",
     "lib/html-utilities.rhai",
     "lib/options.rhai",
+    "standard/category-barchart.rhai",
     "standard/net-charts.rhai",
 ];
 

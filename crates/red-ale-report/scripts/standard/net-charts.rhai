@@ -78,7 +78,8 @@ fn options(params, o, book) {
         o.boolean("Display", "Grid", "f", "Add grid lines.", true);
     }
     o.boolean("Display", "Show a grouped (indexed) tooltip", "t1",
-              "Show all items, along the x-axis, in a grouped tooltip. Otherwise - only a single entry, as per coursor's nearest proximity.",
+              "Show all items, along the x-axis, in a grouped tooltip. " +
+              "Otherwise - only a single entry, as per coursor's nearest proximity.",
               true);
     o.boolean("Display", "Show only non-zero values in a tooltip", "t2", "Show only non-zero values in a tooltip.", true);
     o.set_default_section("General");

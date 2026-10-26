@@ -243,6 +243,10 @@ fn series_link_to_the_category_charts() {
     assert_eq!(income["options"]["General"]["Report name"], "Income Chart");
     assert_eq!(income["options"]["Accounts"]["Accounts"], json!([INCOME]));
     assert_eq!(ch["series"][1]["link"]["report"]["options"]["General"]["Report name"], "Expense Chart");
+    let linked = c.run(income["template"].as_str().unwrap(), &income["options"]);
+    let warning = blocks_of(&linked, "warning")[0]["title"].clone();
+    assert_eq!(linked["report"]["name"], "Income Over Time", "the link runs");
+    assert_eq!(warning, "No data", "Income is not a top-level account here (category-barchart.scm:261-264)");
 }
 
 // All-zero data gives the empty-data warning (:386-389, :445-448); no accounts at all the no-account warning
