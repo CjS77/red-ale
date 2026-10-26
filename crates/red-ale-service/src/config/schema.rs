@@ -15,6 +15,7 @@ use std::sync::LazyLock;
 
 use red_ale_core::ops::period::{FiscalYearEnd, PeriodBound};
 use red_ale_core::{Guid, Numeric};
+use red_ale_import::csv::{ColumnType, DateFormat};
 use red_ale_locale::Locale;
 use serde_json::{Map, Value, json};
 
@@ -208,7 +209,13 @@ fn import() -> Value {
         "Import: the matcher's settings, CSV import layouts and the QIF account map (design/api/import.md).",
         json!({
             "settings": import_settings(),
-            "csvLayouts": named("CSV transaction import layouts by name, beside the built-in ones."),
+            "csvLayouts": {
+                "type": "object", "default": {},
+                "description": "CSV transaction import layouts by name, beside the built-in ones (No Settings, GnuCash Export Format, \
+                                GnuCash Export Format (4.x and older)), which always win over one of the same name.",
+                "propertyNames": { "minLength": 1 },
+                "additionalProperties": csv_layout(),
+            },
             "csvPriceLayouts": named("CSV price import layouts by name, beside the built-in ones."),
             "qifAccountMap": {
                 "type": "object", "default": {}, "additionalProperties": true,
@@ -216,6 +223,38 @@ fn import() -> Value {
             },
         }),
     )
+}
+
+/// A CSV transaction import layout: GnuCash's preset, key for key (`TxLayout`'s serde form; `design/api/import.md`,
+/// "CSV transactions"). Fields left out take GnuCash's defaults, so none is declared here.
+pub fn csv_layout() -> Value {
+    let columns: Vec<&str> = ColumnType::ALL.iter().map(|t| t.gnucash_name()).chain(["Deposit", "Withdrawal", "Num"]).collect();
+    let dates: Vec<&str> = DateFormat::ALL.iter().map(|f| f.name()).collect();
+    let count = |what: &str| json!({ "type": "integer", "minimum": 0, "maximum": u32::MAX, "description": what });
+    let flag = |what: &str| json!({ "type": "boolean", "description": what });
+    json!({
+        "type": "object",
+        "description": "A CSV transaction import layout (GnuCash's import preset). Fields left out take GnuCash's defaults.",
+        "properties": {
+            "format": { "type": "string", "enum": ["csv", "fixedWidth"], "description": "Separated fields (csv, the default) or fixed widths." },
+            "separators": { "type": "string", "description": "The separator characters, any of which ends a field; default \",\"." },
+            "escape": flag("Backslash escapes in fields; default true."),
+            "columnWidths": { "type": "array", "items": count("A width in characters."), "description": "Fixed width only: each column's width." },
+            "skipStartLines": count("Lines to skip at the start, such as a header."),
+            "skipEndLines": count("Lines to skip at the end."),
+            "skipAltLines": flag("Skip every second line after the start lines."),
+            "dateFormat": { "type": "string", "enum": dates, "description": "How dates are written; default y-m-d." },
+            "currencyFormat": { "type": "string", "enum": ["locale", "period", "comma"], "description": "How amounts are written: the Locale's, 123,456.78 (period) or 123.456,78 (comma)." },
+            "encoding": { "type": "string", "format": "encoding", "description": "The file's encoding, a WHATWG label; default UTF-8." },
+            "multiSplit": flag("Several lines make one transaction, one split per line."),
+            "baseAccount": {
+                "type": ["string", "object", "null"],
+                "description": "Single-line mode with no Account column: every line's account, by full name or as { guid, fullName }.",
+                "properties": { "guid": { "type": "string", "format": "guid" }, "fullName": { "type": "string", "minLength": 1 } },
+            },
+            "columns": { "type": "array", "items": { "type": "string", "enum": columns }, "description": "Each column's type, by GnuCash's saved name." },
+        },
+    })
 }
 
 /// GnuCash's generic import settings, with its defaults
@@ -377,6 +416,7 @@ pub fn check_format(format: &str, text: &str) -> Result<(), String> {
         "json-pointer" => (text.is_empty() || text.starts_with('/')).then_some(()).ok_or_else(|| "must be a JSON Pointer".to_owned()),
         "name" => name(text),
         "env-name" => env_name(text),
+        "encoding" => encoding_rs::Encoding::for_label(text.trim().as_bytes()).map(drop).ok_or_else(|| "must be a WHATWG encoding label".to_owned()),
         _ => Ok(()),
     }
 }

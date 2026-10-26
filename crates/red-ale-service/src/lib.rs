@@ -6,6 +6,7 @@
 pub mod config;
 pub mod error;
 pub mod files;
+pub mod import;
 pub mod journal;
 pub mod locale;
 pub mod lock;
