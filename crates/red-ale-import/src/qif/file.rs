@@ -349,6 +349,7 @@ impl<'a> Reader<'a> {
             xtn.security_name = Some(String::new());
         }
         xtn.from_acct.clone_from(&self.current_account_name);
+        xtn.last_line = self.line_num;
         if xtn.date.is_some() {
             self.file.add_xtn(xtn);
         } else {

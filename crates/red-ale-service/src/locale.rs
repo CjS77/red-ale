@@ -36,7 +36,7 @@ impl Config {
     }
 
     /// GnuCash's default currency (`gnc_default_currency`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:747-780`): the
-    /// `defaultCurrency` setting if it names a currency of `book`'s table, else the Locale's currency, else `USD`.
+    /// `defaultCurrency` setting if it names a currency the Book knows, else the Locale's currency, else `USD`.
     pub fn default_currency(&self, book: &Book) -> Result<CommodityRef, ServiceError> {
         let setting = self.checked("defaultCurrency")?;
         let named = setting.as_str().map(|id| match id.split_once("::") {

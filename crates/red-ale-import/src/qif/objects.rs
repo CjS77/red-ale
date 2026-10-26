@@ -207,6 +207,8 @@ impl Default for QifSplit {
 pub struct QifXtn {
     /// The line its first field was on (red-ale's, for messages).
     pub line: usize,
+    /// The line of its `^` (red-ale's, for messages).
+    pub last_line: usize,
     /// `D`: the date.
     pub date: Option<Field<QifDate>>,
     /// `P`: the payee.
@@ -242,6 +244,7 @@ impl QifXtn {
     pub fn new(line: usize) -> Self {
         Self {
             line,
+            last_line: line,
             date: None,
             payee: None,
             address: None,

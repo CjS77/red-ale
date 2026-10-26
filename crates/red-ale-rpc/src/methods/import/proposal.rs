@@ -7,6 +7,7 @@ use red_ale_import::matcher::{DestSource, MatchInfo, TransInfo};
 use red_ale_import::pipeline::{
     AccountName, Format, IgnoredLine, ImbalanceInfo, NewAccount, Proposal, ProposedTransaction, RowError, Source, TransactionReview, Warning,
 };
+use red_ale_import::qif::import::{MapRow, NewCommodity, QifState};
 use red_ale_service::import::Previewed;
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -51,12 +52,68 @@ pub struct ProposalResult {
     /// `csvOwners`: the customers or vendors, by index.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owners: Option<Vec<OwnerWire>>,
+    /// QIF's own state: the date formats to choose between, the account, category and payee maps, and the
+    /// securities.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub qif: Option<QifWire>,
     /// `csvAccounts`: one per account row, in file order.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub accounts: Option<Vec<AccountRecordWire>>,
     /// `csvPrices`: one per price line, in file order.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prices: Option<Vec<PriceRecordWire>>,
+}
+
+/// QIF's own state.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct QifWire {
+    /// The date formats that fit the dates, when more than one does and no `dateFormat` was given: the proposal then
+    /// holds no transactions, and a new preview with one of them is needed.
+    pub date_formats: Vec<String>,
+    /// The QIF accounts the files use and their accounts.
+    pub accounts: Vec<QifMapRowWire>,
+    /// The QIF categories and their accounts.
+    pub categories: Vec<QifMapRowWire>,
+    /// The QIF payees and memos that pick an account, and their accounts.
+    pub payees: Vec<QifMapRowWire>,
+    /// The securities the files use.
+    pub securities: Vec<QifSecurityWire>,
+    /// The default currency the transactions are in.
+    pub currency: Option<CommodityId>,
+}
+
+/// One row of a QIF map.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct QifMapRowWire {
+    /// The QIF name.
+    pub qif_name: String,
+    /// The account's full name.
+    pub account: String,
+    /// The account, when it exists.
+    pub id: Option<Id>,
+    /// The account types it may have, as GnuCash names them; a new account gets the first that suits it.
+    #[serde(rename = "type")]
+    pub types: Vec<String>,
+    /// True when the account is to be created.
+    pub new: bool,
+    /// True when neither the saved QIF account map nor the params named it.
+    pub guessed: bool,
+}
+
+/// One security a QIF import uses.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct QifSecurityWire {
+    /// The QIF security name.
+    pub name: String,
+    /// Its commodity.
+    pub id: CommodityId,
+    /// The full name of a commodity to be created.
+    pub fullname: Option<String>,
+    /// True when applying creates the commodity.
+    pub new: bool,
 }
 
 /// Counts of a proposal: of its transactions, or of the records of the other formats.
@@ -322,8 +379,9 @@ impl From<Source> for SourceWire {
 /// The proposal and its review, as the result of `import.preview`.
 pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
     let proposal = &p.proposal;
+    let qif = proposal.qif.as_deref();
     let transactions: Vec<ImportedTransactionWire> =
-        proposal.transactions.iter().zip(&p.review.transactions).map(|(t, r)| imported_transaction(book, t, r)).collect();
+        proposal.transactions.iter().zip(&p.review.transactions).map(|(t, r)| imported_transaction(book, qif, t, r)).collect();
     let warnings = proposal.warnings.iter().chain(&p.review.warnings).map(WarningWire::from).collect();
     let (documents, owners) = match &proposal.business {
         Some(Records::Documents(d)) => (Some(d.iter().map(|d| business::document_wire(book, d)).collect::<Vec<_>>()), None),
@@ -344,13 +402,45 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
         errors: proposal.errors.iter().map(RowErrorWire::from).collect(),
         warnings,
         new_accounts: p.review.new_accounts.iter().map(NewAccountWire::from).collect(),
-        new_commodities: Vec::new(),
+        new_commodities: qif.map(|q| q.new_commodities.iter().map(new_commodity).collect()).unwrap_or_default(),
         transactions,
         csv: proposal.csv.as_ref().map(|c| CsvWire { account_names: c.account_names.iter().map(|n| account_name(book, n)).collect() }),
         documents,
         owners,
+        qif: qif.map(|q| qif_wire(book, q)),
         accounts: (proposal.format == Format::CsvAccounts).then(|| proposal.accounts.iter().map(AccountRecordWire::from).collect()),
         prices: (proposal.format == Format::CsvPrices).then(|| proposal.prices.iter().map(PriceRecordWire::from).collect()),
+    }
+}
+
+fn new_commodity(c: &NewCommodity) -> NewCommodityWire {
+    NewCommodityWire { id: CommodityId(c.id.clone()), fullname: c.fullname.clone(), fraction: c.fraction }
+}
+
+fn qif_wire(book: &Book, q: &QifState) -> QifWire {
+    let rows = |rows: &[MapRow]| rows.iter().map(|r| map_row(book, r)).collect();
+    QifWire {
+        date_formats: q.date_formats.iter().map(|f| f.symbol().to_owned()).collect(),
+        accounts: rows(&q.accounts),
+        categories: rows(&q.categories),
+        payees: rows(&q.payees),
+        securities: q
+            .securities
+            .iter()
+            .map(|s| QifSecurityWire { name: s.name.clone(), id: CommodityId(s.id.clone()), fullname: s.fullname.clone(), new: s.new })
+            .collect(),
+        currency: q.currency.clone().map(CommodityId),
+    }
+}
+
+fn map_row(book: &Book, r: &MapRow) -> QifMapRowWire {
+    QifMapRowWire {
+        qif_name: r.qif_name.clone(),
+        account: r.account.clone(),
+        id: book.account_by_full_name(&r.account).map(|a| Id(a.guid)),
+        types: r.types.iter().map(|t| t.as_str().to_owned()).collect(),
+        new: r.new,
+        guessed: r.guessed,
     }
 }
 
@@ -385,10 +475,13 @@ fn account_name(book: &Book, n: &AccountName) -> AccountNameWire {
     }
 }
 
-fn split_wire(book: &Book, s: &Split) -> ImportedSplitWire {
+/// A split; for QIF, an account the preview's copy made is null here, named from the proposal.
+fn split_wire(book: &Book, qif: Option<&QifState>, s: &Split) -> ImportedSplitWire {
+    let existing = s.account.filter(|a| book.account(*a).is_some());
+    let new_name = || s.account.and_then(|a| qif.and_then(|q| q.new_account_names.get(&a).cloned()));
     ImportedSplitWire {
-        account: s.account.map(Id),
-        account_name: s.account.and_then(|a| book.full_name(a)),
+        account: existing.map(Id),
+        account_name: existing.and_then(|a| book.full_name(a)).or_else(new_name),
         value: s.value.into(),
         amount: s.amount.into(),
         memo: s.memo.clone(),
@@ -398,7 +491,7 @@ fn split_wire(book: &Book, s: &Split) -> ImportedSplitWire {
     }
 }
 
-fn imported_transaction(book: &Book, t: &ProposedTransaction, r: &TransactionReview) -> ImportedTransactionWire {
+fn imported_transaction(book: &Book, qif: Option<&QifState>, t: &ProposedTransaction, r: &TransactionReview) -> ImportedTransactionWire {
     let info = &t.info;
     let trans = &info.trans;
     ImportedTransactionWire {
@@ -410,10 +503,10 @@ fn imported_transaction(book: &Book, t: &ProposedTransaction, r: &TransactionRev
         description: trans.description.clone(),
         notes: trans.notes().map(str::to_owned),
         void_reason: void_reason(trans),
-        splits: trans.splits.iter().map(|s| split_wire(book, s)).collect(),
+        splits: trans.splits.iter().map(|s| split_wire(book, qif, s)).collect(),
         other: other(book, info),
         action: info.action.into(),
-        matches: info.matches.iter().map(|m| match_wire(book, m)).collect(),
+        matches: info.matches.iter().map(|m| match_wire(book, m, qif.is_none())).collect(),
         selected_match: info.selected_match.map(Id),
         imbalance: r.imbalance.as_ref().map(imbalance_wire),
         read_only_by_date: r.read_only_by_date,
@@ -447,13 +540,14 @@ fn dest_source(s: DestSource) -> &'static str {
     }
 }
 
-fn match_wire(book: &Book, m: &MatchInfo) -> MatchWire {
+/// A candidate match; QIF's finder does not score, so its score is null.
+fn match_wire(book: &Book, m: &MatchInfo, scored: bool) -> MatchWire {
     let t = book.transaction(m.transaction);
     let s = t.and_then(|t| t.split(m.split));
     MatchWire {
         split: Id(m.split),
         transaction: Id(m.transaction),
-        score: Some(m.probability),
+        score: scored.then_some(m.probability),
         update_proposed: m.update_proposed,
         date_posted: t.and_then(posted_date).map(Day),
         description: t.and_then(|t| t.description.clone()),

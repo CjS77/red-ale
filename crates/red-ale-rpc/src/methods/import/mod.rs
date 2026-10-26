@@ -16,7 +16,7 @@ use serde::Serialize;
 pub use business::{DocumentsPreviewParam, OwnersPreviewParam};
 pub use params::{
     AccountsPreviewParam, ActionWire, ApplyParams, ChangeParam, CsvPreviewParam, DiscardParams, ImportFileParam, LayoutParam, PreviewParam,
-    PriceLayoutParam, PricesPreviewParam, SeparatorWire,
+    PriceLayoutParam, PricesPreviewParam, QifDateFormatWire, QifFileParam, QifPreviewParam, QifReconcileWire, QifSecurityParam, SeparatorWire,
 };
 pub use proposal::ProposalResult;
 pub use records::{AccountFieldsWire, AccountRecordWire, ExistingWire, FieldChangeWire, PriceRecordWire};
@@ -43,9 +43,10 @@ fn preview(ctx: &mut Context, p: PreviewParam) -> Result<ProposalResult, RpcErro
 }
 
 fn apply(ctx: &mut Context, p: ApplyParams) -> Result<ApplyResult, RpcError> {
+    let store = ctx.settings.config.clone();
     let session = ctx.session()?;
     let (changes, choices) = p.resolve(session.book())?;
-    let applied = import::apply(session, &p.proposal, &changes, choices)?;
+    let applied = import::apply(session, &store, &p.proposal, &changes, choices)?;
     Ok(ApplyResult::from(applied))
 }
 
@@ -165,7 +166,7 @@ pub struct ApplyResult {
     pub skipped: Vec<usize>,
     /// Accounts created and changed.
     pub accounts: AccountsChanged,
-    /// Commodities created; none for CSV.
+    /// Commodities created, as `NAMESPACE::MNEMONIC` (QIF securities); none for CSV.
     pub commodities: Vec<String>,
     /// Prices recorded.
     pub prices: PricesChanged,
@@ -200,7 +201,7 @@ impl From<Applied> for ApplyResult {
             updated: indexed(a.updated),
             skipped: a.skipped,
             accounts: AccountsChanged { created: ids(a.accounts_created), updated: ids(a.accounts_updated) },
-            commodities: Vec::new(),
+            commodities: a.commodities_created.iter().map(ToString::to_string).collect(),
             prices: PricesChanged { added: ids(added), replaced: ids(replaced), duplicate: ids(duplicate) },
             imbalance_splits: a
                 .imbalance_splits

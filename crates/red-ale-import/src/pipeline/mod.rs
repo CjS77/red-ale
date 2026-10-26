@@ -8,7 +8,8 @@
 //!
 //! Each format builds its transactions its own way ([`crate::csv::build`] for CSV) and hands them to the matcher
 //! ([`crate::matcher::match_batch`]); the proposal keeps the matcher's [`TransInfo`] for each, so applying runs the
-//! matcher's own [`crate::matcher::apply_batch`].
+//! matcher's own [`crate::matcher::apply_batch`]. QIF does not use the matcher: its proposal keeps what it converts
+//! ([`QifState`]), and applying converts again ([`crate::qif::import`]).
 
 pub mod apply;
 pub mod review;
@@ -21,6 +22,7 @@ use red_ale_core::{Date, Guid};
 pub use crate::csv::accounts::ProposedAccount;
 pub use crate::csv::prices::ProposedPrice;
 use crate::matcher::{ImportSettings, TransInfo};
+use crate::qif::import::QifState;
 
 /// The format of an import (`design/api/import.md`, "Formats"). The formats still to come add variants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,6 +33,8 @@ pub enum Format {
     CsvDocuments,
     /// GnuCash's Import Customers & Vendors.
     CsvOwners,
+    /// GnuCash's QIF import.
+    Qif,
     /// GnuCash's Import Accounts from CSV.
     CsvAccounts,
     /// GnuCash's Import Prices from CSV.
@@ -44,6 +48,7 @@ impl Format {
             Self::CsvTransactions => "csvTransactions",
             Self::CsvDocuments => "csvDocuments",
             Self::CsvOwners => "csvOwners",
+            Self::Qif => "qif",
             Self::CsvAccounts => "csvAccounts",
             Self::CsvPrices => "csvPrices",
         }
@@ -177,6 +182,8 @@ pub struct Proposal {
     pub csv: Option<CsvState>,
     /// The business importers' records: documents or Owners.
     pub business: Option<crate::business::Records>,
+    /// QIF's own state: what applying converts again.
+    pub qif: Option<Box<QifState>>,
     /// The accounts of a CSV account import, by index.
     pub accounts: Vec<ProposedAccount>,
     /// The prices of a CSV price import, by index.
@@ -196,6 +203,7 @@ impl Proposal {
             transactions: Vec::new(),
             csv: None,
             business: None,
+            qif: None,
             accounts: Vec::new(),
             prices: Vec::new(),
         }

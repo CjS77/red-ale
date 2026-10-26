@@ -5,13 +5,14 @@
 
 use red_ale_core::ops::scrub::Repair;
 use red_ale_core::ops::transactions::transfer::PriceChange;
-use red_ale_core::{Book, DomainError, DomainResult, Env, Guid, Numeric};
+use red_ale_core::{Book, CommodityRef, DomainError, DomainResult, Env, Guid, Numeric};
 
 use super::review::process_warning;
 use super::{AccountName, Format, NameSource, Proposal, Warning};
 use crate::business::{self, Records, RecordsApplied};
 use crate::import_map::{CATEGORY_CSV_ACCOUNT_MAP, add_account, delete_account, find_account};
 use crate::matcher::{ApplyOptions, ImportAction, Learned, Processed, TransInfo, append_text, apply_batch};
+use crate::qif::guess_map::SavedMap;
 
 /// The caller's change to one transaction of a proposal (`ImportChange`, `design/api/import.md`, "`import.apply`").
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -87,6 +88,11 @@ pub struct Applied {
     pub imbalance_splits: Vec<ImbalanceSplit>,
     /// What was learned.
     pub learned: LearnedEntries,
+    /// Commodities created (QIF securities).
+    pub commodities_created: Vec<CommodityRef>,
+    /// The QIF account map the import used, for the service to merge over the Configuration's
+    /// (`qif-import:save-map-prefs`).
+    pub qif_account_map: Option<SavedMap>,
     /// Every Imbalance split again, every transaction applied read-only by date, and the matcher's warnings.
     pub warnings: Vec<Warning>,
     /// Business documents created, updated and posted (`csvDocuments`).
@@ -105,6 +111,10 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
         Format::CsvAccounts => return crate::csv::accounts::apply(book, env, proposal, changes),
         Format::CsvPrices => return crate::csv::prices::apply(book, env, proposal, changes),
         Format::CsvDocuments | Format::CsvOwners => return apply_business(book, env, proposal, changes),
+        Format::Qif => {
+            let qif = proposal.qif.as_deref().ok_or_else(|| DomainError::invalid("the QIF proposal has lost its state"))?;
+            return crate::qif::import::apply(book, env, proposal, qif, changes);
+        }
         Format::CsvTransactions => {}
     }
     let mut infos: Vec<TransInfo> = proposal.transactions.iter().map(|t| t.info.clone()).collect();
@@ -202,7 +212,8 @@ fn summarize(processed: &[Processed]) -> Applied {
     out
 }
 
-fn imbalance_split(index: usize, r: &Repair) -> Option<ImbalanceSplit> {
+/// The Imbalance split a repair made.
+pub(crate) fn imbalance_split(index: usize, r: &Repair) -> Option<ImbalanceSplit> {
     match r {
         Repair::BalanceSplitAdded { transaction, split, account, value } => {
             Some(ImbalanceSplit { index, transaction: *transaction, split: *split, account: *account, value: *value })
@@ -224,7 +235,7 @@ fn read_only_warnings(before: &Book, proposal: &Proposal, infos: &[TransInfo]) -
 }
 
 /// Accounts created and accounts changed, by comparing the Book before and after, in book order.
-fn changed_accounts(before: &Book, after: &Book) -> (Vec<Guid>, Vec<Guid>) {
+pub(crate) fn changed_accounts(before: &Book, after: &Book) -> (Vec<Guid>, Vec<Guid>) {
     let created = after.accounts.keys().filter(|g| !before.accounts.contains_key(*g)).copied().collect();
     let updated = after.accounts.iter().filter(|(g, a)| before.accounts.get(*g).is_some_and(|b| b != *a)).map(|(g, _)| *g).collect();
     (created, updated)

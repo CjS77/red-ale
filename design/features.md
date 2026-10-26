@@ -193,7 +193,7 @@ source names and the `Finance::Quote` price source, so GnuCash reads the prices 
 
 | Status | Name                   | Short description                                        | Introduced | Ported |
 |:------:|------------------------|----------------------------------------------------------|:----------:|:------:|
-|        | QIF import             | Imports Quicken Interchange Format files                 |   ≤ 1.4    |        |
+|   ✅   | QIF import             | Imports Quicken Interchange Format files                 |   ≤ 1.4    |  0.3   |
 |   ❌   | OFX/QFX import         | Imports OFX and QFX statements through LibOFX            |    1.8     |        |
 |   ✅   | CSV transaction import | Imports transactions from CSV, with saved column layouts |    2.6     |  0.3   |
 |   ✅   | CSV account import     | Imports an account tree from CSV                         |    2.6     |  0.3   |
