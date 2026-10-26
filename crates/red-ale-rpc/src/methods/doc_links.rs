@@ -18,7 +18,8 @@ pub fn methods() -> Vec<Method> {
         method("docLink.transactions", "Transactions with a document link, with the URI each one opens.", Effect::Read, transactions),
         method("docLink.documents", "Invoices, bills and vouchers with a document link, with the URI each one opens.", Effect::Read, documents),
         method("docLink.pathHead", "The configured folder relative document links start from.", Effect::Read, path_head),
-        method("docLink.setPathHead", "Set or remove the folder relative document links start from, in red-ale's configuration.", Effect::Write, set_path_head),
+        method("docLink.setPathHead", "Set or remove the folder relative document links start from, in red-ale's configuration.", Effect::Write, set_path_head)
+            .on_configuration(),
     ]
 }
 

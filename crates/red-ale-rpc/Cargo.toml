@@ -10,6 +10,7 @@ publish.workspace = true
 chrono.workspace = true
 jsonrpsee.workspace = true
 red-ale-core.workspace = true
+red-ale-report.workspace = true
 red-ale-service.workspace = true
 schemars.workspace = true
 serde.workspace = true

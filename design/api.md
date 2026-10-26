@@ -38,10 +38,11 @@ Every method declares its effect in the schema; MCP's `readOnlyHint` and `destru
 | `write`       | Adds or changes data.                                     |
 | `destructive` | Deletes or overwrites data (delete, remove old prices, …) |
 
-From `redAleApi` 0.2.0 each method also declares its **effect target**: what a `write` or `destructive` method
-changes, `book` or `configuration` (`null` for `read`). Every method that changes something targets `book`, except
-`period.set` and the saved-configuration and style-sheet methods of [`api/reports.md`](api/reports.md), which change
-only red-ale's Configuration, work with no book open and never make a book dirty. The MCP hints come from the effect
+From `redAleApi` 0.2.0 each method also declares its **effect target**, the `target` field of its entry in the
+schema document: what a `write` or `destructive` method changes, `book` or `configuration` (`null` for `read`).
+Every method that changes something targets `book`, except `period.set`, `docLink.setPathHead` and the
+saved-configuration and style-sheet methods of [`api/reports.md`](api/reports.md), which change only red-ale's
+Configuration, work with no book open and never make a book dirty. The MCP hints come from the effect
 alone (see [`reports.md`](reports.md) §10).
 
 Every mutation is **atomic**: it runs on a copy of the book, the copy's changed transactions are checked (balanced,
@@ -194,4 +195,6 @@ red-ale call --url http://127.0.0.1:7878 book.info
 Params are one JSON object, or `key=value` pairs (the value is a string, which suits amounts: `amount=12.50`) and
 `key:=json` pairs (`placeholder:=true`). `exec` saves when the methods succeed and changed the book (`--no-save` to
 skip), and saves nothing if any method fails. Results go to standard output as JSON; errors go to standard error as
-`{"error": …}` with exit status 2. Usage errors exit with status 1.
+`{"error": …}` with exit status 2. Usage errors exit with status 1. `exec` (with one method, not `--script`) and `call`
+take `--output <file>`, which writes the result's `html` to the file on the caller's side and prints
+`{title, path, bytes}` instead ([`api/reports.md`](api/reports.md), "CLI").

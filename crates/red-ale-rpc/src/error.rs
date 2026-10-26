@@ -3,6 +3,7 @@
 //! Codes are part of the published language: a code, once released, keeps its meaning. `design/api.md` lists them.
 
 use red_ale_core::DomainError;
+use red_ale_report::{ReportError, ReportErrorKind};
 use red_ale_service::ServiceError;
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -58,8 +59,19 @@ pub mod codes {
     /// Exact arithmetic overflowed or was undefined.
     pub const ARITHMETIC: i32 = 2004;
 
+    /// A report script failed at run time.
+    pub const REPORT_SCRIPT: i32 = 3000;
+    /// A report script passed a limit.
+    pub const REPORT_LIMIT: i32 = 3001;
+    /// A report option value is not valid.
+    pub const REPORT_OPTION: i32 = 3002;
+    /// A report script returned an invalid report result.
+    pub const REPORT_RESULT: i32 = 3003;
+    /// A user report script does not load.
+    pub const REPORT_LOAD: i32 = 3004;
+
     /// Every code with its name, for the schema document.
-    pub const ALL: [(i32, &str); 23] = [
+    pub const ALL: [(i32, &str); 28] = [
         (PARSE_ERROR, "parse-error"),
         (INVALID_REQUEST, "invalid-request"),
         (METHOD_NOT_FOUND, "method-not-found"),
@@ -83,6 +95,11 @@ pub mod codes {
         (UNBALANCED, "unbalanced"),
         (CONFLICT, "conflict"),
         (ARITHMETIC, "arithmetic"),
+        (REPORT_SCRIPT, "report-script"),
+        (REPORT_LIMIT, "report-limit"),
+        (REPORT_OPTION, "report-option"),
+        (REPORT_RESULT, "report-result"),
+        (REPORT_LOAD, "report-load"),
     ];
 }
 
@@ -149,6 +166,15 @@ impl From<DomainError> for RpcError {
                 Self::new(codes::INVALID, message).with_data(auto_read_only(date, threshold))
             }
         }
+    }
+}
+
+/// A report error keeps its kind's code and the `data` `design/api.md` documents for it; a bug in the engine or a
+/// built-in script is `internal-error` with no data.
+impl From<ReportError> for RpcError {
+    fn from(e: ReportError) -> Self {
+        let error = Self::new(e.kind().code(), e.to_string());
+        if e.kind() == ReportErrorKind::Internal { error } else { error.with_data(e.data()) }
     }
 }
 

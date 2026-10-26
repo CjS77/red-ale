@@ -107,6 +107,28 @@ struct CallArgs {
     method: String,
     /// Params: one JSON object, or `key=value` (a string) and `key:=json` pairs.
     params: Vec<String>,
+    #[command(flatten)]
+    output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+struct OutputArgs {
+    /// Write the result's `html` (from `report.export`) to this file, here rather than on the server, and print
+    /// `{title, path, bytes}` instead of the result.
+    #[arg(long, value_name = "FILE")]
+    output: Option<PathBuf>,
+}
+
+impl OutputArgs {
+    /// Print a result, or with `--output` write its `html` to the file and print what was written.
+    fn emit(&self, result: &Value) -> Result<()> {
+        let Some(path) = &self.output else { return print_json(result) };
+        let html = result.get("html").and_then(Value::as_str);
+        let html = html.context("--output needs a result with an html field, such as report.export's")?;
+        std::fs::write(path, html).with_context(|| format!("writing {}", path.display()))?;
+        let title = result.get("title").cloned().unwrap_or(Value::Null);
+        print_json(&json!({ "title": title, "path": path.display().to_string(), "bytes": html.len() }))
+    }
 }
 
 #[derive(Debug, Args)]
@@ -133,6 +155,8 @@ struct ExecArgs {
     method: Option<String>,
     /// Params: one JSON object, or `key=value` (a string) and `key:=json` pairs.
     params: Vec<String>,
+    #[command(flatten)]
+    output: OutputArgs,
     #[command(flatten)]
     settings: SettingsArgs,
 }
@@ -251,7 +275,7 @@ fn call(args: &CallArgs) -> Result<Option<RpcError>> {
         client.request(&args.method, object).await
     });
     match result {
-        Ok(v) => print_json(&v).map(|()| None),
+        Ok(v) => args.output.emit(&v).map(|()| None),
         Err(jsonrpsee::core::ClientError::Call(e)) => {
             let data = e.data().and_then(|d| serde_json::from_str(d.get()).ok());
             Ok(Some(RpcError { code: e.code(), message: e.message().to_owned(), data }))
@@ -261,6 +285,9 @@ fn call(args: &CallArgs) -> Result<Option<RpcError>> {
 }
 
 fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
+    if args.script.is_some() && args.output.output.is_some() {
+        bail!("--output writes one method's result; it does not combine with --script");
+    }
     let calls = match (&args.script, &args.method) {
         (Some(script), _) => read_script(script)?,
         (None, Some(method)) => vec![(method.clone(), params::parse(&args.params)?)],
@@ -282,10 +309,8 @@ fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
     };
     match (outcome, finish) {
         (Err(e), _) | (Ok(_), Err(e)) => Ok(Some(e)),
-        (Ok(results), Ok(_)) => {
-            let output = if args.script.is_some() { Value::Array(results) } else { results.into_iter().next().unwrap_or(Value::Null) };
-            print_json(&output).map(|()| None)
-        }
+        (Ok(results), Ok(_)) if args.script.is_some() => print_json(&Value::Array(results)).map(|()| None),
+        (Ok(results), Ok(_)) => args.output.emit(&results.into_iter().next().unwrap_or(Value::Null)).map(|()| None),
     }
 }
 

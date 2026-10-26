@@ -46,6 +46,7 @@ It holds no bookkeeping rules of its own. The JSON-RPC methods in `red-ale-rpc` 
 | `replay`  | Replaying a journal onto a book                                                           |
 | `files`   | Backups, the safe replace step, and deleting old files                                    |
 | `config`  | red-ale's own settings that GnuCash keeps outside the book, such as the accounting period |
+| `reports` | The Configuration's `reports` keys, and the loader that reads user report scripts          |
 
 ## Usage
 

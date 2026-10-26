@@ -88,7 +88,7 @@ fn leftover_imbalance() -> String {
          </trn:date-posted>\n  <trn:date-entered>\n    <ts:date>2024-06-30 12:00:00 +0000</ts:date>\n  </trn:date-entered>\n  \
          <trn:description>Leftover imbalance</trn:description>\n  <trn:splits>\n{splits}  </trn:splits>\n</gnc:transaction>\n"
     );
-    account + &transaction
+    account + transaction.as_str()
 }
 
 /// A dump with GUIDs of accounts replaced by full names and splits identified by content, so books scrubbed separately

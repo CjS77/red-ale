@@ -12,7 +12,7 @@ Everything red-ale can do is a JSON-RPC method in this crate, from `book.open` t
   JSON numbers are refused, so no amount ever passes through floating point. Accounts can be named by GUID or full
   name.
 - **Stable error codes:** the JSON-RPC protocol codes, plus red-ale's own (`1000`–`1012` for books and sessions,
-  `2000`–`2004` for bookkeeping errors such as `unbalanced`).
+  `2000`–`2004` for bookkeeping errors such as `unbalanced`, `3000`–`3004` for reports).
 - **The schema.** Every method's params and results are described as JSON Schema, generated from the Rust types. The
   `api.schema` method returns it, and `red-ale schema` prints it.
 - **The `Dispatcher`.** It routes a method name and params to the right handler, with no transport attached.
@@ -39,8 +39,8 @@ Each area's methods are documented in [`design/api/`](../../design/api), with th
 
 | Module     | Contents                                                                                                                             |
 |------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| `dispatch` | `Dispatcher`, `Context`, `Method`, and `method()` to declare one                                                                     |
-| `methods`  | One module per area: `book`, `accounts`, `transactions`, `reconcile`, `scrub`, `commodities`, `prices`, `lots`, `period`, `business` |
+| `dispatch` | `Dispatcher`, `Context`, `Method` with its Effect and Effect target, and `method()` to declare one                                 |
+| `methods`  | One module per area: `book`, `accounts`, `transactions`, `reconcile`, `scrub`, `commodities`, `prices`, `lots`, `period`, `business`, `reports` |
 | `wire`     | Amounts, GUIDs, dates, timestamps, commodity IDs and account references                                                              |
 | `error`    | `RpcError` and the error `codes`                                                                                                     |
 | `server`   | `serve`: the HTTP server                                                                                                             |

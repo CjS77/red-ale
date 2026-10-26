@@ -26,8 +26,8 @@ when a name is ambiguous (`5.17:gnucash/report/report-core.scm:914-929`).
 | `guid`, `name` | The template's GUID and name (GnuCash's, for built-in reports), or the saved configuration's |
 | `kind` | `builtin`, `user` or `saved` |
 | `template` | For `saved`: the GUID of the template it configures |
-| `script` | The script that defines it: `standard/balance-sheet.rhai`, or a user script's path relative to the report directory |
-| `menuPath`, `menuName`, `menuTip`, `inMenu` | GnuCash's menu fields, kept for clients that build menus |
+| `script` | The script that defines it: `standard/balance-sheet.rhai`, or `./` and a user script's path in the report directory (`./mine/report.rhai`), the source name errors and the log use. For `saved`: its template's script, or `null` when that template is not loaded |
+| `menuPath`, `menuName`, `menuTip`, `inMenu` | GnuCash's menu fields, kept for clients that build menus. A saved configuration has none (`[]`, `null`, `null`, `false`): GnuCash lists custom reports in their own dialog |
 
 `OptionInfo`: `{ section, name, key, type, help, default, value, … }` with the fields of each option type
 ([`../reports.md`](../reports.md) §6). `value` is the configured value: the default for a template, the saved value
@@ -59,8 +59,10 @@ for a saved configuration.
 No params → `{ reports: ReportInfo[], problems: [{ source, code, message, line }] }`. Built-in templates, user
 templates and saved configurations, sorted by name (bytewise), then GUID: GnuCash's `-R list` sorts by the locale
 (`5.17:gnucash/report/report-core.scm:833-842`). Templates with `inMenu: false` are listed too, with the flag.
-`problems` lists user scripts that failed to load (code `report-load`), so one bad file does not hide the others.
-Needs no book.
+`problems` lists user scripts that failed to load (code `report-load`, or `report-limit` for one past a compile-time
+limit), so one bad file does not hide the others, and the files the loader left out of the report directory
+(`report-load`): a symbolic link that leads outside it, a file over 1 MiB or not UTF-8, files past the 1,000th, or
+`source: "."` when the directory itself cannot be read. Needs no book.
 
 ### `report.options` (read)
 
@@ -77,8 +79,9 @@ the open book, or from an empty book when none is open.
 | `now` | Timestamp? | The time to run the report for; default the session's clock. Relative dates ("end of this month") and "today" follow it |
 
 → `ReportResult`. Needs an open book (`no-book`). Errors: `not-found` (`data.kind: "report"`), `conflict` (an
-ambiguous name), `report-option`, `report-script`, `report-limit`, `report-result`, `report-load` (the user script
-no longer loads).
+ambiguous name), `report-option`, `report-script`, `report-limit`, `report-result`. A user script that no longer
+loads defines no template, so naming one of its templates is `not-found`, and running a saved configuration of one is
+`not-found` with `data.id` the template's GUID; `report.list` gives the script's `report-load` under `problems`.
 
 ### `report.export` (read)
 
@@ -105,6 +108,10 @@ returns to the template's default. This is GnuCash's "Save Report Configuration"
 GUID and name (`5.17:gnucash/report/report-core.scm:705-719`). `not-found` unless `configuration` is a saved
 configuration.
 
+The `configuration` param of this method, `renameConfiguration` and `deleteConfiguration` is a GUID or name looked
+up among saved configurations only, so a template of the same name does not make it ambiguous; no match is
+`not-found` with `data.kind: "configuration"`.
+
 ### `report.renameConfiguration` (write, configuration)
 
 `{ configuration: ReportRef, name }` → `ReportInfo`. `conflict` when the name is taken, as GnuCash's dialog refuses
@@ -124,14 +131,16 @@ sheets are `Default`, `CSS-based stylesheet (experimental)`, `Easy`, `Technicolo
 
 ### `report.createStyleSheet` (write, configuration)
 
-`{ name, template, options?: Options }` → the style sheet. `conflict` when a style sheet has that name; `not-found`
-for an unknown template; `report-option` for an invalid value, including CSS text containing `</style`, `@import` or
-`url(`.
+`{ name, template, options?: Options }` → the style sheet. `conflict` when a style sheet has that name (`data.kind`,
+`data.name`); `not-found` for an unknown template (`data.kind: "styleSheetTemplate"`); `report-option` for an invalid
+value, including CSS text that §8 refuses (`</style`, `@import`, `url(`, …). Values for the image options red-ale
+leaves out are kept in the Configuration.
 
 ### `report.updateStyleSheet` (write, configuration)
 
 `{ name, options: Options }` → the style sheet; `null` returns an option to its default. Works on predefined style
-sheets too, as GnuCash lets the user edit `Default`.
+sheets too, as GnuCash lets the user edit `Default`. The Configuration entry is merged with the changes, never
+replaced, so image options it holds survive. `not-found` (`data.kind: "styleSheet"`) for an unknown name.
 
 ### `report.deleteStyleSheet` (destructive, configuration)
 
@@ -150,7 +159,7 @@ The report range of [`../api.md`](../api.md):
 | 3001 | `report-limit` | `run`, `export`: a limit of §2 was passed (`data.limit`) |
 | 3002 | `report-option` | any method taking `options`, `export`'s `styleSheet`, style sheet methods |
 | 3003 | `report-result` | `run`, `export`: the script returned an invalid result (`data.path`) |
-| 3004 | `report-load` | `run`, `export`, `options` on a user report whose script no longer loads; `list` reports it under `problems` |
+| 3004 | `report-load` | `list` reports it under `problems` for each user script that does not load |
 
 ## CLI
 
@@ -163,8 +172,30 @@ red-ale call report.saveConfiguration name="Year-end balance sheet" report="Bala
     'options:={"Accounts": {"Levels of Subaccounts": 2}}'
 ```
 
-`--output <file>` writes the `html` field of the result to the file and prints `{ title, path, bytes }` instead of
-the result. With `exec`, report methods never save the book.
+`--output <file>` (on `exec` with one method, and on `call`) writes the `html` field of the result to the file and
+prints `{ title, path, bytes }` instead of the result; a result with no `html` is a usage error (exit status 1), and
+`--output` with `--script` is refused. With `exec`, report methods never save the book: they never make it dirty.
+
+## Implementation
+
+- **The Configuration.** `red-ale-service::reports` reads and writes the `reports` keys of [`../reports.md`](../reports.md)
+  §9 as plain values, keeping fields it does not know at every level; `red-ale-rpc` gives them their meaning (the
+  report settings deserialize into `ReportSettings`, with GnuCash's defaults for what is unset). A malformed key is
+  `invalid`. A relative `reports.directory` is taken from the Configuration file's directory.
+- **The report directory** is read at every report method (`load_report_scripts`): every `*.rhai` below it, sorted by
+  path, following a symbolic link only when it resolves inside the directory.
+- **The registry** is built from the built-in library and those scripts, and cached: one entry for the process,
+  reused while the user scripts' paths and texts and `reports.limits` are what it was built from, and rebuilt when any
+  of them changes. Built-in scripts are compiled in, so nothing else can change it.
+- **Reading the Book.** `report.run` and `report.export` use `Context::query` only, take now from the session's
+  clock unless `now` is given, and the zone from the session. `report.options` and the configuration methods work
+  with no book open: options are declared over an empty Book and read with no Book, so accounts can then be given only
+  by GUID.
+- **A saved configuration naming a deleted style sheet** still applies: that name is added to the choices of its
+  General/"Stylesheet" option, and `report.export` renders it with the base look and the `missing_style_sheet` log
+  entry (§8).
+- **New GUIDs** for saved configurations come from the session's environment, or, with no book open, from the one a
+  new session would get.
 
 ## Deviations from GnuCash
 

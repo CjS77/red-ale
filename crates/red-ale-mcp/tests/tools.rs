@@ -124,6 +124,10 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
         assert_eq!(t["annotations"], expected_hints(m["effect"].as_str().unwrap()), "{name}");
         assert_same_params(name, &t["inputSchema"], &m["params"], &document);
     });
+    // Writing the Configuration changes the server's environment, so those tools are not read-only either.
+    assert_eq!(tool("report.saveConfiguration")["annotations"], expected_hints("write"));
+    assert_eq!(tool("report.deleteStyleSheet")["annotations"], expected_hints("destructive"));
+    assert_eq!(tool("report.export")["annotations"], expected_hints("read"));
     let schema_tool = tool("api.schema");
     assert_eq!(schema_tool["annotations"], expected_hints("read"));
     assert_eq!(schema_tool["inputSchema"]["type"], "object");
