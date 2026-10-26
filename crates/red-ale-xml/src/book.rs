@@ -1,9 +1,11 @@
 //! Reading and writing whole books, and the Residue that keeps what the core model does not represent.
 //!
-//! See `design/file-fidelity.md`. An entity that is unchanged since it was read is written from its original element;
-//! a changed or new one is generated as GnuCash 5.17 would write it.
+//! See `design/file-fidelity.md`. Every entity is generated as GnuCash 5.17 would write it, except one that is
+//! unchanged since it was read and whose generated form differs from what was read: that one is written from its
+//! original text, which the Residue keeps for it alone.
 
 use std::collections::{BTreeMap, HashMap};
+use std::hash::Hash;
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -34,6 +36,44 @@ enum Section {
     Business,
 }
 
+/// The original text of entities whose generated form differs from what was read, as `Element::dump` writes it (at
+/// level 1 for prices, 0 for the rest). An entity GnuCash 5.17's generator writes back unchanged has no entry.
+#[derive(Debug, Clone, Default)]
+struct Originals {
+    book_slots: Option<String>,
+    commodities: HashMap<CommodityRef, String>,
+    prices: HashMap<Guid, String>,
+    accounts: HashMap<Guid, String>,
+    transactions: HashMap<Guid, String>,
+    business: HashMap<Guid, String>,
+}
+
+impl Originals {
+    fn len(&self) -> usize {
+        usize::from(self.book_slots.is_some())
+            + self.commodities.len()
+            + self.prices.len()
+            + self.accounts.len()
+            + self.transactions.len()
+            + self.business.len()
+    }
+}
+
+/// The text `read` was read as, at indentation `level`, if `generated` (what red-ale writes for the entity read from
+/// it) would not give the same bytes.
+fn original_if_needed(read: &Element, generated: Option<&Element>, level: usize) -> Option<String> {
+    (generated != Some(read)).then(|| read.dump(level))
+}
+
+/// Record an entity's original text, or forget an earlier one for the same key: as in the Book, the last element read
+/// with a key wins.
+fn keep<K: Hash + Eq>(originals: &mut HashMap<K, String>, key: K, original: Option<String>) {
+    match original {
+        Some(text) => originals.insert(key, text),
+        None => originals.remove(&key),
+    };
+}
+
 /// Everything in a book file that the core `Book` does not hold, plus what the writer needs to reproduce the file.
 #[derive(Debug, Clone)]
 pub struct XmlResidue {
@@ -41,12 +81,7 @@ pub struct XmlResidue {
     pub compressed: bool,
     book_version: String,
     snapshot: Book,
-    book_slots: Option<Element>,
-    commodities: BTreeMap<CommodityRef, Element>,
-    prices: HashMap<Guid, Element>,
-    accounts: HashMap<Guid, Element>,
-    transactions: HashMap<Guid, Element>,
-    business: HashMap<Guid, Element>,
+    originals: Originals,
     out_of_scope: Vec<(Section, Element)>,
     unknown: Vec<(Section, Element)>,
     /// Content red-ale could read but cannot represent; editing such a book could lose it.
@@ -60,12 +95,7 @@ impl XmlResidue {
             compressed,
             book_version: BOOK_VERSION.to_owned(),
             snapshot: book.clone(),
-            book_slots: None,
-            commodities: BTreeMap::new(),
-            prices: HashMap::new(),
-            accounts: HashMap::new(),
-            transactions: HashMap::new(),
-            business: HashMap::new(),
+            originals: Originals::default(),
             out_of_scope: Vec::new(),
             unknown: Vec::new(),
             notices: Notices::default(),
@@ -91,12 +121,13 @@ impl XmlResidue {
 
     /// Forget the originals: the next write generates every entity from the model. Used to test the generators.
     pub fn forget_originals(&mut self) {
-        self.book_slots = None;
-        self.commodities.clear();
-        self.prices.clear();
-        self.accounts.clear();
-        self.transactions.clear();
-        self.business.clear();
+        self.originals = Originals::default();
+    }
+
+    /// How many entities (the book's own slots counting as one) are written from the text they were read as, because
+    /// GnuCash 5.17's generator would write them differently. None, for a book GnuCash 5.17 wrote.
+    pub fn originals_kept(&self) -> usize {
+        self.originals.len()
     }
 
     /// Record `book` as the saved state, so later writes compare against it.
@@ -177,18 +208,15 @@ struct Reader {
     section: Option<Section>,
     guid: Option<Guid>,
     slots: Frame,
-    book_slots: Option<Element>,
     commodities: BTreeMap<CommodityRef, Arc<red_ale_core::Commodity>>,
     accounts: indexmap::IndexMap<Guid, Arc<Account>>,
     transactions: indexmap::IndexMap<Guid, Arc<Transaction>>,
     prices: indexmap::IndexMap<Guid, Arc<red_ale_core::Price>>,
     lots: indexmap::IndexMap<Guid, Arc<Lot>>,
     business: Business,
-    commodity_els: BTreeMap<CommodityRef, Element>,
-    price_els: HashMap<Guid, Element>,
+    originals: Originals,
+    /// Account elements, compared with their generated form once every lot is read (see [`account_originals`]).
     account_els: HashMap<Guid, Element>,
-    transaction_els: HashMap<Guid, Element>,
-    business_els: HashMap<Guid, Element>,
     out_of_scope: Vec<(Section, Element)>,
     unknown: Vec<(Section, Element)>,
     notices: Notices,
@@ -204,20 +232,20 @@ impl Reader {
             "book:id" => self.guid = Some(parse_guid(el)?),
             "book:slots" => {
                 self.slots = parse_slots(el, &mut self.notices)?;
-                self.book_slots = Some(el.clone());
+                self.originals.book_slots = original_if_needed(el, slots_el("book:slots", &self.slots).as_ref(), 0);
             }
             "gnc:count-data" => {}
             "gnc:commodity" => {
                 self.enter(Section::Commodities);
                 let c = parse_commodity(el, &mut self.notices)?;
-                self.commodity_els.insert(c.id.clone(), el.clone());
+                keep(&mut self.originals.commodities, c.id.clone(), original_if_needed(el, commodity_el(&c).as_ref(), 0));
                 self.commodities.insert(c.id.clone(), Arc::new(c));
             }
             "gnc:pricedb" => {
                 self.enter(Section::Prices);
                 for p in el.elements() {
                     let price = parse_price(p, &mut self.notices)?;
-                    self.price_els.insert(price.guid, p.clone());
+                    keep(&mut self.originals.prices, price.guid, original_if_needed(p, Some(&price_el(&price)), 1));
                     self.prices.insert(price.guid, Arc::new(price));
                 }
             }
@@ -233,7 +261,7 @@ impl Reader {
             "gnc:transaction" => {
                 self.enter(Section::Transactions);
                 let t = parse_transaction(el, &mut self.notices)?;
-                self.transaction_els.insert(t.guid, el.clone());
+                keep(&mut self.originals.transactions, t.guid, original_if_needed(el, Some(&transaction_el(&t)), 0));
                 self.transactions.insert(t.guid, Arc::new(t));
             }
             "gnc:template-transactions" => self.out_of_scope_part(Section::Templates, el),
@@ -242,7 +270,7 @@ impl Reader {
             name if business::ELEMENT_NAMES.contains(&name) => {
                 self.enter(Section::Business);
                 let obj = business::parse(el, &mut self.notices)?;
-                self.business_els.insert(obj.guid(), el.clone());
+                keep(&mut self.originals.business, obj.guid(), original_if_needed(el, Some(&obj.to_element()), 0));
                 insert_business(&mut self.business, obj);
             }
             other => {
@@ -258,7 +286,7 @@ impl Reader {
         self.out_of_scope.push((section, el.clone()));
     }
 
-    fn finish(self, compressed: bool) -> Result<(Book, XmlResidue), XmlError> {
+    fn finish(mut self, compressed: bool) -> Result<(Book, XmlResidue), XmlError> {
         let guid = self.guid.ok_or_else(|| XmlError::NotABook("the book has no book:id".into()))?;
         let roots: Vec<Guid> = self.accounts.values().filter(|a| a.account_type == AccountType::Root && a.parent.is_none()).map(|a| a.guid).collect();
         let root = match roots.as_slice() {
@@ -277,22 +305,37 @@ impl Reader {
             lots: self.lots,
             business: self.business,
         };
+        self.originals.accounts = account_originals(&book, &self.account_els);
         let residue = XmlResidue {
             compressed,
             book_version: self.residue_book_version,
             snapshot: book.clone(),
-            book_slots: self.book_slots,
-            commodities: self.commodity_els,
-            prices: self.price_els,
-            accounts: self.account_els,
-            transactions: self.transaction_els,
-            business: self.business_els,
+            originals: self.originals,
             out_of_scope: self.out_of_scope,
             unknown: self.unknown,
             notices: self.notices,
         };
         Ok((book, residue))
     }
+}
+
+/// Original text for the accounts whose generated form differs. An account is written with its lots, so it is
+/// generated with the lots the Book gives it, as the writer generates it.
+fn account_originals(book: &Book, elements: &HashMap<Guid, Element>) -> HashMap<Guid, String> {
+    let lots = lots_by_account(book);
+    elements
+        .iter()
+        .filter_map(|(guid, el)| {
+            let generated = book.accounts.get(guid).map(|a| account_el(a, lots.get(guid).map_or(&[][..], Vec::as_slice)));
+            original_if_needed(el, generated.as_ref(), 0).map(|text| (*guid, text))
+        })
+        .collect()
+}
+
+fn lots_by_account(book: &Book) -> HashMap<Guid, Vec<&Lot>> {
+    let mut lots: HashMap<Guid, Vec<&Lot>> = HashMap::new();
+    book.lots.values().for_each(|l| lots.entry(l.account).or_default().push(l));
+    lots
 }
 
 fn insert_business(b: &mut Business, obj: BusinessObject) {
@@ -341,14 +384,24 @@ struct Writer<'a> {
 
 impl<'a> Writer<'a> {
     fn new(book: &'a Book, residue: &'a XmlResidue) -> Self {
-        let mut lots_by_account: HashMap<Guid, Vec<&Lot>> = HashMap::new();
-        book.lots.values().for_each(|l| lots_by_account.entry(l.account).or_default().push(l));
-        Self { book, residue, lots_by_account, out: String::new() }
+        Self { book, residue, lots_by_account: lots_by_account(book), out: String::new() }
     }
 
     fn line(&mut self, el: &Element) {
-        self.out.push_str(&el.dump(0));
+        self.text_line(&el.dump(0));
+    }
+
+    fn text_line(&mut self, text: &str) {
+        self.out.push_str(text);
         self.out.push('\n');
+    }
+
+    /// Write an entity from its original text if it has one, else as generated.
+    fn entity(&mut self, original: Option<&String>, generate: impl FnOnce() -> Element) {
+        match original {
+            Some(text) => self.text_line(text),
+            None => self.line(&generate()),
+        }
     }
 
     fn unknown_after(&mut self, section: Section) {
@@ -394,11 +447,8 @@ impl<'a> Writer<'a> {
 
     fn book_slots(&mut self) {
         let unchanged = self.book.slots == self.residue.snapshot.slots;
-        match (&self.residue.book_slots, unchanged) {
-            (Some(original), true) => {
-                let original = original.clone();
-                self.line(&original);
-            }
+        match (&self.residue.originals.book_slots, unchanged) {
+            (Some(original), true) => self.text_line(original),
             _ => {
                 if let Some(el) = slots_el("book:slots", &self.book.slots) {
                     self.line(&el);
@@ -439,12 +489,10 @@ impl<'a> Writer<'a> {
             if !commodity_is_written(c) {
                 continue;
             }
-            let original = self.residue.commodities.get(id).filter(|_| self.residue.snapshot.commodities.get(id).is_some_and(|o| same(c, o)));
+            let original =
+                self.residue.originals.commodities.get(id).filter(|_| self.residue.snapshot.commodities.get(id).is_some_and(|o| same(c, o)));
             match original {
-                Some(el) => {
-                    let el = el.clone();
-                    self.line(&el);
-                }
+                Some(text) => self.text_line(text),
                 None => {
                     if let Some(el) = commodity_el(c) {
                         self.line(&el);
@@ -463,11 +511,11 @@ impl<'a> Writer<'a> {
             prices.sort_by(|a, b| a.commodity.cmp(&b.commodity).then_with(|| a.currency.cmp(&b.currency)).then_with(|| b.time.cmp(&a.time)).then_with(|| a.guid.cmp(&b.guid)));
             self.out.push_str("<gnc:pricedb version=\"1\">\n");
             for p in prices {
-                let original = self.residue.prices.get(&p.guid).filter(|_| self.residue.snapshot.prices.get(&p.guid).is_some_and(|o| same(p, o)));
-                let el = original.cloned().unwrap_or_else(|| price_el(p));
+                let original =
+                    self.residue.originals.prices.get(&p.guid).filter(|_| self.residue.snapshot.prices.get(&p.guid).is_some_and(|o| same(p, o)));
+                let text = original.cloned().unwrap_or_else(|| price_el(p).dump(1));
                 self.out.push_str("  ");
-                self.out.push_str(&el.dump(1));
-                self.out.push('\n');
+                self.text_line(&text);
             }
             self.out.push_str("</gnc:pricedb>\n");
         }
@@ -477,12 +525,9 @@ impl<'a> Writer<'a> {
     fn accounts(&mut self) {
         let book = self.book;
         for account in book.accounts.values() {
-            let original = self.residue.accounts.get(&account.guid).filter(|_| self.account_unchanged(account));
-            let el = match original {
-                Some(el) => el.clone(),
-                None => account_el(account, self.lots_by_account.get(&account.guid).map_or(&[][..], Vec::as_slice)),
-            };
-            self.line(&el);
+            let original = self.residue.originals.accounts.get(&account.guid).filter(|_| self.account_unchanged(account));
+            let lots = self.lots_by_account.get(&account.guid).cloned().unwrap_or_default();
+            self.entity(original, || account_el(account, &lots));
         }
         self.unknown_after(Section::Accounts);
     }
@@ -490,10 +535,13 @@ impl<'a> Writer<'a> {
     fn transactions(&mut self) {
         let written: Vec<&Arc<Transaction>> = self.written_transactions().collect();
         for t in written {
-            let original =
-                self.residue.transactions.get(&t.guid).filter(|_| self.residue.snapshot.transactions.get(&t.guid).is_some_and(|o| same(t, o)));
-            let el = original.cloned().unwrap_or_else(|| transaction_el(t));
-            self.line(&el);
+            let original = self
+                .residue
+                .originals
+                .transactions
+                .get(&t.guid)
+                .filter(|_| self.residue.snapshot.transactions.get(&t.guid).is_some_and(|o| same(t, o)));
+            self.entity(original, || transaction_el(t));
         }
         self.unknown_after(Section::Transactions);
     }
@@ -518,9 +566,8 @@ impl<'a> Writer<'a> {
     }
 
     fn business_one<T: PartialEq>(&mut self, guid: Guid, now: &Arc<T>, before: Option<&Arc<T>>, generate: impl Fn(&T) -> Element) {
-        let original = self.residue.business.get(&guid).filter(|_| before.is_some_and(|o| same(now, o)));
-        let el = original.cloned().unwrap_or_else(|| generate(now));
-        self.line(&el);
+        let original = self.residue.originals.business.get(&guid).filter(|_| before.is_some_and(|o| same(now, o)));
+        self.entity(original, || generate(now));
     }
 
     fn business(&mut self) {

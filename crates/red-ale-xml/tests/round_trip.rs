@@ -81,6 +81,25 @@ fn a_split_with_no_account_round_trips() {
     assert_eq!(again, book);
 }
 
+#[test]
+fn books_gnucash_wrote_keep_no_original_text() {
+    for name in CANONICAL {
+        let (_, residue) = read_book(&fixture(name)).unwrap();
+        assert_eq!(residue.originals_kept(), 0, "{name}");
+    }
+}
+
+#[test]
+fn an_entity_generated_differently_keeps_its_original_text() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    // GnuCash 5.17 writes an empty num as nothing, so `<trn:num></trn:num>` from another writer survives only as text.
+    let at = text.find("  <trn:date-posted>").unwrap();
+    let other = format!("{}  <trn:num></trn:num>\n{}", &text[..at], &text[at..]);
+    let (book, residue) = read_book(other.as_bytes()).unwrap();
+    assert_eq!(residue.originals_kept(), 1);
+    assert_same("rich with an empty num", &other, &write_book_text(&book, &residue));
+}
+
 /// Every XML fixture, canonical or not: SQL books and version 1 files are refused, so they are left out.
 fn xml_fixtures() -> Vec<String> {
     let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
