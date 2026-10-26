@@ -170,7 +170,7 @@ impl Registry {
         ["options", "render"].iter().zip([3, 4]).try_for_each(|(f, n)| {
             if has_fn(&ast, f, n) { Ok(()) } else { Err(malformed(format!("a script with templates() needs fn {f}() with {n} parameters"))) }
         })?;
-        let declared = call(&engine, &ast, "templates", ()).map_err(|e| self.internal_if_builtin(name, from_eval(&e, failure(&log))))?;
+        let declared = call(&engine, &ast, "templates", ()).map_err(|e| self.internal_if_builtin(name, as_load(from_eval(&e, failure(&log)))))?;
         let records = declared.into_array().map_err(|t| malformed(format!("templates() returns an array of maps, not {t}")))?;
         records.iter().enumerate().map(|(i, r)| record(r, name, self.is_builtin(name)).map_err(|e| malformed(format!("templates()[{i}]: {e}")))).collect()
     }
@@ -237,6 +237,14 @@ impl Registry {
 
     pub(crate) fn sources(&self) -> &Arc<Sources> {
         &self.sources
+    }
+}
+
+/// A script that fails while declaring its templates does not load: `report-load`, located where it failed.
+fn as_load(e: ReportError) -> ReportError {
+    match e {
+        ReportError::Script(s) => ReportError::Load(LoadError { source: s.source, line: s.line, column: s.column, message: s.message }),
+        other => other,
     }
 }
 

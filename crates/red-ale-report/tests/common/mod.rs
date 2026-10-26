@@ -82,7 +82,7 @@ impl Host {
 
     /// Run the template `reference` with `options`.
     pub fn run(&self, registry: &Registry, reference: &str, options: &Value) -> Result<ReportResult, ReportError> {
-        let t = registry.find(reference).expect("the template exists");
+        let t = registry.find(reference).unwrap_or_else(|e| panic!("{e:?}: {:?}", registry.problems()));
         registry.run(t, &[options], None, &self.ctx())
     }
 }

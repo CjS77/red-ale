@@ -188,11 +188,11 @@ fn number_range(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dy
     o.declare(o.db.borrow_mut().number_range(classifier(s, n, k, h), d?, min?, max?, step?))
 }
 
-/// `gnc-register-date-option-set`: `#{ default, ui, relative }`.
-fn date(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, spec: Map) -> Fallible<()> {
-    spec_keys(&spec, &["default", "ui", "relative"])?;
-    let default = date_value(spec.get("default").ok_or_else(|| script_error("a date option needs its default"))?)?;
-    let (ui, relative) = (date_ui(spec.get("ui"))?, relative_dates(spec.get("relative"))?);
+/// `gnc-register-date-option-set`: the default (a relative date's name or a Time64), then `#{ ui, relative }`. The
+/// default comes first, as for the account options, since `default` is a reserved word in Rhai.
+fn date(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic, spec: Map) -> Fallible<()> {
+    spec_keys(&spec, &["ui", "relative"])?;
+    let (default, ui, relative) = (date_value(&d)?, date_ui(spec.get("ui"))?, relative_dates(spec.get("relative"))?);
     o.declare(o.db.borrow_mut().date(classifier(s, n, k, h), default, ui, relative))
 }
 
