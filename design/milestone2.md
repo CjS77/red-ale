@@ -207,9 +207,9 @@ match.
 
 | Status | Feature            | Introduced | Epic | Notes                                                                                                                         |
 |:------:|--------------------|:----------:|------|-------------------------------------------------------------------------------------------------------------------------------|
-|        | Account Summary    |    1.6     |      | The Account Summary template only (`standard/account-summary.scm:425`)                                                        |
-|        | Balance Sheet      |    1.6     |      | `standard/balance-sheet.scm:529`. Reads the trading accounts option (`:266`)                                                  |
-|        | Income Statement   |    1.6     |      | Income Statement and Profit & Loss (`standard/income-statement.scm:568-578`); trading accounts section (`:88`)                |
+|   ✅   | Account Summary    |    1.6     |      | The Account Summary template only (`standard/account-summary.scm:425`)                                                        |
+|   ✅   | Balance Sheet      |    1.6     |      | `standard/balance-sheet.scm:529`. Reads the trading accounts option (`:266`)                                                  |
+|   ✅   | Income Statement   |    1.6     |      | Income Statement and Profit & Loss (`standard/income-statement.scm:568-578`); trading accounts section (`:88`)                |
 
 ### Analysis and charts
 
