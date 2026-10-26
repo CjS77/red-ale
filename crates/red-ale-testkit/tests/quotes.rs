@@ -253,6 +253,41 @@ fn keys_never_leave_their_service() {
     });
 }
 
+/// A key set with `config.set` while a book is open, then used by a fetch that stores its price, then a transaction
+/// posted: the key reaches neither the `.log` journal, the book, its backups nor any result. The journal holds
+/// transactions only, as GnuCash's does (`design/notes/storage-and-safety.md` §8), so the posting is what opens it.
+#[test]
+fn a_keyed_fetch_journals_its_price_and_not_its_key() {
+    const KEY: &str = "k3y-JOURNAL";
+    let server = QuoteServer::start(vec![("/keyed/HPE", Answer::ok(r#"{"p": "13.37", "c": "USD", "d": "2022-09-01"}"#))]);
+    let book = TempBook::new_path();
+    let mut d = red_ale_testkit::dispatcher();
+    call(&mut d, "book.create", &json!({ "path": book.path_str() }));
+    security(&mut d, "NYSE", "HPE", "alphavantage");
+    configure(&mut d, &server, &json!({
+        "quotes.services.keyed": { "format": "json", "securityUrl": format!("{}/keyed/{{symbol}}?apikey={{key}}", server.url()),
+            "pointers": { "price": "/p", "currency": "/c", "date": "/d" } },
+        "quotes.sources.alphavantage": ["keyed"],
+    }));
+    let set = call(&mut d, "config.set", &json!({ "changes": { "quotes.services.keyed.key": KEY } }));
+    let status = fetch(&mut d, &json!({}));
+    assert_eq!(status["stored"], 1, "{status}");
+    assert_eq!(server.hits()[0].target, format!("/keyed/HPE?apikey={KEY}"));
+    call(&mut d, "account.create", &json!({ "name": "Cash", "type": "CASH", "commodity": "USD" }));
+    call(&mut d, "account.create", &json!({ "name": "Food", "type": "EXPENSE", "commodity": "USD" }));
+    call(&mut d, "transaction.post", &json!({ "description": "Keyed fetch day", "datePosted": "2022-09-01",
+        "splits": [{ "account": "Cash", "value": "-5" }, { "account": "Food", "value": "5" }] }));
+    let files = || std::fs::read_dir(book.dir.path()).unwrap().flatten().map(|f| f.path()).collect::<Vec<_>>();
+    let journal = files().into_iter().find(|p| p.extension().is_some_and(|e| e == "log")).unwrap_or_else(|| panic!("a journal in {:?}", files()));
+    let journaled = std::fs::read_to_string(&journal).unwrap();
+    assert!(journaled.contains("Keyed fetch day"), "{journaled}");
+    assert!(!journaled.contains(KEY));
+    let shown = [set.to_string(), status.to_string(), call(&mut d, "config.get", &json!({})).to_string(), call(&mut d, "price.list", &json!({})).to_string()];
+    shown.iter().for_each(|text| assert!(!text.contains(KEY), "{text}"));
+    call(&mut d, "book.close", &json!({ "save": true }));
+    files().iter().for_each(|f| assert!(!String::from_utf8_lossy(&std::fs::read(f).unwrap()).contains(KEY), "{}", f.display()));
+}
+
 #[test]
 fn what_a_fetch_covers() {
     let server = QuoteServer::start(vec![]);
