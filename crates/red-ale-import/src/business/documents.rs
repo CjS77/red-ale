@@ -329,15 +329,12 @@ impl Checker<'_, '_> {
     /// The owner, by exact ID (`gnc_search_vendor_on_id`, `gnc_search_customer_on_id`, `5.17:libgnucash/engine/gncIDSearch.c:46-162`).
     fn owner(&self, owner_id: &str) -> Option<(OwnerRef, Option<CommodityRef>)> {
         let b = &self.ctx.book.business;
-        match self.opts.kind {
-            DocumentKind::Invoice => {
-                let customer = b.customers.values().find(|c| c.id == owner_id)?;
-                Some((OwnerRef { kind: OwnerKind::Customer, guid: customer.guid }, customer.currency.clone()))
-            }
-            _ => {
-                let vendor = b.vendors.values().find(|v| v.id == owner_id)?;
-                Some((OwnerRef { kind: OwnerKind::Vendor, guid: vendor.guid }, vendor.currency.clone()))
-            }
+        if self.opts.kind == DocumentKind::Invoice {
+            let customer = b.customers.values().find(|c| c.id == owner_id)?;
+            Some((OwnerRef { kind: OwnerKind::Customer, guid: customer.guid }, customer.currency.clone()))
+        } else {
+            let vendor = b.vendors.values().find(|v| v.id == owner_id)?;
+            Some((OwnerRef { kind: OwnerKind::Vendor, guid: vendor.guid }, vendor.currency.clone()))
         }
     }
 
