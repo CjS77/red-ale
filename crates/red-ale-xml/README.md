@@ -30,7 +30,7 @@ its own quirks: element names, value encodings and slot conventions. This crate 
 ```
 
 It depends only on `red-ale-core`. It does no locking, backups or journaling; those belong to `red-ale-service`, which
-is the only crate that calls this one in normal use. An SQLite backend, `red-ale-sql`, will sit beside it from v0.3.
+is the only crate that calls this one in normal use. An SQLite backend, `red-ale-sql`, will sit beside it from v0.4.
 
 ## What's inside
 

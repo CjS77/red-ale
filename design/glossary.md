@@ -12,7 +12,7 @@ Code names are given in `code font` when they differ from the term.
 |------|---------|
 | **Book** | One set of accounts with everything that belongs to them: commodities, transactions, prices, lots, business objects and book-level slots. A GnuCash file holds exactly one Book. |
 | **Book file** | The file on disk that stores a Book. v0.1 handles XML Book files, plain or gzip-compressed. |
-| **Backend** | The anti-corruption layer that translates one file format to and from the core model (`red-ale-xml`; `red-ale-sql` from v0.3). |
+| **Backend** | The anti-corruption layer that translates one file format to and from the core model (`red-ale-xml`; `red-ale-sql` from v0.4). |
 | **Session** | An open Book file: the Book, its lock, its journal and whether it is read-only. Opened, edited, saved and closed through the API. |
 | **Lock** | The `<file>.LCK` marker that stops two programs writing one Book file. A Session either holds the lock or is read-only. |
 | **Read-only session** | A Session that never takes the lock and refuses every mutation. Carries the *reason* it is read-only. |

@@ -22,7 +22,7 @@ files once per process, in GnuCash's order, and hands the zone to every session'
 
 `red-ale-report` arrives in v0.2 (see [`reports.md`](reports.md)); `red-ale-rpc` depends on it for the `report.*`
 methods, and `red-ale-service` reads the report directory and keeps saved report configurations in the
-Configuration. `red-ale-sql` arrives in v0.3 as a second Backend beside `red-ale-xml`.
+Configuration. `red-ale-sql` arrives in v0.4 as a second Backend beside `red-ale-xml`.
 
 ## Context map
 

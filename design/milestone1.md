@@ -32,7 +32,7 @@ compatibility").
 - Online price quotes (§3), even though they date from before 1.4. They come in a later milestone.
 - §11 User interface. It's desktop-only.
 - The MCP server. It ships in v0.2, as a thin adapter over the v0.1 JSON-RPC operations.
-- SQLite books. They arrive in v0.3. **v0.1 reads and writes XML books only.**
+- SQLite books. They arrive in v0.4. **v0.1 reads and writes XML books only.**
 - Everything else introduced after 2.0, including MySQL and PostgreSQL books.
 
 ## Compatibility in v0.1

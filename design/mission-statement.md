@@ -28,4 +28,5 @@ drive it over MCP. It works on the user's existing GnuCash books, in place, and 
 |---------|----------------------------------------------------------------------------------------------------|
 | v0.1    | GnuCash ≤ 2.0 features (see [`milestone1.md`](milestone1.md)) on XML books; JSON-RPC API and CLI    |
 | v0.2    | MCP server; GnuCash ≤ 1.6 reports in Rhai; the rest of books, transactions and business (see [`milestone2.md`](milestone2.md)) |
-| v0.3    | SQLite books; import and export; online price quotes                                               |
+| v0.3    | Import and export; online price quotes (see [`roadmap.md`](roadmap.md))                            |
+| v0.4    | SQLite books; scheduled transactions and budgets                                                   |

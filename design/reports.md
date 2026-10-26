@@ -1228,7 +1228,7 @@ drops it and needs nothing from budgets.
 
 - **Importing GnuCash's saved configurations and style sheets.** Their option forms are simple literal calls
   (`report/report-core.scm:620-643`); an importer that reads only those forms, never evaluating Scheme, would let
-  users keep them. It needs a design of its own.
+  users keep them. It needs a design of its own; planned for v0.3 ([`roadmap.md`](roadmap.md)).
 - **Comparing with GnuCash's report output** through `gnucash-cli --report run` in a GUI build, as
   `open-questions.md` defers.
 - **Interactive charts**, should anyone want them (`open-questions.md`, "Charts are static SVG").
