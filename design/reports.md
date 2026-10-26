@@ -1218,6 +1218,7 @@ drops it and needs nothing from budgets.
 | CSS style sheet text | Default CSS on `</style` | Refused on `</style`, `@import`, `url(`, `image(`, `image-set(`, `src(`, `\` | Exported pages load nothing |
 | Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting | No script; deterministic bytes |
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
+| Title of the account pie charts | None: the document keeps its empty title (`report/html-document.scm:131`); the chart's title and the warnings' heading name the report | The report name, with its averaging suffix | A result has a title, and its warning blocks leave out the heading that names the report |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |
 | Name sorting | Locale collation | Bytewise | As v0.1 |
 | Date interval in titles under the `locale` format | ICU interval format | `<from> to <to>` | No locale |
