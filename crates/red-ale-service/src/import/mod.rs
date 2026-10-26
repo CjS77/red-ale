@@ -7,19 +7,21 @@
 
 mod csv;
 pub mod file;
+pub mod qif;
 pub mod settings;
 mod store;
 
 use std::sync::Arc;
 
-use red_ale_import::pipeline::{self, Applied, ApplyChoices, Change, Proposal, Review};
+use red_ale_import::pipeline::{self, Applied, ApplyChoices, Change, Proposal, Review, Warning};
 
 pub use csv::CsvParams;
+pub use qif::QifParams;
 pub use file::{FileContent, ImportFile};
 pub use settings::LayoutChoice;
 pub use store::{KEPT, ProposalStore};
 
-use crate::config::Config;
+use crate::config::{Config, ConfigStore};
 use crate::{ServiceError, Session};
 
 /// What to import, by format.
@@ -27,6 +29,8 @@ use crate::{ServiceError, Session};
 pub enum PreviewParams {
     /// GnuCash's Import Transactions from CSV.
     CsvTransactions(CsvParams),
+    /// GnuCash's QIF import.
+    Qif(QifParams),
 }
 
 /// A proposal made and held.
@@ -50,6 +54,7 @@ pub fn preview(session: &mut Session, config: &Config, files: &[ImportFile], par
             let choices = csv::Choices::read(config, &p.layout)?;
             session.query(|book, env| csv::propose(book, env, files, p, &choices))?
         }
+        PreviewParams::Qif(p) => session.query(|book, env| qif::propose(book, env, config, files, p))?,
     };
     let review = session.query(|book, env| {
         let now = env.now();
@@ -62,8 +67,10 @@ pub fn preview(session: &mut Session, config: &Config, files: &[ImportFile], par
 }
 
 /// Apply a held proposal with the caller's changes as one Mutation. A proposal made at another Book revision is
-/// refused; a failed apply leaves the Book as it was and the proposal held.
-pub fn apply(session: &mut Session, id: &str, changes: &[Change], choices: ApplyChoices) -> Result<Applied, ServiceError> {
+/// refused; a failed apply leaves the Book as it was and the proposal held. A QIF import then saves its account map
+/// in the Configuration `store` holds; a failure to save is a warning, as it is in GnuCash
+/// (`5.17:gnucash/import-export/qif-imp/assistant-qif-import.c:3533-3535`).
+pub fn apply(session: &mut Session, store: &ConfigStore, id: &str, changes: &[Change], choices: ApplyChoices) -> Result<Applied, ServiceError> {
     if let Some(reason) = session.read_only_reasons().first() {
         return Err(ServiceError::ReadOnly { reason: reason.to_string() });
     }
@@ -71,8 +78,11 @@ pub fn apply(session: &mut Session, id: &str, changes: &[Change], choices: Apply
     if held.revision != session.revision() {
         return Err(ServiceError::StaleProposal { id: id.to_owned(), proposal_revision: held.revision, book_revision: session.revision() });
     }
-    let applied = session.mutate(|book, env| pipeline::apply(book, env, &held.proposal, changes, choices))?;
+    let mut applied = session.mutate(|book, env| pipeline::apply(book, env, &held.proposal, changes, choices))?;
     session.proposals().remove(id);
+    if let Some(Err(e)) = applied.qif_account_map.as_ref().map(|map| qif::save_map(store, map)) {
+        applied.warnings.push(Warning { code: "qif-account-map", message: format!("the QIF account map was not saved: {e}"), index: None });
+    }
     Ok(applied)
 }
 

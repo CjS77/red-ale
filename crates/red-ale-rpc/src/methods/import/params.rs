@@ -4,17 +4,19 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use base64::Engine;
-use red_ale_core::Book;
+use red_ale_core::{Book, ReconcileState};
 use red_ale_import::csv::TxLayout;
 use red_ale_import::matcher::ImportAction;
 use red_ale_import::pipeline::{ApplyChoices, Change};
+use red_ale_import::qif::DateFormat;
+use red_ale_import::qif::import::SecurityOverride;
 use red_ale_service::config::schema::csv_layout;
-use red_ale_service::import::{CsvParams, FileContent, ImportFile, LayoutChoice, PreviewParams};
+use red_ale_service::import::{CsvParams, FileContent, ImportFile, LayoutChoice, PreviewParams, QifParams};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
 
 use crate::error::RpcError;
-use crate::wire::{AccountRef, Amount, Id};
+use crate::wire::{AccountRef, Amount, CommodityId, Id};
 
 /// One import file (`ImportFile`): exactly one of `text` and `base64`.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -84,6 +86,9 @@ pub enum PreviewParam {
     /// GnuCash's Import Transactions from CSV.
     #[serde(rename = "csvTransactions")]
     CsvTransactions(CsvPreviewParam),
+    /// GnuCash's QIF import.
+    #[serde(rename = "qif")]
+    Qif(QifPreviewParam),
 }
 
 /// `import.preview` with `format: "csvTransactions"`.
@@ -103,6 +108,145 @@ pub struct CsvPreviewParam {
     pub account_names: BTreeMap<String, AccountRef>,
 }
 
+/// One QIF file: an `ImportFile` with the account for its transactions read under no `!Account`.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct QifFileParam {
+    /// The file's name, shown in messages; it gives the default account.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// The content as text, already Unicode.
+    #[serde(default)]
+    pub text: Option<String>,
+    /// The content's bytes, base64-encoded (RFC 4648, with padding).
+    #[serde(default)]
+    pub base64: Option<String>,
+    /// The encoding of `base64`'s bytes, a WHATWG label; default UTF-8. Refused with `text`.
+    #[serde(default)]
+    pub encoding: Option<String>,
+    /// The account (full name) for the file's transactions read under no `!Account`: GnuCash's account page.
+    /// Default: from the file's name, as GnuCash's (`qif-file:path-to-accountname`), else "QIF Import".
+    #[serde(default)]
+    pub default_account: Option<String>,
+}
+
+/// A QIF date format: the order of day, month and year.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+pub enum QifDateFormatWire {
+    /// Month, day, year.
+    #[serde(rename = "m-d-y")]
+    Mdy,
+    /// Day, month, year.
+    #[serde(rename = "d-m-y")]
+    Dmy,
+    /// Year, month, day.
+    #[serde(rename = "y-m-d")]
+    Ymd,
+    /// Year, day, month.
+    #[serde(rename = "y-d-m")]
+    Ydm,
+}
+
+impl From<QifDateFormatWire> for DateFormat {
+    fn from(f: QifDateFormatWire) -> Self {
+        match f {
+            QifDateFormatWire::Mdy => Self::Mdy,
+            QifDateFormatWire::Dmy => Self::Dmy,
+            QifDateFormatWire::Ymd => Self::Ymd,
+            QifDateFormatWire::Ydm => Self::Ydm,
+        }
+    }
+}
+
+/// The reconcile state of a QIF transaction with no `C` line: GnuCash's `qif-import` preference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, JsonSchema)]
+pub enum QifReconcileWire {
+    /// Not reconciled or cleared (GnuCash's default).
+    #[default]
+    #[serde(rename = "n")]
+    New,
+    /// Cleared.
+    #[serde(rename = "c")]
+    Cleared,
+    /// Reconciled.
+    #[serde(rename = "y")]
+    Reconciled,
+}
+
+impl From<QifReconcileWire> for ReconcileState {
+    fn from(f: QifReconcileWire) -> Self {
+        match f {
+            QifReconcileWire::New => Self::New,
+            QifReconcileWire::Cleared => Self::Cleared,
+            QifReconcileWire::Reconciled => Self::Reconciled,
+        }
+    }
+}
+
+/// A new security as the caller wants it created: GnuCash's commodity page.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct QifSecurityParam {
+    /// Namespace (exchange or type), such as NASDAQ or FUND.
+    pub namespace: String,
+    /// Mnemonic (ticker).
+    pub mnemonic: String,
+    /// Full name.
+    pub fullname: String,
+}
+
+/// `import.preview` with `format: "qif"`.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct QifPreviewParam {
+    /// The files, one or more, converted together as GnuCash's assistant converts the files it loaded.
+    pub files: Vec<QifFileParam>,
+    /// The date format, when the dates are ambiguous: one of the proposal's `qif.dateFormats`.
+    #[serde(default)]
+    pub date_format: Option<QifDateFormatWire>,
+    /// The default currency; default the Configuration's `defaultCurrency`.
+    #[serde(default)]
+    pub currency: Option<CommodityId>,
+    /// The reconcile state of transactions with no `C` line; default `n`.
+    #[serde(default)]
+    pub default_reconcile_state: QifReconcileWire,
+    /// QIF account name → account full name, existing or to create, over the guess and the saved map.
+    #[serde(default)]
+    pub accounts: BTreeMap<String, String>,
+    /// QIF category → account full name.
+    #[serde(default)]
+    pub categories: BTreeMap<String, String>,
+    /// QIF payee or memo → account full name.
+    #[serde(default)]
+    pub payees: BTreeMap<String, String>,
+    /// QIF security name → the commodity to create for it.
+    #[serde(default)]
+    pub securities: BTreeMap<String, QifSecurityParam>,
+}
+
+impl QifPreviewParam {
+    fn resolve(self) -> Result<(Vec<ImportFile>, PreviewParams), RpcError> {
+        let default_accounts = self.files.iter().map(|f| f.default_account.clone()).collect();
+        let files = files(self.files.into_iter().map(|f| ImportFileParam { name: f.name, text: f.text, base64: f.base64, encoding: f.encoding }).collect())?;
+        let securities = self
+            .securities
+            .into_iter()
+            .map(|(name, s)| (name, SecurityOverride { namespace: s.namespace, mnemonic: s.mnemonic, fullname: s.fullname }))
+            .collect();
+        let params = QifParams {
+            default_accounts,
+            date_format: self.date_format.map(DateFormat::from),
+            currency: self.currency.map(|c| c.0),
+            status_pref: self.default_reconcile_state.into(),
+            accounts: self.accounts,
+            categories: self.categories,
+            payees: self.payees,
+            securities,
+        };
+        Ok((files, PreviewParams::Qif(params)))
+    }
+}
+
 impl PreviewParam {
     /// The service's params, account references resolved against the Book.
     pub fn resolve(self, book: &Book) -> Result<(Vec<ImportFile>, PreviewParams), RpcError> {
@@ -117,6 +261,7 @@ impl PreviewParam {
                 let account_names = p.account_names.into_iter().map(|(name, a)| Ok((name, a.resolve(book)?))).collect::<Result<_, RpcError>>()?;
                 Ok((files, PreviewParams::CsvTransactions(CsvParams { layout, base_account, account_names })))
             }
+            Self::Qif(p) => p.resolve(),
         }
     }
 }
