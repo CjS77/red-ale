@@ -28,8 +28,8 @@
 //
 // Four templates share one options generator and one renderer, told apart by `params` (:708-744): the account
 // types, `do_intervals` (Income and Expense show each interval's change, Assets and Liabilities the balance at each
-// date) and `reverse_bal` (Income and Liabilities negate balances). GnuCash's CSV export thunks are left out; CSV
-// export comes with the rest of export in v0.3 (`design/reports.md` §12).
+// date) and `reverse_bal` (Income and Liabilities negate balances). Each offers CSV export, GnuCash's export
+// thunk (:721-725): when `ctx.export_type()` is "csv", the result carries the rows of :674-700.
 
 import "lib/accounts" as accounts;
 import "lib/balances" as balances;
@@ -55,7 +55,8 @@ fn templates() {
     ]
 }
 
-/// One template record (:709-729): income and expense charts go in the Income & Expense menu.
+/// One template record (:709-729): income and expense charts go in the Income & Expense menu; every one exports CSV
+/// (:721).
 fn template(guid, name, account_types, inc_exp, menu_name, menu_tip, reverse_bal) {
     #{
         guid: guid,
@@ -64,6 +65,7 @@ fn template(guid, name, account_types, inc_exp, menu_name, menu_tip, reverse_bal
         menuName: menu_name,
         menuTip: menu_tip,
         params: #{ guid: guid, account_types: account_types, do_intervals: inc_exp, reverse_bal: reverse_bal },
+        exportTypes: ["csv"],
     }
 }
 
@@ -109,14 +111,19 @@ fn render(params, book, opts, ctx) {
     let report_title = opts.get("General", "Report name");
     let accts = opts.get("Accounts", "Accounts");
     // GnuCash sets no document title: the chart carries the report's name.
-    let blocks = if accts.is_empty() {
-        [html_utilities::make_no_account_warning(report_title)]
+    let out = if accts.is_empty() {
+        #{ blocks: [html_utilities::make_no_account_warning(report_title)] }
     } else if to_date <= from_date {
-        [html_utilities::make_generic_warning(report_title, "Invalid dates", "Start date must be earlier than End date")]
+        #{ blocks: [html_utilities::make_generic_warning(report_title, "Invalid dates", "Start date must be earlier than End date")] }
     } else {
         chart_blocks(params, book, opts, ctx, from_date, to_date)
     };
-    #{ title: "", sections: [#{ blocks: blocks }] }
+    let result = #{ title: "", sections: [#{ blocks: out.blocks }] };
+    if "rows" in out && out.rows != () {
+        // `export` is a Rhai keyword, so the field is set by index.
+        result["export"] = out.rows;
+    }
+    result
 }
 
 /// What the helpers below share: the run's options and the values computed from them (:221-339).
@@ -300,7 +307,8 @@ fn negative_accounts(env, data) {
     names
 }
 
-/// From the account balances to the chart and table, or a warning (:292-700).
+/// From the account balances to the chart and table, or a warning (:292-700); with the CSV rows when the run is for
+/// CSV export and there is a chart.
 fn chart_blocks(params, book, opts, ctx, from_date, to_date) {
     let env = make_env(params, book, opts, ctx, from_date, to_date);
     let averaging = if params.do_intervals { opts.get("General", "Show Average") } else { "None" };
@@ -311,13 +319,14 @@ fn chart_blocks(params, book, opts, ctx, from_date, to_date) {
 
     // :500-518
     if all_data.is_empty() || !collectors::not_all_zeros(all_data.map(|entry| entry[1])) {
-        return [html_utilities::make_empty_data_warning(report_title)];
+        return #{ blocks: [html_utilities::make_empty_data_warning(report_title)] };
     }
     let negative = if ratio_chart { negative_accounts(env, all_data) } else { [] };
     if !negative.is_empty() {
         let warning = html_utilities::make_generic_warning(report_title, "Negative amounts detected",
             "Charting ratios cannot occur on accounts with negative balances. Please deselect the accounts with negative balances.");
-        return [warning, #{ kind: "text", text: negative.reduce(|out, name| if out == "" { name } else { out + "\n" + name }, "") }];
+        let names = negative.reduce(|out, name| if out == "" { name } else { out + "\n" + name }, "");
+        return #{ blocks: [warning, #{ kind: "text", text: names }] };
     }
 
     let dates_list = env.dates_list;
@@ -349,7 +358,28 @@ fn chart_blocks(params, book, opts, ctx, from_date, to_date) {
     if opts.get("Display", "Show table") {
         blocks.push(make_table(env, ratio_chart, date_strings, series_data, list_of_rows, row_totals));
     }
-    blocks
+    let rows = if ctx.export_type() == "csv" { csv_rows(env, ctx, shown_dates, series_data, list_of_rows) } else { () };
+    #{ blocks: blocks, rows: rows }
+}
+
+/// The CSV export (:674-700): "Date", each series' name and "Grand Total" when there is more than one; then each
+/// date in ISO form (`gnc-print-time64` with `%Y-%m-%d`), the amounts and their sum. The amounts are as computed,
+/// averaged where asked, never the shares a percentage chart shows.
+fn csv_rows(env, ctx, dates_list, series_data, list_of_rows) {
+    let more_than_one = series_data.len() > 1;
+    let header = ["Date"] + series_data.map(|entry| if type_of(entry[0]) == "string" { entry[0] } else { acct_to_name(env, entry[0]) });
+    if more_than_one {
+        header.push("Grand Total");
+    }
+    let rows = [header];
+    for i in 0..dates_list.len() {
+        let row = [ctx.print_date_iso(dates_list[i])] + list_of_rows[i];
+        if more_than_one {
+            row.push(sum_of(list_of_rows[i]));
+        }
+        rows.push(row);
+    }
+    rows
 }
 
 /// "Maximum Bars" as an integer: `inexact->exact` of the option (:247-248). GnuCash's `take` fails on a value that

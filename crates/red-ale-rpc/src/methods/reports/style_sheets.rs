@@ -48,7 +48,7 @@ pub struct StyleSheetInfo {
 }
 
 impl StyleSheetInfo {
-    fn of(sheet: &StyleSheet) -> Self {
+    pub(super) fn of(sheet: &StyleSheet) -> Self {
         Self {
             name: sheet.name().to_owned(),
             template: sheet.template().name().to_owned(),
@@ -162,7 +162,7 @@ pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult,
 
 /// The Configuration entry for `sheet`: the options that differ from its template's defaults, and from `raw` the
 /// values of options red-ale leaves out, which `sheet` does not have.
-fn record(sheet: &StyleSheet, raw: &Map<String, Value>, other: Map<String, Value>) -> StyleSheetRecord {
+pub(super) fn record(sheet: &StyleSheet, raw: &Map<String, Value>, other: Map<String, Value>) -> StyleSheetRecord {
     let kept = raw.iter().filter_map(|(section, names)| {
         let names = names.as_object()?;
         let left_out = names.iter().filter(|(n, v)| !v.is_null() && sheet.options().get(section, n).is_none());
@@ -192,7 +192,7 @@ fn merge(mut base: Map<String, Value>, changes: &Value) -> Map<String, Value> {
 }
 
 /// Write the style sheet entries to the Configuration, atomically.
-fn store(ctx: &Context, mut config: Config, records: &[StyleSheetRecord]) -> Result<(), RpcError> {
+pub(super) fn store(ctx: &Context, mut config: Config, records: &[StyleSheetRecord]) -> Result<(), RpcError> {
     config.set_style_sheets(records);
     Ok(ctx.settings.config.save(&config)?)
 }

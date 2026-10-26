@@ -3,12 +3,13 @@
 use red_ale_core::{Book, Env};
 use red_ale_locale::Locale;
 use red_ale_report::error::OptionError;
+use red_ale_report::engine::{EXPORT_CSV, RunContext};
 use red_ale_report::options::{GENERAL, OptionInfo, STYLESHEET};
 use red_ale_report::render::{self, DEFAULT_STYLE_SHEET, RenderContext, StyleSheet};
 use red_ale_report::{ReportError, ReportResult};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use super::{Found, On, ReportInfo, ReportOptions, ReportRef, Reports};
 use crate::dispatch::Context;
@@ -120,7 +121,7 @@ pub struct RunParams {
 pub(super) fn run(ctx: &mut Context, p: RunParams) -> Result<ReportResult, RpcError> {
     let reports = Reports::load(ctx)?;
     let locale = reports.locale(p.locale.as_deref())?;
-    ctx.query(|book, env| reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale }, book, env))
+    ctx.query(|book, env| reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale, export: None }, book, env))
 }
 
 /// Params of `report.export`.
@@ -144,11 +145,13 @@ pub struct ExportParams {
 }
 
 /// What a run takes besides the report and its options.
-struct RunAt {
+struct RunAt<'a> {
     /// The time to run for, else the session's clock.
     now: Option<Timestamp>,
     /// The Locale numbers and dates follow.
     locale: Locale,
+    /// The export the run is for, which the template must offer.
+    export: Option<&'a str>,
 }
 
 /// The result of `report.export`. Nothing is written to disk.
@@ -165,7 +168,7 @@ pub(super) fn export(ctx: &mut Context, p: ExportParams) -> Result<ExportResult,
     let reports = Reports::load(ctx)?;
     let locale = reports.locale(p.locale.as_deref())?;
     ctx.query(|book, env| {
-        let mut result = reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale }, book, env)?;
+        let mut result = reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale, export: None }, book, env)?;
         let (name, sheet) = reports.style_sheet(&result, p.style_sheet.as_deref())?;
         if sheet.is_none() {
             result.log.push(render::missing_style_sheet(&name));
@@ -176,13 +179,54 @@ pub(super) fn export(ctx: &mut Context, p: ExportParams) -> Result<ExportResult,
     })
 }
 
+/// Params of `report.exportCsv`.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ExportCsvParams {
+    /// The report: a net or category chart, or a saved configuration of one.
+    pub report: ReportRef,
+    /// Changes over the template's defaults, or over the saved configuration's values.
+    #[serde(default)]
+    pub options: Option<ReportOptions>,
+    /// The time to run the report for; by default the session's clock.
+    #[serde(default)]
+    pub now: Option<Timestamp>,
+}
+
+/// The result of `report.exportCsv`. Nothing is written to disk.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportCsvResult {
+    /// The report's title: empty for the charts, which GnuCash leaves untitled.
+    pub title: String,
+    /// The CSV text, as GnuCash's `gnc:lists->csv` writes it: rows joined by `\n`, no newline after the last.
+    pub csv: String,
+}
+
+/// Run a chart report for CSV export, GnuCash's export thunk with export type `csv`
+/// (`5.17:gnucash/report/reports/standard/net-charts.scm:480-482`). A run with nothing to export (no accounts, no
+/// data) is `invalid`, GnuCash's "No exportable data" (`:456-457`).
+pub(super) fn export_csv(ctx: &mut Context, p: ExportCsvParams) -> Result<ExportCsvResult, RpcError> {
+    let reports = Reports::load(ctx)?;
+    let locale = reports.locale(None)?;
+    ctx.query(|book, env| {
+        let at = RunAt { now: p.now, locale, export: Some(EXPORT_CSV) };
+        let result = reports.run(&p.report, p.options.as_ref(), &at, book, env)?;
+        let rows = result.export.as_ref().ok_or_else(|| {
+            RpcError::invalid("No exportable data: the report has no accounts or no figures to export")
+                .with_data(json!({ "reason": "no-exportable-data" }))
+        })?;
+        Ok(ExportCsvResult { title: result.title.clone(), csv: render::csv(rows) })
+    })
+}
+
 impl Reports {
     /// Run a report: the template's options with a saved configuration's values, then the caller's, applied.
     fn run(
         &self,
         report: &ReportRef,
         options: Option<&ReportOptions>,
-        at: &RunAt,
+        at: &RunAt<'_>,
         book: &Book,
         env: &mut dyn Env,
     ) -> Result<ReportResult, RpcError> {
@@ -191,7 +235,11 @@ impl Reports {
         let names = self.style_sheet_choices(saved);
         let saved_options = saved.map(|s| Value::Object(s.options.clone()));
         let changes: Vec<&Value> = saved_options.iter().chain(options.map(|o| &o.0)).collect();
-        let run = self.run_context(book, now, env.zone(), &names, at.locale);
+        if let Some(export) = at.export.filter(|e| !template.export_types.iter().any(|t| t == e)) {
+            let message = format!("{} has no {export} export; only the net and category charts have one", template.name);
+            return Err(RpcError::invalid(message).with_data(json!({ "reason": "no-export", "exportType": export })));
+        }
+        let run = RunContext { export: at.export, ..self.run_context(book, now, env.zone(), &names, at.locale) };
         Ok(self.registry.run(template, &changes, saved.map(|s| s.guid), &run)?)
     }
 

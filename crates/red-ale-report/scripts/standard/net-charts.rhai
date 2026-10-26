@@ -31,8 +31,8 @@
 // option) any later version (GPL-3.0-or-later); see LICENSE.
 //
 // Four templates share one options generator and one renderer, told apart by `params`: `inc_exp` (Income and
-// Expense rather than Assets and Liabilities) and `linechart` (:473-519). GnuCash's CSV export thunks are left out;
-// CSV export comes with the rest of export in v0.3 (`design/reports.md` §12).
+// Expense rather than Assets and Liabilities) and `linechart` (:473-519). Each offers CSV export, GnuCash's export
+// thunk (:480-482): when `ctx.export_type()` is "csv", the result carries the rows of :433-445.
 
 import "lib/accounts" as accounts;
 import "lib/balances" as balances;
@@ -42,17 +42,19 @@ import "lib/exchange" as exchange;
 import "lib/html-utilities" as html_utilities;
 import "lib/options" as option_utils;
 
-/// The four templates (:468-519). The Income/Expense Chart is "Income & Expense Barchart" in the menu (:488).
+/// The four templates (:468-519), each with CSV export (:480, :492, :503, :517). The Income/Expense Chart is
+/// "Income & Expense Barchart" in the menu (:488).
 fn templates() {
     [
         #{ guid: "cbba1696c8c24744848062c7f1cf4a72", name: "Net Worth Barchart", menuPath: ["_Assets & Liabilities"],
-           params: #{ inc_exp: false, linechart: false } },
+           params: #{ inc_exp: false, linechart: false }, exportTypes: ["csv"] },
         #{ guid: "80769921e87943adade887b9835a7685", name: "Income/Expense Chart", menuName: "Income & Expense Barchart",
-           menuPath: ["_Income & Expense"], params: #{ inc_exp: true, linechart: false } },
+           menuPath: ["_Income & Expense"], params: #{ inc_exp: true, linechart: false }, exportTypes: ["csv"] },
         #{ guid: "d8b63264186b11e19038001558291366", name: "Net Worth Linechart", menuPath: ["_Assets & Liabilities"],
-           params: #{ inc_exp: false, linechart: true } },
+           params: #{ inc_exp: false, linechart: true }, exportTypes: ["csv"] },
         #{ guid: "e533c998186b11e1b2e2001558291366", name: "Income & Expense Linechart",
-           menuName: "Income & Expense Linechart", menuPath: ["_Income & Expense"], params: #{ inc_exp: true, linechart: true } },
+           menuName: "Income & Expense Linechart", menuPath: ["_Income & Expense"], params: #{ inc_exp: true, linechart: true },
+           exportTypes: ["csv"] },
     ]
 }
 
@@ -115,15 +117,21 @@ fn render(params, book, opts, ctx) {
     let exchange_fn = exchange::case_exchange_time_fn(book, ctx, price_source, report_currency, commodity_list, to_date);
 
     // GnuCash sets no document title: the chart carries the report's name.
-    let blocks = if accts.is_empty() {
-        [html_utilities::make_no_account_warning(report_title)]
+    let out = if accts.is_empty() {
+        #{ blocks: [html_utilities::make_no_account_warning(report_title)] }
     } else {
         net_blocks(params, opts, ctx, accts, dates_list, exchange_fn, report_currency, from_date, to_date)
     };
-    #{ title: "", sections: [#{ blocks: blocks }] }
+    let result = #{ title: "", sections: [#{ blocks: out.blocks }] };
+    if "rows" in out && out.rows != () {
+        // `export` is a Rhai keyword, so the field is set by index.
+        result["export"] = out.rows;
+    }
+    result
 }
 
-/// The chart and table once accounts are selected (:297-448), or the empty-data warning.
+/// The chart and table once accounts are selected (:297-448), or the empty-data warning; with the CSV rows when the
+/// run is for CSV export.
 fn net_blocks(params, opts, ctx, accts, dates_list, exchange_fn, report_currency, from_date, to_date) {
     let inc_exp = params.inc_exp;
     let report_title = opts.get("General", "Report name");
@@ -143,7 +151,7 @@ fn net_blocks(params, opts, ctx, accts, dates_list, exchange_fn, report_currency
 
     // :387-389
     if !collectors::not_all_zeros(minuend + subtrahend + difference) {
-        return [html_utilities::make_empty_data_warning(report_title)];
+        return #{ blocks: [html_utilities::make_empty_data_warning(report_title)] };
     }
     let chart = make_chart(params, opts, ctx, report_currency, from_date, to_date, date_strings, minuend, subtrahend,
                            difference);
@@ -151,7 +159,19 @@ fn net_blocks(params, opts, ctx, accts, dates_list, exchange_fn, report_currency
     if opts.get("Display", "Show table") {
         blocks.push(make_table(params, opts, report_currency, date_strings, minuend, subtrahend, difference));
     }
-    blocks
+    let rows = if ctx.export_type() == "csv" { csv_rows(params, ctx, shown_dates, minuend, subtrahend, difference) } else { () };
+    #{ blocks: blocks, rows: rows }
+}
+
+/// The CSV export (:433-445): a header, then each date in ISO form (`gnc-print-time64` with `%Y-%m-%d`) and the
+/// three figures as computed, whatever the Display options show: the second series keeps its sign, as in the table.
+fn csv_rows(params, ctx, dates_list, minuend, subtrahend, difference) {
+    let header = if params.inc_exp { ["Date", "Income", "Expense", "Net Profit"] } else { ["Date", "Assets", "Liabilities", "Net Worth"] };
+    let rows = [header];
+    for i in 0..dates_list.len() {
+        rows.push([ctx.print_date_iso(dates_list[i]), minuend[i], subtrahend[i], difference[i]]);
+    }
+    rows
 }
 
 /// `account->balancelist` (:227-235): `[account, balances]`, the account's balance excluding closing transactions

@@ -5,10 +5,12 @@
 //! same result, style sheet and context. The renderer reads only the result and the style sheet, never the Book, so a
 //! result a client got as JSON renders the same way.
 //!
+//! - [`csv`]: a result's export rows as GnuCash's CSV export writes them.
 //! - [`StyleSheetTemplate`], [`StyleSheet`] and [`StyleSheets`]: GnuCash 5.17's style sheets and their options, and
 //!   lookup by name over the predefined ones and the Configuration's ([`StyleSheetEntry`]).
 
 mod css;
+mod csv;
 mod look;
 mod sheet;
 mod svg;
@@ -18,8 +20,10 @@ mod text;
 use red_ale_core::TimeZone;
 use red_ale_locale::Locale;
 
+pub use csv::csv;
 pub use sheet::{
     DEFAULT_STYLE_SHEET, PREDEFINED, StyleSheet, StyleSheetEntry, StyleSheetError, StyleSheetTemplate, StyleSheets, check_css,
+    left_out,
 };
 
 use look::{Line, Look};

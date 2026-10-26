@@ -6,6 +6,7 @@
 //!
 //! A Rational never enters the Book.
 
+mod flonum;
 pub mod format;
 mod monetary;
 mod rational;
@@ -15,6 +16,7 @@ use thiserror::Error;
 pub use format::{
     CommodityFormat, MonetaryDisplay, PrintInfo, display_exact, display_monetary, display_number, display_price, fixed, format_amount,
 };
+pub use flonum::guile_inexact;
 pub use monetary::Monetary;
 pub use rational::{DEFAULT_MAX_BITS, Rational, Rounding, SizeCap};
 

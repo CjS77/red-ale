@@ -116,21 +116,43 @@ struct CallArgs {
 
 #[derive(Debug, Args)]
 struct InputArgs {
-    /// Read an import file here and add it to the params' `files` as `{name, base64}`, so the server never reads a
-    /// path; repeat it for several files (QIF).
+    /// Read a file here, on the caller's side, so the server never reads a path a caller names. A method whose
+    /// params have a `text` field (`report.importConfigurations`, `report.importStyleSheets`) takes one file's text
+    /// there; any other (`import.preview`) gets each file added to `files` as `{name, base64}`. Repeat it for several
+    /// files (QIF).
     #[arg(long = "file", value_name = "FILE")]
     files: Vec<PathBuf>,
-    /// The encoding of every `--file`, a WHATWG label such as `iso-8859-1`; default the layout's, else UTF-8.
+    /// The encoding of every `--file` added to `files`, a WHATWG label such as `iso-8859-1`; default the layout's,
+    /// else UTF-8.
     #[arg(long, value_name = "LABEL", requires = "files")]
     encoding: Option<String>,
 }
 
 impl InputArgs {
-    /// The params with each `--file` appended to `files`.
-    fn fill(&self, mut params: Value) -> Result<Value> {
-        if self.files.is_empty() {
-            return Ok(params);
+    /// `params` with the `--file`s read into them, as `method` takes files.
+    fn fill(&self, method: &str, params: Value) -> Result<Value> {
+        match self.files.as_slice() {
+            [] => Ok(params),
+            [path] if takes_text(method) => self.fill_text(path, params),
+            _ if takes_text(method) => bail!("{method} takes one file's text; give --file once"),
+            _ => self.fill_files(params),
         }
+    }
+
+    fn fill_text(&self, path: &Path, mut params: Value) -> Result<Value> {
+        if self.encoding.is_some() {
+            bail!("--encoding applies to files sent as bytes; this method takes text, read as UTF-8");
+        }
+        let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let object = params.as_object_mut().context("--file needs params as an object")?;
+        if object.contains_key("text") {
+            bail!("--file fills the text param; do not give text as well");
+        }
+        object.insert("text".to_owned(), Value::String(text));
+        Ok(params)
+    }
+
+    fn fill_files(&self, mut params: Value) -> Result<Value> {
         let read = self.files.iter().map(|path| {
             let bytes = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
             let name = path.file_name().map(|n| n.to_string_lossy().into_owned());
@@ -150,10 +172,21 @@ impl InputArgs {
     }
 }
 
+/// Whether `method`'s params have a top-level `text` field, from this build's own method schemas.
+fn takes_text(method: &str) -> bool {
+    let schema = Dispatcher::new(Settings::default()).schema();
+    let params = schema["methods"].as_array().into_iter().flatten().find(|m| m["name"] == method).map(|m| &m["params"]);
+    let resolved = params.and_then(|p| match p["$ref"].as_str() {
+        Some(r) => r.strip_prefix("#/$defs/").map(|name| &schema["$defs"][name]),
+        None => Some(p),
+    });
+    resolved.is_some_and(|p| p["properties"].get("text").is_some())
+}
+
 #[derive(Debug, Args)]
 struct OutputArgs {
-    /// Write the result's `html` (from `report.export`) or `csv` (from `export.csvTree` and `export.csvTransactions`)
-    /// to this file, here rather than on the server, and print what was written instead of the result: `{title, path,
+    /// Write the result's `html` (from `report.export`) or `csv` (from `report.exportCsv`, `export.csvTree` and
+    /// `export.csvTransactions`) to this file, here rather than on the server, and print what was written instead of the result: `{title, path,
     /// bytes}` for a report, the result's other fields with `path` and `bytes` for a CSV export.
     #[arg(long, value_name = "FILE")]
     output: Option<PathBuf>,
@@ -355,7 +388,7 @@ fn shut_down(dispatcher: &Mutex<Dispatcher>) {
 }
 
 fn call(args: &CallArgs) -> Result<Option<RpcError>> {
-    let params = args.input.fill(params::parse(&args.params)?)?;
+    let params = args.input.fill(&args.method, params::parse(&args.params)?)?;
     let runtime = tokio::runtime::Runtime::new()?;
     let result: Result<Value, jsonrpsee::core::ClientError> = runtime.block_on(async {
         // The server's own limit bounds what it sends (`jsonRpc.maxResponseBytes`), so the client takes any size.
@@ -380,7 +413,7 @@ fn exec(args: &ExecArgs) -> Result<Ended> {
     }
     let calls = match (&args.script, &args.method) {
         (Some(script), _) => read_script(script)?,
-        (None, Some(method)) => vec![(method.clone(), args.input.fill(params::parse(&args.params)?)?)],
+        (None, Some(method)) => vec![(method.clone(), args.input.fill(method, params::parse(&args.params)?)?)],
         (None, None) => bail!("give a method or --script"),
     };
     let mut d = Dispatcher::new(args.settings.settings());

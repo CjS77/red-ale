@@ -395,9 +395,9 @@ The trailing point after a whole amount (`5. ACME`) does not depend on the local
 
 | Status | Feature                                     | Notes                                                                                                   |
 |:------:|---------------------------------------------|---------------------------------------------------------------------------------------------------------|
-|        | CSV export of the net and category charts   | The "Show table" data as CSV ([`reports.md`](reports.md) §12)                                          |
-|        | Import saved report configurations          | From `saved-reports-2.8`, else `saved-reports-2.4` (`5.17:gnucash/report/gnc-report.h:35-36`); literal option forms only, never evaluating Scheme |
-|        | Import style sheets                         | From `stylesheets-2.0` (`5.17:gnucash/report/html-style-sheet.scm:142-143`)                            |
+|   ✅   | CSV export of the net and category charts   | `report.exportCsv`: the rows of GnuCash's CSV export, byte for byte ([`reports.md`](reports.md) §12, [`api/reports.md`](api/reports.md)) |
+|   ✅   | Import saved report configurations          | `report.importConfigurations`: from `saved-reports-2.8`, else `saved-reports-2.4` (`5.17:gnucash/report/gnc-report.h:35-36`); literal option forms only, never evaluating Scheme ([`reports.md`](reports.md) §15) |
+|   ✅   | Import style sheets                         | `report.importStyleSheets`: from `stylesheets-2.0` (`5.17:gnucash/report/html-style-sheet.scm:142-143`); image options kept, not rendered |
 
 The details are in [`roadmap.md`](roadmap.md), "Also in v0.3": a saved configuration keeps only the options that
 differ from its template's defaults, one whose template red-ale has not translated is reported and skipped, and both
