@@ -78,3 +78,21 @@ fn schema_lists_every_method_with_its_effect() {
     assert_eq!(open["effect"], "read");
     assert!(schema["errors"].as_array().unwrap().iter().any(|e| e["name"] == "sql-book"));
 }
+
+/// Every method declares its Effect target: none for a read, the Configuration for the settings red-ale keeps
+/// outside the Book, the Book for everything else (`design/api.md`, "Effects").
+#[test]
+fn schema_lists_every_method_with_its_effect_target() {
+    let schema = Dispatcher::new(Settings::default()).schema();
+    let methods = schema["methods"].as_array().unwrap();
+    let configuration = ["period.set", "docLink.setPathHead"];
+    methods.iter().for_each(|m| {
+        let name = m["name"].as_str().unwrap();
+        let expected = match m["effect"].as_str().unwrap() {
+            "read" => Value::Null,
+            _ if configuration.contains(&name) || name.starts_with("report.") => json!("configuration"),
+            _ => json!("book"),
+        };
+        assert_eq!(m["target"], expected, "{name}");
+    });
+}

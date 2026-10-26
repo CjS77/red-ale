@@ -15,7 +15,8 @@ use crate::wire::{Day, NoParams, Timestamp};
 pub fn methods() -> Vec<Method> {
     vec![
         method("period.get", "The configured accounting period and fiscal year end.", Effect::Read, get),
-        method("period.set", "Set the accounting period or the fiscal year end in red-ale's configuration.", Effect::Write, set),
+        method("period.set", "Set the accounting period or the fiscal year end in red-ale's configuration.", Effect::Write, set)
+            .on_configuration(),
         method("period.dates", "The first and last days of the accounting period containing today or a given date.", Effect::Read, dates),
     ]
 }

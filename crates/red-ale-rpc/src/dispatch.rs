@@ -27,6 +27,17 @@ pub enum Effect {
     Destructive,
 }
 
+/// What a method that is not `read` changes: its Effect target (`design/api.md`, "Effects"). MCP's hints come from
+/// the Effect alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Target {
+    /// The open Book: the change is journaled and makes the Book dirty.
+    Book,
+    /// red-ale's Configuration only: works with no Book open and never makes one dirty.
+    Configuration,
+}
+
 type Handler = Box<dyn Fn(&mut Context, Value) -> Result<Value, RpcError> + Send + Sync>;
 type SchemaFn = fn(&mut SchemaGenerator) -> Schema;
 
@@ -38,6 +49,8 @@ pub struct Method {
     pub summary: &'static str,
     /// What it does to the book.
     pub effect: Effect,
+    /// What it changes; `None` for a `read` method.
+    pub target: Option<Target>,
     params: SchemaFn,
     result: SchemaFn,
     handler: Handler,
@@ -45,11 +58,22 @@ pub struct Method {
 
 impl std::fmt::Debug for Method {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Method").field("name", &self.name).field("effect", &self.effect).finish_non_exhaustive()
+        let mut d = f.debug_struct("Method");
+        d.field("name", &self.name).field("effect", &self.effect).field("target", &self.target).finish_non_exhaustive()
     }
 }
 
-/// Build a method from a typed handler. Params are by name (a JSON object); absent params read as `{}`.
+impl Method {
+    /// The same method, changing red-ale's Configuration rather than the Book. A `read` method keeps no target.
+    #[must_use]
+    pub fn on_configuration(mut self) -> Self {
+        self.target = self.target.map(|_| Target::Configuration);
+        self
+    }
+}
+
+/// Build a method from a typed handler. Params are by name (a JSON object); absent params read as `{}`. A method that
+/// is not `read` targets the Book unless [`Method::on_configuration`] says otherwise.
 pub fn method<P, R>(name: &'static str, summary: &'static str, effect: Effect, f: fn(&mut Context, P) -> Result<R, RpcError>) -> Method
 where
     P: DeserializeOwned + JsonSchema + 'static,
@@ -59,6 +83,7 @@ where
         name,
         summary,
         effect,
+        target: (effect != Effect::Read).then_some(Target::Book),
         params: |g| g.subschema_for::<P>(),
         result: |g| g.subschema_for::<R>(),
         handler: Box::new(move |ctx, params| {
@@ -246,6 +271,7 @@ impl Dispatcher {
                     "name": m.name,
                     "summary": m.summary,
                     "effect": m.effect,
+                    "target": m.target,
                     "params": (m.params)(&mut generator),
                     "result": (m.result)(&mut generator),
                 })
