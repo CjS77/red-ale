@@ -1,6 +1,8 @@
 //! The Locale a report runs under (`design/milestone3.md`, "Locales"): a supported locale by name, or `environment`,
 //! the locales the process environment selects, as GnuCash takes them from `setlocale (LC_ALL, "")`.
 
+use red_ale_core::ops::commodities::lookup;
+use red_ale_core::{Book, CommodityRef};
 use red_ale_locale::{Locale, LocaleError};
 use serde_json::Value;
 
@@ -31,6 +33,19 @@ impl Config {
     /// The Locale the `locale` setting names.
     pub fn locale(&self) -> Result<Locale, ServiceError> {
         resolve(&self.locale_name()?).map_err(|e| invalid(format!("the Configuration's {SETTING}: {e}")))
+    }
+
+    /// GnuCash's default currency (`gnc_default_currency`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:747-780`): the
+    /// `defaultCurrency` setting if it names a currency of `book`'s table, else the Locale's currency, else `USD`.
+    pub fn default_currency(&self, book: &Book) -> Result<CommodityRef, ServiceError> {
+        let setting = self.checked("defaultCurrency")?;
+        let named = setting.as_str().map(|id| match id.split_once("::") {
+            Some((namespace, mnemonic)) => CommodityRef::new(namespace, mnemonic),
+            None => CommodityRef::currency(id),
+        });
+        let locale = CommodityRef::currency(self.locale()?.conventions().currency_code());
+        let known = |id: &CommodityRef| id.is_currency() && lookup(book, id).is_some();
+        Ok(named.filter(known).or_else(|| Some(locale).filter(known)).unwrap_or_else(|| CommodityRef::currency("USD")))
     }
 }
 

@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use red_ale_core::ops::commodities::lookup;
 use red_ale_core::ops::quotes::{Quotable, named_quotable, quotable};
 use red_ale_core::{Book, CommodityRef};
 use red_ale_quotes::fetch::{self, Fetch};
@@ -163,7 +162,7 @@ fn fetch_quotes(ctx: &mut Context, p: FetchParams) -> Result<FetchStarted, RpcEr
     }
     let namespace = p.namespace.as_deref().map(namespace_pattern).transpose()?;
     let book = ctx.book()?;
-    let default_currency = default_currency(book, &config)?;
+    let default_currency = config.default_currency(book)?;
     let quotables = select(book, p.commodities.as_deref(), namespace.as_ref(), &default_currency)?;
     if quotables.is_empty() {
         return Err(RpcError::invalid("the Quote fetch covers no commodity (GnuCash: \"GncQuotes::Fetch called with no commodities\")"));
@@ -174,19 +173,6 @@ fn fetch_quotes(ctx: &mut Context, p: FetchParams) -> Result<FetchStarted, RpcEr
 /// `gnucash-cli --namespace`'s pattern: case-insensitive and unanchored (`5.17:libgnucash/app-utils/gnc-quotes.cpp:1023-1035`).
 fn namespace_pattern(pattern: &str) -> Result<Regex, RpcError> {
     RegexBuilder::new(pattern).case_insensitive(true).build().map_err(|e| RpcError::invalid(format!("namespace pattern {pattern:?}: {e}")))
-}
-
-/// GnuCash's default currency (`gnc_default_currency`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:747-780`): the
-/// `defaultCurrency` setting if it names a currency, else the Locale's currency, else `USD`.
-fn default_currency(book: &Book, config: &Config) -> Result<CommodityRef, RpcError> {
-    let setting = config.checked("defaultCurrency")?;
-    let named = setting.as_str().map(|id| match id.split_once("::") {
-        Some((namespace, mnemonic)) => CommodityRef::new(namespace, mnemonic),
-        None => CommodityRef::currency(id),
-    });
-    let locale = CommodityRef::currency(config.locale()?.conventions().currency_code());
-    let known = |id: &CommodityRef| id.is_currency() && lookup(book, id).is_some();
-    Ok(named.filter(known).or_else(|| Some(locale).filter(known)).unwrap_or_else(|| CommodityRef::currency("USD")))
 }
 
 fn select(book: &Book, named: Option<&[CommodityId]>, namespace: Option<&Regex>, default: &CommodityRef) -> Result<Vec<Quotable>, RpcError> {
