@@ -304,7 +304,8 @@ Known gaps in v0.2, each documented where it happens, to close in v0.3 or record
 - ✅ The balance-limit check left out sub-accounts in other commodities; it now converts them at the latest price as
   GnuCash does ([`api/accounts.md`](api/accounts.md)). Closed in v0.3.
 - GnuCash's business lot scrub is not ported as an operation; tests only check that GnuCash's scrub finds nothing to
-  fix in what red-ale writes ([`api/business-posting.md`](api/business-posting.md)).
+  fix in what red-ale writes ([`api/business-posting.md`](api/business-posting.md)). Decided in v0.3: it stays so,
+  since business import never runs it; it waits for Check & Repair of books from older GnuCash versions.
 - Day boundaries follow zone files exactly, where GnuCash approximates daylight saving with one rule per year
   ([`api.md`](api.md)). Stored dates are unaffected.
 - Nothing pins the API as additive. At the end of v0.2, comparing the v0.1 and v0.2 `api.schema` documents found all
