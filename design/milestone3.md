@@ -367,7 +367,7 @@ Each is closed in v0.3 or recorded as a deviation ([`roadmap.md`](roadmap.md), "
 |   ✅   | Day boundaries follow zone files exactly                             | Decided: a deviation, with its reason ([`api.md`](api.md), "Dates, times and the local time zone"); stored dates are unaffected |
 |   ✅   | Nothing pins the API as additive                                     | Closed: `red-ale-rpc/tests/api_additive.rs` against the committed 0.2.0 schema ([`api.md`](api.md), "Versioning") |
 |   ✅   | Two Rhai closure limits worked around by convention                  | Settled: both are Rhai bugs, reproduced without red-ale's resolver (`red-ale-report/tests/rhai_closure_limits.rs`); to report upstream, conventions kept until fixed |
-|        | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Label it as 5.5's, or replace it with 5.17 output when a GUI build exists    |
+|   ✅   | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Labelled as 5.5's in [`../fixtures/README.md`](../fixtures/README.md); no 5.17 GUI build exists |
 
 ## Interfaces
 
