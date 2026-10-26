@@ -19,6 +19,13 @@ or the `api.schema` method. This page gives the conventions; `api/` holds one pa
 methods, new optional params, new result fields. A method, param, result field or error code, once released, keeps its
 name and meaning.
 
+From 0.2 on, a test holds each later 0.x version to this until v1.0 freezes the API
+(`crates/red-ale-rpc/tests/api_additive.rs`): it compares `api.schema` with the 0.2.0 document committed beside it
+(`tests/schemas/red-ale-api-0.2.0.json`). Every 0.2 method must keep its Effect and Effect target; its params may
+widen their types and add optional fields but not lose, retype or newly require one; its result may add fields but
+not lose, widen or make optional one; every 0.2 error code keeps its name. Schemas are compared place by place after
+resolving `$ref`s, so renamed `$defs` and changed descriptions don't count.
+
 ## Requests
 
 - **Params are by name**: a JSON object. Absent params read as `{}`. Positional (array) params are refused with
