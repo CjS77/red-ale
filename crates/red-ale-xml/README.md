@@ -20,6 +20,11 @@ GnuCash's file is the user's financial record, so the crate's first job is to lo
 
 A malformed file gives an `XmlError`, never a crash.
 
+Books are read and written as streams, so memory stays near the size of the Book: `read_book_from` builds one part
+of the book at a time from the tokeniser's events and drops it once translated, and `write_book_to` hands the file to
+its sink (through gzip, if compressed) a chunk at a time. `read_back` reads a written file the same way and compares
+each entity with the Book that was written, without building a second one.
+
 ## Where it fits
 
 In domain-driven design terms, this crate is an *anti-corruption layer*. GnuCash's file format is an outside model with
@@ -37,7 +42,8 @@ is the only crate that calls this one in normal use. An SQLite backend, `red-ale
 
 | Module     | Contents                                                                                     |
 |------------|----------------------------------------------------------------------------------------------|
-| `book`     | `read_book`, `write_book`, `write_book_text`, and `XmlResidue`                               |
+| `book`     | `read_book`, `write_book`, `write_book_to`, `write_book_text`, and `XmlResidue`              |
+| `read`     | The streaming reader: `read_book_from`, and `read_back`, which checks a written file entity by entity |
 | `envelope` | The XML declaration, the `gnc-v2` root and its namespaces, and the book wrapper              |
 | `entities` | Commodities, prices, accounts, lots, transactions and splits                                 |
 | `business` | Customers, vendors, employees, jobs, invoices, entries, orders, tax tables and billing terms |

@@ -16,10 +16,13 @@ oracle's: GnuCash 5.17 must read red-ale's output and find the same data it find
 
 ## Three layers
 
-1. **DOM.** `dom::parse_document` reads the whole file into a small DOM. Character references are resolved;
-   formatting whitespace (whitespace-only text beside child elements) is dropped; text content is kept exactly. An
-   element written `<a></a>` keeps an empty text node and `<a/>` has none, because libxml2 serialises them
-   differently and GnuCash produces both.
+1. **DOM.** The file is read as a stream (gzip undone, UTF-8 checked and line ends normalised as it goes), and each
+   part of the book, one price of the price database or one other child of `gnc:book`, is built as a small DOM,
+   translated, and dropped, as GnuCash's SAX parser handles one part at a time (`5.17:libgnucash/backend/xml/sixtp.cpp`).
+   No DOM of the whole file and no copy of its text is held. Character references are resolved; formatting whitespace
+   (whitespace-only text beside child elements) is dropped; text content is kept exactly. An element written
+   `<a></a>` keeps an empty text node and `<a/>` has none, because libxml2 serialises them differently and GnuCash
+   produces both.
 2. **Serialiser.** `Element::dump` writes a DOM exactly as libxml2 2.9's `xmlElemDump` does with formatting on: two
    spaces per level, capped at 60; children indented only when none is text; markup characters escaped; non-ASCII and
    control characters (except tab and newline) as `&#xHH;` references with upper-case hex. The envelope (XML

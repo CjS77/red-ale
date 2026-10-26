@@ -5,11 +5,13 @@
 //! unedited book round-trips byte for byte. See `design/notes/xml-format-core.md`.
 
 use std::fmt::Write as _;
+use std::io::BufRead;
 
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
 
 use crate::error::XmlError;
+use crate::input::TextStream;
 
 /// An XML node: an element or text.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -208,65 +210,162 @@ fn escape_attr(out: &mut String, text: &str) {
 /// Whitespace-only text is dropped from elements that also have element children: it is formatting, which the
 /// serialiser recreates. Text content of leaf elements is kept exactly, including whitespace.
 pub fn parse_document(text: &str) -> Result<Element, XmlError> {
-    // XML end-of-line handling: a raw CR LF or lone CR is read as LF. `&#13;` references are unaffected.
-    let normalised = text.replace("\r\n", "\n").replace('\r', "\n");
-    let mut reader = Reader::from_str(&normalised);
-    let config = reader.config_mut();
-    config.trim_text(false);
-    config.expand_empty_elements = false;
-    let mut stack: Vec<Element> = Vec::new();
-    let mut root: Option<Element> = None;
-    loop {
-        let pos = reader.buffer_position();
-        let event = reader.read_event().map_err(|e| XmlError::Syntax { offset: pos, message: e.to_string() })?;
-        match event {
-            Event::Start(start) => stack.push(start_element(&start)?),
-            Event::Empty(start) => attach(&mut stack, &mut root, start_element(&start)?),
-            Event::End(_) => {
-                let mut el = stack.pop().ok_or_else(|| XmlError::Syntax { offset: pos, message: "unbalanced end tag".into() })?;
+    let mut tokens = Tokens::new(TextStream::new(text.as_bytes())?);
+    let mut builder = TreeBuilder::default();
+    let mut root = None;
+    while let Some(token) = tokens.next()? {
+        if let Some(el) = builder.feed(token).map_err(|e| e.at(tokens.position()))? {
+            root = Some(el);
+        }
+    }
+    if !builder.is_empty() {
+        return Err(Unbalanced::Open.at(tokens.position()));
+    }
+    root.ok_or(XmlError::Empty)
+}
+
+/// One step through a document, as the tree builder takes it. Comments, processing instructions and declarations
+/// are skipped, and references are resolved into text.
+pub(crate) enum Token {
+    /// A start tag.
+    Start(Element),
+    /// An empty-element tag, `<a/>`.
+    Empty(Element),
+    /// An end tag.
+    End,
+    /// Character data, unescaped.
+    Text(String),
+}
+
+/// The tokens of a document read from a stream of decoded text ([`TextStream`]).
+pub(crate) struct Tokens<R: BufRead> {
+    reader: Reader<TextStream<R>>,
+    buf: Vec<u8>,
+    position: u64,
+}
+
+impl<R: BufRead> Tokens<R> {
+    pub(crate) fn new(text: TextStream<R>) -> Self {
+        let mut reader = Reader::from_reader(text);
+        let config = reader.config_mut();
+        config.trim_text(false);
+        config.expand_empty_elements = false;
+        Self { reader, buf: Vec::new(), position: 0 }
+    }
+
+    /// Byte offset in the decoded text of the token last read.
+    pub(crate) fn position(&self) -> u64 {
+        self.position
+    }
+
+    /// The text stream, to look ahead before the first token or to read on after an error.
+    pub(crate) fn text(&mut self) -> &mut TextStream<R> {
+        self.reader.get_mut()
+    }
+
+    /// The next token, or `None` at the end of the document. An error reading the file comes back as the file's
+    /// error, not as what the tokeniser made of it.
+    pub(crate) fn next(&mut self) -> Result<Option<Token>, XmlError> {
+        loop {
+            self.buf.clear();
+            self.position = self.reader.buffer_position();
+            let pos = self.position;
+            let syntax = |message: String| XmlError::Syntax { offset: pos, message };
+            let event = match self.reader.read_event_into(&mut self.buf) {
+                Ok(event) => event,
+                Err(e) => return Err(self.reader.get_mut().take_error().unwrap_or_else(|| syntax(e.to_string()))),
+            };
+            let token = match event {
+                Event::Start(start) => Token::Start(start_element(&start)?),
+                Event::Empty(start) => Token::Empty(start_element(&start)?),
+                Event::End(_) => Token::End,
+                Event::Text(t) => Token::Text(t.decode().map_err(|e| syntax(e.to_string()))?.into_owned()),
+                Event::CData(c) => Token::Text(c.decode().map_err(|e| syntax(e.to_string()))?.into_owned()),
+                Event::GeneralRef(r) => {
+                    let name = r.decode().map_err(|e| syntax(e.to_string()))?;
+                    Token::Text(resolve_reference(&name).ok_or_else(|| syntax(format!("unknown entity &{name};")))?)
+                }
+                Event::Eof => return Ok(None),
+                Event::Comment(_) | Event::Decl(_) | Event::PI(_) | Event::DocType(_) => continue,
+            };
+            return Ok(Some(token));
+        }
+    }
+}
+
+/// Builds elements from tokens, one outermost element at a time.
+#[derive(Default)]
+pub(crate) struct TreeBuilder {
+    stack: Vec<Element>,
+}
+
+/// An end tag with no element open, or the document ending with one still open.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Unbalanced {
+    /// An end tag with no element open.
+    End,
+    /// The document ended with an element open.
+    Open,
+}
+
+impl Unbalanced {
+    /// The syntax error at `offset`.
+    pub(crate) fn at(self, offset: u64) -> XmlError {
+        let message = match self {
+            Self::End => "unbalanced end tag",
+            Self::Open => "unexpected end of document",
+        };
+        XmlError::Syntax { offset, message: message.into() }
+    }
+}
+
+impl TreeBuilder {
+    /// No element is being built.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.stack.is_empty()
+    }
+
+    /// Take one token. Returns the outermost element it completes, if any; text outside any element is dropped.
+    pub(crate) fn feed(&mut self, token: Token) -> Result<Option<Element>, Unbalanced> {
+        match token {
+            Token::Start(el) => {
+                self.stack.push(el);
+                Ok(None)
+            }
+            Token::Empty(el) => Ok(self.attach(el)),
+            Token::End => {
+                let mut el = self.stack.pop().ok_or(Unbalanced::End)?;
                 // `<a></a>` holds an empty text node in libxml2, unlike `<a/>`; keep the difference.
                 if el.children.is_empty() {
                     el.children.push(Node::Text(String::new()));
                 }
                 drop_formatting(&mut el);
-                attach(&mut stack, &mut root, el);
+                Ok(self.attach(el))
             }
-            Event::Text(t) => {
-                let raw = t.decode().map_err(|e| XmlError::Syntax { offset: pos, message: e.to_string() })?;
-                push_text(&mut stack, &raw);
+            Token::Text(text) => {
+                self.push_text(text);
+                Ok(None)
             }
-            Event::CData(c) => {
-                let raw = c.decode().map_err(|e| XmlError::Syntax { offset: pos, message: e.to_string() })?;
-                push_text(&mut stack, &raw);
-            }
-            Event::GeneralRef(r) => {
-                let name = r.decode().map_err(|e| XmlError::Syntax { offset: pos, message: e.to_string() })?;
-                let resolved = resolve_reference(&name).ok_or_else(|| XmlError::Syntax { offset: pos, message: format!("unknown entity &{name};") })?;
-                push_text(&mut stack, &resolved);
-            }
-            Event::Eof => break,
-            Event::Comment(_) | Event::Decl(_) | Event::PI(_) | Event::DocType(_) => {}
         }
     }
-    if !stack.is_empty() {
-        return Err(XmlError::Syntax { offset: reader.buffer_position(), message: "unexpected end of document".into() });
-    }
-    root.ok_or(XmlError::Empty)
-}
 
-fn attach(stack: &mut [Element], root: &mut Option<Element>, el: Element) {
-    match stack.last_mut() {
-        Some(parent) => parent.children.push(Node::Element(el)),
-        None => *root = Some(el),
+    fn attach(&mut self, el: Element) -> Option<Element> {
+        match self.stack.last_mut() {
+            Some(parent) => {
+                parent.children.push(Node::Element(el));
+                None
+            }
+            None => Some(el),
+        }
     }
-}
 
-fn push_text(stack: &mut [Element], text: &str) {
-    let Some(parent) = stack.last_mut() else { return };
-    if let Some(Node::Text(last)) = parent.children.last_mut() {
-        last.push_str(text);
-    } else {
-        parent.children.push(Node::Text(text.to_owned()));
+    fn push_text(&mut self, text: String) {
+        let Some(parent) = self.stack.last_mut() else { return };
+        if let Some(Node::Text(last)) = parent.children.last_mut() {
+            last.push_str(&text);
+        } else {
+            parent.children.push(Node::Text(text));
+        }
     }
 }
 

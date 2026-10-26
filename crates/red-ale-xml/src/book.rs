@@ -4,27 +4,24 @@
 //! unchanged since it was read and whose generated form differs from what was read: that one is written from its
 //! original text, which the Residue keeps for it alone.
 
-use std::collections::{BTreeMap, HashMap};
-use std::hash::Hash;
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::Arc;
 
 use flate2::read::GzDecoder;
-use red_ale_core::business::Business;
-use red_ale_core::{Account, AccountType, Book, CommodityRef, Frame, Guid, Lot, Transaction};
+use red_ale_core::{Account, Book, CommodityRef, Guid, Lot, Transaction};
 
 use crate::XmlError;
-use crate::business::{self, BusinessObject};
-use crate::dom::{Element, parse_document};
-use crate::entities::{
-    account_el, commodity_el, commodity_is_written, parse_account, parse_commodity, parse_price, parse_transaction, price_el, transaction_el,
-};
+use crate::business;
+use crate::dom::Element;
+use crate::entities::{account_el, commodity_el, commodity_is_written, price_el, transaction_el};
 use crate::envelope::{BOOK_VERSION, FOOTER, count_line, header};
-use crate::values::{Notices, guid_el, parse_guid, parse_slots, slots_el};
+use crate::read::read_book_from;
+use crate::values::{Notices, guid_el, slots_el};
 
 /// Where in the book an element sits; used to put unknown elements back where they were.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Section {
+pub(crate) enum Section {
     Head,
     Commodities,
     Prices,
@@ -39,13 +36,13 @@ enum Section {
 /// The original text of entities whose generated form differs from what was read, as `Element::dump` writes it (at
 /// level 1 for prices, 0 for the rest). An entity GnuCash 5.17's generator writes back unchanged has no entry.
 #[derive(Debug, Clone, Default)]
-struct Originals {
-    book_slots: Option<String>,
-    commodities: HashMap<CommodityRef, String>,
-    prices: HashMap<Guid, String>,
-    accounts: HashMap<Guid, String>,
-    transactions: HashMap<Guid, String>,
-    business: HashMap<Guid, String>,
+pub(crate) struct Originals {
+    pub(crate) book_slots: Option<String>,
+    pub(crate) commodities: HashMap<CommodityRef, String>,
+    pub(crate) prices: HashMap<Guid, String>,
+    pub(crate) accounts: HashMap<Guid, String>,
+    pub(crate) transactions: HashMap<Guid, String>,
+    pub(crate) business: HashMap<Guid, String>,
 }
 
 impl Originals {
@@ -59,31 +56,16 @@ impl Originals {
     }
 }
 
-/// The text `read` was read as, at indentation `level`, if `generated` (what red-ale writes for the entity read from
-/// it) would not give the same bytes.
-fn original_if_needed(read: &Element, generated: Option<&Element>, level: usize) -> Option<String> {
-    (generated != Some(read)).then(|| read.dump(level))
-}
-
-/// Record an entity's original text, or forget an earlier one for the same key: as in the Book, the last element read
-/// with a key wins.
-fn keep<K: Hash + Eq>(originals: &mut HashMap<K, String>, key: K, original: Option<String>) {
-    match original {
-        Some(text) => originals.insert(key, text),
-        None => originals.remove(&key),
-    };
-}
-
 /// Everything in a book file that the core `Book` does not hold, plus what the writer needs to reproduce the file.
 #[derive(Debug, Clone)]
 pub struct XmlResidue {
     /// The file was gzip-compressed.
     pub compressed: bool,
-    book_version: String,
-    snapshot: Book,
-    originals: Originals,
-    out_of_scope: Vec<(Section, Element)>,
-    unknown: Vec<(Section, Element)>,
+    pub(crate) book_version: String,
+    pub(crate) snapshot: Book,
+    pub(crate) originals: Originals,
+    pub(crate) out_of_scope: Vec<(Section, Element)>,
+    pub(crate) unknown: Vec<(Section, Element)>,
     /// Content red-ale could read but cannot represent; editing such a book could lose it.
     pub notices: Notices,
 }
@@ -169,222 +151,41 @@ pub fn decode(bytes: &[u8]) -> Result<(String, bool), XmlError> {
     }
 }
 
-/// Check the start of a decoded file the way GnuCash's `gnc_is_xml_data_file_v2` does.
-fn check_v2(text: &str) -> Result<(), XmlError> {
-    let trimmed = text.trim_start();
-    let rest = trimmed.strip_prefix("<?xml").ok_or_else(|| XmlError::NotABook("no XML declaration".into()))?;
-    let after_decl = rest.split_once('>').map(|(_, r)| r.trim_start()).ok_or_else(|| XmlError::NotABook("unterminated declaration".into()))?;
-    if after_decl.starts_with("<gnc-v2") && after_decl[7..].starts_with(|c: char| c.is_whitespace()) {
-        Ok(())
-    } else if after_decl.starts_with("<gnc>") {
-        Err(XmlError::NotABook("this is a GnuCash version 1 file; open and save it with GnuCash first".into()))
-    } else if after_decl.starts_with("<gnc-v") {
-        Err(XmlError::NotABook("this file was written by a newer GnuCash format version".into()))
-    } else {
-        Err(XmlError::NotABook("the root element is not gnc-v2".into()))
-    }
-}
-
-/// Read a book file's bytes.
+/// Read a book file's bytes, plain or gzip-compressed. See [`read_book_from`] to read from a stream.
 pub fn read_book(bytes: &[u8]) -> Result<(Book, XmlResidue), XmlError> {
-    let (text, compressed) = decode(bytes)?;
-    check_v2(&text)?;
-    let root = parse_document(&text)?;
-    let books: Vec<&Element> = root.elements().filter(|e| e.name == "gnc:book").collect();
-    let [book_el] = books.as_slice() else {
-        return Err(XmlError::NotABook(format!("expected one gnc:book, found {}", books.len())));
-    };
-    let mut reader = Reader { residue_book_version: book_el.get_attr("version").unwrap_or(BOOK_VERSION).to_owned(), ..Reader::default() };
-    book_el.elements().try_for_each(|el| reader.part(el))?;
-    root.elements().filter(|e| e.name != "gnc:book" && e.name != "gnc:count-data").for_each(|e| {
-        reader.notices.unrecognised.push(format!("unknown element {} outside the book", e.name));
-    });
-    reader.finish(compressed)
+    read_book_from(bytes)
 }
 
-#[derive(Default)]
-struct Reader {
-    residue_book_version: String,
-    section: Option<Section>,
-    guid: Option<Guid>,
-    slots: Frame,
-    commodities: BTreeMap<CommodityRef, Arc<red_ale_core::Commodity>>,
-    accounts: indexmap::IndexMap<Guid, Arc<Account>>,
-    transactions: indexmap::IndexMap<Guid, Arc<Transaction>>,
-    prices: indexmap::IndexMap<Guid, Arc<red_ale_core::Price>>,
-    lots: indexmap::IndexMap<Guid, Arc<Lot>>,
-    business: Business,
-    originals: Originals,
-    /// Account elements, compared with their generated form once every lot is read (see [`account_originals`]).
-    account_els: HashMap<Guid, Element>,
-    out_of_scope: Vec<(Section, Element)>,
-    unknown: Vec<(Section, Element)>,
-    notices: Notices,
-}
-
-impl Reader {
-    fn enter(&mut self, s: Section) {
-        self.section = Some(s);
-    }
-
-    fn part(&mut self, el: &Element) -> Result<(), XmlError> {
-        match el.name.as_str() {
-            "book:id" => self.guid = Some(parse_guid(el)?),
-            "book:slots" => {
-                self.slots = parse_slots(el, &mut self.notices)?;
-                self.originals.book_slots = original_if_needed(el, slots_el("book:slots", &self.slots).as_ref(), 0);
-            }
-            "gnc:count-data" => {}
-            "gnc:commodity" => {
-                self.enter(Section::Commodities);
-                let c = parse_commodity(el, &mut self.notices)?;
-                keep(&mut self.originals.commodities, c.id.clone(), original_if_needed(el, commodity_el(&c).as_ref(), 0));
-                self.commodities.insert(c.id.clone(), Arc::new(c));
-            }
-            "gnc:pricedb" => {
-                self.enter(Section::Prices);
-                for p in el.elements() {
-                    let price = parse_price(p, &mut self.notices)?;
-                    keep(&mut self.originals.prices, price.guid, original_if_needed(p, Some(&price_el(&price)), 1));
-                    self.prices.insert(price.guid, Arc::new(price));
-                }
-            }
-            "gnc:account" => {
-                self.enter(Section::Accounts);
-                let (account, lots) = parse_account(el, &mut self.notices)?;
-                self.account_els.insert(account.guid, el.clone());
-                lots.into_iter().for_each(|l| {
-                    self.lots.insert(l.guid, Arc::new(l));
-                });
-                self.accounts.insert(account.guid, Arc::new(account));
-            }
-            "gnc:transaction" => {
-                self.enter(Section::Transactions);
-                let t = parse_transaction(el, &mut self.notices)?;
-                keep(&mut self.originals.transactions, t.guid, original_if_needed(el, Some(&transaction_el(&t)), 0));
-                self.transactions.insert(t.guid, Arc::new(t));
-            }
-            "gnc:template-transactions" => self.out_of_scope_part(Section::Templates, el),
-            "gnc:schedxaction" => self.out_of_scope_part(Section::ScheduledTransactions, el),
-            "gnc:budget" => self.out_of_scope_part(Section::Budgets, el),
-            name if business::ELEMENT_NAMES.contains(&name) => {
-                self.enter(Section::Business);
-                let obj = business::parse(el, &mut self.notices)?;
-                keep(&mut self.originals.business, obj.guid(), original_if_needed(el, Some(&obj.to_element()), 0));
-                insert_business(&mut self.business, obj);
-            }
-            other => {
-                self.notices.unrecognised.push(format!("unknown element {other} in the book"));
-                self.unknown.push((self.section.unwrap_or(Section::Head), el.clone()));
-            }
-        }
-        Ok(())
-    }
-
-    fn out_of_scope_part(&mut self, section: Section, el: &Element) {
-        self.enter(section);
-        self.out_of_scope.push((section, el.clone()));
-    }
-
-    fn finish(mut self, compressed: bool) -> Result<(Book, XmlResidue), XmlError> {
-        let guid = self.guid.ok_or_else(|| XmlError::NotABook("the book has no book:id".into()))?;
-        let roots: Vec<Guid> = self.accounts.values().filter(|a| a.account_type == AccountType::Root && a.parent.is_none()).map(|a| a.guid).collect();
-        let root = match roots.as_slice() {
-            [root] => *root,
-            [] => return Err(XmlError::NotABook("the book has no root account".into())),
-            _ => return Err(XmlError::NotABook("the book has more than one root account".into())),
-        };
-        let book = Book {
-            guid,
-            slots: self.slots,
-            commodities: self.commodities,
-            root,
-            accounts: self.accounts,
-            transactions: self.transactions,
-            prices: self.prices,
-            lots: self.lots,
-            business: self.business,
-        };
-        self.originals.accounts = account_originals(&book, &self.account_els);
-        let residue = XmlResidue {
-            compressed,
-            book_version: self.residue_book_version,
-            snapshot: book.clone(),
-            originals: self.originals,
-            out_of_scope: self.out_of_scope,
-            unknown: self.unknown,
-            notices: self.notices,
-        };
-        Ok((book, residue))
-    }
-}
-
-/// Original text for the accounts whose generated form differs. An account is written with its lots, so it is
-/// generated with the lots the Book gives it, as the writer generates it.
-fn account_originals(book: &Book, elements: &HashMap<Guid, Element>) -> HashMap<Guid, String> {
-    let lots = lots_by_account(book);
-    elements
-        .iter()
-        .filter_map(|(guid, el)| {
-            let generated = book.accounts.get(guid).map(|a| account_el(a, lots.get(guid).map_or(&[][..], Vec::as_slice)));
-            original_if_needed(el, generated.as_ref(), 0).map(|text| (*guid, text))
-        })
-        .collect()
-}
-
-fn lots_by_account(book: &Book) -> HashMap<Guid, Vec<&Lot>> {
+/// Each account's lots, in the order the Book holds them.
+pub(crate) fn lots_by_account(book: &Book) -> HashMap<Guid, Vec<&Lot>> {
     let mut lots: HashMap<Guid, Vec<&Lot>> = HashMap::new();
     book.lots.values().for_each(|l| lots.entry(l.account).or_default().push(l));
     lots
-}
-
-fn insert_business(b: &mut Business, obj: BusinessObject) {
-    match obj {
-        BusinessObject::BillTerm(o) => {
-            b.bill_terms.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::Customer(o) => {
-            b.customers.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::Employee(o) => {
-            b.employees.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::Entry(o) => {
-            b.entries.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::Invoice(o) => {
-            b.invoices.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::Job(o) => {
-            b.jobs.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::Order(o) => {
-            b.orders.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::TaxTable(o) => {
-            b.tax_tables.insert(o.guid, Arc::new(o));
-        }
-        BusinessObject::Vendor(o) => {
-            b.vendors.insert(o.guid, Arc::new(o));
-        }
-    }
 }
 
 fn same<T: PartialEq>(a: &Arc<T>, b: &Arc<T>) -> bool {
     Arc::ptr_eq(a, b) || **a == **b
 }
 
-/// Writes one book; holds the lookups the writers share.
-struct Writer<'a> {
+/// How much text the writer gathers before handing it to its sink.
+const CHUNK: usize = 64 * 1024;
+
+/// Writes one book; holds the lookups the writers share. Text gathers in `out` and goes to `sink` a chunk at a time,
+/// so the whole file is never held.
+struct Writer<'a, W: Write> {
     book: &'a Book,
     residue: &'a XmlResidue,
     lots_by_account: HashMap<Guid, Vec<&'a Lot>>,
     out: String,
+    sink: W,
+    /// Hand `out` to the sink once it holds this much; `usize::MAX` keeps all the text in `out`.
+    flush_at: usize,
+    error: Option<std::io::Error>,
 }
 
-impl<'a> Writer<'a> {
-    fn new(book: &'a Book, residue: &'a XmlResidue) -> Self {
-        Self { book, residue, lots_by_account: lots_by_account(book), out: String::new() }
+impl<'a, W: Write> Writer<'a, W> {
+    fn new(book: &'a Book, residue: &'a XmlResidue, sink: W, flush_at: usize) -> Self {
+        Self { book, residue, lots_by_account: lots_by_account(book), out: String::new(), sink, flush_at, error: None }
     }
 
     fn line(&mut self, el: &Element) {
@@ -394,6 +195,17 @@ impl<'a> Writer<'a> {
     fn text_line(&mut self, text: &str) {
         self.out.push_str(text);
         self.out.push('\n');
+        if self.out.len() >= self.flush_at {
+            self.flush();
+        }
+    }
+
+    /// Hand the text gathered so far to the sink. The first error is kept and reported when the book is written.
+    fn flush(&mut self) {
+        if self.error.is_none() {
+            self.error = self.sink.write_all(self.out.as_bytes()).err();
+        }
+        self.out.clear();
     }
 
     /// Write an entity from its original text if it has one, else as generated.
@@ -419,12 +231,14 @@ impl<'a> Writer<'a> {
         now.len() == before.len() && now.iter().all(|l| self.residue.snapshot.lots.get(&l.guid).is_some_and(|o| **o == **l))
     }
 
-    fn written_transactions(&self) -> impl Iterator<Item = &'a Arc<Transaction>> + use<'a> {
+    fn written_transactions(&self) -> impl Iterator<Item = &'a Arc<Transaction>> + use<'a, W> {
         let accounts = &self.book.accounts;
         self.book.transactions.values().filter(move |t| t.splits.iter().any(|s| s.account.is_some_and(|a| accounts.contains_key(&a))))
     }
 
-    fn write(mut self) -> String {
+    /// Write the book. Returns the text not yet handed to the sink (all of it, if `flush_at` is `usize::MAX`) and
+    /// the sink.
+    fn write(mut self) -> Result<(String, W), std::io::Error> {
         self.out.push_str(&header());
         count_line(&mut self.out, "book", 1);
         self.out.push_str("<gnc:book version=\"");
@@ -442,7 +256,13 @@ impl<'a> Writer<'a> {
         self.business();
         self.out.push_str("</gnc:book>\n");
         self.out.push_str(FOOTER);
-        self.out
+        if self.flush_at != usize::MAX {
+            self.flush();
+        }
+        match self.error {
+            Some(e) => Err(e),
+            None => Ok((self.out, self.sink)),
+        }
     }
 
     fn book_slots(&mut self) {
@@ -591,17 +411,23 @@ impl<'a> Writer<'a> {
 
 /// Serialise a book to XML text.
 pub fn write_book_text(book: &Book, residue: &XmlResidue) -> String {
-    Writer::new(book, residue).write()
+    // The text stays in the writer, so the sink is never written to and cannot fail.
+    Writer::new(book, residue, std::io::sink(), usize::MAX).write().map(|(text, _)| text).unwrap_or_default()
 }
 
 /// Serialise a book to the bytes of a file, gzipped if `compress` (zlib's default level, mtime 0 and OS Unix, as
 /// GnuCash's `gzopen(…, "wb")` writes).
 pub fn write_book(book: &Book, residue: &XmlResidue, compress: bool) -> Result<Vec<u8>, XmlError> {
-    let text = write_book_text(book, residue);
+    write_book_to(book, residue, compress, Vec::new())
+}
+
+/// [`write_book`] into `sink` a chunk at a time, without holding the file's text or bytes. Returns the sink, with
+/// every byte handed to it.
+pub fn write_book_to<W: Write>(book: &Book, residue: &XmlResidue, compress: bool, sink: W) -> Result<W, XmlError> {
     if !compress {
-        return Ok(text.into_bytes());
+        return Ok(Writer::new(book, residue, sink, CHUNK).write()?.1);
     }
-    let mut encoder = flate2::GzBuilder::new().mtime(0).operating_system(3).write(Vec::new(), flate2::Compression::default());
-    encoder.write_all(text.as_bytes())?;
+    let encoder = flate2::GzBuilder::new().mtime(0).operating_system(3).write(sink, flate2::Compression::default());
+    let (_, encoder) = Writer::new(book, residue, encoder, CHUNK).write()?;
     Ok(encoder.finish()?)
 }
