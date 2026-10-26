@@ -43,7 +43,8 @@ impl Resolver {
 
     fn evaluate(&self, engine: &Engine, name: &str, pos: Position) -> Result<Shared<Module>, Box<EvalAltResult>> {
         let in_module = |e: Box<EvalAltResult>| -> Box<EvalAltResult> { EvalAltResult::ErrorInModule(name.to_owned(), e, pos).into() };
-        let text = self.sources.get(name).map(|s| Arc::clone(&s.text)).ok_or_else(|| EvalAltResult::ErrorModuleNotFound(name.to_owned(), pos))?;
+        let not_found = || EvalAltResult::ErrorModuleNotFound(name.to_owned(), pos);
+        let text = self.sources.get(name).map(|s| Arc::clone(&s.text)).ok_or_else(not_found)?;
         let mut ast = engine.compile(&*text).map_err(|e| in_module(e.into()))?;
         ast.set_source(name);
         if !self.loading.borrow_mut().insert(name.to_owned()) {
@@ -95,7 +96,8 @@ mod tests {
         assert_eq!(r.locate(user, "standard/balance-sheet").as_deref(), Some("standard/balance-sheet.rhai"));
         assert_eq!(r.locate(user, "./util/helpers").as_deref(), Some("./mine/util/helpers.rhai"));
         assert_eq!(r.locate(Some("./top.rhai"), "./mine/report").as_deref(), Some("./mine/report.rhai"));
-        let refused = ["../top", "./../top", "./util/../report", "/etc/passwd", "lib/../top", "mine/report", "lib/missing", "", "./", "lib"];
+        let refused =
+            ["../top", "./../top", "./util/../report", "/etc/passwd", "lib/../top", "mine/report", "lib/missing", "", "./", "lib"];
         refused.iter().for_each(|p| assert_eq!(r.locate(user, p), None, "{p}"));
         assert_eq!(r.locate(Some("lib/collectors.rhai"), "./mine/report"), None, "no ./ from a built-in script");
         assert_eq!(r.locate(None, "./top"), None);

@@ -58,7 +58,8 @@ fn accounts_of_types(b: &mut BookHandle, types: Array) -> Fallible<Array> {
         })
         .collect::<Fallible<_>>()?;
     let book = b.0.book();
-    Ok(descendants_sorted(book, book.root).into_iter().filter(|a| types.contains(&a.account_type)).map(|a| Dynamic::from(b.account(a.guid))).collect())
+    let found = descendants_sorted(book, book.root).into_iter().filter(|a| types.contains(&a.account_type));
+    Ok(found.map(|a| Dynamic::from(b.account(a.guid))).collect())
 }
 
 /// `gnc-pricedb-get-prices`: forward only, newest first, ties by GUID.
@@ -137,7 +138,9 @@ fn description(v: &Dynamic) -> Fallible<Option<DescriptionPattern>> {
         return Ok(None);
     }
     let map = v.read_lock::<Map>().ok_or_else(|| script_error("description must be #{ text, cased, regexp }"))?;
-    let flag = |name: &str| map.get(name).map_or(Ok(false), |f| f.as_bool().map_err(|_| script_error(format!("{name} must be true or false"))));
+    let flag = |name: &str| {
+        map.get(name).map_or(Ok(false), |f| f.as_bool().map_err(|_| script_error(format!("{name} must be true or false"))))
+    };
     let text = map.get("text").and_then(|t| t.read_lock::<rhai::ImmutableString>().map(|s| s.to_string()));
     Ok(Some(DescriptionPattern {
         text: text.ok_or_else(|| script_error("description needs its text"))?,

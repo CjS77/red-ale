@@ -37,7 +37,8 @@ pub(crate) fn from_eval(err: &EvalAltResult, f: Failure<'_>) -> ReportError {
         return from_parse(&ParseError(Box::new(kind.clone()), *pos), source, &f);
     }
     let (line, column) = line_column(inner.position());
-    ReportError::Script(ScriptError { report: f.report.to_owned(), source: source.to_owned(), line, column, message: message(inner), log: f.log })
+    let (report, message) = (f.report.to_owned(), message(inner));
+    ReportError::Script(ScriptError { report, source: source.to_owned(), line, column, message, log: f.log })
 }
 
 /// The error of a script that does not compile.

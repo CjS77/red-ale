@@ -54,9 +54,19 @@ fn rational(engine: &mut Engine, cap: SizeCap) {
     });
     engine.register_fn("to_decimal", |r: Rational, places: INT| -> Fallible<String> { Ok(r.to_decimal(small_count(places, "places")?)) });
     engine.register_fn("fixed", |r: Dynamic, width: Dynamic, places: INT| -> Fallible<String> {
-        let width = if width.is_unit() { None } else { Some(usize::try_from(width.as_int()?).map_err(|_| script_error("width must not be negative"))?) };
+        let width = if width.is_unit() {
+            None
+        } else {
+            Some(usize::try_from(width.as_int()?).map_err(|_| script_error("width must not be negative"))?)
+        };
         Ok(fixed(&rational_arg(&r)?, width, small_count(places, "places")?))
     });
+}
+
+/// The error for a monetary amount in a commodity the book does not have.
+#[allow(clippy::unnecessary_box_returns)]
+fn unknown(m: &Monetary) -> Box<EvalAltResult> {
+    script_error(format!("unknown commodity {}", m.commodity))
 }
 
 fn capped(r: Rational, cap: SizeCap) -> Fallible<Rational> {
@@ -109,12 +119,12 @@ fn monetary(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap) {
     engine.register_fn("!=", |a: Monetary, b: Monetary| a != b);
     let s = Rc::clone(snap);
     engine.register_fn("round_scu", move |m: Monetary| -> Fallible<Monetary> {
-        let fraction = lookup(s.book(), &m.commodity).map(|c| c.fraction).ok_or_else(|| script_error(format!("unknown commodity {}", m.commodity)))?;
+        let fraction = lookup(s.book(), &m.commodity).map(|c| c.fraction).ok_or_else(|| unknown(&m))?;
         m.round_scu(fraction).map_err(arithmetic)
     });
     let s = Rc::clone(snap);
     engine.register_fn("to_string", move |m: &mut Monetary| -> Fallible<String> {
-        let format = CommodityFormat::from_book(s.book(), &m.commodity).ok_or_else(|| script_error(format!("unknown commodity {}", m.commodity)))?;
+        let format = CommodityFormat::from_book(s.book(), &m.commodity).ok_or_else(|| unknown(m))?;
         Ok(m.to_display_string(&format))
     });
     engine.register_fn("to_debug", |m: &mut Monetary| format!("monetary(\"{}\", \"{}\")", m.commodity, m.amount));

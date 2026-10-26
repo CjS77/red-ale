@@ -113,7 +113,8 @@ impl Registry {
     /// definition wins, built-in scripts first, then user scripts by path (`design/reports.md` §11).
     pub fn load(library: &Library, user: &[ScriptSource], limits: Limits) -> Result<Self, ReportError> {
         let mut problems = Vec::new();
-        let mut sources: Sources = library.scripts().map(|(path, text)| (path.to_owned(), Script { text: Arc::from(text), builtin: true })).collect();
+        let builtin = |(path, text): (&str, &str)| (path.to_owned(), Script { text: Arc::from(text), builtin: true });
+        let mut sources: Sources = library.scripts().map(builtin).collect();
         let mut user: Vec<&ScriptSource> = user.iter().collect();
         user.sort_by(|a, b| a.path.cmp(&b.path));
         user.into_iter().for_each(|s| match user_name(&s.path) {
@@ -168,11 +169,14 @@ impl Registry {
         }
         let malformed = |message: String| self.malformed(name, &message);
         ["options", "render"].iter().zip([3, 4]).try_for_each(|(f, n)| {
-            if has_fn(&ast, f, n) { Ok(()) } else { Err(malformed(format!("a script with templates() needs fn {f}() with {n} parameters"))) }
+            let missing = || malformed(format!("a script with templates() needs fn {f}() with {n} parameters"));
+            if has_fn(&ast, f, n) { Ok(()) } else { Err(missing()) }
         })?;
-        let declared = call(&engine, &ast, "templates", ()).map_err(|e| self.internal_if_builtin(name, as_load(from_eval(&e, failure(&log)))))?;
+        let declared = call(&engine, &ast, "templates", ())
+            .map_err(|e| self.internal_if_builtin(name, as_load(from_eval(&e, failure(&log)))))?;
         let records = declared.into_array().map_err(|t| malformed(format!("templates() returns an array of maps, not {t}")))?;
-        records.iter().enumerate().map(|(i, r)| record(r, name, self.is_builtin(name)).map_err(|e| malformed(format!("templates()[{i}]: {e}")))).collect()
+        let builtin = self.is_builtin(name);
+        records.iter().enumerate().map(|(i, r)| record(r, name, builtin).map_err(|e| malformed(format!("templates()[{i}]: {e}")))).collect()
     }
 
     pub(crate) fn compile(&self, engine: &Engine, name: &str) -> Result<AST, rhai::ParseError> {
@@ -192,7 +196,11 @@ impl Registry {
 
     /// A built-in script's failure is red-ale's bug.
     fn internal_if_builtin(&self, name: &str, e: ReportError) -> ReportError {
-        if self.is_builtin(name) && !matches!(e, ReportError::Internal(_)) { ReportError::Internal(format!("built-in script {name}: {e}")) } else { e }
+        if self.is_builtin(name) && !matches!(e, ReportError::Internal(_)) {
+            ReportError::Internal(format!("built-in script {name}: {e}"))
+        } else {
+            e
+        }
     }
 
     /// Every template, sorted by name (bytewise), then GUID, as `report.list` lists them.
@@ -255,7 +263,8 @@ fn load_error(source: &str, message: &str) -> ReportError {
 /// The source name of a user script at `path`, if the path is a plain relative `.rhai` path.
 fn user_name(path: &str) -> Option<String> {
     let plain = path.split('/').all(|c| !c.is_empty() && c != "." && c != ".." && !c.contains('\\'));
-    (plain && std::path::Path::new(path).extension().is_some_and(|e| e == "rhai") && path.len() > ".rhai".len()).then(|| format!("{USER_PREFIX}{path}"))
+    let rhai = std::path::Path::new(path).extension().is_some_and(|e| e == "rhai") && path.len() > ".rhai".len();
+    (plain && rhai).then(|| format!("{USER_PREFIX}{path}"))
 }
 
 fn has_fn(ast: &AST, name: &str, params: usize) -> bool {
@@ -276,11 +285,15 @@ fn record(r: &Dynamic, script: &str, builtin: bool) -> Result<TemplateInfo, Stri
         return Err(format!("unknown field {key:?}"));
     }
     let text = |key: &str| -> Result<Option<String>, String> {
-        map.get(key).filter(|v| !v.is_unit()).map(|v| v.clone().into_string().map_err(|t| format!("{key} must be a string, not {t}"))).transpose()
+        let string = |v: &Dynamic| v.clone().into_string().map_err(|t| format!("{key} must be a string, not {t}"));
+        map.get(key).filter(|v| !v.is_unit()).map(string).transpose()
     };
     let guid_text = text("guid")?.ok_or("guid is required")?;
     let lowercase_hex = guid_text.len() == 32 && guid_text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
-    let guid = Guid::parse(&guid_text).ok().filter(|_| lowercase_hex).ok_or_else(|| format!("guid must be 32 lowercase hex digits, not {guid_text:?}"))?;
+    let guid = Guid::parse(&guid_text)
+        .ok()
+        .filter(|_| lowercase_hex)
+        .ok_or_else(|| format!("guid must be 32 lowercase hex digits, not {guid_text:?}"))?;
     let name = text("name")?.filter(|n| !n.is_empty()).ok_or("name is required")?;
     let menu_path = match map.get("menuPath") {
         None => Vec::new(),
@@ -290,7 +303,9 @@ fn record(r: &Dynamic, script: &str, builtin: bool) -> Result<TemplateInfo, Stri
         }
     };
     let in_menu = map.get("inMenu").map_or(Ok(true), |v| v.as_bool().map_err(|t| format!("inMenu must be true or false, not {t}")))?;
-    let params = map.get("params").map_or(Ok(Value::Object(serde_json::Map::new())), |p| to_json(p).map_err(|e| format!("params: {}", e.reason)))?;
+    let json = |p: &Dynamic| to_json(p).map_err(|e| format!("params: {}", e.reason));
+    let params = map.get("params").map_or(Ok(Value::Object(serde_json::Map::new())), json)?;
     let kind = if builtin { TemplateKind::Builtin } else { TemplateKind::User };
-    Ok(TemplateInfo { guid: Id(guid), name, kind, script: script.to_owned(), menu_path, menu_name: text("menuName")?, menu_tip: text("menuTip")?, in_menu, params })
+    let (menu_name, menu_tip) = (text("menuName")?, text("menuTip")?);
+    Ok(TemplateInfo { guid: Id(guid), name, kind, script: script.to_owned(), menu_path, menu_name, menu_tip, in_menu, params })
 }

@@ -41,7 +41,9 @@ pub(super) fn register(engine: &mut Engine) {
 }
 
 fn properties(engine: &mut Engine) {
-    let text = |f: fn(&Account) -> Option<&str>| move |a: &mut AccountHandle| -> Fallible<String> { Ok(f(a.get()?).unwrap_or("").to_owned()) };
+    let text = |f: fn(&Account) -> Option<&str>| {
+        move |a: &mut AccountHandle| -> Fallible<String> { Ok(f(a.get()?).unwrap_or("").to_owned()) }
+    };
     engine.register_get("guid", |a: &mut AccountHandle| a.guid.to_string());
     engine.register_get("name", |a: &mut AccountHandle| -> Fallible<String> { Ok(a.get()?.name.clone()) });
     engine.register_get("fullName", |a: &mut AccountHandle| a.snap.book().full_name(a.guid).unwrap_or_default());

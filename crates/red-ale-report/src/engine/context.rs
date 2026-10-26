@@ -52,7 +52,9 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("start_of_day", |c: &mut ContextHandle, t: Dynamic| -> Fallible<INT> {
         Ok(c.0.zone.day_start(c.date(time_arg(&t)?)?).0)
     });
-    engine.register_fn("end_of_day", |c: &mut ContextHandle, t: Dynamic| -> Fallible<INT> { Ok(c.0.zone.day_end(c.date(time_arg(&t)?)?).0) });
+    engine.register_fn("end_of_day", |c: &mut ContextHandle, t: Dynamic| -> Fallible<INT> {
+        Ok(c.0.zone.day_end(c.date(time_arg(&t)?)?).0)
+    });
     engine.register_fn("local", local);
     engine.register_fn("make_time", make_time);
     engine.register_fn("print_date", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {

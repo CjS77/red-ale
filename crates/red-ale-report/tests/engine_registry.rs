@@ -17,6 +17,9 @@ const A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const C: &str = "cccccccccccccccccccccccccccccccc";
 
+/// The `options()` and `render()` a template script needs, doing nothing.
+const STUBS: &str = "fn options(p, o, b) {}\nfn render(p, b, o, c) {}";
+
 /// A script declaring templates from `records` (Rhai map literals), all rendering their `params.label` as the title.
 fn script(records: &[String]) -> String {
     format!(
@@ -53,7 +56,10 @@ fn one_script_declares_several_templates_told_apart_by_params() {
 
 #[test]
 fn menu_fields_are_kept() {
-    let rec = format!("#{{ guid: \"{A}\", name: \"N\", menuPath: [\"_Assets & Liabilities\"], menuName: \"Menu\", menuTip: \"Tip\", inMenu: false, params: #{{ label: \"x\" }} }}");
+    let rec = format!(
+        "#{{ guid: \"{A}\", name: \"N\", menuPath: [\"_Assets & Liabilities\"], menuName: \"Menu\", menuTip: \"Tip\", inMenu: false, \
+         params: #{{ label: \"x\" }} }}"
+    );
     let reg = registry(&[("m.rhai", &script(&[rec]))]);
     let t = reg.find(A).unwrap();
     assert_eq!(t.menu_path, ["_Assets & Liabilities"]);
@@ -74,7 +80,11 @@ fn names_that_several_templates_share_are_ambiguous() {
 
 #[test]
 fn the_first_definition_of_a_guid_wins() {
-    let builtin = Library::from_sources([("standard/report.rhai", "fn templates() { [#{ guid: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", name: \"Built in\" }] }\nfn options(p, o, b) {}\nfn render(p, b, o, c) { #{ title: \"builtin\", sections: [] } }")]);
+    let text = format!(
+        "fn templates() {{ [#{{ guid: \"{A}\", name: \"Built in\" }}] }}\n\
+         fn options(p, o, b) {{}}\nfn render(p, b, o, c) {{ #{{ title: \"builtin\", sections: [] }} }}"
+    );
+    let builtin = Library::from_sources([("standard/report.rhai", text.as_str())]);
     let mine = script(&[record(A, "Mine", "mine"), record(C, "Other", "other")]);
     let later = script(&[record(C, "Later", "later")]);
     let reg = registry_with(builtin, &[("b.rhai", &later), ("a.rhai", &mine)], Limits::default());
@@ -91,7 +101,8 @@ fn a_built_in_script_that_does_not_load_is_a_bug() {
     let broken = Library::from_sources([("standard/broken.rhai", "fn templates() { [ }")]);
     let e = Registry::load(&broken, &[], Limits::default()).unwrap_err();
     assert_eq!(e.kind().name(), "internal-error");
-    let dup = "fn templates() { [#{ guid: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", name: \"X\" }] }\nfn options(p, o, b) {}\nfn render(p, b, o, c) { () }";
+    let dup = format!("fn templates() {{ [#{{ guid: \"{A}\", name: \"X\" }}] }}\nfn options(p, o, b) {{}}\nfn render(p, b, o, c) {{ () }}");
+    let dup = dup.as_str();
     let twice = Library::from_sources([("standard/a.rhai", dup), ("standard/b.rhai", dup)]);
     assert_eq!(Registry::load(&twice, &[], Limits::default()).unwrap_err().kind().name(), "internal-error");
 }
@@ -101,13 +112,13 @@ fn user_scripts_that_do_not_load_are_listed_and_the_rest_load() {
     let good = script(&[record(A, "Good", "good")]);
     let cases = [
         ("syntax.rhai", "fn templates( {".to_owned(), "./syntax.rhai: "),
-        ("not-array.rhai", "fn templates() { 5 }\nfn options(p, o, b) {}\nfn render(p, b, o, c) {}".to_owned(), "templates() returns an array"),
+        ("not-array.rhai", format!("fn templates() {{ 5 }}\n{STUBS}"), "templates() returns an array"),
         ("no-render.rhai", "fn templates() { [] }\nfn options(p, o, b) {}".to_owned(), "needs fn render() with 4 parameters"),
         ("bad-guid.rhai", script(&[record("ABC", "Bad", "x")]), "guid must be 32 lowercase hex digits"),
         ("upper.rhai", script(&[record(&B.to_uppercase(), "Upper", "x")]), "guid must be 32 lowercase hex digits"),
         ("no-name.rhai", script(&[format!("#{{ guid: \"{B}\" }}")]), "name is required"),
         ("extra.rhai", script(&[format!("#{{ guid: \"{B}\", name: \"E\", colour: 1 }}")]), "unknown field \"colour\""),
-        ("throws.rhai", "fn templates() { throw \"no\" }\nfn options(p, o, b) {}\nfn render(p, b, o, c) {}".to_owned(), "./throws.rhai: no"),
+        ("throws.rhai", format!("fn templates() {{ throw \"no\" }}\n{STUBS}"), "./throws.rhai: no"),
     ];
     let mut scripts: Vec<(&str, &str)> = cases.iter().map(|(p, t, _)| (*p, t.as_str())).collect();
     scripts.push(("good.rhai", &good));
@@ -129,6 +140,7 @@ fn user_scripts_that_do_not_load_are_listed_and_the_rest_load() {
 #[test]
 fn the_registry_can_be_shared_between_threads() {
     fn shareable<T: Send + Sync>(_: &T) {}
-    let reg = Registry::load(&Library::builtin(), &[ScriptSource { path: "a.rhai".into(), text: script(&[record(A, "A", "a")]) }], Limits::default());
+    let source = ScriptSource { path: "a.rhai".into(), text: script(&[record(A, "A", "a")]) };
+    let reg = Registry::load(&Library::builtin(), &[source], Limits::default());
     shareable(&reg.unwrap());
 }

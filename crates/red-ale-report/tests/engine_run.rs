@@ -234,7 +234,10 @@ fn rationals_and_handles_become_their_wire_forms() {
                    #{ cells: [#{ date: ctx.now }, #{ number: rational("57.125"), places: 2, suffix: " %" }] }] }] }] }
     "#;
     let host = Host::new(fixture("balsheet-pnl.gnucash"));
-    let script = format!("fn templates() {{ [#{{ guid: \"{GUID}\", name: \"T\" }}] }}\nfn options(p, o, b) {{}}\nfn render(params, book, opts, ctx) {{ {body} }}");
+    let script = format!(
+        "fn templates() {{ [#{{ guid: \"{GUID}\", name: \"T\" }}] }}\n\
+         fn options(p, o, b) {{}}\nfn render(params, book, opts, ctx) {{ {body} }}"
+    );
     let result = host.run(&registry(&[("t.rhai", &script)]), GUID, &json!({})).unwrap();
     let json = serde_json::to_value(&result).unwrap();
     let rows = &json["sections"][0]["blocks"][0]["rows"];

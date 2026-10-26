@@ -107,9 +107,11 @@ fn every_limit_raises_report_limit_with_its_name() {
         (Limit::ExpressionDepth, small(Limit::ExpressionDepth, 8), format!("let x = {}1{};", "(".repeat(20), ")".repeat(20))),
         (Limit::StringSize, small(Limit::StringSize, 100), "let s = \"x\"; loop { s += s; }".into()),
         (Limit::ArraySize, small(Limit::ArraySize, 100), "let a = []; loop { a.push(1); }".into()),
-        (Limit::MapSize, small(Limit::MapSize, 10), "let m = #{}; let i = 0; loop { let one = #{}; one[`k${i}`] = i; m += one; i += 1; }".into()),
+        (Limit::MapSize, small(Limit::MapSize, 10),
+         "let m = #{}; let i = 0; loop { let one = #{}; one[`k${i}`] = i; m += one; i += 1; }".into()),
         (Limit::Modules, small(Limit::Modules, 0), "import \"./other\" as o;".into()),
-        (Limit::Variables, small(Limit::Variables, 5), "let a = 1; let b = 2; let c = 3; let d = 4; let e = 5; let f = 6; let g = 7;".into()),
+        (Limit::Variables, small(Limit::Variables, 5),
+         "let a = 1; let b = 2; let c = 3; let d = 4; let e = 5; let f = 6; let g = 7;".into()),
         (Limit::Functions, small(Limit::Functions, 2), "1".into()),
         (Limit::NumberSize, small(Limit::NumberSize, 64), "let r = rational(2); loop { r = r * r; }".into()),
     ];
@@ -119,7 +121,8 @@ fn every_limit_raises_report_limit_with_its_name() {
 
 #[test]
 fn a_script_cannot_catch_a_limit() {
-    let body = "fn grow() { let r = rational(2); loop { r = r * r; } }\n%%\ntry { grow(); } catch (e) { }\n#{ title: \"caught\", sections: [] }";
+    let body =
+        "fn grow() { let r = rational(2); loop { r = r * r; } }\n%%\ntry { grow(); } catch (e) { }\n#{ title: \"caught\", sections: [] }";
     assert_eq!(limit(Limits::default().with(Limit::NumberSize, 64), body).as_deref(), Some("number-size"));
 }
 

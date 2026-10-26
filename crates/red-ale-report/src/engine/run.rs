@@ -89,7 +89,8 @@ impl<'r> Run<'r> {
         let log = Log::new(limits.get_usize(Limit::StringSize));
         let engine = engine(&Setup { snap: Rc::clone(&snap), sources: Arc::clone(registry.sources()), limits, log: log.clone() });
         let ast = registry.compile(&engine, &template.script).map_err(|e| {
-            from_parse(&e, &template.script, &Failure { report: &template.guid.0.to_string(), source: &template.script, limits: &limits, log: Vec::new() })
+            let report = template.guid.0.to_string();
+            from_parse(&e, &template.script, &Failure { report: &report, source: &template.script, limits: &limits, log: Vec::new() })
         })?;
         let params = from_json(&template.params).map_err(|e| ReportError::Internal(format!("params of {}: {e}", template.name)))?;
         Ok(Self { template, engine, ast, snap, log, params, registry })
@@ -127,7 +128,13 @@ impl<'r> Run<'r> {
 
     /// The draft as a result: the run's identity, time, options and log, every display form, and the options summary
     /// when the General option asks for it (`gnc:report-render-html`, `5.17:gnucash/report/report-core.scm:764-780`).
-    fn finish(&self, rendered: &Dynamic, db: &OptionDb, configuration: Option<Guid>, ctx: &RunContext<'_>) -> Result<ReportResult, ReportError> {
+    fn finish(
+        &self,
+        rendered: &Dynamic,
+        db: &OptionDb,
+        configuration: Option<Guid>,
+        ctx: &RunContext<'_>,
+    ) -> Result<ReportResult, ReportError> {
         let display = DisplayContext { book: ctx.book, zone: ctx.zone, date_format: ctx.settings.date_format };
         let run = RunInfo {
             report: ReportIdentity { guid: self.template.guid, name: self.template.name.clone(), configuration: configuration.map(Id) },
@@ -148,7 +155,8 @@ impl<'r> Run<'r> {
     /// A `report-result` error from a user template; a built-in template's invalid result is red-ale's bug.
     fn invalid(&self, mut e: ResultError) -> ReportError {
         if self.template.kind == TemplateKind::Builtin {
-            return ReportError::Internal(format!("built-in template {} returned an invalid result at {}: {}", self.template.name, e.path, e.reason));
+            let name = &self.template.name;
+            return ReportError::Internal(format!("built-in template {name} returned an invalid result at {}: {}", e.path, e.reason));
         }
         e.report = self.template.guid.0.to_string();
         e.log = self.log.entries();

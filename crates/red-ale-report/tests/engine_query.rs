@@ -32,13 +32,15 @@ fn render(params, book, opts, ctx) {
     print(`accounts=${book.accounts().len()} first=${book.accounts()[0].name}`);
     print(`stock=${names.call(book.accounts_of_types(["STOCK"]))} liabilities=${names.call(book.accounts_of_types(["LIABILITY"]))}`);
     let fund = book.commodity("FUNDS::FUNDS");
-    print(`commodity=${fund.id} ${fund.namespace} ${fund.mnemonic} ${fund.fullname} ${fund.fraction} ${fund.isCurrency} ${fund.symbol} ${fund.uniqueName}`);
+    print(`commodity=${fund.id} ${fund.namespace} ${fund.mnemonic} ${fund.fullname} ` +
+          `${fund.fraction} ${fund.isCurrency} ${fund.symbol} ${fund.uniqueName}`);
     let gbp = book.commodity("GBP");
     print(`gbp=${gbp.id} ${gbp.symbol} ${gbp.fraction} ${gbp.isCurrency} missing=${book.commodity("XYZ::NONE")}`);
     print(`trading=${book.uses_trading_accounts()} company=[${book.company_name()}]`);
     let prices = book.prices(fund, "USD");
     let p = prices[0];
-    print(`prices=${prices.len()} newest=${p.value} ${p.time} ${p.commodity.id} ${p.currency.id} ${p.source} ${p.type} oldest=${prices[-1].value}`);
+    print(`prices=${prices.len()} newest=${p.value} ${p.time} ${p.commodity.id} ${p.currency.id} ` +
+          `${p.source} ${p.type} oldest=${prices[-1].value}`);
     print(`rate-before=${book.price_rate(fund, "USD", t1971_06, "before")} inverted=${book.price_rate("USD", fund, t1971_06, "before")}`);
     print(`rate-nearest=${book.price_rate(fund, "USD", t1970_06_20, "nearest")} latest=${book.price_rate(fund, "USD", 0, "latest")}`);
     print(`rate-same=${book.price_rate("USD", "USD", 0, "before")} none=${book.price_rate(fund, "GBP", -86400, "before")}`);
@@ -46,7 +48,8 @@ fn render(params, book, opts, ctx) {
     let converted = book.price_convert(monetary(fund, 30), "USD", t1971_06, "before");
     print(`convert=${converted.amount} ${converted.commodity.id} ${converted}`);
     let all = book.root().descendants_sorted();
-    print(`commodity-splits=${book.commodity_splits(all, (), fund, false).len()} until=${book.commodity_splits(all, t1970_03_15, "FUNDS::FUNDS", true).len()}`);
+    print(`commodity-splits=${book.commodity_splits(all, (), fund, false).len()} ` +
+          `until=${book.commodity_splits(all, t1970_03_15, "FUNDS::FUNDS", true).len()}`);
     print(`gbp-splits=${book.commodity_splits([book.account("Root:Asset:ForeignBank:ForeignSavings")], (), (), false).len()}`);
     let q = book.split_query(#{ accounts: [income, income_gbp], from: t1980, to: t1980_end });
     let earn = book.split_query(#{ accounts: [income, income_gbp], from: t1980, to: t1980_end,
@@ -54,24 +57,31 @@ fn render(params, book, opts, ctx) {
     let cased = book.split_query(#{ accounts: [income_gbp], description: #{ text: "EARN", cased: true, regexp: false } });
     let regexp = book.split_query(#{ accounts: [income, income_gbp], description: #{ text: "^ear.*GBP", cased: false, regexp: true } });
     print(`split-query=${q.len()} earn=${earn.len()} cased=${cased.len()} regexp=${regexp.len()} none=${book.split_query(#{}).len()}`);
-    print(`euro=${is_euro_currency("EUR")} ${is_euro_currency(gbp)} ${euro_convert(monetary("DEM", 100), "EUR")} ${euro_convert(monetary("USD", 1), "EUR")}`);
+    print(`euro=${is_euro_currency("EUR")} ${is_euro_currency(gbp)} ` +
+          `${euro_convert(monetary("DEM", 100), "EUR")} ${euro_convert(monetary("USD", 1), "EUR")}`);
 
     // Account
-    print(`current=${current.name}|${current.fullName}|${current.type}|${current.code}|${current.description}|${current.notes}|${current.placeholder}|${current.hidden}|${current.commodity.id}|${current.parent.name}|${current.depth}`);
+    print(`current=${current.name}|${current.fullName}|${current.type}|${current.code}|${current.description}|${current.notes}|` +
+          `${current.placeholder}|${current.hidden}|${current.commodity.id}|${current.parent.name}|${current.depth}`);
     print(`children=${names.call(bank1.children())} sorted=${names.call(bank1.children_sorted())}`);
     print(`descendants=${book.root().descendants().len()} sorted-first=${names.call(book.account("Root:Asset").descendants_sorted())}`);
     print(`tree-depth=${bank1.tree_depth()} ${current.tree_depth()} ${book.root().tree_depth()}`);
-    print(`splits=${funds.splits().len()} between=${funds.splits_between(t1970_03_15, t1971).len()} open=${funds.splits_between((), t1970_03_15).len()} with-children=${book.account("Root:Asset:Broker").splits_between((), (), true).len()}`);
-    print(`balance-as-of=${current.balance_as_of(t1971)} ${current.balance_as_of(t1980_03)} ${income.balance_as_of(t1980_end + 1)} ${income_gbp.balance_as_of(t1980_end + 1)}`);
+    print(`splits=${funds.splits().len()} between=${funds.splits_between(t1970_03_15, t1971).len()} ` +
+          `open=${funds.splits_between((), t1970_03_15).len()} ` +
+          `with-children=${book.account("Root:Asset:Broker").splits_between((), (), true).len()}`);
+    print(`balance-as-of=${current.balance_as_of(t1971)} ${current.balance_as_of(t1980_03)} ` +
+          `${income.balance_as_of(t1980_end + 1)} ${income_gbp.balance_as_of(t1980_end + 1)}`);
     print(`accumulate=${funds.accumulate_at([-86400, t1970_03_15, t1980], "balance")} ${funds.accumulate_at([t1980], "noclosingBalance")}`);
     print(`reverse=${income.reverse_balance(ctx)} ${current.reverse_balance(ctx)}`);
 
     // Split and Transaction
     let s = funds.splits()[0];
     let t = s.transaction;
-    print(`split=${s.account.name} ${s.amount} ${s.value} [${s.memo}] [${s.action}] ${s.reconcile} ${s.reconcileDate} ${s.sharePrice} ${s.balance} ${s.noclosingBalance}`);
+    print(`split=${s.account.name} ${s.amount} ${s.value} [${s.memo}] [${s.action}] ` +
+          `${s.reconcile} ${s.reconcileDate} ${s.sharePrice} ${s.balance} ${s.noclosingBalance}`);
     print(`balances=${funds.splits().map(|x| x.balance).reduce(|a, b| a + "," + b, "")}`);
-    print(`transaction=${t.description}|${t.currency.id}|${t.datePosted}|${t.num}|${t.notes}|${t.isClosing}|${t.isVoid}|${t.splitCount}|${t.splits().len()}`);
+    print(`transaction=${t.description}|${t.currency.id}|${t.datePosted}|${t.num}|${t.notes}|` +
+          `${t.isClosing}|${t.isVoid}|${t.splitCount}|${t.splits().len()}`);
     print(`same=${t.splits().contains(s)} ${t == s.transaction} ${current == book.account(current.guid)} ${current != funds}`);
     #{ title: "query", sections: [] }
 }
@@ -124,7 +134,8 @@ fn time_follows_the_local_zone() {
     let script = format!(
         "fn templates() {{ [#{{ guid: \"{GUID}\", name: \"Zone\" }}] }}\nfn options(p, o, b) {{}}\n\
          fn render(params, book, opts, ctx) {{ let l = ctx.local(ctx.now); let p = ctx.accounting_period();\n\
-         #{{ title: `${{l.day}} ${{l.hour}} ${{ctx.start_of_day(ctx.now)}} ${{ctx.print_date(ctx.now)}} ${{p.start}} ${{p.end}}`, sections: [] }} }}"
+         let day = `${{ctx.start_of_day(ctx.now)}} ${{ctx.print_date(ctx.now)}}`;\n\
+         #{{ title: `${{l.day}} ${{l.hour}} ${{day}} ${{p.start}} ${{p.end}}`, sections: [] }} }}"
     );
     let reg = registry(&[("zone.rhai", &script)]);
     let mut host = Host::new(fixture("balsheet-pnl.gnucash"));

@@ -54,7 +54,9 @@ fn choices(items: &Array) -> Fallible<Vec<Choice>> {
         .iter()
         .map(|item| {
             let parts = item.read_lock::<Array>().ok_or_else(|| script_error("a choice is [key, label, help]"))?;
-            let text = |i: usize| parts.get(i).map(|p| p.clone().into_string().map_err(|t| script_error(format!("expected a string, got {t}"))));
+            let text = |i: usize| {
+                parts.get(i).map(|p| p.clone().into_string().map_err(|t| script_error(format!("expected a string, got {t}"))))
+            };
             let key = choice_key(parts.first().ok_or_else(|| script_error("a choice needs its key"))?)?;
             let label = text(1).ok_or_else(|| script_error("a choice needs its label"))??;
             Ok(Choice::new(key, label, text(2).transpose()?.unwrap_or_default()))
@@ -74,7 +76,10 @@ fn account_types(v: Option<&Dynamic>) -> Fallible<Vec<AccountType>> {
     let items = v.read_lock::<Array>().ok_or_else(|| script_error("types is an array of account type names"))?;
     items
         .iter()
-        .map(|t| t.clone().into_string().map_err(|t| script_error(format!("not an account type: {t}")))?.parse().map_err(|e| script_error(format!("{e}"))))
+        .map(|t| {
+            let name = t.clone().into_string().map_err(|t| script_error(format!("not an account type: {t}")))?;
+            name.parse().map_err(|e| script_error(format!("{e}")))
+        })
         .collect()
 }
 
@@ -137,7 +142,8 @@ pub(super) fn register_builder(engine: &mut Engine) {
     engine.register_fn("boolean", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: bool| {
         declare(o.db.borrow_mut().boolean(classifier(s, n, k, h), d))
     });
-    let texts: [(&str, Text); 4] = [("string", OptionDb::string), ("text", OptionDb::text), ("font", OptionDb::font), ("color", OptionDb::color)];
+    let texts: [(&str, Text); 4] =
+        [("string", OptionDb::string), ("text", OptionDb::text), ("font", OptionDb::font), ("color", OptionDb::color)];
     texts.into_iter().for_each(|(name, f)| {
         engine.register_fn(name, move |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: &str| {
             declare(f(&mut o.db.borrow_mut(), classifier(s, n, k, h), d))
@@ -174,9 +180,11 @@ pub(super) fn register_builder(engine: &mut Engine) {
         declare(o.db.borrow_mut().commodity(classifier(s, n, k, h), d))
     });
     engine.register_fn("internal", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic| -> Fallible<()> {
-        let d = match d.as_bool() {
-            Ok(b) => OptionValue::Bool(b),
-            Err(_) => OptionValue::Text(d.into_string().map_err(|t| script_error(format!("an internal option is a string or a bool, got {t}")))?),
+        let d = if let Ok(b) = d.as_bool() {
+            OptionValue::Bool(b)
+        } else {
+            let text = d.into_string().map_err(|t| script_error(format!("an internal option is a string or a bool, got {t}")))?;
+            OptionValue::Text(text)
         };
         declare(o.db.borrow_mut().internal(classifier(s, n, k, h), d))
     });
@@ -185,7 +193,17 @@ pub(super) fn register_builder(engine: &mut Engine) {
 
 /// `gnc-register-number-range-option`: numbers as Rationals, integers or decimal text.
 #[allow(clippy::too_many_arguments)]
-fn number_range(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic, min: Dynamic, max: Dynamic, step: Dynamic) -> Fallible<()> {
+fn number_range(
+    o: &mut OptionBuilder,
+    s: &str,
+    n: &str,
+    k: &str,
+    h: &str,
+    d: Dynamic,
+    min: Dynamic,
+    max: Dynamic,
+    step: Dynamic,
+) -> Fallible<()> {
     let [d, min, max, step] = [d, min, max, step].map(|v| rational_arg(&v));
     declare(o.db.borrow_mut().number_range(classifier(s, n, k, h), d?, min?, max?, step?))
 }
@@ -279,7 +297,8 @@ fn plot_size_value(p: PlotSize) -> Dynamic {
         PlotSize::Percent(n) => ("percent", n),
         PlotSize::Pixels(n) => ("pixels", n),
     };
-    let map: Map = [("unit".into(), Dynamic::from(unit.to_owned())), ("value".into(), Dynamic::from(INT::from(value)))].into_iter().collect();
+    let fields = [("unit".into(), Dynamic::from(unit.to_owned())), ("value".into(), Dynamic::from(INT::from(value)))];
+    let map: Map = fields.into_iter().collect();
     Dynamic::from(map)
 }
 

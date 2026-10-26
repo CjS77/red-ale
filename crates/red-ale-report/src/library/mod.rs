@@ -88,13 +88,15 @@ mod tests {
             let by_name = GNUCASH_TEMPLATES.iter().find(|(_, n)| *n == t.name);
             assert_eq!(by_guid, by_name, "{} {guid}", t.name);
         });
-        let unique = |i: usize| GNUCASH_TEMPLATES.iter().enumerate().all(|(j, e)| j == i || e.0 != GNUCASH_TEMPLATES[i].0 && e.1 != GNUCASH_TEMPLATES[i].1);
+        let (guids, names) = (GNUCASH_TEMPLATES.map(|(g, _)| g), GNUCASH_TEMPLATES.map(|(_, n)| n));
+        let unique = |i: usize| (0..GNUCASH_TEMPLATES.len()).all(|j| j == i || (guids[j] != guids[i] && names[j] != names[i]));
         assert!((0..GNUCASH_TEMPLATES.len()).all(unique));
     }
 
     #[test]
     fn library_paths_are_gnucash_directories() {
-        let lib = Library::from_sources([("lib/a.rhai", ""), ("standard/b.rhai", ""), ("other/c.rhai", ""), ("lib/../d.rhai", ""), ("lib/e.txt", "")]);
+        let paths = ["lib/a.rhai", "standard/b.rhai", "other/c.rhai", "lib/../d.rhai", "lib/e.txt"];
+        let lib = Library::from_sources(paths.map(|p| (p, "")));
         assert_eq!(lib.scripts().map(|(p, _)| p).collect::<Vec<_>>(), ["lib/a.rhai", "standard/b.rhai"]);
     }
 }
