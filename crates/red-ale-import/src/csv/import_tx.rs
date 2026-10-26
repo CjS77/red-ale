@@ -193,15 +193,10 @@ impl TxImport {
     /// GnuCash also checks here whether the accounts make transactions multi-currency and, if so, that a price or
     /// value column is selected (`:542-556`); that needs the accounts' commodities and is the pipeline's to add.
     pub fn verify(&self, with_account_errors: bool, skip_errors: bool) -> Vec<String> {
-        if self.lines.is_empty() {
-            return vec!["No valid data found in the selected file. It may be empty or the selected encoding is wrong.".to_owned()];
+        let mut messages = self.file_errors();
+        if !messages.is_empty() && !self.has_lines_to_import() {
+            return messages;
         }
-        let csv = &self.layout.csv;
-        let skipped = csv.skip_start_lines.wrapping_add(csv.skip_end_lines).wrapping_add(u32::from(csv.skip_alt_lines));
-        if usize::try_from(skipped).unwrap_or(usize::MAX) >= self.lines.len() {
-            return vec!["No lines are selected for importing. Please reduce the number of lines to skip.".to_owned()];
-        }
-        let mut messages = self.column_selection_errors();
         let account_error = |t: &ColumnType| matches!(t, ColumnType::Account | ColumnType::TransferAccount);
         let line_error = self
             .line_states(skip_errors)
@@ -212,6 +207,25 @@ impl TxImport {
             messages.push("Not all fields could be parsed. Please correct the issues reported for each line or adjust the lines to skip.".to_owned());
         }
         messages
+    }
+
+    /// The part of [`TxImport::verify`] that does not depend on what the lines hold: the file has no data, every line
+    /// is skipped, or a required column is missing (`gnc-import-tx.cpp:568-590`, `:503-541`). The import pipeline
+    /// adds the multi-currency column check, which needs the accounts.
+    pub fn file_errors(&self) -> Vec<String> {
+        if self.lines.is_empty() {
+            return vec!["No valid data found in the selected file. It may be empty or the selected encoding is wrong.".to_owned()];
+        }
+        if !self.has_lines_to_import() {
+            return vec!["No lines are selected for importing. Please reduce the number of lines to skip.".to_owned()];
+        }
+        self.column_selection_errors()
+    }
+
+    fn has_lines_to_import(&self) -> bool {
+        let csv = &self.layout.csv;
+        let skipped = csv.skip_start_lines.wrapping_add(csv.skip_end_lines).wrapping_add(u32::from(csv.skip_alt_lines));
+        !self.lines.is_empty() && usize::try_from(skipped).unwrap_or(usize::MAX) < self.lines.len()
     }
 
     /// `verify_column_selections` (`gnc-import-tx.cpp:503-557`) without the multi-currency part.
