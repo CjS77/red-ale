@@ -1,9 +1,9 @@
 //! Display rounding and GnuCash's amount formatting.
 //!
 //! The text is that of `xaccSPrintAmount` and `PrintAmountInternal` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1083-1430`)
-//! under the conventions GnuCash falls back to when no locale is set (`5.17:libgnucash/core-utils/gnc-locale-utils.c:75-108`),
-//! which are those its report tests run under: grouping by three with `,`, decimal point `.`, minus sign first. It is
-//! red-ale's only locale.
+//! under the Locale's conventions as GnuCash reads them (`gnc_localeconv`,
+//! `5.17:libgnucash/core-utils/gnc-locale-utils.c:75-108`). Under the C locale, the one GnuCash's report tests run
+//! under, that is grouping by three with `,`, decimal point `.`, minus sign first.
 //!
 //! Reports never round a figure before using it again; these functions round only to show it.
 
@@ -12,6 +12,7 @@ use num_integer::Integer;
 use num_traits::Zero;
 use red_ale_core::ops::commodities::{display_symbol, is_iso_namespace, lookup};
 use red_ale_core::{Book, CommodityRef};
+use red_ale_locale::Conventions;
 
 use super::rational::split_decimal;
 use super::{Rational, Rounding};
@@ -20,12 +21,21 @@ use super::{Rational, Rounding};
 /// (`5.17:libgnucash/engine/gnc-numeric.cpp:51`, used by `gnc_numeric_to_decimal`, `:1253-1271`).
 const MAX_DECIMAL_PLACES: u64 = 18;
 
+/// `CHAR_MAX` in a grouping string: no further grouping.
+const NO_MORE_GROUPS: u8 = 127;
+
+/// The places GnuCash's number renderer rounds to (`double-to-gnc-numeric datum 100`).
+const NUMBER_PLACES: u32 = 2;
+
 /// What printing needs to know about a commodity: its identity, its *display symbol* and its SCU.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommodityFormat {
     /// The commodity.
     pub id: CommodityRef,
     /// Its display symbol (GnuCash's nice symbol): the user symbol, else the ISO table's symbol, else the mnemonic.
+    /// GnuCash would take the locale's `currency_symbol` for a currency whose code equals the locale's
+    /// `int_curr_symbol` (`5.17:libgnucash/engine/gnc-commodity.cpp:1105-1108`), but glibc's `int_curr_symbol` ends
+    /// in a space, so no code ever equals it.
     pub symbol: String,
     /// Its SCU, the denominator amounts are shown in.
     pub fraction: i64,
@@ -55,10 +65,14 @@ impl CommodityFormat {
 /// that reports use. Reports never set `force_fit` or `round`, so every decimal of an exact value is printed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrintInfo {
-    /// The symbol to print, if any.
+    /// The symbol to print, if any (`use_symbol` with a commodity).
     pub symbol: Option<String>,
-    /// Whether the symbol goes first with no space (`$5.00`, an ISO currency) or last after a space (`5. FUNDS`).
-    pub symbol_first: bool,
+    /// Whether the commodity is a currency. Any other commodity's symbol goes after the amount with a space.
+    pub is_iso: bool,
+    /// Whether the locale places the symbol and the sign (`use_locale`); if not, the symbol goes first with a space.
+    pub use_locale: bool,
+    /// Whether the locale's monetary separators apply (`monetary`), else its numeric ones.
+    pub monetary: bool,
     /// Decimals always printed, padding with zeros.
     pub min_decimal_places: u32,
     /// Whether to group the whole part by thousands.
@@ -67,12 +81,14 @@ pub struct PrintInfo {
 
 impl PrintInfo {
     /// `gnc_commodity_print_info` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:885-917`): an ISO currency pads to its
-    /// SCU's decimals; any other commodity pads none.
+    /// SCU's decimals and follows the locale; any other commodity pads none.
     pub fn commodity(c: &CommodityFormat, use_symbol: bool) -> Self {
         let places = decimal_fraction_places(c.fraction).unwrap_or(0);
         Self {
             symbol: use_symbol.then(|| c.symbol.clone()),
-            symbol_first: c.is_iso(),
+            is_iso: c.is_iso(),
+            use_locale: c.is_iso(),
+            monetary: true,
             min_decimal_places: if c.is_iso() { places } else { 0 },
             use_separators: true,
         }
@@ -84,16 +100,18 @@ impl PrintInfo {
     pub fn price(currency: &CommodityFormat) -> Self {
         Self {
             symbol: Some(currency.symbol.clone()),
-            symbol_first: currency.is_iso(),
+            is_iso: currency.is_iso(),
+            use_locale: true,
+            monetary: true,
             min_decimal_places: trailing_zeros(currency.fraction),
             use_separators: true,
         }
     }
 
-    /// No symbol, grouped, padded to `places` decimals. `plain(2)` is `gnc_default_print_info(#f)` in the C locale,
-    /// whose `frac_digits` falls back to 2 (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-860`).
+    /// No symbol, grouped, padded to `places` decimals: `gnc_default_print_info(#f)`
+    /// (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-860`) pads to the locale's `frac_digits`.
     pub fn plain(places: u32) -> Self {
-        Self { symbol: None, symbol_first: true, min_decimal_places: places, use_separators: true }
+        Self { symbol: None, is_iso: true, use_locale: true, monetary: true, min_decimal_places: places, use_separators: true }
     }
 }
 
@@ -109,15 +127,57 @@ fn trailing_zeros(fraction: i64) -> u32 {
     std::iter::successors(Some(fraction), |f| (*f != 0 && f % 10 == 0).then_some(f / 10)).skip(1).fold(0, |n, _| n + 1)
 }
 
-/// `xaccPrintAmount`: the text of an exact value, with no rounding.
-pub fn format_amount(value: &Rational, info: &PrintInfo) -> String {
-    let sign = if value.is_negative() { "-" } else { "" };
-    let number = print_magnitude(value, info);
-    match &info.symbol {
-        None => format!("{sign}{number}"),
-        Some(symbol) if info.symbol_first => format!("{sign}{symbol}{number}"),
-        Some(symbol) => format!("{sign}{number} {symbol}"),
+/// The first character of a locale string, as GnuCash copies separators and decimal points (`g_utf8_strncpy(…, 1)`).
+fn first_char(s: &str) -> Option<char> {
+    s.chars().next()
+}
+
+/// Where the symbol and the sign go, from the locale (`xaccSPrintAmount`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1306-1352`).
+struct Placement<'a> {
+    symbol_first: bool,
+    space: bool,
+    sign: &'a str,
+    sign_position: u8,
+}
+
+impl<'a> Placement<'a> {
+    fn of(value: &Rational, info: &PrintInfo, conv: &'a Conventions) -> Self {
+        let negative = value.is_negative();
+        let (locale_first, locale_space) =
+            if negative { (conv.n_cs_precedes, conv.n_sep_by_space) } else { (conv.p_cs_precedes, conv.p_sep_by_space) };
+        let (mut symbol_first, mut space) = if info.use_locale { (locale_first, locale_space != 0) } else { (true, true) };
+        if info.symbol.is_some() && !info.is_iso {
+            (symbol_first, space) = (false, true);
+        }
+        let (sign, sign_position) = if negative { (conv.negative_sign, conv.n_sign_posn) } else { (conv.positive_sign, conv.p_sign_posn) };
+        let sign = if value.is_zero() { "" } else { sign };
+        Self { symbol_first, space, sign, sign_position }
     }
+
+    /// The sign if it goes at `position` (0 parentheses, 1 first, 2 last, 3 before the symbol, 4 after it).
+    fn sign_at(&self, position: u8) -> &'a str {
+        if self.sign_position == position { self.sign } else { "" }
+    }
+
+    fn symbol(&self, symbol: Option<&str>) -> String {
+        let (before, after) = (self.sign_at(3), self.sign_at(4));
+        match symbol {
+            Some(s) if self.space && self.symbol_first => format!("{before}{s} {after}"),
+            Some(s) if self.space => format!("{before} {s}{after}"),
+            Some(s) => format!("{before}{s}{after}"),
+            None => format!("{before}{after}"),
+        }
+    }
+}
+
+/// `xaccPrintAmount`: the text of an exact value under `conv`, with no rounding.
+pub fn format_amount(value: &Rational, info: &PrintInfo, conv: &Conventions) -> String {
+    let at = Placement::of(value, info, conv);
+    let symbol = at.symbol(info.symbol.as_deref());
+    let (open, close) = if at.sign_at(0).is_empty() { ("", "") } else { ("(", ")") };
+    let number = print_magnitude(value, info, conv);
+    let (first, last) = if at.symbol_first { (symbol.as_str(), "") } else { ("", symbol.as_str()) };
+    format!("{}{first}{open}{number}{close}{last}{}", at.sign_at(1), at.sign_at(2))
 }
 
 /// `PrintAmountInternal` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1083-1300`): the magnitude with grouping and an
@@ -126,15 +186,22 @@ pub fn format_amount(value: &Rational, info: &PrintInfo) -> String {
 ///
 /// The point after a whole amount (`5. ACME`) matches the pin only. GnuCash added it in 5.12 to fix a register bug
 /// red-ale cannot have, and red-ale will likely drop it later (`design/reports.md` §3).
-fn print_magnitude(value: &Rational, info: &PrintInfo) -> String {
+fn print_magnitude(value: &Rational, info: &PrintInfo, conv: &Conventions) -> String {
+    let (point, separator, grouping) = if info.monetary {
+        (conv.mon_decimal_point, conv.mon_thousands_sep, conv.mon_grouping)
+    } else {
+        (conv.decimal_point, conv.thousands_sep, conv.grouping)
+    };
     let magnitude = value.abs();
     let (whole, rem) = magnitude.numer().div_rem(magnitude.denom());
-    let whole_text = if info.use_separators { group_thousands(&whole.to_string()) } else { whole.to_string() };
+    let digits = whole.to_string();
+    let whole_text = if info.use_separators { group_digits(&digits, first_char(separator), grouping) } else { digits };
     if let Some(places) = magnitude.decimal_places().filter(|p| *p <= MAX_DECIMAL_PLACES).and_then(|p| u32::try_from(p).ok()) {
         let places = places.max(info.min_decimal_places);
         let digits = &rem * BigInt::from(10).pow(places) / magnitude.denom();
         let (_, frac) = split_decimal(&digits, places);
-        format!("{whole_text}.{frac}")
+        let point = first_char(point).map(String::from).unwrap_or_default();
+        format!("{whole_text}{point}{frac}")
     } else {
         let fraction = format!("{rem}/{}", magnitude.denom());
         match (whole.is_zero(), value.is_negative()) {
@@ -145,16 +212,29 @@ fn print_magnitude(value: &Rational, info: &PrintInfo) -> String {
     }
 }
 
-/// Insert `,` between groups of three digits, from the right.
-fn group_thousands(digits: &str) -> String {
-    let len = digits.len();
-    digits.chars().enumerate().fold(String::with_capacity(len + len / 3), |mut out, (i, c)| {
-        if i > 0 && (len - i).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(c);
-        out
-    })
+/// Insert `separator` between groups of digits from the right, as `PrintAmountInternal` walks `grouping`: each size
+/// in turn, the last one repeating, until `CHAR_MAX` stops grouping.
+fn group_digits(digits: &str, separator: Option<char>, grouping: &[u8]) -> String {
+    let Some(separator) = separator else { return digits.to_owned() };
+    let count = digits.chars().count();
+    let (reversed, _, _) = digits.chars().rev().enumerate().fold(
+        (String::with_capacity(digits.len() * 2), 0_usize, 0_u8),
+        |(mut out, group, filled), (i, c)| {
+            out.push(c);
+            let size = grouping.get(group).copied().unwrap_or(NO_MORE_GROUPS);
+            if i + 1 == count || size == NO_MORE_GROUPS {
+                return (out, group, filled);
+            }
+            let filled = filled.saturating_add(1);
+            if filled < size {
+                return (out, group, filled);
+            }
+            out.push(separator);
+            let next = if group + 1 < grouping.len() { group + 1 } else { group };
+            (out, next, 0)
+        },
+    );
+    reversed.chars().rev().collect()
 }
 
 /// A monetary amount as a report shows it: rounded to its commodity's SCU and printed.
@@ -168,38 +248,41 @@ pub struct MonetaryDisplay {
 
 /// GnuCash's monetary renderer (`5.17:gnucash/report/html-style-info.scm:224-231`): round to the commodity's SCU (not
 /// the account's) with `GNC-HOW-RND-ROUND`, banker's rounding, then print with the commodity's print info and symbol.
-pub fn display_monetary(amount: &Rational, commodity: &CommodityFormat) -> MonetaryDisplay {
+pub fn display_monetary(amount: &Rational, commodity: &CommodityFormat, conv: &Conventions) -> MonetaryDisplay {
     let rounded = amount.round_to(commodity.fraction.max(1), Rounding::Bankers).unwrap_or_else(|_| amount.clone());
-    let display = format_amount(&rounded, &PrintInfo::commodity(commodity, true));
+    let display = format_amount(&rounded, &PrintInfo::commodity(commodity, true), conv);
     MonetaryDisplay { rounded, display }
 }
 
 /// GnuCash's price renderer (`5.17:gnucash/report/html-style-info.scm:221-222`): the exact price in `currency`, padded
 /// to the currency's decimals and never rounded, so a rate that is not a terminating decimal prints as `$480 + 85/104`.
-pub fn display_price(price: &Rational, currency: &CommodityFormat) -> String {
-    format_amount(price, &PrintInfo::price(currency))
+pub fn display_price(price: &Rational, currency: &CommodityFormat, conv: &Conventions) -> String {
+    format_amount(price, &PrintInfo::price(currency), conv)
 }
 
-/// GnuCash's number renderer (`5.17:gnucash/report/html-style-info.scm:233-236`) generalised to `places` decimals:
-/// rounded with banker's rounding, grouped, no symbol. GnuCash goes through a double here; red-ale rounds exactly.
-pub fn display_number(value: &Rational, places: u32) -> String {
-    let denom = 10_i64.checked_pow(places).unwrap_or(i64::MAX);
+/// GnuCash's number renderer (`5.17:gnucash/report/html-style-info.scm:233-236`): rounded to two places with banker's
+/// rounding and padded to the locale's `frac_digits`, grouped, no symbol. red-ale generalises it to `places` decimals,
+/// rounded and padded to. GnuCash goes through a double here; red-ale rounds exactly.
+pub fn display_number(value: &Rational, places: Option<u32>, conv: &Conventions) -> String {
+    let round_to = places.unwrap_or(NUMBER_PLACES);
+    let denom = 10_i64.checked_pow(round_to).unwrap_or(i64::MAX);
     let rounded = value.round_to(denom, Rounding::Bankers).unwrap_or_else(|_| value.clone());
-    format_amount(&rounded, &PrintInfo::plain(places))
+    format_amount(&rounded, &PrintInfo::plain(places.unwrap_or_else(|| u32::from(conv.frac_digits))), conv)
 }
 
-/// The exact value, grouped, with as many decimals as it needs and no trailing point, or `w + n/d`: how chart hover
-/// labels show a `number` axis.
-pub fn display_exact(value: &Rational) -> String {
-    let text = format_amount(value, &PrintInfo::plain(0));
-    text.strip_suffix('.').map_or_else(|| text.clone(), str::to_owned)
+/// The exact value, grouped, with as many decimals as it needs and no trailing decimal point, or `w + n/d`: how chart
+/// hover labels and ticks show a `number` axis.
+pub fn display_exact(value: &Rational, conv: &Conventions) -> String {
+    let text = format_amount(value, &PrintInfo::plain(0), conv);
+    first_char(conv.mon_decimal_point).and_then(|p| text.strip_suffix(p)).map_or_else(|| text.clone(), str::to_owned)
 }
 
 /// Guile's `~w,dF` directive on an exact number (`format:out-fixed`, Guile 3.0 `ice-9/format.scm`): rounded half away
 /// from zero to `places` decimals and padded with spaces on the left to `width`. When the whole part is zero, its `0`
 /// is printed only if there is no width or the width exceeds `places + 1`, so `fixed(1/2, Some(2), 1)` is `.5`, as
 /// `5.17:gnucash/report/reports/standard/account-piecharts.scm:552-554` relies on. A number wider than `width` is
-/// printed in full. GnuCash formats the double nearest the value; red-ale formats the value itself.
+/// printed in full. GnuCash formats the double nearest the value; red-ale formats the value itself. Guile's `format`
+/// does not follow the locale.
 pub fn fixed(value: &Rational, width: Option<usize>, places: u32) -> String {
     let scaled = value.abs().scaled_half_up(places);
     let (whole, frac) = split_decimal(&scaled, places);
@@ -236,8 +319,13 @@ mod tests {
         CommodityFormat::new(CommodityRef::new("NASDAQ", "FUNDS"), "FUNDS", 1000)
     }
 
-    fn money(s: &str, c: &CommodityFormat) -> String {
-        display_monetary(&r(s), c).display
+    /// The C locale's conventions, which GnuCash's report tests run under.
+    fn c() -> Conventions {
+        red_ale_locale::Locale::c().conventions()
+    }
+
+    fn money(s: &str, f: &CommodityFormat) -> String {
+        display_monetary(&r(s), f, &c()).display
     }
 
     /// Expected strings of GnuCash 5.17's own report tests, which run in the C locale
@@ -262,23 +350,24 @@ mod tests {
 
     #[test]
     fn price_cells_keep_every_decimal_and_print_remainders() {
-        let price = |s: &str| display_price(&r(s), &usd());
+        let price = |s: &str| display_price(&r(s), &usd(), &c());
+        let whole_and = |w: i64, f: &str| display_price(&(&Rational::from_int(w) + &r(f)), &usd(), &c());
         assert_eq!(price("85/104"), "$85/104");
         assert_eq!(price("49925/104"), "$480 + 5/104");
-        assert_eq!(display_price(&(&Rational::from_int(480) + &r("85/104")), &usd()), "$480 + 85/104");
-        assert_eq!(display_price(&(&Rational::from_int(1) + &r("49/101")), &usd()), "$1 + 49/101");
-        assert_eq!(display_price(&(&Rational::from_int(235) + &r("3/7")), &usd()), "$235 + 3/7");
-        assert_eq!(display_price(&(&Rational::from_int(203) + &r("1/3")), &usd()), "$203 + 1/3");
+        assert_eq!(whole_and(480, "85/104"), "$480 + 85/104");
+        assert_eq!(whole_and(1, "49/101"), "$1 + 49/101");
+        assert_eq!(whole_and(235, "3/7"), "$235 + 3/7");
+        assert_eq!(whole_and(203, "1/3"), "$203 + 1/3");
         assert_eq!(price("1.7"), "$1.70");
         assert_eq!(price("1.499"), "$1.499");
         assert_eq!(price("1.455"), "$1.455");
         assert_eq!(price("300.01"), "$300.01");
-        assert_eq!(display_price(&-(&Rational::from_int(480) + &r("85/104")), &usd()), "-$480 - 85/104");
+        assert_eq!(display_price(&-(&Rational::from_int(480) + &r("85/104")), &usd(), &c()), "-$480 - 85/104");
     }
 
     #[test]
     fn amounts_follow_print_amount_internal() {
-        let plain = |s: &str, places| format_amount(&r(s), &PrintInfo::plain(places));
+        let plain = |s: &str, places| format_amount(&r(s), &PrintInfo::plain(places), &c());
         assert_eq!(plain("1234567.891", 2), "1,234,567.891");
         assert_eq!(plain("-0.5", 0), "-0.5");
         assert_eq!(plain("12", 0), "12.");
@@ -286,7 +375,7 @@ mod tests {
         assert_eq!(plain("1/3", 2), "1/3");
         assert_eq!(plain("-1/3", 2), "-1/3");
         let no_sep = PrintInfo { use_separators: false, ..PrintInfo::plain(2) };
-        assert_eq!(format_amount(&r("1234567.5"), &no_sep), "1234567.50");
+        assert_eq!(format_amount(&r("1234567.5"), &no_sep, &c()), "1234567.50");
         // 2^-18 needs 18 places and prints as a decimal; 2^-19 needs 19 and prints as a fraction.
         assert_eq!(plain("1/262144", 0), "0.000003814697265625");
         assert_eq!(plain("1/524288", 0), "1/524288");
@@ -299,7 +388,7 @@ mod tests {
 
     #[test]
     fn display_rounding_is_bankers_at_the_scu() {
-        let d = display_monetary(&r("0.125"), &usd());
+        let d = display_monetary(&r("0.125"), &usd(), &c());
         assert_eq!((d.rounded, d.display.as_str()), (r("0.12"), "$0.12"));
         assert_eq!(money("0.135", &usd()), "$0.14");
         assert_eq!(money("-0.125", &usd()), "-$0.12");
@@ -310,13 +399,52 @@ mod tests {
 
     #[test]
     fn number_cells_round_bankers_to_places() {
-        assert_eq!(display_number(&r("57.1428"), 2), "57.14");
-        assert_eq!(display_number(&r("0.125"), 2), "0.12");
-        assert_eq!(display_number(&r("1234.5"), 2), "1,234.50");
-        assert_eq!(display_number(&r("2.5"), 0), "2.");
-        assert_eq!(display_exact(&r("2500")), "2,500");
-        assert_eq!(display_exact(&r("-0.25")), "-0.25");
-        assert_eq!(display_exact(&r("1/3")), "1/3");
+        let number = |s: &str, places| display_number(&r(s), places, &c());
+        assert_eq!(number("57.1428", Some(2)), "57.14");
+        assert_eq!(number("0.125", Some(2)), "0.12");
+        assert_eq!(number("1234.5", Some(2)), "1,234.50");
+        assert_eq!(number("2.5", Some(0)), "2.");
+        assert_eq!(number("57.1428", None), "57.14");
+        assert_eq!(number("3", None), "3.00");
+        assert_eq!(display_exact(&r("2500"), &c()), "2,500");
+        assert_eq!(display_exact(&r("-0.25"), &c()), "-0.25");
+        assert_eq!(display_exact(&r("1/3"), &c()), "1/3");
+    }
+
+    fn under(locale: &str) -> Conventions {
+        red_ale_locale::Locale::by_name(locale).unwrap().conventions()
+    }
+
+    fn eur() -> CommodityFormat {
+        CommodityFormat::new(CommodityRef::currency("EUR"), "€", 100)
+    }
+
+    /// `xaccSPrintAmount` under glibc's fr_FR: `,` for the point, NARROW NO-BREAK SPACE between groups, the symbol
+    /// after the amount with a space, the sign first.
+    #[test]
+    fn amounts_follow_the_locale() {
+        let fr = under("fr_FR");
+        assert_eq!(display_monetary(&r("-1234567.891"), &eur(), &fr).display, "-1\u{202f}234\u{202f}567,89 €");
+        assert_eq!(display_monetary(&r("30"), &funds(), &fr).display, "30, FUNDS");
+        assert_eq!(display_number(&r("1234.5"), None, &fr), "1\u{202f}234,50");
+        assert_eq!(display_exact(&r("2500"), &fr), "2\u{202f}500");
+        assert_eq!(display_exact(&r("2.5"), &fr), "2,5");
+        assert_eq!(display_price(&(&Rational::from_int(480) + &r("85/104")), &eur(), &fr), "480 + 85/104 €");
+        let de = under("de_DE");
+        assert_eq!(display_monetary(&r("1234.5"), &eur(), &de).display, "1.234,50 €");
+        let us = under("en_US");
+        assert_eq!(display_monetary(&r("-1234.5"), &usd(), &us).display, "-$1,234.50");
+        // en_IN groups by three, then by two.
+        assert_eq!(display_exact(&r("123456789"), &under("en_IN")), "12,34,56,789");
+        // fr_CA puts a negative amount in parentheses (`n_sign_posn 0`); GnuCash brackets the number, not the symbol.
+        assert_eq!(display_monetary(&r("-5"), &usd(), &under("fr_CA")).display, "(5,00) $");
+        // de_CH puts the sign after the symbol (`n_sign_posn 4`), which GnuCash writes after the space.
+        let chf = CommodityFormat::new(CommodityRef::currency("CHF"), "CHF", 100);
+        assert_eq!(display_monetary(&r("-1234.5"), &chf, &under("de_CH")).display, "CHF -1’234.50");
+        // ja_JP has no decimals in its currency, so a number cell pads none, but still prints the point.
+        assert_eq!(display_number(&r("2"), None, &under("ja_JP")), "2.");
+        // pt_PT sets no thousands separator in LC_NUMERIC, but reports use LC_MONETARY's `.`.
+        assert_eq!(display_exact(&r("1234"), &under("pt_PT")), "1.234");
     }
 
     /// Outputs of Guile 3.0's `(format #f "~w,dF" x)` on exact numbers.
@@ -368,7 +496,7 @@ mod tests {
         fn printed_decimals_read_back(n in any::<i64>(), places in 0_u32..9, min in 0_u32..4, sep in any::<bool>()) {
             let value = Rational::new(n, 10_i64.pow(places)).unwrap();
             let info = PrintInfo { use_separators: sep, ..PrintInfo::plain(min) };
-            let text = format_amount(&value, &info);
+            let text = format_amount(&value, &info, &c());
             prop_assert_eq!(parse_printed(&text), value);
             let decimals = text.split_once('.').map_or(0, |(_, f)| f.len());
             prop_assert!(decimals >= usize::try_from(min).unwrap());
@@ -377,7 +505,7 @@ mod tests {
         #[test]
         fn remainders_read_back(whole in 0_i64..1_000_000, num in 1_i64..96, den in 97_i64..100) {
             let value = &Rational::from_int(whole) + &Rational::new(num, den).unwrap();
-            let text = format_amount(&value, &PrintInfo::plain(2));
+            let text = format_amount(&value, &PrintInfo::plain(2), &c());
             let read = match text.split_once(" + ") {
                 Some((w, f)) => &parse_printed(w) + &Rational::parse(f).unwrap(),
                 None => parse_printed(&text),
@@ -388,10 +516,25 @@ mod tests {
         #[test]
         fn monetary_display_is_the_rounded_amount(n in any::<i64>(), d in 1_i64..1_000_000) {
             let amount = Rational::new(n, d).unwrap();
-            let shown = display_monetary(&amount, &usd());
+            let shown = display_monetary(&amount, &usd(), &c());
             prop_assert!((&shown.rounded - &amount).abs() <= Rational::new(1, 200).unwrap());
             let text = shown.display.replace('$', "");
             prop_assert_eq!(parse_printed(&text), shown.rounded);
+        }
+
+        /// Under every locale, any amount prints, and its digits are the C locale's in the same order.
+        #[test]
+        fn every_locale_prints_any_amount(index in 0_usize..75, n in any::<i64>(), d in 1_i64..1_000_000, iso in any::<bool>()) {
+            let name = red_ale_locale::Locale::supported().nth(index).unwrap();
+            let conv = under(name);
+            let amount = Rational::new(n, d).unwrap();
+            let commodity = if iso { usd() } else { funds() };
+            let digits = |s: &str| s.chars().filter(char::is_ascii_digit).collect::<String>();
+            let shown = display_monetary(&amount, &commodity, &conv);
+            prop_assert_eq!(digits(&shown.display), digits(&display_monetary(&amount, &commodity, &c()).display));
+            prop_assert!(!display_number(&amount, None, &conv).is_empty());
+            prop_assert!(!display_exact(&amount, &conv).is_empty());
+            prop_assert!(!display_price(&amount, &commodity, &conv).is_empty());
         }
     }
 }

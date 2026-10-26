@@ -14,7 +14,8 @@ use crate::query::Snapshot;
 fn no_script_function_hands_out_the_book() {
     let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0));
     let sources = Arc::new(std::collections::BTreeMap::default());
-    let e = engine(&Setup { snap, sources, limits: Limits::default(), log: Log::new(1024) });
+    let conventions = red_ale_locale::Locale::c().conventions();
+    let e = engine(&Setup { snap, sources, limits: Limits::default(), log: Log::new(1024), conventions });
     let signatures = e.gen_fn_signatures(false);
     assert!(signatures.iter().any(|s| s.starts_with("root(")), "the query API is registered: {signatures:?}");
     signatures.iter().for_each(|s| {

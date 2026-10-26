@@ -1,7 +1,8 @@
 //! The host's half of the report result: the run's identity, time, options and log, and the display form of every
 //! figure (`design/reports.md` §3, "Display rounding and formatting"; §7).
 
-use red_ale_core::{Book, CommodityRef, Time64, TimeZone};
+use red_ale_core::{Book, CommodityRef, Date, Time64, TimeZone};
+use red_ale_locale::Locale;
 
 use super::chart::{Axis, AxisFormat};
 use super::validate::Stage;
@@ -24,7 +25,7 @@ pub struct RunInfo {
     pub log: Vec<LogEntry>,
 }
 
-/// What display forms need: the Book's commodities, the run's local time zone and `reports.dateFormat`.
+/// What display forms need: the Book's commodities, the run's local time zone, `reports.dateFormat` and the Locale.
 #[derive(Debug, Clone, Copy)]
 pub struct DisplayContext<'a> {
     /// The Book the report read.
@@ -33,6 +34,8 @@ pub struct DisplayContext<'a> {
     pub zone: &'a TimeZone,
     /// How dates print.
     pub date_format: DateFormat,
+    /// The Locale numbers and `locale` dates follow.
+    pub locale: Locale,
 }
 
 impl DisplayContext<'_> {
@@ -41,8 +44,13 @@ impl DisplayContext<'_> {
     }
 
     fn monetary(&self, m: &Monetary, path: &str) -> Result<(Rational, String), ResultError> {
-        let shown = display_monetary(&m.amount, &self.commodity(&m.commodity, path)?);
+        let shown = display_monetary(&m.amount, &self.commodity(&m.commodity, path)?, &self.locale.conventions());
         Ok((shown.rounded, shown.display))
+    }
+
+    /// A date as `reports.dateFormat` prints it under the Locale.
+    pub(crate) fn print_date(&self, day: Date) -> String {
+        self.date_format.print(day, &self.locale)
     }
 }
 
@@ -98,12 +106,13 @@ fn fill_cell(cell: &mut Cell, path: &str, ctx: &DisplayContext<'_>) -> Fill {
         (cell.rounded, cell.display) = (Some(rounded), Some(display));
     } else if let Some(n) = &cell.number {
         let suffix = cell.suffix.as_deref().unwrap_or("");
-        cell.display = Some(format!("{}{suffix}", display_number(n, cell.places.unwrap_or(2))));
+        cell.display = Some(format!("{}{suffix}", display_number(n, cell.places, &ctx.locale.conventions())));
     } else if let (Some(p), Some(currency)) = (&cell.price, &cell.currency) {
-        cell.display = Some(display_price(p, &ctx.commodity(&currency.0, &format!("{path}.currency"))?));
+        let currency = ctx.commodity(&currency.0, &format!("{path}.currency"))?;
+        cell.display = Some(display_price(p, &currency, &ctx.locale.conventions()));
     } else if let Some(t) = cell.date {
         let day = ctx.zone.local_date(t.0).ok_or_else(|| ResultError::new(format!("{path}.date"), "outside the supported range"))?;
-        (cell.local_date, cell.display) = (Some(day.to_file_string()), Some(ctx.date_format.print(day)));
+        (cell.local_date, cell.display) = (Some(day.to_file_string()), Some(ctx.print_date(day)));
     } else if let Some(lines) = &mut cell.commodities {
         lines.iter_mut().enumerate().try_for_each(|(i, l)| fill_line(l, &format!("{path}.commodities[{i}]"), ctx))?;
     }
@@ -129,12 +138,13 @@ fn fill_chart(chart: &mut Chart, path: &str, ctx: &DisplayContext<'_>) -> Fill {
 /// How a hover label shows a value of `axis`: the display form of section 3 for `currency`, two decimals and `%` for
 /// `percent`, the exact decimal for `number`.
 fn value_formatter(axis: &Axis, path: &str, ctx: &DisplayContext<'_>) -> Result<Show, ResultError> {
+    let conv = ctx.locale.conventions();
     Ok(match (axis.format.unwrap_or_default(), &axis.commodity) {
         (AxisFormat::Currency, Some(c)) => {
             let format = ctx.commodity(&c.0, path)?;
-            Box::new(move |v| display_monetary(v, &format).display)
+            Box::new(move |v| display_monetary(v, &format, &conv).display)
         }
-        (AxisFormat::Percent, _) => Box::new(|v| format!("{}%", display_number(v, 2))),
-        (AxisFormat::Number | AxisFormat::Currency, _) => Box::new(display_exact),
+        (AxisFormat::Percent, _) => Box::new(move |v| format!("{}%", display_number(v, Some(2), &conv))),
+        (AxisFormat::Number | AxisFormat::Currency, _) => Box::new(move |v| display_exact(v, &conv)),
     })
 }

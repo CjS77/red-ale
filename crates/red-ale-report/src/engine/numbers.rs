@@ -4,6 +4,7 @@
 use std::rc::Rc;
 
 use red_ale_core::ops::commodities::lookup;
+use red_ale_locale::Conventions;
 use rhai::{Dynamic, Engine, EvalAltResult, INT, Position};
 
 use crate::number::{CommodityFormat, Monetary, NumberError, Rational, Rounding, SizeCap, fixed};
@@ -24,11 +25,11 @@ fn arithmetic(e: NumberError) -> Box<EvalAltResult> {
 }
 
 /// Register `Rational` and `Monetary`. Arithmetic is checked against `cap`; `snap` gives commodities their SCU and
-/// symbol.
-pub(crate) fn register(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap) {
+/// symbol, and `conv` is the Locale's number format for `m.to_string()`.
+pub(crate) fn register(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap, conv: Conventions) {
     rational(engine, cap);
     rational_operators(engine, cap);
-    monetary(engine, snap, cap);
+    monetary(engine, snap, cap, conv);
 }
 
 fn rational(engine: &mut Engine, cap: SizeCap) {
@@ -103,7 +104,7 @@ fn rational_operators(engine: &mut Engine, cap: SizeCap) {
     });
 }
 
-fn monetary(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap) {
+fn monetary(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap, conv: Conventions) {
     engine.register_type_with_name::<Monetary>("Monetary");
     let book = BookHandle(Rc::clone(snap));
     let s = Rc::clone(snap);
@@ -125,7 +126,7 @@ fn monetary(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap) {
     let s = Rc::clone(snap);
     engine.register_fn("to_string", move |m: &mut Monetary| -> Fallible<String> {
         let format = CommodityFormat::from_book(s.book(), &m.commodity).ok_or_else(|| unknown(m))?;
-        Ok(m.to_display_string(&format))
+        Ok(m.to_display_string(&format, &conv))
     });
     engine.register_fn("to_debug", |m: &mut Monetary| format!("monetary(\"{}\", \"{}\")", m.commodity, m.amount));
 }

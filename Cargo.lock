@@ -1800,6 +1800,7 @@ dependencies = [
  "num-traits",
  "proptest",
  "red-ale-core",
+ "red-ale-locale",
  "red-ale-xml",
  "rhai",
  "schemars",
