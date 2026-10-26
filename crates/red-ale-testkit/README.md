@@ -16,6 +16,11 @@ that promise is tested.
   and prints what GnuCash sees as JSON. `model::dump` prints red-ale's view in the same form, and `diff` lists the
   differences. Every oracle call first checks that it is talking to GnuCash 5.17 exactly, never the system's GnuCash.
 
+- **Synthetic books and memory.** `synthetic` builds books of any size in GnuCash 5.17's format, and `memory`
+  measures the heap through `book.open`, `transaction.post` and `book.save`. The `memory` example prints those
+  figures for a large book; `tests/memory_budget.rs` holds the budgets of
+  [`design/milestone3.md`](../../design/milestone3.md) ("Memory and scale").
+
 ## Where it fits
 
 This crate supports testing only, and red-ale never ships it. It depends on all the library crates, and the
