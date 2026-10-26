@@ -410,3 +410,87 @@ fn a_read_only_book_previews_but_does_not_apply() {
     let p = d.call("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": bank_layout() })).unwrap();
     assert_eq!(d.call("import.apply", json!({ "proposal": p["id"] })).unwrap_err().code, codes::READ_ONLY);
 }
+
+/// What a transaction is, for comparing two books: date, number, description and each split's account, value and
+/// memo, in account order.
+fn shape(b: &mut Book) -> Vec<Value> {
+    let names: Vec<(String, String)> = ["Assets:Checking", "Expenses:Groceries", "Expenses:Rent", "Income:Salary"].iter().map(|n| (b.guid(n), (*n).to_owned())).collect();
+    let mut out: Vec<Value> = b
+        .transactions()
+        .iter()
+        .map(|t| {
+            let full = b.ok("transaction.get", json!({ "guid": t["guid"] }));
+            let mut splits: Vec<Value> = full["splits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|s| {
+                    let account = names.iter().find(|(g, _)| s["account"] == g.as_str()).map(|(_, n)| n.clone());
+                    json!({ "account": account, "value": s["value"], "memo": s["memo"] })
+                })
+                .collect();
+            splits.sort_by_key(|s| s.to_string());
+            json!({ "date": full["datePosted"], "num": full["num"], "description": full["description"], "splits": splits })
+        })
+        .collect();
+    out.sort_by_key(|t| t.to_string());
+    out
+}
+
+/// A file exported as CSV imports back to the same transactions (`design/milestone3.md`, "Done when"), read with
+/// GnuCash's export layout and the C locale's export date format.
+#[test]
+fn a_csv_export_imports_back_to_the_same_transactions() {
+    let mut a = Book::new();
+    let post = |b: &mut Book, date: &str, num: &str, desc: &str, splits: Value| {
+        b.ok("transaction.post", json!({ "datePosted": date, "num": num, "description": desc, "splits": splits }));
+    };
+    post(&mut a, "2024-03-01", "", "Corner, Grocer", json!([{ "account": "Assets:Checking", "value": "-45.10" }, { "account": "Expenses:Groceries", "value": "45.10", "memo": "fruit \"fresh\"" }]));
+    post(&mut a, "2024-03-02", "7", "Rent", json!([{ "account": "Assets:Checking", "value": "-950.00" }, { "account": "Expenses:Rent", "value": "950.00" }]));
+    post(&mut a, "2024-03-05", "", "Salary and shop", json!([
+        { "account": "Assets:Checking", "value": "1980.00" }, { "account": "Income:Salary", "value": "-2000.00" }, { "account": "Expenses:Groceries", "value": "20.00" }]));
+    let csv = a.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"].as_str().unwrap().to_owned();
+    let mut layout = serde_json::to_value(red_ale_import::csv::TxLayout::gnucash_export()).unwrap();
+    layout["dateFormat"] = json!("m-d-y");
+    let mut b = Book::new();
+    let p = b.preview(&csv, layout);
+    assert_eq!(p["errors"], json!([]), "{csv}");
+    assert_eq!(p["summary"]["imbalanced"], 0);
+    b.ok("import.apply", json!({ "proposal": p["id"] }));
+    let expected = shape(&mut a);
+    let text = serde_json::to_string(&expected).unwrap();
+    assert!(text.contains("fruit \\\"fresh\\\"") && text.contains("\"num\":\"7\"") && text.contains("2024-03-05"), "{text}");
+    assert_eq!(shape(&mut b), expected);
+}
+
+/// Single-line mode with a Transfer Account builds both splits (`gnc-imp-props-tx.cpp:801-845`); accounts in two
+/// currencies need a price, value or transfer amount column (`gnc-import-tx.cpp:542-556`).
+#[test]
+fn transfer_accounts_and_the_multi_currency_checks() {
+    let mut b = Book::new();
+    let layout = json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Account", "Amount", "Transfer Account", "Memo", "Transfer Memo"] });
+    let file = "h\n2024-03-01,Shop,Assets:Checking,-12.00,Expenses:Groceries,card,basket\n";
+    let p = b.preview(file, layout.clone());
+    let t = &p["transactions"][0];
+    assert_eq!(t["splits"].as_array().unwrap().len(), 2);
+    assert_eq!((t["splits"][1]["accountName"].clone(), t["splits"][1]["value"].clone()), (json!("Expenses:Groceries"), usd("1200")));
+    assert_eq!((t["splits"][0]["memo"].clone(), t["splits"][1]["memo"].clone()), (json!("card"), json!("basket")));
+    assert!(t["other"].is_null() && t["imbalance"].is_null());
+
+    b.ok("account.create", json!({ "name": "Euro", "type": "BANK", "commodity": "EUR", "parent": "Assets" }));
+    // GnuCash counts only the Account column's currencies, so this is not multi-currency to it: the transfer split
+    // has no amount, goes to the matcher, and is added at a rate of 1 with a warning.
+    let euro = "h\n2024-03-01,Shop,Assets:Euro,-12.00,Expenses:Groceries,,\n";
+    let p = b.preview(euro, layout);
+    assert_eq!(p["transactions"][0]["other"]["from"], "file");
+    assert_eq!(p["transactions"][0]["warnings"][0]["code"], "missing-rate");
+    let multi = json!({ "skipStartLines": 1, "multiSplit": true, "columns": ["Date", "Description", "Account", "Amount"] });
+    let file = "h\n2024-03-01,Shop,Assets:Euro,-12.00\n,,Expenses:Groceries,13.00\n";
+    let e = b.err("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": file }], "layout": multi }));
+    assert_eq!((e.code, e.data.unwrap()["reason"].clone()), (codes::IMPORT_FILE, json!("columns")));
+    let layout = json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Account", "Amount", "Transfer Account", "Transfer Amount"] });
+    let p = b.preview("h\n2024-03-01,Shop,Assets:Euro,-10.00,Expenses:Groceries,11.00\n", layout);
+    let t = &p["transactions"][0];
+    assert_eq!(t["currency"], "CURRENCY::EUR");
+    assert_eq!((t["splits"][1]["value"].clone(), t["splits"][1]["amount"].clone()), (usd("1000"), usd("1100")));
+}
