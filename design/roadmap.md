@@ -301,13 +301,15 @@ The Dashboard (`standard/dashboard.scm`) is a preset multicolumn report of repor
 
 Known gaps in v0.2, each documented where it happens, to close in v0.3 or record as deviations:
 
-- The balance-limit check leaves out sub-accounts in other commodities; GnuCash converts them at the latest price
-  ([`api/accounts.md`](api/accounts.md)).
+- ✅ The balance-limit check left out sub-accounts in other commodities; it now converts them at the latest price as
+  GnuCash does ([`api/accounts.md`](api/accounts.md)). Closed in v0.3.
 - GnuCash's business lot scrub is not ported as an operation; tests only check that GnuCash's scrub finds nothing to
-  fix in what red-ale writes ([`api/business-posting.md`](api/business-posting.md)).
+  fix in what red-ale writes ([`api/business-posting.md`](api/business-posting.md)). Decided in v0.3: it stays so,
+  since business import never runs it; it waits for Check & Repair of books from older GnuCash versions.
 - Day boundaries follow zone files exactly, where GnuCash approximates daylight saving with one rule per year
-  ([`api.md`](api.md)). Stored dates are unaffected.
-- Nothing pins the API as additive. At the end of v0.2, comparing the v0.1 and v0.2 `api.schema` documents found all
+  ([`api.md`](api.md)). Stored dates are unaffected. Decided in v0.3: kept as a deviation, with the reason in `api.md`.
+- ✅ Nothing pinned the API as additive (closed in v0.3: `red-ale-rpc/tests/api_additive.rs` checks `api.schema`
+  against the committed 0.2.0 document). At the end of v0.2, comparing the v0.1 and v0.2 `api.schema` documents found all
   117 v0.1 methods kept, with their Effects, params, results and error codes, and 29 added; that check was a script,
   not a test. A test against a committed 0.2 schema should keep each later 0.x version additive until v1.0 freezes
   the API.
@@ -315,4 +317,6 @@ Known gaps in v0.2, each documented where it happens, to close in v0.3 or record
   imported module cannot be called once returned, and a module's methods cannot make closures
   ([`../crates/red-ale-report/README.md`](../crates/red-ale-report/README.md), "Conventions a translator needs").
   The 39 open rows of `features.md` §8 build on the same library from v0.4 on, so settle first whether these are
-  Rhai bugs to report and fix upstream or limits of how the engine sets up modules.
+  Rhai bugs to report and fix upstream or limits of how the engine sets up modules. Settled in v0.3: both are Rhai
+  bugs, reproduced on a bare engine with Rhai's own resolver (`red-ale-report/tests/rhai_closure_limits.rs`); the
+  conventions stay until a Rhai release fixes them.

@@ -162,9 +162,47 @@ pub fn remove_old_files(book: &Path, retention: Retention, keep: Option<&Path>) 
         .collect()
 }
 
+/// Replace a small file of red-ale's own, such as the Configuration, with no backup: write a temporary file beside it,
+/// sync it and rename it into place, so the file is whole before and after, never half written. An existing file
+/// keeps its mode; a new one is readable by its owner only, since the Configuration can hold keys.
+pub fn replace_private_file(path: &Path, bytes: &[u8]) -> Result<(), ServiceError> {
+    let mode = fs::metadata(path).map_or(0o600, |m| m.mode() & 0o7777);
+    let tmp = temp_path(path);
+    let written = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(mode)
+        .open(&tmp)
+        .and_then(|mut file| file.write_all(bytes).and_then(|()| file.sync_all()))
+        .and_then(|()| fs::set_permissions(&tmp, fs::Permissions::from_mode(mode)))
+        .and_then(|()| fs::rename(&tmp, path));
+    if written.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    written.map_err(io_err(path))?;
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        // Persist the rename where the platform allows; a failure here is not fatal.
+        let _ = File::open(dir).and_then(|d| d.sync_all());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn private_files_are_replaced_whole_and_keep_their_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("red-ale.json");
+        replace_private_file(&file, b"{}").unwrap();
+        assert_eq!(fs::metadata(&file).unwrap().mode() & 0o777, 0o600, "a new file is the owner's only");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o640)).unwrap();
+        replace_private_file(&file, b"{\"a\": 1}").unwrap();
+        assert_eq!(fs::read(&file).unwrap(), b"{\"a\": 1}");
+        assert_eq!(fs::metadata(&file).unwrap().mode() & 0o777, 0o640);
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1, "no temporary file is left");
+    }
 
     #[test]
     fn save_backs_up_and_replaces() {

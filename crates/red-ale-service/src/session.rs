@@ -193,7 +193,13 @@ impl Session {
         }
         let lock = if read_only { None } else { Some(BookLock::acquire(&path)?) };
         // Re-read under the lock so no other writer can have changed the file in between.
-        let bytes = if lock.is_some() { std::fs::read(&path).map_err(|e| ServiceError::Io { path: path.clone(), source: e })? } else { bytes };
+        let bytes = match lock {
+            Some(_) => {
+                drop(bytes);
+                std::fs::read(&path).map_err(|e| ServiceError::Io { path: path.clone(), source: e })?
+            }
+            None => bytes,
+        };
         let (book, residue) = read_book(&bytes).map_err(|e| ServiceError::Xml { path: path.clone(), source: e })?;
         let mut reasons = read_only_triggers(&book, &residue);
         if read_only {
@@ -327,7 +333,10 @@ impl Session {
         if let Some(difference) = first_difference(&self.book, &reread) {
             return Err(ServiceError::Verification { detail: difference });
         }
+        drop(reread);
         let backup = write_book_file(&self.path, &bytes)?;
+        // The re-read Book equals this one, so the Residue compares against this one's entities and holds no copy.
+        residue.mark_saved(&self.book);
         residue.notices = self.residue.notices.clone();
         self.residue = residue;
         self.dirty = false;

@@ -174,7 +174,14 @@ Out of scope:
 - **The business scrub** (`gncScrubBusinessAccount`, `5.17:libgnucash/engine/ScrubBusiness.c:467-762`): it repairs
   books damaged by older GnuCash versions (double-posted documents, superfluous lot links, dangling payments). red-ale
   never writes what it repairs: the oracle tests run 5.17's scrub on the books red-ale wrote and find nothing to
-  change. It belongs with Check & Repair ([`scrub.md`](scrub.md)) and needs its own ticket.
+  change. It belongs with Check & Repair ([`scrub.md`](scrub.md)).
+
+  Decided for v0.3: it stays out, with the oracle check only. Business import (`5.17:gnucash/import-export/bi-import/`)
+  posts with `gncInvoicePostToAccount` alone (`dialog-bi-import.c:883-886`) and never scrubs; neither does posting
+  (`gncInvoice.c`, `gncOwner.c` merge only a lot's sub-splits, `gncOwner.c:1211-1212`). GnuCash runs the business
+  scrub only from its GUI: Check & Repair on an account (`gnc-plugin-page-account-tree.cpp:1965`) or a register
+  (`gnc-plugin-page-register.cpp:3558-3559`) and the lot viewer (`dialog-lot-viewer.c:811-821`). Porting it waits
+  for a feature that needs it: Check & Repair of books written by older GnuCash versions.
 - Printing a check, and remembering the last transfer account (the owner's `payment/last_acct` slot,
   `5.17:gnucash/gnome/dialog-payment.c:718-733`): GUI conveniences, like `last-posted-to-acct`.
 

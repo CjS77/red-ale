@@ -91,14 +91,36 @@ transactions, and bulk import makes it worse. The three changes, none of which c
 
 | Status | Change                                      | Notes                                                                                                       |
 |:------:|---------------------------------------------|-------------------------------------------------------------------------------------------------------------|
-|        | Keep raw text only where it is needed       | The Residue keeps an entity's original text only where its regenerated form differs                        |
+|   ✅   | Keep raw text only where it is needed       | The Residue keeps an entity's original text only where its regenerated form differs                        |
 |        | Parse as a stream                           | `read_book` translates from `quick-xml` events, as GnuCash's SAX parser does (`5.17:libgnucash/backend/xml/sixtp.cpp`) |
 |        | Stream the save and its check               | Write through gzip to the temporary file; compare what is read back entity by entity, as it is parsed       |
 |        | Mutations cost what they touch (*Proposed*) | See "Decide before code", item 1                                                                            |
 
-Budgets (*Proposed*, to be fixed in the first ticket from measurements): on the 100,000-transaction synthetic book,
-red-ale at rest within twice GnuCash 5.17's 188 MB, and peaks at open and at save within three times. A test holds
-each budget on a smaller fixed-size book, so CI notices a regression.
+**Budgets** (fixed from the measurements below): on the 100,000-transaction synthetic book, red-ale at rest within
+twice GnuCash 5.17's 188 MB (376 MB), and peaks at open and at save within three times (564 MB). The synthetic book's
+plain file is 155.6 MB, so the budgets are 2.41 and 3.62 times the file's size, and
+`crates/red-ale-testkit/tests/memory_budget.rs` holds them on a 5,000-transaction book of the same shape, counting
+the heap with a counting allocator so each run gives the same figures. At rest (after open and after save) and the
+peak of a post are held to the budgets now. The peaks of open and save are pinned at what is reached today (14.00 and
+15.60 times the file); the streaming parse and the streaming save each lower their figure, and the last of them sets
+both to 3.62.
+
+**Measured.** `crates/red-ale-testkit/examples/memory.rs` generates the synthetic book (`synthetic.rs`: 2,000
+accounts, transactions of two or three splits; GnuCash 5.17 saves it back byte for byte, `oracle_synthetic.rs`) and
+measures one process through `book.open`, `transaction.post` and `book.save`. Heap as the allocator counts it, on the
+100,000-transaction book (155.6 MB plain; the Book alone is 164.2 MB):
+
+| Step                                   | Open, at rest | Peak at open | Peak at post | Peak at save | After save | Peak RSS |
+|----------------------------------------|--------------:|-------------:|-------------:|-------------:|-----------:|---------:|
+| Before                                 |        674 MB |      2.70 GB |       679 MB |      3.26 GB |     833 MB |  3.87 GB |
+| Original text only where needed        |        169 MB |      2.20 GB |       174 MB |      2.26 GB |     329 MB |  2.61 GB |
+| One copy of the book after open, save  |        169 MB |      2.04 GB |       174 MB |      2.26 GB |     169 MB |  2.61 GB |
+| Budget                                 |        376 MB |       564 MB |       564 MB |       564 MB |     376 MB |          |
+
+GnuCash 5.17 holds 226 MB resident on the same book through its Python bindings, 186 MB above the interpreter alone.
+The second row is the Residue change; the third drops the first read of the file before the locked one is parsed, and
+records the session's own Book as the snapshot after a save instead of the re-read copy. What is left of the peaks is
+the parse's DOM of the whole file, and on save the text, the second Book and its DOM: the next two rows.
 
 If v0.3 runs long, this part ships alone as v0.3, and the rest follows as v0.3.x ([`roadmap.md`](roadmap.md)).
 
@@ -297,9 +319,9 @@ edited by hand in the file. v0.3 adds:
 
 | Status | Method          | Effect                | What it does                                                                                     |
 |:------:|-----------------|-----------------------|--------------------------------------------------------------------------------------------------|
-|        | `config.schema` | read                  | The Configuration's JSON Schema: every setting, its type, default and description                |
-|        | `config.get`    | read                  | The whole Configuration, or one setting by path; keys and other secrets shown only as set or unset |
-|        | `config.set`    | write (configuration) | Change one or more settings by path, validated against the schema; `null` restores a default     |
+|   ✅   | `config.schema` | read                  | The Configuration's JSON Schema: every setting, its type, default and description                |
+|   ✅   | `config.get`    | read                  | The whole Configuration, or one setting by path; keys and other secrets shown only as set or unset |
+|   ✅   | `config.set`    | write (configuration) | Change one or more settings by path, validated against the schema; `null` restores a default     |
 
 - **Atomic.** `config.set` validates every change before writing any, and writes the file through a temporary file and
   a rename, so a failed or interrupted call leaves the Configuration as it was.
@@ -362,12 +384,12 @@ Each is closed in v0.3 or recorded as a deviation ([`roadmap.md`](roadmap.md), "
 
 | Status | Gap                                                                  | Proposed                                                                     |
 |:------:|----------------------------------------------------------------------|------------------------------------------------------------------------------|
-|        | Balance-limit check leaves out sub-accounts in other commodities    | Close: convert at the latest price, as GnuCash does                          |
-|        | GnuCash's business lot scrub is not an operation                     | Close, if business import needs it; else keep the oracle check only          |
-|        | Day boundaries follow zone files exactly                             | Record as a deviation; stored dates are unaffected                           |
-|        | Nothing pins the API as additive                                     | Close: a test against a committed `redAleApi` 0.2.0 schema                   |
-|        | Two Rhai closure limits worked around by convention                  | Settle whether they are Rhai bugs to report upstream, before v0.4's reports  |
-|        | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Label it as 5.5's, or replace it with 5.17 output when a GUI build exists    |
+|   ✅   | Balance-limit check leaves out sub-accounts in other commodities    | Closed: converted at the latest price, as GnuCash does; checked by the oracle |
+|   ✅   | GnuCash's business lot scrub is not an operation                     | Decided: the oracle check only, as business import never scrubs ([`api/business-posting.md`](api/business-posting.md)) |
+|   ✅   | Day boundaries follow zone files exactly                             | Decided: a deviation, with its reason ([`api.md`](api.md), "Dates, times and the local time zone"); stored dates are unaffected |
+|   ✅   | Nothing pins the API as additive                                     | Closed: `red-ale-rpc/tests/api_additive.rs` against the committed 0.2.0 schema ([`api.md`](api.md), "Versioning") |
+|   ✅   | Two Rhai closure limits worked around by convention                  | Settled: both are Rhai bugs, reproduced without red-ale's resolver (`red-ale-report/tests/rhai_closure_limits.rs`); to report upstream, conventions kept until fixed |
+|   ✅   | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Labelled as 5.5's in [`../fixtures/README.md`](../fixtures/README.md); no 5.17 GUI build exists |
 
 ## Interfaces
 
@@ -434,7 +456,9 @@ Settled at the start of v0.3, so every piece of work starts from the same answer
 
 - **Mutation cost (item 1)** waits for the memory work's measurements, as planned. Until then an import is one
   Mutation and pays the clone once.
-- **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code.
+- **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code. **Done:**
+  the terms are in [`glossary.md`](glossary.md), "Import and export", with the clashes flagged, and the designs are
+  in [`api/import.md`](api/import.md), [`api/export.md`](api/export.md) and [`api/quotes.md`](api/quotes.md).
 - **The Import proposal is held by the server (item 3).** Proposals can hold a few years of statements, too much for
   an agent to send back whole and easy to change by accident. `import.preview` returns the proposal with an ID, and
   `import.apply` takes that ID with only the caller's changes (an action, a match or an account per transaction,

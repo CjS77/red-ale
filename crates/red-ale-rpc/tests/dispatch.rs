@@ -85,7 +85,7 @@ fn schema_lists_every_method_with_its_effect() {
 fn schema_lists_every_method_with_its_effect_target() {
     let schema = Dispatcher::new(Settings::default()).schema();
     let methods = schema["methods"].as_array().unwrap();
-    let configuration = ["period.set", "docLink.setPathHead"];
+    let configuration = ["period.set", "docLink.setPathHead", "config.set"];
     methods.iter().for_each(|m| {
         let name = m["name"].as_str().unwrap();
         let expected = match m["effect"].as_str().unwrap() {
