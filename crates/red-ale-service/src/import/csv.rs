@@ -94,13 +94,11 @@ fn matched(book: &Book, built: CsvBuild, choices: &Choices, threshold: Option<re
         .filter_map(|info| sources.get(info.index).map(|source| ProposedTransaction { source: *source, info }))
         .collect();
     Ok(Proposal {
-        format: Format::CsvTransactions,
-        settings: choices.settings.clone(),
-        threshold,
         ignored_lines: ignored,
         errors,
         warnings,
         transactions,
         csv: Some(CsvState { account_names }),
+        ..Proposal::empty(Format::CsvTransactions, choices.settings.clone(), threshold)
     })
 }

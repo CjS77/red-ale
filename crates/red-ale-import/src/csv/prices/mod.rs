@@ -96,23 +96,29 @@ pub struct Defaults {
 }
 
 impl Defaults {
-    /// Resolve the layout's unique names as GnuCash's preset loader does (`parse_commodity_price_comm (str, "")`,
-    /// `gnc-imp-settings-csv-price.cpp:131-145`); the To currency must be a currency, as its combo lists only those.
-    pub fn resolve(book: &Book, layout: &PriceLayout) -> Result<Self, String> {
-        let find = |name: &Option<String>, what: &str| {
-            name.as_deref().map(|n| parse_commodity(book, n, "").map_err(|_| format!("the layout's {what} {n:?} is not a commodity of the book"))).transpose()
+    /// Resolve the layout's commodities as GnuCash's preset loader does, by unique name (`parse_commodity_price_comm
+    /// (str, "")`, `gnc-imp-settings-csv-price.cpp:131-145`), and, as everywhere a red-ale param names a commodity, a
+    /// bare currency code. The To currency must be a currency, as its combo lists only those. An unknown commodity is
+    /// `NotFound`, where GnuCash's loader throws; a default beside the columns it stands for is `Invalid`.
+    pub fn resolve(book: &Book, layout: &PriceLayout) -> DomainResult<Self> {
+        let find = |name: &Option<String>| {
+            name.as_deref()
+                .map(|n| parse_commodity(book, n, red_ale_core::commodity::CURRENCY_NAMESPACE).map_err(|_| DomainError::not_found("commodity", &n)))
+                .transpose()
         };
-        let from = find(&layout.from_commodity, "fromCommodity")?;
-        let to = find(&layout.to_currency, "toCurrency")?;
+        let from = find(&layout.from_commodity)?;
+        let to = find(&layout.to_currency)?;
         if let Some(to) = to.as_ref().filter(|c| !c.is_currency()) {
-            return Err(format!("the layout's toCurrency {to} is not a currency"));
+            return Err(DomainError::invalid(format!("the layout's toCurrency {to} is not a currency")));
         }
         let has = |c: PriceColumn| layout.columns.contains(&c);
         if from.is_some() && (has(PriceColumn::FromSymbol) || has(PriceColumn::FromNamespace)) {
-            return Err("fromCommodity and the From Symbol and From Namespace columns exclude each other, as GnuCash clears one when the other is chosen".to_owned());
+            return Err(DomainError::invalid(
+                "fromCommodity and the From Symbol and From Namespace columns exclude each other, as GnuCash clears one when the other is chosen",
+            ));
         }
         if to.is_some() && has(PriceColumn::ToCurrency) {
-            return Err("toCurrency and the Currency To column exclude each other, as GnuCash clears one when the other is chosen".to_owned());
+            return Err(DomainError::invalid("toCurrency and the Currency To column exclude each other, as GnuCash clears one when the other is chosen"));
         }
         Ok(Self { from, to })
     }

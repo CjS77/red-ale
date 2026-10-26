@@ -52,7 +52,7 @@ impl Fx {
     /// Preview `text` with `layout` as the service does.
     fn propose(&self, layout: Value, text: &str, overwrite: bool) -> Result<Proposal, Vec<String>> {
         let layout: PriceLayout = serde_json::from_value::<PriceLayout>(layout).unwrap().sanitized();
-        let defaults = Defaults::resolve(&self.book, &layout).map_err(|e| vec![e])?;
+        let defaults = Defaults::resolve(&self.book, &layout).map_err(|e| vec![e.to_string()])?;
         let rows = tokenize(text, &layout.csv).unwrap();
         let ctx = PriceContext {
             date_format: layout.csv.date_format,
@@ -135,7 +135,9 @@ fn layout_and_column_problems_stop_the_import() {
     let e = f.propose(json!({ "fromCommodity": "NASDAQ::ACME", "columns": ["Date", "Amount", "From Symbol", "Currency To"] }), "x\n", false).unwrap_err();
     assert!(e[0].contains("exclude each other"), "{e:?}");
     let e = f.propose(json!({ "fromCommodity": "NASDAQ::NOPE", "columns": ["Date", "Amount"] }), "x\n", false).unwrap_err();
-    assert_eq!(e, ["the layout's fromCommodity \"NASDAQ::NOPE\" is not a commodity of the book"]);
+    assert_eq!(e, ["commodity NASDAQ::NOPE not found"]);
+    let layout = json!({ "fromCommodity": "NASDAQ::ACME", "toCurrency": "EUR", "columns": ["Date", "Amount"] });
+    assert_eq!(f.propose(layout, "2024-03-01,1\n", false).unwrap().prices[0].currency, eur(), "a bare currency code");
     let e = f.propose(json!({ "toCurrency": "NASDAQ::ACME", "columns": ["Date", "Amount"] }), "x\n", false).unwrap_err();
     assert_eq!(e, ["the layout's toCurrency NASDAQ::ACME is not a currency"]);
     let e = f.propose(json!({ "fromCommodity": "CURRENCY::USD", "toCurrency": "CURRENCY::USD", "columns": ["Date", "Amount"] }), "x,y\n", false).unwrap_err();
