@@ -28,11 +28,28 @@ pub struct Config {
     raw: Map<String, Value>,
 }
 
-fn invalid(message: impl Into<String>) -> ServiceError {
+pub(crate) fn invalid(message: impl Into<String>) -> ServiceError {
     ServiceError::Domain(DomainError::invalid(message))
 }
 
 impl Config {
+    /// The value under a top-level key.
+    pub(crate) fn get(&self, key: &str) -> Option<&Value> {
+        self.raw.get(key)
+    }
+
+    /// Change the object under a top-level key, made an object first if it is missing or is not one. Other keys
+    /// keep their place.
+    pub(crate) fn update_object(&mut self, key: &str, f: impl FnOnce(&mut Map<String, Value>)) {
+        let entry = self.raw.entry(key).or_insert_with(|| Value::Object(Map::new()));
+        if !entry.is_object() {
+            *entry = Value::Object(Map::new());
+        }
+        if let Value::Object(map) = entry {
+            f(map);
+        }
+    }
+
     /// Parse a configuration file's text.
     pub fn parse(text: &str) -> Result<Self, ServiceError> {
         match serde_json::from_str(text) {

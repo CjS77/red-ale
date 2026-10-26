@@ -9,6 +9,7 @@ pub mod files;
 pub mod journal;
 pub mod lock;
 pub mod replay;
+pub mod reports;
 pub mod session;
 pub mod zone;
 
