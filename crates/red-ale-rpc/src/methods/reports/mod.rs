@@ -396,7 +396,7 @@ fn name(name: &str, what: &str) -> Result<String, RpcError> {
     if name.trim().is_empty() { Err(RpcError::invalid_params(format!("a {what} needs a name"))) } else { Ok(name.to_owned()) }
 }
 
-/// A name already taken.
-fn taken(what: &str, name: &str) -> RpcError {
-    RpcError::new(codes::CONFLICT, format!("a {what} is already called {name:?}")).with_data(json!({ "kind": what, "name": name }))
+/// A name already taken by a `what`, whose errors have `data.kind` `kind`.
+fn taken(kind: &str, what: &str, name: &str) -> RpcError {
+    RpcError::new(codes::CONFLICT, format!("a {what} is already called {name:?}")).with_data(json!({ "kind": kind, "name": name }))
 }

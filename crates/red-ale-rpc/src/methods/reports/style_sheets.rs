@@ -20,6 +20,8 @@ use crate::error::RpcError;
 use crate::wire::NoParams;
 
 const WHAT: &str = "style sheet";
+/// The `data.kind` of its errors.
+const KIND: &str = "styleSheet";
 
 /// A style sheet template and the options its style sheets have, at their defaults.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -90,7 +92,7 @@ pub(super) fn create(ctx: &mut Context, p: CreateParams) -> Result<StyleSheetInf
     let mut records = config.style_sheets()?;
     let name = name(&p.name, WHAT)?;
     if style_sheets(&records)?.get(&name).is_some() {
-        return Err(taken(WHAT, &name));
+        return Err(taken(KIND, WHAT, &name));
     }
     let template = StyleSheetTemplate::from_name(&p.template).ok_or_else(|| RpcError::not_found("styleSheetTemplate", &p.template))?;
     let mut sheet = StyleSheet::new(name, template);
@@ -117,7 +119,7 @@ pub struct UpdateParams {
 pub(super) fn update(ctx: &mut Context, p: UpdateParams) -> Result<StyleSheetInfo, RpcError> {
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
-    let mut sheet = style_sheets(&records)?.get(&p.name).cloned().ok_or_else(|| RpcError::not_found(WHAT, &p.name))?;
+    let mut sheet = style_sheets(&records)?.get(&p.name).cloned().ok_or_else(|| RpcError::not_found(KIND, &p.name))?;
     sheet.apply(&p.options.0).map_err(ReportError::from)?;
     let previous = records.iter().rev().find(|r| r.name == p.name);
     let raw = merge(previous.map(|r| r.options.clone()).unwrap_or_default(), &p.options.0);
@@ -152,7 +154,7 @@ pub struct DeleteResult {
 pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
-    let sheet = style_sheets(&records)?.get(&p.name).cloned().ok_or_else(|| RpcError::not_found(WHAT, &p.name))?;
+    let sheet = style_sheets(&records)?.get(&p.name).cloned().ok_or_else(|| RpcError::not_found(KIND, &p.name))?;
     records.retain(|r| r.name != p.name);
     store(ctx, config, &records)?;
     Ok(DeleteResult { deleted: StyleSheetInfo::of(&sheet), reset: sheet.is_predefined() })

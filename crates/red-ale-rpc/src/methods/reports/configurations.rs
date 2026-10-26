@@ -13,6 +13,8 @@ use crate::dispatch::Context;
 use crate::error::RpcError;
 
 const WHAT: &str = "saved report configuration";
+/// The `data.kind` of its errors.
+const KIND: &str = "configuration";
 
 /// Params of `report.saveConfiguration`.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -70,7 +72,7 @@ pub(super) fn save(ctx: &mut Context, p: SaveParams) -> Result<ReportInfo, RpcEr
     let reports = Reports::load(ctx)?;
     let name = name(&p.name, WHAT)?;
     if reports.saved.iter().any(|s| s.name == name) {
-        return Err(taken(WHAT, &name));
+        return Err(taken(KIND, WHAT, &name));
     }
     let (saved, info) = ctx.query_any(|book, env| {
         let (template, base) = reports.resolve(reports.find(&p.report.0)?)?;
@@ -110,7 +112,7 @@ pub(super) fn rename(ctx: &mut Context, p: RenameParams) -> Result<ReportInfo, R
     let current = reports.configuration(&p.configuration.0)?;
     let name = name(&p.name, WHAT)?;
     if reports.saved.iter().any(|s| s.name == name && s.guid != current.guid) {
-        return Err(taken(WHAT, &name));
+        return Err(taken(KIND, WHAT, &name));
     }
     let renamed = SavedReport { name, ..current.clone() };
     let info = ReportInfo::saved(&renamed, reports.registry.template(renamed.template));
