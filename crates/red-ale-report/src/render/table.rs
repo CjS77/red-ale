@@ -2,9 +2,11 @@
 //! that many cell columns, GnuCash's staircase; a `commodities` cell becomes a small nested table; links become data
 //! attributes, never `href`s.
 
+use red_ale_locale::Conventions;
+
 use super::look::Look;
 use super::text::{escape, escape_lines};
-use crate::number::display_exact;
+use crate::number::{Rational, display_exact};
 use crate::result::{Align, Cell, CellContent, Column, ColumnRole, Row, RowRole, Table};
 
 /// The most staircase positions or spanned columns drawn, so a malformed result cannot blow up the page.
@@ -153,7 +155,7 @@ fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize)
     let class = classes.into_iter().flatten().collect::<Vec<_>>().join(" ");
     let depth = row.depth.filter(|d| *d > 0 && label_column).map(|d| format!(" style=\"--depth:{d}\"")).unwrap_or_default();
     let data = data_attributes(cell, look);
-    format!("<td class=\"{class}\"{}{depth}{data}>{}</td>", colspan(span), linked(cell, look, content_html(cell)))
+    format!("<td class=\"{class}\"{}{depth}{data}>{}</td>", colspan(span), linked(cell, look, content_html(cell, &look.numbers)))
 }
 
 fn data_attributes(cell: &Cell, look: &Look) -> String {
@@ -171,8 +173,9 @@ fn linked(cell: &Cell, look: &Look, html: String) -> String {
     if look.links && (cell.account.is_some() || cell.link.is_some()) { format!("<span class=\"link\">{html}</span>") } else { html }
 }
 
-fn content_html(cell: &Cell) -> String {
+fn content_html(cell: &Cell, numbers: &Conventions) -> String {
     let shown = |display: &Option<String>, exact: &dyn Fn() -> String| escape(&display.clone().unwrap_or_else(exact)).into_owned();
+    let display_exact = |v: &Rational| display_exact(v, numbers);
     match cell.content() {
         Some(CellContent::Text(text)) => escape_lines(text),
         Some(CellContent::Monetary(m)) => shown(&cell.display, &|| display_exact(&m.amount)),

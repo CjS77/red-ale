@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
 use red_ale_mcp::McpServer;
+use red_ale_rpc::Dispatcher;
 use red_ale_testkit::TempBook;
 use serde_json::{Map, Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, Lines, ReadHalf, WriteHalf};
@@ -20,9 +21,14 @@ struct Client {
 impl Client {
     /// Start a server over a fresh deterministic dispatcher and complete the handshake.
     async fn start() -> Self {
+        Self::start_with(red_ale_testkit::dispatcher()).await
+    }
+
+    /// Start a server over `dispatcher` and complete the handshake.
+    async fn start_with(dispatcher: Dispatcher) -> Self {
         let (ours, theirs) = tokio::io::duplex(1 << 16);
         let (server_in, server_out) = tokio::io::split(theirs);
-        let server = McpServer::new(Arc::new(Mutex::new(red_ale_testkit::dispatcher())));
+        let server = McpServer::new(Arc::new(Mutex::new(dispatcher)));
         tokio::spawn(server.serve(server_in, server_out));
         let (reader, writer) = tokio::io::split(ours);
         let mut client = Self { lines: BufReader::new(reader).lines(), writer, next_id: 0 };
@@ -179,4 +185,42 @@ async fn errors_are_tool_results_with_red_ales_error_object() {
 
     let unknown = client.request("tools/call", json!({ "name": "no.such.tool", "arguments": {} })).await;
     assert_eq!(unknown["error"]["code"], -32602, "an unknown tool is a protocol error: {unknown}");
+}
+
+/// Keys and the network switch are a person's to change: `config.set` through MCP refuses them and writes nothing,
+/// while a service's URL may change, which clears the key bound to the old host.
+#[tokio::test]
+async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
+    let mut dispatcher = red_ale_testkit::dispatcher();
+    dispatcher.call("config.set", json!({ "changes": { "quotes.services.alphavantage.key": "SECRET-AV" } })).unwrap();
+    let mut client = Client::start_with(dispatcher).await;
+    let refused = |result: &Value| {
+        assert_eq!(result["isError"], true, "{result}");
+        assert_eq!(result["structuredContent"]["error"]["name"], "conflict", "{result}");
+        result["structuredContent"]["error"]["data"].clone()
+    };
+
+    let network = client.call("config.set", json!({ "changes": { "quotes.network": true } })).await;
+    assert_eq!(refused(&network), json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"] }));
+    let key = client.call("config.set", json!({ "changes": { "quotes.services.finnhub.key": "MINE", "locale": "environment" } })).await;
+    assert_eq!(refused(&key)["paths"], json!(["quotes.services.finnhub.key"]));
+    let clear = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage.key": null } })).await;
+    assert_eq!(refused(&clear)["paths"], json!(["quotes.services.alphavantage.key"]), "clearing a key is a change too");
+    let whole = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage": { "securityUrl": "https://www.alphavantage.co/x", "format": "alphavantage" } } })).await;
+    assert_eq!(refused(&whole)["paths"], json!(["quotes.services.alphavantage.key"]), "replacing a service drops its key");
+
+    let got = client.call("config.get", json!({})).await;
+    let value = &got["structuredContent"]["value"];
+    assert_eq!(value["quotes"]["network"], false);
+    assert_eq!(value["locale"], "C", "a refused call writes nothing");
+    assert_eq!(value["quotes"]["services"]["alphavantage"]["key"], json!({ "set": true }));
+    assert!(!got.to_string().contains("SECRET-AV"), "no key in any result");
+
+    let moved = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage.securityUrl": "https://evil.example/q?k={key}" } })).await;
+    assert_eq!(moved["isError"], false, "{moved}");
+    assert_eq!(moved["structuredContent"]["clearedKeys"], json!(["quotes.services.alphavantage.key"]));
+    let key = client.call("config.get", json!({ "path": "quotes.services.alphavantage.key" })).await;
+    assert_eq!(key["structuredContent"]["value"], json!({ "set": false }));
+    let ok = client.call("config.set", json!({ "changes": { "quotes.network": false, "import.settings.useBayes": false } })).await;
+    assert_eq!(ok["isError"], false, "setting the switch to what it is changes nothing: {ok}");
 }

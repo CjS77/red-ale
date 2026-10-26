@@ -95,28 +95,43 @@ fn temp_path(book: &Path) -> PathBuf {
     with_suffix(book, &format!(".tmp-{tail}"))
 }
 
-/// Write `bytes` to `book`: back up the old file, write a temporary file beside it, copy the old file's mode and
-/// group, and atomically rename it into place.
-pub fn write_book_file(book: &Path, bytes: &[u8]) -> Result<Option<PathBuf>, ServiceError> {
+/// Replace `book` with a new file: `write` fills a temporary file beside it, which is synced to disk, then `check`
+/// reads it back. Only if both succeed is the old file backed up, the old file's mode and group copied, and the
+/// temporary file atomically renamed into place; otherwise the temporary file is removed and the book is untouched.
+/// Returns the backup's path (`None` for a new book) and what `check` returned.
+pub fn replace_book_file<T>(
+    book: &Path,
+    write: impl FnOnce(&mut File) -> Result<(), ServiceError>,
+    check: impl FnOnce(&Path) -> Result<T, ServiceError>,
+) -> Result<(Option<PathBuf>, T), ServiceError> {
     let old_meta = fs::metadata(book).ok();
-    let backup = backup(book)?;
     let tmp = temp_path(book);
-    let result = write_temp(&tmp, bytes, old_meta.as_ref()).and_then(|()| fs::rename(&tmp, book).map_err(io_err(book)));
+    let result = write_temp(&tmp, write)
+        .and_then(|()| check(&tmp))
+        .and_then(|checked| Ok((backup(book)?, checked)))
+        .and_then(|done| {
+            keep_owner(&tmp, old_meta.as_ref())?;
+            fs::rename(&tmp, book).map_err(io_err(book))?;
+            Ok(done)
+        });
     if result.is_err() {
         let _ = fs::remove_file(&tmp);
     }
-    result?;
+    let done = result?;
     if let Some(dir) = book.parent().filter(|d| !d.as_os_str().is_empty()) {
         // Persist the rename. Directories cannot be fsynced on every platform; a failure here is not fatal.
         let _ = File::open(dir).and_then(|d| d.sync_all());
     }
-    Ok(backup)
+    Ok(done)
 }
 
-fn write_temp(tmp: &Path, bytes: &[u8], old: Option<&fs::Metadata>) -> Result<(), ServiceError> {
+fn write_temp(tmp: &Path, write: impl FnOnce(&mut File) -> Result<(), ServiceError>) -> Result<(), ServiceError> {
     let mut file = OpenOptions::new().write(true).create_new(true).mode(0o666).open(tmp).map_err(io_err(tmp))?;
-    file.write_all(bytes).map_err(io_err(tmp))?;
-    file.sync_all().map_err(io_err(tmp))?;
+    write(&mut file)?;
+    file.sync_all().map_err(io_err(tmp))
+}
+
+fn keep_owner(tmp: &Path, old: Option<&fs::Metadata>) -> Result<(), ServiceError> {
     if let Some(meta) = old {
         fs::set_permissions(tmp, fs::Permissions::from_mode(meta.mode() & 0o7777)).map_err(io_err(tmp))?;
         // GnuCash copies the group only and ignores failures (`gnc-xml-backend.cpp:413-457`).
@@ -162,9 +177,75 @@ pub fn remove_old_files(book: &Path, retention: Retention, keep: Option<&Path>) 
         .collect()
 }
 
+/// Replace a small file of red-ale's own, such as the Configuration, with no backup: write a temporary file beside it,
+/// sync it and rename it into place, so the file is whole before and after, never half written. An existing file
+/// keeps its mode; a new one is readable by its owner only, since the Configuration can hold keys.
+pub fn replace_private_file(path: &Path, bytes: &[u8]) -> Result<(), ServiceError> {
+    let mode = fs::metadata(path).map_or(0o600, |m| m.mode() & 0o7777);
+    let tmp = temp_path(path);
+    let written = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(mode)
+        .open(&tmp)
+        .and_then(|mut file| file.write_all(bytes).and_then(|()| file.sync_all()))
+        .and_then(|()| fs::set_permissions(&tmp, fs::Permissions::from_mode(mode)))
+        .and_then(|()| fs::rename(&tmp, path));
+    if written.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    written.map_err(io_err(path))?;
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        // Persist the rename where the platform allows; a failure here is not fatal.
+        let _ = File::open(dir).and_then(|d| d.sync_all());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
     use super::*;
+
+    fn write_book_file(book: &Path, bytes: &[u8]) -> Result<Option<PathBuf>, ServiceError> {
+        replace_book_file(book, |f| f.write_all(bytes).map_err(io_err(book)), |_| Ok(())).map(|(backup, ())| backup)
+    }
+
+    fn temp_files(dir: &Path) -> Vec<fs::DirEntry> {
+        fs::read_dir(dir).unwrap().filter_map(Result::ok).filter(|e| e.file_name().to_string_lossy().contains(".tmp-")).collect()
+    }
+
+    #[test]
+    fn a_failed_check_leaves_the_book_alone() {
+        let dir = tempfile::tempdir().unwrap();
+        let book = dir.path().join("b.gnucash");
+        write_book_file(&book, b"one").unwrap();
+        let refused = replace_book_file(
+            &book,
+            |f| f.write_all(b"two").map_err(io_err(&book)),
+            |tmp| {
+                assert_eq!(fs::read(tmp).unwrap(), b"two", "the check reads what was written");
+                Err::<(), _>(ServiceError::Verification { detail: "test".into() })
+            },
+        );
+        assert!(matches!(refused, Err(ServiceError::Verification { .. })));
+        assert_eq!(fs::read(&book).unwrap(), b"one");
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1, "no backup and no temporary file");
+    }
+
+    #[test]
+    fn private_files_are_replaced_whole_and_keep_their_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("red-ale.json");
+        replace_private_file(&file, b"{}").unwrap();
+        assert_eq!(fs::metadata(&file).unwrap().mode() & 0o777, 0o600, "a new file is the owner's only");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o640)).unwrap();
+        replace_private_file(&file, b"{\"a\": 1}").unwrap();
+        assert_eq!(fs::read(&file).unwrap(), b"{\"a\": 1}");
+        assert_eq!(fs::metadata(&file).unwrap().mode() & 0o777, 0o640);
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1, "no temporary file is left");
+    }
 
     #[test]
     fn save_backs_up_and_replaces() {
@@ -176,8 +257,7 @@ mod tests {
         assert_eq!(fs::read(&backup).unwrap(), b"one");
         let third = write_book_file(&book, b"three").unwrap().unwrap();
         assert_ne!(backup, third, "a save in the same second waits for a fresh name");
-        let leftovers: Vec<_> = fs::read_dir(dir.path()).unwrap().filter_map(Result::ok).filter(|e| e.file_name().to_string_lossy().contains(".tmp-")).collect();
-        assert!(leftovers.is_empty());
+        assert!(temp_files(dir.path()).is_empty());
     }
 
     #[test]

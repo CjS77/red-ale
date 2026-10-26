@@ -8,8 +8,10 @@
 // Test support code may fail loudly: a broken fixture is a broken test.
 #![allow(clippy::missing_panics_doc, clippy::expect_used, clippy::panic)]
 
+pub mod memory;
 pub mod model;
 pub mod oracle;
+pub mod synthetic;
 
 use std::path::{Path, PathBuf};
 

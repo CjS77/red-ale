@@ -1,0 +1,104 @@
+D	1/2/03	(m-d-y d-m-y y-m-d y-d-m)	(2 1 2003)	(1 2 2003)	(3 2 2001)	(2 3 2001)
+D	12/31/1999	(m-d-y)	(31 12 1999)	#f	#f	#f
+D	31/12/99	(d-m-y)	#f	(31 12 1999)	#f	#f
+D	1999/12/31	(y-m-d)	#f	#f	(31 12 1999)	#f
+D	1/ 2' 4	(m-d-y d-m-y y-m-d y-d-m)	(2 1 2004)	(1 2 2004)	(4 2 2001)	(2 4 2001)
+D	03/25/099Share Withdrawal	(m-d-y)	(25 3 1999)	#f	#f	#f
+D	19790303	(y-m-d y-d-m)	#f	#f	(3 3 1979)	(3 3 1979)
+D	03121984	(m-d-y d-m-y)	(12 3 1984)	(3 12 1984)	#f	#f
+D	00110203	(m-d-y d-m-y)	#f	#f	(3 2 2011)	(2 3 2011)
+D	13/13/2000	()	#f	#f	#f	#f
+D	2/30/1931	(m-d-y)	(30 2 1931)	#f	#f	#f
+D	1/2/1930	()	(2 1 1930)	(1 2 1930)	#f	#f
+D	0/1/2	(y-m-d y-d-m)	#f	#f	(2 1 2000)	(1 2 2000)
+D	12-25-2000	(m-d-y)	(25 12 2000)	#f	#f	#f
+D	25.12.2000	(d-m-y)	#f	(25 12 2000)	#f	#f
+D	2000.12.25	(y-m-d)	#f	#f	(25 12 2000)	#f
+D	1'2'3	(m-d-y d-m-y y-m-d y-d-m)	(2 1 2003)	(1 2 2003)	(3 2 2001)	(2 3 2001)
+D	 7/ 4/76	(m-d-y d-m-y)	(4 7 1976)	(7 4 1976)	#f	#f
+D	123/4/5	(y-m-d y-d-m)	#f	#f	(5 4 2023)	(4 5 2023)
+D	4/123/5	()	#f	#f	#f	#f
+D	1/1/19100	(m-d-y d-m-y)	(1 1 2000)	(1 1 2000)	#f	#f
+D	1/1/102	(m-d-y d-m-y)	(1 1 2002)	(1 1 2002)	#f	#f
+D	1/1/1901	()	(1 1 3801)	(1 1 3801)	#f	#f
+D	1/1/49	(m-d-y d-m-y)	(1 1 2049)	(1 1 2049)	#f	#f
+D	1/1/50	(m-d-y d-m-y)	(1 1 1950)	(1 1 1950)	#f	#f
+D	12345678	()	#f	#f	#f	#f
+D	99999999	()	#f	#f	#f	#f
+D	1/2/3/4	(m-d-y d-m-y y-m-d y-d-m)	(2 1 2003)	(1 2 2003)	(3 2 2001)	(2 3 2001)
+D	1//2/3	none	#f	#f	#f	#f
+D	2024-02-29T10:00	(y-m-d)	#f	#f	(29 2 2024)	#f
+N	1,234.56	(decimal)	30864/25	3858/3125	0	0
+N	1.234,56	(comma)	3858/3125	30864/25	0	0
+N	1234	(decimal comma rational integer)	1234	1234	1234	1234
+N	-1234	(decimal comma rational integer)	-1234	-1234	-1234	-1234
+N	1234-	(decimal comma integer)	-1234	-1234	-1234	-1234
+N	$1,000	(decimal comma)	1000	1	0	0
+N	$-5.00	(decimal)	-5	-500	-5	-5
+N	-$5.00	(decimal)	-5	-500	-5	-5
+N	1'000.25	(decimal)	4001/4	100025	4001/4	4001/4
+N	1'000,25	(comma)	100025	4001/4	0	0
+N	.5	(decimal)	1/2	5	1/2	1/2
+N	5.	(decimal)	5	5	5	5
+N	.	(decimal)	0	0	0	0
+N		(decimal comma)	0	0	0	0
+N	 12.5	(decimal)	0	0	0	0
+N	12.5 	(decimal)	0	0	0	0
+N	1,5	(comma)	15	3/2	0	0
+N	1,50	(comma)	150	3/2	0	0
+N	1,500	(decimal comma)	1500	3/2	0	0
+N	1.500	(decimal comma)	3/2	1500	3/2	3/2
+N	1/2	(rational)	1/2	1/2	1/2	1/2
+N	7/4	(rational)	7/4	7/4	7/4	7/4
+N	-3/8	(rational)	-3/8	-3/8	-3/8	-3/8
+N	12 1/2	()	0	0	0	0
+N	+5	(decimal comma integer)	5	5	5	5
+N	5+	(decimal comma integer)	5	5	5	5
+N	1,23,456.7	()	1234567/10	0	0	0
+N	0.000	(decimal comma)	0	0	0	0
+N	00012.3400	(decimal)	617/50	123400	617/50	617/50
+N	1.2.3	()	0	123	0	0
+N	1,2,3	()	123	0	0	0
+N	abc	()	0	0	0	0
+N	1e5	()	100000	100000	100000	100000
+N	$	(decimal comma)	0	0	0	0
+N	-	(decimal comma)	0	0	0	0
+N	12,345,678.90	(decimal)	123456789/10	0	0	0
+N	12.345.678,90	(comma)	0	123456789/10	0	0
+N	999'999'999.99	(decimal)	99999999999/100	99999999999	99999999999/100	99999999999/100
+C	Food	("Food" #f "" #f #f #f)
+C	Food:Groceries	("Food:Groceries" #f "" #f #f #f)
+C	[Checking]	("Checking" #t "" #f #f #f)
+C	[Checking]/Biz	("Checking" #t "Biz" #f #f #f)
+C	Food/Biz	("Food" #f "Biz" #f #f #f)
+C	Food/Biz/Extra	("Food" #f "Biz/Extra" #f #f #f)
+C	Food|[Savings]	("Food" #f "" "Savings" #t "")
+C	Food/Biz|Misc/Cls	("Food" #f "Biz" "Misc" #f "Cls")
+C	[Check	("Check" #t "" #f #f #f)
+C	Food]x	("Food" #f "x" #f #f #f)
+C	  Food  	("Food  " #f "" #f #f #f)
+C	|x	("" #f "" "x" #f "")
+C	/	("" #f "" #f #f #f)
+C	[]	("" #t "" #f #f #f)
+C	[a]/b|[c]/d	("a" #t "b" "c" #t "d")
+C	a|b|c	("a" #f "" "b|c" #f "")
+C	a]]b	("a" #f "]b" #f #f #f)
+C	a/b]c	("a" #f "b]c" #f #f #f)
+C	[a/b]	("a" #t "b]" #f #f #f)
+C	 [Acct] 	("Acct" #t " " #f #f #f)
+C	Ünïcödé/Kläss	("Ünïcödé" #f "Kläss" #f #f #f)
+Y	1998	1998
+Y	' 0	2000
+Y	'04	2004
+Y	98	1998
+Y	48	2048
+Y	19134	2034
+Y	102	2002
+Y	0	2000
+Y	1901	3801
+Y	1902	1902
+Y	49	2049
+Y	50	1950
+Y	-5	1995
+Y	  7	2007
+Y	x	#f

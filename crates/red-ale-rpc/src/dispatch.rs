@@ -38,6 +38,17 @@ pub enum Target {
     Configuration,
 }
 
+/// The door a call came through. A few changes only a person may make are refused through MCP
+/// (`design/api/configuration.md`); every other method behaves the same whatever the door.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Origin {
+    /// The JSON-RPC API: the HTTP server, `red-ale call`, and `red-ale exec`, which runs methods in process.
+    #[default]
+    JsonRpc,
+    /// The MCP server, driven by an agent.
+    Mcp,
+}
+
 type Handler = Box<dyn Fn(&mut Context, Value) -> Result<Value, RpcError> + Send + Sync>;
 type SchemaFn = fn(&mut SchemaGenerator) -> Schema;
 
@@ -108,6 +119,7 @@ pub struct Context {
     /// Settings for new sessions.
     pub settings: Settings,
     env_factory: Option<EnvFactory>,
+    origin: Origin,
 }
 
 impl std::fmt::Debug for Context {
@@ -117,6 +129,11 @@ impl std::fmt::Debug for Context {
 }
 
 impl Context {
+    /// The door the call being run came through.
+    pub fn origin(&self) -> Origin {
+        self.origin
+    }
+
     /// The open session.
     pub fn session(&mut self) -> Result<&mut Session, RpcError> {
         self.session.as_mut().ok_or_else(|| ServiceError::NoSession.into())
@@ -208,7 +225,7 @@ impl Dispatcher {
     /// A dispatcher with every red-ale method and no book open.
     pub fn new(settings: Settings) -> Self {
         let methods = crate::methods::all().into_iter().map(|m| (m.name, m)).collect();
-        Self { ctx: Context { session: None, settings, env_factory: None }, methods }
+        Self { ctx: Context { session: None, settings, env_factory: None, origin: Origin::default() }, methods }
     }
 
     /// Use `factory` for the environment of every session opened from now on.
@@ -226,8 +243,14 @@ impl Dispatcher {
         self.methods.values()
     }
 
-    /// Call a method with by-name params.
+    /// Call a method with by-name params, through the JSON-RPC API.
     pub fn call(&mut self, name: &str, params: Value) -> Result<Value, RpcError> {
+        self.call_from(Origin::JsonRpc, name, params)
+    }
+
+    /// Call a method with by-name params, saying which door the call came through.
+    pub fn call_from(&mut self, origin: Origin, name: &str, params: Value) -> Result<Value, RpcError> {
+        self.ctx.origin = origin;
         if name == "api.schema" {
             return Ok(self.schema());
         }

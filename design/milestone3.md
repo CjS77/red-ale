@@ -91,14 +91,51 @@ transactions, and bulk import makes it worse. The three changes, none of which c
 
 | Status | Change                                      | Notes                                                                                                       |
 |:------:|---------------------------------------------|-------------------------------------------------------------------------------------------------------------|
-|        | Keep raw text only where it is needed       | The Residue keeps an entity's original text only where its regenerated form differs                        |
-|        | Parse as a stream                           | `read_book` translates from `quick-xml` events, as GnuCash's SAX parser does (`5.17:libgnucash/backend/xml/sixtp.cpp`) |
-|        | Stream the save and its check               | Write through gzip to the temporary file; compare what is read back entity by entity, as it is parsed       |
-|        | Mutations cost what they touch (*Proposed*) | See "Decide before code", item 1                                                                            |
+|   ✅   | Keep raw text only where it is needed       | The Residue keeps an entity's original text only where its regenerated form differs                        |
+|   ✅   | Parse as a stream                           | `read_book` translates from `quick-xml` events, as GnuCash's SAX parser does (`5.17:libgnucash/backend/xml/sixtp.cpp`) |
+|   ✅   | Stream the save and its check               | Write through gzip to the temporary file; compare what is read back entity by entity, as it is parsed       |
+|   ❌   | Mutations cost what they touch (*Proposed*) | Not needed: an import is one Mutation, which pays the fixed cost once. See "Decide before code", item 1     |
 
-Budgets (*Proposed*, to be fixed in the first ticket from measurements): on the 100,000-transaction synthetic book,
-red-ale at rest within twice GnuCash 5.17's 188 MB, and peaks at open and at save within three times. A test holds
-each budget on a smaller fixed-size book, so CI notices a regression.
+**Budgets** (fixed from the measurements below): on the 100,000-transaction synthetic book, red-ale at rest within
+twice GnuCash 5.17's 188 MB (376 MB), and peaks at open and at save within three times (564 MB). The synthetic book's
+plain file is 155.6 MB, so the budgets are 2.41 and 3.62 times the file's size, and
+`crates/red-ale-testkit/tests/memory_budget.rs` holds them on a 5,000-transaction book of the same shape, counting
+the heap with a counting allocator so each run gives the same figures. All five figures are held to the budgets: at
+rest after open and after save to 2.41 times the file, and the peaks of open, post and save to 3.62. On that book
+they are 1.09, 1.09, 1.47, 1.14 and 1.54 times the file; the 2,000 accounts weigh more there than on the large book.
+
+**Measured.** `crates/red-ale-testkit/examples/memory.rs` generates the synthetic book (`synthetic.rs`: 2,000
+accounts, transactions of two or three splits; GnuCash 5.17 saves it back byte for byte, `oracle_synthetic.rs`) and
+measures one process through `book.open`, `transaction.post` and `book.save`. Heap as the allocator counts it, on the
+100,000-transaction book (155.6 MB plain; the Book alone is 164.2 MB), in release mode:
+
+| Step                                   | Open, at rest | Peak at open | Peak at post | Peak at save | After save | Peak RSS |
+|----------------------------------------|--------------:|-------------:|-------------:|-------------:|-----------:|---------:|
+| Before                                 |        674 MB |      2.70 GB |       679 MB |      3.26 GB |     833 MB |  3.87 GB |
+| Original text only where needed        |        169 MB |      2.20 GB |       174 MB |      2.26 GB |     329 MB |  2.61 GB |
+| One copy of the book after open, save  |        169 MB |      2.04 GB |       174 MB |      2.26 GB |     169 MB |  2.61 GB |
+| Parse as a stream                      |        169 MB |       328 MB |       174 MB |       611 MB |     169 MB |   534 MB |
+| Stream the save and its check          |        169 MB |       173 MB |       174 MB |       178 MB |     169 MB |   201 MB |
+| Budget                                 |        376 MB |       564 MB |       564 MB |       564 MB |     376 MB |          |
+
+GnuCash 5.17 holds 226 MB resident on the same book through its Python bindings, 186 MB above the interpreter alone.
+The second row is the Residue change; the third drops the first read of the file before the locked one is parsed, and
+records the session's own Book as the snapshot after a save instead of the re-read copy. The fourth reads the file as
+a stream (`red_ale_xml::read_book_from`): gzip is undone, UTF-8 checked and line ends normalised as it is read, and
+each part of the book (each price of the price database) is built as a small DOM, translated and dropped. What was
+left at open was the file's bytes, read whole; at save, the file's text and a second Book read back from it. The fifth
+streams both: `Session::open` reads the file through a buffer, and `Session::save` writes through gzip straight to
+the temporary file (`write_book_to`), then reads that file back as a stream (`read_back`), comparing each entity with
+the session's Book as it is parsed and keeping no second Book. Nothing replaces the old file unless it reads back as
+the same Book, as before. Every peak is now within 10% of the open book, and red-ale's peak resident set is below
+GnuCash's.
+
+Neither change alters a byte red-ale writes. For every fixture, the 5,000-transaction synthetic book (also after a
+post) and the 100,000-transaction one, the plain and gzipped files `book.save` writes and the text written with and
+without originals are identical before and after. So are the results (errors, notices, read-only reasons, the files
+left beside the book) of opening and saving 32 malformed or unusual files, with one exception: a second root element
+after `gnc-v2` is now a syntax error ("content after the root element"), as libxml2 makes it, where the whole-file
+parse read the last root and reported no `gnc:book`.
 
 If v0.3 runs long, this part ships alone as v0.3, and the rest follows as v0.3.x ([`roadmap.md`](roadmap.md)).
 
@@ -297,9 +334,9 @@ edited by hand in the file. v0.3 adds:
 
 | Status | Method          | Effect                | What it does                                                                                     |
 |:------:|-----------------|-----------------------|--------------------------------------------------------------------------------------------------|
-|        | `config.schema` | read                  | The Configuration's JSON Schema: every setting, its type, default and description                |
-|        | `config.get`    | read                  | The whole Configuration, or one setting by path; keys and other secrets shown only as set or unset |
-|        | `config.set`    | write (configuration) | Change one or more settings by path, validated against the schema; `null` restores a default     |
+|   ✅   | `config.schema` | read                  | The Configuration's JSON Schema: every setting, its type, default and description                |
+|   ✅   | `config.get`    | read                  | The whole Configuration, or one setting by path; keys and other secrets shown only as set or unset |
+|   ✅   | `config.set`    | write (configuration) | Change one or more settings by path, validated against the schema; `null` restores a default     |
 
 - **Atomic.** `config.set` validates every change before writing any, and writes the file through a temporary file and
   a rename, so a failed or interrupted call leaves the Configuration as it was.
@@ -322,23 +359,33 @@ the first day of the week (`5.17:libgnucash/engine/gnc-date.cpp:195-215`), and d
 
 - **Where it is set:** a `locale` setting in the Configuration, a POSIX locale name such as `en_US` or `fr_FR`,
   default `C`. `report.run` and `report.export` take an optional `locale` param for one run. The value `environment`
-  follows `LC_ALL`, `LC_NUMERIC`, `LC_TIME` and `LANG` as GnuCash does, for users who want red-ale to print what their
-  GnuCash prints, as red-ale already takes the time zone from `TZ`.
+  follows `LC_ALL`, `LC_NUMERIC`, `LC_MONETARY`, `LC_TIME`, `LC_MESSAGES` and `LANG` as GnuCash does, one category
+  at a time, for users who want red-ale to print what their GnuCash prints, as red-ale already takes the time zone
+  from `TZ`.
 - **Where the data comes from:** glibc's locale definitions, not CLDR. GnuCash on Linux reads its number formats from
   `localeconv`, its date format from `nl_langinfo` and its day names from `strftime`, which are all glibc's data. CLDR
   differs from glibc in places (en_US short dates, for one), so CLDR would not match GnuCash. red-ale ships a table
   of the locales it supports, generated by a script from glibc's locale sources and committed, so builds don't depend
   on what locales a machine has installed. glibc's locale files carry a notice that the FSF claims no copyright in
-  the data; check that for each file the table uses. The one exception is the date interval in titles, which GnuCash
-  takes from ICU: that comes from ICU4X (`Unicode-3.0`, already allowed in `deny.toml`).
+  the data; check that for each file the table uses. The exceptions are what GnuCash takes from ICU, the date
+  interval in titles and the first day of the week (`gnc_start_of_week` calls ICU's `getFirstDayOfWeek`): those come
+  from ICU4X (`Unicode-3.0`, already allowed in `deny.toml`).
+
+*Done:* `red-ale-locale` holds 74 locales and C, generated by `scripts/gen-locales.py`, which follows `copy`
+directives, resolves `<Uxxxx>` escapes and refuses any file without the FSF notice. The set is, for each language
+GnuCash 5.17 ships a translation for, its main territories in glibc, plus common English, French, German, Spanish,
+Italian and Dutch variants. The first day of the week and date intervals come from ICU4X 2.4 (`icu_datetime`'s range
+formatter, behind its `unstable` feature and pinned exactly); its multi-day intervals matched ICU 74's, the oracle's,
+for every locale sampled ([`reports.md`](reports.md) §14 lists the differences). Under C, every existing output is
+unchanged, including `<from> to <to>` in titles.
 - **What clients see:** `config.schema` lists the supported locales as the setting's allowed values, so `api.schema`
   needs nothing new.
 
 | Status | Change                     | Notes                                                                                    |
 |:------:|----------------------------|------------------------------------------------------------------------------------------|
-|        | Locale setting             | `locale` in the Configuration, and an optional `locale` param on report runs             |
-|        | Locale data                | A committed table from glibc's locale sources; ICU4X for date intervals only             |
-|        | Number and date formats    | Every report renderer and `display` form follows the locale                              |
+|   ✅   | Locale setting             | `locale` in the Configuration, and an optional `locale` param on report runs             |
+|   ✅   | Locale data                | A committed table from glibc's locale sources; ICU4X for date intervals and week start   |
+|   ✅   | Number and date formats    | Every report renderer and `display` form follows the locale                              |
 |        | Day names in import tokens | The Bayesian day-of-week token in the locale's language (`import-backend.cpp:479`)       |
 |        | Locale collation           | Out of v0.3. Name sorting stays bytewise ([`reports.md`](reports.md) §14)               |
 
@@ -362,12 +409,12 @@ Each is closed in v0.3 or recorded as a deviation ([`roadmap.md`](roadmap.md), "
 
 | Status | Gap                                                                  | Proposed                                                                     |
 |:------:|----------------------------------------------------------------------|------------------------------------------------------------------------------|
-|        | Balance-limit check leaves out sub-accounts in other commodities    | Close: convert at the latest price, as GnuCash does                          |
-|        | GnuCash's business lot scrub is not an operation                     | Close, if business import needs it; else keep the oracle check only          |
-|        | Day boundaries follow zone files exactly                             | Record as a deviation; stored dates are unaffected                           |
-|        | Nothing pins the API as additive                                     | Close: a test against a committed `redAleApi` 0.2.0 schema                   |
-|        | Two Rhai closure limits worked around by convention                  | Settle whether they are Rhai bugs to report upstream, before v0.4's reports  |
-|        | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Label it as 5.5's, or replace it with 5.17 output when a GUI build exists    |
+|   ✅   | Balance-limit check leaves out sub-accounts in other commodities    | Closed: converted at the latest price, as GnuCash does; checked by the oracle |
+|   ✅   | GnuCash's business lot scrub is not an operation                     | Decided: the oracle check only, as business import never scrubs ([`api/business-posting.md`](api/business-posting.md)) |
+|   ✅   | Day boundaries follow zone files exactly                             | Decided: a deviation, with its reason ([`api.md`](api.md), "Dates, times and the local time zone"); stored dates are unaffected |
+|   ✅   | Nothing pins the API as additive                                     | Closed: `red-ale-rpc/tests/api_additive.rs` against the committed 0.2.0 schema ([`api.md`](api.md), "Versioning") |
+|   ✅   | Two Rhai closure limits worked around by convention                  | Settled: both are Rhai bugs, reproduced without red-ale's resolver (`red-ale-report/tests/rhai_closure_limits.rs`); to report upstream, conventions kept until fixed |
+|   ✅   | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Labelled as 5.5's in [`../fixtures/README.md`](../fixtures/README.md); no 5.17 GUI build exists |
 
 ## Interfaces
 
@@ -418,7 +465,7 @@ The oracle can't run GnuCash's importers: they are under `gnucash/`, which build
 1. **Mutation cost.** Each Mutation clones the entity maps and scans every transaction, 14 ms at 100,000
    transactions ([`roadmap.md`](roadmap.md)). An import is one Mutation, so it pays that once, which may be enough.
    Decide, from measurements after the memory work, whether Mutations also track what they change or use persistent
-   maps.
+   maps. **Decided** (below): one Mutation per import is enough.
 2. **Glossary.** New terms enter [`glossary.md`](glossary.md) before code: *Import proposal*, *Import action* (add,
    clear, update, skip), *Match score*, *Import map*, *Online ID*, *Import settings*, *Quote service*, *Quote fetch*,
    *Locale*. Flag the clashes: GnuCash's "update and clear" is one action; *clear* here is a split's reconcile state,
@@ -432,8 +479,30 @@ The oracle can't run GnuCash's importers: they are under `gnucash/`, which build
 
 Settled at the start of v0.3, so every piece of work starts from the same answers:
 
-- **Mutation cost (item 1)** waits for the memory work's measurements, as planned. Until then an import is one
-  Mutation and pays the clone once.
+- **Mutation cost (item 1): one Mutation per import is enough; Mutations neither track what they change nor use
+  persistent maps in v0.3.** Measured after the memory work with `crates/red-ale-testkit/examples/mutation_cost.rs`,
+  release mode, medians (the machine was shared, so single figures vary by a few milliseconds):
+
+  | Synthetic book                              | 100,000 transactions | 200,000 transactions |
+  |---------------------------------------------|---------------------:|---------------------:|
+  | `transaction.post`                          |              9–24 ms |                48 ms |
+  | A Mutation that changes nothing             |              8–28 ms |                48 ms |
+  | One Mutation adding 5,000 transactions      |             52–69 ms |                91 ms |
+  | of which the 5,000 edits themselves         |                13 ms |                13 ms |
+  | 500 Mutations adding one each               |  10.3 s (21 ms each) |  25.0 s (50 ms each) |
+  | Cloning the Book                            |               2.5 ms |               5.3 ms |
+  | Finding changed transactions by GUID        |                11 ms |                22 ms |
+  | Finding them by walking both maps in order  |              0.09 ms |              0.27 ms |
+
+  An import that is one Mutation pays the fixed cost once: 5,000 transactions take under a tenth of a second at
+  200,000, where 5,000 Mutations would take over four minutes. One call at a time, 10 to 50 ms is fine for a client.
+  The fixed cost is not the clone: it is `Session::try_mutate` finding changed transactions by looking each one up by
+  GUID. It makes two such passes (added or changed, then removed), each 22 ms at 200,000, so together they are most of
+  an empty Mutation's 48 ms. Walking the old and
+  new maps in order, falling back to lookups only where their keys stop lining up, finds the same changes a hundred
+  times faster, and would bring a Mutation down to about the cost of the clone (a few milliseconds at 200,000).
+  That is a small change in `session.rs`, proposed as its own ticket; it is not needed for import. Persistent maps
+  or change tracking would only remove the clone, which stays small until books reach millions of transactions.
 - **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code. **Done:**
   the terms are in [`glossary.md`](glossary.md), "Import and export", with the clashes flagged, and the designs are
   in [`api/import.md`](api/import.md), [`api/export.md`](api/export.md) and [`api/quotes.md`](api/quotes.md).

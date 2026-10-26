@@ -16,6 +16,7 @@ mod table;
 mod text;
 
 use red_ale_core::TimeZone;
+use red_ale_locale::Locale;
 
 pub use sheet::{
     DEFAULT_STYLE_SHEET, PREDEFINED, StyleSheet, StyleSheetEntry, StyleSheetError, StyleSheetTemplate, StyleSheets, check_css,
@@ -35,12 +36,14 @@ pub struct RenderContext<'a> {
     pub zone: &'a TimeZone,
     /// How dates print (`reports.dateFormat`).
     pub date_format: DateFormat,
+    /// The Locale the run's date and any figure without a display form follow.
+    pub locale: Locale,
 }
 
 /// The report as one HTML document, through `sheet`; `None` renders with the base look and no style-sheet options,
 /// as GnuCash renders a report whose style sheet no longer exists (`design/reports.md` §8).
 pub fn html(result: &ReportResult, sheet: Option<&StyleSheet>, ctx: &RenderContext<'_>) -> String {
-    let look = Look::of(sheet);
+    let look = Look { numbers: ctx.locale.conventions(), ..Look::of(sheet) };
     let heading = result.headline.as_deref().unwrap_or(&result.title);
     let template = look.template.map_or("none", |t| match t {
         StyleSheetTemplate::Plain => "plain",
@@ -117,7 +120,7 @@ fn run_date(result: &ReportResult, ctx: &RenderContext<'_>, time: bool) -> Strin
     let Some(local) = ctx.zone.to_local(t) else {
         return result.now.to_rfc3339().unwrap_or_default();
     };
-    let date = ctx.date_format.print(local.date);
+    let date = ctx.date_format.print(local.date, &ctx.locale);
     if !time {
         return date;
     }
@@ -142,7 +145,7 @@ fn block(b: &Block, path: &str, look: &Look) -> String {
             format!("<div class=\"warning\" role=\"note\"><h3>{}</h3><p>{}</p></div>", escape(&w.title), escape_lines(&w.text))
         }
         Block::Table(t) => format!("<div class=\"table-wrap\">\n{}\n</div>", table::table(t, look)),
-        Block::Chart(c) => format!("<figure class=\"chart\">\n{}\n</figure>", svg::chart(c, &format!("chart-{path}"))),
+        Block::Chart(c) => format!("<figure class=\"chart\">\n{}\n</figure>", svg::chart(c, &format!("chart-{path}"), look.numbers)),
         Block::Group(g) => {
             let inner: Vec<String> =
                 g.blocks.iter().enumerate().map(|(i, b)| format!("<div>\n{}\n</div>", block(b, &format!("{path}-{i}"), look))).collect();

@@ -161,7 +161,9 @@ impl Registry {
     fn templates_of(&self, name: &str) -> Declared {
         let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0));
         let log = Log::new(self.limits.get_usize(Limit::StringSize));
-        let engine = engine(&Setup { snap: Rc::clone(&snap), sources: Arc::clone(&self.sources), limits: self.limits, log: log.clone() });
+        let conventions = red_ale_locale::Locale::c().conventions();
+        let setup = Setup { snap: Rc::clone(&snap), sources: Arc::clone(&self.sources), limits: self.limits, log: log.clone(), conventions };
+        let engine = engine(&setup);
         let failure = |log: &Log| Failure { report: "", source: name, limits: &self.limits, log: log.entries() };
         let ast = self.compile(&engine, name).map_err(|e| self.internal_if_builtin(name, from_parse(&e, name, &failure(&log))))?;
         if !has_fn(&ast, "templates", 0) {

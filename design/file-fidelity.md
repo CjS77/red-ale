@@ -16,10 +16,13 @@ oracle's: GnuCash 5.17 must read red-ale's output and find the same data it find
 
 ## Three layers
 
-1. **DOM.** `dom::parse_document` reads the whole file into a small DOM. Character references are resolved;
-   formatting whitespace (whitespace-only text beside child elements) is dropped; text content is kept exactly. An
-   element written `<a></a>` keeps an empty text node and `<a/>` has none, because libxml2 serialises them
-   differently and GnuCash produces both.
+1. **DOM.** The file is read as a stream (gzip undone, UTF-8 checked and line ends normalised as it goes), and each
+   part of the book, one price of the price database or one other child of `gnc:book`, is built as a small DOM,
+   translated, and dropped, as GnuCash's SAX parser handles one part at a time (`5.17:libgnucash/backend/xml/sixtp.cpp`).
+   No DOM of the whole file and no copy of its text is held. Character references are resolved; formatting whitespace
+   (whitespace-only text beside child elements) is dropped; text content is kept exactly. An element written
+   `<a></a>` keeps an empty text node and `<a/>` has none, because libxml2 serialises them differently and GnuCash
+   produces both.
 2. **Serialiser.** `Element::dump` writes a DOM exactly as libxml2 2.9's `xmlElemDump` does with formatting on: two
    spaces per level, capped at 60; children indented only when none is text; markup characters escaped; non-ASCII and
    control characters (except tab and newline) as `&#xHH;` references with upper-case hex. The envelope (XML
@@ -34,8 +37,11 @@ The Backend returns, beside the `Book`, an `XmlResidue` the Session carries unto
 - **Layout:** every part of `gnc:book` in the order it was read: book id and slots, each commodity, the price
   database, each account, each transaction, out-of-scope sections, each business object. Unknown parts are kept as
   DOM in their place.
-- **Originals:** the DOM element each entity was read from, and the entity as read (an `Arc` clone of the Book read,
-  so this costs one pointer per entity).
+- **The Book as read:** an `Arc` clone of the Book read (or, after a save, of the Book saved), so this costs one
+  pointer per entity.
+- **Originals:** the text of each entity whose generated form differs from the element it was read from, and nothing
+  for the rest. Each entity is generated as it is read and compared with its element; accounts are compared once every
+  lot is read, since an account is written with its lots. A book GnuCash 5.17 wrote keeps no originals at all.
 - **Unknown children:** child elements of a known entity that the mapping did not consume, with the name of the known
   sibling they followed.
 - **Out-of-scope sections**, kept as DOM: `gnc:template-transactions`, `gnc:schedxaction`, `gnc:budget`, and any
@@ -46,10 +52,13 @@ The Backend returns, beside the `Book`, an `XmlResidue` the Session carries unto
 
 The writer walks the layout:
 
-- An entity that still exists and equals its original (`Arc::ptr_eq`, else `==`) is written from its **original DOM**.
-  An unedited book is therefore written from its own elements and cannot lose anything.
-- An entity that changed is **generated** from the model, as GnuCash 5.17's generator for that type would write it;
-  unknown children are re-inserted after the sibling they followed.
+- An entity that still exists, equals the entity as read (`Arc::ptr_eq`, else `==`) and has an original is written
+  from its **original text**. Every other entity, the unedited ones of a book GnuCash 5.17 wrote included, is
+  **generated** from the model, as GnuCash 5.17's generator for that type would write it, which for an unedited one
+  gives the bytes it was read as. An unedited book therefore cannot lose anything.
+- Unknown children of an entity make its generated form differ, so its original text keeps them. They are also
+  reported as unrecognised content, which opens the book read-only (`read_only_triggers`), so such an entity is never
+  regenerated.
 - A deleted entity is skipped. New entities are generated and appended at the end of their section; an empty section
   gets them at GnuCash's canonical position (commodities, price database, accounts, transactions, template
   transactions, scheduled transactions, budgets, then business objects in plugin registry order).

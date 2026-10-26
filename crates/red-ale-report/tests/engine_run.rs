@@ -274,6 +274,6 @@ fn options_read_the_default_report_currency() {
     let mut host = Host::new(fixture("balsheet-pnl.gnucash"));
     let reg = registry(&[("t.rhai", &script)]);
     assert_eq!(host.run(&reg, GUID, &json!({})).unwrap().title, "CURRENCY::USD");
-    host.settings.currency = red_ale_core::CommodityRef::currency("GBP");
+    host.settings.currency = Some(red_ale_core::CommodityRef::currency("GBP"));
     assert_eq!(host.run(&reg, GUID, &json!({})).unwrap().title, "CURRENCY::GBP");
 }

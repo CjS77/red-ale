@@ -11,13 +11,19 @@ GnuCash's file is the user's financial record, so the crate's first job is to lo
 
 - **Anything red-ale doesn't model is kept.** Unknown elements, slots, scheduled transactions, budgets and other
   out-of-scope data go into a *residue* (`XmlResidue`) and are written back unchanged.
-- **Unchanged books come back byte for byte.** Entities that weren't edited are written from their original elements.
-  The serialiser matches libxml2's output, the library GnuCash writes with, so even regenerated entities come out as
-  GnuCash would write them.
+- **Unchanged books come back byte for byte.** Entities are generated from the model, and the serialiser matches
+  libxml2's output, the library GnuCash writes with, so they come out as GnuCash 5.17 would write them. An entity whose
+  generated form differs from what was read (written by another program or an older GnuCash) keeps its original text
+  in the residue, and is written from it until it is edited.
 - **Identity and order are kept.** GUIDs, the order of entities in the file, denominators and timestamps stay as read.
 - **Version 1 files are refused**, with a message to open and save them in GnuCash first.
 
 A malformed file gives an `XmlError`, never a crash.
+
+Books are read and written as streams, so memory stays near the size of the Book: `read_book_from` builds one part
+of the book at a time from the tokeniser's events and drops it once translated, and `write_book_to` hands the file to
+its sink (through gzip, if compressed) a chunk at a time. `read_back` reads a written file the same way and compares
+each entity with the Book that was written, without building a second one.
 
 ## Where it fits
 
@@ -36,7 +42,8 @@ is the only crate that calls this one in normal use. An SQLite backend, `red-ale
 
 | Module     | Contents                                                                                     |
 |------------|----------------------------------------------------------------------------------------------|
-| `book`     | `read_book`, `write_book`, `write_book_text`, and `XmlResidue`                               |
+| `book`     | `read_book`, `write_book`, `write_book_to`, `write_book_text`, and `XmlResidue`              |
+| `read`     | The streaming reader: `read_book_from`, and `read_back`, which checks a written file entity by entity |
 | `envelope` | The XML declaration, the `gnc-v2` root and its namespaces, and the book wrapper              |
 | `entities` | Commodities, prices, accounts, lots, transactions and splits                                 |
 | `business` | Customers, vendors, employees, jobs, invoices, entries, orders, tax tables and billing terms |
