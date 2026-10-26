@@ -63,6 +63,15 @@ impl Fixture {
     }
 }
 
+/// `report.options` of `report` with no book open, as `section/name key type default` lines in GnuCash's order.
+pub fn described_options(report: &str) -> Vec<String> {
+    let dir = tempfile::tempdir().unwrap();
+    let mut d = dispatcher(&dir.path().join("config.json"));
+    let described = d.call("report.options", json!({ "report": report })).unwrap_or_else(|e| panic!("report.options: {e} {:?}", e.data));
+    let line = |o: &Value| format!("{}/{} {} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["type"], o["default"]);
+    described["options"].as_array().unwrap().iter().map(line).collect()
+}
+
 /// A dispatcher keeping its Configuration in `config`, with a fixed clock at [`NOW`].
 fn dispatcher(config: &Path) -> Dispatcher {
     let settings = Settings { config: ConfigStore::at(PathBuf::from(config)), ..Settings::default() };

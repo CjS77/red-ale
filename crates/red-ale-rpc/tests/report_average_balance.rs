@@ -104,6 +104,31 @@ fn test_average_balance_exclude_internal() {
 
 // Hand-worked cases.
 
+/// The options of `options-generator` (AB:54-127), in GnuCash's order, with the General options every template
+/// gets; with no book open they come from an empty one, so no account is selected by default.
+#[test]
+fn options_are_gnucash_s() {
+    let want = [
+        r#"Accounts/Include Sub-Accounts "a" "boolean" true"#,
+        r#"Accounts/Exclude transactions between selected accounts "b" "boolean" false"#,
+        r#"Accounts/Accounts "c" "accountList" []"#,
+        r#"Display/Show table "a" "boolean" false"#,
+        r#"Display/Show plot "b" "boolean" true"#,
+        r#"Display/Plot Type "c" "list" ["AvgBalPlot"]"#,
+        r#"Display/Plot Width "da" "plotSize" {"percent":100}"#,
+        r#"Display/Plot Height "db" "plotSize" {"percent":100}"#,
+        r#"General/Report name "0a" "string" "Average Balance""#,
+        r#"General/Stylesheet "0b" "multichoice" "Default""#,
+        r#"General/Add options summary "0c" "multichoice" "never""#,
+        r#"General/Start Date "aa" "date" {"relative":"start-accounting-period"}"#,
+        r#"General/End Date "ab" "date" {"relative":"end-accounting-period"}"#,
+        r#"General/Step Size "b" "multichoice" "MonthDelta""#,
+        r#"General/Report's currency "c" "currency" "CURRENCY::USD""#,
+        r#"General/Price Source "d" "multichoice" "weighted-average""#,
+    ];
+    assert_eq!(report_runs::described_options(TEMPLATE), want);
+}
+
 /// The default options: the accounting period, here today to today, has no splits, so there is no data (AB:377-380)
 /// and the chart gives way to the empty-data warning (AB:435-451); the table is off by default (AB:104-106).
 #[test]
