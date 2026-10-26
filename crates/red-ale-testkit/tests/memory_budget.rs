@@ -35,9 +35,11 @@ impl HeapCounter for Heap {
 /// Large enough that the 2,000 accounts are a small part of the book, small enough for every `cargo test`.
 const TRANSACTIONS: usize = 5_000;
 
-/// Budgets in hundredths of the plain file's size.
-const AT_REST: usize = 241;
-const PEAK: usize = 362;
+/// Limits in hundredths of the plain file's size. The budgets are 241 at rest and 362 for the peaks; these are
+/// tighter, set a little above what streaming reaches (109 at rest, 154 at the highest peak), so a change that brings
+/// back one whole copy of the file or the Book fails here long before it breaks the budget.
+const AT_REST: usize = 130;
+const PEAK: usize = 200;
 
 #[test]
 fn memory_stays_within_budget() {
