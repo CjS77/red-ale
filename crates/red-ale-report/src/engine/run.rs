@@ -7,6 +7,7 @@ use std::sync::Arc;
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd, book_fiscal_year_end, period_bounds};
 use red_ale_core::time::PeriodBounds;
 use red_ale_core::{Book, Guid, Time64, TimeZone};
+use red_ale_locale::Locale;
 use rhai::{AST, Dynamic, Engine};
 use serde_json::Value;
 
@@ -39,6 +40,8 @@ pub struct RunContext<'a> {
     pub zone: &'a TimeZone,
     /// The report settings of the Configuration.
     pub settings: &'a ReportSettings,
+    /// The Locale numbers and dates follow, and unset settings default from.
+    pub locale: Locale,
     /// The accounting period setting; its bounds are taken at `now`.
     pub accounting_period: &'a AccountingPeriod,
     /// The Configuration's fiscal year end. When it is `None` the Book's `fy_end` slot applies, as `period.dates`
@@ -90,7 +93,8 @@ impl<'r> Run<'r> {
         let limits = registry.limits();
         let snap = Snapshot::new(ctx.book, ctx.now);
         let log = Log::new(limits.get_usize(Limit::StringSize));
-        let engine = engine(&Setup { snap: Rc::clone(&snap), sources: Arc::clone(registry.sources()), limits, log: log.clone() });
+        let conventions = ctx.locale.conventions();
+        let engine = engine(&Setup { snap: Rc::clone(&snap), sources: Arc::clone(registry.sources()), limits, log: log.clone(), conventions });
         let ast = registry.compile(&engine, &template.script).map_err(|e| {
             let report = template.guid.0.to_string();
             from_parse(&e, &template.script, &Failure { report: &report, source: &template.script, limits: &limits, log: Vec::new() })
@@ -111,7 +115,7 @@ impl<'r> Run<'r> {
 
     /// `options(params, o, book)`, then the General options every template gets.
     fn declare(&self, ctx: &RunContext<'_>) -> Result<OptionDb, ReportError> {
-        let builder = OptionBuilder::new(self.book(), ctx.settings.currency.clone());
+        let builder = OptionBuilder::new(self.book(), ctx.settings.report_currency(ctx.book, &ctx.locale));
         let args = (self.params.clone(), builder.clone(), self.book());
         call(&self.engine, &self.ast, "options", args).map(drop).map_err(|e| self.failed(&e))?;
         let mut db = builder.into_db();
@@ -124,7 +128,7 @@ impl<'r> Run<'r> {
     fn render(&self, db: &OptionDb, ctx: &RunContext<'_>) -> Result<Dynamic, ReportError> {
         let period = accounting_period(ctx);
         let opts = resolve(db, &Resolve { book: &self.book(), now: ctx.now, zone: ctx.zone, period: &period })?;
-        let context = ContextHandle::new(Rc::clone(&self.snap), ctx.zone.clone(), ctx.settings.clone(), period);
+        let context = ContextHandle::new(Rc::clone(&self.snap), ctx.zone.clone(), ctx, period);
         let args = (self.params.clone(), self.book(), opts, context);
         call(&self.engine, &self.ast, "render", args).map_err(|e| self.failed(&e))
     }
@@ -138,7 +142,7 @@ impl<'r> Run<'r> {
         configuration: Option<Guid>,
         ctx: &RunContext<'_>,
     ) -> Result<ReportResult, ReportError> {
-        let display = DisplayContext { book: ctx.book, zone: ctx.zone, date_format: ctx.settings.date_format };
+        let display = DisplayContext { book: ctx.book, zone: ctx.zone, date_format: ctx.settings.date_format, locale: ctx.locale };
         let run = RunInfo {
             report: ReportIdentity { guid: self.template.guid, name: self.template.name.clone(), configuration: configuration.map(Id) },
             now: ctx.now,

@@ -12,7 +12,7 @@ pub mod methods;
 pub mod server;
 pub mod wire;
 
-pub use dispatch::{Context, Dispatcher, Effect, Method, Target, method};
+pub use dispatch::{Context, Dispatcher, Effect, Method, Origin, Target, method};
 pub use error::{RpcError, codes};
 
 /// The version of the API's schema. Within a major version, changes are additive only.

@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::{Book, FixedEnv, Guid, Time64, TimeZone};
+use red_ale_locale::Locale;
 use red_ale_report::ReportError;
 use red_ale_report::engine::{Registry, RunContext, ScriptSource, TemplateInfo, TemplateKind};
 use red_ale_report::library::Library;
@@ -230,6 +231,15 @@ impl Reports {
         })
     }
 
+    /// The Locale of a run: `chosen`, else the Configuration's `locale` setting (`C` unless set). A name no locale
+    /// has is invalid params.
+    fn locale(&self, chosen: Option<&str>) -> Result<Locale, RpcError> {
+        match chosen {
+            Some(name) => red_ale_service::locale::resolve(name).map_err(|e| RpcError::invalid_params(e.to_string())),
+            None => Ok(self.config.locale()?),
+        }
+    }
+
     /// The template or saved configuration `reference` names: a GUID, else a name exactly one has
     /// (`design/reports.md` §11).
     fn find(&self, reference: &str) -> Result<Found<'_>, RpcError> {
@@ -314,20 +324,28 @@ impl Reports {
             &empty
         };
         let names = self.style_sheet_choices(saved);
-        let mut db = self.registry.options(template, &self.run_context(book, on.now, on.zone, &names))?;
+        let mut db = self.registry.options(template, &self.run_context(book, on.now, on.zone, &names, self.locale(None)?))?;
         let values = ValueContext { book: on.book, zone: on.zone };
         let saved = saved.map(|s| Value::Object(s.options.clone()));
         saved.iter().chain(changes).try_for_each(|c| db.apply(c, &values)).map_err(ReportError::from)?;
         Ok(db)
     }
 
-    /// What a run reads besides the options: the Book, now, the zone, and the Configuration's settings.
-    fn run_context<'a>(&'a self, book: &'a Book, now: Time64, zone: &'a TimeZone, style_sheets: &'a [&'a str]) -> RunContext<'a> {
+    /// What a run reads besides the options: the Book, now, the zone, the Configuration's settings and the Locale.
+    fn run_context<'a>(
+        &'a self,
+        book: &'a Book,
+        now: Time64,
+        zone: &'a TimeZone,
+        style_sheets: &'a [&'a str],
+        locale: Locale,
+    ) -> RunContext<'a> {
         RunContext {
             book,
             now,
             zone,
             settings: &self.settings,
+            locale,
             accounting_period: &self.period,
             fiscal_year_end: self.fiscal_year_end,
             style_sheets,

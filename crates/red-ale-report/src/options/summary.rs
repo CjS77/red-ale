@@ -32,7 +32,7 @@ fn disp(value: &OptionValue, ctx: &DisplayContext<'_>) -> String {
         OptionValue::PlotSize(PlotSize::Percent(n)) => format!("percent . {n}"),
         OptionValue::PlotSize(PlotSize::Pixels(n)) => format!("pixels . {n}"),
         OptionValue::Date(DateValue::Absolute(t)) => {
-            let day = ctx.zone.local_date(*t).map_or_else(|| t.0.to_string(), |d| ctx.date_format.print(d));
+            let day = ctx.zone.local_date(*t).map_or_else(|| t.0.to_string(), |d| ctx.print_date(d));
             format!("absolute . {day}")
         }
         OptionValue::Date(DateValue::Relative(r)) => format!("relative . {}", relative_name(*r)),

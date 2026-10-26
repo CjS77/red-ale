@@ -316,7 +316,7 @@ fn the_summary_lists_changed_options_as_gnucash_shows_them() {
     .unwrap();
     let book = book();
     let zone = TimeZone::utc();
-    let rows = db.summary(&DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso });
+    let rows = db.summary(&DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso, locale: red_ale_locale::Locale::c() });
     let shown: Vec<(String, String)> = rows.into_iter().map(|r| (format!("{} / {}", r.section, r.name), r.value)).collect();
     let want = [
         ("Accounts / Accounts", "Assets:Bank, Assets:Cash"),

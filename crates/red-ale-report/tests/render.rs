@@ -146,7 +146,7 @@ fn price_scatter() -> Value {
 }
 
 fn ctx(zone: &TimeZone) -> RenderContext<'_> {
-    RenderContext { zone, date_format: DateFormat::Us }
+    RenderContext { zone, date_format: DateFormat::Us, locale: red_ale_locale::Locale::c() }
 }
 
 /// A predefined style sheet with every header and footer line on, so the golden pages show them.

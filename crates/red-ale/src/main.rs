@@ -133,14 +133,15 @@ impl OutputArgs {
 
 #[derive(Debug, Args)]
 struct ExecArgs {
-    /// The book: a path or `xml://` URI.
+    /// The book: a path or `xml://` URI. Without it the methods run with no book open, as the Configuration methods
+    /// can.
     #[arg(long)]
-    book: String,
+    book: Option<String>,
     /// Create the book instead of opening it.
-    #[arg(long, conflicts_with = "read_only")]
+    #[arg(long, conflicts_with = "read_only", requires = "book")]
     create: bool,
     /// Open read-only.
-    #[arg(long)]
+    #[arg(long, requires = "book")]
     read_only: bool,
     /// Do not save, even if methods changed the book.
     #[arg(long)]
@@ -223,10 +224,11 @@ fn server_dispatcher(settings: &SettingsArgs, book: Option<&str>, read_only: boo
 
 /// Run the server until interrupted. An RPC error is never returned from here, so `Ok(None)` on success.
 fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
+    let max_request_bytes = args.settings.settings().config.jsonrpc_max_request_bytes()?;
     let dispatcher = server_dispatcher(&args.settings, args.book.as_deref(), args.read_only)?;
     let runtime = tokio::runtime::Runtime::new()?;
     runtime.block_on(async {
-        let (addr, handle) = red_ale_rpc::server::serve(dispatcher.clone(), args.listen).await?;
+        let (addr, handle) = red_ale_rpc::server::serve(dispatcher.clone(), args.listen, max_request_bytes).await?;
         eprintln!("red-ale: serving JSON-RPC on http://{addr}");
         shutdown_signal().await?;
         handle.stop().ok();
@@ -240,11 +242,12 @@ fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
 /// Serve MCP on standard input and output until the client closes standard input or a signal arrives, then close
 /// the book as `serve` does. Standard output carries the protocol only.
 fn mcp(args: &McpArgs) -> Result<Option<RpcError>> {
+    let max_request_bytes = args.settings.settings().config.mcp_max_request_bytes()?;
     let dispatcher = server_dispatcher(&args.settings, args.book.as_deref(), args.read_only)?;
     let runtime = tokio::runtime::Runtime::new()?;
     let outcome = runtime.block_on(async {
         tokio::select! {
-            served = red_ale_mcp::serve_stdio(dispatcher.clone()) => served.map_err(anyhow::Error::from),
+            served = red_ale_mcp::serve_stdio(dispatcher.clone(), max_request_bytes) => served.map_err(anyhow::Error::from),
             signalled = shutdown_signal() => signalled,
         }
     });
@@ -306,16 +309,12 @@ fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
         (None, None) => bail!("give a method or --script"),
     };
     let mut d = Dispatcher::new(args.settings.settings());
-    let opened = if args.create {
-        d.call("book.create", json!({ "path": args.book }))
-    } else {
-        d.call("book.open", json!({ "path": args.book, "readOnly": args.read_only }))
-    };
-    if let Err(e) = opened {
+    if let Err(e) = open_book(&mut d, args) {
         return Ok(Some(e));
     }
     let outcome = run_calls(&mut d, calls);
     let finish = match &outcome {
+        _ if !d.context().has_session() => Ok(Value::Null),
         Ok(_) if !args.no_save => d.call("book.close", json!({ "save": true })),
         _ => d.call("book.close", json!({ "discard": true })),
     };
@@ -324,6 +323,16 @@ fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
         (Ok(results), Ok(_)) if args.script.is_some() => print_json(&Value::Array(results)).map(|()| None),
         (Ok(results), Ok(_)) => args.output.emit(&results.into_iter().next().unwrap_or(Value::Null)).map(|()| None),
     }
+}
+
+/// Open or create `--book`, if given.
+fn open_book(d: &mut Dispatcher, args: &ExecArgs) -> Result<(), RpcError> {
+    let opened = match &args.book {
+        None => return Ok(()),
+        Some(book) if args.create => d.call("book.create", json!({ "path": book })),
+        Some(book) => d.call("book.open", json!({ "path": book, "readOnly": args.read_only })),
+    };
+    opened.map(drop)
 }
 
 fn run_calls(d: &mut Dispatcher, calls: Vec<(String, Value)>) -> Result<Vec<Value>, RpcError> {

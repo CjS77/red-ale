@@ -122,7 +122,9 @@ Code names are given in `code font` when they differ from the term.
 | **Namespace** | A Commodity group: `CURRENCY`, an exchange such as `NASDAQ`, or a user-defined one. `template` is reserved. |
 | **Mnemonic** | A Commodity's symbol within its namespace (`USD`, `AAPL`). **⚠** The XML calls it `cmdty:id`, but it is not a GUID. |
 | **Security** | A Commodity outside the `CURRENCY` namespace. |
-| **Quote source** | The named source online quotes would come from. Stored and edited in v0.1, never fetched. |
+| **Quote source** | The name, in Finance::Quote's vocabulary, of where a Commodity's online quotes come from (`alphavantage`, `yahoo_json`, `currency`, …), stored on the Commodity in the Book. Says *what* to fetch; a Quote service says *where from*. **⚠** Not a Quote service, and not a Price's source string. |
+| **Quote service** | A web service red-ale fetches quotes from, set in the Configuration: a URL template, a response format, an optional key and a minimum interval between requests. The Configuration maps each Quote source to the Quote services that answer it. Never stored in the Book. See [`api/quotes.md`](api/quotes.md). |
+| **Quote fetch** | One run of fetching quotes, started by `price.fetchQuotes`, with an ID. Its requests run in the background, outside the Book; the Prices it got are then added in one Mutation. One runs at a time; closing the book cancels it. |
 | **Price** | The value of one Commodity in another (usually a currency) at a time, with a source and a type. |
 | **Price database** (`PriceDb`) | All Prices of a Book. |
 | **Price source rank** | The precedence of a Price's source (user entries before fetched quotes before prices recorded from Transactions). On the same day, a Price of a lower rank replaces one of a higher rank and is not replaced by it. Unknown sources rank lowest (`invalid`). |
@@ -183,6 +185,28 @@ Code names are given in `code font` when they differ from the term.
 | **Open item** | An Owner's open document Lot or Payment lot in an A/R or A/P Account: what a payment can be applied to, as GnuCash's payment dialog lists it. |
 | **Transfer split** | A payment's Split in the Account the money moves through: any asset, liability or equity type but A/R and A/P. |
 
+## Import and export
+
+See [`api/import.md`](api/import.md) and [`api/export.md`](api/export.md).
+
+| Term | Meaning |
+|------|---------|
+| **Import** | Reading a file of transactions, accounts, prices, business documents or Owners into the Book, as one of GnuCash's importers does. Each import is one Mutation. |
+| **Import proposal** | What `import.preview` returns and the server holds until it is applied, discarded, the book closes or 16 newer ones push it out: every transaction the file holds, each with its Import action, Candidate matches, the account of each Split, any Imbalance and whether it would be read-only by date. Identified by an ID and tied to the Book revision it was made at. It changes nothing until `import.apply`. **⚠** GnuCash has no such object: its matcher window holds the same state in the GUI. |
+| **Imported transaction** | One transaction of an Import proposal, by its index in the file: the Transaction the importer built from the file, not yet in the Book. **⚠** GnuCash's `GNCImportTransInfo`. |
+| **Import action** | What `import.apply` does with one record of an Import proposal. For an Imported transaction: *add* it as a new Transaction; *clear* the existing Transaction it matches; *update* that Transaction from it and clear it; or *skip* it. For accounts, prices, Business documents and Owners: *add*, *update* the existing one (replace a same-day Price) or *skip*. **⚠** GnuCash's GUI calls *update* "update and clear" (`GNCImport_UPDATE`); it is one action, not two. **⚠** *Clear* sets the matched Split's Reconcile state to `c` (cleared); it never deletes anything. |
+| **Candidate match** | An existing Split in the imported split's Account that the matcher (or QIF's duplicate finder) offers as the same transaction, with its Match score. **⚠** GnuCash's `GNCImportMatchInfo`. |
+| **Match score** | The integer the matcher gives a Candidate match: points for an equal or nearly equal amount, a close date, an equal number, memo and description; points off for a different amount, a different number or dates far apart. The thresholds of the Import settings decide the Import action from the best score. **⚠** An integer, unrelated to a Bayesian probability. |
+| **Import settings** | The matcher's thresholds and switches (`match-threshold`, `auto-add-threshold`, `auto-clear-threshold`, `atm-fee-threshold`, the date thresholds, `enable-skip`, `enable-update`, `use-bayes`), with GnuCash's defaults. GnuCash keeps them as user preferences, so red-ale keeps them in the Configuration. |
+| **Import map** | What GnuCash learns from imports, kept in account Slots. The *plain* Import map is the `import-map` Frame: an exact description or memo to an Account, on the source Account (categories `desc` and `memo`; only `desc` is looked up), and a name used in CSV files to the Account holding it (`csv-account-map`, on that Account itself). The *Bayesian* Import map is, on the source Account, a count per token and target Account, in the flat, GUID-keyed form GnuCash 5.17 writes (`import-map-bayes/<token>/<guid>` as one Slot key). **⚠** GnuCash code says *imap* or *match map*; its GUI says *import map*. |
+| **Bayesian matching** | Choosing the other Account of an Imported transaction from the Bayesian Import map: the Account whose combined token probability reaches 90%. On when the Import setting `use-bayes` is (the default); otherwise the plain Import map is used. |
+| **Online ID** | The `online_id` Slot GnuCash's OFX and AqBanking importers put on a Split (and an Account, for the bank account it came from), naming the bank's own ID for it. GnuCash's matcher skips an imported transaction whose Online ID is already in the account. red-ale imports no format that carries one, so it keeps them and writes none. |
+| **CSV import layout** | A saved set of choices for importing one bank's CSV files: separators or fixed widths, lines to skip, column types, date and number formats, encoding, multi-split mode and base account. GnuCash's *preset* or *settings*, kept in its state file outside the Book (`5.17:gnucash/import-export/csv-imp/gnc-imp-settings-csv-tx.cpp:147`), so red-ale keeps them in the Configuration. |
+| **QIF account map** | What the QIF importer remembers between imports: which GnuCash Account each QIF account, category and payee went to. GnuCash keeps it in a file in its user data directory (`5.17:gnucash/import-export/qif-imp/qif-guess-map.scm:114`); red-ale keeps it in the Configuration. **⚠** Not the Import map, which lives in the Book. |
+| **Book revision** | The number of Mutations the Session has applied since the book was opened. An Import proposal records the Book revision it was made at, and `import.apply` refuses it (`conflict`) at any other. Not stored in the Book. |
+| **CSV export** | The account tree, or transactions in a date range, written as CSV text in GnuCash's layouts (*simple* or *complex* for transactions). Returned as text; nothing is written by the server. |
+| **Export accounts** | Writing a new Book file holding the Account tree and Commodities of the open Book and no Transactions, as GnuCash's File ▸ Export ▸ Export Accounts. |
+
 ## Reports
 
 See [`reports.md`](reports.md).
@@ -215,4 +239,8 @@ See [`reports.md`](reports.md).
 | **Effect** | How much a method changes: *read*, *write* or *destructive*. MCP's read-only and destructive hints come from it. |
 | **Effect target** | What a method that is not *read* changes: the *book* or the *configuration*. Saving a Saved report configuration changes the Configuration and never the Book. |
 | **Tool** | MCP's name for an operation an agent can call. In red-ale each Tool is one JSON-RPC method, with the same name and params schema; it is not a separate operation. |
-| **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps outside the book: user preferences (the Accounting period, the Report settings), Saved report configurations and Style sheets. Never stored in the Book. |
+| **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps outside the book: user preferences (the Accounting period, the Report settings, the Import settings, the Locale), Saved report configurations, Style sheets, CSV import layouts, the QIF account map and Quote services. Never stored in the Book. Its settings are declared in a JSON Schema (`config.schema`). |
+| **Setting** | One value of the Configuration, declared in its schema with a type, default and description, and named by its *setting path*: its keys joined with `.` (`import.settings.matchThreshold`). |
+| **Secret** | A Setting whose value is never shown, only whether it is set: a Quote service's key. Not changeable through MCP. |
+| **Origin** | The door a call came through: JSON-RPC (the HTTP server and the CLI) or MCP. Only `config.set` looks at it. |
+| **Locale** | The language and region conventions red-ale formats with, as GnuCash takes them from the C library: decimal point and grouping, the `locale` date format, currency symbol and default report currency, and day names (which also appear in Bayesian tokens); and, as GnuCash takes them from ICU, the first day of the week and the interval form of date ranges. A POSIX name such as `en_US` or `fr_FR` in the Configuration, default `C`; `environment` takes each category as the C library does, from `LC_ALL`, else `LC_NUMERIC`, `LC_MONETARY`, `LC_TIME` or `LC_MESSAGES`, else `LANG`. **⚠** Not the Local time zone, which is set apart, from `TZ`. |

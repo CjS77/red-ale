@@ -294,8 +294,9 @@ A figure is rounded only to be shown, never before it is used again. The host fi
   (`report/html-style-info.scm:233-236`), which goes through a double there and exactly here.
 
 The text form is `xaccSPrintAmount` and `PrintAmountInternal` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1083-1430`)
-under the conventions GnuCash falls back to when no locale is set (`5.17:libgnucash/core-utils/gnc-locale-utils.c:75-108`),
-which are those of its own report tests (`setlocale LC_ALL "C"`, `standard/test/test-average-balance.scm:15`):
+under the run's Locale as GnuCash reads it (`gnc_localeconv`, `5.17:libgnucash/core-utils/gnc-locale-utils.c:75-108`),
+which replaces every empty value and `CHAR_MAX` with a US default. Under the C locale, the default and the one
+GnuCash's own report tests use (`setlocale LC_ALL "C"`, `standard/test/test-average-balance.scm:15`):
 
 - grouping by three with `,`, decimal point `.`, minus sign first: `-$1,234.56`;
 - a currency (namespace `CURRENCY`) has its symbol first with no space, and as many decimals as its SCU, padded;
@@ -309,12 +310,18 @@ which are those of its own report tests (`setlocale LC_ALL "C"`, `standard/test/
   later, as a deviation recorded in §14;
 - a remainder that is not a decimal fraction prints as `w + n/d`;
 - the symbol is the commodity's *nice symbol*: its user symbol, else the ISO table's symbol, else its mnemonic
-  (`5.17:libgnucash/engine/gnc-commodity.cpp:1095-1115`). GnuCash also prefers the locale's own symbol for the
-  locale's currency; red-ale has no locale, and the ISO table gives the same `$` for USD.
+  (`5.17:libgnucash/engine/gnc-commodity.cpp:1095-1115`).
 
-Formatting is red-ale's only locale until v0.3, which makes the locale a setting with this one as its default
-([`roadmap.md`](roadmap.md), "Also in v0.3"). Until then, clients that want another take the exact `amount` and the
-`rounded` form from the cell and format them themselves.
+Under another Locale (v0.3, [`milestone3.md`](milestone3.md), "Locales"), every report figure takes LC_MONETARY's
+`mon_decimal_point`, `mon_thousands_sep` and `mon_grouping`, since GnuCash's report renderers all print with
+`monetary` set; only the first character of a separator or point is used, as GnuCash copies one. A currency's symbol
+and sign go where the locale's `p_`/`n_cs_precedes`, `sep_by_space` and `sign_posn` put them (fr_FR: `-1 234,56 €`
+with NARROW NO-BREAK SPACE; fr_CA brackets a negative number: `(5,00) $`); any other commodity keeps its symbol after
+the amount with a space. Number cells with no `places` pad to the locale's `frac_digits`. GnuCash would print the
+locale's `currency_symbol` for the currency whose code equals `int_curr_symbol`
+(`5.17:libgnucash/engine/gnc-commodity.cpp:1105-1108`), but glibc's `int_curr_symbol` always ends in a space
+(`EUR `), so no code equals it and the nice symbol always applies; the locale generator checks that this holds.
+Guile's `~w,dF` (`fixed`) does not follow the locale, in GnuCash or here.
 
 ## 4. Settings reports read
 
@@ -323,17 +330,24 @@ Configuration (section 9), with GnuCash's out-of-the-box values as defaults, and
 
 | Setting (`reports.*`)     | GnuCash preference                                     | Default    | Used by |
 |---------------------------|--------------------------------------------------------|------------|---------|
-| `currency`                | `general.report` `currency-choice-other`/`currency-other`, else the locale's currency (`gnc_default_report_currency`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:748-822`) | `CURRENCY::USD` (GnuCash's fallback, `:724-745`) | the default of every "Report's currency" option |
+| `currency`                | `general.report` `currency-choice-other`/`currency-other`, else the locale's currency (`gnc_default_report_currency`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:748-822`) | unset: the Locale's currency (`int_curr_symbol`) if the Book has it, else `CURRENCY::USD` (GnuCash's fallback, `:724-745`); USD under C | the default of every "Report's currency" option |
 | `reverseBalancedAccounts` | `general` `reversed-accounts-{none,credit,incomeexpense}` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:128-173`) | `credit`: LIABILITY, PAYABLE, EQUITY, INCOME and CREDIT (not CREDITLINE or TRADING), the schema default (`5.17:gnucash/gschemas/org.gnucash.GnuCash.gschema.xml.in:93-107`) | account rows of the statement tables (`report/html-acct-table.scm:1029-1030`) |
 | `dateFormat`              | `general` `date-format` (`5.17:libgnucash/engine/gnc-date.cpp:504-521`) | `locale`   | every printed date (`qof-print-date`) |
-| `weekStart`               | the locale's first day of the week (`gnc-start-of-week`, `5.17:libgnucash/engine/gnc-date.cpp:195-215`) | `sunday` | week fractions in averages (`5.17:bindings/guile/date-utilities.scm:244-251`) |
+| `weekStart`               | the locale's first day of the week (`gnc-start-of-week`, `5.17:libgnucash/engine/gnc-date.cpp:195-215`), which GnuCash asks ICU for | unset: the Locale's, from ICU4X's CLDR data; `sunday` under C | week fractions in averages (`5.17:bindings/guile/date-utilities.scm:244-251`) |
 | `accountingPeriod` (existing key, [`api/accounts.md`](api/accounts.md)) | `window.pages.account-tree.summary` | this calendar year | the accounting-period date choices |
 
 `dateFormat` is one of `us` (`%m/%d/%Y`), `uk` (`%d/%m/%Y`), `ce` (`%d.%m.%Y`), `iso` (`%Y-%m-%d`) and `locale`.
-red-ale has no locale; `locale` means what GnuCash prints under the C locale its report tests use, `%m/%d/%y`
-(`standard/test/test-standard-category-report.scm:107-113` reads that form). A date interval in a title is
-`<from> to <to>`, GnuCash's form for every format but `locale`, where it asks ICU instead
-(`5.17:libgnucash/engine/gnc-date.cpp:618-680`).
+`locale` is the Locale's `D_FMT` (`5.17:libgnucash/engine/gnc-date.cpp:61`, `:522`): `%m/%d/%y` under the C locale
+GnuCash's report tests use (`standard/test/test-standard-category-report.scm:107-113` reads that form), `%m/%d/%Y`
+under en_US (`12/31/2026`), `%d/%m/%Y` under fr_FR. As GnuCash does, the `E`, `O` and `-` modifiers are dropped
+before formatting (`normalize_format`, `5.17:libgnucash/engine/gnc-datetime.cpp:517-533`), so `%-d` prints
+zero-padded. A date interval in a title is `<from> to <to>`, GnuCash's form for every format but `locale`, where it
+asks ICU for the `yMd` interval (`5.17:libgnucash/engine/gnc-date.cpp:618-680`): `1/1/2026 – 12/31/2026` under
+en_US. red-ale takes it from ICU4X for every Locale but C, which keeps `<from> to <to>` (section 14).
+
+The Locale of a run is the `locale` param of `report.run` or `report.export`, else the Configuration's `locale`
+setting, default `C` ([`api/configuration.md`](api/configuration.md)). Its data, and what is taken from where, are in
+[`milestone3.md`](milestone3.md), "Locales", and the `red-ale-locale` crate's documentation.
 
 Book options come through the query API instead, since they are in the Book: "Use Trading Accounts"
 (`5.17:libgnucash/engine/qofbook.cpp:921-928`), the business company name (`5.17:bindings/guile/options.scm:409-411`)
@@ -704,7 +718,7 @@ colour (section 8).
 | text | `text` | the text |
 | monetary | `monetary: { amount: Rational, commodity }` | `rounded` (Amount at the commodity's SCU, banker's rounding) and `display`, section 3 |
 | commodities | `commodities: [{ monetary, converted }]` | each line's `display` and `convertedDisplay` |
-| number | `number: Rational`, `places` (default 2), `suffix` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`) |
+| number | `number: Rational`, `places` (default 2), `suffix` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer |
 | price | `price: Rational`, `currency` | `display` with the currency's price print info |
 | date | `date: Time64` (a Timestamp on the wire) | `localDate` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat` |
 
@@ -1223,13 +1237,16 @@ drops it and needs nothing from budgets.
 | Saved configuration name clash | A number is appended on save | `conflict` | The caller gets the name it asked for |
 | User text in style sheets | Inserted as raw HTML | Escaped | No injected markup in exported reports |
 | CSS style sheet text | Default CSS on `</style` | Refused on `</style`, `@import`, `url(`, `image(`, `image-set(`, `src(`, `\` | Exported pages load nothing |
-| Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting | No script; deterministic bytes |
+| Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting under the Locale | No script; deterministic bytes |
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
 | Title of the account pie charts | None: the document keeps its empty title (`report/html-document.scm:131`); the chart's title and the warnings' heading name the report | The report name, with its averaging suffix | A result has a title, and its warning blocks leave out the heading that names the report |
 | Average Balance and Price Scatterplot titles | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`) | Titled with the "Report name" option | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |
 | Name sorting | Locale collation | Bytewise | As v0.1 |
-| Date interval in titles under the `locale` format | ICU interval format | `<from> to <to>` | No locale |
+| Date interval in titles under the `locale` format and the C locale | ICU's interval form for en_US_POSIX (`1/1/2026 – 12/31/2026`) | `<from> to <to>` | Output under C stays as it was before Locales |
+| ICU data: the first day of the week, date intervals | The ICU the build links (ICU 74, CLDR 44, for the oracle) | ICU4X 2.4's compiled CLDR | Differences only where CLDR changed between them; the multi-day intervals of every supported locale sampled matched ICU 74's. A one-day interval prints ICU4X's `YMD` short pattern (`05.03.2026` under de_DE) where ICU 74 prints its `yMd` pattern (`5.3.2026`) |
+| ICU dates outside 1400–9999 | Formatted | `<from> to <to>` | GnuCash's dates cannot hold them (`5.17:libgnucash/engine/gnc-datetime.hpp:240`); ICU4X 2.4's range formatter fails on years that need an era |
+| `"%s to %s"` in titles | Translated through gettext | English | red-ale has no translations |
 | CSV export of the net and category charts | Offered | Not in v0.2 | Export is v0.3 |
 | Category chart series under "Percentage chart" | Fractions, shown ×100 by Chart.js's percent style (`standard/category-barchart.scm:611`, `:622-623`) | Percentages | A `percent` axis shows its values as they are |
 | Accounts with no commodity (the trading accounts' parents in a book with no root currency, `5.17:libgnucash/engine/Scrub.cpp:493-516`) in the Balance Sheet and Income Statement | Their zero balance is added under `#f`; the exchange-rates table fails sorting the missing commodity (`report/report-utilities.scm:242-251`) | Left out of the balances and the rates table | The same figures and rates, and the report runs |

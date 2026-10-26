@@ -67,10 +67,10 @@ private fn is_number(amount) {
 
 /// The position of `commodity`'s pair in `list`, -1 when it has none: `assoc`, first match.
 ///
-/// The methods below and what they call use loops, not closures. Rhai caches a method's resolution for the whole
-/// run; once a method has been called from inside this module, another module that calls it gets the cached
-/// function without this module's environment, and a closure made in it is then not found ("Function not found:
-/// anon$…"). `tests/lib_collectors.rs` has the case.
+/// The methods below and what they call use loops, not closures. Rhai caches a method's resolution on its second
+/// lookup; once this module has called a method twice, another module that calls it gets the cached function
+/// without this module's environment, and a closure made in it is then not found ("Function not found: anon$…"), a
+/// Rhai bug (`tests/rhai_closure_limits.rs`). `tests/lib_collectors.rs` has the case.
 private fn assoc_index(list, commodity) {
     for (pair, i) in list {
         if pair[0] == commodity {

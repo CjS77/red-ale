@@ -1,6 +1,7 @@
 //! `report.list`, `report.options`, `report.run` and `report.export`: the read methods over the template registry.
 
 use red_ale_core::{Book, Env};
+use red_ale_locale::Locale;
 use red_ale_report::error::OptionError;
 use red_ale_report::options::{GENERAL, OptionInfo, STYLESHEET};
 use red_ale_report::render::{self, DEFAULT_STYLE_SHEET, RenderContext, StyleSheet};
@@ -110,11 +111,16 @@ pub struct RunParams {
     /// The time to run the report for; by default the session's clock. Relative dates and "today" follow it.
     #[serde(default)]
     pub now: Option<Timestamp>,
+    /// The Locale to format numbers and dates in for this run: a supported POSIX locale name (`fr_FR`, `C`) or
+    /// `environment`; by default the Configuration's `locale` setting.
+    #[serde(default)]
+    pub locale: Option<String>,
 }
 
 pub(super) fn run(ctx: &mut Context, p: RunParams) -> Result<ReportResult, RpcError> {
     let reports = Reports::load(ctx)?;
-    ctx.query(|book, env| reports.run(&p.report, p.options.as_ref(), p.now, book, env))
+    let locale = reports.locale(p.locale.as_deref())?;
+    ctx.query(|book, env| reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale }, book, env))
 }
 
 /// Params of `report.export`.
@@ -132,6 +138,17 @@ pub struct ExportParams {
     /// The style sheet to render through, instead of the one the report's General/"Stylesheet" option names.
     #[serde(default)]
     pub style_sheet: Option<String>,
+    /// The Locale to format numbers and dates in for this run, as in `report.run`.
+    #[serde(default)]
+    pub locale: Option<String>,
+}
+
+/// What a run takes besides the report and its options.
+struct RunAt {
+    /// The time to run for, else the session's clock.
+    now: Option<Timestamp>,
+    /// The Locale numbers and dates follow.
+    locale: Locale,
 }
 
 /// The result of `report.export`. Nothing is written to disk.
@@ -146,13 +163,15 @@ pub struct ExportResult {
 
 pub(super) fn export(ctx: &mut Context, p: ExportParams) -> Result<ExportResult, RpcError> {
     let reports = Reports::load(ctx)?;
+    let locale = reports.locale(p.locale.as_deref())?;
     ctx.query(|book, env| {
-        let mut result = reports.run(&p.report, p.options.as_ref(), p.now, book, env)?;
+        let mut result = reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale }, book, env)?;
         let (name, sheet) = reports.style_sheet(&result, p.style_sheet.as_deref())?;
         if sheet.is_none() {
             result.log.push(render::missing_style_sheet(&name));
         }
-        let html = render::html(&result, sheet, &RenderContext { zone: env.zone(), date_format: reports.settings.date_format });
+        let page = RenderContext { zone: env.zone(), date_format: reports.settings.date_format, locale };
+        let html = render::html(&result, sheet, &page);
         Ok(ExportResult { title: result.title, html })
     })
 }
@@ -163,16 +182,16 @@ impl Reports {
         &self,
         report: &ReportRef,
         options: Option<&ReportOptions>,
-        now: Option<Timestamp>,
+        at: &RunAt,
         book: &Book,
         env: &mut dyn Env,
     ) -> Result<ReportResult, RpcError> {
         let (template, saved) = self.resolve(self.find(&report.0)?)?;
-        let now = now.map_or_else(|| env.now(), |t| t.0);
+        let now = at.now.map_or_else(|| env.now(), |t| t.0);
         let names = self.style_sheet_choices(saved);
         let saved_options = saved.map(|s| Value::Object(s.options.clone()));
         let changes: Vec<&Value> = saved_options.iter().chain(options.map(|o| &o.0)).collect();
-        let run = self.run_context(book, now, env.zone(), &names);
+        let run = self.run_context(book, now, env.zone(), &names, at.locale);
         Ok(self.registry.run(template, &changes, saved.map(|s| s.guid), &run)?)
     }
 

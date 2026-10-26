@@ -10,6 +10,7 @@ pub mod book_options;
 pub mod business;
 pub mod close_book;
 pub mod commodities;
+pub mod config;
 pub mod doc_links;
 pub mod lots;
 pub mod period;
@@ -27,6 +28,7 @@ pub fn all() -> Vec<Method> {
         accounts::methods(),
         account_properties::methods(),
         period::methods(),
+        config::methods(),
         transactions::methods(),
         doc_links::methods(),
         reconcile::methods(),

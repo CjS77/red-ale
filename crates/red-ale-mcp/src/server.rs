@@ -3,11 +3,12 @@
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use red_ale_rpc::{Dispatcher, RpcError, codes};
+use red_ale_rpc::{Dispatcher, Origin, RpcError, codes};
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData, Implementation, ListToolsResult,
     PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerConfig, Tool,
 };
+use rmcp::transport::async_rw::{AsyncRwTransport, DEFAULT_MAX_LINE_LENGTH};
 use rmcp::service::{QuitReason, RequestContext, RoleServer, ServerInitializeError, ServiceExt};
 use rmcp::ServerHandler;
 use serde_json::{Map, Value, json};
@@ -38,13 +39,22 @@ pub enum ServeError {
 pub struct McpServer {
     dispatcher: Arc<Mutex<Dispatcher>>,
     tools: Arc<[Tool]>,
+    max_request_bytes: usize,
 }
 
 impl McpServer {
     /// A server over `dispatcher`, with its tools generated from the dispatcher's methods.
     pub fn new(dispatcher: Arc<Mutex<Dispatcher>>) -> Self {
         let tools = tools::tools(&lock(&dispatcher)).into();
-        Self { dispatcher, tools }
+        Self { dispatcher, tools, max_request_bytes: DEFAULT_MAX_LINE_LENGTH }
+    }
+
+    /// The same server, accepting messages of up to `bytes` (the Configuration's `mcp.maxRequestBytes`) instead of
+    /// rmcp's default of 16 MiB.
+    #[must_use]
+    pub fn with_max_request_bytes(mut self, bytes: usize) -> Self {
+        self.max_request_bytes = bytes;
+        self
     }
 
     /// Serve MCP over `input` and `output` until the client closes `input`.
@@ -53,7 +63,8 @@ impl McpServer {
         R: AsyncRead + Send + Unpin + 'static,
         W: AsyncWrite + Send + Unpin + 'static,
     {
-        let running = ServiceExt::serve(self, (input, output)).await.map_err(Box::new)?;
+        let transport = AsyncRwTransport::new_server(input, output).with_max_line_length(self.max_request_bytes);
+        let running = ServiceExt::serve(self, transport).await.map_err(Box::new)?;
         match running.waiting().await? {
             QuitReason::JoinError(e) => Err(ServeError::Session(e)),
             _ => Ok(()),
@@ -97,7 +108,7 @@ impl ServerHandler for McpServer {
         let dispatcher = Arc::clone(&self.dispatcher);
         let name = request.name.into_owned();
         let params = request.arguments.map_or(Value::Null, Value::Object);
-        let outcome = tokio::task::spawn_blocking(move || lock(&dispatcher).call(&name, params))
+        let outcome = tokio::task::spawn_blocking(move || lock(&dispatcher).call_from(Origin::Mcp, &name, params))
             .await
             .map_err(|e| ErrorData::internal_error(format!("the call did not finish: {e}"), None))?;
         Ok(tool_result(outcome).into())

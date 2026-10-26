@@ -4,9 +4,11 @@
 use std::rc::Rc;
 
 use red_ale_core::time::PeriodBounds;
-use red_ale_core::{Date, Time64, TimeZone};
+use red_ale_core::{CommodityRef, Date, Time64, TimeZone};
+use red_ale_locale::Locale;
 use rhai::{Dynamic, Engine, INT, Map};
 
+use super::run::RunContext as HostContext;
 use crate::query::{BookHandle, Fallible, Snapshot, script_error, time_arg};
 use crate::settings::{ReportSettings, WeekStart};
 
@@ -20,14 +22,22 @@ struct RunContext {
     snap: Rc<Snapshot>,
     zone: TimeZone,
     settings: ReportSettings,
+    locale: Locale,
+    /// The default report currency: the setting, else the Locale's.
+    currency: CommodityRef,
+    /// The first day of the week: the setting, else the Locale's.
+    week_start: WeekStart,
     /// The accounting period at now, or why it cannot be computed (a fiscal period with no fiscal year end).
     period: Result<PeriodBounds, String>,
 }
 
 impl ContextHandle {
-    /// The context of a run over `snap` in `zone`.
-    pub(crate) fn new(snap: Rc<Snapshot>, zone: TimeZone, settings: ReportSettings, period: Result<PeriodBounds, String>) -> Self {
-        Self(Rc::new(RunContext { snap, zone, settings, period }))
+    /// The context of a run over `snap` in `zone`, with the settings and Locale of `run`.
+    pub(crate) fn new(snap: Rc<Snapshot>, zone: TimeZone, run: &HostContext<'_>, period: Result<PeriodBounds, String>) -> Self {
+        let (settings, locale) = (run.settings.clone(), run.locale);
+        let currency = settings.report_currency(run.book, &locale);
+        let week_start = settings.week_start(&locale);
+        Self(Rc::new(RunContext { snap, zone, settings, locale, currency, week_start, period }))
     }
 
     /// The report settings of the run.
@@ -58,10 +68,10 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("local", local);
     engine.register_fn("make_time", make_time);
     engine.register_fn("print_date", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
-        Ok(c.0.settings.date_format.print(c.date(time_arg(&t)?)?))
+        Ok(c.0.settings.date_format.print(c.date(time_arg(&t)?)?, &c.0.locale))
     });
     engine.register_fn("print_date_interval", |c: &mut ContextHandle, from: Dynamic, to: Dynamic| -> Fallible<String> {
-        Ok(c.0.settings.date_format.print_interval(c.date(time_arg(&from)?)?, c.date(time_arg(&to)?)?))
+        Ok(c.0.settings.date_format.print_interval(c.date(time_arg(&from)?)?, c.date(time_arg(&to)?)?, &c.0.locale))
     });
     engine.register_fn("print_time_iso", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         let t = time_arg(&t)?;
@@ -72,8 +82,8 @@ pub(super) fn register(engine: &mut Engine) {
         let p = c.0.period.as_ref().map_err(|e| script_error(format!("the accounting period: {e}")))?;
         Ok([("start".into(), Dynamic::from(p.start.0)), ("end".into(), Dynamic::from(p.end.0))].into_iter().collect())
     });
-    engine.register_fn("report_currency", |c: &mut ContextHandle| BookHandle(Rc::clone(&c.0.snap)).commodity(&c.0.settings.currency));
-    engine.register_fn("week_start", |c: &mut ContextHandle| week_start(c.0.settings.week_start));
+    engine.register_fn("report_currency", |c: &mut ContextHandle| BookHandle(Rc::clone(&c.0.snap)).commodity(&c.0.currency));
+    engine.register_fn("week_start", |c: &mut ContextHandle| week_start(c.0.week_start));
 }
 
 /// `gnc-start-of-week`: 1 for Sunday to 7 for Saturday (`5.17:libgnucash/engine/gnc-date.cpp:195-215`).
