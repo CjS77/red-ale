@@ -77,6 +77,7 @@ the open book, or from an empty book when none is open.
 | `report` | ReportRef | Required |
 | `options` | Options? | Changes over the template's defaults, or over the saved configuration's values |
 | `now` | Timestamp? | The time to run the report for; default the session's clock. Relative dates ("end of this month") and "today" follow it |
+| `locale` | string? | The Locale numbers and dates are formatted in for this run (v0.3): a supported POSIX name (`fr_FR`, `fr_FR.UTF-8`, `C`) or `environment`; default the Configuration's `locale` setting ([`configuration.md`](configuration.md)). It also sets the defaults of an unset `reports.currency` and `reports.weekStart` ([`../reports.md`](../reports.md) §3, §4). A name that is not supported is invalid params |
 
 → `ReportResult`. Needs an open book (`no-book`). Errors: `not-found` (`data.kind: "report"`), `conflict` (an
 ambiguous name), `report-option`, `report-script`, `report-limit`, `report-result`. A user script that no longer
@@ -85,7 +86,7 @@ loads defines no template, so naming one of its templates is `not-found`, and ru
 
 ### `report.export` (read)
 
-`{ report, options?, now?, styleSheet?: string }` → `{ title, html }`. Runs the report as `report.run` does and
+`{ report, options?, now?, styleSheet?: string, locale?: string }` → `{ title, html }`. Runs the report as `report.run` does and
 renders it through the style sheet named by `styleSheet`, else by the report's General/"Stylesheet" option (§8).
 The HTML is one self-contained document: no script, no external resource, the same bytes for the same book, options,
 `now` and settings. **Nothing is written to disk**: the server never writes to a path a caller names. The CLI's
