@@ -317,4 +317,6 @@ Known gaps in v0.2, each documented where it happens, to close in v0.3 or record
   imported module cannot be called once returned, and a module's methods cannot make closures
   ([`../crates/red-ale-report/README.md`](../crates/red-ale-report/README.md), "Conventions a translator needs").
   The 39 open rows of `features.md` §8 build on the same library from v0.4 on, so settle first whether these are
-  Rhai bugs to report and fix upstream or limits of how the engine sets up modules.
+  Rhai bugs to report and fix upstream or limits of how the engine sets up modules. Settled in v0.3: both are Rhai
+  bugs, reproduced on a bare engine with Rhai's own resolver (`red-ale-report/tests/rhai_closure_limits.rs`); the
+  conventions stay until a Rhai release fixes them.

@@ -117,9 +117,19 @@ Conventions a translator needs:
 - **Keyword arguments, transaction types and the account table's environment are maps** with GnuCash's keys
   (`#{ str: "Closing Entries", closing: true }`, `#{ display_tree_depth: 2, depth_limit_behavior: "flatten" }`);
   a missing key, `()` and false read as #f. Symbols are strings.
-- **No closures inside a module's methods.** Rhai caches a method's resolution for the run; called from another
-  module after its own module called it, the method runs without its module's environment, and a closure made in
-  it is "not found" (`anon$…`). lib/collectors' methods loop for this reason (`tests/lib_collectors.rs`).
+- **No closures inside a module's methods.** Rhai caches a function's resolution on its second lookup; once a
+  module has called its own method twice, another module that calls it gets the cached method without its module's
+  environment, and a closure the method passes to a native function (`index_of`, `retain`) is "not found"
+  (`anon$…`). lib/collectors' methods loop for this reason (`tests/lib_collectors.rs`).
+
+Both closure limits are Rhai bugs, not consequences of red-ale's module resolver: `tests/rhai_closure_limits.rs`
+reproduces each on a bare `Engine::new()` with Rhai's own `StaticModuleResolver`. Both reproduce on rhai 1.26.1 and
+1.27.0 (the pinned version); the first also on Rhai's `main` at `2b22628` (October 2026), which has the fix for the
+related rhaiscript/rhai#1193 (closures losing the script's imports, a 1.27.0 regression). A function pointer made by
+a closure records only the anonymous function's hash, which is looked up in the calling script's functions
+(`FnPtrType::get_linked_script`, `rhai-1.27.0/src/types/fn_ptr.rs:61-83`), so the module that defined it is never
+searched. Neither is reported upstream yet. When a Rhai upgrade fails that test, the bug is fixed: drop the
+convention and the test.
 - `memo()` makes a `Memo`, a table from integers to values shared by its copies; `case_exchange_time_fn` keeps its
   daily price tables in one.
 

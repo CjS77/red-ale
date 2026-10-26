@@ -366,7 +366,7 @@ Each is closed in v0.3 or recorded as a deviation ([`roadmap.md`](roadmap.md), "
 |   ✅   | GnuCash's business lot scrub is not an operation                     | Decided: the oracle check only, as business import never scrubs ([`api/business-posting.md`](api/business-posting.md)) |
 |   ✅   | Day boundaries follow zone files exactly                             | Decided: a deviation, with its reason ([`api.md`](api.md), "Dates, times and the local time zone"); stored dates are unaffected |
 |   ✅   | Nothing pins the API as additive                                     | Closed: `red-ale-rpc/tests/api_additive.rs` against the committed 0.2.0 schema ([`api.md`](api.md), "Versioning") |
-|        | Two Rhai closure limits worked around by convention                  | Settle whether they are Rhai bugs to report upstream, before v0.4's reports  |
+|   ✅   | Two Rhai closure limits worked around by convention                  | Settled: both are Rhai bugs, reproduced without red-ale's resolver (`red-ale-report/tests/rhai_closure_limits.rs`); to report upstream, conventions kept until fixed |
 |        | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Label it as 5.5's, or replace it with 5.17 output when a GUI build exists    |
 
 ## Interfaces
