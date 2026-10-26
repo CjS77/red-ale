@@ -14,7 +14,7 @@ use super::score::split_find_match;
 use super::trans_info::{LastSplitInfo, TransInfo};
 use super::ImportSettings;
 
-/// Seconds in a day (`import-main-matcher.cpp:2311`).
+/// Seconds in a day (`import-main-matcher.cpp:2312`).
 const SECS_PER_DAY: i64 = 86_400;
 
 /// One transaction an importer built, with what it knows about the balancing split: what the CSV importer hands the

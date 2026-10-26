@@ -100,6 +100,17 @@ fn an_entity_generated_differently_keeps_its_original_text() {
     assert_same("rich with an empty num", &other, &write_book_text(&book, &residue));
 }
 
+#[test]
+fn an_escaped_book_version_is_written_back_escaped() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let other = text.replacen("<gnc:book version=\"2.0.0\">", "<gnc:book version=\"2.0.0&amp;&quot;x&lt;\">", 1);
+    assert_ne!(other, text);
+    let (book, residue) = read_book(other.as_bytes()).unwrap();
+    let written = write_book_text(&book, &residue);
+    assert_same("rich with an escaped book version", &other, &written);
+    assert_eq!(read_book(written.as_bytes()).unwrap().0, book);
+}
+
 /// Every XML fixture, canonical or not: SQL books and version 1 files are refused, so they are left out.
 fn xml_fixtures() -> Vec<String> {
     let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));

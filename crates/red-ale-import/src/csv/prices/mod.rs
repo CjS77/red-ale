@@ -170,7 +170,7 @@ impl PriceImport {
         .collect()
     }
 
-    /// Whether the line at this position among the non-empty lines is skipped (`update_skipped_lines`, `:262-279`).
+    /// Whether the line at this position among the non-empty lines is skipped (`update_skipped_lines`, `:253-274`).
     fn skip_reason(&self, i: usize) -> Option<&'static str> {
         let csv = &self.layout.csv;
         let start = usize::try_from(csv.skip_start_lines).unwrap_or(usize::MAX);
@@ -297,7 +297,7 @@ fn ready(book: &Book, zone: &TimeZone, columns: &[PriceColumn], line: &PriceLine
     Ok(Ready { commodity, currency, date, time: zone.neutral_time(date), amount, value })
 }
 
-/// `amount.convert<RoundType::half_up>(scu * COMMODITY_DENOM_MULT)` (`gnc-imp-props-price.cpp:342-343`).
+/// `amount.convert<RoundType::half_up>(scu * COMMODITY_DENOM_MULT)` (`gnc-imp-props-price.cpp:343-344`).
 pub fn price_value(book: &Book, currency: &CommodityRef, amount: Numeric) -> Result<Numeric, String> {
     let scu = commodity_fraction(book, currency).ok_or_else(|| format!("{currency} has no fraction"))?;
     let denom = scu.checked_mul(COMMODITY_DENOM_MULT).ok_or_else(|| format!("{currency}'s fraction is too large"))?;

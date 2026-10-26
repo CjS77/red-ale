@@ -1840,6 +1840,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "hyper-util",
+ "proptest",
  "red-ale-core",
  "red-ale-service",
  "rustls",
@@ -1933,6 +1934,7 @@ version = "0.2.0"
 dependencies = [
  "flate2",
  "indexmap",
+ "proptest",
  "quick-xml",
  "red-ale-core",
  "thiserror 2.0.21",

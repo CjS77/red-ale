@@ -18,6 +18,8 @@ mod alphavantage;
 mod finnhub;
 mod frankfurter;
 mod pointers;
+#[cfg(test)]
+mod proptests;
 mod twelvedata;
 mod yahoo;
 

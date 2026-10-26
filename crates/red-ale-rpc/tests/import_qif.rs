@@ -157,6 +157,39 @@ fn importing_the_same_file_again_finds_every_transaction_and_adds_nothing() {
     assert_eq!(b.transactions().len(), 4);
 }
 
+/// Two half-cent splits each round up to a cent (`xaccSplitSetValue`), so the near split's -0.01 leaves the
+/// transaction a cent out: committing balances it into `Imbalance-USD`, which the preview flags and the apply reports,
+/// as for every format. The first transaction is also dated before the auto read-only threshold.
+#[test]
+fn imbalanced_and_read_only_transactions_are_flagged_and_reported() {
+    let mut b = Book::new();
+    b.ok("book.setOptions", json!({ "autoReadOnlyDays": 120 }));
+    let file = "!Account\nNChecking\nTBank\n^\n!Type:Bank\nD03/01/2024\nT-0.01\nPRounding\nLFees\nSFees\n$-0.005\nSBank\n$-0.005\n^\n\
+                D03/20/2024\nT-5.00\nPGrocer\nLGroceries\n^\n";
+    let p = b.preview(&[("checking.qif", file)], json!({}));
+    assert_eq!(p["thresholdDate"], "2024-03-03");
+    assert_eq!((&p["summary"]["imbalanced"], &p["summary"]["readOnlyByDate"]), (&json!(1), &json!(1)));
+    let rounding = &p["transactions"][0];
+    assert_eq!(rounding["imbalance"]["value"], json!({ "num": "-1", "denom": "100" }));
+    assert_eq!(rounding["imbalance"]["accountName"], "Imbalance-USD");
+    assert_eq!(rounding["readOnlyByDate"], true);
+    let codes: Vec<&str> = rounding["warnings"].as_array().unwrap().iter().map(|w| w["code"].as_str().unwrap()).collect();
+    assert!(codes.contains(&"imbalance") && codes.contains(&"read-only-by-date"), "{codes:?}");
+    assert_eq!((&p["transactions"][1]["imbalance"], &p["transactions"][1]["readOnlyByDate"]), (&Value::Null, &json!(false)));
+
+    let applied = b.apply(&p, json!({}));
+    assert_eq!(applied["added"].as_array().unwrap().len(), 2, "a transaction read-only by date is still added");
+    let imbalance = applied["imbalanceSplits"].as_array().unwrap();
+    assert_eq!(imbalance.len(), 1);
+    assert_eq!((&imbalance[0]["index"], &imbalance[0]["value"]), (&json!(0), &json!({ "num": "-1", "denom": "100" })));
+    let t = b.ok("transaction.get", json!({ "guid": imbalance[0]["transaction"] }));
+    let split = t["splits"].as_array().unwrap().iter().find(|s| s["guid"] == imbalance[0]["split"]).unwrap();
+    assert_eq!((&split["account"], &split["accountName"]), (&imbalance[0]["account"], &json!("Imbalance-USD")));
+    let warned: Vec<(&str, u64)> =
+        applied["warnings"].as_array().unwrap().iter().map(|w| (w["code"].as_str().unwrap(), w["index"].as_u64().unwrap())).collect();
+    assert_eq!(warned, [("imbalance", 0), ("read-only-by-date", 0)]);
+}
+
 #[test]
 fn the_account_map_is_learned_and_reused() {
     let mut b = Book::new();

@@ -1,7 +1,9 @@
 # Milestone 3: red-ale v0.3
 
-**Status: in progress.** Items marked *Proposed* were accepted at the start of the work ("Decided" below); the rest is decided, here or in
-[`open-questions.md`](open-questions.md) ("Decided for v0.3") and [`roadmap.md`](roadmap.md) ("v0.3").
+**Status: done.** Every row below is ✅ or ❌, and each "Done when" item holds, with its evidence listed under it.
+What the final audit found but did not close is under "Follow-ups". Items marked *Proposed* were accepted at the
+start of the work ("Decided" below); the rest is decided, here or in [`open-questions.md`](open-questions.md)
+("Decided for v0.3") and [`roadmap.md`](roadmap.md) ("v0.3").
 
 **Goal:** red-ale holds books the size a small business reaches in a few gigabytes; imports QIF, CSV and business CSV
 files as GnuCash 5.17 imports them, matching and learning as GnuCash does; exports CSV and account trees; fetches
@@ -30,8 +32,10 @@ v0.2 (below).
 **Out:**
 
 - **OFX/QFX, MT940, MT942, DTAUS and CAMT import: won't do (❌).** GnuCash doesn't parse these files itself: LibOFX
-  and AqBanking, separate C libraries, parse them and hand GnuCash records. red-ale links no C library, and there is
-  no GnuCash code to translate for the parsing, so these formats are dropped. Their `features.md` rows become ❌.
+  and AqBanking, separate C libraries, parse them and hand GnuCash records. red-ale links no C library for its
+  importers (the one C code it builds is `ring`, TLS cryptography for Quote fetches; see
+  [`architecture.md`](architecture.md), "Dependencies"), and there is no GnuCash code to translate for the parsing,
+  so these formats are dropped. Their `features.md` rows become ❌.
   Banks that offer them nearly always offer CSV too, which red-ale imports. Books that already hold transactions
   GnuCash imported from them keep everything, `online_id` Slots included (see "Compatibility").
 - Online banking: FinTS/HBCI, SEPA transfers and SEPA direct debits (§7 "Online banking"). See
@@ -117,6 +121,10 @@ measures one process through `book.open`, `transaction.post` and `book.save`. He
 | Parse as a stream                      |        169 MB |       328 MB |       174 MB |       611 MB |     169 MB |   534 MB |
 | Stream the save and its check          |        169 MB |       173 MB |       174 MB |       178 MB |     169 MB |   201 MB |
 | Budget                                 |        376 MB |       564 MB |       564 MB |       564 MB |     376 MB |          |
+
+Re-measured at the end of v0.3, with import, quotes and locales in: 169.2 MB at rest, 172.5 MB peak at open, 174.3 MB
+at post, 177.5 MB at save, 169.2 MB after save, 203.9 MB peak RSS (the Book alone 164.2 MB), the last row unchanged
+within the run-to-run variation of the resident set.
 
 GnuCash 5.17 holds 226 MB resident on the same book through its Python bindings, 186 MB above the interpreter alone.
 The second row is the Residue change; the third drops the first read of the file before the locked one is parsed, and
@@ -243,9 +251,9 @@ Bayesian matching follows GnuCash exactly, so red-ale and GnuCash pick the same 
 |   ✅   | CSV export      |    2.6     |      | Account tree (`5.17:gnucash/import-export/csv-exp/csv-tree-export.cpp`) and transactions, simple and complex layouts (`csv-transactions-export.cpp`). Returns text |
 |   ✅   | Export accounts |    1.8     |      | A new book with the account tree, commodities and no transactions, as `qof_session_export` makes it (`5.17:libgnucash/engine/qofsession.cpp:676`) |
 
-CSV export returns its text and writes no file, as `report.export` returns HTML ([`open-questions.md`](open-questions.md),
-"Decided for v0.2"); the CLI writes the file on its side. Export accounts creates a new book file, as `book.create`
-does, and refuses a path that exists.
+CSV export returns its text and writes no file, as `report.export` returns HTML
+([`open-questions.md`](open-questions.md), "Decided for v0.2"); the CLI writes the file on its side. Export accounts
+creates a new book file, as `book.create` does, and refuses a path that exists.
 
 ## Online quotes
 
@@ -351,9 +359,9 @@ edited by hand in the file. v0.3 adds:
 As in [`roadmap.md`](roadmap.md), "Also in v0.3": the locale becomes a setting, the C locale stays the default, and
 every test and output that exists today is unchanged under it. A locale covers the number format (decimal point and
 grouping, `5.17:libgnucash/core-utils/gnc-locale-utils.c:75-108`), the `locale` date format (the locale's `D_FMT`,
-`5.17:libgnucash/engine/gnc-date.cpp:61`, `:522`) and ICU's interval form for date ranges in titles
-(`:618-680`), the locale's currency symbol and default report currency (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:748-822`),
-the first day of the week (`5.17:libgnucash/engine/gnc-date.cpp:195-215`), and day names.
+`5.17:libgnucash/engine/gnc-date.cpp:61`, `:522`) and ICU's interval form for date ranges in titles (`:618-680`), the
+locale's currency symbol and default report currency (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:748-822`), the first
+day of the week (`5.17:libgnucash/engine/gnc-date.cpp:195-215`), and day names.
 
 *Proposed:*
 
@@ -423,9 +431,9 @@ through JSON-RPC, MCP and the CLI.
 
 | Status | Interface    | Notes                                                                                                                                  |
 |:------:|--------------|----------------------------------------------------------------------------------------------------------------------------------------|
-|        | JSON-RPC API | `import.*`, `importMap.*`, `export.*`, `config.*`, `price.fetchQuotes` and `price.fetchStatus`. `redAleApi` becomes `0.3.0`, additive over `0.2.0` |
-|        | MCP server   | Every new method as a tool, as in v0.2. `import.apply` and `importMap.delete` are destructive; `import.preview`, `export.*`, `config.get`, `config.schema` and `price.fetchStatus` read only |
-|        | CLI          | Every new method through `exec` and `call`. The CLI reads import files and writes export files on its own side, and waits for a Quote fetch to finish |
+|   ✅   | JSON-RPC API | `import.*`, `importMap.*`, `export.*`, `config.*`, `price.fetchQuotes` and `price.fetchStatus`. `redAleApi` becomes `0.3.0`, additive over `0.2.0`. The 17 methods added, by diffing `api.schema` with the 0.2.0 document: `config.get`, `config.schema`, `config.set`, `export.accounts`, `export.csvTransactions`, `export.csvTree`, `import.apply`, `import.discard`, `import.preview`, `importMap.delete`, `importMap.list`, `price.fetchQuotes`, `price.fetchStatus`, `report.exportCsv`, `report.importConfigurations`, `report.importStyleSheets`; none removed |
+|   ✅   | MCP server   | Every new method as a tool, as in v0.2. `import.apply` and `importMap.delete` are destructive; `import.preview`, `export.*`, `config.get`, `config.schema` and `price.fetchStatus` read only. Pinned by name in `red-ale-mcp/tests/tools.rs` |
+|   ✅   | CLI          | Every new method through `exec` and `call`. The CLI reads import files and writes export files on its own side, and `exec` waits for a Quote fetch to finish (`call` returns the fetch's ID, [`api/quotes.md`](api/quotes.md), "CLI"). `red-ale/tests/cli.rs` |
 
 `book.open` and `book.create` keep their paths, since a book has to live beside its lock and backups.
 
@@ -494,18 +502,19 @@ Settled at the start of v0.3, so every piece of work starts from the same answer
   | Finding changed transactions by GUID        |                11 ms |                22 ms |
   | Finding them by walking both maps in order  |              0.09 ms |              0.27 ms |
 
-  An import that is one Mutation pays the fixed cost once: 5,000 transactions take under a tenth of a second at
-  200,000, where 5,000 Mutations would take over four minutes. One call at a time, 10 to 50 ms is fine for a client.
-  The fixed cost is not the clone: it is `Session::try_mutate` finding changed transactions by looking each one up by
-  GUID. It makes two such passes (added or changed, then removed), each 22 ms at 200,000, so together they are most of
-  an empty Mutation's 48 ms. Walking the old and
-  new maps in order, falling back to lookups only where their keys stop lining up, finds the same changes a hundred
-  times faster, and would bring a Mutation down to about the cost of the clone (a few milliseconds at 200,000).
-  That is a small change in `session.rs`, proposed as its own ticket; it is not needed for import. Persistent maps
-  or change tracking would only remove the clone, which stays small until books reach millions of transactions.
-- **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code. **Done:**
-  the terms are in [`glossary.md`](glossary.md), "Import and export", with the clashes flagged, and the designs are
-  in [`api/import.md`](api/import.md), [`api/export.md`](api/export.md) and [`api/quotes.md`](api/quotes.md).
+  An import that is one Mutation pays the fixed cost once: 5,000 transactions take under a tenth of a second at 200,000,
+  where 5,000 Mutations would take over four minutes. One call at a time, 10 to 50 ms is fine for a client. The fixed
+  cost is not the clone: it is `Session::try_mutate` finding changed transactions by looking each one up by GUID. It
+  makes two such passes (added or changed, then removed), each 22 ms at 200,000, so together they are most of an empty
+  Mutation's 48 ms. Walking the old and new maps in order, falling back to lookups only where their keys stop lining up,
+  finds the same changes a hundred times faster, and would bring a Mutation down to about the cost of the clone (a few
+  milliseconds at 200,000). That is a small change in `session.rs`, proposed as its own ticket; it is not needed for
+  import. Persistent maps or change tracking would only remove the clone, which stays small until books reach millions
+  of transactions.
+- **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code.
+  **Done:** the terms are in [`glossary.md`](glossary.md), "Import and export", with the clashes flagged, and the
+  designs are in [`api/import.md`](api/import.md), [`api/export.md`](api/export.md) and
+  [`api/quotes.md`](api/quotes.md).
 - **The Import proposal is held by the server (item 3).** Proposals can hold a few years of statements, too much for
   an agent to send back whole and easy to change by accident. `import.preview` returns the proposal with an ID, and
   `import.apply` takes that ID with only the caller's changes (an action, a match or an account per transaction,
@@ -541,3 +550,94 @@ Settled at the start of v0.3, so every piece of work starts from the same answer
 - Every JSON-RPC method is an MCP tool with the same name, params schema and hints, and `redAleApi` 0.3.0 is
   additive over 0.2.0, checked by a test.
 - v0.1's and v0.2's done-when checks still pass.
+
+### Evidence
+
+Checked in the final audit. Test names are in the crate's `tests/` directory unless a path is given.
+
+- **Rows.** Every row above is ✅ or ❌ (the Interfaces rows were checked last, below). The 12 ✅ GnuCash features
+  (9 under "Formats", 2 under "Export", "Online quotes (red-ale)") have Ported `0.3` in `features.md`, which has no
+  other `0.3` row; "Currency quotes" and "Quote services" are covered by its "Online quotes (red-ale)" row, and the
+  other tables are red-ale's own work with no `features.md` row. `features.md`: 184 rows, 106 ✅ (60 in v0.1, 34 in
+  v0.2, 12 in v0.3), 18 ❌, 60 open.
+- **Memory.** `red-ale-testkit/tests/memory_budget.rs` holds the budgets on the 5,000-transaction book; the 100,000
+  book re-measured within them ("Measured", above). `red-ale-xml/tests/round_trip.rs` and the oracle suite pass
+  unchanged.
+- **Importers and GnuCash.** Each format has an oracle test that saves the book after an import and has GnuCash 5.17
+  open it with nothing logged and no unknown feature, and compare it whole (`oracle_check`): csvTransactions
+  `oracle_import.rs`; qif `oracle_import_qif.rs` (GnuCash's own QIF files too); csvAccounts and csvPrices
+  `oracle_import_records.rs`; csvDocuments and csvOwners `oracle_import_business.rs`, where GnuCash's business scrub
+  also finds nothing to fix.
+- **Re-importing adds nothing.** Each format applies a file, previews it again, applies that, and checks nothing was
+  added or changed: `red-ale-rpc/tests/import.rs`
+  `a_statement_is_proposed_applied_and_learned_then_imports_again_as_nothing_new` (every transaction matched and
+  cleared); `import_qif.rs` `importing_the_same_file_again_finds_every_transaction_and_adds_nothing`;
+  `import_records.rs` `an_account_export_recreates_the_tree_in_a_new_book` and
+  `prices_are_added_replaced_or_kept_as_gnucash_does`; `import_business.rs` `the_same_file_twice` and
+  `customers_are_created_and_updated_by_id_with_every_field`. An owner row with no ID is a new customer or vendor each
+  time, as in GnuCash (`dialog-customer-import.c:321-338`).
+- **Imbalance and read-only flags.** `import.rs`
+  `a_statement_is_proposed_applied_and_learned_then_imports_again_as_nothing_new` and
+  `read_only_by_date_is_flagged_and_still_applied`; `import_qif.rs`
+  `imbalanced_and_read_only_transactions_are_flagged_and_reported`; `import_business.rs`
+  `posting_before_the_read_only_threshold_is_flagged`. Each Imbalance split in `import.apply`'s result is checked by
+  transaction, split and account.
+- **Learned mappings and features.** `oracle_import_map.rs` `gnucash_finds_the_accounts_red_ale_learned`: GnuCash's
+  own `gnc_account_imap_find_account_bayes` and `gnc_account_imap_find_account` find what red-ale learned, and the
+  book's features are exactly `Account GUID based bayesian with flat KVP`; `oracle_import.rs` checks the same after
+  `import.apply`. `import.rs` `the_day_token_is_learned_in_the_locales_language`.
+- **CSV export imported back.** `import.rs` `a_csv_export_imports_back_to_the_same_transactions` and the property test
+  `any_csv_export_imports_back_to_the_same_transactions`. Text with a `"` at its start or end or beside a comma does
+  not come back, in GnuCash as in red-ale (`a_memo_of_one_quote_comes_back_as_two_as_in_gnucash`,
+  [`api/export.md`](api/export.md)).
+- **Quote fetches.** `oracle_quotes.rs` `gnucash_ranks_fetched_prices_as_finance_quote_quotes` (`PRICE_SOURCE_FQ`);
+  red-ale-testkit `quotes.rs`: `a_slow_fetch_holds_up_nothing_and_closing_the_book_cancels_it`,
+  `with_the_network_off_nothing_connects`, `keys_never_leave_their_service`,
+  `a_keyed_fetch_journals_its_price_and_not_its_key`. Every fetching test answers from `QuoteServer` on 127.0.0.1;
+  real hosts appear in tests only as text that is never fetched (expected plans, refused settings, recorded
+  answers), and the default Configuration has the network off. No source code holds a URL: the defaults are
+  settings (`red-ale-service/src/config/schema.rs`).
+- **Configuration.** `red-ale-service` `the_schema_declares_a_default_and_description_for_every_setting` walks every
+  setting; `red-ale-rpc/tests/config.rs` `a_failed_set_changes_nothing` (the file byte for byte),
+  `keys_never_appear_in_results_or_errors`, `through_mcp_keys_and_the_network_switch_are_refused`;
+  `red-ale-mcp/tests/tools.rs` `config_set_through_mcp_refuses_keys_and_the_network_switch`; the journal and the
+  files beside the book: `a_keyed_fetch_journals_its_price_and_not_its_key`. red-ale logs nothing but its own
+  status lines, which name no setting.
+- **Locales.** `red-ale-rpc/tests/report_golden.rs`: all 19 v0.2 reports on the ten report fixture books, in two date
+  formats (380 exports), give the bytes v0.2 gave (digests written by the same test run against the `v0.2` tag),
+  with the default locale and with `locale: "C"`. Other locales: `report_locale.rs`, `red-ale-locale/tests/locale.rs`,
+  and the day token above.
+- **API.** `red-ale-rpc/tests/api_additive.rs` against `tests/schemas/red-ale-api-0.2.0.json`; `redAleApi` is
+  `0.3.0`. `red-ale-mcp/tests/tools.rs` `every_method_is_a_tool_with_its_params_schema_and_hints`.
+- **v0.1 and v0.2.** Their checks are tests in `cargo test --workspace` and the oracle suite, and pass: the read-only
+  triggers and SQL refusal (`red-ale-service/tests/session.rs`), the lifted triggers (`oracle_lifted_triggers.rs`),
+  time zones (`oracle_time_zones.rs`, `red-ale/tests/cli.rs`), every report's figures, report purity and sandbox
+  (`red-ale-report/tests/engine_sandbox.rs`). `features.md` still has its 60 `0.1` and 34 `0.2` rows.
+- **No crashes.** Every parser has a property test on arbitrary input, and a fuzz target in `fuzz/`
+  ([`testing.md`](testing.md), "Fuzzing"). Each of the 11 targets ran 60 s with libFuzzer and AddressSanitizer
+  (nightly, built with cargo-fuzz's flags), seeded from the fixtures where there are any: no crash, leak or timeout.
+- **Licences.** `cargo deny check` passes.
+
+## Follow-ups
+
+Found during the milestone and not closed in it:
+
+- **Opening an exported account tree.** `export.accounts` writes no `gnc:book` element, as GnuCash's Export Accounts
+  does; GnuCash opens the file, red-ale's `book.open` refuses it ([`open-questions.md`](open-questions.md), "Open").
+- **Mutation cost.** Walk the old and new transaction maps in order in `transaction_changes`
+  (`crates/red-ale-service/src/session.rs`), as "Decided" above measures; a separate ticket.
+- **`ring` is C.** Quote fetches need TLS, and rustls's `ring` provider compiles C and assembly
+  ([`architecture.md`](architecture.md), "Dependencies"). The importers link no C library, as this file promises;
+  the binary as a whole does. A pure-Rust provider is the way out once one is production-ready.
+- **GnuCash's QIF account map file.** Reading GnuCash's own `qif-accounts-map`
+  (`5.17:gnucash/import-export/qif-imp/qif-guess-map.scm:114`) so a user's QIF mappings carry over is left for later;
+  red-ale keeps its own QIF map in the Configuration.
+- **Rhai closures.** The two closure bugs are ready to report upstream ("Carried forward from v0.2", above).
+- **A loopback guard for quote tests.** Every quote test sets its own services, but nothing in the test HTTP client
+  refuses a host other than 127.0.0.1; a test adding a security with a source it doesn't override would reach the
+  default service. A guard in `red-ale-testkit` would make that impossible rather than unlikely.
+- **Fuzzing in CI.** The fuzz targets run by hand; nothing runs them regularly.
+- **Fixed in the audit:** a `gnc:book` version attribute with an escaped character was written back unescaped, so
+  such a book could not be saved (`red-ale-xml/tests/round_trip.rs`, `an_escaped_book_version_is_written_back_escaped`);
+  and `serve` and `mcp` panicked at shutdown when nobody read their standard error. Twelve GnuCash citations in the
+  CSV price, CSV account and business importers were corrected.

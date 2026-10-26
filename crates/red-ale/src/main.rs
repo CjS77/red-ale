@@ -378,12 +378,14 @@ async fn shutdown_signal() -> Result<()> {
 fn shut_down(dispatcher: &Mutex<Dispatcher>) {
     let mut d = dispatcher.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let Ok(info) = d.call("book.info", Value::Null) else { return };
+    // Standard error may already be closed (a supervisor that stopped reading it); `eprintln!` would then panic, so
+    // these notes are written with their errors ignored.
     if info["dirty"].as_bool() == Some(true) {
         let journal = info["journal"].as_str().unwrap_or("the journal");
-        eprintln!("red-ale: unsaved changes were not saved; they are recorded in {journal}");
+        let _ = writeln!(std::io::stderr(), "red-ale: unsaved changes were not saved; they are recorded in {journal}");
     }
     if let Err(e) = d.call("book.close", json!({ "discard": true })) {
-        eprintln!("red-ale: closing the book failed: {e}");
+        let _ = writeln!(std::io::stderr(), "red-ale: closing the book failed: {e}");
     }
 }
 

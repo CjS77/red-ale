@@ -13,7 +13,7 @@ use red_ale_core::{Account, Book, CommodityRef, Guid, Lot, Transaction};
 
 use crate::XmlError;
 use crate::business;
-use crate::dom::{Element, Node, parse_document};
+use crate::dom::{Element, Node, escape_attr, parse_document};
 use crate::entities::{account_el, commodity_el, commodity_is_written, price_el, transaction_el};
 use crate::envelope::{BOOK_VERSION, FOOTER, count_line, header};
 use crate::read::read_book_from;
@@ -237,7 +237,8 @@ impl<'a, W: Write> Writer<'a, W> {
         self.out.push_str(&header());
         count_line(&mut self.out, "book", 1);
         self.out.push_str("<gnc:book version=\"");
-        self.out.push_str(&self.residue.book_version);
+        // The version was unescaped when read, so a book whose attribute held `&amp;` must be written escaped again.
+        escape_attr(&mut self.out, &self.residue.book_version);
         self.out.push_str("\">\n");
         self.line(&guid_el("book:id", self.book.guid));
         self.book_slots();

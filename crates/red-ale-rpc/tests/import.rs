@@ -101,6 +101,9 @@ fn a_statement_is_proposed_applied_and_learned_then_imports_again_as_nothing_new
     assert_eq!(imbalance.len(), 1, "only Salary had no destination");
     assert_eq!(imbalance[0]["index"], 2);
     assert_eq!(imbalance[0]["value"], usd("-200000"));
+    let salary = b.ok("transaction.get", json!({ "guid": imbalance[0]["transaction"] }));
+    let split = salary["splits"].as_array().unwrap().iter().find(|s| s["guid"] == imbalance[0]["split"]).unwrap();
+    assert_eq!((&split["account"], &split["accountName"], &split["value"]), (&imbalance[0]["account"], &json!("Imbalance-USD"), &usd("-200000")));
     assert!(applied["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "imbalance" && w["index"] == 2));
     assert_eq!(applied["accounts"]["created"].as_array().unwrap().len(), 1);
     let bayes = applied["learned"]["bayes"].as_array().unwrap();
@@ -242,6 +245,20 @@ fn apply_is_one_mutation_all_or_nothing() {
     assert!(b.ok("importMap.list", json!({}))["entries"].as_array().unwrap().is_empty());
     let retry = json!([{ "index": 0, "account": "Expenses:Groceries" }]);
     assert_eq!(b.ok("import.apply", json!({ "proposal": p["id"], "changes": retry }))["added"].as_array().unwrap().len(), 3, "the proposal stays held");
+}
+
+/// The day-of-week token is formatted with `%A` in the locale (`5.17:gnucash/import-export/import-backend.cpp:479`), so
+/// under `fr_FR` red-ale learns `vendredi`, as a French GnuCash does, and finds the account again from it.
+#[test]
+fn the_day_token_is_learned_in_the_locales_language() {
+    let mut b = Book::new();
+    b.ok("config.set", json!({ "changes": { "locale": "fr_FR" } }));
+    let p = b.preview(MARCH, bank_layout());
+    let applied = b.ok("import.apply", json!({ "proposal": p["id"], "changes": [{ "index": 0, "account": "Expenses:Groceries" }] }));
+    assert_eq!(applied["learned"]["bayes"][0]["tokens"], json!(["vendredi", "Grocer", "Corner"]));
+    let april = "Date,Description,Amount\n2024-04-05,Corner Grocer,-12.00\n";
+    let again = b.preview(april, bank_layout());
+    assert_eq!(again["transactions"][0]["other"]["accountName"], "Expenses:Groceries", "matched through the learned tokens");
 }
 
 #[test]
@@ -461,6 +478,80 @@ fn a_csv_export_imports_back_to_the_same_transactions() {
     let text = serde_json::to_string(&expected).unwrap();
     assert!(text.contains("fruit \\\"fresh\\\"") && text.contains("\"num\":\"7\"") && text.contains("2024-03-05"), "{text}");
     assert_eq!(shape(&mut b), expected);
+}
+
+/// One generated transaction: its day of March 2024, num, description, and the cents and memo of its Groceries split
+/// and, when present, a Salary split; Checking takes the rest.
+type Generated = (u32, String, String, (i64, String), Option<(i64, String)>);
+
+fn generated() -> impl proptest::strategy::Strategy<Value = Generated> {
+    use proptest::prelude::*;
+    // GnuCash's tokenizer misreads a quote next to a field's edge or a comma (below), so the text starts and ends
+    // with a letter or digit and has no quote beside a comma.
+    let text = "[A-Za-z0-9é]([A-Za-z0-9 ,;:\"'\\-é]{0,10}[A-Za-z0-9é])?"
+        .prop_filter("a quote beside a comma", |t: &String| !t.contains(",\"") && !t.contains("\","));
+    let cents = prop_oneof![1_i64..100_000, -100_000_i64..-1];
+    (1_u32..29, "[0-9]{0,3}", text.clone(), (cents.clone(), text.clone()), prop::option::of((cents, text)))
+}
+
+fn post_generated(b: &mut Book, (day, num, desc, (groceries, memo), salary): &Generated) {
+    let amount = |cents: i64| format!("{}{}.{:02}", if cents < 0 { "-" } else { "" }, cents.abs() / 100, cents.abs() % 100);
+    let checking = -groceries - salary.as_ref().map_or(0, |(c, _)| *c);
+    let mut splits = vec![
+        json!({ "account": "Assets:Checking", "value": amount(checking) }),
+        json!({ "account": "Expenses:Groceries", "value": amount(*groceries), "memo": memo }),
+    ];
+    if let Some((cents, memo)) = salary {
+        splits.push(json!({ "account": "Income:Salary", "value": amount(*cents), "memo": memo }));
+    }
+    b.ok("transaction.post", json!({ "datePosted": format!("2024-03-{day:02}"), "num": num, "description": desc, "splits": splits }));
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(128))]
+
+    /// The example above, generated: text with separators and quotes, amounts of either sign, two or three splits.
+    #[test]
+    fn any_csv_export_imports_back_to_the_same_transactions(transactions in proptest::collection::vec(generated(), 1..5)) {
+        let mut a = Book::new();
+        transactions.iter().for_each(|t| post_generated(&mut a, t));
+        let csv = a.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"].as_str().unwrap().to_owned();
+        let mut layout = serde_json::to_value(red_ale_import::csv::TxLayout::gnucash_export()).unwrap();
+        layout["dateFormat"] = json!("m-d-y");
+        let mut b = Book::new();
+        let p = b.preview(&csv, layout);
+        proptest::prop_assert_eq!(&p["errors"], &json!([]), "{}", csv);
+        let actions: Vec<&str> = actions(&p);
+        proptest::prop_assert!(actions.iter().all(|a| *a == "add"), "{:?}", actions);
+        b.ok("import.apply", json!({ "proposal": p["id"] }));
+        proptest::prop_assert_eq!(shape(&mut b), shape(&mut a), "{}", csv);
+    }
+}
+
+/// Before boost reads a line, GnuCash's tokenizer turns each `""` into `\"` unless a separator or the line's edge is
+/// on both sides of it, which it takes for an empty field (`5.17:gnucash/import-export/csv-imp/gnc-tokenizer-csv.cpp:118-137`).
+/// So text whose quote sits at a field's edge or beside a comma does not come back as exported: a memo of one `"`,
+/// exported as `""""`, is read as `""`, and `a,",0`, exported as `"a,"",0"`, as `a,,0`. red-ale reads them as GnuCash
+/// does, for parity.
+#[test]
+fn a_memo_of_one_quote_comes_back_as_two_as_in_gnucash() {
+    let mut a = Book::new();
+    post_generated(&mut a, &(1, String::new(), "Quote".into(), (1, "\"".into()), None));
+    let csv = a.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"].as_str().unwrap().to_owned();
+    assert!(csv.contains(",\"\"\"\","), "{csv}");
+    let mut layout = serde_json::to_value(red_ale_import::csv::TxLayout::gnucash_export()).unwrap();
+    layout["dateFormat"] = json!("m-d-y");
+    let mut b = Book::new();
+    let p = b.preview(&csv, layout);
+    let memos: Vec<&Value> = p["transactions"][0]["splits"].as_array().unwrap().iter().map(|s| &s["memo"]).collect();
+    assert!(memos.contains(&&json!("\"\"")), "{memos:?}");
+    let mut c = Book::new();
+    post_generated(&mut c, &(1, String::new(), "a,\",0".into(), (1, "a".into()), None));
+    let csv = c.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"].as_str().unwrap().to_owned();
+    let mut layout = serde_json::to_value(red_ale_import::csv::TxLayout::gnucash_export()).unwrap();
+    layout["dateFormat"] = json!("m-d-y");
+    let p = Book::new().preview(&csv, layout);
+    assert_eq!(p["transactions"][0]["description"], "a,,0");
 }
 
 /// Single-line mode with a Transfer Account builds both splits (`gnc-imp-props-tx.cpp:801-845`); accounts in two

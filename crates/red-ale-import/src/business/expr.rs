@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
         Ok(p)
     }
 
-    /// `next_token` (`expression_parser.c:766-863`): operators first, so a sign is never part of a number.
+    /// `next_token` (`expression_parser.c:766-869`): operators first, so a sign is never part of a number.
     fn next(&mut self) -> Result<(), ExprError> {
         self.rest = self.rest.trim_start_matches(|c: char| c.is_ascii_whitespace());
         let Some(c) = self.rest.chars().next() else {
@@ -144,7 +144,7 @@ impl<'a> Parser<'a> {
         Ok(value)
     }
 
-    /// `primary_exp` (`expression_parser.c:1106-1240`): a number, a signed primary, or a parenthesised sum.
+    /// `primary_exp` (`expression_parser.c:1106-1270`): a number, a signed primary, or a parenthesised sum.
     fn primary(&mut self) -> Result<Numeric, ExprError> {
         match self.token {
             Token::Num(n) => {

@@ -21,6 +21,47 @@ cargo test -p red-ale-testkit --features oracle     # the oracle tests (needs Gn
 cargo clippy --workspace --all-targets --features red-ale-testkit/oracle -- -D warnings
 ```
 
+## Fuzzing
+
+Every parser of outside input is property-tested (no input panics it) and has a fuzz target in `fuzz/`, a crate
+outside the workspace that builds with nightly and libFuzzer (`libfuzzer-sys`):
+
+| Target             | Parser                                                                      |
+|--------------------|-----------------------------------------------------------------------------|
+| `csv_tokenize`     | CSV and fixed-width tokenizers                                              |
+| `csv_transactions` | CSV transaction import after tokenizing (parse, verify, drafts)             |
+| `csv_cells`        | CSV amount, price and date cells, the `locale` date format included         |
+| `csv_accounts`     | CSV account import: reader and proposal                                     |
+| `csv_prices`       | CSV price import: parse, file errors and proposal                           |
+| `qif`              | QIF reader, field parsers and date re-parsing                               |
+| `business`         | Invoice, bill, customer and vendor CSV; GnuCash's expression parser; dates  |
+| `saved_reports`    | The s-expression reader of saved report configurations and style sheets     |
+| `quotes`           | Quote service answers in every response format                              |
+| `locale_date`      | The locale date parser                                                       |
+| `xml`              | The streaming XML book reader and the save's read-back                      |
+
+With [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz) installed:
+
+```
+cd fuzz && cargo +nightly fuzz run csv_tokenize -- -max_total_time=60
+```
+
+Without it, build with the flags cargo-fuzz passes and run a target directly:
+
+```
+cd fuzz
+RUSTFLAGS="-Cpasses=sancov-module -Cllvm-args=-sanitizer-coverage-level=4 \
+  -Cllvm-args=-sanitizer-coverage-inline-8bit-counters -Cllvm-args=-sanitizer-coverage-pc-table \
+  -Cllvm-args=-sanitizer-coverage-trace-compares --cfg fuzzing -Zsanitizer=address -Cdebug-assertions -Coverflow-checks" \
+  cargo +nightly build --release --target x86_64-unknown-linux-gnu --bins
+mkdir -p corpus/xml && cp ../fixtures/synthetic/*.gnucash corpus/xml/
+target/x86_64-unknown-linux-gnu/release/xml corpus/xml -max_total_time=60 -rss_limit_mb=4096
+```
+
+Seed `xml` with the fixture books, `qif` with `fixtures/qif/`, and the CSV targets with `fixtures/csv/` and
+`crates/red-ale-rpc/tests/export/`; the other targets start from nothing.
+`corpus/` and `artifacts/` are not committed. A crash found by fuzzing becomes a unit or property test first.
+
 ## Fixtures
 
 `fixtures/` holds synthetic books and books from GnuCash's and piecash's repositories (see `fixtures/README.md` for
