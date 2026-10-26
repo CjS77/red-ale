@@ -1768,6 +1768,7 @@ version = "0.2.0"
 dependencies = [
  "proptest",
  "red-ale-core",
+ "regex",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

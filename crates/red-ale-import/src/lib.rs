@@ -10,3 +10,4 @@
 #![forbid(unsafe_code)]
 
 pub mod csv;
+pub mod qif;
