@@ -64,7 +64,7 @@ impl From<LimitState> for LimitStateWire {
     }
 }
 
-/// A sub-account balance in another commodity, left out of the check.
+/// Sub-account balances in another commodity with no price to the account's, counted as zero as GnuCash counts them.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Unconverted {
@@ -82,7 +82,8 @@ pub struct CheckResult {
     pub account: Id,
     /// The day the balance is taken at the end of.
     pub as_of: Day,
-    /// The balance compared, in raw sign, with sub-accounts in the same commodity when the account's flag is set.
+    /// The balance compared, in raw sign, with sub-accounts when the account's flag is set: those in other commodities
+    /// converted at the latest price and rounded to the account commodity's fraction.
     pub balance: Amount,
     /// The higher limit, if set.
     pub higher_limit: Option<Amount>,
@@ -92,7 +93,7 @@ pub struct CheckResult {
     pub includes_subaccounts: bool,
     /// The limit crossed: `above`, `below`, `shouldBeZero`; null when none is.
     pub state: Option<LimitStateWire>,
-    /// Sub-accounts in other commodities, not converted (GnuCash converts them at the latest price).
+    /// Sub-accounts in other commodities that no price converts, by commodity; they add nothing to `balance`.
     pub unconverted: Vec<Unconverted>,
 }
 
@@ -103,7 +104,7 @@ fn check_balance_limit(ctx: &mut Context, p: CheckParams) -> Result<CheckResult,
             Some(d) => d.0,
             None => local_today(env)?,
         };
-        let c = ops::check_balance_limit(book, guid, Some(env.zone().day_end(day)))?;
+        let c = ops::check_balance_limit(book, guid, Some(env.zone().day_end(day)), env.now())?;
         Ok(CheckResult {
             account: guid.into(),
             as_of: Day(day),
