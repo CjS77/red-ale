@@ -16,10 +16,13 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
 
+pub mod engine;
 pub mod error;
+pub mod library;
 pub mod limits;
 pub mod number;
 pub mod options;
+pub mod query;
 pub mod result;
 pub mod settings;
 pub mod wire;

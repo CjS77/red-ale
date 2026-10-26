@@ -22,6 +22,8 @@ pub enum ReportErrorKind {
     Result,
     /// `report-load` (3004): a user script does not load.
     Load,
+    /// `internal-error` (-32603): a bug in red-ale, such as a built-in script that does not compile.
+    Internal,
 }
 
 impl ReportErrorKind {
@@ -33,6 +35,7 @@ impl ReportErrorKind {
             Self::Option => 3002,
             Self::Result => 3003,
             Self::Load => 3004,
+            Self::Internal => -32603,
         }
     }
 
@@ -44,6 +47,7 @@ impl ReportErrorKind {
             Self::Option => "report-option",
             Self::Result => "report-result",
             Self::Load => "report-load",
+            Self::Internal => "internal-error",
         }
     }
 }
@@ -70,8 +74,10 @@ pub struct ScriptError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LimitError {
-    /// The template's GUID.
+    /// The template's GUID; empty when the limit was passed while a script compiled, before any template was known.
     pub report: String,
+    /// The script the limit was passed in, when known.
+    pub source: Option<String>,
     /// The limit passed.
     pub limit: Limit,
     /// Its maximum.
@@ -152,6 +158,10 @@ pub enum ReportError {
     /// `report-load`.
     #[error("report script {} does not load: {}", .0.source, .0.message)]
     Load(LoadError),
+    /// `internal-error`: a bug in red-ale, such as a built-in script that does not compile or returns an invalid
+    /// result (`design/reports.md` §2). The tests of every built-in script catch these before a release.
+    #[error("internal error in the report engine: {0}")]
+    Internal(String),
 }
 
 impl ReportError {
@@ -163,6 +173,7 @@ impl ReportError {
             Self::Option(_) => ReportErrorKind::Option,
             Self::Result(_) => ReportErrorKind::Result,
             Self::Load(_) => ReportErrorKind::Load,
+            Self::Internal(_) => ReportErrorKind::Internal,
         }
     }
 
@@ -174,6 +185,7 @@ impl ReportError {
             Self::Option(e) => serde_json::to_value(e),
             Self::Result(e) => serde_json::to_value(e),
             Self::Load(e) => serde_json::to_value(e),
+            Self::Internal(_) => Ok(Value::Null),
         };
         data.unwrap_or(Value::Null)
     }
@@ -202,7 +214,7 @@ mod tests {
         assert_eq!((e.kind().code(), e.kind().name()), (3002, "report-option"));
         assert_eq!(e.data(), json!({ "section": "General", "name": "Start Date", "reason": "not one of the choices" }));
         let report = "c4173ac99b2b448289bf4d11c731af13".to_owned();
-        let limit = ReportError::Limit(LimitError { report, limit: Limit::NumberSize, max: 4096, log: vec![] });
+        let limit = ReportError::Limit(LimitError { report, source: None, limit: Limit::NumberSize, max: 4096, log: vec![] });
         assert_eq!(limit.data()["limit"], json!("number-size"));
         assert_eq!(limit.kind().code(), 3001);
         assert_eq!(limit.to_string(), "report passed the number-size limit of 4096");
