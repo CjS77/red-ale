@@ -9,6 +9,7 @@
 //! - [`options`]: report option declarations, values, validation, the published option schema and the changes a
 //!   saved report configuration keeps.
 //! - [`result`]: the report result, the published language for reports, with its validation and JSON form.
+//! - [`render`]: the report result as a self-contained HTML document through a style sheet, charts as inline SVG.
 //! - [`settings`]: the GnuCash preferences reports read, kept in red-ale's Configuration.
 //! - [`error`]: [`ReportError`](error::ReportError), whose kinds map to the API's error codes 3000 to 3004.
 //! - [`limits`]: the bounds a report run stays within.
@@ -20,6 +21,7 @@ pub mod error;
 pub mod limits;
 pub mod number;
 pub mod options;
+pub mod render;
 pub mod result;
 pub mod settings;
 pub mod wire;

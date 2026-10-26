@@ -750,8 +750,10 @@ red-ale's, not GnuCash's.
 
 ## 8. Rendering
 
-`render::html(result, style_sheet) -> String` turns a report result into one self-contained HTML document. Report
-styling is red-ale's own: the figures must match GnuCash's, the markup need not.
+`render::html(result, style_sheet, context) -> String` turns a finished report result into one self-contained HTML
+document. `style_sheet` is an `Option<&StyleSheet>` (`None` is the base look, below); `context` is the run's local
+time zone and `reports.dateFormat`, which the header and footer dates need. Report styling is red-ale's own: the
+figures must match GnuCash's, the markup need not.
 
 ### The document
 
@@ -760,12 +762,19 @@ styling is red-ale's own: the figures must match GnuCash's, the markup need not.
 - Every piece of text from the Book, an option or a script is HTML-escaped. GnuCash inserts some text raw
   (preparer, footer and comments in the style sheets, `report/html-text.scm:239-245`); red-ale never does.
 - **Deterministic bytes.** Elements and attributes are written in a fixed order, numbers in a fixed form, IDs from
-  the block's position (`chart-3`), never from a counter shared between runs. The run's `now` is the only time
-  printed. Exporting twice from the same Book, options, now and settings gives the same bytes; a test checks it.
+  the block's position (`chart-0-2`: section 0, block 2; `chart-0-2-1` inside a group), never from a counter shared
+  between runs. The run's `now` is the only time printed. Exporting twice from the same Book, options, now and
+  settings gives the same bytes; a test checks it.
+  The page carries no version, so it is the same across releases, except for Head or Tail's version line.
 - **The look.** One base stylesheet: the body font from the style sheet's Fonts options, numbers right-aligned with
   `font-variant-numeric: tabular-nums` and no wrapping, labels indented by `depth`, a thin rule above subtotals and a
   double rule above totals and grand totals, headings for sections, generous but compact spacing, and print rules
-  (no backgrounds, tables kept together). Style sheet options set the variables it uses.
+  (no backgrounds, tables kept together). Style sheet options set the values it uses.
+- **Class names are GnuCash's** where one exists: `number-cell`, `total-number-cell`, `text-cell`,
+  `total-label-cell`, `date-cell`, `neg`, and the row styles `normal-row`, `alternate-row`, `primary-subheading`,
+  `secondary-subheading` and `grand-total` (`report/stylesheets/plain.scm:104-167`). CSS written for GnuCash's CSS
+  template therefore styles red-ale's page too. Rows also carry `role-<role>`.
+- Line breaks in text become `<br>`.
 - **Tables.** An `amount` column with `levels` becomes that many cell columns; a row's amount goes in the column of
   its `level`, counted from the right, as GnuCash lays out its account tables. A `commodities` cell becomes a small
   nested table, one line per commodity. Cells with `account` carry `data-account="<guid>"`; a `link` becomes
@@ -813,33 +822,60 @@ but it has no effect.
 - Fonts map to the CSS of the table cells they name, as `html-fonts.scm` maps them.
 - "Enable Links" off removes the `data-account` and `data-link` attributes.
 - Preparer, Prepared for, the date (the run's `now` under `reports.dateFormat`) and the footer or comments go in a
-  header or footer block. "Show GnuCash Version" shows `red-ale <version>`.
-- The CSS template's text is appended to the base stylesheet. Text containing `</style`, `@import` or `url(` is
-  refused (`report-option`): GnuCash falls back to its default CSS on `</style` (`report/stylesheets/css.scm:204-209`),
-  and red-ale also keeps an exported page from loading anything.
+  header or footer block, worded as GnuCash words them ("Prepared by: ", "Date: ", "Report Creation Date: "). An
+  empty name or text is left out, where GnuCash prints an empty label. Head or Tail's time is `HH:MM:SS` and the
+  numeric UTC offset (`+0100`), standing for `%X %Z`: red-ale knows the zone's rules, not its abbreviation.
+  "Show GnuCash Version" shows `red-ale <version>`.
+- Plain colours subheading and grand-total rows with its Background Color, as GnuCash does
+  (`report/stylesheets/plain.scm:104-167`). Colours are written as `gnc:color->html` writes them, the first six
+  digits (`5.17:bindings/guile/options.scm:72-77`).
+- A font option's family keeps only letters, digits, spaces, `-`, `_` and `.`, and a size that is not a number is
+  dropped, so no option can write other CSS.
+- The CSS template's text is appended to the base stylesheet; the template has no Fonts or Tables, so the base
+  look's stand in. Text containing `</style`, `@import`, `url(`, `image(`, `image-set(`, `src(` or a backslash (an
+  escape could spell any of them) is refused (`report-option`), ignoring ASCII case: GnuCash falls back to its
+  default CSS on `</style` (`report/stylesheets/css.scm:204-209`), and red-ale also keeps an exported page from
+  loading anything.
+- Values for the left-out image options are accepted and ignored when a style sheet is built or changed; the
+  Configuration keeps whatever it was given.
 
 The "Stylesheet" option names a style sheet; `report.export` can also override it for one export. A name that no
 longer exists (a saved configuration whose style sheet was deleted) renders with the base look and no style-sheet
 options, as GnuCash renders a report with no style sheet when the lookup fails (`report/report-core.scm:457-462`),
-and says so in the log.
+and says so in the log: the host appends `render::missing_style_sheet(name)`, a `debug` entry, before rendering.
+The base look is the Plain template's defaults with no colours.
+
+The style sheets a report can name are `StyleSheets::from_configuration(entries)`: the six predefined ones, then each
+`reports.styleSheets` entry in order, an entry with a predefined name replacing it, a later entry replacing an
+earlier one of the same name. Lookup is exact by name. Lists sort by name bytewise.
 
 ### Charts as SVG
 
 Each chart is an inline `<svg>` with a `viewBox`, drawn from the chart block with integer arithmetic only:
 
 - **Size.** A pixel plot size sets the `viewBox` and the `width` and `height`. A percent size uses a 1000 × 600
-  `viewBox` scaled to that percentage of the container's width, keeping the aspect.
+  `viewBox` scaled to that percentage of the container's width, keeping the aspect; a percent height shortens the
+  `viewBox` to that share of 600. Layout never works in less than 320 × 200; a smaller pixel size scales that down.
 - **Coordinates** are computed as exact Rationals and rounded half-even to hundredths of a unit, then written as
   integers or with two decimals (`123.45`). The y range is the data's minimum and maximum (and zero for bars),
   widened to "nice" tick steps of 1, 2 or 5 × 10ⁿ, chosen exactly. A `linear` x axis does the same with x.
 - **Bars** are `<rect>`s, side by side per label or stacked (positive values up, negative down, as Chart.js stacks
-  them). **Lines** are `<polyline>`s with a marker per point. **Scatter** points are markers, joined in data order
-  when the series has a `line` colour.
-- **Pie slices** are `<path>` arcs. The angle of each boundary is the exact cumulative fraction of the total; its
+  them). Stacked, bars with the same `stack` share a column and different stacks stand side by side; unstacked, each
+  bar series has its own column. Bars are always filled, as Chart.js fills them; `fill` applies to lines.
+  **Lines** are `<polyline>`s with a marker per point, broken at a missing value; stacked lines add up in series
+  order and a filled one is shaded down to the line below it (or to zero). **Scatter** points are markers, joined in
+  data order when the series has a `line` colour.
+- **Pie slices** are `<path>` arcs from 12 o'clock clockwise, Chart.js's start. A slice's size is its value's share
+  of the total of absolute values, as Chart.js sizes them; zero and missing values have no slice, and one slice of
+  everything is a `<circle>`. The angle of each boundary is the exact cumulative fraction of the total; its
   sine and cosine come from a fixed-point CORDIC on `i64` (Q2.61, 62 iterations) and are rounded to hundredths. No
   float is involved, and every platform gives the same bytes. Slice labels sit in the legend, as in GnuCash's chart.
-- **Text.** Axis labels, ticks, the title and the legend are `<text>` elements. Their widths are estimated as a
-  fixed fraction of the font size per character, so layout needs no font metrics.
+- **Ticks** show exact, grouped numbers (`2,500`, `0.5`), with `%` on a `percent` axis; a `currency` axis names its
+  currency in its label rather than on every tick, since the renderer has no Book to format money with.
+- **Text.** Axis labels, ticks, the title and the legend are `<text>` elements. Their widths are estimated as three
+  fifths of the font size per character, so layout needs no font metrics. Labels that would not fit are cut with
+  `…`, category labels that would overlap are thinned to every k-th, and a legend longer than the plot ends with
+  "+N more".
 - **Hover labels** are `<title>` children of each bar, point or slice (section 7).
 - **Colours** are the series colours; GnuCash's chart area background `#fffdf6` and grid lines are kept
   (`report/html-chart.scm:203-204`).
@@ -1132,7 +1168,7 @@ drops it and needs nothing from budgets.
 | A split query's regular expressions and case folding | POSIX extended expressions; `g_utf8_casefold` | Rust `regex`; lowercase, as `transaction.find` | Same results for patterns both dialects read alike |
 | Saved configuration name clash | A number is appended on save | `conflict` | The caller gets the name it asked for |
 | User text in style sheets | Inserted as raw HTML | Escaped | No injected markup in exported reports |
-| CSS style sheet text | Default CSS on `</style` | Refused on `</style`, `@import`, `url(` | Exported pages load nothing |
+| CSS style sheet text | Default CSS on `</style` | Refused on `</style`, `@import`, `url(`, `image(`, `image-set(`, `src(`, `\` | Exported pages load nothing |
 | Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting | No script; deterministic bytes |
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |
