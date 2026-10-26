@@ -18,6 +18,7 @@
 
 pub mod bayes;
 pub mod convert;
+pub mod editor;
 
 use std::sync::Arc;
 
