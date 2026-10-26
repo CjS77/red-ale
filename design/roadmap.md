@@ -322,3 +322,11 @@ Known gaps in v0.2, each documented where it happens, to close in v0.3 or record
   Rhai bugs to report and fix upstream or limits of how the engine sets up modules. Settled in v0.3: both are Rhai
   bugs, reproduced on a bare engine with Rhai's own resolver (`red-ale-report/tests/rhai_closure_limits.rs`); the
   conventions stay until a Rhai release fixes them.
+
+## Carried forward from v0.3
+
+[`milestone3.md`](milestone3.md) lists them under "Follow-ups": opening the file `export.accounts` writes (an open
+question), the in-order walk that makes a Mutation cost about a clone, `ring` as the one C code in the build, reading
+GnuCash's own QIF account map, reporting the Rhai closure bugs upstream, a loopback guard for quote tests, and running
+the fuzz targets regularly. None blocks v0.4; the Mutation walk is worth doing before scheduled transactions, whose
+Since Last Run may post many transactions at once.

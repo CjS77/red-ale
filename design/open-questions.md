@@ -158,3 +158,10 @@ translated is reported and skipped. Design: [`reports.md`](reports.md) §15; API
 - **Locale-dependent collation.** GnuCash orders some ties (transactions with equal date, number and date entered)
   with `g_utf8_collate`, which depends on the locale of the GnuCash that wrote the file. red-ale appends new entities
   and keeps the order it read, which GnuCash accepts on load.
+- **Opening a file with no `gnc:book`.** `export.accounts` writes the account tree as GnuCash's Export Accounts does:
+  commodities and accounts straight under `gnc-v2`, with no `gnc:book` element
+  (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1340-1374`). GnuCash opens such a file as a book; red-ale's
+  `book.open` refuses it (`file-format`, "expected one gnc:book, found 0"). Opening it means deciding what red-ale
+  writes back on save, since an ordinary save would add a `gnc:book` element; check what GnuCash 5.17 writes first.
+  Found at the end of v0.3; until it is decided, a client opens the exported tree in GnuCash or imports it with the
+  CSV account importer.
