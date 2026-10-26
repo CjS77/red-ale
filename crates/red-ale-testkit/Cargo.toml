@@ -18,5 +18,8 @@ red-ale-xml.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 
+[dev-dependencies]
+peak_alloc.workspace = true
+
 [lints]
 workspace = true
