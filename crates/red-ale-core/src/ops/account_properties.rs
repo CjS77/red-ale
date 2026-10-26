@@ -13,6 +13,7 @@ use std::sync::Arc;
 use crate::ops::accounts::{AccountEdit, has_splits};
 use crate::ops::balances::balances;
 use crate::ops::business::contacts::set_feature_used;
+use crate::ops::prices::convert::{PriceAt, convert_balance, rate};
 use crate::{Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Guid, Numeric, Time64};
 
 /// The colour GnuCash's account dialog shows for an account without one, and treats as none
@@ -192,7 +193,7 @@ pub enum LimitState {
 /// The balance a limit check compares, the limits and the result.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LimitCheck {
-    /// The balance at the cut-off, with sub-accounts in the same commodity when the account's flag says so.
+    /// The balance at the cut-off, with sub-accounts converted to the account's commodity when its flag says so.
     pub balance: Numeric,
     /// The higher limit.
     pub higher: Option<Numeric>,
@@ -202,40 +203,66 @@ pub struct LimitCheck {
     pub includes_subaccounts: bool,
     /// The limit crossed, if any.
     pub state: Option<LimitState>,
-    /// Sub-accounts in other commodities, by commodity: GnuCash converts them at the latest price, red-ale leaves
-    /// them out of `balance`.
+    /// Sub-account balances with no price to the account's commodity, by commodity: GnuCash counts them as zero, and
+    /// so does `balance`.
     pub unconverted: BTreeMap<CommodityRef, Numeric>,
 }
 
 /// Check an account's balance, of the splits posted before `before`, against its limits as
-/// `get_balance_limit_info` does (`5.17:libgnucash/app-utils/gnc-ui-balances.cpp:254-394`), in Raw sign.
-pub fn check_balance_limit(book: &Book, guid: Guid, before: Option<Time64>) -> DomainResult<LimitCheck> {
+/// `get_balance_limit_info` does (`5.17:libgnucash/app-utils/gnc-ui-balances.cpp:254-394`), in Raw sign. `now` picks
+/// the latest prices sub-accounts in other commodities are converted at.
+pub fn check_balance_limit(book: &Book, guid: Guid, before: Option<Time64>, now: Time64) -> DomainResult<LimitCheck> {
     let acc = account(book, guid)?;
     let includes_subaccounts = acc.includes_subaccount_balances();
-    let (balance, unconverted) = limit_balance(book, acc, includes_subaccounts, before)?;
+    let (balance, unconverted) = limit_balance(book, acc, includes_subaccounts, before, now)?;
     let (higher, lower) = (acc.higher_balance_limit(), acc.lower_balance_limit());
     Ok(LimitCheck { balance, higher, lower, includes_subaccounts, state: limit_state(balance, higher, lower), unconverted })
 }
 
-/// `account_get_balance_as_of_date` (`gnc-ui-balances.cpp:184-226`): the account's balance plus each descendant's,
-/// added exactly.
-fn limit_balance(book: &Book, acc: &Account, subaccounts: bool, before: Option<Time64>) -> DomainResult<(Numeric, BTreeMap<CommodityRef, Numeric>)> {
+/// `account_get_balance_as_of_date` (`gnc-ui-balances.cpp:186-233`): the account's balance plus each descendant's,
+/// converted to the account's commodity at the latest price (`gnc_pricedb_convert_balance_latest_price`) and added with
+/// `gnc_numeric_add_fixed`.
+fn limit_balance(
+    book: &Book,
+    acc: &Account,
+    subaccounts: bool,
+    before: Option<Time64>,
+    now: Time64,
+) -> DomainResult<(Numeric, BTreeMap<CommodityRef, Numeric>)> {
     let own = balances(book, acc.guid, before)?.balance;
     let mut unconverted = BTreeMap::new();
     let subs = if subaccounts { book.descendants(acc.guid) } else { Vec::new() };
     let total = subs.iter().try_fold(own, |total, sub| -> DomainResult<Numeric> {
         let b = balances(book, sub.guid, before)?.balance;
-        match &sub.commodity {
-            _ if b.is_zero() => Ok(total),
-            Some(c) if Some(c) != acc.commodity.as_ref() => {
-                let entry = unconverted.entry(c.clone()).or_insert(Numeric::ZERO);
-                *entry = entry.add_exact(b)?;
-                Ok(total)
-            }
-            _ => Ok(total.add_exact(b)?),
+        let converted = sub_balance_in(book, b, sub.commodity.as_ref(), acc.commodity.as_ref(), now)?;
+        if let (None, Some(c)) = (converted, &sub.commodity) {
+            let entry = unconverted.entry(c.clone()).or_insert(Numeric::ZERO);
+            *entry = entry.add_exact(b)?;
         }
+        Ok(total.add_fixed(converted.unwrap_or(Numeric::ZERO))?)
     })?;
     Ok((total, unconverted))
+}
+
+/// A sub-account's balance in `to`, rounded to its fraction as `convert_amount_at_date` rounds it
+/// (`5.17:libgnucash/engine/gnc-pricedb.cpp:2529-2564`); `None` when it is not zero and no price converts it, which
+/// GnuCash takes as zero.
+fn sub_balance_in(
+    book: &Book,
+    b: Numeric,
+    from: Option<&CommodityRef>,
+    to: Option<&CommodityRef>,
+    now: Time64,
+) -> DomainResult<Option<Numeric>> {
+    let (from, to) = match (from, to) {
+        (Some(from), Some(to)) if !b.is_zero() => (from, to),
+        (None, None) => return Ok(Some(b)),
+        _ if b.is_zero() => return Ok(Some(b)),
+        _ => return Ok(None),
+    };
+    let at = PriceAt::Latest { now };
+    let priced = !rate(book, from, to, at).unwrap_or(Numeric::ZERO).is_zero();
+    priced.then(|| convert_balance(book, b, from, to, at)).transpose()
 }
 
 /// `account_balance_limit_reached` (`gnc-ui-balances.cpp:263-277`) and the precedence of `get_balance_limit_info`
@@ -376,7 +403,9 @@ mod tests {
     use super::*;
     use crate::ops::accounts::{create_account, update_account};
     use crate::ops::commit::{NewSplit, NewTransaction, add_transaction};
-    use crate::{Date, FixedEnv};
+    use crate::{Date, FixedEnv, Price};
+
+    const NOW: Time64 = Time64(1_719_835_200);
 
     struct Fx {
         book: Book,
@@ -385,7 +414,7 @@ mod tests {
 
     impl Fx {
         fn new() -> Self {
-            let mut env = FixedEnv::new(Time64(1_719_835_200), 7);
+            let mut env = FixedEnv::new(NOW, 7);
             Self { book: Book::new_empty(&mut env), env }
         }
 
@@ -406,7 +435,11 @@ mod tests {
         }
 
         fn post(&mut self, debit: Guid, credit: Guid, amount: Numeric) {
-            let mut t = NewTransaction::new(CommodityRef::currency("USD"), Date::from_ymd(2024, 6, 1).unwrap());
+            self.post_in("USD", debit, credit, amount);
+        }
+
+        fn post_in(&mut self, currency: &str, debit: Guid, credit: Guid, amount: Numeric) {
+            let mut t = NewTransaction::new(CommodityRef::currency(currency), Date::from_ymd(2024, 6, 1).unwrap());
             let neg = Numeric::new(-amount.num(), amount.denom());
             t.splits = vec![NewSplit::new(debit, amount), NewSplit::new(credit, neg)];
             add_transaction(&mut self.book, &mut self.env, t).unwrap();
@@ -477,11 +510,41 @@ mod tests {
         fx.post(sub, inc, n(5000, 100));
         Arc::make_mut(fx.book.accounts.get_mut(&eur).unwrap()).commodity = Some(CommodityRef::currency("EUR"));
         fx.edit(a, AccountEdit { higher_balance_limit: Some(Some(n(120, 1))), ..AccountEdit::default() }).unwrap();
-        assert_eq!(check_balance_limit(&fx.book, a, None).unwrap().state, None);
+        assert_eq!(check_balance_limit(&fx.book, a, None, NOW).unwrap().state, None);
         fx.edit(a, AccountEdit { include_subaccount_balances: Some(true), ..AccountEdit::default() }).unwrap();
-        let check = check_balance_limit(&fx.book, a, None).unwrap();
+        let check = check_balance_limit(&fx.book, a, None, NOW).unwrap();
         assert_eq!((check.balance, check.state), (n(15000, 100), Some(LimitState::Above)));
-        assert_eq!(check_balance_limit(&fx.book, a, Some(Time64(0))).unwrap().balance, Numeric::ZERO);
+        assert_eq!(check_balance_limit(&fx.book, a, Some(Time64(0)), NOW).unwrap().balance, Numeric::ZERO);
+    }
+
+    #[test]
+    fn sub_accounts_in_other_commodities_are_converted_at_the_latest_price() {
+        let mut fx = Fx::new();
+        let a = fx.add("A", AccountType::Bank, None, "USD");
+        let eur = fx.add("Euro", AccountType::Bank, Some(a), "EUR");
+        let gbp = fx.add("Pound", AccountType::Bank, Some(a), "GBP");
+        let (inc_eur, inc_gbp) = (fx.add("IncEur", AccountType::Income, None, "EUR"), fx.add("IncGbp", AccountType::Income, None, "GBP"));
+        fx.post_in("EUR", eur, inc_eur, n(1000, 100));
+        fx.post_in("GBP", gbp, inc_gbp, n(500, 100));
+        let price = |n: u8, commodity: &str, time: i64, value: Numeric| Price {
+            guid: Guid::from_bytes([n; 16]),
+            commodity: CommodityRef::currency(commodity),
+            currency: CommodityRef::currency("USD"),
+            time: Time64(time),
+            source: None,
+            price_type: None,
+            value,
+        };
+        // The older price loses; the newest is taken even after the cut-off of the balance.
+        [price(1, "EUR", 0, n(2, 1)), price(2, "EUR", NOW.0 - 1, n(1_0833, 1_0000))]
+            .into_iter()
+            .for_each(|p| _ = fx.book.prices.insert(p.guid, Arc::new(p)));
+        let limit = Some(Some(n(10, 1)));
+        fx.edit(a, AccountEdit { higher_balance_limit: limit, include_subaccount_balances: Some(true), ..AccountEdit::default() }).unwrap();
+        let check = check_balance_limit(&fx.book, a, None, NOW).unwrap();
+        // 10 EUR at 1.0833 is 10.833, rounded to the cent with banker's rounding; GBP has no price and counts as zero.
+        assert_eq!((check.balance, check.state), (n(1083, 100), Some(LimitState::Above)));
+        assert_eq!(check.unconverted, BTreeMap::from([(CommodityRef::currency("GBP"), n(500, 100))]));
     }
 
     #[test]

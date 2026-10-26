@@ -231,8 +231,11 @@ GnuCash's account tree shows an icon and tooltip when a limit is crossed (`gnc_u
 and `_explanation`, `5.17:libgnucash/app-utils/gnc-ui-balances.cpp:254-406`); this method returns what decides them:
 
 - `balance`: the balance at the end of `asOf` (default today, local time), with sub-accounts when the account's flag
-  is set: `xaccAccountGetBalanceAsOfDate` of the account plus each descendant's, added exactly
-  (`account_get_balance_as_of_date`, `:184-226`; `account_balance_for_limit`, `:254-261`).
+  is set: `xaccAccountGetBalanceAsOfDate` of the account plus each descendant's converted to the account's commodity
+  (`account_get_balance_as_of_date`, `:186-233`; `account_balance_for_limit`, `:254-261`). Each descendant's balance
+  goes through `gnc_pricedb_convert_balance_latest_price` (`5.17:libgnucash/engine/gnc-pricedb.cpp:2556-2564`): times
+  the latest price, direct or else through a third commodity, rounded to the account commodity's fraction with
+  banker's rounding, and zero when no price is found. The sum uses `gnc_numeric_add_fixed`.
 - A limit is reached when the balance is not zero and is strictly above the higher limit or strictly below the lower
   one (`account_balance_limit_reached`, `:263-277`).
 - `state` follows `get_balance_limit_info` (`:363-393`): `above` (higher limit reached and not zero, or reached
@@ -241,8 +244,10 @@ and `_explanation`, `5.17:libgnucash/app-utils/gnc-ui-balances.cpp:254-406`); th
 
 GnuCash works in display sign, so for a reversed account it tests the lower limit first; the two orders differ only
 when both limits are reached at once, which the dialog's rules prevent. red-ale always tests the higher first.
-Sub-accounts in other commodities: GnuCash converts them at the latest price (`gnc_pricedb_convert_balance_latest_price`);
-red-ale adds nothing for them and lists them in `unconverted`, as `account.balance` does.
+`unconverted` lists, by commodity, the sub-account balances no price converts; GnuCash and red-ale both count them as
+zero. "Latest" follows GnuCash: a direct price is the newest whatever its date, a price through a third commodity the
+newest at or before now (`gnc_pricedb_lookup_latest_any_currency`, `gnc-pricedb.cpp:1954-1960`). The oracle test
+compares balances and verdicts with GnuCash's own conversion.
 
 ### Opening balance account
 
@@ -354,7 +359,8 @@ GnuCash uses: local 00:00:00 of the first day and 23:59:59 of the last (`gnc_acc
 - Name ties in display order compare bytewise, not by the locale's collation.
 - Type changes check retyped sub-accounts' splits; deletes check sub-accounts' business references and re-parent
   name clashes; deletes need explicit choices and `allowCommodityMismatch`.
-- Sub-account balances in other commodities are reported unconverted, also when checking balance limits.
+- `account.balance` reports sub-account balances in other commodities unconverted; `account.checkBalanceLimit` converts
+  them as GnuCash does.
 - Colours are checked and written as the dialog writes them; `Not Set` reads as no colour without the GUI's scrub.
 - The opening balance account lookup never creates or flags an account.
 - The accounting period lives in red-ale's configuration.

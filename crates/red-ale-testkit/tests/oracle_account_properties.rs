@@ -127,20 +127,24 @@ from fractions import Fraction
 from gnucash import Session, SessionOpenMode, GncNumeric, _sw_core_utils
 from gnucash import gnucash_core_c as c
 assert _sw_core_utils.gnc_version() == "5.17"
-# account_get_balance_as_of_date and get_balance_limit_info (5.17:libgnucash/app-utils/gnc-ui-balances.cpp:184-394),
+# account_get_balance_as_of_date and get_balance_limit_info (5.17:libgnucash/app-utils/gnc-ui-balances.cpp:186-394),
 # replayed through the engine's getters with the display sign reversed or not; the verdict is mapped to raw sign.
+# Sub-accounts are converted by the engine's own gnc_pricedb_convert_balance_latest_price and added with add_fixed.
 def numeric(n):
     return Fraction(n.num(), n.denom())
 s = Session("xml://" + sys.argv[1], SessionOpenMode.SESSION_READ_ONLY)
 out = {}
 try:
     root = s.book.get_root_account()
+    pdb = s.book.get_price_db()
     when = datetime.datetime.fromtimestamp(int(sys.argv[2]))
     for a in root.get_descendants():
         bal = a.GetBalanceAsOfDate(when)
-        balance = numeric(bal)
         if a.GetIncludeSubAccountBalances():
-            balance += sum(numeric(sub.GetBalanceAsOfDate(when)) for sub in a.get_descendants())
+            for sub in a.get_descendants():
+                sub_bal = sub.GetBalanceAsOfDate(when)
+                bal = bal.add_fixed(pdb.convert_balance_latest_price(sub_bal, sub.GetCommodity(), a.GetCommodity()))
+        balance = numeric(bal)
         hi, lo = GncNumeric(), GncNumeric()
         has_hi, has_lo = a.GetHigherBalanceLimit(hi), a.GetLowerBalanceLimit(lo)
         verdicts = []
@@ -173,7 +177,7 @@ try:
                 v = "above" if (v == "top") != reverse else "below"
             verdicts.append(v)
         assert verdicts[0] == verdicts[1], verdicts
-        out[a.GetGUID().to_string()] = verdicts[0]
+        out[a.GetGUID().to_string()] = [verdicts[0], f"{balance.numerator}/{balance.denominator}"]
 finally:
     s.end()
 print(json.dumps(out))
@@ -209,16 +213,56 @@ fn balance_limit_verdicts_match_gnucash() {
         json!({ "account": "Income", "higherBalanceLimit": "-2000", "lowerBalanceLimit": "-2000.01" }),
     ];
     edits.iter().for_each(|e| drop(call(&mut d, "account.update", e)));
-    let accounts = call(&mut d, "account.list", &json!({}))["accounts"].as_array().unwrap().clone();
-    let ours: serde_json::Map<String, Value> = accounts
+    let ours = limit_checks(&mut d);
+    assert_eq!(ours.values().filter(|v| !v[0].is_null()).count(), 5, "{ours:?}");
+    assert_same_limits(&mut d, &book, ours);
+}
+
+#[test]
+fn balance_limits_convert_sub_accounts_at_the_latest_price_as_gnucash_does() {
+    let (book, mut d) = red_ale_testkit::create();
+    let mk = |d: &mut red_ale_rpc::Dispatcher, name: &str, ty: &str, commodity: &str, parent: Option<&str>| {
+        call(d, "account.create", &json!({ "name": name, "type": ty, "commodity": commodity, "parent": parent }))["guid"].clone()
+    };
+    let bank = mk(&mut d, "Bank", "BANK", "USD", None);
+    mk(&mut d, "Income", "INCOME", "USD", None);
+    post(&mut d, "Bank", "Income", "75.00", "2024-06-01");
+    [("Euro", "EUR", "100.00"), ("Pound", "GBP", "20.00"), ("Yen", "JPY", "1000")].iter().for_each(|(name, c, amount)| {
+        mk(&mut d, name, "BANK", c, Some("Bank"));
+        mk(&mut d, &format!("Income{c}"), "INCOME", c, None);
+        let (debit, credit) = (format!("Bank:{name}"), format!("Income{c}"));
+        let splits = json!([{ "account": debit, "value": amount }, { "account": credit, "value": format!("-{amount}") }]);
+        call(&mut d, "transaction.post", &json!({ "description": "x", "datePosted": "2024-06-01", "currency": c, "splits": splits }));
+    });
+    // EUR has a direct price to USD, the newer winning; GBP goes through EUR to USD; JPY has none.
+    let prices = [("EUR", "USD", "2", "2024-05-01"), ("EUR", "USD", "1.1", "2024-06-20"), ("GBP", "EUR", "1.2", "2024-06-15")];
+    prices.iter().for_each(|(c, cur, value, date)| {
+        call(&mut d, "price.add", &json!({ "commodity": c, "currency": cur, "value": value, "date": date }));
+    });
+    call(&mut d, "account.update", &json!({ "account": "Bank", "higherBalanceLimit": "200", "includeSubaccountBalances": true }));
+    let ours = limit_checks(&mut d);
+    // 75 + 100 EUR at 1.1 + 20 GBP at 1.2 * 1.1 = 211.40, with nothing for the yen.
+    assert_eq!(ours[bank.as_str().unwrap()], json!(["above", "1057/5"]));
+    assert_same_limits(&mut d, &book, ours);
+}
+
+/// Every account's verdict and balance from `account.checkBalanceLimit` at the end of 2024-07-01.
+fn limit_checks(d: &mut red_ale_rpc::Dispatcher) -> serde_json::Map<String, Value> {
+    let accounts = call(d, "account.list", &json!({}))["accounts"].as_array().unwrap().clone();
+    accounts
         .iter()
         .map(|a| {
-            let r = call(&mut d, "account.checkBalanceLimit", &json!({ "account": a["guid"], "asOf": "2024-07-01" }));
-            (a["guid"].as_str().unwrap().to_owned(), r["state"].clone())
+            let r = call(d, "account.checkBalanceLimit", &json!({ "account": a["guid"], "asOf": "2024-07-01" }));
+            let part = |k: &str| r["balance"][k].as_str().unwrap().parse::<i64>().unwrap();
+            let balance = red_ale_testkit::model::frac(red_ale_core::Numeric::new(part("num"), part("denom")));
+            (a["guid"].as_str().unwrap().to_owned(), json!([r["state"], balance]))
         })
-        .collect();
-    assert_eq!(ours.values().filter(|v| !v.is_null()).count(), 5, "{ours:?}");
-    call(&mut d, "book.save", &json!({}));
+        .collect()
+}
+
+/// GnuCash reaches the same verdicts and balances on the saved book.
+fn assert_same_limits(d: &mut red_ale_rpc::Dispatcher, book: &red_ale_testkit::TempBook, ours: serde_json::Map<String, Value>) {
+    call(d, "book.save", &json!({}));
     // 2024-07-01 23:59:59 UTC, the end of the day in the oracle's TZ=UTC.
     let theirs = gnucash(LIMITS, &book.path_str(), &["1719878399"]);
     assert_eq!(diff(&theirs, &Value::Object(ours), &[]), Vec::<String>::new());

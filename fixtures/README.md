@@ -6,7 +6,7 @@ directory before opening it, so these files are never written.
 | Directory | Contents | Licence |
 |-----------|----------|---------|
 | `gnucash/` | Books from GnuCash's own repository (see its README) | GPL-2.0-or-later, as GnuCash |
-| `synthetic/` | Books generated with the GnuCash 5.17 oracle by `scripts/fixtures/` | as red-ale |
+| `synthetic/` | Books generated with the GnuCash 5.17 oracle by `scripts/fixtures/`, and one report rendered by GnuCash 5.5 (see below) | as red-ale |
 | `piecash/` | Books from [piecash](https://github.com/sdementen/piecash/tree/master/gnucash_books), converted from SQLite to XML by the oracle with `scripts/sqlite-to-xml.py`; `simple_sample.sqlite.gnucash` is the unconverted SQLite original | MIT, see `piecash/LICENSE` |
 | `reports/` | The books of GnuCash 5.17's report tests, rebuilt in GnuCash's engine by `scripts/report-fixtures/`, and the tests' expected figures (see below) | GPL-2.0-or-later, as GnuCash |
 
@@ -25,6 +25,13 @@ are canonical, and red-ale must round-trip them byte for byte:
 
 The other `gnucash/` books were written by older GnuCash versions; GnuCash itself rewrites them on save, so they are
 checked with the oracle rather than byte for byte.
+
+## GnuCash 5.5 output
+
+`synthetic/rich-balance-report.html` is the Balance Sheet of `synthetic/rich.gnucash` as GnuCash **5.5**'s GUI
+rendered it, not 5.17's: the oracle has no GUI and runs no reports, and no 5.17 GUI build exists. It differs from
+what 5.17 prints, for example `5 ACME` where 5.17 prints `5. ACME` (`design/reports.md` §3). No test compares with it
+as 5.17's output; replace it with 5.17 output if a 5.17 GUI build becomes available.
 
 ## Report books
 

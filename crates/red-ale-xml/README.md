@@ -11,9 +11,10 @@ GnuCash's file is the user's financial record, so the crate's first job is to lo
 
 - **Anything red-ale doesn't model is kept.** Unknown elements, slots, scheduled transactions, budgets and other
   out-of-scope data go into a *residue* (`XmlResidue`) and are written back unchanged.
-- **Unchanged books come back byte for byte.** Entities that weren't edited are written from their original elements.
-  The serialiser matches libxml2's output, the library GnuCash writes with, so even regenerated entities come out as
-  GnuCash would write them.
+- **Unchanged books come back byte for byte.** Entities are generated from the model, and the serialiser matches
+  libxml2's output, the library GnuCash writes with, so they come out as GnuCash 5.17 would write them. An entity whose
+  generated form differs from what was read (written by another program or an older GnuCash) keeps its original text
+  in the residue, and is written from it until it is edited.
 - **Identity and order are kept.** GUIDs, the order of entities in the file, denominators and timestamps stay as read.
 - **Version 1 files are refused**, with a message to open and save them in GnuCash first.
 
