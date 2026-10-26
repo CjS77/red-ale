@@ -57,7 +57,9 @@ fn the_schema_declares_every_setting() {
     assert_eq!(schema["$schema"], "https://json-schema.org/draft/2020-12/schema");
     let top: Vec<&String> = schema["properties"].as_object().unwrap().keys().collect();
     assert_eq!(top, ["accountingPeriod", "docLinks", "reports", "locale", "defaultCurrency", "jsonRpc", "mcp", "import", "quotes"]);
-    assert_eq!(schema["properties"]["locale"]["enum"], json!(["C", "environment"]));
+    let locales: Vec<&str> = schema["properties"]["locale"]["enum"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
+    assert_eq!((locales.first(), locales.last(), locales.len()), (Some(&"C"), Some(&"environment"), 76));
+    assert!(locales.contains(&"fr_FR") && locales.contains(&"en_US"));
     let key = &schema["properties"]["quotes"]["properties"]["services"]["additionalProperties"]["properties"]["key"];
     assert_eq!((key["writeOnly"].clone(), key["x-refusedOverMcp"].clone()), (json!(true), json!(true)));
     assert_eq!(schema["properties"]["quotes"]["properties"]["network"]["x-refusedOverMcp"], true);

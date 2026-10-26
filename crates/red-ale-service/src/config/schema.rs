@@ -15,13 +15,14 @@ use std::sync::LazyLock;
 
 use red_ale_core::ops::period::{FiscalYearEnd, PeriodBound};
 use red_ale_core::{Guid, Numeric};
+use red_ale_locale::Locale;
 use serde_json::{Map, Value, json};
 
 /// The keyword marking a setting `config.set` refuses through MCP.
 pub const REFUSED_OVER_MCP: &str = "x-refusedOverMcp";
 
-/// The values of the `locale` setting. The locale tables add their locale names here.
-pub const LOCALES: &[&str] = &["C", "environment"];
+/// The values of the `locale` setting: every supported locale name, `C` among them, and `environment`.
+pub static LOCALES: LazyLock<Vec<&'static str>> = LazyLock::new(|| Locale::supported().chain(["environment"]).collect());
 
 /// The response formats a Quote service can have: one parser each.
 pub const QUOTE_FORMATS: &[&str] = &["alphavantage", "twelvedata", "finnhub", "frankfurter", "yahoo-chart", "json"];
@@ -111,17 +112,17 @@ fn reports() -> Value {
         "Report settings, the report directory, limits, saved report configurations and style sheets (design/reports.md §4, §9).",
         json!({
             "directory": optional_text(None, "The report directory user report scripts load from; relative to the Configuration file."),
-            "currency": {
-                "type": "string", "format": "commodity-id", "default": "CURRENCY::USD",
-                "description": "The default of every \"Report's currency\" option.",
-            },
-            "reverseBalancedAccounts": choice("credit", &["none", "credit", "incomeExpense"], "Which accounts show reversed balances."),
-            "dateFormat": choice("locale", &["us", "uk", "ce", "iso", "locale"], "How report dates print."),
-            "weekStart": choice(
-                "sunday",
-                &["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
-                "The first day of the week.",
+            "currency": optional_text(
+                Some("commodity-id"),
+                "The default of every \"Report's currency\" option. Unset, the Locale's currency if the book has it, else USD.",
             ),
+            "reverseBalancedAccounts": choice("credit", &["none", "credit", "incomeExpense"], "Which accounts show reversed balances."),
+            "dateFormat": choice("locale", &["us", "uk", "ce", "iso", "locale"], "How report dates print; locale is the Locale's date format."),
+            "weekStart": {
+                "type": ["string", "null"], "default": null,
+                "enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", null],
+                "description": "The first day of the week. Unset, the Locale's (Sunday under C).",
+            },
             "limits": report_limits(),
             "saved": owned_list(
                 "Saved report configurations. Changed with report.saveConfiguration and the other report.*Configuration methods.",
@@ -180,8 +181,10 @@ fn owned_list(description: &str, fields: &[(&str, Option<&str>)]) -> Value {
 fn locale() -> Value {
     choice(
         "C",
-        LOCALES,
-        "The locale reports format numbers and dates in: a POSIX locale name, C, or environment (LC_ALL, LC_NUMERIC, LC_TIME, LANG).",
+        &LOCALES,
+        "The Locale reports format numbers and dates in, and unset report settings default from: a POSIX locale name such as \
+         fr_FR, C, or environment, which takes each category as the C library does from LC_ALL, then LC_NUMERIC, LC_MONETARY, \
+         LC_TIME or LC_MESSAGES, then LANG.",
     )
 }
 

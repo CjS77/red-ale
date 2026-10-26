@@ -64,6 +64,7 @@ impl CommodityFormat {
 /// How to print an amount: the fields of GnuCash's `GNCPrintAmountInfo` (`5.17:libgnucash/app-utils/gnc-ui-util.h:252-265`)
 /// that reports use. Reports never set `force_fit` or `round`, so every decimal of an exact value is printed.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::struct_excessive_bools, reason = "the flags of GnuCash's GNCPrintAmountInfo, one for one")]
 pub struct PrintInfo {
     /// The symbol to print, if any (`use_symbol` with a commodity).
     pub symbol: Option<String>,
