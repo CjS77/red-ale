@@ -5,11 +5,12 @@ use std::collections::BTreeMap;
 
 use base64::Engine;
 use red_ale_core::Book;
-use red_ale_import::csv::TxLayout;
+use red_ale_import::csv::accounts::Separator;
+use red_ale_import::csv::{PriceLayout, TxLayout};
 use red_ale_import::matcher::ImportAction;
 use red_ale_import::pipeline::{ApplyChoices, Change};
-use red_ale_service::config::schema::csv_layout;
-use red_ale_service::import::{CsvParams, FileContent, ImportFile, LayoutChoice, PreviewParams};
+use red_ale_service::config::schema::{csv_layout, csv_price_layout};
+use red_ale_service::import::{AccountsParams, CsvParams, FileContent, ImportFile, LayoutChoice, PreviewParams, PriceLayoutChoice, PricesParams};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
 
@@ -91,6 +92,87 @@ pub enum PreviewParam {
     /// GnuCash's Import Customers & Vendors.
     #[serde(rename = "csvOwners")]
     CsvOwners(OwnersPreviewParam),
+    /// GnuCash's Import Accounts from CSV: its account tree export read back.
+    #[serde(rename = "csvAccounts")]
+    CsvAccounts(AccountsPreviewParam),
+    /// GnuCash's Import Prices from CSV.
+    #[serde(rename = "csvPrices")]
+    CsvPrices(PricesPreviewParam),
+}
+
+/// The separator of an account file: GnuCash's radio buttons.
+#[derive(Debug, Clone, Copy, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SeparatorWire {
+    /// `,`, the default.
+    #[default]
+    Comma,
+    /// `;`.
+    Semicolon,
+    /// `:`.
+    Colon,
+}
+
+impl From<SeparatorWire> for Separator {
+    fn from(s: SeparatorWire) -> Self {
+        match s {
+            SeparatorWire::Comma => Self::Comma,
+            SeparatorWire::Semicolon => Self::Semicolon,
+            SeparatorWire::Colon => Self::Colon,
+        }
+    }
+}
+
+/// `import.preview` with `format: "csvAccounts"`.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AccountsPreviewParam {
+    /// The file, exactly one: the twelve columns of GnuCash's account tree export (`export.csvTree`).
+    pub files: Vec<ImportFileParam>,
+    /// The separator between fields; default comma.
+    #[serde(default)]
+    pub separator: SeparatorWire,
+    /// Header rows to leave out. Default: one when the first row's Type is `Type`, as GnuCash detects it.
+    #[serde(default)]
+    pub header_rows: Option<usize>,
+}
+
+/// A CSV price import layout: by name (the built-in `No Settings`, or one in `import.csvPriceLayouts`), or given
+/// whole.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum PriceLayoutParam {
+    /// A layout's name.
+    Name(String),
+    /// A whole layout.
+    Layout(Box<PriceLayout>),
+}
+
+impl JsonSchema for PriceLayoutParam {
+    fn schema_name() -> Cow<'static, str> {
+        "CsvPriceLayoutChoice".into()
+    }
+
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
+        json_schema!({
+            "description": "A CSV price import layout: the name of the built-in one (No Settings) or of one in the Configuration's import.csvPriceLayouts, or a whole layout.",
+            "oneOf": [{ "type": "string", "minLength": 1 }, csv_price_layout()],
+        })
+    }
+}
+
+/// `import.preview` with `format: "csvPrices"`.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct PricesPreviewParam {
+    /// The file, exactly one.
+    pub files: Vec<ImportFileParam>,
+    /// The CSV price import layout.
+    pub layout: PriceLayoutParam,
+    /// GnuCash's "Allow existing prices to be over written": a same-day price of the pair, in either direction, is
+    /// replaced (`update`) rather than kept (`skip`). Default false, as GnuCash's check box starts each time.
+    #[serde(default)]
+    pub overwrite: bool,
 }
 
 /// `import.preview` with `format: "csvTransactions"`.
@@ -131,6 +213,17 @@ impl PreviewParam {
             Self::CsvOwners(p) => {
                 let params = p.params();
                 Ok((files(p.files)?, PreviewParams::CsvOwners(params)))
+            }
+            Self::CsvAccounts(p) => {
+                let params = AccountsParams { separator: p.separator.into(), header_rows: p.header_rows };
+                Ok((files(p.files)?, PreviewParams::CsvAccounts(params)))
+            }
+            Self::CsvPrices(p) => {
+                let layout = match p.layout {
+                    PriceLayoutParam::Name(name) => PriceLayoutChoice::Named(name),
+                    PriceLayoutParam::Layout(layout) => PriceLayoutChoice::Inline(layout),
+                };
+                Ok((files(p.files)?, PreviewParams::CsvPrices(PricesParams { layout, overwrite: p.overwrite })))
             }
         }
     }
@@ -176,11 +269,12 @@ impl From<ImportAction> for ActionWire {
     }
 }
 
-/// The caller's change to one transaction (`ImportChange`).
+/// The caller's change to one record (`ImportChange`): a transaction, or an account or price row, which take only
+/// `action`.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ChangeParam {
-    /// The transaction's `index` in the proposal.
+    /// The record's `index` in the proposal.
     pub index: usize,
     /// The new Import action; `clear` and `update` need a match.
     #[serde(default)]

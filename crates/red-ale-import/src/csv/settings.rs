@@ -1,7 +1,8 @@
 //! CSV import layouts: everything GnuCash saves in a CSV import preset, and its built-in presets.
 //!
 //! Translated from `5.17:gnucash/import-export/csv-imp/gnc-imp-settings-csv.cpp` (the settings shared by the
-//! transaction and price importers) and `gnc-imp-settings-csv-tx.cpp` (the transaction importer's own).
+//! transaction and price importers), `gnc-imp-settings-csv-tx.cpp` (the transaction importer's own) and
+//! `gnc-imp-settings-csv-price.cpp` (the price importer's, [`PriceLayout`]).
 //! Copyright (C) 2014 Robert Fewell; (c) 2016 Geert Janssens. GPL-2.0-or-later; this translation is
 //! GPL-3.0-or-later.
 //!
@@ -17,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::date::DateFormat;
 use super::monetary::CurrencyFormat;
+use super::prices::PriceColumn;
 use super::props_tx::ColumnType;
 use super::tokenizer::FileFormat;
 
@@ -211,9 +213,68 @@ impl TxLayout {
     }
 }
 
+/// A CSV price import layout: GnuCash's `CsvPriceImpSettings` (`5.17:gnucash/import-export/csv-imp/gnc-imp-settings-csv-price.cpp`,
+/// Copyright (C) 2017 Robert Fewell), saved in GnuCash's state file under `Import csv,price - <name>` and in red-ale's
+/// Configuration under `import.csvPriceLayouts.<name>`.
+///
+/// GnuCash re-applies a preset's separators but not its `EnableEscape` (`gnc-import-price.cpp:313-314`), so a price
+/// preset always reads with the tokenizer's default; red-ale honours `escape`.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PriceLayout {
+    /// The settings shared with the other CSV importers.
+    #[serde(flatten)]
+    pub csv: CsvLayout,
+    /// The commodity every price is of when there are no From Symbol and From Namespace columns: GnuCash's
+    /// "Commodity From", saved as its unique name `NAMESPACE::MNEMONIC` (`PriceFromCommodity`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from_commodity: Option<String>,
+    /// The currency every price is in when there is no Currency To column: GnuCash's "Currency To", saved as
+    /// `CURRENCY::<code>` (`PriceToCurrency`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub to_currency: Option<String>,
+    /// The type of each column, in order (`ColumnTypes`).
+    pub columns: Vec<PriceColumn>,
+}
+
+impl PriceLayout {
+    /// GnuCash's built-in price presets: `No Settings` only (`gnc-imp-settings-csv-price.cpp:101-102`).
+    pub fn presets() -> Vec<(&'static str, Self)> {
+        vec![(NO_SETTINGS, Self::default())]
+    }
+
+    /// The built-in preset of this name.
+    pub fn preset(name: &str) -> Option<Self> {
+        Self::presets().into_iter().find(|(n, _)| *n == name).map(|(_, layout)| layout)
+    }
+
+    /// The layout as GnuCash would load it back: the shared settings sanitized, and empty commodity names as none.
+    #[must_use]
+    pub fn sanitized(mut self) -> Self {
+        self.csv = self.csv.sanitized();
+        self.from_commodity = self.from_commodity.filter(|c| !c.is_empty());
+        self.to_currency = self.to_currency.filter(|c| !c.is_empty());
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn price_layouts() {
+        let json = r#"{ "skipStartLines": 1, "dateFormat": "d-m-y", "toCurrency": "CURRENCY::EUR",
+            "columns": ["Date", "From Symbol", "From Namespace", "Amount"] }"#;
+        let layout: PriceLayout = serde_json::from_str(json).unwrap();
+        assert_eq!(layout.columns, [PriceColumn::Date, PriceColumn::FromSymbol, PriceColumn::FromNamespace, PriceColumn::Amount]);
+        assert_eq!((layout.to_currency.as_deref(), layout.from_commodity.as_deref()), (Some("CURRENCY::EUR"), None));
+        assert_eq!(layout.csv.skip_start_lines, 1);
+        let back: PriceLayout = serde_json::from_value(serde_json::to_value(&layout).unwrap()).unwrap();
+        assert_eq!(back, layout);
+        assert_eq!(PriceLayout::preset(NO_SETTINGS), Some(PriceLayout::default()));
+        assert!(serde_json::from_str::<PriceLayout>(r#"{ "columns": ["Price"] }"#).is_err());
+    }
 
     #[test]
     fn defaults_match_gnucash() {

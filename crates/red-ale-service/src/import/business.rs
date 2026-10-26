@@ -63,15 +63,11 @@ fn one_file(files: &[ImportFile], format: &str) -> Result<String, ServiceError> 
 /// A proposal holding business records.
 fn proposal(book: &Book, format: Format, today: red_ale_core::Date, records: Records, parts: business::documents::Proposed) -> Proposal {
     Proposal {
-        format,
-        settings: ImportSettings::default(),
-        threshold: review::threshold(book, Some(today)),
         ignored_lines: parts.ignored,
         errors: parts.errors,
         warnings: parts.warnings,
-        transactions: Vec::new(),
-        csv: None,
         business: Some(records),
+        ..Proposal::empty(format, ImportSettings::default(), review::threshold(book, Some(today)))
     }
 }
 

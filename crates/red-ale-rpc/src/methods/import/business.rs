@@ -23,7 +23,7 @@ use crate::wire::{Amount, CommodityId, Day, Id};
 /// How fields are separated: GnuCash's four choices.
 #[derive(Debug, Clone, Copy, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub enum SeparatorWire {
+pub enum BusinessSeparatorWire {
     /// Semicolons, no quotes (the default).
     #[default]
     Semicolon,
@@ -35,13 +35,13 @@ pub enum SeparatorWire {
     CommaQuoted,
 }
 
-impl From<SeparatorWire> for Separator {
-    fn from(s: SeparatorWire) -> Self {
+impl From<BusinessSeparatorWire> for Separator {
+    fn from(s: BusinessSeparatorWire) -> Self {
         match s {
-            SeparatorWire::Semicolon => Self::Semicolon,
-            SeparatorWire::Comma => Self::Comma,
-            SeparatorWire::SemicolonQuoted => Self::SemicolonQuoted,
-            SeparatorWire::CommaQuoted => Self::CommaQuoted,
+            BusinessSeparatorWire::Semicolon => Self::Semicolon,
+            BusinessSeparatorWire::Comma => Self::Comma,
+            BusinessSeparatorWire::SemicolonQuoted => Self::SemicolonQuoted,
+            BusinessSeparatorWire::CommaQuoted => Self::CommaQuoted,
         }
     }
 }
@@ -118,7 +118,7 @@ pub struct DocumentsPreviewParam {
     pub document_kind: DocumentKindWire,
     /// How fields are separated; default `semicolon`.
     #[serde(default)]
-    pub separator: SeparatorWire,
+    pub separator: BusinessSeparatorWire,
     /// How dates are written; default the Configuration's `reports.dateFormat`.
     #[serde(default)]
     pub date_format: Option<DateFormatWire>,
@@ -165,7 +165,7 @@ pub struct OwnersPreviewParam {
     pub owner_kind: OwnerImportKind,
     /// How fields are separated; default `semicolon`.
     #[serde(default)]
-    pub separator: SeparatorWire,
+    pub separator: BusinessSeparatorWire,
 }
 
 impl OwnersPreviewParam {

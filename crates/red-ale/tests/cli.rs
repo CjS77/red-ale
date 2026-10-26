@@ -152,6 +152,29 @@ fn import_files_are_read_on_the_cli_side() {
     assert_eq!(json(&out.stderr)["error"]["code"], 4000);
 }
 
+#[test]
+fn account_and_price_files_are_read_on_the_cli_side() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("new.gnucash").display().to_string();
+    let accounts = dir.path().join("accounts.csv");
+    std::fs::write(&accounts, "ASSET;Assets;Assets;;;;;USD;CURRENCY;F;F;T\nBANK;Assets:Caf\u{e9};Caf\u{e9};;;;;USD;CURRENCY;F;F;F\n").unwrap();
+    let accounts = accounts.display().to_string();
+    let out = run(&["exec", "--create", "--book", &book, "import.preview", "format=csvAccounts", "separator=semicolon", "--file", &accounts]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let proposal = json(&out.stdout);
+    assert_eq!(proposal["accounts"][1]["fullName"], "Assets:Café");
+    assert_eq!(proposal["accounts"][1]["action"], "add");
+
+    let prices = dir.path().join("prices.csv");
+    std::fs::write(&prices, "2024-03-01,USD,1.08\n").unwrap();
+    let layout = r#"layout:={"fromCommodity": "EUR", "columns": ["Date", "Currency To", "Amount"]}"#;
+    let prices = prices.display().to_string();
+    let out = run(&["exec", "--book", &book, "import.preview", "format=csvPrices", layout, "--file", &prices]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let proposal = json(&out.stdout);
+    assert_eq!(proposal["prices"][0]["value"], json!({ "num": "1080000", "denom": "1000000" }));
+}
+
 /// The local time zone GnuCash would read for this `TZ` (`None`: unset), and today's date in it before and after
 /// `f` runs, so a midnight in between cannot fail the test.
 fn in_zone<T>(tz: Option<&str>, f: impl FnOnce() -> T) -> (red_ale_core::TimeZone, [red_ale_core::Date; 2], T) {

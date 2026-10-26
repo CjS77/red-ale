@@ -13,7 +13,7 @@ use red_ale_core::ops::scrub::Repair;
 use red_ale_core::ops::transactions::posted_date;
 use red_ale_core::{AccountType, Book, CommodityRef, Date, FixedEnv, Guid, Numeric, Time64, TimeZone};
 
-use super::{Proposal, ProposedTransaction, Warning};
+use super::{ApplyChoices, Format, Proposal, ProposedTransaction, Warning};
 use crate::matcher::{ApplyOptions, ImportAction, ProcessWarning, Processed, TransInfo, append_text, apply_batch};
 
 /// The first GUID the copy's new splits and accounts count up from: far from any a Book holds, so a new Imbalance
@@ -68,6 +68,9 @@ pub struct Review {
 
 /// Apply `proposal` as it stands to a copy of `book`, and report what that did. `now` and `zone` are the session's.
 pub fn review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) -> Review {
+    if matches!(proposal.format, Format::CsvAccounts | Format::CsvPrices | Format::CsvDocuments | Format::CsvOwners) {
+        return records_review(book, now, zone, proposal);
+    }
     let infos: Vec<TransInfo> = proposal.transactions.iter().map(|t| t.info.clone()).collect();
     let mut copy = book.clone();
     let mut env = FixedEnv::new(now, REVIEW_GUID_SEED).with_zone(zone.clone());
@@ -85,6 +88,25 @@ pub fn review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) ->
             new_accounts: Vec::new(),
             warnings: vec![Warning { code: "cannot-apply", message: format!("applying this proposal as it stands would fail: {e}"), index: None }],
         },
+    }
+}
+
+/// The review of a format that imports records (accounts, prices) rather than transactions: the accounts applying
+/// creates, or why applying would fail.
+fn records_review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) -> Review {
+    let mut copy = book.clone();
+    let mut env = FixedEnv::new(now, REVIEW_GUID_SEED).with_zone(zone.clone());
+    match super::apply(&mut copy, &mut env, proposal, &[], ApplyChoices { skip_errors: true, append_text: None }) {
+        Ok(applied) => Review {
+            new_accounts: applied
+                .accounts_created
+                .iter()
+                .filter_map(|g| copy.account(*g))
+                .map(|a| NewAccount { name: copy.full_name(a.guid).unwrap_or_else(|| a.name.clone()), account_type: a.account_type, commodity: a.commodity.clone() })
+                .collect(),
+            ..Review::default()
+        },
+        Err(e) => Review { warnings: vec![Warning { code: "cannot-apply", message: format!("applying this proposal as it stands would fail: {e}"), index: None }], ..Review::default() },
     }
 }
 

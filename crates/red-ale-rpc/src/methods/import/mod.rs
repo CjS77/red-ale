@@ -6,6 +6,7 @@
 mod business;
 mod params;
 mod proposal;
+mod records;
 
 use red_ale_import::pipeline::Applied;
 use red_ale_service::import;
@@ -13,8 +14,12 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 pub use business::{DocumentsPreviewParam, OwnersPreviewParam};
-pub use params::{ActionWire, ApplyParams, ChangeParam, CsvPreviewParam, DiscardParams, ImportFileParam, LayoutParam, PreviewParam};
+pub use params::{
+    AccountsPreviewParam, ActionWire, ApplyParams, ChangeParam, CsvPreviewParam, DiscardParams, ImportFileParam, LayoutParam, PreviewParam,
+    PriceLayoutParam, PricesPreviewParam, SeparatorWire,
+};
 pub use proposal::ProposalResult;
+pub use records::{AccountFieldsWire, AccountRecordWire, ExistingWire, FieldChangeWire, PriceRecordWire};
 
 use crate::dispatch::{Context, Effect, Method, method};
 use crate::error::RpcError;
@@ -68,20 +73,21 @@ pub struct IndexedTransaction {
 /// Accounts applying created or changed.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct AccountsChanged {
-    /// Created (`Imbalance-<CUR>` accounts).
+    /// Created: `Imbalance-<CUR>` accounts, or a CSV account import's accounts.
     pub created: Vec<Id>,
-    /// Whose Slots changed: Import maps learned, the append choice saved.
+    /// Changed: Slots of a transaction import (Import maps learned, the append choice saved), or the fields a CSV
+    /// account import updated.
     pub updated: Vec<Id>,
 }
 
-/// Prices recorded from added transactions, source `user:split-import`.
+/// Prices recorded: from added transactions (source `user:split-import`), or a CSV price import's (`user:price`).
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct PricesChanged {
     /// New prices.
     pub added: Vec<Id>,
-    /// Same-day prices replaced.
+    /// New prices that replaced a same-day price (for transactions, the same-day price updated).
     pub replaced: Vec<Id>,
-    /// Same-day prices kept.
+    /// Same-day prices kept, which the new price duplicated.
     pub duplicate: Vec<Id>,
 }
 
@@ -155,7 +161,7 @@ pub struct ApplyResult {
     pub cleared: Vec<IndexedTransaction>,
     /// Existing transactions updated and cleared.
     pub updated: Vec<IndexedTransaction>,
-    /// Indexes skipped.
+    /// Indexes skipped: transactions, or a CSV account or price import's rows.
     pub skipped: Vec<usize>,
     /// Accounts created and changed.
     pub accounts: AccountsChanged,

@@ -5,7 +5,7 @@ use red_ale_core::{Book, Split, Transaction};
 use red_ale_import::business::Records;
 use red_ale_import::matcher::{DestSource, MatchInfo, TransInfo};
 use red_ale_import::pipeline::{
-    AccountName, IgnoredLine, ImbalanceInfo, NewAccount, ProposedTransaction, RowError, Source, TransactionReview, Warning,
+    AccountName, Format, IgnoredLine, ImbalanceInfo, NewAccount, Proposal, ProposedTransaction, RowError, Source, TransactionReview, Warning,
 };
 use red_ale_service::import::Previewed;
 use schemars::JsonSchema;
@@ -13,6 +13,7 @@ use serde::Serialize;
 
 use super::business::{self, DocumentWire, OwnerWire};
 use super::params::ActionWire;
+use super::records::{AccountRecordWire, PriceRecordWire};
 use crate::wire::{Amount, CommodityId, Day, Id, Timestamp};
 
 /// The Import proposal.
@@ -50,9 +51,15 @@ pub struct ProposalResult {
     /// `csvOwners`: the customers or vendors, by index.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owners: Option<Vec<OwnerWire>>,
+    /// `csvAccounts`: one per account row, in file order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accounts: Option<Vec<AccountRecordWire>>,
+    /// `csvPrices`: one per price line, in file order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prices: Option<Vec<PriceRecordWire>>,
 }
 
-/// Counts of a proposal.
+/// Counts of a proposal: of its transactions, or of the records of the other formats.
 #[derive(Debug, Default, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Summary {
@@ -60,7 +67,8 @@ pub struct Summary {
     pub add: usize,
     /// Transactions that clear a match.
     pub clear: usize,
-    /// Records that update an existing one (a transaction is then also cleared).
+    /// Transactions that update and clear a match; accounts, documents and Owners to update; prices replacing a
+    /// same-day price.
     pub update: usize,
     /// Records skipped.
     pub skip: usize,
@@ -79,7 +87,8 @@ pub struct IgnoredLineWire {
     pub file: usize,
     /// The line, from 1.
     pub line: usize,
-    /// Why: the layout setting that skips it (`skipStartLines`, `skipEndLines`, `skipAltLines`).
+    /// Why: the layout setting that skips it (`skipStartLines`, `skipEndLines`, `skipAltLines`), or for an account
+    /// file `headerRows` or `empty`.
     pub reason: String,
 }
 
@@ -321,9 +330,10 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
         Some(Records::Owners(o)) => (None, Some(o.iter().map(business::owner_wire).collect::<Vec<_>>())),
         None => (None, None),
     };
-    let mut summary = summary(&transactions, proposal.errors.len());
-    documents.iter().flatten().for_each(|d| count(&mut summary, d.action, d.read_only_by_date));
-    owners.iter().flatten().for_each(|o| count(&mut summary, o.action, false));
+    let business_actions = documents.iter().flatten().map(|d| d.action).chain(owners.iter().flatten().map(|o| o.action));
+    let actions = transactions.iter().map(|t| t.action).chain(record_actions(proposal)).chain(business_actions);
+    let mut summary = summary(actions, &transactions, proposal.errors.len());
+    summary.read_only_by_date += documents.iter().flatten().filter(|d| d.read_only_by_date).count();
     ProposalResult {
         id: p.id.clone(),
         format: proposal.format.as_str().to_owned(),
@@ -339,28 +349,27 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
         csv: proposal.csv.as_ref().map(|c| CsvWire { account_names: c.account_names.iter().map(|n| account_name(book, n)).collect() }),
         documents,
         owners,
+        accounts: (proposal.format == Format::CsvAccounts).then(|| proposal.accounts.iter().map(AccountRecordWire::from).collect()),
+        prices: (proposal.format == Format::CsvPrices).then(|| proposal.prices.iter().map(PriceRecordWire::from).collect()),
     }
 }
 
-/// Count a business record in the summary.
-fn count(s: &mut Summary, action: ActionWire, read_only_by_date: bool) {
-    match action {
-        ActionWire::Add => s.add += 1,
-        ActionWire::Clear => s.clear += 1,
-        ActionWire::Update => s.update += 1,
-        ActionWire::Skip => s.skip += 1,
-    }
-    s.read_only_by_date += usize::from(read_only_by_date);
+/// The actions of the account and price records.
+fn record_actions(proposal: &Proposal) -> impl Iterator<Item = ActionWire> + '_ {
+    proposal.accounts.iter().map(|a| a.action.into()).chain(proposal.prices.iter().map(|p| p.action.into()))
 }
 
-fn summary(transactions: &[ImportedTransactionWire], errors: usize) -> Summary {
-    transactions.iter().fold(Summary { errors, ..Summary::default() }, |mut s, t| {
-        match t.action {
+fn summary(actions: impl Iterator<Item = ActionWire>, transactions: &[ImportedTransactionWire], errors: usize) -> Summary {
+    let counted = actions.fold(Summary { errors, ..Summary::default() }, |mut s, action| {
+        match action {
             ActionWire::Add => s.add += 1,
             ActionWire::Clear => s.clear += 1,
             ActionWire::Update => s.update += 1,
             ActionWire::Skip => s.skip += 1,
         }
+        s
+    });
+    transactions.iter().fold(counted, |mut s, t| {
         s.imbalanced += usize::from(t.imbalance.is_some());
         s.read_only_by_date += usize::from(t.read_only_by_date);
         s
