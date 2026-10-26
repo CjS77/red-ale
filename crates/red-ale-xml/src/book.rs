@@ -111,11 +111,6 @@ impl XmlResidue {
     pub fn originals_kept(&self) -> usize {
         self.originals.len()
     }
-
-    /// Record `book` as the saved state, so later writes compare against it.
-    pub fn mark_saved(&mut self, book: &Book) {
-        self.snapshot = book.clone();
-    }
 }
 
 fn refers_to(el: &Element, commodity: &CommodityRef) -> bool {
