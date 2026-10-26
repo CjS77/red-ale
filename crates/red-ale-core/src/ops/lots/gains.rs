@@ -153,7 +153,7 @@ fn create_gains_txn(book: &mut Book, env: &mut dyn Env, sale: &Sale, gain_accoun
 fn update_gains_txn(book: &mut Book, env: &mut dyn Env, sale: &Sale, lot_split: Guid) -> DomainResult<()> {
     let Some((txn, ls)) = locate(book, lot_split) else { return Ok(()) };
     let Some(t) = book.transaction(txn) else { return Ok(()) };
-    let Some(gs_guid) = crate::ops::transactions::other_split(book, t, lot_split) else { return Ok(()) };
+    let Some(gs_guid) = crate::ops::transactions::other_split(book, t, lot_split).map(|s| s.guid) else { return Ok(()) };
     let Some(gs) = t.split(gs_guid) else { return Ok(()) };
     let neg = sale.gain.neg();
     let correct = gains_source(ls) == Some(sale.split)

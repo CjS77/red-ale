@@ -248,7 +248,7 @@ fn update_matched(book: &mut Book, env: &mut dyn Env, info: &TransInfo, selected
     if let Some(date) = env.zone().local_date(info.trans.date_posted) {
         set_date_posted(&mut t, date, env.zone());
     }
-    let other = other_split(book, &t, selected.split);
+    let other = other_split(book, &t, selected.split).map(|s| s.guid);
     let currency = t.currency.clone();
     let split = t.split_mut(selected.split).ok_or_else(|| DomainError::not_found("split", &selected.split))?;
     split.amount = rounded_amount(book, split.account, fsplit.amount)?;
@@ -325,7 +325,7 @@ fn process_reconcile(book: &mut Book, env: &mut dyn Env, info: &TransInfo, selec
     let guid = t.guid;
     book.transactions.insert(guid, Arc::new(t));
     out.repairs.extend(commit(book, env, guid)?);
-    let dest = book.transaction(guid).and_then(|t| other_split(book, t, selected.split).and_then(|o| t.split(o))).and_then(|s| s.account);
+    let dest = book.transaction(guid).and_then(|t| other_split(book, t, selected.split)).and_then(|s| s.account);
     if let Some(dest) = dest {
         out.learned.extend(store_destination(book, info, dest, use_bayes)?);
     }

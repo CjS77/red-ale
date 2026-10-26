@@ -1784,6 +1784,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "red-ale-export"
+version = "0.2.0"
+dependencies = [
+ "proptest",
+ "red-ale-core",
+ "red-ale-locale",
+ "red-ale-report",
+]
+
+[[package]]
 name = "red-ale-import"
 version = "0.2.0"
 dependencies = [
@@ -1851,6 +1861,7 @@ dependencies = [
  "jsonrpsee",
  "proptest",
  "red-ale-core",
+ "red-ale-export",
  "red-ale-import",
  "red-ale-locale",
  "red-ale-report",

@@ -42,13 +42,14 @@ fn call(dispatcher: &Mutex<Dispatcher>, name: &str, params: &Params<'_>) -> Resu
     guard.call(name, params).map_err(to_error_object)
 }
 
-/// Start serving `dispatcher` on `addr`, accepting requests of up to `max_request_bytes` (the Configuration's
-/// `jsonRpc.maxRequestBytes`). Methods run one at a time, on a blocking thread.
+/// Start serving `dispatcher` on `addr`, accepting requests of up to `limits.0` bytes and sending responses of up to
+/// `limits.1` (the Configuration's `jsonRpc.maxRequestBytes` and `jsonRpc.maxResponseBytes`). Methods run one at a
+/// time, on a blocking thread.
 /// The caller keeps its handle on `dispatcher` so it can close the book on shutdown.
 pub async fn serve(
     dispatcher: Arc<Mutex<Dispatcher>>,
     addr: SocketAddr,
-    max_request_bytes: u32,
+    limits: (u32, u32),
 ) -> Result<(SocketAddr, ServerHandle), ServerError> {
     let mut names: Vec<&'static str> = dispatcher.lock().unwrap_or_else(std::sync::PoisonError::into_inner).methods().map(|m| m.name).collect();
     names.push("api.schema");
@@ -59,7 +60,7 @@ pub async fn serve(
             .map(|_| ())
             .map_err(|e| ServerError::Register(format!("{name}: {e}")))
     })?;
-    let config = ServerConfig::builder().max_request_body_size(max_request_bytes).build();
+    let config = ServerConfig::builder().max_request_body_size(limits.0).max_response_body_size(limits.1).build();
     let builder = Server::builder().set_config(config);
     let server = builder.build(addr).await.map_err(|source| ServerError::Bind { addr, source })?;
     let local = server.local_addr().map_err(|source| ServerError::Bind { addr, source })?;

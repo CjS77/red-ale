@@ -152,21 +152,32 @@ impl InputArgs {
 
 #[derive(Debug, Args)]
 struct OutputArgs {
-    /// Write the result's `html` (from `report.export`) to this file, here rather than on the server, and print
-    /// `{title, path, bytes}` instead of the result.
+    /// Write the result's `html` (from `report.export`) or `csv` (from `export.csvTree` and `export.csvTransactions`)
+    /// to this file, here rather than on the server, and print what was written instead of the result: `{title, path,
+    /// bytes}` for a report, the result's other fields with `path` and `bytes` for a CSV export.
     #[arg(long, value_name = "FILE")]
     output: Option<PathBuf>,
 }
 
 impl OutputArgs {
-    /// Print a result, or with `--output` write its `html` to the file and print what was written.
+    /// Print a result, or with `--output` write its `html` or `csv` to the file and print what was written.
     fn emit(&self, result: &Value) -> Result<()> {
         let Some(path) = &self.output else { return print_json(result) };
-        let html = result.get("html").and_then(Value::as_str);
-        let html = html.context("--output needs a result with an html field, such as report.export's")?;
-        std::fs::write(path, html).with_context(|| format!("writing {}", path.display()))?;
-        let title = result.get("title").cloned().unwrap_or(Value::Null);
-        print_json(&json!({ "title": title, "path": path.display().to_string(), "bytes": html.len() }))
+        let (field, text) = ["html", "csv"]
+            .into_iter()
+            .find_map(|f| result.get(f).and_then(Value::as_str).map(|t| (f, t)))
+            .context("--output needs a result with an html or csv field, such as report.export's or export.csvTree's")?;
+        std::fs::write(path, text).with_context(|| format!("writing {}", path.display()))?;
+        let (path, bytes) = (json!(path.display().to_string()), json!(text.len()));
+        if field == "html" {
+            let title = result.get("title").cloned().unwrap_or(Value::Null);
+            return print_json(&json!({ "title": title, "path": path, "bytes": bytes }));
+        }
+        let mut summary = result.as_object().cloned().unwrap_or_default();
+        summary.remove(field);
+        summary.insert("path".to_owned(), path);
+        summary.insert("bytes".to_owned(), bytes);
+        print_json(&Value::Object(summary))
     }
 }
 
@@ -265,11 +276,12 @@ fn server_dispatcher(settings: &SettingsArgs, book: Option<&str>, read_only: boo
 
 /// Run the server until interrupted. An RPC error is never returned from here, so `Ok(None)` on success.
 fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
-    let max_request_bytes = args.settings.settings().config.jsonrpc_max_request_bytes()?;
+    let config = args.settings.settings().config;
+    let limits = (config.jsonrpc_max_request_bytes()?, config.jsonrpc_max_response_bytes()?);
     let dispatcher = server_dispatcher(&args.settings, args.book.as_deref(), args.read_only)?;
     let runtime = tokio::runtime::Runtime::new()?;
     runtime.block_on(async {
-        let (addr, handle) = red_ale_rpc::server::serve(dispatcher.clone(), args.listen, max_request_bytes).await?;
+        let (addr, handle) = red_ale_rpc::server::serve(dispatcher.clone(), args.listen, limits).await?;
         eprintln!("red-ale: serving JSON-RPC on http://{addr}");
         shutdown_signal().await?;
         handle.stop().ok();
@@ -325,7 +337,8 @@ fn call(args: &CallArgs) -> Result<Option<RpcError>> {
     let params = args.input.fill(params::parse(&args.params)?)?;
     let runtime = tokio::runtime::Runtime::new()?;
     let result: Result<Value, jsonrpsee::core::ClientError> = runtime.block_on(async {
-        let client = HttpClientBuilder::default().build(&args.url)?;
+        // The server's own limit bounds what it sends (`jsonRpc.maxResponseBytes`), so the client takes any size.
+        let client = HttpClientBuilder::default().max_response_size(u32::MAX).build(&args.url)?;
         let mut object = ObjectParams::new();
         params.as_object().into_iter().flatten().try_for_each(|(k, v)| object.insert(k, v))?;
         client.request(&args.method, object).await

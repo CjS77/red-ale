@@ -1,0 +1,2 @@
+# Expected CSV exports: CRLF line ends and raw CR and LF inside quoted fields are part of what is compared.
+*.csv -text

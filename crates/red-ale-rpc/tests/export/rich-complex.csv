@@ -1,0 +1,30 @@
+Date,Transaction ID,Number,Description,Notes,Commodity/Currency,Void Reason,Action,Memo,Full Account Name,Account Name,Amount With Sym,Amount Num.,Value With Sym,Value Num.,Reconcile,Reconcile Date,Rate/Price
+06/07/24,73259d51cb6c4ef588445bd7a35123d6,,Fund buy,,CURRENCY::USD,,,,Assets:Brokerage:Zeta,Zeta,1.234 ZETA,1.234,$25.00,25.00,n,,20 + 160/617
+06/07/24,73259d51cb6c4ef588445bd7a35123d6,,Fund buy,,CURRENCY::USD,,,,Assets:Cash,Cash,-$25.00,-25.00,-$25.00,-25.00,n,,1.00
+06/04/24,95689dde3f844412825189d84f6e7902,,Buy ACME,,CURRENCY::USD,,Buy,,Assets:Brokerage:ACME,ACME,10. ACME,10.,"$1,000.00",1000.00,n,,100.0000
+06/04/24,95689dde3f844412825189d84f6e7902,,Buy ACME,,CURRENCY::USD,,,,Expenses:Fees,Fees,$9.95,9.95,$9.95,9.95,n,,1.00
+06/04/24,95689dde3f844412825189d84f6e7902,,Buy ACME,,CURRENCY::USD,,,,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","-$1,009.95",-1009.95,"-$1,009.95",-1009.95,n,,1.00
+06/05/24,dfd7e387825e4495aa56c67aea81b014,,Sell ACME,,CURRENCY::USD,,,,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",$600.00,600.00,$600.00,600.00,n,,1.00
+06/05/24,dfd7e387825e4495aa56c67aea81b014,,Sell ACME,,CURRENCY::USD,,Sell,,Assets:Brokerage:ACME,ACME,-5. ACME,-5.,-$600.00,-600.00,n,,120.0000
+06/03/24,bf5e53a96f4749dcb43fd23fe9479cab,,To euro account,,CURRENCY::USD,,,,Assets:Euro Bank,Euro Bank,€100.00,100.00,$110.00,110.00,n,,1.10
+06/03/24,bf5e53a96f4749dcb43fd23fe9479cab,,To euro account,,CURRENCY::USD,,,,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",-$110.00,-110.00,-$110.00,-110.00,n,,1.00
+06/02/24,439480360f6342f9abfd6df6f40cc5e9,101,"Groceries amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","trn notes amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",CURRENCY::USD,,,,Expenses:Food,Food,$12.34,12.34,$12.34,12.34,n,,1.00
+06/02/24,439480360f6342f9abfd6df6f40cc5e9,101,"Groceries amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","trn notes amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",CURRENCY::USD,,"act amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","memo amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",-$12.34,-12.34,-$12.34,-12.34,n,,1.00
+06/06/24,7e04ac3fbb8d4eff83068196f09164f4,,Mistake,Voided transaction,CURRENCY::USD,entered twice,,,Expenses:Food,Food,$1.00,1.00,$1.00,1.00,v,,1.00
+06/06/24,7e04ac3fbb8d4eff83068196f09164f4,,Mistake,Voided transaction,CURRENCY::USD,entered twice,,,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",-$1.00,-1.00,-$1.00,-1.00,v,,1.00
