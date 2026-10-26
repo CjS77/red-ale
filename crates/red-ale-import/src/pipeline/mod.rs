@@ -25,6 +25,10 @@ use crate::matcher::{ImportSettings, TransInfo};
 pub enum Format {
     /// GnuCash's Import Transactions from CSV.
     CsvTransactions,
+    /// GnuCash's Import Bills & Invoices.
+    CsvDocuments,
+    /// GnuCash's Import Customers & Vendors.
+    CsvOwners,
 }
 
 impl Format {
@@ -32,6 +36,8 @@ impl Format {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::CsvTransactions => "csvTransactions",
+            Self::CsvDocuments => "csvDocuments",
+            Self::CsvOwners => "csvOwners",
         }
     }
 }
@@ -161,6 +167,8 @@ pub struct Proposal {
     pub transactions: Vec<ProposedTransaction>,
     /// CSV's own state.
     pub csv: Option<CsvState>,
+    /// The business importers' records: documents or Owners.
+    pub business: Option<crate::business::Records>,
 }
 
 impl Proposal {

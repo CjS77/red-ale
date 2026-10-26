@@ -9,6 +9,7 @@ use red_ale_core::{Book, DomainError, DomainResult, Env, Guid, Numeric};
 
 use super::review::process_warning;
 use super::{AccountName, NameSource, Proposal, Warning};
+use crate::business::{self, Records, RecordsApplied};
 use crate::import_map::{CATEGORY_CSV_ACCOUNT_MAP, add_account, delete_account, find_account};
 use crate::matcher::{ApplyOptions, ImportAction, Learned, Processed, TransInfo, append_text, apply_batch};
 
@@ -87,6 +88,10 @@ pub struct Applied {
     pub learned: LearnedEntries,
     /// Every Imbalance split again, every transaction applied read-only by date, and the matcher's warnings.
     pub warnings: Vec<Warning>,
+    /// Business documents created, updated and posted (`csvDocuments`).
+    pub documents: Option<RecordsApplied>,
+    /// Customers and vendors created and updated (`csvOwners`).
+    pub owners: Option<RecordsApplied>,
 }
 
 /// Apply `proposal` to `book` with the caller's changes. The caller holds `book` inside one Mutation.
@@ -94,6 +99,9 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
     if !proposal.errors.is_empty() && !choices.skip_errors {
         let n = proposal.errors.len();
         return Err(DomainError::invalid(format!("the proposal has {n} row(s) that can't be imported; apply with skipErrors to leave them out")));
+    }
+    if let Some(records) = &proposal.business {
+        return apply_business(book, env, proposal, records, changes);
     }
     let mut infos: Vec<TransInfo> = proposal.transactions.iter().map(|t| t.info.clone()).collect();
     changes.iter().try_for_each(|c| change(book, proposal, &mut infos, c))?;
@@ -106,6 +114,17 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
     applied.learned.csv_account_map = csv_learned;
     applied.warnings.extend(read_only_warnings(&before, proposal, &infos));
     (applied.accounts_created, applied.accounts_updated) = changed_accounts(&before, book);
+    Ok(applied)
+}
+
+/// A business proposal: its documents or Owners, each found by ID, in one go.
+fn apply_business(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, records: &Records, changes: &[Change]) -> DomainResult<Applied> {
+    let (done, warnings) = business::apply(book, env, records, changes, proposal.threshold)?;
+    let mut applied = Applied { warnings, ..Applied::default() };
+    match records {
+        Records::Documents(_) => applied.documents = Some(done),
+        Records::Owners(_) => applied.owners = Some(done),
+    }
     Ok(applied)
 }
 
