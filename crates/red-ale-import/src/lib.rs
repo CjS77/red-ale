@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
 
+pub mod business;
 pub mod csv;
 pub mod import_map;
 pub mod matcher;

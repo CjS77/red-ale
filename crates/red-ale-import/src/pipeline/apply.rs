@@ -9,6 +9,7 @@ use red_ale_core::{Book, CommodityRef, DomainError, DomainResult, Env, Guid, Num
 
 use super::review::process_warning;
 use super::{AccountName, Format, NameSource, Proposal, Warning};
+use crate::business::{self, Records, RecordsApplied};
 use crate::import_map::{CATEGORY_CSV_ACCOUNT_MAP, add_account, delete_account, find_account};
 use crate::matcher::{ApplyOptions, ImportAction, Learned, Processed, TransInfo, append_text, apply_batch};
 use crate::qif::guess_map::SavedMap;
@@ -94,6 +95,10 @@ pub struct Applied {
     pub qif_account_map: Option<SavedMap>,
     /// Every Imbalance split again, every transaction applied read-only by date, and the matcher's warnings.
     pub warnings: Vec<Warning>,
+    /// Business documents created, updated and posted (`csvDocuments`).
+    pub documents: Option<RecordsApplied>,
+    /// Customers and vendors created and updated (`csvOwners`).
+    pub owners: Option<RecordsApplied>,
 }
 
 /// Apply `proposal` to `book` with the caller's changes. The caller holds `book` inside one Mutation.
@@ -105,6 +110,7 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
     match proposal.format {
         Format::CsvAccounts => return crate::csv::accounts::apply(book, env, proposal, changes),
         Format::CsvPrices => return crate::csv::prices::apply(book, env, proposal, changes),
+        Format::CsvDocuments | Format::CsvOwners => return apply_business(book, env, proposal, changes),
         Format::Qif => {
             let qif = proposal.qif.as_deref().ok_or_else(|| DomainError::invalid("the QIF proposal has lost its state"))?;
             return crate::qif::import::apply(book, env, proposal, qif, changes);
@@ -122,6 +128,18 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
     applied.learned.csv_account_map = csv_learned;
     applied.warnings.extend(read_only_warnings(&before, proposal, &infos));
     (applied.accounts_created, applied.accounts_updated) = changed_accounts(&before, book);
+    Ok(applied)
+}
+
+/// A business proposal: its documents or Owners, each found by ID, in one go.
+fn apply_business(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &[Change]) -> DomainResult<Applied> {
+    let records = proposal.business.as_ref().ok_or_else(|| DomainError::invalid("the business proposal holds no records"))?;
+    let (done, warnings) = business::apply(book, env, records, changes, proposal.threshold)?;
+    let mut applied = Applied { warnings, ..Applied::default() };
+    match records {
+        Records::Documents(_) => applied.documents = Some(done),
+        Records::Owners(_) => applied.owners = Some(done),
+    }
     Ok(applied)
 }
 

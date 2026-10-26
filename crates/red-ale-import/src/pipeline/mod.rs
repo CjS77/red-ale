@@ -29,6 +29,10 @@ use crate::qif::import::QifState;
 pub enum Format {
     /// GnuCash's Import Transactions from CSV.
     CsvTransactions,
+    /// GnuCash's Import Bills & Invoices.
+    CsvDocuments,
+    /// GnuCash's Import Customers & Vendors.
+    CsvOwners,
     /// GnuCash's QIF import.
     Qif,
     /// GnuCash's Import Accounts from CSV.
@@ -42,6 +46,8 @@ impl Format {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::CsvTransactions => "csvTransactions",
+            Self::CsvDocuments => "csvDocuments",
+            Self::CsvOwners => "csvOwners",
             Self::Qif => "qif",
             Self::CsvAccounts => "csvAccounts",
             Self::CsvPrices => "csvPrices",
@@ -174,6 +180,8 @@ pub struct Proposal {
     pub transactions: Vec<ProposedTransaction>,
     /// CSV's own state.
     pub csv: Option<CsvState>,
+    /// The business importers' records: documents or Owners.
+    pub business: Option<crate::business::Records>,
     /// QIF's own state: what applying converts again.
     pub qif: Option<Box<QifState>>,
     /// The accounts of a CSV account import, by index.
@@ -194,6 +202,7 @@ impl Proposal {
             warnings: Vec::new(),
             transactions: Vec::new(),
             csv: None,
+            business: None,
             qif: None,
             accounts: Vec::new(),
             prices: Vec::new(),

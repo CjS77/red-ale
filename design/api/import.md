@@ -166,7 +166,7 @@ Records not named keep the proposal's choice. Returns:
 | `accounts` | `{ created: [AccountRef], updated: [AccountRef] }` |
 | `commodities` | Created commodities |
 | `prices` | `{ added, replaced, duplicate }`, Price GUIDs |
-| `documents`, `owners` | `{ created, updated, posted }` |
+| `documents`, `owners` | `{ created, updated, posted: [{ index, guid }], skipped: [index] }` (Owners are never posted) |
 | `imbalanceSplits` | `[{ index, transaction, split, account, value }]`: every `Imbalance-<CUR>` split made |
 | `learned` | `{ bayes, plain, csvAccountMap }`: Import map entries written |
 | `warnings` | Every Imbalance split again, as a warning, every transaction added read-only by date, and the format's own warnings |
@@ -936,6 +936,9 @@ GnuCash has no tests for this importer.
 
 ### What red-ale does
 
+Code: `crates/red-ale-import/src/business/` (`documents.rs`, with `reader.rs`, `date.rs` and `expr.rs` shared with
+Owners).
+
 **Params** of `format: "csvDocuments"`:
 
 | Param | Type | Default | Meaning |
@@ -943,24 +946,61 @@ GnuCash has no tests for this importer.
 | `documentKind` | string | `bill` | `bill` or `invoice`, as GnuCash's choice |
 | `separator` | string | `semicolon` | `semicolon`, `comma`, `semicolonQuoted`, `commaQuoted` |
 | `dateFormat` | string | `reports.dateFormat` | `us`, `uk`, `ce`, `iso` or `locale`: GnuCash's date format preference |
-| `accountNames` | string | `full` | `full` or `leaf`: GnuCash's "show leaf account names" preference |
+| `accountNames` | string | `full` | `full` or `leaf`: GnuCash's "show leaf account names" preference. `leaf` finds the first account of that name breadth-first, as `gnc_account_lookup_by_name` does |
 | `updateExisting` | bool | false | GnuCash's question, answered up front |
-| `autoPay` | bool | false | GnuCash's auto-pay preference (`5.17:gnucash/gschemas/org.gnucash.GnuCash.dialogs.business.gschema.xml.in:110-111`) |
+| `autoPay` | bool | false | GnuCash's auto-pay preference for the kind (`5.17:gnucash/gschemas/org.gnucash.GnuCash.dialogs.business.gschema.xml.in:110-111`) |
 
-The proposal's `documents`: `[{ index, lines, id, owner, existing, action, entries, post, warnings }]`, action `add`,
-`update` (append entries to an unposted document) or `skip`; `post` says whether and where it will be posted, or why
-not (`not-posted`). Posting uses red-ale's `invoice.post` ([`business-posting.md`](business-posting.md)), the
-translation of the same GnuCash function. The fixed separators are translated from GnuCash's regexes; the line-length
-limit is not (below).
+Numbers use the locale's monetary decimal point and thousands separator (`mon_decimal_point`, `mon_thousands_sep`),
+as GnuCash's expression parser does.
+
+**The proposal's `documents`**, one per group of rows, in file order:
+
+| Field | Meaning |
+|-------|---------|
+| `index`, `source`, `lines` | Its position, `{ file, lines: [first, last] }`, and every line it was built from |
+| `id`, `type`, `owner`, `ownerId` | The document ID, `invoice` or `bill`, the Owner (`{ kind, guid }`) and its ID as written |
+| `existing` | The GUID of the document in the Book it updates or skips, or null |
+| `sameAs` | The index of an earlier record in this file with the same ID: this one updates (or skips) what that one creates |
+| `action` | `add`; `update` (an unposted document, with `updateExisting`: entries appended, its own fields unchanged); or `skip` (an existing one without `updateExisting`, or a posted one) |
+| `currency`, `dateOpened`, `billingId`, `notes` | What a new document takes: the Owner's currency, the opening day, the billing ID and notes |
+| `entries` | `[{ line, date, description, action, notes, account, accountName, quantity, price, discount, discountType, discountHow, taxable, taxIncluded, taxTable }]`: the entries the rows add. `discount*` and `notes` are set for invoices only, as in GnuCash |
+| `post` | Null without a posting date; else `{ willPost, reason, account, accountName, date, dueDate, memo, accumulateSplits, autoPay }`. `reason` says why `willPost` is false: GnuCash's two messages, or red-ale's posting rules (below) |
+| `totals` | `{ subtotal, tax, total }` of the document as applying would leave it, from a trial on a copy of the Book |
+| `readOnlyByDate` | True when it would be posted before the auto read-only threshold |
+| `warnings` | `fixed` (each of GnuCash's fixes), `exists`, `posted`, `not-posted`, `duplicate-id`, `duplicate-entry` (an appended entry the document already has: same date, description, account, quantity and price), `read-only-by-date` |
+
+Rows the reader didn't match are in `ignoredLines` with `reason: "noMatch"`. A line with characters XML can't hold
+gets a `stripped-characters` warning; GnuCash strips them silently (`gnc_utf8_strip_invalid`,
+`dialog-bi-import.c:182`). Error rows carry GnuCash's messages (`invoice B1/2: price not set.`), and the
+first row of a dropped document also gets GnuCash's `Error(s) in invoice B1, all rows of this invoice ignored.`
+
+Each document is worked out on a copy of the Book through the same code `import.apply` runs, so what red-ale's rules
+refuse shows in the proposal, as an error row (an entry account) or a `not-posted` reason (the posting), before
+anything changes.
+
+**Apply.** `changes` may only set a record's `action` to `skip`. Skipping a record another one has as `sameAs` is
+refused unless that one is skipped too. In file order, each document is created (`add_invoice`) or found, its entries
+added (`add_entry`: date at noon of the local day, date entered now, as GnuCash), and, when `willPost`, posted with
+`invoice.post`'s operation ([`business-posting.md`](business-posting.md)), the translation of the
+`gncInvoicePostToAccount` GnuCash calls: the posting date, the due date at local midnight (`gnc_dmy2time64`,
+`dialog-bi-import.c:879-886`), `memo_posted`, `accu_splits` and `autoPay`. The result's `documents`:
+`{ created, updated, posted: [{ index, guid }], skipped: [index] }`.
 
 **Deviations, for the book's sake:**
 
 - A number that doesn't parse is an **error** that drops its document, as other errors do; GnuCash makes it 0.
-  Expression syntax (`2*3.5`) is accepted, function calls are not (GnuCash evaluates them in Guile).
+  Arithmetic (`2*3.5`, `(1+2)/3`) is exact, as GnuCash's; variables and function calls are not accepted (GnuCash
+  evaluates functions in Guile); a group separator after the decimal point is an error.
 - Dates are checked and read by the same parser (`qof_scan_date`'s translation), so the date checked is the date
-  stored.
-- Lines are read whole: GnuCash splits a line longer than 999 bytes into two.
-- `notes` is un-escaped once; GnuCash un-escapes the first entry's notes twice.
+  stored. A day the month doesn't have, or a digit straight after the date, is invalid; GnuCash's `strptime`
+  check passes both, and `qof_scan_date` rolls such a day over (`5.17:libgnucash/engine/gnc-date.cpp:977-982`).
+- An unknown tax table name is an error; GnuCash leaves the entry without a tax table, silently.
+- An entry date fixed to an invalid opening date takes the fixed opening date (today); GnuCash's entry is left
+  without a date.
+- An entry account red-ale's ledger rules refuse (a placeholder, or a type an entry can't use) is an error row; a
+  posting they refuse leaves the document unposted with a `not-posted` warning.
+- Lines are read whole: GnuCash splits a line longer than 999 bytes into two. A trailing `\r` is removed.
+- `notes` is un-escaped once; GnuCash un-escapes the first entry's notes twice. A lone `"` is kept.
 - A document ID that an existing credit note has gets a `duplicate-id` warning; GnuCash silently creates a second
   document with that ID.
 - The custom regex is not offered.
@@ -987,15 +1027,43 @@ and discounts are not touched. A header row is imported as an Owner like any oth
 
 ### What red-ale does
 
-**Params** of `format: "csvOwners"`: `ownerKind` (`customer`, default, or `vendor`) and `separator` as for documents.
-New Owners take `defaultCurrency` ([`quotes.md`](quotes.md)), GnuCash's default currency preference. The proposal's
-`owners`: `[{ index, line, id, action, fields, changes }]`, action `add`, `update` (with every field that would change,
-empty ones included, and `reactivate` when an inactive Owner would become active) or `skip`. An empty ID shows the
-number the Counter would give; the Counter advances at apply, as in GnuCash.
+Code: `crates/red-ale-import/src/business/owners.rs`.
 
-**Deviations:** a first row equal to the column names gets a `header-row` warning and the action `skip`; GnuCash
-imports it as an Owner named `company`. A custom regex is not offered (GnuCash crashes on one lacking `company` or
-`name`).
+**Params** of `format: "csvOwners"`: `ownerKind` (`customer`, default, or `vendor`) and `separator` as for documents.
+New Owners take `defaultCurrency` ([`quotes.md`](quotes.md)), GnuCash's default currency preference; when it is unset
+or not a currency the book knows, the locale's currency, else USD.
+
+**The proposal's `owners`**, one per row, in file order:
+
+| Field | Meaning |
+|-------|---------|
+| `index`, `line`, `kind` | Its position, its line, `customer` or `vendor` |
+| `id`, `idFromCounter` | The ID: the file's, or, for an empty one, the number the Owner's Counter would give (the Counter advances at apply, as in GnuCash, and each such row takes the next) |
+| `existing`, `sameAs` | The Owner in the Book it updates, or the earlier row of this file that creates it |
+| `action` | `add`, `update` or `skip` |
+| `alternative` | For a header row proposed as `skip`: the action GnuCash would take, which `import.apply` accepts |
+| `fields` | `{ company, address: { name, addr1–addr4, phone, fax, email }, notes, shipping }`: every field the row sets, empty ones included; `shipping` is null for vendors |
+| `currency` | A new Owner's currency |
+| `changes` | For `update`: each field that would change (`company`, `notes`, `address.addr1`, `shipping.email`, `active`, …) |
+| `reactivate` | True when an inactive Owner would become active |
+| `warnings` | `fixed` (no company; the name is used), `header-row`, `unchanged`, `ignored-columns`, `id-in-use` (the Counter's next number is already an Owner's ID, so GnuCash updates that Owner) |
+
+**Apply.** `changes` may set `skip`, or a header row's `alternative`. Owners are created or updated with the
+`customer.*` and `vendor.*` operations ([`business-contacts.md`](business-contacts.md)): every field from the row and
+active; terms, tax tables, discounts and credit limits untouched. The Counter is set past the highest number used.
+The result's `owners`: `{ created, updated: [{ index, guid }], posted: [], skipped: [index] }`.
+
+**Deviations:**
+
+- A first row whose `id` and `company` cells are those columns' names gets a `header-row` warning and the action
+  `skip`; GnuCash imports it as an Owner named `company`.
+- A row with neither company nor name is an error row; GnuCash drops it, counting it only.
+- A row that would change nothing is proposed as `skip`, with an `unchanged` warning (not for an empty ID, which
+  always takes a new number).
+- A vendor row's shipping cells get an `ignored-columns` warning; GnuCash ignores them silently.
+- The quoted semicolon layout reads its last field as it reads the others; GnuCash's expression reads it with
+  `[^;]*`, so keeps its quotes (`dialog-customer-import-gui.c:303`).
+- A custom regex is not offered (GnuCash crashes on one lacking `company` or `name`).
 
 ## Errors
 
@@ -1069,6 +1137,17 @@ and apply in one run.
 | Business dates | Checked by `strptime`, read by `qof_scan_date` | One parser | The date checked is the date stored |
 | Custom regexes (business, accounts) | Offered | Not offered | GLib regex syntax with duplicate names; a regex missing a field crashes GnuCash |
 | Owner header row | Imported as an Owner | Warned and skipped by default | The file's header is not a customer |
+| Business number syntax | Guile functions and variables; a group separator anywhere | Exact arithmetic only; a group separator after the decimal point is an error | No Guile; a misplaced separator is a misread amount |
+| Business dates with a day the month lacks, or digits after them | Taken by `strptime`, rolled by `qof_scan_date` | Invalid, so fixed or an error as GnuCash fixes an invalid date | The date stored is the date written |
+| Unknown business tax table | The entry gets none, silently | Error row | A silently untaxed entry is a wrong total |
+| Entry date fixed to an invalid opening date | The entry keeps no date | The fixed opening date (today) | Every entry has a date |
+| Entry accounts or postings red-ale's rules refuse | Created or posted | Error row; left unposted with `not-posted` | The Book's invariants hold for every door |
+| A business ID a credit note already has | A second document with the ID | Created, with a `duplicate-id` warning | The caller should know |
+| Business lines ending CRLF; characters XML can't hold | CR kept (a quoted last field then fails to match); stripped silently | CR removed; stripped with a `stripped-characters` warning | Windows files read as written; nothing changes unseen |
+| Owner rows with neither company nor name | Dropped, counted | Error row | The user sees every row that isn't imported |
+| An Owner row that changes nothing | Updated (no visible change) | `skip`, with an `unchanged` warning | The proposal says what will change |
+| Vendor shipping columns | Ignored silently | Ignored, with an `ignored-columns` warning | The caller should know |
+| The customer `semicolonQuoted` layout's last field | Read with `[^;]*`, keeping its quotes (`dialog-customer-import-gui.c:303`) | Read as the other fields | A GnuCash bug |
 | Default names (QIF), headers | Translated | English | No translations |
 
 ## Tests
@@ -1091,4 +1170,9 @@ From [`../milestone3.md`](../milestone3.md), "Testing":
   bayesian with flat KVP`, and only after Bayesian learning. After a CSV account or price import, `oracle_check` finds
   no differences, and GnuCash ranks every imported price as `PRICE_SOURCE_USER_PRICE` with the value's stored
   denominator the currency's fraction × 10000 (`crates/red-ale-testkit/tests/oracle_import_records.rs`).
-- **Property and fuzz tests** on every parser: no input panics.
+- **Business oracle** (`crates/red-ale-testkit/tests/oracle_import_business.rs`): after importing Owners and
+  posted and unposted documents, GnuCash opens the book with no warnings, `oracle_check` finds no differences
+  (posted documents' lots and transactions included), its business scrub changes nothing, importing the same files
+  again changes nothing, and each document the import posts matches what `gncInvoicePostToAccount` posts from the
+  same documents imported unposted.
+- **Property and fuzz tests** on every parser: no input panics. The business importers also apply whatever their preview proposes.

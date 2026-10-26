@@ -14,6 +14,7 @@ Commands (run with PYTHONPATH=<5.17 bindings>, TZ=UTC):
 Operations (a JSON list), using document IDs, account full names and owner names:
   {"op": "post", "invoice": "INV1", "account": "Assets:Receivable", "postDate": "2024-03-05",
    "dueDate": null, "memo": "", "accumulate": true, "autopay": false, "prices": [["CURRENCY::EUR", "11/10"]]}
+      ("dueStart": "2024-04-04" instead of dueDate: due at local midnight, as Import Bills & Invoices posts)
   {"op": "unpost", "invoice": "INV1", "reset": false}
   {"op": "pay", "owner": "Acme Ltd", "account": "Assets:Receivable", "transfer": "Assets:Bank", "amount": "100",
    "exch": "1", "date": "2024-03-20", "memo": "", "num": "", "applyTo": ["INV1"], "autoPay": false}
@@ -285,7 +286,11 @@ def post(book, op):
     post_date = day(op["postDate"])
     # The post dialog's date fields give the chosen day's neutral time (gnc-date-edit.c:1069), and its due date starts
     # as the post date (dialog-invoice.c:1072).
-    if op.get("dueDate"):
+    if op.get("dueStart"):
+        # Import Bills & Invoices passes gnc_dmy2time64 of the due date: local midnight
+        # (bi-import/dialog-bi-import.c:881-882).
+        due = datetime.datetime.combine(day(op["dueStart"]), datetime.time(0, 0))
+    elif op.get("dueDate"):
         due = neutral(op["dueDate"])
     elif inv.GetTerms() is not None:
         terms = inv.GetTerms()

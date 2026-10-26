@@ -18,6 +18,7 @@ use red_ale_service::import::{
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
 
+use super::business::{DocumentsPreviewParam, OwnersPreviewParam};
 use crate::error::RpcError;
 use crate::wire::{AccountRef, Amount, CommodityId, Id};
 
@@ -89,6 +90,12 @@ pub enum PreviewParam {
     /// GnuCash's Import Transactions from CSV.
     #[serde(rename = "csvTransactions")]
     CsvTransactions(CsvPreviewParam),
+    /// GnuCash's Import Bills & Invoices.
+    #[serde(rename = "csvDocuments")]
+    CsvDocuments(DocumentsPreviewParam),
+    /// GnuCash's Import Customers & Vendors.
+    #[serde(rename = "csvOwners")]
+    CsvOwners(OwnersPreviewParam),
     /// GnuCash's Import Accounts from CSV: its account tree export read back.
     #[serde(rename = "csvAccounts")]
     CsvAccounts(AccountsPreviewParam),
@@ -344,6 +351,14 @@ impl PreviewParam {
                 let base_account = p.base_account.map(|a| a.resolve(book)).transpose()?;
                 let account_names = p.account_names.into_iter().map(|(name, a)| Ok((name, a.resolve(book)?))).collect::<Result<_, RpcError>>()?;
                 Ok((files, PreviewParams::CsvTransactions(CsvParams { layout, base_account, account_names })))
+            }
+            Self::CsvDocuments(p) => {
+                let params = p.params();
+                Ok((files(p.files)?, PreviewParams::CsvDocuments(params)))
+            }
+            Self::CsvOwners(p) => {
+                let params = p.params();
+                Ok((files(p.files)?, PreviewParams::CsvOwners(params)))
             }
             Self::CsvAccounts(p) => {
                 let params = AccountsParams { separator: p.separator.into(), header_rows: p.header_rows };

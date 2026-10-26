@@ -69,7 +69,9 @@ pub struct Review {
 /// Apply `proposal` as it stands to a copy of `book`, and report what that did. `now` and `zone` are the session's.
 pub fn review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) -> Review {
     match proposal.format {
-        Format::CsvAccounts | Format::CsvPrices => return records_review(book, now, zone, proposal),
+        Format::CsvAccounts | Format::CsvPrices | Format::CsvDocuments | Format::CsvOwners => {
+            return records_review(book, now, zone, proposal);
+        }
         // The preview converted into a copy already; nothing in a QIF proposal changes before it is applied.
         Format::Qif => return proposal.qif.as_ref().map(|q| q.review.clone()).unwrap_or_default(),
         Format::CsvTransactions => {}

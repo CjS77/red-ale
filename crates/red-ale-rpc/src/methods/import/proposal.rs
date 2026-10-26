@@ -2,6 +2,7 @@
 
 use red_ale_core::ops::transactions::posted_date;
 use red_ale_core::{Book, Split, Transaction};
+use red_ale_import::business::Records;
 use red_ale_import::matcher::{DestSource, MatchInfo, TransInfo};
 use red_ale_import::pipeline::{
     AccountName, Format, IgnoredLine, ImbalanceInfo, NewAccount, Proposal, ProposedTransaction, RowError, Source, TransactionReview, Warning,
@@ -11,6 +12,7 @@ use red_ale_service::import::Previewed;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use super::business::{self, DocumentWire, OwnerWire};
 use super::params::ActionWire;
 use super::records::{AccountRecordWire, PriceRecordWire};
 use crate::wire::{Amount, CommodityId, Day, Id, Timestamp};
@@ -44,6 +46,12 @@ pub struct ProposalResult {
     /// CSV's own state: each account name the file uses and where it resolved.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub csv: Option<CsvWire>,
+    /// `csvDocuments`: the documents, by index.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documents: Option<Vec<DocumentWire>>,
+    /// `csvOwners`: the customers or vendors, by index.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<Vec<OwnerWire>>,
     /// QIF's own state: the date formats to choose between, the account, category and payee maps, and the
     /// securities.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,7 +116,7 @@ pub struct QifSecurityWire {
     pub new: bool,
 }
 
-/// Counts of a proposal: of its transactions, or of a CSV account or price import's records.
+/// Counts of a proposal: of its transactions, or of the records of the other formats.
 #[derive(Debug, Default, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Summary {
@@ -116,7 +124,8 @@ pub struct Summary {
     pub add: usize,
     /// Transactions that clear a match.
     pub clear: usize,
-    /// Transactions that update and clear a match; accounts to update; prices replacing a same-day price.
+    /// Transactions that update and clear a match; accounts, documents and Owners to update; prices replacing a
+    /// same-day price.
     pub update: usize,
     /// Records skipped.
     pub skip: usize,
@@ -124,7 +133,7 @@ pub struct Summary {
     pub errors: usize,
     /// Transactions that would get an Imbalance split.
     pub imbalanced: usize,
-    /// Transactions read-only by date once applied.
+    /// Transactions, and documents posted, read-only by date once applied.
     pub read_only_by_date: usize,
 }
 
@@ -374,12 +383,21 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
     let transactions: Vec<ImportedTransactionWire> =
         proposal.transactions.iter().zip(&p.review.transactions).map(|(t, r)| imported_transaction(book, qif, t, r)).collect();
     let warnings = proposal.warnings.iter().chain(&p.review.warnings).map(WarningWire::from).collect();
+    let (documents, owners) = match &proposal.business {
+        Some(Records::Documents(d)) => (Some(d.iter().map(|d| business::document_wire(book, d)).collect::<Vec<_>>()), None),
+        Some(Records::Owners(o)) => (None, Some(o.iter().map(business::owner_wire).collect::<Vec<_>>())),
+        None => (None, None),
+    };
+    let business_actions = documents.iter().flatten().map(|d| d.action).chain(owners.iter().flatten().map(|o| o.action));
+    let actions = transactions.iter().map(|t| t.action).chain(record_actions(proposal)).chain(business_actions);
+    let mut summary = summary(actions, &transactions, proposal.errors.len());
+    summary.read_only_by_date += documents.iter().flatten().filter(|d| d.read_only_by_date).count();
     ProposalResult {
         id: p.id.clone(),
         format: proposal.format.as_str().to_owned(),
         book_revision: p.revision,
         threshold_date: proposal.threshold.map(Day),
-        summary: summary(transactions.iter().map(|t| t.action).chain(record_actions(proposal)), &transactions, proposal.errors.len()),
+        summary,
         ignored_lines: proposal.ignored_lines.iter().map(IgnoredLineWire::from).collect(),
         errors: proposal.errors.iter().map(RowErrorWire::from).collect(),
         warnings,
@@ -387,6 +405,8 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
         new_commodities: qif.map(|q| q.new_commodities.iter().map(new_commodity).collect()).unwrap_or_default(),
         transactions,
         csv: proposal.csv.as_ref().map(|c| CsvWire { account_names: c.account_names.iter().map(|n| account_name(book, n)).collect() }),
+        documents,
+        owners,
         qif: qif.map(|q| qif_wire(book, q)),
         accounts: (proposal.format == Format::CsvAccounts).then(|| proposal.accounts.iter().map(AccountRecordWire::from).collect()),
         prices: (proposal.format == Format::CsvPrices).then(|| proposal.prices.iter().map(PriceRecordWire::from).collect()),

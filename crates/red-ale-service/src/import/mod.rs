@@ -6,6 +6,7 @@
 //! Configuration, holds the proposals against the Book revision, and runs the Mutation.
 
 mod accounts;
+mod business;
 mod csv;
 pub mod file;
 mod prices;
@@ -18,6 +19,7 @@ use std::sync::Arc;
 use red_ale_import::pipeline::{self, Applied, ApplyChoices, Change, Proposal, Review, Warning};
 
 pub use accounts::AccountsParams;
+pub use business::{DocumentsParams, OwnersParams};
 pub use csv::CsvParams;
 pub use prices::PricesParams;
 pub use qif::QifParams;
@@ -33,6 +35,10 @@ use crate::{ServiceError, Session};
 pub enum PreviewParams {
     /// GnuCash's Import Transactions from CSV.
     CsvTransactions(CsvParams),
+    /// GnuCash's Import Bills & Invoices.
+    CsvDocuments(DocumentsParams),
+    /// GnuCash's Import Customers & Vendors.
+    CsvOwners(OwnersParams),
     /// GnuCash's Import Accounts from CSV.
     CsvAccounts(AccountsParams),
     /// GnuCash's Import Prices from CSV.
@@ -61,6 +67,14 @@ pub fn preview(session: &mut Session, config: &Config, files: &[ImportFile], par
         PreviewParams::CsvTransactions(p) => {
             let choices = csv::Choices::read(config, &p.layout)?;
             session.query(|book, env| csv::propose(book, env, files, p, &choices))?
+        }
+        PreviewParams::CsvDocuments(p) => {
+            let choices = business::Choices::read(config)?;
+            session.query(|book, env| business::propose_documents(book, env, files, *p, &choices))?
+        }
+        PreviewParams::CsvOwners(p) => {
+            let choices = business::Choices::read(config)?;
+            session.query(|book, env| business::propose_owners(book, env, files, *p, &choices, config))?
         }
         PreviewParams::Qif(p) => session.query(|book, env| qif::propose(book, env, config, files, p))?,
         PreviewParams::CsvAccounts(p) => {

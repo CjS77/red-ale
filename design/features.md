@@ -184,8 +184,8 @@ source names and the `Finance::Quote` price source, so GnuCash reads the prices 
 
 | Status | Name                         | Short description                             | Introduced | Ported |
 |:------:|------------------------------|-----------------------------------------------|:----------:|:------:|
-|        | Import invoices and bills    | Creates invoices and bills from a CSV file    |   2.4.1    |        |
-|        | Import customers and vendors | Creates customers and vendors from a CSV file |    2.6     |        |
+|   ✅   | Import invoices and bills    | Creates invoices and bills from a CSV file    |   2.4.1    |  0.3   |
+|   ✅   | Import customers and vendors | Creates customers and vendors from a CSV file |    2.6     |  0.3   |
 
 ## 7. Import and export
 
