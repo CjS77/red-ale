@@ -189,7 +189,7 @@ fn escape_text(out: &mut String, text: &str) {
 }
 
 /// `xmlAttrSerializeTxtContent` with no document: as text, plus quotes and whitespace controls.
-fn escape_attr(out: &mut String, text: &str) {
+pub(crate) fn escape_attr(out: &mut String, text: &str) {
     text.chars().for_each(|c| match c {
         '<' => out.push_str("&lt;"),
         '>' => out.push_str("&gt;"),
