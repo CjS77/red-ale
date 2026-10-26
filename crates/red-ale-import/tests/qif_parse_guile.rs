@@ -4,6 +4,8 @@
 //! `5.17:gnucash/import-export/qif-imp/qif-parse.scm:56-471` unchanged in Guile 3 on the inputs of
 //! `scripts/qif-guile-oracle/driver.scm`. Each line is one input and what GnuCash's functions return for it.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use red_ale_core::Numeric;
 use red_ale_import::qif::parse::{
     CategoryInfo, DATE_FORMATS, DateFormat, NumberFormat, QifDate, check_date_format, check_number_format, fix_year, parse_category,
