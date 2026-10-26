@@ -13,6 +13,8 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
+pub mod text;
+
 /// GnuCash's `GNC_DENOM_AUTO`: let the operation choose the denominator.
 pub const DENOM_AUTO: i64 = 0;
 
