@@ -43,13 +43,15 @@ fn call(dispatcher: &Mutex<Dispatcher>, name: &str, params: &Params<'_>) -> Resu
 }
 
 /// Start serving `dispatcher` on `addr`, accepting requests of up to `max_request_bytes` (the Configuration's
-/// `jsonRpc.maxRequestBytes`). Methods run one at a time, on a blocking thread.
+/// `jsonRpc.maxRequestBytes`). Methods run one at a time, on a blocking thread; a Quote fetch's prices are stored as
+/// soon as its requests are done.
 /// The caller keeps its handle on `dispatcher` so it can close the book on shutdown.
 pub async fn serve(
     dispatcher: Arc<Mutex<Dispatcher>>,
     addr: SocketAddr,
     max_request_bytes: u32,
 ) -> Result<(SocketAddr, ServerHandle), ServerError> {
+    crate::quote_fetches::settle_when_fetched(&dispatcher);
     let mut names: Vec<&'static str> = dispatcher.lock().unwrap_or_else(std::sync::PoisonError::into_inner).methods().map(|m| m.name).collect();
     names.push("api.schema");
     let mut module = RpcModule::new(dispatcher);
