@@ -3,6 +3,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use std::collections::BTreeMap;
+
 use proptest::prelude::*;
 use red_ale_core::{Book, CommodityRef, FixedEnv, ReconcileState, Time64, TimeZone};
 use red_ale_import::pipeline::{self, ApplyChoices, Change};
@@ -28,10 +30,10 @@ fn options() -> QifOptions {
         date_format: None,
         currency: CommodityRef::currency("USD"),
         status_pref: ReconcileState::New,
-        accounts: Default::default(),
-        categories: Default::default(),
-        payees: Default::default(),
-        securities: Default::default(),
+        accounts: BTreeMap::new(),
+        categories: BTreeMap::new(),
+        payees: BTreeMap::new(),
+        securities: BTreeMap::new(),
         saved: SavedMap::default(),
     }
 }

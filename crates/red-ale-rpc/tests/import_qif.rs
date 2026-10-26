@@ -284,6 +284,27 @@ fn investments_make_their_security_splits_and_prices() {
 }
 
 #[test]
+fn a_stock_split_and_shares_given_away_and_a_transfer_from_the_bank() {
+    let mut b = Book::new();
+    // Checking pays 500 into the brokerage (XIn there, a transfer in both files); the brokerage buys 40 shares,
+    // splits them 2 for 1 (Q is new shares per 10 old), gives 10 away, and sends a 5.00 dividend to checking (DivX).
+    let checking = "!Account\nNChecking\nTBank\n^\n!Type:Bank\nD03/14/2024\nT-500.00\nPTo broker\nL[Broker]\n^\n";
+    let broker = "!Account\nNBroker\nTInvst\n^\n!Type:Invst\nD03/14/2024\nNXIn\nT500.00\nL[Checking]\n^\n\
+                  D03/15/2024\nNBuy\nYAcme\nI10.00\nQ40\nT400.00\n^\nD03/16/2024\nNStkSplit\nYAcme\nQ20\n^\n\
+                  D03/17/2024\nNShrsOut\nYAcme\nQ10\n^\nD03/18/2024\nNDivX\nYAcme\nT5.00\nL[Checking]\n^\n";
+    let p = b.preview(&[("checking.qif", checking), ("broker.qif", broker)], json!({}));
+    assert_eq!(p["errors"], json!([]));
+    assert_eq!(p["summary"]["add"], 5, "the transfer once, then buy, split, shares out and the dividend");
+    b.apply(&p, json!({}));
+    // `qif-to-gnc.scm:868-876`: the split adds balance × Q/10 and takes the balance away, at no value.
+    assert_amount(&b.balance("Broker:Acme"), "70");
+    assert_amount(&b.balance("Broker"), "100");
+    assert_amount(&b.balance("Checking"), "-495");
+    assert_amount(&b.balance("Income:Dividends:Broker:Acme"), "-5");
+    assert_eq!(b.account_type("Equity:Retained Earnings"), "EQUITY", "shares given away go to equity");
+}
+
+#[test]
 fn ambiguous_dates_wait_for_a_date_format() {
     let mut b = Book::new();
     let qif = "!Type:Bank\nD03/01/2024\nT-1.00\nPOne\n^\nD03/02/2024\nT-2.00\nPTwo\n^\n";
