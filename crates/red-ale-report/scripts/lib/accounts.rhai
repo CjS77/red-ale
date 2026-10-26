@@ -86,6 +86,18 @@ fn decompose_accountlist(accounts) {
     }
 }
 
+/// `gnc:account-get-type-string-plural` (RU:210-231): the plural name of account type `type`, as
+/// `xaccAccountGetTypeStr` gives the singular; `()` for a type with none (ROOT).
+fn account_get_type_string_plural(type) {
+    let plurals = #{
+        BANK: "Bank", CASH: "Cash", CREDIT: "Credits", ASSET: "Assets", LIABILITY: "Liabilities", STOCK: "Stocks",
+        MUTUAL: "Mutual Funds", CURRENCY: "Currencies", INCOME: "Income", EXPENSE: "Expenses", EQUITY: "Equities",
+        CHECKING: "Checking", SAVINGS: "Savings", MONEYMRKT: "Money Market", RECEIVABLE: "Accounts Receivable",
+        PAYABLE: "Accounts Payable", CREDITLINE: "Credit Lines", TRADING: "Trading Accounts",
+    };
+    if type in plurals { plurals[type] } else { () }
+}
+
 /// `gnc:accounts-get-commodities` (RU:235-240): the commodities of `accounts` but `exclude_commodity` (`()` for
 /// none), each once. GnuCash builds the list from the end, so each commodity stands where it last appears.
 fn accounts_get_commodities(accounts, exclude_commodity) {

@@ -107,6 +107,17 @@ fn depths_descendants_and_name_order() {
     ]);
 }
 
+/// gnc:account-get-type-string-plural (RU:210-231).
+#[test]
+fn plural_type_names() {
+    let got = run(r#"
+        let types = ["BANK", "CREDIT", "ASSET", "MUTUAL", "INCOME", "EQUITY", "MONEYMRKT", "PAYABLE", "TRADING", "ROOT"];
+        print(`${types.map(|t| accounts::account_get_type_string_plural(t))}`);
+    "#);
+    check(&got, &["[\"Bank\", \"Credits\", \"Assets\", \"Mutual Funds\", \"Income\", \"Equities\", \"Money Market\", \
+                   \"Accounts Payable\", \"Trading Accounts\", ()]"]);
+}
+
 /// `(apply max '())` is an error in Guile; so is asking for the depth of no accounts.
 #[test]
 fn children_depth_of_no_accounts_is_an_error() {

@@ -118,3 +118,19 @@ fn sum_collector_commodity_rounds_each_amount_to_the_scu() {
     "#);
     check(&got, &["sum=1/2 $0.50", "none= ", "empty=$0.00"]);
 }
+
+/// gnc:monetary+ (RU:460-465) adds Monetaries of one commodity, and throws for any other number of commodities.
+#[test]
+fn monetary_plus_wants_one_commodity() {
+    let got = run(r#"
+        print(`${collectors::monetary_plus([monetary(usd, 1), monetary(usd, rational(1, 2))])}`);
+        for ms in [[monetary(usd, 1), monetary(gbp, 1)], []] {
+            try { collectors::monetary_plus(ms); } catch (e) { print(`error: ${e}`); }
+        }
+    "#);
+    check(&got, &[
+        "$1.50",
+        "error: monetary_plus expects 1 currency: [monetary(\"CURRENCY::USD\", \"1\"), monetary(\"CURRENCY::GBP\", \"1\")]",
+        "error: monetary_plus expects 1 currency: []",
+    ]);
+}

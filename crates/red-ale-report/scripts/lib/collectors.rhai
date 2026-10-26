@@ -1,6 +1,6 @@
 // lib/collectors: GnuCash's value and commodity collectors and the helpers built on them.
 //
-// Translated from 5.17:gnucash/report/report-utilities.scm (lines 289-455 and 1018-1022) and
+// Translated from 5.17:gnucash/report/report-utilities.scm (lines 289-465 and 1018-1022) and
 // 5.17:gnucash/report/commodity-utilities.scm (lines 900-919). The headers of those files:
 //
 // report-utilities.scm -- Reporting utilities
@@ -187,6 +187,16 @@ fn monetaries_add(monetaries) {
         coll.add(mon.commodity, mon.amount);
     }
     coll
+}
+
+/// `gnc:monetary+` (RU:460-465), its arguments as an array: the sum of Monetaries of one commodity, a Monetary. An
+/// error when they are not all of one commodity, or there are none.
+fn monetary_plus(monetaries) {
+    let coll = monetaries_add(monetaries);
+    if coll.len() != 1 {
+        throw `monetary_plus expects 1 currency: ${monetaries}`;
+    }
+    monetary(coll[0][0], coll[0][1])
 }
 
 /// `gnc:not-all-zeros` (RU:1018-1022): true when a number is not zero, or any element of an array is not all
