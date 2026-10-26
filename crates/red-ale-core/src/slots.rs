@@ -166,6 +166,60 @@ impl Frame {
         frame.0.remove(*last)
     }
 
+    /// The slots whose keys start with `prefix`, in key order, without path splitting: GnuCash's
+    /// `KvpFrame::for_each_slot_prefix` (`5.17:libgnucash/engine/kvp-frame.hpp:242-253`).
+    pub fn iter_prefix<'a>(&'a self, prefix: &'a str) -> impl Iterator<Item = (&'a String, &'a SlotValue)> {
+        self.0.range::<str, _>((std::ops::Bound::Included(prefix), std::ops::Bound::Unbounded)).take_while(move |(k, _)| k.starts_with(prefix))
+    }
+
+    /// Remove the slot directly under `key` (no path splitting).
+    pub fn remove_key(&mut self, key: &str) -> Option<SlotValue> {
+        self.0.remove(key)
+    }
+
+    /// The value at a path given as separate keys, each taken whole, as GnuCash's `KvpFrame::get_slot(Path)` does: a
+    /// key may itself hold `/`.
+    pub fn get_in(&self, path: &[&str]) -> Option<&SlotValue> {
+        let (last, parents) = path.split_last()?;
+        let frame = parents.iter().try_fold(self, |f, part| f.0.get(*part).and_then(SlotValue::as_frame))?;
+        frame.0.get(*last)
+    }
+
+    /// Set the value at a path of whole keys, creating intermediate frames and replacing a non-frame value in the
+    /// way (`KvpFrame::set_path`, `5.17:libgnucash/engine/kvp-frame.cpp:132-141`).
+    pub fn set_in(&mut self, path: &[&str], value: SlotValue) {
+        let Some((last, parents)) = path.split_last() else { return };
+        let mut frame = self;
+        for part in parents {
+            let entry = frame.0.entry((*part).to_owned()).or_insert_with(|| SlotValue::Frame(Frame::new()));
+            if !matches!(entry, SlotValue::Frame(_)) {
+                *entry = SlotValue::Frame(Frame::new());
+            }
+            let SlotValue::Frame(inner) = entry else { return };
+            frame = inner;
+        }
+        frame.0.insert((*last).to_owned(), value);
+    }
+
+    /// Remove the value at a path of whole keys, keeping the frames above it (`qof_instance_slot_path_delete`,
+    /// `5.17:libgnucash/engine/qofinstance.cpp:1282-1285`).
+    pub fn remove_in(&mut self, path: &[&str]) -> Option<SlotValue> {
+        let (last, parents) = path.split_last()?;
+        let frame = parents.iter().try_fold(self, |f, part| match f.0.get_mut(*part) {
+            Some(SlotValue::Frame(inner)) => Some(inner),
+            _ => None,
+        })?;
+        frame.0.remove(*last)
+    }
+
+    /// Remove the frame at a path of whole keys if it is empty (`qof_instance_slot_path_delete_if_empty`,
+    /// `5.17:libgnucash/engine/qofinstance.cpp:1293-1302`).
+    pub fn remove_in_if_empty(&mut self, path: &[&str]) {
+        if self.get_in(path).and_then(SlotValue::as_frame).is_some_and(Frame::is_empty) {
+            self.remove_in(path);
+        }
+    }
+
     /// Set a string at `path`, or remove it when `value` is `None` or empty, the way GnuCash's setters treat empty
     /// strings for optional fields.
     pub fn set_opt_str(&mut self, path: &str, value: Option<&str>) {
@@ -197,5 +251,23 @@ mod tests {
         assert_eq!(f.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(), ["placeholder", "tax-US"]);
         assert!(f.remove("tax-US/code").is_some());
         assert!(f.get("tax-US").is_some_and(|v| v.as_frame().is_some_and(Frame::is_empty)));
+    }
+
+    #[test]
+    fn whole_key_paths_keep_slashes_in_keys() {
+        let mut f = Frame::new();
+        f.set_in(&["import-map", "desc", "a/b"], SlotValue::Integer(1));
+        f.insert_key("import-map-bayes/x/y", SlotValue::Integer(2));
+        f.insert_key("import-map-bayes/z", SlotValue::Integer(3));
+        f.insert_key("import-mapz", SlotValue::Integer(4));
+        assert_eq!(f.get_in(&["import-map", "desc", "a/b"]), Some(&SlotValue::Integer(1)));
+        assert_eq!(f.get("import-map/desc/a/b"), None, "slash paths split the key");
+        let keys: Vec<&str> = f.iter_prefix("import-map-bayes/").map(|(k, _)| k.as_str()).collect();
+        assert_eq!(keys, ["import-map-bayes/x/y", "import-map-bayes/z"]);
+        assert!(f.remove_in(&["import-map", "desc", "a/b"]).is_some());
+        f.remove_in_if_empty(&["import-map", "desc"]);
+        f.remove_in_if_empty(&["import-map"]);
+        assert!(f.get_key("import-map").is_none());
+        assert!(f.remove_key("import-mapz").is_some());
     }
 }

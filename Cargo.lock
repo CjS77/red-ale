@@ -1766,8 +1766,10 @@ dependencies = [
 name = "red-ale-import"
 version = "0.2.0"
 dependencies = [
+ "icu_normalizer",
  "proptest",
  "red-ale-core",
+ "red-ale-locale",
  "regex",
  "serde",
  "serde_json",
@@ -1858,6 +1860,8 @@ version = "0.2.0"
 dependencies = [
  "peak_alloc",
  "red-ale-core",
+ "red-ale-import",
+ "red-ale-locale",
  "red-ale-rpc",
  "red-ale-service",
  "red-ale-xml",
