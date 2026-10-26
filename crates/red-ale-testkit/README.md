@@ -19,7 +19,8 @@ that promise is tested.
 - **Synthetic books and memory.** `synthetic` builds books of any size in GnuCash 5.17's format, and `memory`
   measures the heap through `book.open`, `transaction.post` and `book.save`. The `memory` example prints those
   figures for a large book; `tests/memory_budget.rs` holds the budgets of
-  [`design/milestone3.md`](../../design/milestone3.md) ("Memory and scale").
+  [`design/milestone3.md`](../../design/milestone3.md) ("Memory and scale"). The `mutation_cost` example times
+  Mutations on a large book ("Decide before code", item 1).
 
 ## Where it fits
 
