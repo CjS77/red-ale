@@ -90,7 +90,10 @@ fn deltas_and_stepping() {
         print(`day=${iso.call(dates::time64_start_day_time(ctx, day))} ${iso.call(dates::time64_end_day_time(ctx, day))}`);
     "#);
     check(&got, &[
-        r#"month-delta=#{"day": 0, "hour": 0, "minute": 0, "month": 1, "second": 0, "year": 0} year-delta=#{"day": 0, "hour": 0, "minute": 0, "month": 0, "second": 0, "year": 1}"#,
+        concat!(
+            r#"month-delta=#{"day": 0, "hour": 0, "minute": 0, "month": 1, "second": 0, "year": 0} "#,
+            r#"year-delta=#{"day": 0, "hour": 0, "minute": 0, "month": 0, "second": 0, "year": 1}"#
+        ),
         r#"deltasym=#{"day": 14, "hour": 0, "minute": 0, "month": 0, "second": 0, "year": 0} []"#,
         // moddate normalises as mktime does: 31 February 2024 is 2 March (DU:276-287).
         "incdate=2024-03-02 10:59:00 2025-01-01 10:59:00 2025-03-01 10:59:00",

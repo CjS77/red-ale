@@ -68,7 +68,8 @@ fn predicates_and_lists_by_type() {
 fn commodities_of_accounts() {
     let got = run(r#"
         let mn = |l| l.map(|c| c.mnemonic);
-        print(`all=${mn.call(accounts::accounts_get_commodities(all, ()))} no-usd=${mn.call(accounts::accounts_get_commodities(all, usd))}`);
+        print(`all=${mn.call(accounts::accounts_get_commodities(all, ()))} ` +
+              `no-usd=${mn.call(accounts::accounts_get_commodities(all, usd))}`);
         let some = [acct.call("Root:Asset:Broker:Funds"), acct.call("Root:Asset:Bank1:Bonds"),
                     acct.call("Root:Asset:ForeignBank:ForeignSavings"), acct.call("Root:Asset:Broker:Funds")];
         print(`some=${mn.call(accounts::accounts_get_commodities(some, ()))} none=${accounts::accounts_get_commodities([], ())}`);

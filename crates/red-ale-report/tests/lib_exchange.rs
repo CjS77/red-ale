@@ -47,7 +47,8 @@ fn case_exchange_fn_gives_gnucash_total_assets_for_each_price_source() {
         // A second before the 1971 prices: the latest price before is the 1970 transfers', the nearest the 1971 one.
         let before_1971 = end_of.call(1970, 12, 31);
         for source in ["pricedb-before", "pricedb-nearest"] {
-            print(`${source} 1970=${collectors::sum_collector_commodity(balance, usd, exchange::case_exchange_fn(book, source, usd, before_1971))}`);
+            let fx = exchange::case_exchange_fn(book, source, usd, before_1971);
+            print(`${source} 1970=${collectors::sum_collector_commodity(balance, usd, fx)}`);
         }
     "#);
     check(&got, &[
@@ -152,12 +153,14 @@ fn resolve_unknown_comm_follows_each_branch() {
 #[test]
 fn euro_currencies_exchange_at_fixed_rates() {
     let got = run(r#"
-        print(`dem=${exchange::exchange_by_euro(monetary(dem, 100), eur, ())} usd=[${exchange::exchange_by_euro(monetary(dem, 100), usd, ())}]`);
+        print(`dem=${exchange::exchange_by_euro(monetary(dem, 100), eur, ())} ` +
+              `usd=[${exchange::exchange_by_euro(monetary(dem, 100), usd, ())}]`);
         print(`numeric=${exchange::exchange_by_euro_numeric(dem, 100, eur, ())}`);
         let fx = exchange::make_exchange_function([[gbp, rational(2)]]);
         print(`alist-euro=${exchange::apply_exchange_fn(fx, monetary(eur, rational(1, 3)), eur).amount}`);
         print(`alist-same=${exchange::apply_exchange_fn(fx, monetary(usd, rational(1, 3)), usd).amount}`);
-        print(`alist-rate=${exchange::apply_exchange_fn(fx, monetary(gbp, 3), usd)} missing=${exchange::apply_exchange_fn(fx, monetary(funds, 3), usd)}`);
+        print(`alist-rate=${exchange::apply_exchange_fn(fx, monetary(gbp, 3), usd)} ` +
+              `missing=${exchange::apply_exchange_fn(fx, monetary(funds, 3), usd)}`);
         print(`if-same=${exchange::exchange_if_same(monetary(usd, 1), usd)} [${exchange::exchange_if_same(monetary(usd, 1), gbp)}]`);
         print(`closure=${exchange::apply_exchange_fn(|f, d| monetary(d, f.amount * 2), monetary(gbp, 1), usd)}`);
     "#);
@@ -259,7 +262,8 @@ fn commodity_splits_and_price_lists() {
         let all = exchange::get_all_commodity_splits(book, accts, ());
         let funds_splits = exchange::get_match_commodity_splits(book, accts, (), funds);
         let sorted = exchange::get_match_commodity_splits_sorted(book, accts, (), ());
-        print(`counts=${all.len()} ${funds_splits.len()} ${exchange::get_all_commodity_splits(book, accts, end_of.call(1971, 1, 1)).len()}`);
+        let until_1971 = exchange::get_all_commodity_splits(book, accts, end_of.call(1971, 1, 1));
+        print(`counts=${all.len()} ${funds_splits.len()} ${until_1971.len()}`);
         print(`unsorted-first=${all[0].transaction.description} sorted-first=${sorted[0].transaction.description}`);
         let prices = |l| l.map(|p| `${p[1]}`);
         print(`totalavg=${prices.call(exchange::get_commodity_totalavg_prices(book, accts, (), funds, usd))}`);
@@ -279,7 +283,8 @@ fn commodity_splits_and_price_lists() {
         "totalavg=[\"200\", \"205\", \"635/3\", \"879/4\", \"1143/5\", \"233\", \"1648/7\"]",
         "inst=[\"200\", \"210\", \"225\", \"244\", \"264\", \"255\", \"250\"]",
         "gbp-inst=11 13/10 17/10 1980-02-01 10:59:00",
-        "list=[\"FUNDS:[\\\"200\\\", \\\"205\\\", \\\"635/3\\\"]\", \"GBP:[\\\"13/10\\\", \\\"27/20\\\", \\\"103/75\\\", \\\"281/200\\\"]\"]",
+        "list=[\"FUNDS:[\\\"200\\\", \\\"205\\\", \\\"635/3\\\"]\", \
+         \"GBP:[\\\"13/10\\\", \\\"27/20\\\", \\\"103/75\\\", \\\"281/200\\\"]\"]",
         // Halfway is a tie, which takes the later price (CU:289).
         "nearest=1 1 3 5 5 []",
     ]);
