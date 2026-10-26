@@ -38,31 +38,33 @@ A feature added in a development series is listed under the stable release that 
 
 ### Book settings
 
-| Status | Name                        | Short description                                                            | Introduced | Ported |
-|:------:|-----------------------------|------------------------------------------------------------------------------|:----------:|:------:|
-|   ✅   | Accounting period           | Fiscal year start and end, used by reports and date ranges                   |    2.0     |  0.1   |
-|   ✅   | Number counters and formats | Next numbers and formats for invoices, bills, customers and others           |   2.4.1    |  0.2   |
-|   ✅   | Auto read-only threshold    | Transactions older than N days become read-only                              |    2.6     |  0.2   |
-|   ✅   | Num field source            | Use the split action field as the transaction number                         |    2.6     |  0.2   |
-|   ✅   | Use trading accounts        | Book option to balance multi-commodity transactions through trading accounts |    2.4     |  0.2   |
-|   ✅   | Close book                  | Zeroes income and expense into equity at a closing date                      |   2.2.4    |  0.2   |
+| Status | Name                                                      | Short description                                                            | Introduced | Ported |
+|:------:|-----------------------------------------------------------|------------------------------------------------------------------------------|:----------:|:------:|
+|   ✅   | Accounting period                                         | Fiscal year start and end, used by reports and date ranges                   |    2.0     |  0.1   |
+|   ✅   | Accounting period turned into local 00:00:00 and 23:59:59 | Period bounds at local day start and end; v0.1 used UTC                      |    2.0     |  0.2   |
+|   ✅   | Number counters and formats                               | Next numbers and formats for invoices, bills, customers and others           |   2.4.1    |  0.2   |
+|   ✅   | Auto read-only threshold                                  | Transactions older than N days become read-only                              |    2.6     |  0.2   |
+|   ✅   | Num field source                                          | Use the split action field as the transaction number                         |    2.6     |  0.2   |
+|   ✅   | Use trading accounts                                      | Book option to balance multi-commodity transactions through trading accounts |    2.4     |  0.2   |
+|   ✅   | Close book                                                | Zeroes income and expense into equity at a closing date                      |   2.2.4    |  0.2   |
 
 ## 2. Transactions
 
 ### Entry
 
-| Status | Name                        | Short description                                                             | Introduced | Ported |
-|:------:|-----------------------------|-------------------------------------------------------------------------------|:----------:|:------:|
-|   ✅   | Double-entry transactions   | Transactions made of splits whose values sum to zero                          |   ≤ 1.4    |  0.1   |
-|   ✅   | Multi-currency transactions | A transaction currency, with each split's quantity in its account's commodity |    1.6     |  0.1   |
-|   ✅   | Exchange rates on transfer  | Enter a rate or amount when a transfer crosses currencies                     |    1.8     |  0.1   |
-|   ✅   | Transaction notes           | Free-text notes per transaction                                               |    1.6     |  0.1   |
-|   ✅   | Date entered                | Records when a transaction was entered, separate from the posted date         |   ≤ 1.4    |  0.1   |
-|   ✅   | Split action and memo       | Per-split action and memo fields                                              |   ≤ 1.4    |  0.1   |
-|   ✅   | Document links              | Links a transaction to a file or URL                                          |    2.6     |  0.2   |
-|   ✅   | Void and unvoid             | Voids a transaction, keeping it with a reason and timestamp                   |    1.8     |  0.1   |
-|   ✅   | Reverse transaction         | Creates the opposite of an existing transaction                               |    2.0     |  0.1   |
-|   ✅   | Find transactions           | Search splits by any combination of fields                                    |   ≤ 1.4    |  0.1   |
+| Status | Name                                                       | Short description                                                             | Introduced | Ported |
+|:------:|------------------------------------------------------------|-------------------------------------------------------------------------------|:----------:|:------:|
+|   ✅   | Double-entry transactions                                  | Transactions made of splits whose values sum to zero                          |   ≤ 1.4    |  0.1   |
+|   ✅   | Multi-currency transactions                                | A transaction currency, with each split's quantity in its account's commodity |    1.6     |  0.1   |
+|   ✅   | Exchange rates on transfer                                 | Enter a rate or amount when a transfer crosses currencies                     |    1.8     |  0.1   |
+|   ✅   | Transaction notes                                          | Free-text notes per transaction                                               |    1.6     |  0.1   |
+|   ✅   | Date entered                                               | Records when a transaction was entered, separate from the posted date         |   ≤ 1.4    |  0.1   |
+|   ✅   | Split action and memo                                      | Per-split action and memo fields                                              |   ≤ 1.4    |  0.1   |
+|   ✅   | Document links                                             | Links a transaction to a file or URL                                          |    2.6     |  0.2   |
+|   ✅   | Void and unvoid                                            | Voids a transaction, keeping it with a reason and timestamp                   |    1.8     |  0.1   |
+|   ✅   | Reverse transaction                                        | Creates the opposite of an existing transaction                               |    2.0     |  0.1   |
+|   ✅   | Find transactions                                          | Search splits by any combination of fields                                    |   ≤ 1.4    |  0.1   |
+|   ✅   | "Today" and the find dialog's day boundaries in local time | "Today" and date searches use local days; v0.1 used UTC                       |   ≤ 1.4    |  0.2   |
 
 ### Reconciliation
 
@@ -95,13 +97,14 @@ A feature added in a development series is listed under the stable release that 
 
 ### Prices
 
-| Status | Name                       | Short description                            | Introduced | Ported |
-|:------:|----------------------------|----------------------------------------------|:----------:|:------:|
-|   ✅   | Price database             | Dated prices of one commodity in another     |    1.6     |  0.1   |
-|   ✅   | Price editor               | Add, edit and delete prices                  |    1.6     |  0.1   |
-|   ✅   | Remove old prices          | Thins out prices before a date, by namespace |    2.0     |  0.1   |
-|   ❌   | Online quotes              | Fetches prices through Finance::Quote        |   ≤ 1.4    |        |
-|   ✅   | Quote source and time zone | Per-security quote source and time zone      |    1.6     |  0.1   |
+| Status | Name                                  | Short description                                      | Introduced | Ported |
+|:------:|---------------------------------------|--------------------------------------------------------|:----------:|:------:|
+|   ✅   | Price database                        | Dated prices of one commodity in another               |    1.6     |  0.1   |
+|   ✅   | Same-day prices decided in local time | Which prices share a day is a local day; v0.1 used UTC |    1.6     |  0.2   |
+|   ✅   | Price editor                          | Add, edit and delete prices                            |    1.6     |  0.1   |
+|   ✅   | Remove old prices                     | Thins out prices before a date, by namespace           |    2.0     |  0.1   |
+|   ❌   | Online quotes                         | Fetches prices through Finance::Quote                  |   ≤ 1.4    |        |
+|   ✅   | Quote source and time zone            | Per-security quote source and time zone                |    1.6     |  0.1   |
 
 *Note:* re-ale will introduce its own price fetcher in v0.3
 
