@@ -66,8 +66,18 @@ private fn is_number(amount) {
 }
 
 /// The position of `commodity`'s pair in `list`, -1 when it has none: `assoc`, first match.
+///
+/// The methods below and what they call use loops, not closures. Rhai caches a method's resolution for the whole
+/// run; once a method has been called from inside this module, another module that calls it gets the cached
+/// function without this module's environment, and a closure made in it is then not found ("Function not found:
+/// anon$…"). `tests/lib_collectors.rs` has the case.
 private fn assoc_index(list, commodity) {
-    list.index_of(|pair| pair[0] == commodity)
+    for (pair, i) in list {
+        if pair[0] == commodity {
+            return i;
+        }
+    }
+    -1
 }
 
 /// 'add (RU:346-354, :404): add `amount` to `commodity`'s total, putting a new commodity on the front.
@@ -140,7 +150,14 @@ fn array.getmonetary_strict(commodity, sign) {
 
 /// 'remove-zeros (RU:398, :414): drop the commodities whose total is zero.
 fn array.remove_zeros() {
-    this.retain(|pair| pair[1] != 0);
+    let kept = [];
+    for pair in this {
+        if pair[1] != 0 {
+            kept.push(pair);
+        }
+    }
+    this.clear();
+    this.append(kept);
 }
 
 /// `gnc:commodity-collector-get-negated` (RU:418-421): a new collector, minus-merged from `collector`, so in
