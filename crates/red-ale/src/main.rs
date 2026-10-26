@@ -168,10 +168,7 @@ fn main() -> ExitCode {
         Command::Mcp(args) => mcp(&args),
         Command::Call(args) => call(&args),
         Command::Exec(args) => exec(&args),
-        Command::Methods => {
-            methods();
-            Ok(None)
-        }
+        Command::Methods => methods().map(|()| None),
         Command::Schema => print_json(&Dispatcher::new(Settings::default()).schema()).map(|()| None),
     };
     match outcome {
@@ -180,6 +177,9 @@ fn main() -> ExitCode {
             eprintln!("{}", serde_json::to_string_pretty(&json!({ "error": e })).unwrap_or_else(|_| e.to_string()));
             ExitCode::from(2)
         }
+        // A reader that stops early, as `red-ale schema | head` does, is not a failure. Every command closes its book
+        // before printing, so nothing is lost.
+        Err(e) if is_broken_pipe(&e) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("red-ale: {e:#}");
             ExitCode::from(1)
@@ -194,9 +194,21 @@ fn print_json(v: &Value) -> Result<()> {
     Ok(())
 }
 
-fn methods() {
+fn is_broken_pipe(e: &anyhow::Error) -> bool {
+    e.chain().any(|cause| {
+        let io = cause.downcast_ref::<std::io::Error>().map(std::io::Error::kind);
+        let json = cause.downcast_ref::<serde_json::Error>().and_then(serde_json::Error::io_error_kind);
+        io.or(json) == Some(std::io::ErrorKind::BrokenPipe)
+    })
+}
+
+fn methods() -> Result<()> {
     let dispatcher = Dispatcher::new(Settings::default());
-    dispatcher.methods().for_each(|m| println!("{:<32} {:<12} {}", m.name, format!("{:?}", m.effect).to_lowercase(), m.summary));
+    let mut out = std::io::stdout().lock();
+    dispatcher
+        .methods()
+        .try_for_each(|m| writeln!(out, "{:<32} {:<12} {}", m.name, format!("{:?}", m.effect).to_lowercase(), m.summary))?;
+    Ok(())
 }
 
 /// A dispatcher for a server, with `book` opened in it if given. Reports go to standard error, never standard output.

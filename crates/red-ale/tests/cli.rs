@@ -261,3 +261,16 @@ fn call_saves_a_configuration_and_exports_it_to_a_file() {
     Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
     assert!(server.wait().unwrap().success());
 }
+
+/// `red-ale schema | head` closes the pipe early. The schema is larger than a pipe's buffer, so the write is sure to
+/// fail; `methods` usually fails too, as its reader closes before the process starts writing.
+#[test]
+fn a_reader_closing_the_pipe_ends_output_quietly() {
+    ["schema", "methods"].into_iter().for_each(|command| {
+        let mut child = Command::new(BIN).arg(command).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        drop(child.stdout.take());
+        let out = child.wait_with_output().unwrap();
+        assert!(out.status.success(), "{command}: {:?} {}", out.status, String::from_utf8_lossy(&out.stderr));
+        assert!(out.stderr.is_empty(), "{command}: {}", String::from_utf8_lossy(&out.stderr));
+    });
+}
