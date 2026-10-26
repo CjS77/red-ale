@@ -1,0 +1,21 @@
+;; The inputs run.sh feeds to qif-parse.scm, and the output format tests/qif_parse_guile.rs reads:
+;; D date check-formats m-d-y d-m-y y-m-d y-d-m, N number check-formats decimal comma rational integer,
+;; C category parse-category, Y year fix-year.
+(define (show x) (write x) (newline))
+(define dates (list "1/2/03" "12/31/1999" "31/12/99" "1999/12/31" "1/ 2' 4" "03/25/099Share Withdrawal" "19790303" "03121984" "00110203" "13/13/2000" "2/30/1931" "1/2/1930" "0/1/2" "12-25-2000" "25.12.2000" "2000.12.25" "1'2'3" " 7/ 4/76" "123/4/5" "4/123/5" "1/1/19100" "1/1/102" "1/1/1901" "1/1/49" "1/1/50" "12345678" "99999999" "1/2/3/4" "1//2/3" "2024-02-29T10:00"))
+(define fmts '(m-d-y d-m-y y-m-d y-d-m))
+(for-each (lambda (d)
+  (display "D\t") (display d) (display "\t")
+  (let ((c (qif-parse:check-date-format d fmts)))
+    (write (if (list? c) c 'none)))
+  (for-each (lambda (f) (display "\t") (write (qif-parse:parse-date/format d f))) fmts)
+  (newline)) dates)
+(define nums (list "1,234.56" "1.234,56" "1234" "-1234" "1234-" "$1,000" "$-5.00" "-$5.00" "1'000.25" "1'000,25" ".5" "5." "." "" " 12.5" "12.5 " "1,5" "1,50" "1,500" "1.500" "1/2" "7/4" "-3/8" "12 1/2" "+5" "5+" "1,23,456.7" "0.000" "00012.3400" "1.2.3" "1,2,3" "abc" "1e5" "$" "-" "12,345,678.90" "12.345.678,90" "999'999'999.99"))
+(for-each (lambda (n)
+  (display "N\t") (display n) (display "\t")
+  (write (qif-parse:check-number-format n '(decimal comma rational integer)))
+  (for-each (lambda (f) (display "\t") (write (qif-parse:parse-number/format n f))) '(decimal comma rational integer))
+  (newline)) nums)
+(define cats (list "Food" "Food:Groceries" "[Checking]" "[Checking]/Biz" "Food/Biz" "Food/Biz/Extra" "Food|[Savings]" "Food/Biz|Misc/Cls" "[Check" "Food]x" "  Food  " "|x" "/" "[]" "[a]/b|[c]/d" "a|b|c" "a]]b" "a/b]c" "[a/b]" " [Acct] " "Ünïcödé/Kläss"))
+(for-each (lambda (c) (display "C\t") (display c) (display "\t") (write (qif-split:parse-category #f c)) (newline)) cats)
+(for-each (lambda (y) (display "Y\t") (display y) (display "\t") (write (qif-parse:fix-year y 50)) (newline)) (list "1998" "' 0" "'04" "98" "48" "19134" "102" "0" "1901" "1902" "49" "50" "-5" "  7" "x"))

@@ -550,33 +550,77 @@ pub fn check_number_format(value_string: &str, possible: &[NumberFormat]) -> Vec
 pub struct NumberOverflow(pub String);
 
 /// Scheme's `(string->number (string-append "#e" s))` for the text a number format leaves: digits with at most one
-/// dot, or a fraction of digits. `Ok(None)` where Scheme returns `#f`, for example for an empty string, a lone dot,
-/// a zero denominator or any space. The value is reduced, as Scheme's exact numbers are.
+/// dot and an optional exponent (`1e5`), or a fraction of digits. `Ok(None)` where Scheme returns `#f`, for example
+/// for an empty string, a lone dot, a zero denominator or any space. The value is reduced, as Scheme's exact numbers
+/// are.
 pub fn exact_number(s: &str) -> Result<Option<Numeric>, NumberOverflow> {
     let overflow = || NumberOverflow(s.to_owned());
-    let digits = |t: &str| t.bytes().all(|b| b.is_ascii_digit());
-    let (num, den) = if let Some((n, d)) = s.split_once('/') {
-        if n.is_empty() || d.is_empty() || !digits(n) || !digits(d) {
-            return Ok(None);
-        }
-        (parse_digits(n).ok_or_else(overflow)?, parse_digits(d).ok_or_else(overflow)?)
-    } else {
-        let (whole, frac) = s.split_once('.').unwrap_or((s, ""));
-        if (whole.is_empty() && frac.is_empty()) || !digits(whole) || !digits(frac) {
-            return Ok(None);
-        }
-        // Trailing zeros of the decimals do not change the value; dropping them keeps more numbers in range.
-        let frac = frac.trim_end_matches('0');
-        let scale = u32::try_from(frac.len()).map_err(|_| overflow())?;
-        let den = 10_i128.checked_pow(scale).ok_or_else(overflow)?;
-        let whole = if whole.is_empty() { 0 } else { parse_digits(whole).ok_or_else(overflow)? };
-        let frac = if frac.is_empty() { 0 } else { parse_digits(frac).ok_or_else(overflow)? };
-        (whole.checked_mul(den).and_then(|w| w.checked_add(frac)).ok_or_else(overflow)?, den)
+    let parts = match s.split_once('/') {
+        Some((n, d)) => exact_fraction(n, d),
+        None => match s.split_once(['e', 'E']) {
+            Some((mantissa, exponent)) => exact_decimal(mantissa, Some(exponent)),
+            None => exact_decimal(s, None),
+        },
     };
-    if den == 0 {
-        return Ok(None);
+    match parts {
+        Syntax::NotANumber | Syntax::Ratio(_, 0) => Ok(None),
+        Syntax::Overflow => Err(overflow()),
+        Syntax::Ratio(num, den) => reduce_to_numeric(num, den).map(Some).ok_or_else(overflow),
     }
-    reduce_to_numeric(num, den).map(Some).ok_or_else(overflow)
+}
+
+/// What `string->number` makes of a number's text.
+enum Syntax {
+    NotANumber,
+    Overflow,
+    Ratio(i128, i128),
+}
+
+fn all_digits(t: &str) -> bool {
+    t.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// `n/d`, both non-empty digits.
+fn exact_fraction(n: &str, d: &str) -> Syntax {
+    if n.is_empty() || d.is_empty() || !all_digits(n) || !all_digits(d) {
+        return Syntax::NotANumber;
+    }
+    match (parse_digits(n), parse_digits(d)) {
+        (Some(n), Some(d)) => Syntax::Ratio(n, d),
+        _ => Syntax::Overflow,
+    }
+}
+
+/// `whole.frac`, either part possibly empty but not both, times ten to the exponent.
+fn exact_decimal(mantissa: &str, exponent: Option<&str>) -> Syntax {
+    let (whole, frac) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    if (whole.is_empty() && frac.is_empty()) || !all_digits(whole) || !all_digits(frac) {
+        return Syntax::NotANumber;
+    }
+    let exponent = match exponent.map(read_exponent) {
+        None => 0,
+        Some(Some(e)) => e,
+        Some(None) => return Syntax::NotANumber,
+    };
+    // Trailing zeros of the decimals do not change the value; dropping them keeps more numbers in range.
+    let frac = frac.trim_end_matches('0');
+    let digits = format!("{whole}{frac}");
+    let scale = i64::try_from(frac.len()).unwrap_or(i64::MAX).saturating_sub(exponent);
+    let ratio = || {
+        let value = parse_digits(&digits)?;
+        let power = 10_i128.checked_pow(u32::try_from(scale.unsigned_abs()).ok()?)?;
+        if scale >= 0 { Some((value, power)) } else { Some((value.checked_mul(power)?, 1)) }
+    };
+    ratio().map_or(Syntax::Overflow, |(n, d)| Syntax::Ratio(n, d))
+}
+
+/// An exponent: optional sign and digits. One beyond 64 bits only matters as "huge", so it saturates.
+fn read_exponent(e: &str) -> Option<i64> {
+    let digits = e.strip_prefix(['+', '-']).unwrap_or(e);
+    if digits.is_empty() || !all_digits(digits) {
+        return None;
+    }
+    Some(e.parse().unwrap_or(if e.starts_with('-') { i64::MIN / 2 } else { i64::MAX / 2 }))
 }
 
 /// Digits as a 128-bit integer; `None` on overflow.
@@ -769,6 +813,9 @@ mod tests {
         assert_eq!(super::parse_number_format("1/0", NumberFormat::Rational), Ok(Numeric::ZERO));
         assert!(super::parse_number_format("99999999999999999999", Decimal).is_err());
         assert_eq!(super::parse_number_format("1.0000000000000000000000000000000000000000", Decimal), Ok(n(1, 1)));
+        assert_eq!(exact_number("1e5"), Ok(Some(n(100_000, 1))));
+        assert_eq!(exact_number("2.5E-3"), Ok(Some(n(1, 400))));
+        assert_eq!(exact_number("e5"), Ok(None));
     }
 
     #[test]
