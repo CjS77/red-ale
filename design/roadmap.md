@@ -1,23 +1,25 @@
 # Roadmap to parity
 
-**Status: proposed.** How red-ale gets from v0.3 to feature parity with GnuCash 5.17. v0.1 and v0.2 have their own
-milestone files, and v0.3 is partly decided in [`open-questions.md`](open-questions.md); the later versions are
-proposals. When a version starts, its milestone file (`milestoneN.md`) takes over from this page for that version.
+**Status: proposed.** How red-ale gets from v0.4 to feature parity with GnuCash 5.17. v0.1, v0.2 and v0.3 have
+their own milestone files; the later versions are proposals. When a version starts, its milestone file
+(`milestoneN.md`) takes over from this page for that version.
 
 [`features.md`](features.md) stays the checklist: every feature is a row there, and a version counts as done when its
 rows are ✅. This page says which version each open row belongs to, and why in that order.
 
 ## Where things stand
 
-v0.2 is done: every row of [`milestone2.md`](milestone2.md) is ✅ and its "Done when" list holds. `features.md` has
-183 rows: 94 are ✅ (60 ported in v0.1, 34 in v0.2), 18 are ❌ (won't do), and 71 are open, all placed below.
+v0.3 is done: every row of [`milestone3.md`](milestone3.md) is ✅ or ❌ and its "Done when" list holds, with the
+evidence for each item listed there. `features.md` has 184 rows: 106 are ✅ (60 ported in v0.1, 34 in v0.2, 12 in
+v0.3), 18 are ❌ (won't do), and 60 are open, all placed below. v0.3 added one row, "Online quotes (red-ale)", beside
+the ❌ Finance::Quote one.
 
 | Version | Theme                                                             | Open rows | Status                                         |
 |---------|-------------------------------------------------------------------|----------:|------------------------------------------------|
 | v0.1    | GnuCash ≤ 2.0 features on XML books; JSON-RPC and CLI             |         — | Released ([`milestone1.md`](milestone1.md))    |
 | v0.2    | MCP; reports ≤ 1.6 in Rhai; rest of books, transactions, business |         — | Done ([`milestone2.md`](milestone2.md))        |
-| v0.3    | Memory and scale; import and export; online quotes                |        11 | Next; [`milestone3.md`](milestone3.md) drafted |
-| v0.4    | SQLite books; scheduled transactions and budgets, with reports    |        19 | Proposed                                       |
+| v0.3    | Memory and scale; import and export; online quotes                |         — | Done ([`milestone3.md`](milestone3.md))        |
+| v0.4    | SQLite books; scheduled transactions and budgets, with reports    |        19 | Next                                           |
 | v0.5    | Ledgers, statements, analysis and investment reports              |        17 | Proposed                                       |
 | v0.6    | The manual; business and tax reports, invoices, PDF export        |        14 | Proposed                                       |
 | v0.7    | MySQL and PostgreSQL books, autosave, setup tools                 |         6 | Proposed                                       |
@@ -94,8 +96,8 @@ track what they changed (or use persistent maps) so each one costs only what it 
 Outside the rows above:
 
 - **Online price quotes** fetched by red-ale's own Rust code, with Finance::Quote's source names and the
-  `Finance::Quote` price source string (`open-questions.md`). `features.md` still marks "Online quotes" ❌ because
-  red-ale won't run Finance::Quote; that row should gain a note pointing at red-ale's fetcher, or a new row for it.
+  `Finance::Quote` price source string (`open-questions.md`). `features.md` keeps "Online quotes" ❌, since red-ale
+  won't run Finance::Quote, and has a new row, "Online quotes (red-ale)", for red-ale's fetcher.
 - **CSV export of the net and category charts**, deferred from v0.2 ([`reports.md`](reports.md) §12).
 - **Importing GnuCash's saved report configurations and style sheets**, so users keep the reports they set up in
   GnuCash ([`reports.md`](reports.md) §15). GnuCash keeps them outside the book, as Scheme files in its user data

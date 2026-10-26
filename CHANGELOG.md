@@ -4,6 +4,118 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## 0.3.0 - Unreleased
+
+Milestone 3 ([`design/milestone3.md`](design/milestone3.md)): memory and scale, import and export, online price
+quotes, locales and the Configuration API. `redAleApi` is 0.3.0, additive over 0.2.0.
+
+### Added
+
+#### Memory and scale
+
+- Books of a few hundred thousand transactions open, change and save in little more memory than the book itself:
+  the file is read and the save checked as a stream, and original text is kept only where red-ale would write an
+  entity differently. On a 100,000-transaction book the peak resident set fell from 3.9 GB to about 200 MB. Nothing
+  red-ale writes changes.
+
+#### Import
+
+- `import.preview` and `import.apply`: an import is previewed as an Import proposal (each transaction with the action
+  the matcher chose, its candidate matches and scores, its accounts, any imbalance, and whether it is read-only by
+  date), changed by the caller, then applied whole as one change, or not at all. `import.discard` drops a proposal.
+- CSV transaction import with GnuCash's column types, date and number formats and saved layouts; QIF import,
+  translated from GnuCash's Scheme, with its own duplicate finder and account map; CSV account and price import;
+  invoices, bills, customers and vendors from GnuCash's business CSV formats.
+- GnuCash's import matcher, with its scores and thresholds as settings, and Bayesian account matching that learns
+  in GnuCash's own format, so GnuCash and red-ale keep learning from each other's imports.
+- `importMap.list` and `importMap.delete`, GnuCash's import map editor.
+- Import files arrive in the request with their encoding; the CLI reads them on its side (`--file`, `--encoding`).
+
+#### Export
+
+- `export.csvTree` and `export.csvTransactions`: GnuCash's CSV exports of the account tree and of transactions, in
+  the simple and complex layouts. The CLI writes them to a file on its side (`--output`).
+- `export.accounts`: a new book with the account tree and commodities and no transactions, as GnuCash's Export
+  Accounts writes it.
+- `report.exportCsv`: the CSV export of the net worth and category charts.
+
+#### Online quotes
+
+- `price.fetchQuotes` and `price.fetchStatus`: prices and exchange rates fetched in the background, by red-ale's own
+  Rust code, from Quote services set in the Configuration (Frankfurter, Alpha Vantage, Twelve Data, Finnhub, Yahoo's
+  chart endpoint, or any JSON service). Prices are stored as GnuCash stores Finance::Quote's, and other methods are
+  answered while a fetch runs. `red-ale exec price.fetchQuotes` waits for the fetch and exits 2 if a commodity got no
+  price, for use from cron.
+- Network access is off until the Configuration turns it on. Every URL is a setting; a key is bound to its service's
+  host and never appears in a result, log, journal or book.
+
+#### Locales and reports
+
+- A `locale` setting, and a `locale` param on report runs: numbers, dates, day names, currency symbols and the
+  first day of the week follow the locale, from glibc's locale data (74 locales). The default stays the C locale,
+  under which every report gives the same bytes as in 0.2.
+- `report.importConfigurations` and `report.importStyleSheets` read GnuCash's saved report configurations and style
+  sheets, as data, never running Scheme.
+
+#### Configuration
+
+- `config.schema`, `config.get` and `config.set` read and change every setting by path, atomically, with no book
+  open. Keys are shown only as set or unset. Over MCP, `config.set` refuses keys and the network switch.
+
+#### Interfaces
+
+- Every new method is an MCP tool with the same name, params schema and hints. The JSON-RPC and MCP request size
+  limits are settings (64 MiB by default) so a few years of statements fit in one request.
+
+### Fixed
+
+- A book whose `gnc:book` version attribute held an escaped character could not be saved: the attribute was written
+  back unescaped and the save's own check refused the file.
+- `red-ale serve` and `red-ale mcp` no longer exit with a panic when nobody reads their standard error at shutdown.
+
+### Not supported
+
+- OFX/QFX, MT940, MT942, DTAUS and CAMT import: GnuCash hands these to the C libraries LibOFX and AqBanking, so there
+  is no GnuCash code to translate. Banks that offer them nearly always offer CSV.
+- Locale collation: names still sort bytewise under every locale.
+
+### Differences from GnuCash
+
+- An import is one proposal, applied whole; GnuCash applies rows one by one from its window. Learning happens only
+  when an import is applied.
+- An import that leaves a transaction unbalanced gets an `Imbalance-<currency>` split as in GnuCash, and the preview
+  and the result say so for each one. Imports ignore the auto read-only threshold as GnuCash's do, and the preview
+  flags each transaction dated before it.
+- Rows GnuCash would import wrongly or drop silently (unparseable numbers, invalid dates, missing parents) are error
+  rows the caller sees, and `import.apply` needs `skipErrors` to leave them out. Bytes invalid in the file's
+  encoding are an error, where GnuCash drops them.
+- The matcher compares amounts exactly, where GnuCash uses doubles with a tolerance.
+- A Quote fetch reports commodities it can't fetch, asks a source's services in turn, times out each request, and
+  exits non-zero from the CLI when a price is missing; GnuCash leaves such commodities out silently and exits 0.
+- Export Accounts refuses an existing file, where GnuCash asks and overwrites, and `book.open` does not yet open
+  the file it writes (GnuCash does).
+- A CSV export imported back gives the same transactions, except text with a `"` at its start or end or beside a
+  comma, which GnuCash's CSV tokenizer also misreads; red-ale reads it as GnuCash does.
+
+The pages in [`design/api/`](design/api) list every difference in detail.
+
+### Dependency updates
+
+- base64: (none) => 0.22
+- encoding_rs: (none) => 0.8
+- http-body-util: (none) => 0.1.3
+- hyper: (none) => 1.5
+- hyper-rustls: (none) => 0.27
+- hyper-util: (none) => 0.1.19
+- icu_calendar: (none) => 2.4
+- icu_datetime: (none) => =2.4.0
+- icu_locale_core: (none) => 2.4
+- icu_normalizer: (none) => 2.4
+- peak_alloc: (none) => 0.3.0
+- rustls: (none) => 0.23
+- rustls-native-certs: (none) => 0.8
+- writeable: (none) => 0.6
+
 ## 0.2.0 - 2026-10-26
 
 ### Added
