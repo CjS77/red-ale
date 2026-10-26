@@ -128,7 +128,15 @@ GnuCash's date format preference ([`../reports.md`](../reports.md) §9), and num
 ([`../milestone3.md`](../milestone3.md), "Locales"): under the default `C` locale, `$1,234.56`-style output, as
 GnuCash prints with `gnc_localeconv`'s defaults (`5.17:libgnucash/core-utils/gnc-locale-utils.c:76-109`). The account
 separator is `:`, GnuCash's default (`5.17:gnucash/gschemas/org.gnucash.GnuCash.gschema.xml.in:18-19`). Number
-printing is the report renderer's `xaccPrintAmount` translation, shared, not a second copy.
+printing is the report renderer's `xaccPrintAmount` translation, shared, not a second copy, with the print infos the
+exporter asks for (`gnc_account_print_info`, `gnc_commodity_print_info` and `gnc_price_print_info`,
+`5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-1063`). The Locale is the Configuration's `locale` setting, or the
+`locale` param of `export.csvTransactions` for one call, as for `report.export`; the account tree prints no numbers or
+dates, so it takes none.
+
+The CSV exporters live in the `red-ale-export` crate (translated from `5.17:gnucash/import-export/csv-exp/`), which
+reads the Book and returns text; every number and date it writes goes through one type, `Formats`, which holds the
+Locale and the date format.
 
 The output is deterministic: the same book, params and settings give the same bytes.
 
@@ -139,7 +147,7 @@ The output is deterministic: the same book, params and settings give the same by
 | `separator` | string | `,` | Any non-empty string, as GnuCash's custom separator allows |
 | `quotes` | bool | false | Quote every field |
 
-→ `{ csv, rows }`: the text and the number of account rows. Accounts in Display order, which red-ale compares
+→ `{ csv, rows }`: the text and the number of account rows, the header not counted. Accounts in Display order, which red-ale compares
 bytewise where GnuCash collates names by locale (as everywhere, [`../reports.md`](../reports.md) §14). `invalid` for
 an empty separator.
 
@@ -152,10 +160,12 @@ an empty separator.
 | `layout` | string | `complex` | `simple` or `complex` |
 | `separator` | string | `,` | As above |
 | `quotes` | bool | false | As above |
+| `locale` | string? | the `locale` setting | The Locale for this call: a supported locale name or `environment` |
 
-→ `{ csv, transactions, lines }`. Which transactions, their order, the columns and their formats are GnuCash's, above,
+→ `{ csv, transactions, lines }`: the text, the transactions written and the lines written, the header not counted.
+Which transactions, their order, the columns and their formats are GnuCash's, above,
 including the trading-split rule. `not-found` for an unknown account; `invalid` for none, an empty separator, or `from`
-after `to`.
+after `to`; `invalid-params` for an unknown Locale.
 
 GnuCash's register export (a register's query) has no method: a client gets the same transactions from
 `transaction.find` and exports their accounts, or asks for one account.
@@ -164,18 +174,24 @@ GnuCash's register export (a register's query) has no method: a client gets the 
 
 | Param | Type | Meaning |
 |-------|------|---------|
-| `path` | string | The new book file. `.gnucash` is added when missing, as GnuCash adds it |
+| `path` | string | The new book file, a path or `xml://` URI. `.gnucash` is added when the name does not end in it (case matters, as in `gnc_uri_add_extension`, `5.17:libgnucash/engine/gnc-uri-utils.c:413-429`) |
 
-→ `{ path, accounts, commodities }`. red-ale writes what `gnc_book_write_accounts_to_xml_filehandle_v2` writes,
-above, through the XML backend's own writers, so each account and commodity element is the one a full save would
-write, without lots. The file is uncompressed, as GnuCash's is.
+→ `{ path, accounts, commodities }`: the file written, and the account elements (the root's included) and commodity
+elements it holds. red-ale writes what `gnc_book_write_accounts_to_xml_filehandle_v2` writes, above, through the XML
+backend's own writers, so each account and commodity element is the one a full save would write, without lots, and
+the accounts come in the order a full save writes them (root first for a book GnuCash wrote). The file is
+uncompressed, as GnuCash's is.
 
 - **A new file only.** An existing path is `file-exists`, as `book.create` refuses one; there is no overwrite.
-  Paths are the client's own, as for `book.create`, and the path of the open book is refused (`invalid`).
+  Paths are the client's own, as for `book.create`, and the path of the open book is refused (`invalid`). A path whose
+  `.LCK` file exists is `book-locked`; the path is checked again once the lock is held.
 - **Written safely**, unlike GnuCash: through a temporary file in the same directory and a rename, holding the new
   file's `.LCK` lock while it writes and releasing it afterwards, on error paths too. No backup is made, since there
   was no file, and no journal: the export does not touch the open book's journal (GnuCash moves its journal beside the
   exported file, `gnc-xml-backend.cpp:148`; `5.17:libgnucash/engine/TransLog.cpp:120-176`).
+- **Checked before it is kept**, as a save is: the temporary file is read back and every commodity and account in it
+  must equal the open Book's, with no lots and nothing else; otherwise the call fails with `save-verification` and
+  leaves no file. Such a file has no `gnc:book`, so red-ale's `book.open` does not read it; GnuCash does.
 - **The open book is unchanged and not dirty.** Works on a read-only book.
 - **The oracle opens the result**: GnuCash 5.17 reads the exported file with the same accounts, GUIDs, slots and
   commodities, and no transactions.
@@ -203,7 +219,12 @@ red-ale exec --book books/home.gnucash --read-only export.accounts path=books/ch
 ```
 
 `--output` writes the result's `csv` field to the file on the caller's side, as it writes a report's `html`
-([`reports.md`](reports.md), "CLI").
+([`reports.md`](reports.md), "CLI"), and prints the result's other fields with `path` and `bytes`.
+
+**Large exports over HTTP.** The CSV text travels in one JSON-RPC response. `red-ale serve` sends responses of up to
+the Configuration's `jsonRpc.maxResponseBytes`, 256 MiB by default ([`configuration.md`](configuration.md)), rather
+than jsonrpsee's 10 MB, which a few years of transactions in the complex layout pass; a larger export fails with an
+error and the book is untouched. `red-ale call` accepts a response of any size, and `exec` and MCP have no limit.
 
 ## Deviations from GnuCash
 
@@ -221,9 +242,12 @@ red-ale exec --book books/home.gnucash --read-only export.accounts path=books/ch
 
 - GnuCash's line-writer cases (`test-csv-export-helpers.cpp`) as unit tests.
 - A synthetic book exported in both layouts, compared with committed expected files, under the `C` locale and one
-  other.
-- **Round trips:** the complex export imported back with the `GnuCash Export Format` layout gives the same
+  other. Done: `crates/red-ale-export/tests/csv.rs` builds a book by hand and pins every line, citing the 5.17 lines
+  each follows (`de_DE` as the other Locale); `crates/red-ale-rpc/tests/export.rs` compares `synthetic/rich.gnucash`'s
+  tree and both layouts with `crates/red-ale-rpc/tests/export/*.csv`.
+- **Round trips:** (with the CSV importers) the complex export imported back with the `GnuCash Export Format` layout gives the same
   transactions; the tree export imported back with the account importer gives the same accounts.
 - **Read only:** each export on a read-only book; the book is not dirty and the journal is unchanged afterwards.
-- **Oracle:** GnuCash 5.17 opens the file `export.accounts` wrote and finds the source book's accounts, commodities and
-  slots, and no transactions.
+- **Oracle:** GnuCash 5.17 opens the file `export.accounts` wrote, logging nothing, and finds the source book's
+  accounts, commodities and slots, and no transactions, prices or lots (`crates/red-ale-testkit/tests/oracle_export.rs`,
+  on three fixtures).

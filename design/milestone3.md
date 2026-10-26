@@ -240,8 +240,8 @@ Bayesian matching follows GnuCash exactly, so red-ale and GnuCash pick the same 
 
 | Status | Feature         | Introduced | Epic | Notes                                                                                                              |
 |:------:|-----------------|:----------:|------|--------------------------------------------------------------------------------------------------------------------|
-|        | CSV export      |    2.6     |      | Account tree (`5.17:gnucash/import-export/csv-exp/csv-tree-export.cpp`) and transactions, simple and complex layouts (`csv-transactions-export.cpp`). Returns text |
-|        | Export accounts |    1.8     |      | A new book with the account tree, commodities and no transactions, as `qof_session_export` makes it (`5.17:libgnucash/engine/qofsession.cpp:676`) |
+|   ✅   | CSV export      |    2.6     |      | Account tree (`5.17:gnucash/import-export/csv-exp/csv-tree-export.cpp`) and transactions, simple and complex layouts (`csv-transactions-export.cpp`). Returns text |
+|   ✅   | Export accounts |    1.8     |      | A new book with the account tree, commodities and no transactions, as `qof_session_export` makes it (`5.17:libgnucash/engine/qofsession.cpp:676`) |
 
 CSV export returns its text and writes no file, as `report.export` returns HTML ([`open-questions.md`](open-questions.md),
 "Decided for v0.2"); the CLI writes the file on its side. Export accounts creates a new book file, as `book.create`
