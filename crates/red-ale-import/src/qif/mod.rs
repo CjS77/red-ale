@@ -23,7 +23,7 @@ pub mod string;
 
 pub use file::{
     FieldError, FieldKind, FieldProblem, Format, FormatGuess, ParseFieldsError, ParseFieldsReport, ReadError, ReadOptions, ReadResult,
-    ReadWarning, ReadWarningKind, RecordKind, check_from_acct, parse_fields, read_file, reparse_dates,
+    ReadWarning, ReadWarningKind, RecordKind, check_from_acct, parse_fields, read_file, reparse_dates, reparse_price_dates,
 };
 pub use objects::{Field, QifAcct, QifCat, QifClass, QifFile, QifMapEntry, QifPrice, QifSplit, QifStockSymbol, QifXtn, TickerMap};
 pub use parse::{Action, Cleared, DateFormat, NumberFormat, QifDate};

@@ -611,6 +611,11 @@ pub enum FieldProblem {
     /// A number too large for GnuCash's 64-bit numbers.
     #[error("{0}")]
     Overflow(NumberOverflow),
+    /// A number that is not one in the format chosen, which GnuCash reads as zero (`qif-parse.scm:449`). The value
+    /// is set to zero, as GnuCash sets it; red-ale reports it so the record can become an error
+    /// (`design/api/import.md`, QIF deviations).
+    #[error("Not a number: {0:?}")]
+    Unreadable(String),
     /// A message from a field parser: an unknown account type, action or reconciliation status.
     #[error("{0}")]
     Message(String),
@@ -700,6 +705,8 @@ struct Check<G, P, F> {
     on_ambiguity: OnAmbiguity,
     checker: fn(&G, &[F]) -> Option<Vec<F>>,
     parser: fn(&G, F) -> Result<Option<P>, NumberOverflow>,
+    /// red-ale's: the values a parser reads as zero because they are not numbers.
+    unreadable: fn(&G, F) -> Vec<String>,
 }
 
 /// How to reach one field of a record: read its unparsed value, set its parsed value, and find the record's line.
@@ -731,13 +738,15 @@ fn check_and_parse_field<R, G, P: PartialEq, F: Copy + Into<Format>>(
     let mut ok = true;
     objects.iter_mut().for_each(|obj| {
         let Some(val) = (slot.get)(obj) else { return };
+        let line = Some((slot.line)(obj));
+        (check.unreadable)(&val, format).into_iter().for_each(|text| report.error(check.record, check.field, line, FieldProblem::Unreadable(text)));
         let problem = match (check.parser)(&val, format) {
             Ok(Some(parsed)) => return (slot.set)(obj, parsed),
             Ok(None) => FieldProblem::ParsingFailed,
             Err(overflow) => FieldProblem::Overflow(overflow),
         };
         ok = false;
-        report.error(check.record, check.field, Some((slot.line)(obj)), problem);
+        report.error(check.record, check.field, line, problem);
     });
     ok
 }
@@ -846,6 +855,15 @@ fn check_number(val: &String, formats: &[NumberFormat]) -> Option<Vec<NumberForm
 }
 
 #[allow(clippy::ptr_arg)]
+fn unreadable_number(val: &String, format: NumberFormat) -> Vec<String> {
+    if parse::number_is_readable(val, format) { Vec::new() } else { vec![val.clone()] }
+}
+
+fn no_unreadable<G, F>(_: &G, _: F) -> Vec<String> {
+    Vec::new()
+}
+
+#[allow(clippy::ptr_arg)]
 fn parse_number(val: &String, format: NumberFormat) -> Result<Option<Numeric>, NumberOverflow> {
     parse::parse_number_format(val, format).map(Some)
 }
@@ -860,6 +878,7 @@ fn numbers<R>(objects: &mut [R], slot: &Slot<R, String, Numeric>, target: (Recor
         on_ambiguity: OnAmbiguity::Guess,
         checker: check_number,
         parser: parse_number,
+        unreadable: unreadable_number,
     };
     check_and_parse_field(objects, slot, &check, report)
 }
@@ -867,7 +886,7 @@ fn numbers<R>(objects: &mut [R], slot: &Slot<R, String, Numeric>, target: (Recor
 /// A `check-and-parse-field` of dates with `'error-on-ambiguity`.
 fn dates<R>(objects: &mut [R], slot: &Slot<R, String, QifDate>, record: RecordKind, formats: &[DateFormat], report: &mut ParseFieldsReport) -> bool {
     let check =
-        Check { record, field: FieldKind::Date, formats: formats.to_vec(), on_ambiguity: OnAmbiguity::Error, checker: check_dates, parser: parse_date };
+        Check { record, field: FieldKind::Date, formats: formats.to_vec(), on_ambiguity: OnAmbiguity::Error, checker: check_dates, parser: parse_date, unreadable: no_unreadable };
     check_and_parse_field(objects, slot, &check, report)
 }
 
@@ -898,10 +917,7 @@ const STEPS: [Step; 14] = [
         let slot = Slot { get: |a: &QifAcct| text_of(Some(&a.acct_type)), set: |a, v| a.acct_type = Field::Value(v), line: |a| a.line };
         parse_field(f.accounts.make_contiguous(), &slot, parse_acct_type, (RecordKind::Account, FieldKind::AcctType), r)
     },
-    |f, r| {
-        let slot = Slot { get: |p: &QifPrice| text_of(Some(&p.date)), set: |p, v| p.date = Field::Value(v), line: |p| p.line };
-        dates(f.prices.make_contiguous(), &slot, RecordKind::Price, &DATE_FORMATS, r)
-    },
+    |f, r| dates(f.prices.make_contiguous(), &PRICE_DATE, RecordKind::Price, &DATE_FORMATS, r),
     |f, r| {
         let slot =
             Slot { get: |p: &QifPrice| text_of(Some(&p.share_price)), set: |p, v| p.share_price = Field::Value(v), line: |p| p.line };
@@ -938,6 +954,10 @@ const STEPS: [Step; 14] = [
 const XTN_DATE: Slot<QifXtn, String, QifDate> =
     Slot { get: |x: &QifXtn| text_of(x.date.as_ref()), set: |x, v| x.date = Some(Field::Value(v)), line: |x| x.line };
 
+/// The price date slot, shared by `parse-fields` and [`reparse_price_dates`].
+const PRICE_DATE: Slot<QifPrice, String, QifDate> =
+    Slot { get: |p: &QifPrice| text_of(Some(&p.date)), set: |p, v| p.date = Field::Value(v), line: |p| p.line };
+
 fn parse_acct_type(value: &str, messages: &mut Vec<String>) -> Vec<AccountType> {
     parse::parse_acct_type(value, |m| messages.push(m))
 }
@@ -965,6 +985,7 @@ fn split_amounts(file: &mut QifFile, report: &mut ParseFieldsReport) -> bool {
         on_ambiguity: OnAmbiguity::Guess,
         checker: |amounts: &Vec<Option<String>>, formats| Some(parse::check_number_formats(&borrowed(amounts), formats)),
         parser: |amounts, format| parse::parse_numbers_format(&borrowed(amounts), format).map(Some),
+        unreadable: |amounts, format| amounts.iter().flatten().filter(|a| !parse::number_is_readable(a, format)).cloned().collect(),
     };
     check_and_parse_field(&mut file.xtns, &slot, &check, report)
 }
@@ -984,15 +1005,22 @@ pub fn parse_fields(file: &mut QifFile) -> Result<ParseFieldsReport, ParseFields
 }
 
 /// `qif-file:reparse-dates`: parse the transaction dates still unparsed with the format the caller chose. Price
-/// dates are not reparsed, as in GnuCash, so an ambiguous price date stays unparsed. Returns the errors when some
+/// dates are not reparsed, as in GnuCash ([`reparse_price_dates`] does them). Returns the errors when some
 /// date does not parse in that format. `qif-file.scm:642-651`.
 pub fn reparse_dates(file: &mut QifFile, format: DateFormat) -> Result<(), Vec<FieldError>> {
+    reparse(&mut file.xtns, &XTN_DATE, RecordKind::Transaction, format)
+}
+
+/// Parse the price dates still unparsed with the format the caller chose. red-ale's: GnuCash never reparses them,
+/// so an ambiguous price date stays text and its import fails; red-ale applies the caller's date format to them as
+/// well (`design/api/import.md`, QIF deviations).
+pub fn reparse_price_dates(file: &mut QifFile, format: DateFormat) -> Result<(), Vec<FieldError>> {
+    reparse(file.prices.make_contiguous(), &PRICE_DATE, RecordKind::Price, format)
+}
+
+fn reparse<R>(objects: &mut [R], slot: &Slot<R, String, QifDate>, record: RecordKind, format: DateFormat) -> Result<(), Vec<FieldError>> {
     let mut report = ParseFieldsReport::default();
-    if dates(&mut file.xtns, &XTN_DATE, RecordKind::Transaction, &[format], &mut report) && report.errors.is_empty() {
-        Ok(())
-    } else {
-        Err(report.errors)
-    }
+    if dates(objects, slot, record, &[format], &mut report) && report.errors.is_empty() { Ok(()) } else { Err(report.errors) }
 }
 
 #[cfg(test)]

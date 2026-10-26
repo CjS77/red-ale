@@ -649,15 +649,24 @@ pub(crate) fn reduce_to_numeric(num: i128, den: i128) -> Option<Numeric> {
 /// is still not a number reads as zero, as in GnuCash: this includes a number with a space before or after it.
 /// `qif-parse.scm:432-450`.
 pub fn parse_number_format(value_string: &str, format: NumberFormat) -> Result<Numeric, NumberOverflow> {
-    let has_minus = value_string.contains('-');
+    let num = exact_number(&number_text(value_string, format))?.unwrap_or(Numeric::ZERO);
+    Ok(if value_string.contains('-') { num.neg() } else { num })
+}
+
+/// The text `qif-parse:parse-number/format` hands to `string->number`. `qif-parse.scm:441-448`.
+fn number_text(value_string: &str, format: NumberFormat) -> String {
     let filtered = string_delete_chars(value_string, "$'+-");
-    let read_string = match format {
+    match format {
         NumberFormat::Decimal => string_delete_chars(&filtered, ","),
         NumberFormat::Comma => string_replace_char(&string_delete_chars(&filtered, "."), ',', '.'),
         NumberFormat::Integer | NumberFormat::Rational => filtered,
-    };
-    let num = exact_number(&read_string)?.unwrap_or(Numeric::ZERO);
-    Ok(if has_minus { num.neg() } else { num })
+    }
+}
+
+/// Whether [`parse_number_format`] reads a number from `value_string`, rather than the zero GnuCash gives text that
+/// is not one. red-ale's: GnuCash does not tell the two apart (`design/api/import.md`, QIF deviations).
+pub fn number_is_readable(value_string: &str, format: NumberFormat) -> bool {
+    exact_number(&number_text(value_string, format)).map_or(true, |n| n.is_some())
 }
 
 /// `qif-parse:check-number-formats`: the formats every present amount could be in. `qif-parse.scm:452-463`.
@@ -816,6 +825,9 @@ mod tests {
         assert_eq!(exact_number("1e5"), Ok(Some(n(100_000, 1))));
         assert_eq!(exact_number("2.5E-3"), Ok(Some(n(1, 400))));
         assert_eq!(exact_number("e5"), Ok(None));
+        assert!(number_is_readable("1,234.50", Decimal));
+        assert!(!number_is_readable("12.5 ", Decimal));
+        assert!(!number_is_readable("", Decimal));
     }
 
     #[test]
