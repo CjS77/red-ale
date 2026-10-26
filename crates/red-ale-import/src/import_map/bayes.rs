@@ -19,7 +19,7 @@ pub const THRESHOLD: i32 = 90_000;
 /// The length of a GUID as text (`GUID_ENCODING_LENGTH`).
 const GUID_LENGTH: usize = 32;
 
-/// One token's entries (`TokenAccountsInfo`, `Account.cpp:5251-5258`): each account's count, in key order, and their
+/// One token's entries (`TokenAccountsInfo`, `Account.cpp:5251-5255`): each account's count, in key order, and their
 /// total.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct TokenAccounts {
@@ -27,7 +27,7 @@ struct TokenAccounts {
     total: i64,
 }
 
-/// `get_first_pass_probabilities`' scan for one token (`Account.cpp:5317-5319`, with `build_token_info`, `:5266-5275`):
+/// `get_first_pass_probabilities`' scan for one token (`Account.cpp:5318-5320`, with `build_token_info`, `:5266-5275`):
 /// every key `import-map-bayes/<token>/` followed by exactly 32 bytes. A value that is not an integer counts 0, as
 /// `KvpValue::get<int64_t>` gives.
 fn token_accounts(slots: &Frame, token: &str) -> TokenAccounts {

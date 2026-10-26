@@ -1,7 +1,7 @@
 //! Reading an account file: the records, their twelve fields, and the header.
 //!
 //! Translated from `create_regex` and `csv_import_sep_cb` (`5.17:gnucash/import-export/csv-imp/assistant-csv-account-import.c:112-133`,
-//! `:276-327`) and `csv_import_read_file` and `fill_model_with_match` (`5.17:gnucash/import-export/csv-imp/csv-account-import.c:44-193`).
+//! `:276-323`) and `csv_import_read_file` and `fill_model_with_match` (`5.17:gnucash/import-export/csv-imp/csv-account-import.c:44-193`).
 //! Copyright (C) 2012 Robert Fewell. GPL-2.0-or-later; this translation is GPL-3.0-or-later.
 //!
 //! GnuCash matches the whole file with one regular expression anchored at the end of the previous match (`\G`): a

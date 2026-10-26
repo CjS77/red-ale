@@ -3,7 +3,7 @@
 //!
 //! Translated from `csv_account_import` (`5.17:gnucash/import-export/csv-imp/csv-account-import.c:201-374`).
 //! Copyright (C) 2012 Robert Fewell. GPL-2.0-or-later; this translation is GPL-3.0-or-later. The file is read by
-//! [`read`]; the summary GnuCash's assistant shows (`assistant-csv-account-import.c:438-467`) is the proposal.
+//! [`read`]; the summary GnuCash's assistant shows (`assistant-csv-account-import.c:441-467`) is the proposal.
 //!
 //! Each row is found by its full name. **An existing account** gets the row's code, description, notes and colour,
 //! each only when the cell is not empty; its type, name, commodity, hidden, placeholder and tax flags never change.

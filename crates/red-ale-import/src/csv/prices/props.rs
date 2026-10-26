@@ -84,7 +84,7 @@ pub struct PriceContext<'a> {
     pub monetary: MonetaryLocale,
 }
 
-/// One line's properties: GnuCash's `GncImportPrice` (`gnc-imp-props-price.hpp:68-120`).
+/// One line's properties: GnuCash's `GncImportPrice` (`gnc-imp-props-price.hpp:83-115`).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PriceLine {
     /// The date.

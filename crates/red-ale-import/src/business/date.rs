@@ -8,7 +8,7 @@
 //!
 //! Kept from GnuCash: numbers take as many digits as fit their range (`get_number` in glibc's `strptime`), leading
 //! white space before a number is skipped, a space in the format matches any white space, a year below 100 is taken
-//! in the century nearest today (`gnc-date.cpp:960-962`), and text after the date is ignored. Deviations: a day the
+//! in the century nearest today (`gnc-date.cpp:972-975`), and text after the date is ignored. Deviations: a day the
 //! month doesn't have is invalid, where `qof_scan_date` rolls it into the next month (`normalize_struct_tm`); and a
 //! digit right after the date makes it invalid, where `strptime` would stop at a two-digit `%y` in `1/15/2024` and
 //! GnuCash would store 2020.
@@ -170,7 +170,7 @@ fn strptime<'s>(text: &'s str, ctx: &DateContext<'_>) -> Option<(Fields, &'s str
     Some((fields, input))
 }
 
-/// `qof_scan_date`'s century for a year below 100: the one that puts it nearest today (`gnc-date.cpp:960-962`).
+/// `qof_scan_date`'s century for a year below 100: the one that puts it nearest today (`gnc-date.cpp:972-975`).
 fn complete_year(year: i32, today: Date) -> i32 {
     if year < 100 { year + ((today.year() + 50 - year) / 100) * 100 } else { year }
 }
