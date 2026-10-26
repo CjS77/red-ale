@@ -101,5 +101,6 @@ fn matched(book: &Book, built: CsvBuild, choices: &Choices, threshold: Option<re
         warnings,
         transactions,
         csv: Some(CsvState { account_names }),
+        business: None,
     })
 }

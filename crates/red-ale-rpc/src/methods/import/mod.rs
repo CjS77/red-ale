@@ -3,6 +3,7 @@
 //! `import.discard` drops it. The reading, matching and applying are `red_ale_import`'s and `red_ale_service`'s; this
 //! module translates the wire.
 
+mod business;
 mod params;
 mod proposal;
 
@@ -11,6 +12,7 @@ use red_ale_service::import;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+pub use business::{DocumentsPreviewParam, OwnersPreviewParam};
 pub use params::{ActionWire, ApplyParams, ChangeParam, CsvPreviewParam, DiscardParams, ImportFileParam, LayoutParam, PreviewParam};
 pub use proposal::ProposalResult;
 
@@ -167,6 +169,12 @@ pub struct ApplyResult {
     pub learned: LearnedWire,
     /// Every Imbalance split again, every transaction applied read-only by date, and the matcher's own warnings.
     pub warnings: Vec<proposal::WarningWire>,
+    /// `csvDocuments`: the documents created, updated (entries appended) and posted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documents: Option<business::RecordsChanged>,
+    /// `csvOwners`: the customers or vendors created and updated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<business::RecordsChanged>,
 }
 
 fn indexed(list: Vec<(usize, red_ale_core::Guid)>) -> Vec<IndexedTransaction> {
@@ -204,6 +212,8 @@ impl From<Applied> for ApplyResult {
                 csv_account_map: a.learned.csv_account_map.into_iter().map(|(name, account)| LearnedName { name, account: Id(account) }).collect(),
             },
             warnings: a.warnings.iter().map(proposal::WarningWire::from).collect(),
+            documents: a.documents.map(Into::into),
+            owners: a.owners.map(Into::into),
         }
     }
 }

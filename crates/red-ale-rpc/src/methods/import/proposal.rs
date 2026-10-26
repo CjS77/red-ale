@@ -2,6 +2,7 @@
 
 use red_ale_core::ops::transactions::posted_date;
 use red_ale_core::{Book, Split, Transaction};
+use red_ale_import::business::Records;
 use red_ale_import::matcher::{DestSource, MatchInfo, TransInfo};
 use red_ale_import::pipeline::{
     AccountName, IgnoredLine, ImbalanceInfo, NewAccount, ProposedTransaction, RowError, Source, TransactionReview, Warning,
@@ -10,6 +11,7 @@ use red_ale_service::import::Previewed;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use super::business::{self, DocumentWire, OwnerWire};
 use super::params::ActionWire;
 use crate::wire::{Amount, CommodityId, Day, Id, Timestamp};
 
@@ -42,25 +44,31 @@ pub struct ProposalResult {
     /// CSV's own state: each account name the file uses and where it resolved.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub csv: Option<CsvWire>,
+    /// `csvDocuments`: the documents, by index.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documents: Option<Vec<DocumentWire>>,
+    /// `csvOwners`: the customers or vendors, by index.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<Vec<OwnerWire>>,
 }
 
 /// Counts of a proposal.
 #[derive(Debug, Default, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Summary {
-    /// Transactions to add.
+    /// Records to add.
     pub add: usize,
     /// Transactions that clear a match.
     pub clear: usize,
-    /// Transactions that update and clear a match.
+    /// Records that update an existing one (a transaction is then also cleared).
     pub update: usize,
-    /// Transactions skipped.
+    /// Records skipped.
     pub skip: usize,
     /// Error rows.
     pub errors: usize,
     /// Transactions that would get an Imbalance split.
     pub imbalanced: usize,
-    /// Transactions read-only by date once applied.
+    /// Transactions, and documents posted, read-only by date once applied.
     pub read_only_by_date: usize,
 }
 
@@ -308,12 +316,20 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
     let transactions: Vec<ImportedTransactionWire> =
         proposal.transactions.iter().zip(&p.review.transactions).map(|(t, r)| imported_transaction(book, t, r)).collect();
     let warnings = proposal.warnings.iter().chain(&p.review.warnings).map(WarningWire::from).collect();
+    let (documents, owners) = match &proposal.business {
+        Some(Records::Documents(d)) => (Some(d.iter().map(|d| business::document_wire(book, d)).collect::<Vec<_>>()), None),
+        Some(Records::Owners(o)) => (None, Some(o.iter().map(business::owner_wire).collect::<Vec<_>>())),
+        None => (None, None),
+    };
+    let mut summary = summary(&transactions, proposal.errors.len());
+    documents.iter().flatten().for_each(|d| count(&mut summary, d.action, d.read_only_by_date));
+    owners.iter().flatten().for_each(|o| count(&mut summary, o.action, false));
     ProposalResult {
         id: p.id.clone(),
         format: proposal.format.as_str().to_owned(),
         book_revision: p.revision,
         threshold_date: proposal.threshold.map(Day),
-        summary: summary(&transactions, proposal.errors.len()),
+        summary,
         ignored_lines: proposal.ignored_lines.iter().map(IgnoredLineWire::from).collect(),
         errors: proposal.errors.iter().map(RowErrorWire::from).collect(),
         warnings,
@@ -321,7 +337,20 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
         new_commodities: Vec::new(),
         transactions,
         csv: proposal.csv.as_ref().map(|c| CsvWire { account_names: c.account_names.iter().map(|n| account_name(book, n)).collect() }),
+        documents,
+        owners,
     }
+}
+
+/// Count a business record in the summary.
+fn count(s: &mut Summary, action: ActionWire, read_only_by_date: bool) {
+    match action {
+        ActionWire::Add => s.add += 1,
+        ActionWire::Clear => s.clear += 1,
+        ActionWire::Update => s.update += 1,
+        ActionWire::Skip => s.skip += 1,
+    }
+    s.read_only_by_date += usize::from(read_only_by_date);
 }
 
 fn summary(transactions: &[ImportedTransactionWire], errors: usize) -> Summary {

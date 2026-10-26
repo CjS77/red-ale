@@ -73,6 +73,7 @@ mod tests {
             warnings: Vec::new(),
             transactions: Vec::new(),
             csv: None,
+            business: None,
         })
     }
 
