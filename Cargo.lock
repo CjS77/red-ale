@@ -1745,6 +1745,7 @@ dependencies = [
  "red-ale-mcp",
  "red-ale-rpc",
  "red-ale-service",
+ "red-ale-testkit",
  "serde_json",
  "tempfile",
  "tokio",
