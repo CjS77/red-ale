@@ -1,4 +1,5 @@
-//! CSV transaction import: file text to draft transactions, as GnuCash's CSV importer reads it.
+//! CSV import: transactions (file text to draft transactions), accounts ([`accounts`]) and prices ([`prices`]), as
+//! GnuCash's CSV importers read them.
 //!
 //! Translated from `5.17:gnucash/import-export/csv-imp/` (GPL-2.0-or-later; copyright lines and line citations are
 //! in each module). The GUI (`assistant-csv-trans-import.cpp`) is not translated: what the user chooses there is a
@@ -14,6 +15,8 @@
 //! | [`monetary`] | `parse_monetary`, and `xaccParseAmount*` from `libgnucash/app-utils/gnc-ui-util.cpp` |
 //! | [`props_tx`] | `gnc-imp-props-tx.cpp` |
 //! | [`import_tx`] | `gnc-import-tx.cpp` |
+//! | [`accounts`] | `csv-account-import.c`, `assistant-csv-account-import.c` |
+//! | [`prices`] | `gnc-import-price.cpp`, `gnc-imp-props-price.cpp` |
 //!
 //! The tokenizer and the shared settings ([`CsvLayout`], [`FileFormat`], [`DateFormat`], [`CurrencyFormat`],
 //! [`parse_monetary`], [`parse_date`]) are what the price importer (`gnc-import-price.cpp`) uses too.
@@ -72,10 +75,12 @@
 //!    for every draft with a [`DraftTransaction::void_reason`].
 //! 6. **Match**: each transaction goes to the generic import matcher (`gnc_gen_trans_list_add_trans_with_split_data`).
 
+pub mod accounts;
 pub mod build;
 pub mod date;
 pub mod import_tx;
 pub mod monetary;
+pub mod prices;
 pub mod props_tx;
 pub mod settings;
 pub mod tokenizer;
@@ -85,9 +90,9 @@ mod unicode;
 
 pub use date::{DateContext, DateError, DateFormat, locale_parser, parse_date};
 pub use import_tx::{CreateError, DraftSplit, DraftTransaction, DraftTransfer, LineState, NearestPrice, ParsedLine, TxImport};
-pub use monetary::{CurrencyFormat, MonetaryError, MonetaryLocale, parse_monetary};
+pub use monetary::{CurrencyFormat, MonetaryError, MonetaryLocale, parse_amount_price, parse_monetary};
 pub use props_tx::{ColumnType, ErrMap, ParseContext, PreSplit, PreTrans, SplitAccount};
-pub use settings::{BaseAccount, CsvLayout, TxLayout};
+pub use settings::{BaseAccount, CsvLayout, PriceLayout, TxLayout};
 pub use tokenizer::{FileFormat, Row, TokenizeError, tokenize};
 
 #[cfg(test)]

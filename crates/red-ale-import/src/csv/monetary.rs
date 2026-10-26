@@ -116,7 +116,23 @@ pub fn parse_monetary(text: &str, format: CurrencyFormat, locale: &MonetaryLocal
         return Err(MonetaryError::NoDigits);
     }
     let stripped = strip_symbols(text);
-    let rules = match format {
+    parse_amount(&stripped, &rules(format, locale)).ok_or(MonetaryError::Unparsable)
+}
+
+/// `parse_amount_price` (`5.17:gnucash/import-export/csv-imp/gnc-imp-props-price.cpp:66-100`): a cell of a price
+/// import's Amount column. Unlike [`parse_monetary`], an empty cell is an error (it has no digit), and only currency
+/// symbols are removed: blanks and `--` stay, so `1 000` is 1 and `--5` is no number.
+pub fn parse_amount_price(text: &str, format: CurrencyFormat, locale: &MonetaryLocale) -> Result<Numeric, MonetaryError> {
+    if !text.bytes().any(|b| b.is_ascii_digit()) {
+        return Err(MonetaryError::NoDigits);
+    }
+    let stripped: String = text.chars().filter(|c| !is_currency_symbol(*c)).collect();
+    parse_amount(&stripped, &rules(format, locale)).ok_or(MonetaryError::Unparsable)
+}
+
+/// The characters each currency format calls the amount parser with (`gnc-imp-props-tx.cpp:149-167`).
+fn rules(format: CurrencyFormat, locale: &MonetaryLocale) -> NumberRules<'_> {
+    match format {
         CurrencyFormat::Locale => NumberRules {
             negative_sign: locale.negative_sign,
             decimal_point: locale.decimal_point,
@@ -125,8 +141,7 @@ pub fn parse_monetary(text: &str, format: CurrencyFormat, locale: &MonetaryLocal
         },
         CurrencyFormat::Period => NumberRules { negative_sign: '-', decimal_point: '.', group_separator: ',', ignore: "$+" },
         CurrencyFormat::Comma => NumberRules { negative_sign: '-', decimal_point: ',', group_separator: '.', ignore: "$+" },
-    };
-    parse_amount(&stripped, &rules).ok_or(MonetaryError::Unparsable)
+    }
 }
 
 /// `u32regex_replace(str, "[[:Sc:][:blank:]]|--", "")` (`gnc-imp-props-tx.cpp:143-145`).
@@ -341,6 +356,18 @@ mod tests {
         same(parse("1٣.5", 1), 15, 10);
         // In the fraction it counts two bytes towards the denominator.
         same(parse("1.5٣", 1), 1005, 1000);
+    }
+
+    #[test]
+    fn price_amounts() {
+        let price = |text: &str, format: CurrencyFormat| parse_amount_price(text, format, &MonetaryLocale::default());
+        assert_eq!(price("", CurrencyFormat::Period), Err(MonetaryError::NoDigits), "an empty price is an error");
+        same(price("$1,234.5678", CurrencyFormat::Period), 12_345_678, 10_000);
+        same(price("€ 12,5", CurrencyFormat::Comma), 125, 10);
+        same(price("1 000", CurrencyFormat::Period), 1, 1);
+        assert_eq!(price("--5", CurrencyFormat::Period), Err(MonetaryError::Unparsable), "-- is not removed");
+        same(price("-0.5", CurrencyFormat::Period), -5, 10);
+        same(price("0", CurrencyFormat::Period), 0, 1);
     }
 
     #[test]
