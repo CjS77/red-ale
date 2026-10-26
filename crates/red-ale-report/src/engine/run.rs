@@ -4,7 +4,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use red_ale_core::ops::period::{AccountingPeriod, book_fiscal_year_end, period_bounds};
+use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd, book_fiscal_year_end, period_bounds};
 use red_ale_core::time::PeriodBounds;
 use red_ale_core::{Book, Guid, Time64, TimeZone};
 use rhai::{AST, Dynamic, Engine};
@@ -41,6 +41,9 @@ pub struct RunContext<'a> {
     pub settings: &'a ReportSettings,
     /// The accounting period setting; its bounds are taken at `now`.
     pub accounting_period: &'a AccountingPeriod,
+    /// The Configuration's fiscal year end. When it is `None` the Book's `fy_end` slot applies, as `period.dates`
+    /// decides it.
+    pub fiscal_year_end: Option<FiscalYearEnd>,
     /// The style sheets the General "Stylesheet" option offers, by name.
     pub style_sheets: &'a [&'a str],
 }
@@ -168,5 +171,6 @@ impl<'r> Run<'r> {
 /// 23:59:59 of its last (`ops::period::period_bounds`). An error is kept until something needs the period.
 fn accounting_period(ctx: &RunContext<'_>) -> Result<PeriodBounds, String> {
     let today = ctx.zone.local_date(ctx.now).ok_or_else(|| "now is outside the supported range".to_owned())?;
-    period_bounds(ctx.accounting_period, today, book_fiscal_year_end(ctx.book), ctx.zone).map_err(|e| e.to_string())
+    let fy = ctx.fiscal_year_end.or_else(|| book_fiscal_year_end(ctx.book));
+    period_bounds(ctx.accounting_period, today, fy, ctx.zone).map_err(|e| e.to_string())
 }

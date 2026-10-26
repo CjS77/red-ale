@@ -17,7 +17,7 @@ mod style_sheets;
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use red_ale_core::ops::period::AccountingPeriod;
+use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::{Book, FixedEnv, Guid, Time64, TimeZone};
 use red_ale_report::ReportError;
 use red_ale_report::engine::{Registry, RunContext, ScriptSource, TemplateInfo, TemplateKind};
@@ -208,6 +208,7 @@ struct Reports {
     saved: Vec<SavedReport>,
     settings: ReportSettings,
     period: AccountingPeriod,
+    fiscal_year_end: Option<FiscalYearEnd>,
     sheets: StyleSheets,
 }
 
@@ -220,6 +221,7 @@ impl Reports {
         Ok(Self {
             saved: config.saved_reports()?,
             period: config.accounting_period()?,
+            fiscal_year_end: config.fiscal_year_end()?,
             sheets: style_sheets(&config.style_sheets()?)?,
             config,
             registry,
@@ -321,7 +323,15 @@ impl Reports {
 
     /// What a run reads besides the options: the Book, now, the zone, and the Configuration's settings.
     fn run_context<'a>(&'a self, book: &'a Book, now: Time64, zone: &'a TimeZone, style_sheets: &'a [&'a str]) -> RunContext<'a> {
-        RunContext { book, now, zone, settings: &self.settings, accounting_period: &self.period, style_sheets }
+        RunContext {
+            book,
+            now,
+            zone,
+            settings: &self.settings,
+            accounting_period: &self.period,
+            fiscal_year_end: self.fiscal_year_end,
+            style_sheets,
+        }
     }
 }
 

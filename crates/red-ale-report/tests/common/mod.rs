@@ -2,7 +2,7 @@
 
 #![allow(dead_code, clippy::missing_panics_doc, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::needless_pass_by_value)]
 
-use red_ale_core::ops::period::AccountingPeriod;
+use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::{Book, FixedEnv, Time64, TimeZone};
 use red_ale_report::engine::{Registry, RunContext, ScriptSource};
 use red_ale_report::library::Library;
@@ -61,12 +61,14 @@ pub struct Host {
     pub zone: TimeZone,
     pub settings: ReportSettings,
     pub period: AccountingPeriod,
+    pub fiscal_year_end: Option<FiscalYearEnd>,
     pub now: Time64,
 }
 
 impl Host {
     pub fn new(book: Book) -> Self {
-        Self { book, zone: TimeZone::utc(), settings: ReportSettings::default(), period: AccountingPeriod::default(), now: NOW }
+        let (zone, settings, period) = (TimeZone::utc(), ReportSettings::default(), AccountingPeriod::default());
+        Self { book, zone, settings, period, fiscal_year_end: None, now: NOW }
     }
 
     pub fn ctx(&self) -> RunContext<'_> {
@@ -76,6 +78,7 @@ impl Host {
             zone: &self.zone,
             settings: &self.settings,
             accounting_period: &self.period,
+            fiscal_year_end: self.fiscal_year_end,
             style_sheets: &["Default", "Easy"],
         }
     }

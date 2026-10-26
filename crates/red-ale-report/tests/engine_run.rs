@@ -6,6 +6,7 @@
 mod common;
 
 use common::{GUID, Host, NOW, empty_book, fixture, registry};
+use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::time::{PeriodBounds, RelativeDate};
 use red_ale_core::{Time64, TimeZone};
 use red_ale_report::ReportError;
@@ -209,6 +210,18 @@ fn the_run_context_gives_time_in_the_local_zone() {
     let want = "\n1710504000 1710504000 1710460800 1710547199\n2024-3-15 12:0:0 6 75\n1709337600 1706749200\n\
                 03/15/24|03/01/24 to 03/15/24|2024-03-15 12:00:00\n1704067200 1735689599 CURRENCY::USD 1";
     assert_eq!(title, want);
+}
+
+#[test]
+fn the_configured_fiscal_year_end_decides_a_fiscal_accounting_period() {
+    let script = common::template("#{ title: `${ctx.accounting_period().start} ${ctx.accounting_period().end}`, sections: [] }");
+    let reg = common::registry(&[("test.rhai", &script)]);
+    let mut host = common::Host::new(common::empty_book());
+    host.period = AccountingPeriod { start: "fiscal-year".parse().unwrap(), end: "fiscal-year".parse().unwrap() };
+    host.fiscal_year_end = Some(FiscalYearEnd::new(6, 30).unwrap());
+    // now is 2024-03-15 UTC: the fiscal year ending 30 June runs from 2023-07-01 00:00:00 to 2024-06-30 23:59:59.
+    let title = host.run(&reg, common::GUID, &json!({})).unwrap().title;
+    assert_eq!(title, "1688169600 1719791999");
 }
 
 #[test]
