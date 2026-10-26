@@ -1799,6 +1799,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "red-ale-quotes"
+version = "0.2.0"
+dependencies = [
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "red-ale-core",
+ "red-ale-service",
+ "rustls",
+ "rustls-native-certs",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "red-ale-report"
 version = "0.2.0"
 dependencies = [
