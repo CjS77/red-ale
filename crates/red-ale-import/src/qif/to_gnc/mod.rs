@@ -22,12 +22,14 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use red_ale_core::book_options::uses_split_action_for_num;
-use red_ale_core::ops::commit::sort_splits;
+use red_ale_core::ops::commit::{account_scu, sort_splits};
 use red_ale_core::ops::prices::{Nearest, USER_PRICE_SOURCE, nearest};
 use red_ale_core::ops::scrub::{Repair, Scope, scrub_imbalance};
 use red_ale_core::ops::transactions::transfer::{PriceChange, record_prices};
 use red_ale_core::ops::prices::SPLIT_IMPORT_SOURCE;
-use red_ale_core::{AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, How, Price, ReconcileState, Time64, TimeZone};
+use red_ale_core::{
+    AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, How, Numeric, Price, ReconcileState, Round, Time64, TimeZone,
+};
 
 use super::dialog_utils::{SEP, get_account_name};
 use super::guess_map::MapHash;
@@ -197,11 +199,19 @@ fn convert_xtn(
     Ok(())
 }
 
-/// `xaccTransCommitEdit`'s part that changes data: the imbalance scrub, then the splits sorted.
+/// `xaccTransCommitEdit`'s part that changes data: the imbalance scrub, each split's amount converted to its
+/// account's SCU as the split enters the account (`xaccSplitCommitEdit` calls `xaccSplitSetAmount`,
+/// `5.17:libgnucash/engine/Split.cpp:1016-1031`, which rounds half up and, unlike setting a value, lets a share count
+/// round to zero), then the splits sorted.
 fn commit(book: &mut Book, env: &mut dyn Env, guid: Guid) -> DomainResult<Vec<Repair>> {
     let repairs = scrub_imbalance(book, env, Scope::Transaction(guid))?;
-    let t = book.transactions.get_mut(&guid).ok_or_else(|| DomainError::not_found("transaction", &guid))?;
-    sort_splits(Arc::make_mut(t));
+    let amounts: Vec<Numeric> = {
+        let t = book.transaction(guid).ok_or_else(|| DomainError::not_found("transaction", &guid))?;
+        t.splits.iter().map(|s| s.account.map_or(Ok(s.amount), |a| Ok(s.amount.to_denom(account_scu(book, a)?, Round::HalfUp)?))).collect::<DomainResult<_>>()?
+    };
+    let t = Arc::make_mut(book.transactions.get_mut(&guid).ok_or_else(|| DomainError::not_found("transaction", &guid))?);
+    t.splits.iter_mut().zip(amounts).for_each(|(s, a)| s.amount = a);
+    sort_splits(t);
     Ok(repairs)
 }
 
