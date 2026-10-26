@@ -1,0 +1,25 @@
+Type,Full Account Name,Account Name,Account Code,Description,Account Color,Notes,Symbol,Namespace,Hidden,Tax Info,Placeholder
+ASSET,Assets,Assets,,All assets,,,USD,CURRENCY,F,F,T
+CASH,Assets:Cash,Cash,,,,,USD,CURRENCY,F,F,F
+ASSET,Assets:Brokerage,Brokerage,,,,,USD,CURRENCY,F,F,T
+STOCK,Assets:Brokerage:ACME,ACME,,,,,ACME,NASDAQ,F,F,F
+MUTUAL,Assets:Brokerage:Zeta,Zeta,,,,,ZETA,FUND,T,F,F
+RECEIVABLE,Assets:Receivable,Receivable,,,,,USD,CURRENCY,F,F,F
+BANK,Assets:Euro Bank,Euro Bank,,,,,EUR,CURRENCY,F,F,F
+BANK,Assets:NonStd,NonStd,,,,,USD,CURRENCY,F,F,F
+BANK,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",1001,"desc amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",#ff0000,"notes amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",USD,CURRENCY,F,T,F
+LIABILITY,Liabilities,Liabilities,,,,,USD,CURRENCY,F,F,F
+CREDIT,Liabilities:Visa,Visa,,,,,USD,CURRENCY,F,F,F
+PAYABLE,Liabilities:Payable,Payable,,,,,USD,CURRENCY,F,F,F
+INCOME,Income,Income,,,,,USD,CURRENCY,F,F,F
+INCOME,Income:Capital Gains,Capital Gains,,,,,USD,CURRENCY,F,F,F
+INCOME,Income:Salary,Salary,,,,,USD,CURRENCY,F,F,F
+EXPENSE,Expenses,Expenses,,,,,USD,CURRENCY,F,F,F
+EXPENSE,Expenses:Fees,Fees,,,,,USD,CURRENCY,F,F,F
+EXPENSE,Expenses:Food,Food,,,,,USD,CURRENCY,F,F,F
+EQUITY,Equity,Equity,,,,,USD,CURRENCY,F,F,F
+EQUITY,Equity:Opening Balances,Opening Balances,,,,,USD,CURRENCY,F,F,F

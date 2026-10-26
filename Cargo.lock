@@ -1837,6 +1837,7 @@ dependencies = [
  "jsonrpsee",
  "proptest",
  "red-ale-core",
+ "red-ale-export",
  "red-ale-locale",
  "red-ale-report",
  "red-ale-service",
