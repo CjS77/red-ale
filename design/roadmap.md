@@ -109,10 +109,28 @@ Outside the rows above:
     GnuCash writes the accounting-period dates as `start-prev-fin-year` and `end-prev-fin-year`
     (`5.17:libgnucash/engine/gnc-option-date.cpp:311`, `:319`) but reads back only `start-accounting-period` and
     `end-accounting-period` (`5.17:bindings/guile/gnc-optiondb.i:894-897`), so the importer accepts both spellings.
+- **Locales.** red-ale formats reports only as GnuCash does under the C locale, the one GnuCash's own report tests
+  run under ([`reports.md`](reports.md) §3, §4), so its output differs from that of a user's GnuCash: GnuCash
+  prints dates in the `locale` format with the locale's `D_FMT` (`5.17:libgnucash/engine/gnc-date.cpp:61`, `:522`),
+  so under en_US the Balance Sheet's date is `12/31/2026` where red-ale prints the C locale's `12/31/26`. v0.3
+  makes the locale a setting, with the C locale as the default so existing tests and output are unchanged. A locale
+  covers what GnuCash takes from it:
+  - the number format: decimal point and grouping (`5.17:libgnucash/core-utils/gnc-locale-utils.c:75-108`). The
+    point after a whole amount of a commodity that is not a currency (`5. ACME`) does not depend on the locale:
+    5.17 always prints it (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1253-1297`), while 5.11 and earlier left it
+    out (`5.5:libgnucash/app-utils/gnc-ui-util.c:1322`), until commit `5941167132` (Bug 797766, first in 5.12);
+  - the `locale` date format, and the ICU interval form for date ranges in titles
+    (`5.17:libgnucash/engine/gnc-date.cpp:618-680`);
+  - the locale's currency symbol, and the default report currency (`gnc_default_report_currency`,
+    `5.17:libgnucash/app-utils/gnc-ui-util.cpp:748-822`);
+  - the first day of the week (`weekStart`, `5.17:libgnucash/engine/gnc-date.cpp:195-215`).
 
 To settle in `milestone3.md`: the importer parsers in Rust instead of LibOFX and AqBanking, whether DTAUS is
 dropped, whether the QIF importer is translated from GnuCash's Scheme or designed from notes, and how quote sources'
-API keys and network access are configured.
+API keys and network access are configured. For locales: where the locale is set (the Configuration, each report
+run, or both), where the locale data comes from (CLDR through a Rust crate, with its licence checked against
+`deny.toml`), and whether name sorting follows the locale's collation too (bytewise today, [`reports.md`](reports.md)
+§14).
 
 If v0.3 runs long, the memory work ships first as v0.3, and import, export and quotes follow as v0.3.x.
 

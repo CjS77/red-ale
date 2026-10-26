@@ -123,6 +123,9 @@ pub fn format_amount(value: &Rational, info: &PrintInfo) -> String {
 /// `PrintAmountInternal` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1083-1300`): the magnitude with grouping and an
 /// always-printed decimal point, or `w + n/d` when the value is not a decimal of at most 18 places. A negative
 /// value's fraction is joined with `-`, as GnuCash does (`-$480 - 85/104`).
+///
+/// The point after a whole amount (`5. ACME`) matches the pin only. GnuCash added it in 5.12 to fix a register bug
+/// red-ale cannot have, and red-ale will likely drop it later (`design/reports.md` §3).
 fn print_magnitude(value: &Rational, info: &PrintInfo) -> String {
     let magnitude = value.abs();
     let (whole, rem) = magnitude.numer().div_rem(magnitude.denom());

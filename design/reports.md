@@ -300,14 +300,21 @@ which are those of its own report tests (`setlocale LC_ALL "C"`, `standard/test/
 - grouping by three with `,`, decimal point `.`, minus sign first: `-$1,234.56`;
 - a currency (namespace `CURRENCY`) has its symbol first with no space, and as many decimals as its SCU, padded;
 - any other commodity has its symbol after the number with a space, and no padding of decimals; the decimal point is
-  always printed, so a whole amount of a 1/1000 commodity is `30. FUNDS` (`standard/test/test-balsheet-pnl.scm:247`);
+  always printed, so a whole amount of a 1/1000 commodity is `30. FUNDS` (`standard/test/test-balsheet-pnl.scm:247`).
+  GnuCash 5.11 and earlier left the point out (`5.5:libgnucash/app-utils/gnc-ui-util.c:1322`). Commit `5941167132`
+  (Bug 797766, first in 5.12) began always printing it, to fix a GUI bug: with "automatic decimal point" on, leaving
+  a register field holding a whole share amount moved its decimal point. `PrintAmountInternal` also formats reports,
+  so their output changed with it, and the commit updated the report tests to the new form. red-ale has no register,
+  so the reason does not apply; it prints the point only to match the pin. red-ale will likely leave it out again
+  later, as a deviation recorded in §14;
 - a remainder that is not a decimal fraction prints as `w + n/d`;
 - the symbol is the commodity's *nice symbol*: its user symbol, else the ISO table's symbol, else its mnemonic
   (`5.17:libgnucash/engine/gnc-commodity.cpp:1095-1115`). GnuCash also prefers the locale's own symbol for the
   locale's currency; red-ale has no locale, and the ISO table gives the same `$` for USD.
 
-Formatting is red-ale's only locale. Clients that want another take the exact `amount` and the `rounded` form from
-the cell and format them themselves.
+Formatting is red-ale's only locale until v0.3, which makes the locale a setting with this one as its default
+([`roadmap.md`](roadmap.md), "Also in v0.3"). Until then, clients that want another take the exact `amount` and the
+`rounded` form from the cell and format them themselves.
 
 ## 4. Settings reports read
 
