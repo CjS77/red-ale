@@ -1,6 +1,8 @@
 //! A Session: one open book file with its lock, journal and read-only state.
 
 use std::fmt;
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -8,10 +10,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, features};
 use red_ale_core::ops::commit;
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
-use red_ale_xml::{XmlResidue, read_book, write_book};
+use red_ale_xml::{ReadBack, XmlResidue, read_back, read_book_from, write_book_to};
 
 use crate::error::ServiceError;
-use crate::files::{Retention, remove_old_files, write_book_file};
+use crate::files::{Retention, remove_old_files, replace_book_file};
 use crate::journal::{Journal, RecordKind, record_lines};
 use crate::lock::BookLock;
 use crate::replay::{ReplayReport, replay};
@@ -148,10 +150,17 @@ pub fn resolve_path(spec: &str) -> Result<PathBuf, ServiceError> {
     }
 }
 
-/// True when the file starts with SQLite's header.
-fn is_sqlite(bytes: &[u8]) -> bool {
-    bytes.starts_with(b"SQLite format 3\0")
+/// True if the file starts with SQLite's header string.
+fn is_sqlite(path: &Path) -> Result<bool, ServiceError> {
+    const MAGIC: &[u8] = b"SQLite format 3\0";
+    let io = |source| ServiceError::Io { path: path.to_owned(), source };
+    let mut start = Vec::with_capacity(MAGIC.len());
+    File::open(path).and_then(|f| f.take(MAGIC.len() as u64).read_to_end(&mut start)).map_err(io)?;
+    Ok(start == MAGIC)
 }
+
+/// How much of a book file is read or written at a time.
+const IO_BUFFER: usize = 64 * 1024;
 
 /// An open book.
 #[derive(Debug)]
@@ -187,20 +196,14 @@ impl Session {
     /// read-only.
     pub fn open(spec: &str, read_only: bool, settings: Settings) -> Result<Self, ServiceError> {
         let path = resolve_path(spec)?;
-        let bytes = std::fs::read(&path).map_err(|e| ServiceError::Io { path: path.clone(), source: e })?;
-        if is_sqlite(&bytes) {
+        if is_sqlite(&path)? {
             return Err(ServiceError::SqlBook { path: path.display().to_string() });
         }
         let lock = if read_only { None } else { Some(BookLock::acquire(&path)?) };
-        // Re-read under the lock so no other writer can have changed the file in between.
-        let bytes = match lock {
-            Some(_) => {
-                drop(bytes);
-                std::fs::read(&path).map_err(|e| ServiceError::Io { path: path.clone(), source: e })?
-            }
-            None => bytes,
-        };
-        let (book, residue) = read_book(&bytes).map_err(|e| ServiceError::Xml { path: path.clone(), source: e })?;
+        // Read under the lock, so no other writer can change the file while it is read.
+        let file = File::open(&path).map_err(|e| ServiceError::Io { path: path.clone(), source: e })?;
+        let read = read_book_from(BufReader::with_capacity(IO_BUFFER, file));
+        let (book, residue) = read.map_err(|e| ServiceError::Xml { path: path.clone(), source: e })?;
         let mut reasons = read_only_triggers(&book, &residue);
         if read_only {
             reasons.insert(0, ReadOnlyReason::Requested);
@@ -321,22 +324,28 @@ impl Session {
         Ok(out)
     }
 
-    /// Save the book. `compress` overrides the file's current compression. The written bytes are read back and
-    /// compared with the book before the old file is touched; a mismatch refuses the save.
+    /// Save the book. `compress` overrides the file's current compression. The book is written to a temporary file,
+    /// which is read back and compared, entity by entity, with the book before the old file is touched; a mismatch
+    /// refuses the save.
     pub fn save(&mut self, compress: Option<bool>) -> Result<SaveReport, ServiceError> {
         if let Some(reason) = self.read_only.first() {
             return Err(ServiceError::ReadOnly { reason: reason.to_string() });
         }
         let compressed = compress.unwrap_or(self.residue.compressed);
-        let bytes = write_book(&self.book, &self.residue, compressed).map_err(|e| ServiceError::Xml { path: self.path.clone(), source: e })?;
-        let (reread, mut residue) = read_book(&bytes).map_err(|e| ServiceError::Xml { path: self.path.clone(), source: e })?;
-        if let Some(difference) = first_difference(&self.book, &reread) {
-            return Err(ServiceError::Verification { detail: difference });
-        }
-        drop(reread);
-        let backup = write_book_file(&self.path, &bytes)?;
-        // The re-read Book equals this one, so the Residue compares against this one's entities and holds no copy.
-        residue.mark_saved(&self.book);
+        let xml = |source| ServiceError::Xml { path: self.path.clone(), source };
+        let write = |file: &mut File| {
+            let out = write_book_to(&self.book, &self.residue, compressed, BufWriter::with_capacity(IO_BUFFER, file)).map_err(xml)?;
+            out.into_inner().map(drop).map_err(|e| xml(e.into_error().into()))
+        };
+        let check = |tmp: &Path| {
+            let file = File::open(tmp).map_err(|source| ServiceError::Io { path: tmp.to_owned(), source })?;
+            match read_back(BufReader::with_capacity(IO_BUFFER, file), &self.book).map_err(xml)? {
+                ReadBack::Same(residue) => Ok(*residue),
+                ReadBack::Differs(detail) => Err(ServiceError::Verification { detail }),
+            }
+        };
+        // The Residue read back has this Book as its snapshot, so it compares against this one's entities.
+        let (backup, mut residue) = replace_book_file(&self.path, write, check)?;
         residue.notices = self.residue.notices.clone();
         self.residue = residue;
         self.dirty = false;
@@ -422,36 +431,3 @@ fn check_transaction(book: &Book, t: &Transaction) -> Result<(), ServiceError> {
     commit::check_committed(book, t).map_err(ServiceError::from)
 }
 
-/// The first difference between the book in memory and the book read back from the bytes about to be written.
-fn first_difference(expected: &Book, actual: &Book) -> Option<String> {
-    if expected == actual {
-        return None;
-    }
-    let field = |name: &str| Some(format!("{name} differ after writing"));
-    if expected.guid != actual.guid || expected.root != actual.root {
-        return field("book identity");
-    }
-    if expected.slots != actual.slots {
-        return field("book slots");
-    }
-    if let Some(c) = expected.commodities.iter().find(|(k, v)| actual.commodities.get(*k) != Some(*v) && red_ale_xml::entities::commodity_is_written(v)) {
-        return Some(format!("commodity {} differs after writing", c.0));
-    }
-    if let Some((g, _)) = expected.accounts.iter().find(|(g, v)| actual.accounts.get(*g) != Some(*v)) {
-        return Some(format!("account {g} differs after writing"));
-    }
-    if let Some((g, _)) = expected.transactions.iter().find(|(g, v)| actual.transactions.get(*g) != Some(*v)) {
-        return Some(format!("transaction {g} differs after writing"));
-    }
-    if let Some((g, _)) = expected.prices.iter().find(|(g, v)| actual.prices.get(*g) != Some(*v)) {
-        return Some(format!("price {g} differs after writing"));
-    }
-    if let Some((g, _)) = expected.lots.iter().find(|(g, v)| actual.lots.get(*g) != Some(*v)) {
-        return Some(format!("lot {g} differs after writing"));
-    }
-    if expected.business != actual.business {
-        return field("business objects");
-    }
-    // Remaining differences are currencies GnuCash does not write (unused, no quotes); they are not data.
-    None
-}

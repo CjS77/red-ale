@@ -130,7 +130,7 @@ is used only for protocol errors.
 | 1007   | `file-exists`       | `book.create` on an existing file.                                        |
 | 1008   | `io-error`          | A file operation failed.                                                  |
 | 1009   | `file-format`       | Not a readable XML book (or journal), including GnuCash version 1 files.  |
-| 1010   | `save-verification` | The bytes about to be written did not read back as the same book; nothing was written. |
+| 1010   | `save-verification` | The file written did not read back as the same book; it was removed and the book on disk is unchanged. |
 | 1011   | `backup-failed`     | The backup could not be made; nothing was written.                        |
 | 1012   | `unsaved-changes`   | `book.close` on a book with unsaved changes, without `save` or `discard`. |
 | 2000   | `not-found`         | An entity named in the request does not exist (`data.kind`, `data.id`).   |

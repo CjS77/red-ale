@@ -19,9 +19,11 @@ A `Session` is one open book file. This crate does everything that has to happen
   the change succeeds and every transaction it touched still balances. A failed change leaves nothing behind.
 - **The journal.** Every change to a transaction is recorded in GnuCash's `.log` journal format, as GnuCash does, so
   unsaved transactions can be recovered by red-ale's `book.replayJournal` or by GnuCash's *Replay GnuCash .log file*.
-- **Saving.** Before replacing the file, a save checks that the new bytes read back as the same book. It then keeps
-  the previous file as a timestamped backup, writes the new one, starts a new journal and deletes old backups after the
-  retention period. All of this matches what GnuCash does.
+- **Saving.** A save writes the book to a temporary file beside it and reads that file back, comparing each entity
+  with the book as it is read; nothing replaces the old file unless the bytes read back as the same book. It then
+  keeps the previous file as a timestamped backup, renames the new one into place, starts a new journal and deletes
+  old backups after the retention period. All of this matches what GnuCash does. Neither opening nor saving holds the
+  file's text in memory.
 
 ## Where it fits
 

@@ -92,35 +92,50 @@ transactions, and bulk import makes it worse. The three changes, none of which c
 | Status | Change                                      | Notes                                                                                                       |
 |:------:|---------------------------------------------|-------------------------------------------------------------------------------------------------------------|
 |   ✅   | Keep raw text only where it is needed       | The Residue keeps an entity's original text only where its regenerated form differs                        |
-|        | Parse as a stream                           | `read_book` translates from `quick-xml` events, as GnuCash's SAX parser does (`5.17:libgnucash/backend/xml/sixtp.cpp`) |
-|        | Stream the save and its check               | Write through gzip to the temporary file; compare what is read back entity by entity, as it is parsed       |
-|        | Mutations cost what they touch (*Proposed*) | See "Decide before code", item 1                                                                            |
+|   ✅   | Parse as a stream                           | `read_book` translates from `quick-xml` events, as GnuCash's SAX parser does (`5.17:libgnucash/backend/xml/sixtp.cpp`) |
+|   ✅   | Stream the save and its check               | Write through gzip to the temporary file; compare what is read back entity by entity, as it is parsed       |
+|   ❌   | Mutations cost what they touch (*Proposed*) | Not needed: an import is one Mutation, which pays the fixed cost once. See "Decide before code", item 1     |
 
 **Budgets** (fixed from the measurements below): on the 100,000-transaction synthetic book, red-ale at rest within
 twice GnuCash 5.17's 188 MB (376 MB), and peaks at open and at save within three times (564 MB). The synthetic book's
 plain file is 155.6 MB, so the budgets are 2.41 and 3.62 times the file's size, and
 `crates/red-ale-testkit/tests/memory_budget.rs` holds them on a 5,000-transaction book of the same shape, counting
-the heap with a counting allocator so each run gives the same figures. At rest (after open and after save) and the
-peak of a post are held to the budgets now. The peaks of open and save are pinned at what is reached today (14.00 and
-15.60 times the file); the streaming parse and the streaming save each lower their figure, and the last of them sets
-both to 3.62.
+the heap with a counting allocator so each run gives the same figures. All five figures are held to the budgets: at
+rest after open and after save to 2.41 times the file, and the peaks of open, post and save to 3.62. On that book
+they are 1.09, 1.09, 1.47, 1.14 and 1.54 times the file; the 2,000 accounts weigh more there than on the large book.
 
 **Measured.** `crates/red-ale-testkit/examples/memory.rs` generates the synthetic book (`synthetic.rs`: 2,000
 accounts, transactions of two or three splits; GnuCash 5.17 saves it back byte for byte, `oracle_synthetic.rs`) and
 measures one process through `book.open`, `transaction.post` and `book.save`. Heap as the allocator counts it, on the
-100,000-transaction book (155.6 MB plain; the Book alone is 164.2 MB):
+100,000-transaction book (155.6 MB plain; the Book alone is 164.2 MB), in release mode:
 
 | Step                                   | Open, at rest | Peak at open | Peak at post | Peak at save | After save | Peak RSS |
 |----------------------------------------|--------------:|-------------:|-------------:|-------------:|-----------:|---------:|
 | Before                                 |        674 MB |      2.70 GB |       679 MB |      3.26 GB |     833 MB |  3.87 GB |
 | Original text only where needed        |        169 MB |      2.20 GB |       174 MB |      2.26 GB |     329 MB |  2.61 GB |
 | One copy of the book after open, save  |        169 MB |      2.04 GB |       174 MB |      2.26 GB |     169 MB |  2.61 GB |
+| Parse as a stream                      |        169 MB |       328 MB |       174 MB |       611 MB |     169 MB |   534 MB |
+| Stream the save and its check          |        169 MB |       173 MB |       174 MB |       178 MB |     169 MB |   201 MB |
 | Budget                                 |        376 MB |       564 MB |       564 MB |       564 MB |     376 MB |          |
 
 GnuCash 5.17 holds 226 MB resident on the same book through its Python bindings, 186 MB above the interpreter alone.
 The second row is the Residue change; the third drops the first read of the file before the locked one is parsed, and
-records the session's own Book as the snapshot after a save instead of the re-read copy. What is left of the peaks is
-the parse's DOM of the whole file, and on save the text, the second Book and its DOM: the next two rows.
+records the session's own Book as the snapshot after a save instead of the re-read copy. The fourth reads the file as
+a stream (`red_ale_xml::read_book_from`): gzip is undone, UTF-8 checked and line ends normalised as it is read, and
+each part of the book (each price of the price database) is built as a small DOM, translated and dropped. What was
+left at open was the file's bytes, read whole; at save, the file's text and a second Book read back from it. The fifth
+streams both: `Session::open` reads the file through a buffer, and `Session::save` writes through gzip straight to
+the temporary file (`write_book_to`), then reads that file back as a stream (`read_back`), comparing each entity with
+the session's Book as it is parsed and keeping no second Book. Nothing replaces the old file unless it reads back as
+the same Book, as before. Every peak is now within 10% of the open book, and red-ale's peak resident set is below
+GnuCash's.
+
+Neither change alters a byte red-ale writes. For every fixture, the 5,000-transaction synthetic book (also after a
+post) and the 100,000-transaction one, the plain and gzipped files `book.save` writes and the text written with and
+without originals are identical before and after. So are the results (errors, notices, read-only reasons, the files
+left beside the book) of opening and saving 32 malformed or unusual files, with one exception: a second root element
+after `gnc-v2` is now a syntax error ("content after the root element"), as libxml2 makes it, where the whole-file
+parse read the last root and reported no `gnc:book`.
 
 If v0.3 runs long, this part ships alone as v0.3, and the rest follows as v0.3.x ([`roadmap.md`](roadmap.md)).
 
@@ -450,7 +465,7 @@ The oracle can't run GnuCash's importers: they are under `gnucash/`, which build
 1. **Mutation cost.** Each Mutation clones the entity maps and scans every transaction, 14 ms at 100,000
    transactions ([`roadmap.md`](roadmap.md)). An import is one Mutation, so it pays that once, which may be enough.
    Decide, from measurements after the memory work, whether Mutations also track what they change or use persistent
-   maps.
+   maps. **Decided** (below): one Mutation per import is enough.
 2. **Glossary.** New terms enter [`glossary.md`](glossary.md) before code: *Import proposal*, *Import action* (add,
    clear, update, skip), *Match score*, *Import map*, *Online ID*, *Import settings*, *Quote service*, *Quote fetch*,
    *Locale*. Flag the clashes: GnuCash's "update and clear" is one action; *clear* here is a split's reconcile state,
@@ -464,8 +479,30 @@ The oracle can't run GnuCash's importers: they are under `gnucash/`, which build
 
 Settled at the start of v0.3, so every piece of work starts from the same answers:
 
-- **Mutation cost (item 1)** waits for the memory work's measurements, as planned. Until then an import is one
-  Mutation and pays the clone once.
+- **Mutation cost (item 1): one Mutation per import is enough; Mutations neither track what they change nor use
+  persistent maps in v0.3.** Measured after the memory work with `crates/red-ale-testkit/examples/mutation_cost.rs`,
+  release mode, medians (the machine was shared, so single figures vary by a few milliseconds):
+
+  | Synthetic book                              | 100,000 transactions | 200,000 transactions |
+  |---------------------------------------------|---------------------:|---------------------:|
+  | `transaction.post`                          |              9–24 ms |                48 ms |
+  | A Mutation that changes nothing             |              8–28 ms |                48 ms |
+  | One Mutation adding 5,000 transactions      |             52–69 ms |                91 ms |
+  | of which the 5,000 edits themselves         |                13 ms |                13 ms |
+  | 500 Mutations adding one each               |  10.3 s (21 ms each) |  25.0 s (50 ms each) |
+  | Cloning the Book                            |               2.5 ms |               5.3 ms |
+  | Finding changed transactions by GUID        |                11 ms |                22 ms |
+  | Finding them by walking both maps in order  |              0.09 ms |              0.27 ms |
+
+  An import that is one Mutation pays the fixed cost once: 5,000 transactions take under a tenth of a second at
+  200,000, where 5,000 Mutations would take over four minutes. One call at a time, 10 to 50 ms is fine for a client.
+  The fixed cost is not the clone: it is `Session::try_mutate` finding changed transactions by looking each one up by
+  GUID. It makes two such passes (added or changed, then removed), each 22 ms at 200,000, so together they are most of
+  an empty Mutation's 48 ms. Walking the old and
+  new maps in order, falling back to lookups only where their keys stop lining up, finds the same changes a hundred
+  times faster, and would bring a Mutation down to about the cost of the clone (a few milliseconds at 200,000).
+  That is a small change in `session.rs`, proposed as its own ticket; it is not needed for import. Persistent maps
+  or change tracking would only remove the clone, which stays small until books reach millions of transactions.
 - **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code. **Done:**
   the terms are in [`glossary.md`](glossary.md), "Import and export", with the clashes flagged, and the designs are
   in [`api/import.md`](api/import.md), [`api/export.md`](api/export.md) and [`api/quotes.md`](api/quotes.md).
