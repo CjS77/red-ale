@@ -221,8 +221,8 @@ links no C library and has no GnuCash parsing code to translate for them, so the
 
 | Status | Name            | Short description                                          | Introduced | Ported |
 |:------:|-----------------|------------------------------------------------------------|:----------:|:------:|
-|        | CSV export      | Exports transactions or the account tree to CSV            |    2.6     |        |
-|        | Export accounts | Writes the account tree to a new book with no transactions |    1.8     |        |
+|   ✅   | CSV export      | Exports transactions or the account tree to CSV            |    2.6     |  0.3   |
+|   ✅   | Export accounts | Writes the account tree to a new book with no transactions |    1.8     |  0.3   |
 
 ## 8. Reports
 

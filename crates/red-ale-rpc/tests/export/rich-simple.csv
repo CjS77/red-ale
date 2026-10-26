@@ -1,0 +1,12 @@
+Date,Account Name,Number,Description,Full Category Path,Reconcile,Amount With Sym,Amount Num.,Value With Sym,Value Num.,Rate/Price
+06/07/24,Assets:Cash,,Fund buy,Assets:Brokerage:Zeta,n,-$25.00,-25.00,-$25.00,-25.00,1.00
+06/04/24,Assets:Brokerage:ACME,,Buy ACME,-- Split Transaction --,n,10. ACME,10.,"$1,000.00",1000.00,100.0000
+06/05/24,Assets:Brokerage:ACME,,Sell ACME,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",n,-5. ACME,-5.,-$600.00,-600.00,120.0000
+06/03/24,Assets:Euro Bank,,To euro account,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",n,€100.00,100.00,$110.00,110.00,1.10
+06/02/24,Expenses:Food,101,"Groceries amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x","Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",n,$12.34,12.34,$12.34,12.34,1.00
+06/06/24,Expenses:Food,,Mistake,"Assets:Checking amp& lt< gt> quot"" apos' eé euro€ jp日本 tab	here nl
+here crhere ctl?x",v,$1.00,1.00,$1.00,1.00,0.00

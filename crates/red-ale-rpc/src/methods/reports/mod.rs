@@ -365,7 +365,7 @@ struct On<'a> {
 
 /// The report settings of the Configuration's `reports` key, with GnuCash's defaults for what is unset
 /// (`design/reports.md` §4).
-fn settings(config: &Config) -> Result<ReportSettings, RpcError> {
+pub(crate) fn settings(config: &Config) -> Result<ReportSettings, RpcError> {
     let reports = Value::Object(config.reports()?);
     serde_json::from_value(reports).map_err(|e| RpcError::invalid(format!("the Configuration's report settings: {e}")))
 }

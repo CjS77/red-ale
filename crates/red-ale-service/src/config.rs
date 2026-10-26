@@ -209,6 +209,12 @@ impl ConfigStore {
         bytes.as_u64().and_then(|b| u32::try_from(b).ok()).ok_or_else(|| invalid("jsonRpc.maxRequestBytes must be a whole number of bytes"))
     }
 
+    /// The largest response the JSON-RPC server sends (`jsonRpc.maxResponseBytes`).
+    pub fn jsonrpc_max_response_bytes(&self) -> Result<u32, ServiceError> {
+        let bytes = self.load()?.checked("jsonRpc.maxResponseBytes")?;
+        bytes.as_u64().and_then(|b| u32::try_from(b).ok()).ok_or_else(|| invalid("jsonRpc.maxResponseBytes must be a whole number of bytes"))
+    }
+
     /// The largest request the MCP server accepts (`mcp.maxRequestBytes`).
     pub fn mcp_max_request_bytes(&self) -> Result<usize, ServiceError> {
         let bytes = self.load()?.checked("mcp.maxRequestBytes")?;

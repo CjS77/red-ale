@@ -4,7 +4,7 @@
 //! unchanged since it was read and whose generated form differs from what was read: that one is written from its
 //! original text, which the Residue keeps for it alone.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -13,7 +13,7 @@ use red_ale_core::{Account, Book, CommodityRef, Guid, Lot, Transaction};
 
 use crate::XmlError;
 use crate::business;
-use crate::dom::Element;
+use crate::dom::{Element, Node, parse_document};
 use crate::entities::{account_el, commodity_el, commodity_is_written, price_el, transaction_el};
 use crate::envelope::{BOOK_VERSION, FOOTER, count_line, header};
 use crate::read::read_book_from;
@@ -251,6 +251,42 @@ impl<'a, W: Write> Writer<'a, W> {
         self.business();
         self.out.push_str("</gnc:book>\n");
         self.out.push_str(FOOTER);
+        self.finish()
+    }
+
+    /// Write what File ▸ Export ▸ Export Accounts writes (`gnc_book_write_accounts_to_xml_filehandle_v2`,
+    /// `5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1340-1374`): the header of a full save, the commodity and account
+    /// counts, the commodities as a full save writes them, and the account tree, root first, each account as a full
+    /// save writes it but without its lots (`5.17:libgnucash/backend/xml/gnc-account-xml-v2.cpp:146-158`). No
+    /// `gnc:book` element, so no book GUID, book slots, prices, transactions or anything else.
+    fn write_accounts_export(mut self) -> Result<(String, W), std::io::Error> {
+        let accounts = exported_accounts(self.book);
+        self.out.push_str(&header());
+        count_line(&mut self.out, "commodity", self.book.commodities.keys().filter(|c| !c.is_currency()).count());
+        count_line(&mut self.out, "account", accounts.len());
+        self.commodity_elements();
+        accounts.into_iter().for_each(|a| self.account_without_lots(a));
+        self.out.push_str(FOOTER);
+        self.finish()
+    }
+
+    /// An account as a full save writes it, less its `act:lots`: from its original text, if it is unchanged and has
+    /// one, else as generated.
+    fn account_without_lots(&mut self, account: &Arc<Account>) {
+        let unchanged = self.residue.snapshot.accounts.get(&account.guid).is_some_and(|old| same(account, old));
+        let original = self.residue.originals.accounts.get(&account.guid).filter(|_| unchanged).and_then(|text| parse_document(text).ok());
+        let el = original.map_or_else(
+            || account_el(account, &[]),
+            |mut el| {
+                el.children.retain(|c| !matches!(c, Node::Element(e) if e.name == "act:lots"));
+                el
+            },
+        );
+        self.line(&el);
+    }
+
+    /// Hand the rest of the text to the sink, unless all of it is kept, and report the first write error.
+    fn finish(mut self) -> Result<(String, W), std::io::Error> {
         if self.flush_at != usize::MAX {
             self.flush();
         }
@@ -299,6 +335,11 @@ impl<'a, W: Write> Writer<'a, W> {
     }
 
     fn commodities(&mut self) {
+        self.commodity_elements();
+        self.unknown_after(Section::Commodities);
+    }
+
+    fn commodity_elements(&mut self) {
         let book = self.book;
         for (id, c) in &book.commodities {
             if !commodity_is_written(c) {
@@ -315,7 +356,6 @@ impl<'a, W: Write> Writer<'a, W> {
                 }
             }
         }
-        self.unknown_after(Section::Commodities);
     }
 
     /// Prices in GnuCash's stable order: commodity, then currency, then newest first, then GUID ascending
@@ -402,6 +442,18 @@ impl<'a, W: Write> Writer<'a, W> {
         b.vendors.iter().filter(|(_, o)| !o.id.is_empty()).for_each(|(g, o)| self.business_one(*g, o, old.vendors.get(g), business::vendor_el));
         self.unknown_after(Section::Business);
     }
+}
+
+/// The accounts an account-tree export writes: the root and its descendants, in the order a full save writes them.
+fn exported_accounts(book: &Book) -> Vec<&Arc<Account>> {
+    let tree: HashSet<Guid> = std::iter::once(book.root).chain(book.descendants(book.root).iter().map(|a| a.guid)).collect();
+    book.accounts.values().filter(|a| tree.contains(&a.guid)).collect()
+}
+
+/// Write the account tree and commodities of `book` as GnuCash's Export Accounts does, uncompressed as GnuCash writes
+/// it, into `sink` a chunk at a time (see `Writer::write_accounts_export`). Returns the sink.
+pub fn write_accounts_to<W: Write>(book: &Book, residue: &XmlResidue, sink: W) -> Result<W, XmlError> {
+    Ok(Writer::new(book, residue, sink, CHUNK).write_accounts_export()?.1)
 }
 
 /// Serialise a book to XML text.

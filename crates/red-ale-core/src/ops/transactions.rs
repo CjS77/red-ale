@@ -45,19 +45,6 @@ pub fn check_writable(t: &Transaction) -> DomainResult<()> {
     }
 }
 
-/// The one other split of a split's transaction (`xaccSplitGetOtherSplit`, `5.17:libgnucash/engine/Split.cpp:2160-2185`):
-/// splits in trading accounts and cut lot splits (`lot-split` slot) are not counted, and with more than one left there
-/// is none.
-pub fn other_split(book: &Book, t: &Transaction, split: Guid) -> Option<Guid> {
-    let mut others = t.splits.iter().filter(|s| {
-        s.guid != split
-            && s.slots.get_key(crate::lot::split_slots::LOT_SPLIT).is_none()
-            && s.account.and_then(|a| book.account(a)).is_none_or(|a| a.account_type != crate::AccountType::Trading)
-    });
-    let first = others.next()?;
-    if others.next().is_some() { None } else { Some(first.guid) }
-}
-
 /// Text GnuCash never writes when empty (num, memo, action) is held as `None`, so the file reads back as written.
 fn non_empty(s: Option<String>) -> Option<String> {
     s.filter(|s| !s.is_empty())
@@ -302,6 +289,19 @@ pub struct ListFilter {
 /// (`xaccTransGetDatePostedGDate`, `5.17:libgnucash/engine/Transaction.cpp:2259-2289`).
 pub fn posted_date(t: &Transaction) -> Option<Date> {
     t.slots.get(crate::transaction::slot_paths::DATE_POSTED).and_then(crate::SlotValue::as_date).or_else(|| t.date_posted.utc_date())
+}
+
+/// The one other split of `split` in `t`, if there is exactly one: `xaccSplitGetOtherSplit`
+/// (`5.17:libgnucash/engine/Split.cpp:2160-2185`). Splits in trading accounts and cut splits (with a `lot-split` slot)
+/// are not counted.
+pub fn other_split<'a>(book: &Book, t: &'a Transaction, split: Guid) -> Option<&'a crate::Split> {
+    let mut others = t.splits.iter().filter(|s| {
+        s.guid != split
+            && s.slots.get_key(crate::lot::split_slots::LOT_SPLIT).is_none()
+            && s.account.and_then(|a| book.account(a)).is_none_or(|a| a.account_type != crate::AccountType::Trading)
+    });
+    let first = others.next()?;
+    if others.next().is_some() { None } else { Some(first) }
 }
 
 /// Transactions matching `filter`, in GnuCash's transaction order (`xaccTransOrder`, see [`order`]).
