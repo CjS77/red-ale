@@ -38,8 +38,15 @@ const SECURITIES: &str = "e9418ff64f2c11e5b61d1c7508d793ed";
 const LIABILITIES: &str = "3fe6dce77da24c66bdc8f8efdea7f9ac";
 const TEMPLATES: [&str; 5] = [INCOME, EXPENSE, ASSETS, SECURITIES, LIABILITIES];
 
-const FIXTURES: [(&str, &str); 4] =
-    [("test-data", "locale"), ("balsheet-pnl", "iso"), ("category-multi", "iso"), ("category-liability", "iso")];
+/// The fixtures and the date format of the GnuCash test each comes from (`fixtures/reports/*.expected.json`).
+const FIXTURES: [(&str, &str); 6] = [
+    ("test-data", "locale"),
+    ("balsheet-pnl", "iso"),
+    ("category-multi", "iso"),
+    ("category-liability", "iso"),
+    ("charts-daily", "iso"),
+    ("charts-net", "iso"),
+];
 
 /// A fixture book's account GUID by its number: `a…N` is the Nth account the builder made (`fixtures/README.md`).
 fn acct(n: u32) -> String {
@@ -702,7 +709,8 @@ fn options_follow_gnucash() {
 }
 
 /// Running every template on every fixture leaves the Book as it was, not dirty, with no file written beside it;
-/// two exports give the same bytes, and the HTML holds no script.
+/// two exports give the same bytes, and the HTML holds no script. The charts fixtures stand for GnuCash's only
+/// test of these reports, that each renders on that book (`standard/test/test-charts.scm:189`).
 #[test]
 fn every_template_reads_only_and_exports_deterministically() {
     FIXTURES.iter().for_each(|(fixture, _)| {
