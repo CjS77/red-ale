@@ -234,9 +234,9 @@ through JSON-RPC, MCP and the CLI.
 | Status | Interface        | Notes                                                                                                                                                                                                                     |
 |:------:|------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |   ✅   | MCP server       | `red-ale mcp` over stdio, on `rmcp`. One tool per JSON-RPC method, named as the method and sharing its params schema; `readOnlyHint` and `destructiveHint` come from the method's Effect. No logic of its own. Tools only |
-|        | JSON-RPC API     | Methods for every feature above, including reports (list, options, run, export, saved configurations). `redAleApi` becomes `0.2.0`, additive over `0.1.0`                                                                 |
-|        | CLI              | Every new method through `exec` and `call`; report HTML written to a file                                                                                                                                                 |
-|        | Report scripting | Rhai, set up as above. Every report in this file is written in it, and users can add their own                                                                                                                            |
+|   ✅   | JSON-RPC API     | Methods for every feature above, including reports (list, options, run, export, saved configurations). `redAleApi` becomes `0.2.0`, additive over `0.1.0`                                                                 |
+|   ✅   | CLI              | Every new method through `exec` and `call`; report HTML written to a file                                                                                                                                                 |
+|   ✅   | Report scripting | Rhai, set up as above. Every report in this file is written in it, and users can add their own                                                                                                                            |
 
 MCP tool names can be the method names unchanged: the 2025-11-25 specification allows letters, digits, `_`, `-` and
 `.` ([tools, "Tool Names"](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)). Some clients are
