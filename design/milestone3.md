@@ -297,9 +297,9 @@ edited by hand in the file. v0.3 adds:
 
 | Status | Method          | Effect                | What it does                                                                                     |
 |:------:|-----------------|-----------------------|--------------------------------------------------------------------------------------------------|
-|        | `config.schema` | read                  | The Configuration's JSON Schema: every setting, its type, default and description                |
-|        | `config.get`    | read                  | The whole Configuration, or one setting by path; keys and other secrets shown only as set or unset |
-|        | `config.set`    | write (configuration) | Change one or more settings by path, validated against the schema; `null` restores a default     |
+|   ✅   | `config.schema` | read                  | The Configuration's JSON Schema: every setting, its type, default and description                |
+|   ✅   | `config.get`    | read                  | The whole Configuration, or one setting by path; keys and other secrets shown only as set or unset |
+|   ✅   | `config.set`    | write (configuration) | Change one or more settings by path, validated against the schema; `null` restores a default     |
 
 - **Atomic.** `config.set` validates every change before writing any, and writes the file through a temporary file and
   a rename, so a failed or interrupted call leaves the Configuration as it was.

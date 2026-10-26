@@ -40,9 +40,10 @@ Every method declares its effect in the schema; MCP's `readOnlyHint` and `destru
 
 From `redAleApi` 0.2.0 each method also declares its **effect target**, the `target` field of its entry in the
 schema document: what a `write` or `destructive` method changes, `book` or `configuration` (`null` for `read`).
-Every method that changes something targets `book`, except `period.set`, `docLink.setPathHead` and the
-saved-configuration and style-sheet methods of [`api/reports.md`](api/reports.md), which change only red-ale's
-Configuration, work with no book open and never make a book dirty. The MCP hints come from the effect
+Every method that changes something targets `book`, except `config.set` ([`api/configuration.md`](api/configuration.md)),
+`period.set`, `docLink.setPathHead` and the saved-configuration and style-sheet methods of
+[`api/reports.md`](api/reports.md), which change only red-ale's Configuration, work with no book open and never make
+a book dirty. The MCP hints come from the effect
 alone (see [`reports.md`](reports.md) §10).
 
 Every mutation is **atomic**: it runs on a copy of the book, the copy's changed transactions are checked (balanced,
@@ -180,6 +181,7 @@ deliberate deviations.
 | [`api/close-book.md`](api/close-book.md)                   | `book.closeBooks`: closing the books                        |
 | [`api/book-options.md`](api/book-options.md)               | `book.options`, `book.setOptions`: num field source, auto read-only threshold |
 | [`api/reports.md`](api/reports.md)                         | `report.*`: list, options, run, export, saved configurations, style sheets |
+| [`api/configuration.md`](api/configuration.md)             | `config.*`: the Configuration's schema, every setting, reading and changing them by path |
 
 ## CLI
 
@@ -188,13 +190,15 @@ red-ale exec --book books/home.gnucash account.create name=Checking type=BANK pa
 red-ale exec --book books/home.gnucash transaction.post description=Rent datePosted=2024-07-01 \
     'splits:=[{"account": "Assets:Checking", "value": "-750.00"}, {"account": "Expenses:Rent", "value": "750.00"}]'
 red-ale exec --book books/home.gnucash --script changes.txt     # one "method {json}" per line
+red-ale exec --config red-ale.json config.set 'changes:={"import.matchThreshold": 2}'   # no book needed
 red-ale mcp --book books/home.gnucash                            # MCP over stdio, for an AI agent
 red-ale call --url http://127.0.0.1:7878 book.info
 ```
 
 Params are one JSON object, or `key=value` pairs (the value is a string, which suits amounts: `amount=12.50`) and
 `key:=json` pairs (`placeholder:=true`). `exec` saves when the methods succeed and changed the book (`--no-save` to
-skip), and saves nothing if any method fails. Results go to standard output as JSON; errors go to standard error as
+skip), and saves nothing if any method fails. Without `--book`, `exec` runs the methods with no book open, as the
+Configuration methods need none. Results go to standard output as JSON; errors go to standard error as
 `{"error": …}` with exit status 2. Usage errors exit with status 1. `exec` (with one method, not `--script`) and `call`
 take `--output <file>`, which writes the result's `html` to the file on the caller's side and prints
 `{title, path, bytes}` instead ([`api/reports.md`](api/reports.md), "CLI").

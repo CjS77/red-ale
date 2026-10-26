@@ -215,4 +215,7 @@ See [`reports.md`](reports.md).
 | **Effect** | How much a method changes: *read*, *write* or *destructive*. MCP's read-only and destructive hints come from it. |
 | **Effect target** | What a method that is not *read* changes: the *book* or the *configuration*. Saving a Saved report configuration changes the Configuration and never the Book. |
 | **Tool** | MCP's name for an operation an agent can call. In red-ale each Tool is one JSON-RPC method, with the same name and params schema; it is not a separate operation. |
-| **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps outside the book: user preferences (the Accounting period, the Report settings), Saved report configurations and Style sheets. Never stored in the Book. |
+| **Configuration** | red-ale's own JSON settings file (`--config`), for what GnuCash keeps outside the book: user preferences (the Accounting period, the Report settings), Saved report configurations and Style sheets, and from v0.3 the Import settings, Quote services and the Locale. Never stored in the Book. Its settings are declared in a JSON Schema (`config.schema`). |
+| **Setting** | One value of the Configuration, declared in its schema with a type, default and description, and named by its *setting path*: its keys joined with `.` (`import.matchThreshold`). |
+| **Secret** | A Setting whose value is never shown, only whether it is set: a Quote service's key. Not changeable through MCP. |
+| **Origin** | The door a call came through: JSON-RPC (the HTTP server and the CLI) or MCP. Only `config.set` looks at it. |
