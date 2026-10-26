@@ -238,7 +238,7 @@ an existing `0`.
 
 **Action** (`gnc_import_TransInfo_init_matches`, `import-backend.cpp:1162-1200`): candidates are sorted by score, best
 first, with a stable sort. The candidates were prepended twice, into their account's bucket and then into the match
-list (`import-main-matcher.cpp:2370-2373`, `import-backend.cpp:782`), so equal scores keep the query's order
+list (`import-main-matcher.cpp:2375`, `import-backend.cpp:782`), so equal scores keep the query's order
 (`xaccSplitOrder`). Then:
 
 1. best ≥ `auto-clear-threshold`: *update* if `enable-update` and the best match's `updateProposed`, else *clear*;
