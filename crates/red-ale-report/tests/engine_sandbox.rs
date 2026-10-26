@@ -165,3 +165,30 @@ fn monetaries_add_only_one_commodity() {
     assert!(matches!(eval("monetary(\"USD\", 1) + monetary(\"GBP\", 1)"), Err(ReportError::Script(s)) if s.message.contains("combine")));
     assert!(matches!(eval("monetary(\"XYZ::NOPE\", 1)"), Err(ReportError::Script(s)) if s.message.contains("unknown commodity")));
 }
+
+/// A script that tries to write to the Book finds no way to: its Book, accounts and commodities have getters only, so
+/// every write fails for want of a setter, and the Book stays equal to what it was.
+#[test]
+fn a_script_cannot_change_the_book() {
+    let body = r#"
+        let a = book.accounts()[1];
+        let c = book.commodity("CURRENCY::USD");
+        let attempts = [
+            || { a.name = "Changed"; },
+            || { a.description = "Changed"; },
+            || { a.placeholder = true; },
+            || { c.mnemonic = "XXX"; },
+            || { book.root = (); },
+        ];
+        let refused = 0;
+        for attempt in attempts { try { attempt.call(); } catch (e) { if e.message.contains("No writable property") { refused += 1; } } }
+        #{ title: `${refused} of ${attempts.len()} ${a.name}`, sections: [] }
+    "#;
+    let host = Host::new(common::fixture("balsheet-pnl.gnucash"));
+    let before = host.book.clone();
+    let reg = registry(&[("test.rhai", &template(body))]);
+    let title = host.run(&reg, GUID, &json!({})).unwrap().title;
+    assert!(title.starts_with("5 of 5 "), "{title}");
+    assert!(!title.ends_with("Changed"), "{title}");
+    assert_eq!(host.book, before);
+}
