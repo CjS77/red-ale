@@ -10,6 +10,7 @@
 
 pub mod model;
 pub mod oracle;
+pub mod synthetic;
 
 use std::path::{Path, PathBuf};
 
