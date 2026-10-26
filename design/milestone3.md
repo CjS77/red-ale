@@ -1,6 +1,6 @@
 # Milestone 3: red-ale v0.3
 
-**Status: draft.** Items marked *Proposed* are for review; the rest is decided, here or in
+**Status: in progress.** Items marked *Proposed* were accepted at the start of the work ("Decided" below); the rest is decided, here or in
 [`open-questions.md`](open-questions.md) ("Decided for v0.3") and [`roadmap.md`](roadmap.md) ("v0.3").
 
 **Goal:** red-ale holds books the size a small business reaches in a few gigabytes; imports QIF, CSV and business CSV
@@ -427,6 +427,26 @@ The oracle can't run GnuCash's importers: they are under `gnucash/`, which build
 3. **The Import proposal**: its shape, whether the server holds it (by ID, until the book closes) or the client
    sends it back whole, and how `import.apply` tells that the Book moved on since the preview.
 4. **The Quote fetch**: how long a finished one's status is kept, and whether more than one may run at a time.
+
+### Decided
+
+Settled at the start of v0.3, so every piece of work starts from the same answers:
+
+- **Mutation cost (item 1)** waits for the memory work's measurements, as planned. Until then an import is one
+  Mutation and pays the clone once.
+- **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code.
+- **The Import proposal is held by the server (item 3).** Proposals can hold a few years of statements, too much for
+  an agent to send back whole and easy to change by accident. `import.preview` returns the proposal with an ID, and
+  `import.apply` takes that ID with only the caller's changes (an action, a match or an account per transaction,
+  by index). The server keeps a proposal until it is applied, until the book closes, or until 16 newer ones push it
+  out, and `import.discard` drops one. The Session counts its Mutations (the **Book revision**); a proposal records
+  the revision it was made at, and `import.apply` refuses one made at another revision with `conflict`, so a
+  proposal is never applied to a Book it was not computed from.
+- **One Quote fetch at a time (item 4).** `price.fetchQuotes` refuses with `conflict` while one is running. The
+  status of the last 16 finished fetches is kept until the book closes.
+- ***Proposed* items accepted as written:** the memory budgets (fixed by the first memory ticket from its
+  measurements), network access off by default, and the `locale` setting with its `environment` value and glibc
+  data.
 
 ## Done when
 
