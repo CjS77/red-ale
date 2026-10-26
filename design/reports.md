@@ -116,7 +116,11 @@ maps, logic and integer arithmetic; its time and float functions are compiled ou
   of a script error. It holds at most the string-length limit in bytes of text; past that one last entry says the
   log was cut.
 - `set_module_resolver` with red-ale's resolver (below).
-- The types and functions of sections 3, 5 and 6 are registered; nothing else is.
+- The types and functions of sections 3, 5 and 6 are registered, and `memo()`; nothing else is. A `Memo` is a
+  table from integers to values that every copy shares, so a value a function stores is there for the next call:
+  Rhai's arrays and maps are copied on assignment, and GnuCash's memoised closures (`case-exchange-time-fn`,
+  `report/commodity-utilities.scm:829-887`) need a cache that outlives one call. `m.get(k)` (`()` when absent),
+  `m.contains(k)`, `m.set(k, v)` and `m.len()`; it holds at most the map-size limit of entries (`map-size`).
 - The limits below are set, and `on_progress` stops the run once the run time limit passes.
 
 ### Limits and their errors
@@ -365,8 +369,9 @@ the direct lookup takes the newest price even if it is in the future, the indire
 
 ### Account
 
-Properties: `guid`, `name`, `fullName`, `type`, `code`, `description`, `notes`, `placeholder`, `hidden`,
-`commodity` (Commodity), `parent` (Account or `()`), `depth` (levels below the root).
+Properties: `guid`, `name`, `fullName`, `type`, `typeString` (the type's label, "Asset", as
+`xaccAccountGetTypeStr` gives it), `code`, `description`, `notes`, `placeholder`, `hidden`, `commodity` (Commodity),
+`parent` (Account or `()`), `depth` (levels below the root).
 
 | Function | Returns | GnuCash |
 |----------|---------|---------|
@@ -540,11 +545,12 @@ The builder passed to `options()` mirrors GnuCash's `gnc-register-*-option` func
 | `o.currency(…, default)`, `o.commodity(…, default)` | `gnc-register-currency-option`, `-commodity-option` |
 | `o.internal(…, default)` | `gnc_register_internal_option` |
 | `o.set_default_section(s)` | `GncOptionDBPtr-set-default-section` |
+| `o.default_report_currency()` | `gnc-default-report-currency`: the report settings' currency (section 4), since `options()` has no run context |
 
 `lib/options` translates `options-utilities.scm` on top of these (`add_report_date`, `add_date_interval`,
-`add_interval_choice`, `add_account_levels`, `add_currency`, `add_price_source`, `add_plot_size`, `add_sort_method`,
-`add_subtotal_view`, `report/options-utilities.scm:48-234`), with GnuCash's names, keys, help texts, choices and
-defaults unchanged.
+`add_interval_choice`, `add_account_levels`, `add_account_selection`, `add_currency`, `add_price_source`,
+`add_plot_size`, `add_marker_choice`, `add_sort_method`, `add_subtotal_view`, `report/options-utilities.scm:44-234`),
+with GnuCash's names, keys, help texts, choices and defaults unchanged.
 
 Every template also gets GnuCash's three General options, unless its generator declared them
 (`gnc:report-template-new-options`, `report/report-core.scm:298-335`): "Report name" (key `0a`, default the
@@ -1052,14 +1058,14 @@ keeps its source's header and licence (GPL-2.0-or-later, checked at 5.17). Funct
 
 | Module | From | Functions |
 |--------|------|-----------|
-| `lib/collectors` | RU:289-455, :1018; CU:900-919 | `make_value_collector`, `make_commodity_collector` (`add`, `merge`, `minusmerge`, `format`, `getpair`, `getmonetary`, `getmonetary_strict`, `reset`, `remove_zeros`), `commodity_collector_get_negated`, `commodity_collector_allzero`, `collector_plus`, `collector_minus`, `monetaries_add`, `not_all_zeros`, `sum_collector_commodity`, `uniform_commodity` |
-| `lib/accounts` | RU:149-257 | `account_has_shares`, `account_is_inc_exp`, `filter_accountlist_type`, `decompose_accountlist`, `accounts_get_commodities`, `accounts_get_commodities_sorted`, `get_current_account_tree_depth`, `accounts_and_all_descendants` |
-| `lib/balances` | RU:478-725 | `account_get_balances_at_dates`, `account_accumulate_at_dates`, `account_get_comm_balance_at_date`, `account_get_comm_value_interval`, `account_get_comm_value_at_date`, `accounts_get_balance_helper`, `accounts_get_comm_total_assets`, `account_get_comm_balance_interval`, `accountlist_get_comm_balance_interval_with_closing`, `account_get_trans_type_balance_interval`, `account_get_trans_type_balance_interval_with_closing`, `account_get_trans_type_splits_interval` |
-| `lib/exchange` | CU:64-910 | `get_match_commodity_splits(_sorted)`, `get_all_commodity_splits`, `exchange_by_euro(_numeric)`, `exchange_if_same`, `get_commodity_totalavg_prices(_internal)`, `get_commoditylist_totalavg_prices`, `get_commodity_inst_prices`, `pricelist_price_find_nearest`, `resolve_unknown_comm`, `get_exchange_totals`, `get_exchange_cost_totals`, `make_exchange_alist`, `make_exchange_cost_alist`, `make_exchange_function`, `exchange_by_pricedb_latest`, `exchange_by_pricedb_nearest`, `exchange_by_pricedb_nearest_before`, `exchange_by_pricealist_nearest`, `case_exchange_fn`, `case_price_fn`, `case_exchange_time_fn` |
-| `lib/dates` | DU:176-493 | `leap_year`, `days_in_year`, `days_in_month`, the seven `date_to_*_fraction` functions and `date_get_fraction_func`, `moddate`, `incdate`, `decdate`, `incdate_months`, `make_date_list`, the delta constants and `deltasym_to_delta`, `time64_start_day_time`, `time64_end_day_time` |
-| `lib/options` | OU:48-234 | `add_report_date`, `add_date_interval`, `add_interval_choice`, `add_account_levels`, `add_currency`, `add_price_source`, `add_plot_size`, `add_sort_method`, `add_subtotal_view` |
-| `lib/acct-table` | HAT:524-1071 | `make_html_acct_table_env_accts` with `add_accounts` (the balance calculation, `traverse_accounts` and the post-pass), `num_rows`, `get_row_env`, and `add_account_balances`, which here appends result rows (role, depth, level, cells) instead of HTML; the commodity table becomes a `commodities` cell |
-| `lib/html-utilities` | HU:226-381 | `assign_colors` (GnuCash's 18-colour palette), `make_rates_table` (a result table), `make_generic_warning`, `make_no_account_warning`, `make_empty_data_warning` (warning blocks) |
+| `lib/collectors` | RU:289-465, :1018; CU:900-919 | `make_value_collector`, `make_commodity_collector` and its methods (`add`, `merge`, `minusmerge`, `format`, `getpair`, `getmonetary`, `getmonetary_strict`, `reset`, `remove_zeros`), `commodity_collector_get_negated`, `commodity_collector_allzero`, `collector_plus`, `collector_minus`, `monetaries_add`, `monetary_plus`, `not_all_zeros`, `sum_collector_commodity`, `uniform_commodity` |
+| `lib/accounts` | RU:149-257 | `account_has_shares`, `account_is_stock`, `account_full_name_lt`, `accounts_get_children_depth`, `account_is_inc_exp`, `filter_accountlist_type`, `decompose_accountlist` (a map by kind), `account_get_type_string_plural`, `accounts_get_commodities`, `accounts_get_commodities_sorted`, `get_current_account_tree_depth`, `accounts_and_all_descendants` |
+| `lib/balances` | RU:478-725, :863-881 | `account_get_balances_at_dates`, `account_accumulate_at_dates`, `account_get_comm_balance_at_date`, `account_get_comm_value_interval`, `account_get_comm_value_at_date`, `accounts_get_balance_helper`, `accounts_get_comm_total_assets`, `account_get_balance_interval`, `account_get_comm_balance_interval`, `accountlist_get_comm_balance_interval(_with_closing)`, `accountlist_get_comm_balance_at_date(_with_closing)`, `split_voided`, `accounts_count_splits`, `account_get_trans_type_balance_interval(_with_closing)`, `account_get_trans_type_splits_interval`, `get_assoc_account_balances`, `select_assoc_account_balance`, `get_assoc_account_balances_total` |
+| `lib/exchange` | CU:64-887 | `get_match_commodity_splits(_sorted)`, `get_all_commodity_splits`, `exchange_by_euro(_numeric)`, `exchange_if_same`, `get_commodity_totalavg_prices(_internal)`, `get_commoditylist_totalavg_prices`, `get_commodity_inst_prices`, `pricelist_price_find_nearest`, `resolve_unknown_comm`, `get_exchange_totals`, `get_exchange_cost_totals`, `make_exchange_alist`, `make_exchange_cost_alist`, `make_exchange_function`, `exchange_by_pricedb_latest`, `exchange_by_pricedb_nearest`, `exchange_by_pricedb_nearest_before`, `exchange_by_pricealist_nearest`, `case_exchange_fn`, `case_price_fn`, `case_exchange_time_fn`, and `apply_exchange_fn`, `apply_price_fn`, `apply_exchange_time_fn` to call what those return |
+| `lib/dates` | DU:176-493 | `leap_year`, `days_in_year`, `days_in_month`, the seven `date_to_*_fraction` functions, `date_get_fraction_func` and `apply_fraction_func`, `moddate`, `incdate`, `decdate`, `incdate_months`, `make_date_list`, the delta constants and `deltasym_to_delta`, `time64_start_day_time`, `time64_end_day_time` |
+| `lib/options` | OU:44-234 | `add_report_date`, `add_date_interval`, `add_interval_choice`, `add_account_levels`, `add_account_selection`, `add_currency`, `add_price_source`, `add_plot_size`, `add_marker_choice`, `add_sort_method`, `add_subtotal_view` |
+| `lib/acct-table` | HAT:524-1071 | `make_html_acct_table_env_accts` and `html_acct_table_add_accounts` (the balance calculation, the walk and the post-pass), `num_rows`, `get_row_env`, `add_labeled_amount_line`, `gnc_commodity_table` and `add_account_balances`, which append result rows (role, account, depth, level, cells) instead of HTML; the commodity table becomes a `commodities` cell |
+| `lib/html-utilities` | HU:226-381 | `assign_colors` (GnuCash's 18-colour palette), `make_rates_table` (a result table), `make_generic_warning`, `make_generic_simple_warning`, `make_generic_budget_warning`, `make_generic_options_warning`, `make_no_account_warning`, `make_empty_data_warning` (warning blocks) |
 
 Notes for the translators:
 
@@ -1082,6 +1088,24 @@ Notes for the translators:
 - **Dead code stays out**: names RU, DU and HAT export but never define (`gnc:accounts-get-comm-total-profit`,
   `gnc:account-code-less-p`, …) and `price-scatter.scm`'s unused `dates-list` (`standard/price-scatter.scm:141-144`).
 - **Progress calls** (`gnc:report-starting`, `-percent-done`, `-finished`, RU:619-647) are dropped.
+- **Function values are maps.** A closure made inside an imported Rhai module cannot be called once it leaves the
+  module, so the exchange, price and fraction functions GnuCash returns as lambdas are maps (`#{ exchange_fn:
+  "pricedb-nearest", book, date }`), called with `apply_exchange_fn`, `apply_price_fn`, `apply_exchange_time_fn`
+  and `apply_fraction_func`. Each also takes a caller's closure. `case_exchange_time_fn` memoises its price tables
+  by day in a `Memo` (§2), shared by every copy of the map.
+- **Collectors are arrays with methods.** `c.add(comm, amt)`, `c.merge(other)` and the other actions are methods on
+  the array that change it in place; `make_commodity_collector()` is `[]`. A value collector is its Rational total.
+- **Keyword arguments and alists are maps**: `account_accumulate_at_dates(acc, dates, #{ split_to_elt, nosplit_elt })`,
+  transaction types `#{ str, cased, regexp, closing }`, the account table's environment and parameters with
+  GnuCash's keys (`display_tree_depth`, `parent_account_balance_mode`). A missing key, `()` and false read as #f.
+- **The Book and run context are arguments** where GnuCash reads the current book or preferences: the split
+  queries, `case_exchange_fn` and its kin, `make_html_acct_table_env_accts`.
+- **Warnings drop the report id**: `make_no_account_warning(title)`; the options link it builds needs GnuCash's
+  report instances. `add_labeled_amount_line` drops the colspans and markups, which GnuCash ignores or which are
+  HTML, and takes a row role for the row markup.
+- **Refused**: the account table's `report_budget` (budgets are outside v0.2), `account_less_p` #t (GnuCash
+  names an undefined function, HAT:573), `account_accumulate_at_dates`'s `split_to_date` (no report in scope uses
+  it), and a depth limit of #f without "flatten", which fails in GnuCash too (HAT:655-659).
 - **CSV export.** net-charts and category-barchart offer CSV through GnuCash's export thunks; that is export, which
   moves to v0.3 with the rest of `features.md` §7 (`milestone2.md`, "Out"). Their "Show table" data tables are kept.
 
