@@ -46,6 +46,26 @@
       "items": {
         "$ref": "#/$defs/LogEntry"
       }
+    },
+    "export": {
+      "description": "The rows of the report's export, when the run was for an export the template offers (`report.exportCsv`):\nGnuCash's export string before it is joined (`gnc:html-document-set-export-string`). Absent otherwise.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExportCell"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     }
   },
   "additionalProperties": false,
@@ -1255,6 +1275,19 @@
           "description": "Rhai's `debug`.",
           "type": "string",
           "const": "debug"
+        }
+      ]
+    },
+    "ExportCell": {
+      "description": "One cell of an export row; `null` for an empty one.",
+      "anyOf": [
+        {
+          "description": "Text, written quoted.",
+          "type": "string"
+        },
+        {
+          "description": "An exact number, written as Guile prints it once inexact.",
+          "$ref": "#/$defs/Rational"
         }
       ]
     }

@@ -138,8 +138,8 @@ impl InputArgs {
 
 #[derive(Debug, Args)]
 struct OutputArgs {
-    /// Write the result's `html` (from `report.export`) or `csv` (from `export.csvTree` and `export.csvTransactions`)
-    /// to this file, here rather than on the server, and print what was written instead of the result: `{title, path,
+    /// Write the result's `html` (from `report.export`) or `csv` (from `report.exportCsv`, `export.csvTree` and
+    /// `export.csvTransactions`) to this file, here rather than on the server, and print what was written instead of the result: `{title, path,
     /// bytes}` for a report, the result's other fields with `path` and `bytes` for a CSV export.
     #[arg(long, value_name = "FILE")]
     output: Option<PathBuf>,

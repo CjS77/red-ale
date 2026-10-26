@@ -60,6 +60,12 @@ pub fn methods() -> Vec<Method> {
             Effect::Read,
             run::export,
         ),
+        method(
+            "report.exportCsv",
+            "Run a net or category chart and return its data as CSV, as GnuCash's CSV export of those charts writes it.",
+            Effect::Read,
+            run::export_csv,
+        ),
         method("report.styleSheets", "Style sheet templates and style sheets, with their options.", Effect::Read, style_sheets::list),
     ];
     let configuration = [
@@ -173,6 +179,9 @@ pub struct ReportInfo {
     pub menu_tip: Option<String>,
     /// Whether the template shows in menus; `false` for a saved configuration.
     pub in_menu: bool,
+    /// The exports offered besides HTML: `["csv"]` for the net and category charts (`report.exportCsv`), and for a
+    /// saved configuration of one.
+    pub export_types: Vec<String>,
 }
 
 impl ReportInfo {
@@ -187,6 +196,7 @@ impl ReportInfo {
             menu_name: t.menu_name.clone(),
             menu_tip: t.menu_tip.clone(),
             in_menu: t.in_menu,
+            export_types: t.export_types.clone(),
         }
     }
 
@@ -201,6 +211,7 @@ impl ReportInfo {
             menu_name: None,
             menu_tip: None,
             in_menu: false,
+            export_types: template.map(|t| t.export_types.clone()).unwrap_or_default(),
         }
     }
 }
@@ -367,6 +378,7 @@ impl Reports {
             accounting_period: &self.period,
             fiscal_year_end: self.fiscal_year_end,
             style_sheets,
+            export: None,
         }
     }
 }

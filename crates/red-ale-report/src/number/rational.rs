@@ -141,6 +141,11 @@ impl fmt::Display for Rounding {
 pub struct Rational(BigRational);
 
 impl Rational {
+    /// The value as a `BigRational`.
+    pub(crate) fn as_big(&self) -> &BigRational {
+        &self.0
+    }
+
     /// Zero.
     pub fn zero() -> Self {
         Self(BigRational::zero())
