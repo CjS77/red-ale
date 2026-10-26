@@ -107,6 +107,10 @@ fn an_account_export_recreates_the_tree_in_a_new_book() {
     let euro = row(&again, "Assets:Euro");
     assert_eq!(euro["warnings"][0]["code"], "not-updated");
     assert_eq!(euro["warnings"][0]["index"], euro["index"]);
+    let tree = new.tree();
+    let applied = new.ok("import.apply", json!({ "proposal": again["id"] }));
+    assert_eq!((&applied["accounts"]["created"], &applied["accounts"]["updated"]), (&json!([]), &json!([])));
+    assert_eq!(new.tree(), tree, "applying the second import changed nothing");
 }
 
 #[test]
@@ -171,6 +175,9 @@ fn prices_are_added_replaced_or_kept_as_gnucash_does() {
     assert_eq!(actions(&p, "prices"), ["update", "update"], "over-writing replaces the prices just imported");
     let p = b.prices(text, all_columns(), false);
     assert_eq!(actions(&p, "prices"), ["skip", "skip"], "a second import of the same file adds nothing");
+    let applied = b.ok("import.apply", json!({ "proposal": p["id"] }));
+    assert_eq!((&applied["prices"]["added"], &applied["prices"]["replaced"]), (&json!([]), &json!([])));
+    assert_eq!(b.ok("price.list", json!({ "commodity": "NASDAQ::ACME" })), list, "applying it changed no price");
 }
 
 #[test]

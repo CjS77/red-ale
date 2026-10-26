@@ -517,6 +517,10 @@ fn customers_are_created_and_updated_by_id_with_every_field() {
     assert_eq!(again["owners"][3]["id"], "000002");
     assert_eq!(again["summary"]["update"], 0);
     assert!(again["owners"].as_array().unwrap()[1..3].iter().all(|o| o["action"] == "skip" && codes_of(&o["warnings"]) == ["unchanged"]));
+    let applied = b.apply(&again, json!({ "skipErrors": true }));
+    assert_eq!(applied["owners"]["updated"], json!([]), "the rows with IDs change nothing");
+    assert_eq!(applied["owners"]["created"].as_array().unwrap().len(), 1, "a row with no ID is a new customer each time, as in GnuCash (:321-338)");
+    assert_eq!(b.ok("customer.get", json!({ "customer": c["guid"] }))["notes"], "VIP");
 }
 
 /// A header row the caller chooses to import, as GnuCash would; an inactive Owner made active; vendors' shipping

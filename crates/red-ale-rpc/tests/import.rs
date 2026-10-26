@@ -101,6 +101,9 @@ fn a_statement_is_proposed_applied_and_learned_then_imports_again_as_nothing_new
     assert_eq!(imbalance.len(), 1, "only Salary had no destination");
     assert_eq!(imbalance[0]["index"], 2);
     assert_eq!(imbalance[0]["value"], usd("-200000"));
+    let salary = b.ok("transaction.get", json!({ "guid": imbalance[0]["transaction"] }));
+    let split = salary["splits"].as_array().unwrap().iter().find(|s| s["guid"] == imbalance[0]["split"]).unwrap();
+    assert_eq!((&split["account"], &split["accountName"], &split["value"]), (&imbalance[0]["account"], &json!("Imbalance-USD"), &usd("-200000")));
     assert!(applied["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "imbalance" && w["index"] == 2));
     assert_eq!(applied["accounts"]["created"].as_array().unwrap().len(), 1);
     let bayes = applied["learned"]["bayes"].as_array().unwrap();
@@ -242,6 +245,20 @@ fn apply_is_one_mutation_all_or_nothing() {
     assert!(b.ok("importMap.list", json!({}))["entries"].as_array().unwrap().is_empty());
     let retry = json!([{ "index": 0, "account": "Expenses:Groceries" }]);
     assert_eq!(b.ok("import.apply", json!({ "proposal": p["id"], "changes": retry }))["added"].as_array().unwrap().len(), 3, "the proposal stays held");
+}
+
+/// The day-of-week token is formatted with `%A` in the locale (`5.17:gnucash/import-export/import-backend.cpp:479`), so
+/// under `fr_FR` red-ale learns `vendredi`, as a French GnuCash does, and finds the account again from it.
+#[test]
+fn the_day_token_is_learned_in_the_locales_language() {
+    let mut b = Book::new();
+    b.ok("config.set", json!({ "changes": { "locale": "fr_FR" } }));
+    let p = b.preview(MARCH, bank_layout());
+    let applied = b.ok("import.apply", json!({ "proposal": p["id"], "changes": [{ "index": 0, "account": "Expenses:Groceries" }] }));
+    assert_eq!(applied["learned"]["bayes"][0]["tokens"], json!(["vendredi", "Grocer", "Corner"]));
+    let april = "Date,Description,Amount\n2024-04-05,Corner Grocer,-12.00\n";
+    let again = b.preview(april, bank_layout());
+    assert_eq!(again["transactions"][0]["other"]["accountName"], "Expenses:Groceries", "matched through the learned tokens");
 }
 
 #[test]
