@@ -130,6 +130,16 @@ impl SavedMap {
     }
 }
 
+impl SavedMap {
+    /// The entries of `newer` over these: what saving a map over the one the Configuration holds leaves.
+    pub fn extend(&mut self, newer: SavedMap) {
+        self.accounts.extend(newer.accounts);
+        self.categories.extend(newer.categories);
+        self.payees.extend(newer.payees);
+        self.securities.extend(newer.securities);
+    }
+}
+
 /// `qif-import:read-map`: each saved entry, keyed by its QIF name. `qif-guess-map.scm:208-230`.
 fn read_map(saved: &BTreeMap<String, SavedEntry>) -> MapHash {
     saved

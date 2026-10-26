@@ -68,6 +68,10 @@ pub struct Review {
 
 /// Apply `proposal` as it stands to a copy of `book`, and report what that did. `now` and `zone` are the session's.
 pub fn review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) -> Review {
+    if let Some(qif) = &proposal.qif {
+        // The preview converted into a copy already; nothing in a QIF proposal changes before it is applied.
+        return qif.review.clone();
+    }
     let infos: Vec<TransInfo> = proposal.transactions.iter().map(|t| t.info.clone()).collect();
     let mut copy = book.clone();
     let mut env = FixedEnv::new(now, REVIEW_GUID_SEED).with_zone(zone.clone());

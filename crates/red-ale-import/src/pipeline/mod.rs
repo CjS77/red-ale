@@ -8,7 +8,8 @@
 //!
 //! Each format builds its transactions its own way ([`crate::csv::build`] for CSV) and hands them to the matcher
 //! ([`crate::matcher::match_batch`]); the proposal keeps the matcher's [`TransInfo`] for each, so applying runs the
-//! matcher's own [`crate::matcher::apply_batch`].
+//! matcher's own [`crate::matcher::apply_batch`]. QIF does not use the matcher: its proposal keeps what it converts
+//! ([`QifState`]), and applying converts again ([`crate::qif::import`]).
 
 pub mod apply;
 pub mod review;
@@ -19,12 +20,15 @@ pub use review::{ImbalanceInfo, NewAccount, Review, TransactionReview, review};
 use red_ale_core::{Date, Guid};
 
 use crate::matcher::{ImportSettings, TransInfo};
+use crate::qif::import::QifState;
 
 /// The format of an import (`design/api/import.md`, "Formats"). The formats still to come add variants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
     /// GnuCash's Import Transactions from CSV.
     CsvTransactions,
+    /// GnuCash's QIF import.
+    Qif,
 }
 
 impl Format {
@@ -32,6 +36,7 @@ impl Format {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::CsvTransactions => "csvTransactions",
+            Self::Qif => "qif",
         }
     }
 }
@@ -161,6 +166,8 @@ pub struct Proposal {
     pub transactions: Vec<ProposedTransaction>,
     /// CSV's own state.
     pub csv: Option<CsvState>,
+    /// QIF's own state: what applying converts again.
+    pub qif: Option<Box<QifState>>,
 }
 
 impl Proposal {

@@ -314,6 +314,12 @@ pub fn make_memo_display(files: &[QifFile], memo_hash: &mut MapHash, info: &[Gnc
     display_list(memo_hash, info)
 }
 
+/// `qif-import:fix-from-acct`: the account for the transactions read under none, which the user names when a file
+/// has no `!Account` record. `qif-dialog-utils.scm:694-699`.
+pub fn fix_from_acct(file: &mut QifFile, new_acct_name: &str) {
+    file.xtns.iter_mut().filter(|x| x.from_acct.is_none()).for_each(|x| x.from_acct = Some(new_acct_name.to_owned()));
+}
+
 /// `qif-import:get-account-name`: the last part of a full name. `qif-dialog-utils.scm:710-715`.
 pub fn get_account_name(fullname: &str) -> &str {
     fullname.rfind(SEP).map_or(fullname, |i| &fullname[i + SEP.len()..])
