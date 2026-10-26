@@ -208,26 +208,38 @@ service; a service added for it can name it in `keyEnv`.
 
 Each format is a parser from one service's answer to a **quote record**: the fields Finance::Quote hands GnuCash
 (`success`, `errormsg`, `last` or `nav` or `price`, `currency`, `date`, `inverted`). The parsers are an
-anti-corruption layer: no provider's field names reach the code that builds prices, which is translated from
-`gnc-quotes.cpp:546-760` and sees only quote records. Numbers are read from their text, never through a float: a
-JSON number is taken as written (`serde_json`'s `arbitrary_precision`), so `1.0945` reaches the price builder as the
-text `1.0945`, exactly as GnuCash's `property_tree` passes it on. A date is handed on as month/day/year, the form
-`calc_price_time` reads.
+anti-corruption layer (`red-ale-quotes::format`): no provider's field names reach the code that builds prices
+(`red-ale-core::ops::quotes`), which is translated from `gnc-quotes.cpp:546-760` and sees only quote records.
+Numbers are read from their text, never through a float: before `serde_json` parses an answer, every JSON number
+outside a string is quoted as written (`red-ale-quotes::json_text`), so `1.0945` reaches the price builder as the
+text `1.0945`, exactly as GnuCash's `property_tree` passes it on. `serde_json`'s `arbitrary_precision` was not used:
+Cargo turns a feature on for every crate in the build, and that one changes how every other crate's untagged and
+flattened types read numbers. A date is handed on as month/day/year, the form `calc_price_time` reads; a Unix time
+becomes its date in the local time zone, as Finance::Quote's `localtime` makes it.
 
-What follows is from the providers' public documentation, **docs-only**, as of October 2026. Each parser is tested
-against recorded answers, and the table is rechecked before release.
+A parser gives one of three things: a quote; the service's own "no quote" (an unknown symbol, an error message),
+as a failed record with the service's message, as Finance::Quote reports it; or an answer that is not the format's
+JSON, or a rate limit, which is a `service-error`.
+
+What follows is from the providers' public documentation, **docs-only**, as of October 2026, and from Finance::Quote
+1.70's modules where cited (`Finance::Quote 1.70: lib/Finance/Quote/*.pm`, GPL-2.0-or-later, read from an installed
+copy). Each parser is tested against recorded answers written from that documentation (`crates/red-ale-quotes/tests/fixtures`,
+none captured from a live service), and the table is rechecked before release.
 
 | Format | Default URL templates | Fields used | Notes |
 |--------|-----------------------|-------------|-------|
-| `alphavantage` | Securities: `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}`. Currencies: `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base}&to_currency={quote}&apikey={key}` | `Global Quote`: `05. price` (as `last`), `07. latest trading day` (date). `Realtime Currency Exchange Rate`: `5. Exchange Rate` (as `last`) | A security's answer has no currency: the service's `currency` setting gives it, default `USD`. Finance::Quote's AlphaVantage module guesses the currency from the symbol's exchange suffix (docs-only); check that module and translate its table before code. An answer holding only `Note`, `Information` or `Error Message` is a failure; the first two mean the rate limit |
-| `twelvedata` | Securities: `https://api.twelvedata.com/quote?symbol={symbol}&apikey={key}`. Currencies: `https://api.twelvedata.com/exchange_rate?symbol={base}/{quote}&apikey={key}` | `/quote`: `close` (as `last`), `currency`, `datetime` (date). `/exchange_rate`: `rate` (as `last`) | `{"status": "error", "code", "message"}` is a failure; code 429 is the rate limit |
-| `finnhub` | Securities: `https://finnhub.io/api/v1/quote?symbol={symbol}&token={key}` | `c` (as `last`), `t` (Unix time, for the date) | No currency in the answer: the service's `currency` setting, default `USD` (the free tier is mostly US markets). `c` and `t` both 0 means an unknown symbol. No currency rates |
+| `alphavantage` | Securities: `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}`. Currencies: `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base}&to_currency={quote}&apikey={key}` | `Global Quote`: `05. price` (as `last`), `07. latest trading day` (date). `Realtime Currency Exchange Rate`: `5. Exchange Rate` (as `last`) | A security's answer has no currency, so it is guessed from the symbol's exchange suffix with Finance::Quote's table (`AlphaVantage.pm:49-125`, `:318-347`): `.L` is `GBP`, `.TO` `CAD` and so on. A trailing `.X` asks for a pence price in pounds: it is not sent, and the price is divided by 100 exactly, as is a `.IL` price (`:197-203`). With no suffix, the service's `currency` setting, else `USD`; with a suffix the table lacks, the `currency` setting, else none (`no-currency`), as Finance::Quote leaves it. `Note` or `Information` is the rate limit (`service-error`); `Error Message`, or an empty `Global Quote`, is "no quote" (`:248-275`) |
+| `twelvedata` | Securities: `https://api.twelvedata.com/quote?symbol={symbol}&apikey={key}`. Currencies: `https://api.twelvedata.com/exchange_rate?symbol={base}/{quote}&apikey={key}` | `/quote`: `close` (as `last`), `currency`, `datetime` (date). `/exchange_rate`: `rate` (as `last`) | `{"status": "error", "code", "message"}` is "no quote", with the message (`TwelveData.pm:119-123`); code 429 is the rate limit. The date is `datetime`'s, the exchange's; Finance::Quote takes `timestamp`'s local date instead (`:143-145`), which differs only near midnight |
+| `finnhub` | Securities: `https://finnhub.io/api/v1/quote?symbol={symbol}&token={key}` | `c` (as `last`), `t` (Unix time; its local date) | No currency in the answer: the service's `currency` setting, default `USD` (the free tier is mostly US markets). `c` or `t` 0 means an unknown symbol (`Finnhub.pm:168-172`). No currency rates |
 | `frankfurter` | Currencies: `https://api.frankfurter.dev/v1/latest?base={base}&symbols={quote}` | `rates.<quote>` (as `last`) | ECB reference rates, once a working day, keyless. Currencies only |
-| `yahoo-chart` | Securities: `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d`. Currencies: the same with the symbol `{base}{quote}=X` | `chart.result[0].meta`: `regularMarketPrice` (as `last`), `currency`, `regularMarketTime` (Unix time, for the date, in `exchangeTimezoneName`) | Unofficial and best-effort; often refused with HTTP 429. Prices in `GBp` (pence) are turned into `GBP` by dividing by 100 exactly, as Finance::Quote's YahooJSON module does (docs-only). A non-null `chart.error` is a failure |
-| `json` | Set by the user | The `pointers`: `price` (as `last`), `currency`, `date` (`YYYY-MM-DD`, RFC 3339 or Unix seconds) | For services red-ale doesn't know. A `price` pointer that finds nothing is a failure; no `currency` pointer means the service's `currency` setting |
+| `yahoo-chart` | Securities: `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d`. Currencies: the same with the symbol `{base}{quote}=X` | `chart.result[0].meta`: `regularMarketPrice` (as `last`), `currency`, `regularMarketTime` (Unix time; its local date, as Finance::Quote's YahooJSON module takes it, `YahooJSON.pm:310-314`) | Unofficial and best-effort; often refused with HTTP 429. Prices in hundredths are turned into units by dividing by 100 exactly, as the YahooJSON module does (`:266-308`): `GBp` and `GBX` to `GBP`, `ZAc` to `ZAR`, `ILA` to `ILS`. A non-null `chart.error` is "no quote", with its `description` |
+| `json` | Set by the user | The `pointers`: `price` (as `last`), `currency`, `date` (`YYYY-MM-DD`, RFC 3339 (its date as written) or Unix seconds (its local date)) | For services red-ale doesn't know. A `price` pointer that finds nothing is "no quote"; no `currency` pointer means the service's `currency` setting |
 
-An HTTP status other than 2xx, a timeout or an answer that isn't the format's JSON fails that service for that
-commodity, and the next service of the source is tried.
+An HTTP status other than 2xx, a timeout, an answer that isn't the format's JSON, a rate limit or a service's "no
+quote" fails that service for that commodity, and the next service of the source is tried. A service whose URL
+template has `{key}` and that has no key is not asked at all: it fails with `service-error`, naming the setting to
+set. When no service gives a quote, the last one's failure is reported. Messages quote the URL with any key as `***`,
+and a service's own message has any key in it replaced too.
 
 ### Building prices
 
@@ -239,6 +251,10 @@ service gave:
   (`unsupported-source`), not left out silently, so a user can see why a price is missing. The default currency and
   `XXX` are left out, as in GnuCash. Commodities are fetched in id order (namespace, then mnemonic), not GnuCash's
   hash-table order, so a fetch is reproducible;
+- **the default currency** is the `defaultCurrency` setting if it names a currency of the Book's table, else the
+  Locale's currency, else `USD`, as `gnc_default_currency` falls back (`gnc-ui-util.cpp:747-780`);
+- **currencies** are asked of the `currency` source's services whatever a currency's own stored source, as GnuCash
+  asks for every currency under `currency` (`gnc-quotes.cpp:455-466`);
 - **currencies** are asked for as the rate from the currency to `defaultCurrency`, and if no service answers,
   the rate the other way, inverted, as the wrapper asks (`finance-quote-wrapper.in:151-180`). The quote record of a
   currency carries no date, as the wrapper's carries none, so a currency rate is stamped now, as in GnuCash, even when
@@ -257,6 +273,12 @@ no other method: different services are asked in parallel, each service's reques
 `minIntervalSeconds` between them. When every request has finished, the Prices are added in **one Mutation**, taking
 its turn with every other method, with `price.add`'s same-day rules applied to each, in commodity order, against the
 Book as it then is. A commodity deleted meanwhile is reported (`not-found`) and gets no Price.
+
+The requests run on a thread of their own with its own tokio runtime (`red-ale-quotes::fetch`), so a fetch works the
+same from `red-ale serve`, `red-ale mcp` and `red-ale exec`. The Mutation runs as soon as the requests are done in
+the HTTP and MCP servers, and in any case before the next method runs, whichever door it came through, so no client
+sees a Book without the prices already fetched for it ([`../architecture.md`](../architecture.md), "Quote fetches run
+beside the Book").
 
 - **One at a time.** `price.fetchQuotes` refuses with `conflict` while a Quote fetch is running.
 - **Status is kept** for the running fetch and the last 16 finished ones, until the book closes.
@@ -278,8 +300,12 @@ Book as it then is. A commodity deleted meanwhile is reported (`not-found`) and 
 | `commodities` | CommodityId[]? | Fetch these, whatever their quote flag; each needs a quote source (a currency has `currency`). Default: every commodity with quotes on and a source, as above |
 | `namespace` | string? | Only commodities in namespaces matching this pattern, case-insensitive and unanchored, as `gnucash-cli --namespace` (`5.17:gnucash/gnucash-cli.cpp:86-87`). Rust `regex` syntax, which reads ordinary POSIX extended patterns the same. Not with `commodities` |
 
-Returns `{ fetch, commodities: CommodityId[] }`: the Quote fetch's ID and the commodities it covers, in order.
-Errors: `no-book`; `read-only`; `network-disabled` (new, below) when `quotes.network` is off; `conflict` while
+Returns `{ fetch, commodities: CommodityId[] }`: the Quote fetch's ID (`quote-fetch-<n>`, never reused while the
+server runs) and the commodities it covers, in order. A named commodity that is the default currency or `XXX` is
+left out, as in GnuCash. A security keeps its quote source only while its quote flag is on (GnuCash writes it only
+then, [`commodities.md`](commodities.md)), so a security named with quotes off is `invalid`.
+Errors, checked in this order: `invalid-params` for both `commodities` and `namespace`; `no-book`; `read-only`;
+`network-disabled` (new, below) when `quotes.network` is off, before anything is planned or sent; `conflict` while
 another fetch runs; `not-found` for an unknown commodity; `invalid` for a commodity with no quote source, a pattern
 that doesn't compile, or a fetch that covers nothing (GnuCash: "GncQuotes::Fetch called with no commodities",
 `gnc-quotes.cpp:341-342`).
@@ -291,7 +317,7 @@ that doesn't compile, or a fetch that covers nothing (GnuCash: "GncQuotes::Fetch
 | Field | Meaning |
 |-------|---------|
 | `fetch` | Its ID |
-| `state` | `running`, `finished` or `cancelled` |
+| `state` | `running` (requests running, or prices not yet stored) or `finished`. A cancelled fetch is never seen: only closing the book cancels one, and its status goes with the book |
 | `started`, `finished` | Timestamps; `finished` is null while running |
 | `commodities` | One entry per commodity, in the order fetched (below) |
 | `stored`, `failed` | Counts, once finished |
@@ -301,7 +327,9 @@ Each commodity: `{ commodity, source, state, service, outcome, price, existing, 
 - `state`: `pending`, `fetched` (waiting for the Mutation), `stored` or `failed`;
 - `service`: the service that answered, or the last one tried;
 - once stored, `outcome` is `price.add`'s: `added`, `replaced`, `duplicate` or `rejected`, with `price` the new
-  `PriceInfo` and `existing` the price that kept its place or was replaced;
+  `PriceInfo` (null when rejected or a duplicate) and `existing` the same-day price that kept its place or was
+  replaced. A fetched price replaces a same-day one of equal or worse rank, so fetching twice in a day gives
+  `replaced`, not `duplicate`, as `gnc_pricedb_add_price` does;
 - once failed, `reason` is one of GnuCash's failures, `no-result`, `quote-failed`, `no-currency`, `unknown-currency`,
   `no-price`, `price-parse-failure`, or one of red-ale's: `unsupported-source` (no service), `service-error` (HTTP or
   format error, rate limit), `timeout`, `not-found` (deleted during the fetch). `message` gives the detail, such as the
@@ -324,9 +352,12 @@ red-ale exec --book books/home.gnucash price.fetchQuotes
 red-ale exec --book books/home.gnucash price.fetchQuotes namespace=NASDAQ
 ```
 
-With `exec`, `price.fetchQuotes` waits for its Quote fetch to finish, prints its final status, saves the book when a
-Price was stored, and exits with status 2 when any commodity failed, as `gnucash-cli --quotes get` does
-(`5.17:gnucash/gnucash-commands.cpp:368-372`). `call` returns at once with the ID, and `price.fetchStatus` follows it.
+With `exec`, `price.fetchQuotes`, alone or in a `--script`, waits for its Quote fetch to finish and gives the fetch's
+final status (`price.fetchStatus`'s) as its result. The book is saved as after any `exec` that changed it, so prices
+stored are saved and a fetch that stored nothing leaves the file alone. `exec` prints the status and exits with
+status 2 when any commodity got no price, as `gnucash-cli --quotes get` does
+(`5.17:gnucash/gnucash-commands.cpp:368-372`); a line on standard error says how many. `call` returns at once with
+the ID, and `price.fetchStatus` follows it.
 
 ## Deviations from GnuCash
 
@@ -336,11 +367,18 @@ Price was stored, and exits with status 2 when any commodity failed, as `gnucash
 | A commodity whose source can't be fetched | Left out silently | Reported `unsupported-source` | A missing price has a visible reason |
 | Order of requests | Hash-table order | Commodity id order | Reproducible fetches and tests |
 | Timeout | None | `quotes.timeoutSeconds` per request | A hung service can't hold the fetch |
-| Total failure from `gnucash-cli --quotes get` | Exit status 0, book saved (`gnucash-commands.cpp:374-378`) | An error, exit status 2, nothing saved | Failures are visible |
+| Total failure from `gnucash-cli --quotes get` | Exit status 0, book saved (`gnucash-commands.cpp:374-378`) | Status printed, exit status 2, nothing saved | Failures are visible |
 | Keys | Two preferences, else the inherited environment | Per service, else `keyEnv`, bound to the service's host | A key goes only where it was meant to |
 | Network | Always on | Off until the Configuration turns it on | Offline by default |
+| A quote that fails at one service | Finance::Quote's own modules decide | The next service of the source is asked | Several services can stand in for each other |
+| Twelve Data's date | `timestamp`'s local date (`TwelveData.pm:143-145`) | `datetime`'s date, the exchange's | Differs only near midnight; the exchange's day is the trading day |
 
 ## Tests
+
+Where they are: `crates/red-ale-core/src/ops/quotes.rs` (price building), `crates/red-ale-quotes/src/format/*`
+(parsers, against `crates/red-ale-quotes/tests/fixtures`), `crates/red-ale-quotes/src/plan.rs` (keys and hosts),
+`crates/red-ale-testkit/tests/quotes.rs` (end to end, against a Quote service on 127.0.0.1),
+`crates/red-ale-testkit/tests/oracle_quotes.rs` (oracle) and `crates/red-ale/tests/cli.rs` (`exec`).
 
 - **Price building:** GnuCash's own expectations from `5.17:libgnucash/app-utils/test/gtest-gnc-quotes.cpp`,
   rebuilt over quote records: exact unreduced values (`:312`), inverted currencies, the 10:59 UTC time from a date
@@ -351,4 +389,6 @@ Price was stored, and exits with status 2 when any commodity failed, as `gnucash
   cancels the fetch and stores nothing; a second `price.fetchQuotes` is `conflict`.
 - **Safety:** with `quotes.network` off nothing connects; no key appears in any result, status, log or journal; a
   URL changed to another host loses its key.
-- **Oracle:** GnuCash 5.17 reads the fetched Prices with source `Finance::Quote` and ranks them as fetched quotes.
+- **Oracle:** GnuCash 5.17 reads the fetched Prices with source `Finance::Quote` and ranks them as fetched quotes
+  (`gnc_price_get_source` is `PRICE_SOURCE_FQ`): on their day it refuses a transfer-dialog price and takes a
+  price-editor one.

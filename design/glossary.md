@@ -124,6 +124,7 @@ Code names are given in `code font` when they differ from the term.
 | **Security** | A Commodity outside the `CURRENCY` namespace. |
 | **Quote source** | The name, in Finance::Quote's vocabulary, of where a Commodity's online quotes come from (`alphavantage`, `yahoo_json`, `currency`, …), stored on the Commodity in the Book. Says *what* to fetch; a Quote service says *where from*. **⚠** Not a Quote service, and not a Price's source string. |
 | **Quote service** | A web service red-ale fetches quotes from, set in the Configuration: a URL template, a response format, an optional key and a minimum interval between requests. The Configuration maps each Quote source to the Quote services that answer it. Never stored in the Book. See [`api/quotes.md`](api/quotes.md). |
+| **Quote record** | One commodity's answer as GnuCash reads it from Finance::Quote: `success`, `errormsg`, `last`/`nav`/`price`, `currency`, `date` (month/day/year), `inverted`, every value as text. Each Quote service's answer is read into one; prices are built only from quote records (`red_ale_core::ops::quotes::QuoteRecord`). |
 | **Quote fetch** | One run of fetching quotes, started by `price.fetchQuotes`, with an ID. Its requests run in the background, outside the Book; the Prices it got are then added in one Mutation. One runs at a time; closing the book cancels it. |
 | **Price** | The value of one Commodity in another (usually a currency) at a time, with a source and a type. |
 | **Price database** (`PriceDb`) | All Prices of a Book. |

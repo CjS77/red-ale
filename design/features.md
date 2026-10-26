@@ -104,9 +104,12 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Price editor                          | Add, edit and delete prices                            |    1.6     |  0.1   |
 |   ✅   | Remove old prices                     | Thins out prices before a date, by namespace           |    2.0     |  0.1   |
 |   ❌   | Online quotes                         | Fetches prices through Finance::Quote                  |   ≤ 1.4    |        |
+|   ✅   | Online quotes (red-ale)               | Fetches prices and currency rates from Quote services, stored as GnuCash stores fetched quotes ([`api/quotes.md`](api/quotes.md)) |   ≤ 1.4    |  0.3   |
 |   ✅   | Quote source and time zone            | Per-security quote source and time zone                |    1.6     |  0.1   |
 
-*Note:* re-ale will introduce its own price fetcher in v0.3
+*Note:* red-ale fetches quotes itself, in Rust, rather than through Finance::Quote; the Book keeps Finance::Quote's
+source names and the `Finance::Quote` price source, so GnuCash reads the prices as fetched quotes. Tests:
+`crates/red-ale-testkit/tests/quotes.rs`, `oracle_quotes.rs`.
 
 ### Investments
 
