@@ -274,3 +274,86 @@ fn a_reader_closing_the_pipe_ends_output_quietly() {
         assert!(out.stderr.is_empty(), "{command}: {}", String::from_utf8_lossy(&out.stderr));
     });
 }
+
+/// Start `red-ale serve` with `args` and return it with its URL.
+fn serve_with(args: &[&str]) -> (std::process::Child, String) {
+    let mut server = Command::new(BIN).arg("serve").args(["--listen", "127.0.0.1:0"]).args(args).stderr(Stdio::piped()).spawn().unwrap();
+    let mut lines = BufReader::new(server.stderr.take().unwrap()).lines();
+    let url = lines
+        .by_ref()
+        .map_while(Result::ok)
+        .find_map(|l| l.split("serving JSON-RPC on ").nth(1).map(str::to_owned))
+        .expect("the server reports its address");
+    (server, url)
+}
+
+fn stop(mut server: std::process::Child) {
+    Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
+    assert!(server.wait().unwrap().success());
+}
+
+#[test]
+fn exec_changes_the_configuration_with_no_book() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("red-ale.json").display().to_string();
+    let set = r#"changes:={"import.settings.matchThreshold": 3, "quotes.services.finnhub.key": "SECRET-FH"}"#;
+    let out = run(&["exec", "--config", &config, "config.set", set]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(json(&out.stdout)["values"]["quotes.services.finnhub.key"], json!({ "set": true }));
+    let out = run(&["exec", "--config", &config, "config.get", "path=quotes.services.finnhub"]);
+    assert!(!String::from_utf8_lossy(&out.stdout).contains("SECRET-FH"));
+    assert_eq!(json(&out.stdout)["value"]["key"], json!({ "set": true }));
+    let out = run(&["exec", "--config", &config, "config.set", r#"changes:={"import.settings.matchThreshold": "x"}"#]);
+    assert_eq!(out.status.code(), Some(2));
+    assert_eq!(json(&out.stderr)["error"]["code"], -32602);
+    let out = run(&["exec", "--config", &config, "config.get", "path=import.settings.matchThreshold"]);
+    assert_eq!(json(&out.stdout)["value"], 3, "a failed set changed nothing");
+    let out = run(&["exec", "--create", "config.get"]);
+    assert!(!out.status.success() && String::from_utf8_lossy(&out.stderr).contains("--book"), "--create needs --book");
+}
+
+#[test]
+fn call_changes_the_configuration_of_a_running_server() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("red-ale.json").display().to_string();
+    let (server, url) = serve_with(&["--config", &config]);
+    let out = run(&["call", "--url", &url, "config.set", r#"changes:={"quotes.network": true}"#]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let out = run(&["call", "--url", &url, "config.get", "path=quotes.network"]);
+    assert_eq!(json(&out.stdout)["value"], true);
+    let out = run(&["call", "--url", &url, "config.schema"]);
+    assert_eq!(json(&out.stdout)["properties"]["quotes"]["properties"]["network"]["default"], false);
+    stop(server);
+}
+
+/// POST one JSON-RPC request of about `bytes` bytes to `url`, returning the HTTP status line.
+fn post_large(url: &str, bytes: usize) -> String {
+    use std::io::Read;
+    let padding = "x".repeat(bytes);
+    let body = format!(r#"{{"jsonrpc": "2.0", "id": 1, "method": "config.schema", "params": {{"padding": "{padding}"}}}}"#);
+    let addr = url.trim_start_matches("http://").trim_end_matches('/');
+    let mut stream = std::net::TcpStream::connect(addr).unwrap();
+    let length = body.len();
+    let head = format!("POST / HTTP/1.1\r\nHost: {addr}\r\nContent-Type: application/json\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n");
+    stream.write_all(head.as_bytes()).unwrap();
+    // The server may answer 413 and close before reading the whole body.
+    let _ = stream.write_all(body.as_bytes());
+    let mut response = String::new();
+    let _ = stream.read_to_string(&mut response);
+    response.lines().next().unwrap_or_default().to_owned()
+}
+
+#[test]
+fn the_request_size_limit_comes_from_the_configuration() {
+    let dir = tempfile::tempdir().unwrap();
+    let (server, url) = serve_with(&[]);
+    let status = post_large(&url, 12 << 20);
+    assert!(status.contains("200"), "above jsonrpsee's 10 MB default, within red-ale's 64 MiB: {status}");
+    stop(server);
+    let config = dir.path().join("red-ale.json");
+    std::fs::write(&config, r#"{"jsonRpc": {"maxRequestBytes": 1048576}}"#).unwrap();
+    let (server, url) = serve_with(&["--config", &config.display().to_string()]);
+    let status = post_large(&url, 2 << 20);
+    assert!(status.contains("413"), "{status}");
+    stop(server);
+}

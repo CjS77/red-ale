@@ -9,7 +9,9 @@ tool call runs exactly the code the HTTP server and the CLI run.
 `red-ale-mcp` is a **conformist** adapter: it takes the MCP specification's model (tools, annotations, tool results)
 as it is, and maps red-ale's published language onto it. It has no logic of its own. It never interprets params,
 never changes a result and never decides what a method may do; anything that would need that belongs in
-`red-ale-rpc` or below, so all doors get it.
+`red-ale-rpc` or below, so all doors get it. The one fact it passes on is that a call came through MCP
+(`Origin::Mcp`), since `config.set` refuses keys and the network switch to agents; the rule itself is in
+`red-ale-rpc` ([`api/configuration.md`](api/configuration.md)).
 
 It uses [`rmcp`](https://crates.io/crates/rmcp), the official Rust SDK (Apache-2.0), with the stdio transport only.
 
@@ -83,7 +85,9 @@ the adapter's own. Their defaults (not idempotent; open world) are the cautious 
 
 ## Tool calls
 
-A `tools/call` runs `Dispatcher::call(name, arguments)` on a blocking thread, one call at a time. Absent `arguments`
+A `tools/call` runs `Dispatcher::call_from(Origin::Mcp, name, arguments)` on a blocking thread, one call at a time.
+A message larger than the Configuration's `mcp.maxRequestBytes` (64 MiB by default, read at start) is dropped, as
+rmcp drops an over-long line. Absent `arguments`
 read as `{}`, as absent JSON-RPC params do.
 
 | Outcome                    | Tool result                                                                                       |

@@ -18,6 +18,11 @@ use serde_json::{Map, Value};
 
 use crate::ServiceError;
 
+pub mod schema;
+pub mod settings;
+
+pub use settings::{Applied, Problem, SettingError, SettingPath};
+
 const PERIOD: &str = "accountingPeriod";
 const DOC_LINKS: &str = "docLinks";
 const PATH_HEAD: &str = "pathHead";
@@ -195,11 +200,19 @@ impl ConfigStore {
             *self.memory.lock().unwrap_or_else(PoisonError::into_inner) = config.clone();
             return Ok(());
         };
-        let io = |e| ServiceError::Io { path: path.clone(), source: e };
-        let mut tmp = path.clone().into_os_string();
-        tmp.push(".tmp");
-        std::fs::write(&tmp, config.to_text()).map_err(io)?;
-        std::fs::rename(&tmp, path).map_err(io)
+        crate::files::replace_private_file(path, config.to_text().as_bytes())
+    }
+
+    /// The largest request the JSON-RPC server accepts (`jsonRpc.maxRequestBytes`).
+    pub fn jsonrpc_max_request_bytes(&self) -> Result<u32, ServiceError> {
+        let bytes = self.load()?.checked("jsonRpc.maxRequestBytes")?;
+        bytes.as_u64().and_then(|b| u32::try_from(b).ok()).ok_or_else(|| invalid("jsonRpc.maxRequestBytes must be a whole number of bytes"))
+    }
+
+    /// The largest request the MCP server accepts (`mcp.maxRequestBytes`).
+    pub fn mcp_max_request_bytes(&self) -> Result<usize, ServiceError> {
+        let bytes = self.load()?.checked("mcp.maxRequestBytes")?;
+        bytes.as_u64().and_then(|b| usize::try_from(b).ok()).ok_or_else(|| invalid("mcp.maxRequestBytes must be a whole number of bytes"))
     }
 }
 

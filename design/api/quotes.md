@@ -192,11 +192,13 @@ service; a service added for it can name it in `keyEnv`.
 
 - **A key never leaves the Configuration** except in the request to its own service: it is never written to the
   Book, the journal, a log, a status or an error. Errors quote URLs with the key replaced by `***`.
-- **A key is bound to its service's host.** `config.set` clears `key` when a service's URL changes to another host,
-  and an environment key (`keyEnv`) is used only while every URL of the service is on its default host. So a client
-  that can change URLs can't send a key elsewhere.
-- **Keys and `quotes.network` can't be set over MCP** (`config.set` refuses them there; see
-  [`../milestone3.md`](../milestone3.md), "The Configuration API").
+- **A key is bound to its service's host.** `config.set` clears `key`, and a `keyEnv` the file sets, when a
+  service's URL changes to another host, and a default service's environment key (`keyEnv`) is used only while every
+  URL of the service is on its default host. So a client that can change URLs can't send a key elsewhere
+  ([`configuration.md`](configuration.md)).
+- **Keys, `keyEnv` and `quotes.network` can't be set over MCP** (`config.set` refuses them there; see
+  [`../milestone3.md`](../milestone3.md), "The Configuration API"). `keyEnv` is refused because naming a variable on
+  a service of the agent's own would hand it that key.
 - **Credentials through a proxy.** A service's URL can point at a local credential proxy that adds the key itself;
   its template then has no `{key}` and red-ale holds none.
 - **Only Quote fetches use the network.** Tests never do: each format is tested against recorded answers, and one
