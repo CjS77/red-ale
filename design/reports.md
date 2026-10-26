@@ -1224,6 +1224,8 @@ drops it and needs nothing from budgets.
 | Date interval in titles under the `locale` format | ICU interval format | `<from> to <to>` | No locale |
 | CSV export of the net and category charts | Offered | Not in v0.2 | Export is v0.3 |
 | Category chart series under "Percentage chart" | Fractions, shown ×100 by Chart.js's percent style (`standard/category-barchart.scm:611`, `:622-623`) | Percentages | A `percent` axis shows its values as they are |
+| Accounts with no commodity (the trading accounts' parents in a book with no root currency, `5.17:libgnucash/engine/Scrub.cpp:493-516`) in the Balance Sheet and Income Statement | Their zero balance is added under `#f`; the exchange-rates table fails sorting the missing commodity (`report/report-utilities.scm:242-251`) | Left out of the balances and the rates table | The same figures and rates, and the report runs |
+| Statement and account-table layout | Spacer and padding cells place amounts in columns (`standard/balance-sheet.scm:444-447`, `report/html-acct-table.scm:870-923`); the two-column forms nest tables in one row | Rows with roles, depths and staircase levels; two columns are a `group` of tables | The result carries data, not markup; the renderer draws the staircase |
 | GnuCash's saved-reports and style-sheet files | Read at start-up | Not read | They are Scheme programs |
 
 ## 15. Left for later
