@@ -147,25 +147,13 @@ fn create_gains_txn(book: &mut Book, env: &mut dyn Env, sale: &Sale, gain_accoun
     edit_split(book, sale.split, |s| s.slots.set(split_slots::GAINS_SPLIT, SlotValue::Guid(lot_split_guid)))
 }
 
-/// The one other split of a gains transaction (`xaccSplitGetOtherSplit`, `5.17:libgnucash/engine/Split.cpp:2160-2185`):
-/// splits in trading accounts and cut splits are not counted.
-fn other_split(book: &Book, t: &Transaction, split: Guid) -> Option<Guid> {
-    let mut others = t.splits.iter().filter(|s| {
-        s.guid != split
-            && s.slots.get_key(split_slots::LOT_SPLIT).is_none()
-            && s.account.and_then(|a| book.account(a)).is_none_or(|a| a.account_type != AccountType::Trading)
-    });
-    let first = others.next()?;
-    if others.next().is_some() { None } else { Some(first.guid) }
-}
-
 /// Bring an existing gains transaction up to date (`5.17:libgnucash/engine/cap-gains.cpp:822-887`). A gains
 /// transaction edited to hold other than two splits is left alone. Unlike GnuCash, which rewrites every gains
 /// transaction the first time it meets it in a session, red-ale writes only when something differs.
 fn update_gains_txn(book: &mut Book, env: &mut dyn Env, sale: &Sale, lot_split: Guid) -> DomainResult<()> {
     let Some((txn, ls)) = locate(book, lot_split) else { return Ok(()) };
     let Some(t) = book.transaction(txn) else { return Ok(()) };
-    let Some(gs_guid) = other_split(book, t, lot_split) else { return Ok(()) };
+    let Some(gs_guid) = crate::ops::transactions::other_split(book, t, lot_split) else { return Ok(()) };
     let Some(gs) = t.split(gs_guid) else { return Ok(()) };
     let neg = sale.gain.neg();
     let correct = gains_source(ls) == Some(sale.split)
