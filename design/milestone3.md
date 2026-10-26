@@ -387,7 +387,7 @@ unchanged, including `<from> to <to>` in titles.
 |   ✅   | Locale data                | A committed table from glibc's locale sources; ICU4X for date intervals and week start   |
 |   ✅   | Number and date formats    | Every report renderer and `display` form follows the locale                              |
 |   ✅   | Day names in import tokens | The Bayesian day-of-week token in the locale's language (`import-backend.cpp:479`)       |
-|        | Locale collation           | Out of v0.3. Name sorting stays bytewise ([`reports.md`](reports.md) §14)               |
+|   ❌   | Locale collation           | Out of v0.3. Name sorting stays bytewise ([`reports.md`](reports.md) §14)               |
 
 The trailing point after a whole amount (`5. ACME`) does not depend on the locale; see [`reports.md`](reports.md) §3.
 
