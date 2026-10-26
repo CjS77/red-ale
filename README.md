@@ -1,4 +1,6 @@
-# red-ale
+<h1>
+  <img src="assets/logo.webp" alt="" height="96"><img src="assets/wordmark.svg" alt="red ale" height="96">
+</h1>
 
 red-ale reads and edits [GnuCash](https://www.gnucash.org) books without the GnuCash program. It has no windows: you
 drive it from the command line or from your own programs over [JSON-RPC](https://www.jsonrpc.org/specification).

@@ -1,6 +1,6 @@
 # Roadmap to parity
 
-**Status: proposed.** How red-ale gets from v0.2 to feature parity with GnuCash 5.17. v0.1 and v0.2 have their own
+**Status: proposed.** How red-ale gets from v0.3 to feature parity with GnuCash 5.17. v0.1 and v0.2 have their own
 milestone files, and v0.3 is partly decided in [`open-questions.md`](open-questions.md); the later versions are
 proposals. When a version starts, its milestone file (`milestoneN.md`) takes over from this page for that version.
 
@@ -9,14 +9,14 @@ rows are ✅. This page says which version each open row belongs to, and why in 
 
 ## Where things stand
 
-`features.md` has 180 rows. 79 are ✅ (v0.1 and the parts of v0.2 already merged), 15 are ❌ (won't do), and 86 are
-open. Of the open rows, 12 are v0.2's reports and report system, so 74 are left after v0.2.
+v0.2 is done: every row of [`milestone2.md`](milestone2.md) is ✅ and its "Done when" list holds. `features.md` has
+183 rows: 94 are ✅ (60 ported in v0.1, 34 in v0.2), 15 are ❌ (won't do), and 74 are open, all placed below.
 
 | Version | Theme                                                             | Open rows | Status                                         |
 |---------|-------------------------------------------------------------------|----------:|------------------------------------------------|
 | v0.1    | GnuCash ≤ 2.0 features on XML books; JSON-RPC and CLI             |         — | Released ([`milestone1.md`](milestone1.md))    |
-| v0.2    | MCP; reports ≤ 1.6 in Rhai; rest of books, transactions, business |        12 | In progress ([`milestone2.md`](milestone2.md)) |
-| v0.3    | Memory and scale; import and export; online quotes                |        14 | Partly decided                                 |
+| v0.2    | MCP; reports ≤ 1.6 in Rhai; rest of books, transactions, business |         — | Done ([`milestone2.md`](milestone2.md))        |
+| v0.3    | Memory and scale; import and export; online quotes                |        14 | Next; partly decided                           |
 | v0.4    | SQLite books; scheduled transactions and budgets, with reports    |        19 | Proposed                                       |
 | v0.5    | Ledgers, statements, analysis and investment reports              |        17 | Proposed                                       |
 | v0.6    | The manual; business and tax reports, invoices, PDF export        |        14 | Proposed                                       |
@@ -30,8 +30,8 @@ open. Of the open rows, 12 are v0.2's reports and report system, so 74 are left 
    used today. A refused SQL book is never touched, so waiting for SQLite costs its users access, not data.
 2. **Data before the reports that read it.** Budget reports wait for budgets, the forecast and the scheduled
    transactions summary wait for scheduled transactions.
-3. **One engine, many reports.** v0.2 builds the report engine once; v0.5 and v0.6 are mostly translation work on
-   it, split so each version is small enough to review.
+3. **One engine, many reports.** v0.2 built the report engine and 19 reports on it; v0.5 and v0.6 are mostly
+   translation work on it, split so each version is small enough to review.
 4. **Common use before niche.** Import comes first; SQLite, which needs no server, follows with scheduled transactions
    and budgets; the server databases and the setup assistants come last.
 5. **Every version is safe on its own.** A version ships only with its round-trip and oracle tests passing, and
@@ -284,7 +284,7 @@ The Dashboard (`standard/dashboard.scm`) is a preset multicolumn report of repor
 
 ## Carried forward from v0.2
 
-Known gaps in merged v0.2 work, each documented where it happens, to close in v0.3 or record as deviations:
+Known gaps in v0.2, each documented where it happens, to close in v0.3 or record as deviations:
 
 - The balance-limit check leaves out sub-accounts in other commodities; GnuCash converts them at the latest price
   ([`api/accounts.md`](api/accounts.md)).
@@ -292,3 +292,12 @@ Known gaps in merged v0.2 work, each documented where it happens, to close in v0
   fix in what red-ale writes ([`api/business-posting.md`](api/business-posting.md)).
 - Day boundaries follow zone files exactly, where GnuCash approximates daylight saving with one rule per year
   ([`api.md`](api.md)). Stored dates are unaffected.
+- Nothing pins the API as additive. At the end of v0.2, comparing the v0.1 and v0.2 `api.schema` documents found all
+  117 v0.1 methods kept, with their Effects, params, results and error codes, and 29 added; that check was a script,
+  not a test. A test against a committed 0.2 schema should keep each later 0.x version additive until v1.0 freezes
+  the API.
+- Two Rhai limits on closures are worked around by convention in the report library: a closure made inside an
+  imported module cannot be called once returned, and a module's methods cannot make closures
+  ([`../crates/red-ale-report/README.md`](../crates/red-ale-report/README.md), "Conventions a translator needs").
+  The 39 open rows of `features.md` §8 build on the same library from v0.4 on, so settle first whether these are
+  Rhai bugs to report and fix upstream or limits of how the engine sets up modules.

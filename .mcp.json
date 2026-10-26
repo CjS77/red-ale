@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "red-ale": {
+      "type": "stdio",
+      "command": "cargo",
+      "args": ["run", "--release", "--quiet", "--bin", "red-ale", "--", "mcp"]
+    }
+  }
+}
