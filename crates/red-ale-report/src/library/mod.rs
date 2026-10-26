@@ -23,6 +23,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
     "lib/exchange.rhai",
     "lib/html-utilities.rhai",
     "lib/options.rhai",
+    "standard/net-charts.rhai",
 ];
 
 /// The GUIDs and names of the GnuCash 5.17 templates red-ale translates (`design/reports.md` §11). A built-in
