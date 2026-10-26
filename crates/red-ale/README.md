@@ -19,7 +19,8 @@ route into red-ale behave the same.
 
 Params are one JSON object, or `key=value` pairs for text and `key:=json` pairs for anything else. Results go to
 standard output as JSON. Errors go to standard error, as `{"error": …}`, with exit status 2; mistakes in the command
-line itself exit with status 1.
+line itself exit with status 1. With `--output <file>`, `exec` and `call` write the `html` of a `report.export` result
+to the file and print `{title, path, bytes}` instead.
 
 ## Where it fits
 
@@ -44,6 +45,9 @@ red-ale exec --book home.gnucash --script changes.txt
 
 # Look without changing anything, and without taking the lock
 red-ale exec --book home.gnucash --read-only account.list
+
+# Export a report as one self-contained HTML file
+red-ale exec --book home.gnucash --read-only report.export report="Balance Sheet" --output balance-sheet.html
 
 # Serve the book, and talk to it from another terminal
 red-ale serve --book home.gnucash
