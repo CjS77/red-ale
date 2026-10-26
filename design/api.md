@@ -90,7 +90,11 @@ Deviations, each pinned by `oracle_time_zones.rs` or the zone tests:
 - red-ale follows a zone file's transitions exactly. GnuCash approximates the file with one rule per year
   ([`notes/time-zones.md`](notes/time-zones.md) §1), which puts local midnight an hour late on the autumn change in
   zones whose rules are in UT (most of Europe) and drops daylight saving from 2037. Stored dates are unaffected:
-  day-neutral times and local noons agree.
+  day-neutral times and local noons agree. Kept as a deviation (decided for v0.3): the zone file is the true local
+  time, and GnuCash's fit is a side effect of turning each year into one Boost rule
+  (`TimeZoneProvider::parse_file`, `5.17:libgnucash/engine/gnc-timezone.cpp:635-720`), not a rule a user relies on.
+  Matching it would mean porting that fit to put day boundaries an hour wrong once a year, and it changes only which
+  day an instant in that hour belongs to (a balance "as of" a day, a same-day price lookup), never what is written.
 - GnuCash's `GncDate` "today" reads the C library's zone, which reads a POSIX `TZ` string with the opposite sign to
   GnuCash's own; red-ale has one zone.
 - A `TZ` naming a file that is not TZif aborts GnuCash; red-ale reads it as a POSIX string, then falls back as

@@ -364,7 +364,7 @@ Each is closed in v0.3 or recorded as a deviation ([`roadmap.md`](roadmap.md), "
 |:------:|----------------------------------------------------------------------|------------------------------------------------------------------------------|
 |   ✅   | Balance-limit check leaves out sub-accounts in other commodities    | Closed: converted at the latest price, as GnuCash does; checked by the oracle |
 |   ✅   | GnuCash's business lot scrub is not an operation                     | Decided: the oracle check only, as business import never scrubs ([`api/business-posting.md`](api/business-posting.md)) |
-|        | Day boundaries follow zone files exactly                             | Record as a deviation; stored dates are unaffected                           |
+|   ✅   | Day boundaries follow zone files exactly                             | Decided: a deviation, with its reason ([`api.md`](api.md), "Dates, times and the local time zone"); stored dates are unaffected |
 |        | Nothing pins the API as additive                                     | Close: a test against a committed `redAleApi` 0.2.0 schema                   |
 |        | Two Rhai closure limits worked around by convention                  | Settle whether they are Rhai bugs to report upstream, before v0.4's reports  |
 |        | `fixtures/synthetic/rich-balance-report.html` is GnuCash 5.5 output | Label it as 5.5's, or replace it with 5.17 output when a GUI build exists    |
