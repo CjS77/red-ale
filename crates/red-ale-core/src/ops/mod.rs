@@ -14,6 +14,7 @@ pub mod doc_links;
 pub mod lots;
 pub mod period;
 pub mod prices;
+pub mod quotes;
 pub mod reconcile;
 pub mod scrub;
 pub mod trading;
