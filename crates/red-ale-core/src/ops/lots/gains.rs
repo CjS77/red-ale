@@ -147,16 +147,9 @@ fn create_gains_txn(book: &mut Book, env: &mut dyn Env, sale: &Sale, gain_accoun
     edit_split(book, sale.split, |s| s.slots.set(split_slots::GAINS_SPLIT, SlotValue::Guid(lot_split_guid)))
 }
 
-/// The one other split of a gains transaction (`xaccSplitGetOtherSplit`, `5.17:libgnucash/engine/Split.cpp:2160-2185`):
-/// splits in trading accounts and cut splits are not counted.
+/// The one other split of a gains transaction (`xaccSplitGetOtherSplit`, see [`crate::ops::transactions::other_split`]).
 fn other_split(book: &Book, t: &Transaction, split: Guid) -> Option<Guid> {
-    let mut others = t.splits.iter().filter(|s| {
-        s.guid != split
-            && s.slots.get_key(split_slots::LOT_SPLIT).is_none()
-            && s.account.and_then(|a| book.account(a)).is_none_or(|a| a.account_type != AccountType::Trading)
-    });
-    let first = others.next()?;
-    if others.next().is_some() { None } else { Some(first.guid) }
+    crate::ops::transactions::other_split(book, t, split).map(|s| s.guid)
 }
 
 /// Bring an existing gains transaction up to date (`5.17:libgnucash/engine/cap-gains.cpp:822-887`). A gains
