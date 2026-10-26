@@ -1,0 +1,380 @@
+average-balance us Account Summary	5087 99c94622bd121207
+average-balance us Assets	4588 0012c4d5b76153c6
+average-balance us Assets Over Time	5444 e7f933d71b2e1d97
+average-balance us Average Balance	3732 f39ea677e1dc6684
+average-balance us Balance Sheet	5942 74ffc0718e250a82
+average-balance us Expense Accounts	3718 f4e84af2fd11a9b0
+average-balance us Expense Over Time	3619 a351be7997a99ea0
+average-balance us Income & Expense Linechart	3635 e178c0959d3418ea
+average-balance us Income Accounts	3732 d782cc2d9ecc4cdc
+average-balance us Income Over Time	3635 e178c0959d3418ea
+average-balance us Income Statement	4869 8dcbf5ea37e271a8
+average-balance us Income/Expense Chart	3635 e178c0959d3418ea
+average-balance us Liabilities	3708 00efd7077d73fa26
+average-balance us Liabilities Over Time	3619 a351be7997a99ea0
+average-balance us Net Worth Barchart	5716 ce01866ff9368d73
+average-balance us Net Worth Linechart	5913 ed229ff95e29f958
+average-balance us Price Scatterplot	3791 90c90b6b1c7233df
+average-balance us Profit & Loss	4871 82a4e0aa9fa41f10
+average-balance us Securities	4223 7f6ee883f073de48
+average-balance locale Account Summary	5083 f8874281856ae43b
+average-balance locale Assets	4584 79ba60e3fea60d36
+average-balance locale Assets Over Time	5430 76b4bcbc84303f11
+average-balance locale Average Balance	3732 f39ea677e1dc6684
+average-balance locale Balance Sheet	5938 75844372eb43ffd6
+average-balance locale Expense Accounts	3718 f4e84af2fd11a9b0
+average-balance locale Expense Over Time	3619 a351be7997a99ea0
+average-balance locale Income & Expense Linechart	3635 e178c0959d3418ea
+average-balance locale Income Accounts	3732 d782cc2d9ecc4cdc
+average-balance locale Income Over Time	3635 e178c0959d3418ea
+average-balance locale Income Statement	4861 71f297198a225cc0
+average-balance locale Income/Expense Chart	3635 e178c0959d3418ea
+average-balance locale Liabilities	3708 00efd7077d73fa26
+average-balance locale Liabilities Over Time	3619 a351be7997a99ea0
+average-balance locale Net Worth Barchart	5700 f9ef7b3208b53fa7
+average-balance locale Net Worth Linechart	5897 2a4b08c391ba3d90
+average-balance locale Price Scatterplot	3791 90c90b6b1c7233df
+average-balance locale Profit & Loss	4863 68249d4e63cc3e90
+average-balance locale Securities	4219 8ac23f460d071c28
+balsheet-pnl us Account Summary	7555 833ce4337f7bed25
+balsheet-pnl us Assets	4231 7e3818e5aaeebf05
+balsheet-pnl us Assets Over Time	5061 e33d2db9537d8be7
+balsheet-pnl us Average Balance	3732 f39ea677e1dc6684
+balsheet-pnl us Balance Sheet	8564 52e6c452662af17c
+balsheet-pnl us Expense Accounts	3718 f4e84af2fd11a9b0
+balsheet-pnl us Expense Over Time	3619 a351be7997a99ea0
+balsheet-pnl us Income & Expense Linechart	3635 e178c0959d3418ea
+balsheet-pnl us Income Accounts	3732 d782cc2d9ecc4cdc
+balsheet-pnl us Income Over Time	3635 e178c0959d3418ea
+balsheet-pnl us Income Statement	5154 fb2019b535e8cb7f
+balsheet-pnl us Income/Expense Chart	3635 e178c0959d3418ea
+balsheet-pnl us Liabilities	3724 b8fda58fce4baa60
+balsheet-pnl us Liabilities Over Time	3635 e178c0959d3418ea
+balsheet-pnl us Net Worth Barchart	5711 4b51c16c5390b549
+balsheet-pnl us Net Worth Linechart	5909 a57af526c6bdd8d4
+balsheet-pnl us Price Scatterplot	3791 90c90b6b1c7233df
+balsheet-pnl us Profit & Loss	5156 38f5c82523ad2347
+balsheet-pnl us Securities	4935 6f679c9f63525a23
+balsheet-pnl locale Account Summary	7551 3be3b7e79fd65d99
+balsheet-pnl locale Assets	4227 7e3fa3755a6e29f5
+balsheet-pnl locale Assets Over Time	5049 c9591bcce705e2c7
+balsheet-pnl locale Average Balance	3732 f39ea677e1dc6684
+balsheet-pnl locale Balance Sheet	8560 d47ffa4830aa28f8
+balsheet-pnl locale Expense Accounts	3718 f4e84af2fd11a9b0
+balsheet-pnl locale Expense Over Time	3619 a351be7997a99ea0
+balsheet-pnl locale Income & Expense Linechart	3635 e178c0959d3418ea
+balsheet-pnl locale Income Accounts	3732 d782cc2d9ecc4cdc
+balsheet-pnl locale Income Over Time	3635 e178c0959d3418ea
+balsheet-pnl locale Income Statement	5146 f5ac9f487a401b37
+balsheet-pnl locale Income/Expense Chart	3635 e178c0959d3418ea
+balsheet-pnl locale Liabilities	3724 b8fda58fce4baa60
+balsheet-pnl locale Liabilities Over Time	3635 e178c0959d3418ea
+balsheet-pnl locale Net Worth Barchart	5695 f701e9ab6fecb239
+balsheet-pnl locale Net Worth Linechart	5893 5722af40776a21a8
+balsheet-pnl locale Price Scatterplot	3791 90c90b6b1c7233df
+balsheet-pnl locale Profit & Loss	5148 070208cdbe68c1c7
+balsheet-pnl locale Securities	4931 312e5f4dc08913f3
+category-average us Account Summary	4753 563de5601d2bf03f
+category-average us Assets	4220 a84cc4aaa8b877ef
+category-average us Assets Over Time	5175 d4b3243fbbb47b33
+category-average us Average Balance	3732 f39ea677e1dc6684
+category-average us Balance Sheet	5393 bdb1e4197449d9f8
+category-average us Expense Accounts	3734 4694ff36f21b15ba
+category-average us Expense Over Time	3635 e178c0959d3418ea
+category-average us Income & Expense Linechart	3635 e178c0959d3418ea
+category-average us Income Accounts	3732 d782cc2d9ecc4cdc
+category-average us Income Over Time	3635 e178c0959d3418ea
+category-average us Income Statement	5138 6ba2daf15d7e4cc8
+category-average us Income/Expense Chart	3635 e178c0959d3418ea
+category-average us Liabilities	3708 00efd7077d73fa26
+category-average us Liabilities Over Time	3619 a351be7997a99ea0
+category-average us Net Worth Barchart	5707 2786de1b6b16d21e
+category-average us Net Worth Linechart	5906 3ce2746904bf09af
+category-average us Price Scatterplot	3791 90c90b6b1c7233df
+category-average us Profit & Loss	5140 d94ed376ac913b70
+category-average us Securities	4233 8ddf5bb2226f70cb
+category-average locale Account Summary	4749 c99e4639c40b7f0b
+category-average locale Assets	4216 3435c99e3dd58007
+category-average locale Assets Over Time	5163 9d0c195646a987ab
+category-average locale Average Balance	3732 f39ea677e1dc6684
+category-average locale Balance Sheet	5389 466a2354b5d8475c
+category-average locale Expense Accounts	3734 4694ff36f21b15ba
+category-average locale Expense Over Time	3635 e178c0959d3418ea
+category-average locale Income & Expense Linechart	3635 e178c0959d3418ea
+category-average locale Income Accounts	3732 d782cc2d9ecc4cdc
+category-average locale Income Over Time	3635 e178c0959d3418ea
+category-average locale Income Statement	5130 0620b3b9b4b5e7c0
+category-average locale Income/Expense Chart	3635 e178c0959d3418ea
+category-average locale Liabilities	3708 00efd7077d73fa26
+category-average locale Liabilities Over Time	3619 a351be7997a99ea0
+category-average locale Net Worth Barchart	5691 101ff530d47d770a
+category-average locale Net Worth Linechart	5890 9eccd59d5fb41df3
+category-average locale Price Scatterplot	3791 90c90b6b1c7233df
+category-average locale Profit & Loss	5132 4283463a4ef139f0
+category-average locale Securities	4229 be54bfc98837998b
+category-daily us Account Summary	4749 adee1a15c8b70b9f
+category-daily us Assets	4219 5753bb7c1b591082
+category-daily us Assets Over Time	5074 a52365f96dec114e
+category-daily us Average Balance	4814 8dcd71ba90ec41e6
+category-daily us Balance Sheet	5383 cf5bb1399a29a24c
+category-daily us Expense Accounts	3734 4694ff36f21b15ba
+category-daily us Expense Over Time	3635 e178c0959d3418ea
+category-daily us Income & Expense Linechart	5759 89f25e013aad4ac1
+category-daily us Income Accounts	4256 2171552d7ac97c68
+category-daily us Income Over Time	5045 104e39d6bb3de89b
+category-daily us Income Statement	5146 330121022853e017
+category-daily us Income/Expense Chart	5544 877f6e9f146300dc
+category-daily us Liabilities	3708 00efd7077d73fa26
+category-daily us Liabilities Over Time	3619 a351be7997a99ea0
+category-daily us Net Worth Barchart	5596 f756e531597b2a8e
+category-daily us Net Worth Linechart	5795 89410dabca1be545
+category-daily us Price Scatterplot	3791 90c90b6b1c7233df
+category-daily us Profit & Loss	5148 e2187293293c66df
+category-daily us Securities	4223 24b23369b0725a57
+category-daily locale Account Summary	4745 058479428e36f38b
+category-daily locale Assets	4215 3909c617a4a40a1e
+category-daily locale Assets Over Time	5062 c341962fda9b6206
+category-daily locale Average Balance	4810 387faae98a7e0256
+category-daily locale Balance Sheet	5379 36d487ba9c67cd20
+category-daily locale Expense Accounts	3734 4694ff36f21b15ba
+category-daily locale Expense Over Time	3635 e178c0959d3418ea
+category-daily locale Income & Expense Linechart	5743 18649df752dc0b01
+category-daily locale Income Accounts	4248 abf2d07054215908
+category-daily locale Income Over Time	5033 3cbd6bb66746010b
+category-daily locale Income Statement	5138 523d6c429bffb88f
+category-daily locale Income/Expense Chart	5528 b363aaa27f0af448
+category-daily locale Liabilities	3708 00efd7077d73fa26
+category-daily locale Liabilities Over Time	3619 a351be7997a99ea0
+category-daily locale Net Worth Barchart	5580 baca57af30f9aaa2
+category-daily locale Net Worth Linechart	5779 99d20a02a1555261
+category-daily locale Price Scatterplot	3791 90c90b6b1c7233df
+category-daily locale Profit & Loss	5140 413994ca70ad355f
+category-daily locale Securities	4219 1e7d9422a0bcd1b3
+category-liability us Account Summary	4754 4727bddf64871859
+category-liability us Assets	4219 b285e56747b57d03
+category-liability us Assets Over Time	5074 d14d112c252a167f
+category-liability us Average Balance	3732 f39ea677e1dc6684
+category-liability us Balance Sheet	5654 1fadf285aef7a242
+category-liability us Expense Accounts	3718 f4e84af2fd11a9b0
+category-liability us Expense Over Time	3619 a351be7997a99ea0
+category-liability us Income & Expense Linechart	3635 e178c0959d3418ea
+category-liability us Income Accounts	3732 d782cc2d9ecc4cdc
+category-liability us Income Over Time	3635 e178c0959d3418ea
+category-liability us Income Statement	4872 37904d5f3976d460
+category-liability us Income/Expense Chart	3635 e178c0959d3418ea
+category-liability us Liabilities	4234 482d3b6f29b95e2e
+category-liability us Liabilities Over Time	5081 01702ff7aa9cf18d
+category-liability us Net Worth Barchart	5664 9ae51633d4394b62
+category-liability us Net Worth Linechart	5861 e0838ce947960f95
+category-liability us Price Scatterplot	3791 90c90b6b1c7233df
+category-liability us Profit & Loss	4874 33c6d1d6ae1b7128
+category-liability us Securities	4223 ad2b2e3010506ef6
+category-liability locale Account Summary	4750 76c303b4b4dd1e7d
+category-liability locale Assets	4215 ae6f790d982ed903
+category-liability locale Assets Over Time	5062 0ce170efa3bb6ddf
+category-liability locale Average Balance	3732 f39ea677e1dc6684
+category-liability locale Balance Sheet	5650 29e01e0f6404dec6
+category-liability locale Expense Accounts	3718 f4e84af2fd11a9b0
+category-liability locale Expense Over Time	3619 a351be7997a99ea0
+category-liability locale Income & Expense Linechart	3635 e178c0959d3418ea
+category-liability locale Income Accounts	3732 d782cc2d9ecc4cdc
+category-liability locale Income Over Time	3635 e178c0959d3418ea
+category-liability locale Income Statement	4864 1b71f6a8b24b6e18
+category-liability locale Income/Expense Chart	3635 e178c0959d3418ea
+category-liability locale Liabilities	4230 8d8f1044f29aadde
+category-liability locale Liabilities Over Time	5069 4173771f2f9d5ed1
+category-liability locale Net Worth Barchart	5648 b5f1df5c8942800e
+category-liability locale Net Worth Linechart	5845 3e3d188ea7a7ac65
+category-liability locale Price Scatterplot	3791 90c90b6b1c7233df
+category-liability locale Profit & Loss	4866 16bd708cf0a97ba8
+category-liability locale Securities	4219 77fa036b41bb9226
+category-multi us Account Summary	6606 c643b0fafabc5ce0
+category-multi us Assets	3714 1bce7523f0437efe
+category-multi us Assets Over Time	5355 8223958bf9edb435
+category-multi us Average Balance	5072 aa7957b42a2f436a
+category-multi us Balance Sheet	5677 8deba1bd552184dd
+category-multi us Expense Accounts	5257 0d8ecb57013f26e2
+category-multi us Expense Over Time	5768 d851250bf4caa865
+category-multi us Income & Expense Linechart	6266 dffa8e40c7384c9a
+category-multi us Income Accounts	3716 c3b95587947ed402
+category-multi us Income Over Time	3619 a351be7997a99ea0
+category-multi us Income Statement	6554 913d078e524d77cc
+category-multi us Income/Expense Chart	6046 a1eb93d221345ae2
+category-multi us Liabilities	3708 00efd7077d73fa26
+category-multi us Liabilities Over Time	3619 a351be7997a99ea0
+category-multi us Net Worth Barchart	5881 f87804f0fff3719e
+category-multi us Net Worth Linechart	6090 4c0f0d4042242577
+category-multi us Price Scatterplot	3791 90c90b6b1c7233df
+category-multi us Profit & Loss	6556 082e08eda29863c4
+category-multi us Securities	3722 4996becb12ae5992
+category-multi locale Account Summary	6602 ad6411c024829b3c
+category-multi locale Assets	3714 1bce7523f0437efe
+category-multi locale Assets Over Time	5343 58dfc50a44c0174d
+category-multi locale Average Balance	5068 9496fb44b4a87856
+category-multi locale Balance Sheet	5673 4ef453a64224ca51
+category-multi locale Expense Accounts	5249 58e81b7722e118ba
+category-multi locale Expense Over Time	5750 7738cc06b1ea58c7
+category-multi locale Income & Expense Linechart	6250 ecffe737cc7110be
+category-multi locale Income Accounts	3716 c3b95587947ed402
+category-multi locale Income Over Time	3619 a351be7997a99ea0
+category-multi locale Income Statement	6546 d6eb4e125f87f334
+category-multi locale Income/Expense Chart	6030 d43c0cbed2caacf6
+category-multi locale Liabilities	3708 00efd7077d73fa26
+category-multi locale Liabilities Over Time	3619 a351be7997a99ea0
+category-multi locale Net Worth Barchart	5865 543dd972e25c632e
+category-multi locale Net Worth Linechart	6074 de0c59d30e05ac63
+category-multi locale Price Scatterplot	3791 90c90b6b1c7233df
+category-multi locale Profit & Loss	6548 5440c14f54883244
+category-multi locale Securities	3722 4996becb12ae5992
+charts-daily us Account Summary	6936 d1be7a5f24b2f023
+charts-daily us Assets	4221 8eaa0066a649990e
+charts-daily us Assets Over Time	5012 0aa0404f2c55cc05
+charts-daily us Average Balance	3732 f39ea677e1dc6684
+charts-daily us Balance Sheet	7319 87fe7fbf39469b91
+charts-daily us Expense Accounts	3734 4694ff36f21b15ba
+charts-daily us Expense Over Time	3635 e178c0959d3418ea
+charts-daily us Income & Expense Linechart	3635 e178c0959d3418ea
+charts-daily us Income Accounts	3732 d782cc2d9ecc4cdc
+charts-daily us Income Over Time	3635 e178c0959d3418ea
+charts-daily us Income Statement	5134 58b722b6f3e15ddf
+charts-daily us Income/Expense Chart	3635 e178c0959d3418ea
+charts-daily us Liabilities	3724 b8fda58fce4baa60
+charts-daily us Liabilities Over Time	3635 e178c0959d3418ea
+charts-daily us Net Worth Barchart	5648 e99b0df21f092d10
+charts-daily us Net Worth Linechart	5847 370a0c02292f19fa
+charts-daily us Price Scatterplot	3791 90c90b6b1c7233df
+charts-daily us Profit & Loss	5136 aa872e6ad2312107
+charts-daily us Securities	4233 a6d3ad75e86e6a6b
+charts-daily locale Account Summary	6932 700d093bbdbba867
+charts-daily locale Assets	4217 d7da75879cb64446
+charts-daily locale Assets Over Time	5000 f89903806986aadd
+charts-daily locale Average Balance	3732 f39ea677e1dc6684
+charts-daily locale Balance Sheet	7315 662493f1d6c79e2d
+charts-daily locale Expense Accounts	3734 4694ff36f21b15ba
+charts-daily locale Expense Over Time	3635 e178c0959d3418ea
+charts-daily locale Income & Expense Linechart	3635 e178c0959d3418ea
+charts-daily locale Income Accounts	3732 d782cc2d9ecc4cdc
+charts-daily locale Income Over Time	3635 e178c0959d3418ea
+charts-daily locale Income Statement	5126 5dfff09c4515efd7
+charts-daily locale Income/Expense Chart	3635 e178c0959d3418ea
+charts-daily locale Liabilities	3724 b8fda58fce4baa60
+charts-daily locale Liabilities Over Time	3635 e178c0959d3418ea
+charts-daily locale Net Worth Barchart	5632 c896121df7ad6078
+charts-daily locale Net Worth Linechart	5831 ec89f39d849ad12a
+charts-daily locale Price Scatterplot	3791 90c90b6b1c7233df
+charts-daily locale Profit & Loss	5128 ecc01464e24a7787
+charts-daily locale Securities	4229 a5ab33d446cab863
+charts-net us Account Summary	6929 e83c43a405a99155
+charts-net us Assets	4211 8b6a995859c089bf
+charts-net us Assets Over Time	5176 e8dc1248cb9b3d31
+charts-net us Average Balance	3732 f39ea677e1dc6684
+charts-net us Balance Sheet	7306 2040b09b0f83690f
+charts-net us Expense Accounts	3734 4694ff36f21b15ba
+charts-net us Expense Over Time	3635 e178c0959d3418ea
+charts-net us Income & Expense Linechart	3635 e178c0959d3418ea
+charts-net us Income Accounts	3732 d782cc2d9ecc4cdc
+charts-net us Income Over Time	3635 e178c0959d3418ea
+charts-net us Income Statement	5134 58b722b6f3e15ddf
+charts-net us Income/Expense Chart	3635 e178c0959d3418ea
+charts-net us Liabilities	3724 b8fda58fce4baa60
+charts-net us Liabilities Over Time	3635 e178c0959d3418ea
+charts-net us Net Worth Barchart	5729 26488eb395c027eb
+charts-net us Net Worth Linechart	5926 436673e3e2f16a04
+charts-net us Price Scatterplot	3791 90c90b6b1c7233df
+charts-net us Profit & Loss	5136 aa872e6ad2312107
+charts-net us Securities	4223 f9df8907e1b9ee7b
+charts-net locale Account Summary	6925 a8b8d66f013a76d1
+charts-net locale Assets	4207 171b6d85fd59653f
+charts-net locale Assets Over Time	5164 5cca3cf9052c9add
+charts-net locale Average Balance	3732 f39ea677e1dc6684
+charts-net locale Balance Sheet	7302 dbd95ab6eab3761b
+charts-net locale Expense Accounts	3734 4694ff36f21b15ba
+charts-net locale Expense Over Time	3635 e178c0959d3418ea
+charts-net locale Income & Expense Linechart	3635 e178c0959d3418ea
+charts-net locale Income Accounts	3732 d782cc2d9ecc4cdc
+charts-net locale Income Over Time	3635 e178c0959d3418ea
+charts-net locale Income Statement	5126 5dfff09c4515efd7
+charts-net locale Income/Expense Chart	3635 e178c0959d3418ea
+charts-net locale Liabilities	3724 b8fda58fce4baa60
+charts-net locale Liabilities Over Time	3635 e178c0959d3418ea
+charts-net locale Net Worth Barchart	5713 cdfb3461c3903ccb
+charts-net locale Net Worth Linechart	5910 acd4101b0d92c5c0
+charts-net locale Price Scatterplot	3791 90c90b6b1c7233df
+charts-net locale Profit & Loss	5128 ecc01464e24a7787
+charts-net locale Securities	4219 a6b6c577d6aa1953
+net-days us Account Summary	9448 e1c0811c81002225
+net-days us Assets	5528 2cb9c95f0b883325
+net-days us Assets Over Time	6329 b0da9fe2fab88972
+net-days us Average Balance	3732 f39ea677e1dc6684
+net-days us Balance Sheet	7511 b08ba49c2b0fe28f
+net-days us Expense Accounts	3734 4694ff36f21b15ba
+net-days us Expense Over Time	3635 e178c0959d3418ea
+net-days us Income & Expense Linechart	3635 e178c0959d3418ea
+net-days us Income Accounts	3732 d782cc2d9ecc4cdc
+net-days us Income Over Time	3635 e178c0959d3418ea
+net-days us Income Statement	7254 701096fa222d8eae
+net-days us Income/Expense Chart	3635 e178c0959d3418ea
+net-days us Liabilities	3724 b8fda58fce4baa60
+net-days us Liabilities Over Time	5324 79afd934a93839a6
+net-days us Net Worth Barchart	6152 85fb915f58bd1224
+net-days us Net Worth Linechart	6348 d1bb420b33c6f9ec
+net-days us Price Scatterplot	3791 90c90b6b1c7233df
+net-days us Profit & Loss	7256 48489731fc0772b6
+net-days us Securities	4223 d394d73e4f85389e
+net-days locale Account Summary	9444 2c33a39b0abce799
+net-days locale Assets	5524 9370834582273e9d
+net-days locale Assets Over Time	6309 9f8d392bb06fce8a
+net-days locale Average Balance	3732 f39ea677e1dc6684
+net-days locale Balance Sheet	7507 e29302586bd3650b
+net-days locale Expense Accounts	3734 4694ff36f21b15ba
+net-days locale Expense Over Time	3635 e178c0959d3418ea
+net-days locale Income & Expense Linechart	3635 e178c0959d3418ea
+net-days locale Income Accounts	3732 d782cc2d9ecc4cdc
+net-days locale Income Over Time	3635 e178c0959d3418ea
+net-days locale Income Statement	7246 77dfde5ea675ba06
+net-days locale Income/Expense Chart	3635 e178c0959d3418ea
+net-days locale Liabilities	3724 b8fda58fce4baa60
+net-days locale Liabilities Over Time	5310 48a39738d8b3927c
+net-days locale Net Worth Barchart	6136 0e959d346e1ffe18
+net-days locale Net Worth Linechart	6332 c019fd9d293b6864
+net-days locale Price Scatterplot	3791 90c90b6b1c7233df
+net-days locale Profit & Loss	7248 c3400575cca31936
+net-days locale Securities	4219 77cbb91aaae5407e
+test-data us Account Summary	7113 0750cadc90a84a06
+test-data us Assets	4221 41b0bad68cfe30d8
+test-data us Assets Over Time	5139 a8b695f3458ead26
+test-data us Average Balance	3732 f39ea677e1dc6684
+test-data us Balance Sheet	7283 a7bd9e28ca492205
+test-data us Expense Accounts	3734 4694ff36f21b15ba
+test-data us Expense Over Time	3635 e178c0959d3418ea
+test-data us Income & Expense Linechart	3635 e178c0959d3418ea
+test-data us Income Accounts	3732 d782cc2d9ecc4cdc
+test-data us Income Over Time	3635 e178c0959d3418ea
+test-data us Income Statement	5398 b1138c41fb8b0f91
+test-data us Income/Expense Chart	3635 e178c0959d3418ea
+test-data us Liabilities	3724 b8fda58fce4baa60
+test-data us Liabilities Over Time	3635 e178c0959d3418ea
+test-data us Net Worth Barchart	5775 7b570b1b046cbf16
+test-data us Net Worth Linechart	5974 3cfa7cfe0a3b6235
+test-data us Price Scatterplot	3791 90c90b6b1c7233df
+test-data us Profit & Loss	5400 372ab263af1379d9
+test-data us Securities	4597 4f6e0245d6406e38
+test-data locale Account Summary	7109 54d31d302d2ed972
+test-data locale Assets	4217 1c8ac3493991e418
+test-data locale Assets Over Time	5127 4d6ce85bcbc4aaca
+test-data locale Average Balance	3732 f39ea677e1dc6684
+test-data locale Balance Sheet	7279 94f5067a2496bfb9
+test-data locale Expense Accounts	3734 4694ff36f21b15ba
+test-data locale Expense Over Time	3635 e178c0959d3418ea
+test-data locale Income & Expense Linechart	3635 e178c0959d3418ea
+test-data locale Income Accounts	3732 d782cc2d9ecc4cdc
+test-data locale Income Over Time	3635 e178c0959d3418ea
+test-data locale Income Statement	5390 e3ff4e35c5b43e09
+test-data locale Income/Expense Chart	3635 e178c0959d3418ea
+test-data locale Liabilities	3724 b8fda58fce4baa60
+test-data locale Liabilities Over Time	3635 e178c0959d3418ea
+test-data locale Net Worth Barchart	5759 d7ba0419b4a981da
+test-data locale Net Worth Linechart	5958 1dcdc1a2de2e80e1
+test-data locale Price Scatterplot	3791 90c90b6b1c7233df
+test-data locale Profit & Loss	5392 638134ec3df2a059
+test-data locale Securities	4593 8913dc04fe67f7e8
