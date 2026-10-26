@@ -80,9 +80,9 @@ fn every_selected_account_at_its_depth() {
 /// ("omit-bal"), and rule_mode puts a rule above subtotals.
 #[test]
 fn subtotals_follow_their_children() {
-    let got = run(&host(), r#"
+    let got = run(&host(), r"
         show.call(table.call(env_with.call(#{ display_tree_depth: 3, parent_account_subtotal_mode: true }), assets, #{ rule_mode: true }));
-    "#);
+    ");
     check(&got, &[
         "account 0 0 Asset -",
         "account 1 1 Bank1 -",

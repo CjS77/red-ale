@@ -107,7 +107,7 @@ fn lookups_signs_and_zeros() {
 /// $0.51).
 #[test]
 fn sum_collector_commodity_rounds_each_amount_to_the_scu() {
-    let got = run(r#"
+    let got = run(r"
         let c = collectors::make_commodity_collector();
         c.add(funds, 1); c.add(gbp, 3);
         let eighth = |m, d| monetary(d, m.amount * rational(1, 8));
@@ -115,19 +115,19 @@ fn sum_collector_commodity_rounds_each_amount_to_the_scu() {
         print(`sum=${sum.amount} ${sum}`);
         print(`none=${collectors::sum_collector_commodity((), usd, eighth)} ${collectors::sum_collector_commodity(c, usd, ())}`);
         print(`empty=${collectors::sum_collector_commodity([], usd, eighth)}`);
-    "#);
+    ");
     check(&got, &["sum=1/2 $0.50", "none= ", "empty=$0.00"]);
 }
 
 /// gnc:monetary+ (RU:460-465) adds Monetaries of one commodity, and throws for any other number of commodities.
 #[test]
 fn monetary_plus_wants_one_commodity() {
-    let got = run(r#"
+    let got = run(r"
         print(`${collectors::monetary_plus([monetary(usd, 1), monetary(usd, rational(1, 2))])}`);
         for ms in [[monetary(usd, 1), monetary(gbp, 1)], []] {
             try { collectors::monetary_plus(ms); } catch (e) { print(`error: ${e}`); }
         }
-    "#);
+    ");
     check(&got, &[
         "$1.50",
         "error: monetary_plus expects 1 currency: [monetary(\"CURRENCY::USD\", \"1\"), monetary(\"CURRENCY::GBP\", \"1\")]",

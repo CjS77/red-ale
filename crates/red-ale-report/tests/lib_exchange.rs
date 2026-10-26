@@ -152,7 +152,7 @@ fn resolve_unknown_comm_follows_each_branch() {
 /// into euros is rounded to the cent by the euro conversion before the same-commodity check.
 #[test]
 fn euro_currencies_exchange_at_fixed_rates() {
-    let got = run(r#"
+    let got = run(r"
         print(`dem=${exchange::exchange_by_euro(monetary(dem, 100), eur, ())} ` +
               `usd=[${exchange::exchange_by_euro(monetary(dem, 100), usd, ())}]`);
         print(`numeric=${exchange::exchange_by_euro_numeric(dem, 100, eur, ())}`);
@@ -163,7 +163,7 @@ fn euro_currencies_exchange_at_fixed_rates() {
               `missing=${exchange::apply_exchange_fn(fx, monetary(funds, 3), usd)}`);
         print(`if-same=${exchange::exchange_if_same(monetary(usd, 1), usd)} [${exchange::exchange_if_same(monetary(usd, 1), gbp)}]`);
         print(`closure=${exchange::apply_exchange_fn(|f, d| monetary(d, f.amount * 2), monetary(gbp, 1), usd)}`);
-    "#);
+    ");
     check(&got, &[
         "dem=€51.13 usd=[]",
         "numeric=€51.13",
@@ -257,7 +257,7 @@ fn case_exchange_time_fn_exchanges_at_each_date() {
 /// The splits with two commodities, and the price lists made from them (CU:64-275).
 #[test]
 fn commodity_splits_and_price_lists() {
-    let got = run(r#"
+    let got = run(r"
         let accts = book.root().descendants_sorted();
         let all = exchange::get_all_commodity_splits(book, accts, ());
         let funds_splits = exchange::get_match_commodity_splits(book, accts, (), funds);
@@ -276,7 +276,7 @@ fn commodity_splits_and_price_lists() {
         let near = |d| exchange::pricelist_price_find_nearest(pl, d);
         print(`nearest=${near.call(at.call(1969, 1, 1))} ${near.call(at.call(1970, 1, 2) - 1)} ${near.call(at.call(1970, 1, 2))} ` +
               `${near.call(at.call(1970, 1, 4) + 1)} ${near.call(at.call(1971, 1, 1))} [${exchange::pricelist_price_find_nearest([], 0)}]`);
-    "#);
+    ");
     check(&got, &[
         "counts=18 7 17",
         "unsorted-first=earn 100GBP into $170 sorted-first=buy 100GBP at $1.30",

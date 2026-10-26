@@ -25,12 +25,12 @@ fn run(host: &Host, body: &str) -> Vec<String> {
 
 #[test]
 fn leap_years_and_month_lengths() {
-    let got = run(&Host::new(empty_book()), r#"
+    let got = run(&Host::new(empty_book()), r"
         print(`leap=${dates::leap_year(1900)} ${dates::leap_year(2000)} ${dates::leap_year(2023)} ${dates::leap_year(2024)}`);
         print(`days-in-year=${dates::days_in_year(2023)} ${dates::days_in_year(2024)}`);
         print(`days-in-month=${dates::days_in_month(1, 2023)} ${dates::days_in_month(4, 2023)} ${dates::days_in_month(2, 2023)} ` +
               `${dates::days_in_month(2, 2024)} ${dates::days_in_month(2, 1900)} [${dates::days_in_month(13, 2024)}]`);
-    "#);
+    ");
     check(&got, &["leap=false true false true", "days-in-year=365 366", "days-in-month=31 30 28 29 28 []"]);
 }
 
@@ -109,7 +109,7 @@ fn deltas_and_stepping() {
 /// gnc:make-date-list (DU:356-381): steps from the start, then the end itself; months count from the start.
 #[test]
 fn date_lists() {
-    let got = run(&Host::new(empty_book()), r#"
+    let got = run(&Host::new(empty_book()), r"
         print(`months=${isos.call(dates::make_date_list(ctx, t.call(2024, 1, 31), t.call(2024, 5, 15), dates::MonthDelta))}`);
         print(`weeks=${isos.call(dates::make_date_list(ctx, t.call(2024, 3, 1), t.call(2024, 3, 20), dates::WeekDelta))}`);
         print(`exact=${isos.call(dates::make_date_list(ctx, t.call(2024, 3, 1), t.call(2024, 3, 15), dates::WeekDelta))}`);
@@ -117,7 +117,7 @@ fn date_lists() {
         print(`quarters=${isos.call(dates::make_date_list(ctx, t.call(2023, 11, 30), t.call(2024, 6, 1), dates::QuarterDelta))}`);
         print(`same=${isos.call(dates::make_date_list(ctx, t.call(2024, 3, 1), t.call(2024, 3, 1), dates::DayDelta))}`);
         print(`thirty=${isos.call(dates::make_date_list(ctx, t.call(2024, 1, 31), t.call(2024, 3, 2), dates::ThirtyDayDelta))}`);
-    "#);
+    ");
     check(&got, &[
         "months=[\"2024-01-31 10:59:00\", \"2024-02-29 10:59:00\", \"2024-03-31 10:59:00\", \"2024-04-30 10:59:00\", \
          \"2024-05-15 10:59:00\"]",
@@ -137,9 +137,9 @@ fn date_lists() {
 fn local_days_follow_the_zone() {
     let mut host = Host::new(empty_book());
     host.zone = TimeZone::fixed(14 * 3600).unwrap();
-    let got = run(&host, r#"
+    let got = run(&host, r"
         print(`${iso.call(dates::time64_start_day_time(ctx, ctx.now))} ${dates::time64_start_day_time(ctx, ctx.now)}`);
         print(`${dates::date_to_month_fraction(ctx, ctx.now)}`);
-    "#);
+    ");
     check(&got, &["2024-03-16 00:00:00 1710496800", "20165/31"]);
 }
