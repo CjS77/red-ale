@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use red_ale_core::{Book, Env, Guid};
 use red_ale_import::csv::build::{BuildContext, CsvBuild, build};
-use red_ale_import::csv::{DateContext, MonetaryLocale, ParseContext, TxImport, TxLayout, tokenize};
+use red_ale_import::csv::{DateContext, MonetaryLocale, ParseContext, TxImport, TxLayout, locale_parser, tokenize};
 use red_ale_import::matcher::{ImportSettings, ImportedTransaction, match_batch};
 use red_ale_import::pipeline::{CsvState, Format, Proposal, ProposedTransaction, Warning, review};
 use red_ale_locale::Locale;
@@ -63,8 +63,9 @@ pub(super) fn propose(book: &Book, env: &mut dyn Env, files: &[ImportFile], para
     let base = base_account(book, layout, params.base_account)?;
     let today = env.today().ok_or_else(|| invalid("the session's clock is outside the calendar"))?;
     let monetary = choices.locale.monetary();
+    let locale_date = locale_parser(&choices.locale, today);
     let ctx = ParseContext {
-        dates: DateContext { today, locale_date: None },
+        dates: DateContext { today, locale_date: Some(&locale_date) },
         monetary: MonetaryLocale::from_lconv(monetary.negative_sign, monetary.mon_decimal_point, monetary.mon_thousands_sep, monetary.positive_sign),
     };
     let import = TxImport::parse(rows, layout, &ctx);
@@ -93,13 +94,11 @@ fn matched(book: &Book, built: CsvBuild, choices: &Choices, threshold: Option<re
         .filter_map(|info| sources.get(info.index).map(|source| ProposedTransaction { source: *source, info }))
         .collect();
     Ok(Proposal {
-        format: Format::CsvTransactions,
-        settings: choices.settings.clone(),
-        threshold,
         ignored_lines: ignored,
         errors,
         warnings,
         transactions,
         csv: Some(CsvState { account_names }),
+        ..Proposal::empty(Format::CsvTransactions, choices.settings.clone(), threshold)
     })
 }

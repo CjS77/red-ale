@@ -16,13 +16,16 @@
 //! Numbers from the regular expression reach boost's date as C++ `int`s narrowed to `unsigned short`, so a month
 //! of 65537 is January; this is kept.
 //!
-//! The `Locale` format parses with ICU's default date format for the locale (`gregorian_date_from_locale_string`,
-//! `:684-703`). red-ale has no ICU; [`DateContext::locale_date`] supplies that parser, and without one a `Locale`
-//! date is an error.
+//! The `Locale` format parses with ICU's default date format for the LC_TIME locale
+//! (`gregorian_date_from_locale_string`, `:684-703`), with no fallback. [`DateContext::locale_date`] supplies that
+//! parser: [`locale_parser`] makes it from red-ale-locale's strict reading of ICU4X's pattern
+//! ([`red_ale_locale::LocaleDateParser`], which lists where it differs from ICU's lenient parser). Without one a
+//! `Locale` date is an error.
 
 use std::fmt;
 
 use red_ale_core::Date;
+use red_ale_locale::{CivilDate, Locale};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -93,6 +96,23 @@ impl DateFormat {
 
 /// The locale's date parser: the date the text holds, or why there is none.
 pub type LocaleDateParser<'a> = &'a dyn Fn(&str) -> Result<Date, String>;
+
+/// The parser for [`DateFormat::Locale`] under `locale`: ICU's default date pattern for its LC_TIME, read strictly.
+/// `today` places two-digit years. When the locale has no usable pattern (its calendar is not Gregorian), every date
+/// is an error saying why.
+pub fn locale_parser(locale: &Locale, today: Date) -> impl Fn(&str) -> Result<Date, String> + use<> {
+    let parser = locale.date_parser();
+    let civil = u8::try_from(today.month())
+        .ok()
+        .zip(u8::try_from(today.day()).ok())
+        .and_then(|(m, d)| CivilDate::new(today.year(), m, d));
+    move |text: &str| {
+        let parser = parser.as_ref().map_err(ToString::to_string)?;
+        let today = civil.ok_or_else(|| "today is not a calendar date".to_owned())?;
+        let found = parser.parse(text, today).map_err(|e| e.to_string())?;
+        Date::from_ymd(found.year(), u32::from(found.month()), u32::from(found.day())).ok_or_else(|| "not a calendar date".to_owned())
+    }
+}
 
 /// What a date parse needs from outside the text.
 pub struct DateContext<'a> {
@@ -453,6 +473,24 @@ mod tests {
         let locale = |_: &str| Ok(Date::from_ymd(2000, 2, 3).unwrap());
         let ctx = DateContext { locale_date: Some(&locale), ..ctx };
         assert_eq!(parse_date("x", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2000, 2, 3).unwrap()));
+    }
+
+    #[test]
+    fn locale_dates() {
+        let today = Date::from_ymd(2026, 10, 26).unwrap();
+        let ctx_for = |name: &str| Locale::by_name(name).unwrap();
+        let fr = locale_parser(&ctx_for("fr_FR"), today);
+        let ctx = DateContext { today, locale_date: Some(&fr) };
+        assert_eq!(parse_date("5 févr. 2024", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2024, 2, 5).unwrap()));
+        assert_eq!(parse_date("5 févr. 24", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2024, 2, 5).unwrap()));
+        let err = parse_date("2024-02-05", DateFormat::Locale, &ctx).unwrap_err();
+        assert_eq!(err.to_string(), "Value can't be parsed into a date using the locale's date format (d MMM y).");
+        let c = locale_parser(&Locale::c(), today);
+        let ctx = DateContext { today, locale_date: Some(&c) };
+        assert_eq!(parse_date("Mar 1, 2024", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2024, 3, 1).unwrap()));
+        let fa = locale_parser(&ctx_for("fa_IR"), today);
+        let ctx = DateContext { today, locale_date: Some(&fa) };
+        assert!(matches!(parse_date("x", DateFormat::Locale, &ctx), Err(DateError::Locale(m)) if m.contains("Persian")));
     }
 
     #[test]

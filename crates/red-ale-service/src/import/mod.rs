@@ -5,8 +5,10 @@
 //! The formats' readers, the matcher and the proposal are `red_ale_import`'s; this module reads the files and the
 //! Configuration, holds the proposals against the Book revision, and runs the Mutation.
 
+mod accounts;
 mod csv;
 pub mod file;
+mod prices;
 pub mod settings;
 mod store;
 
@@ -14,9 +16,11 @@ use std::sync::Arc;
 
 use red_ale_import::pipeline::{self, Applied, ApplyChoices, Change, Proposal, Review};
 
+pub use accounts::AccountsParams;
 pub use csv::CsvParams;
+pub use prices::PricesParams;
 pub use file::{FileContent, ImportFile};
-pub use settings::LayoutChoice;
+pub use settings::{LayoutChoice, PriceLayoutChoice};
 pub use store::{KEPT, ProposalStore};
 
 use crate::config::Config;
@@ -27,6 +31,10 @@ use crate::{ServiceError, Session};
 pub enum PreviewParams {
     /// GnuCash's Import Transactions from CSV.
     CsvTransactions(CsvParams),
+    /// GnuCash's Import Accounts from CSV.
+    CsvAccounts(AccountsParams),
+    /// GnuCash's Import Prices from CSV.
+    CsvPrices(PricesParams),
 }
 
 /// A proposal made and held.
@@ -49,6 +57,14 @@ pub fn preview(session: &mut Session, config: &Config, files: &[ImportFile], par
         PreviewParams::CsvTransactions(p) => {
             let choices = csv::Choices::read(config, &p.layout)?;
             session.query(|book, env| csv::propose(book, env, files, p, &choices))?
+        }
+        PreviewParams::CsvAccounts(p) => {
+            let settings = config.import_settings()?;
+            session.query(|book, _| accounts::propose(book, files, p, settings))?
+        }
+        PreviewParams::CsvPrices(p) => {
+            let choices = prices::Choices::read(config, &p.layout)?;
+            session.query(|book, env| prices::propose(book, env, files, p, &choices))?
         }
     };
     let review = session.query(|book, env| {

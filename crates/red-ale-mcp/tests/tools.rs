@@ -224,3 +224,33 @@ async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
     let ok = client.call("config.set", json!({ "changes": { "quotes.network": false, "import.settings.useBayes": false } })).await;
     assert_eq!(ok["isError"], false, "setting the switch to what it is changes nothing: {ok}");
 }
+
+#[tokio::test]
+async fn an_agent_imports_accounts_and_prices_from_csv() {
+    let book = TempBook::new_path();
+    let mut client = Client::start().await;
+    let created = client.call("book.create", json!({ "path": book.path_str() })).await;
+    assert_eq!(created["isError"], false, "{created}");
+
+    let accounts = "\"Type\",\"Full Account Name\",\"Account Name\",\"Account Code\",\"Description\",\"Account Color\",\"Notes\",\
+                    \"Symbol\",\"Namespace\",\"Hidden\",\"Tax Info\",\"Placeholder\"\n\
+                    ASSET,Assets,Assets,,,,,USD,CURRENCY,F,F,T\nBANK,Assets:Checking,Checking,100,,,,USD,CURRENCY,F,F,F\n";
+    let preview = client.call("import.preview", json!({ "format": "csvAccounts", "files": [{ "text": accounts }] })).await;
+    assert_eq!(preview["isError"], false, "{preview}");
+    let proposal = &preview["structuredContent"];
+    assert_eq!(proposal["accounts"].as_array().map(Vec::len), Some(2), "{proposal}");
+    let applied = client.call("import.apply", json!({ "proposal": proposal["id"] })).await;
+    assert_eq!(applied["isError"], false, "{applied}");
+
+    let commodity = json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme Corp", "fraction": 1000 });
+    assert_eq!(client.call("commodity.create", commodity).await["isError"], false);
+    let layout = json!({ "fromCommodity": "NASDAQ::ACME", "toCurrency": "USD", "columns": ["Date", "Amount"] });
+    let prices = "2024-03-01,10.5\n2024-03-04,10.75\n";
+    let preview = client.call("import.preview", json!({ "format": "csvPrices", "files": [{ "text": prices }], "layout": layout })).await;
+    assert_eq!(preview["isError"], false, "{preview}");
+    let proposal = &preview["structuredContent"];
+    assert_eq!(proposal["prices"].as_array().map(Vec::len), Some(2), "{proposal}");
+    let applied = client.call("import.apply", json!({ "proposal": proposal["id"] })).await;
+    assert_eq!(applied["isError"], false, "{applied}");
+    assert_eq!(applied["structuredContent"]["prices"]["added"].as_array().map(Vec::len), Some(2), "{applied}");
+}

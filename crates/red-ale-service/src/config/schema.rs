@@ -15,6 +15,7 @@ use std::sync::LazyLock;
 
 use red_ale_core::ops::period::{FiscalYearEnd, PeriodBound};
 use red_ale_core::{Guid, Numeric};
+use red_ale_import::csv::prices::PriceColumn;
 use red_ale_import::csv::{ColumnType, DateFormat};
 use red_ale_locale::Locale;
 use serde_json::{Map, Value, json};
@@ -210,13 +211,6 @@ fn json_rpc() -> Value {
 /// What imports keep outside the book (`design/api/import.md`): the Import settings, CSV import layouts and the QIF
 /// account map. The import work declares the layouts' and the map's contents.
 fn import() -> Value {
-    let named = |what: &str| {
-        json!({
-            "type": "object", "default": {}, "description": what,
-            "propertyNames": { "minLength": 1 },
-            "additionalProperties": { "type": "object", "additionalProperties": true },
-        })
-    };
     group(
         "Import: the matcher's settings, CSV import layouts and the QIF account map (design/api/import.md).",
         json!({
@@ -228,7 +222,12 @@ fn import() -> Value {
                 "propertyNames": { "minLength": 1 },
                 "additionalProperties": csv_layout(),
             },
-            "csvPriceLayouts": named("CSV price import layouts by name, beside the built-in ones."),
+            "csvPriceLayouts": {
+                "type": "object", "default": {},
+                "description": "CSV price import layouts by name, beside the built-in one (No Settings), which wins over one of the same name.",
+                "propertyNames": { "minLength": 1 },
+                "additionalProperties": csv_price_layout(),
+            },
             "qifAccountMap": {
                 "type": "object", "default": {}, "additionalProperties": true,
                 "description": "The QIF account map: QIF accounts, categories, payees and securities to accounts. Saved by import.apply.",
@@ -237,35 +236,65 @@ fn import() -> Value {
     )
 }
 
+/// The fields every CSV import layout has: GnuCash's `CsvImportSettings`
+/// (`5.17:gnucash/import-export/csv-imp/gnc-imp-settings-csv.cpp:50-66`).
+fn csv_common() -> Map<String, Value> {
+    let dates: Vec<&str> = DateFormat::ALL.iter().map(|f| f.name()).collect();
+    let count = |what: &str| json!({ "type": "integer", "minimum": 0, "maximum": u32::MAX, "description": what });
+    let flag = |what: &str| json!({ "type": "boolean", "description": what });
+    let common = json!({
+        "format": { "type": "string", "enum": ["csv", "fixedWidth"], "description": "Separated fields (csv, the default) or fixed widths." },
+        "separators": { "type": "string", "description": "The separator characters, any of which ends a field; default \",\"." },
+        "escape": flag("Backslash escapes in fields; default true."),
+        "columnWidths": { "type": "array", "items": count("A width in characters."), "description": "Fixed width only: each column's width." },
+        "skipStartLines": count("Lines to skip at the start, such as a header."),
+        "skipEndLines": count("Lines to skip at the end."),
+        "skipAltLines": flag("Skip every second line after the start lines."),
+        "dateFormat": { "type": "string", "enum": dates, "description": "How dates are written; default y-m-d. locale is ICU's default date format for the locale setting." },
+        "currencyFormat": { "type": "string", "enum": ["locale", "period", "comma"], "description": "How amounts are written: the Locale's, 123,456.78 (period) or 123.456,78 (comma)." },
+        "encoding": { "type": "string", "format": "encoding", "description": "The file's encoding, a WHATWG label; default UTF-8." },
+    });
+    common.as_object().cloned().unwrap_or_default()
+}
+
 /// A CSV transaction import layout: GnuCash's preset, key for key (`TxLayout`'s serde form; `design/api/import.md`,
 /// "CSV transactions"). Fields left out take GnuCash's defaults, so none is declared here.
 pub fn csv_layout() -> Value {
     let columns: Vec<&str> = ColumnType::ALL.iter().map(|t| t.gnucash_name()).chain(["Deposit", "Withdrawal", "Num"]).collect();
-    let dates: Vec<&str> = DateFormat::ALL.iter().map(|f| f.name()).collect();
-    let count = |what: &str| json!({ "type": "integer", "minimum": 0, "maximum": u32::MAX, "description": what });
-    let flag = |what: &str| json!({ "type": "boolean", "description": what });
+    let mut properties = csv_common();
+    properties.insert("multiSplit".to_owned(), json!({ "type": "boolean", "description": "Several lines make one transaction, one split per line." }));
+    properties.insert(
+        "baseAccount".to_owned(),
+        json!({
+            "type": ["string", "object", "null"],
+            "description": "Single-line mode with no Account column: every line's account, by full name or as { guid, fullName }.",
+            "properties": { "guid": { "type": "string", "format": "guid" }, "fullName": { "type": "string", "minLength": 1 } },
+        }),
+    );
+    properties.insert("columns".to_owned(), json!({ "type": "array", "items": { "type": "string", "enum": columns }, "description": "Each column's type, by GnuCash's saved name." }));
     json!({
         "type": "object",
         "description": "A CSV transaction import layout (GnuCash's import preset). Fields left out take GnuCash's defaults.",
-        "properties": {
-            "format": { "type": "string", "enum": ["csv", "fixedWidth"], "description": "Separated fields (csv, the default) or fixed widths." },
-            "separators": { "type": "string", "description": "The separator characters, any of which ends a field; default \",\"." },
-            "escape": flag("Backslash escapes in fields; default true."),
-            "columnWidths": { "type": "array", "items": count("A width in characters."), "description": "Fixed width only: each column's width." },
-            "skipStartLines": count("Lines to skip at the start, such as a header."),
-            "skipEndLines": count("Lines to skip at the end."),
-            "skipAltLines": flag("Skip every second line after the start lines."),
-            "dateFormat": { "type": "string", "enum": dates, "description": "How dates are written; default y-m-d." },
-            "currencyFormat": { "type": "string", "enum": ["locale", "period", "comma"], "description": "How amounts are written: the Locale's, 123,456.78 (period) or 123.456,78 (comma)." },
-            "encoding": { "type": "string", "format": "encoding", "description": "The file's encoding, a WHATWG label; default UTF-8." },
-            "multiSplit": flag("Several lines make one transaction, one split per line."),
-            "baseAccount": {
-                "type": ["string", "object", "null"],
-                "description": "Single-line mode with no Account column: every line's account, by full name or as { guid, fullName }.",
-                "properties": { "guid": { "type": "string", "format": "guid" }, "fullName": { "type": "string", "minLength": 1 } },
-            },
-            "columns": { "type": "array", "items": { "type": "string", "enum": columns }, "description": "Each column's type, by GnuCash's saved name." },
-        },
+        "properties": properties,
+    })
+}
+
+/// A CSV price import layout: GnuCash's price preset, key for key (`PriceLayout`'s serde form, `design/api/import.md`,
+/// "CSV prices"; `5.17:gnucash/import-export/csv-imp/gnc-imp-settings-csv-price.cpp:120-228`).
+pub fn csv_price_layout() -> Value {
+    let columns: Vec<&str> = PriceColumn::ALL.iter().map(|t| t.gnucash_name()).collect();
+    let mut properties = csv_common();
+    let commodity = |what: &str| json!({ "type": "string", "format": "commodity-id", "description": what });
+    properties.insert(
+        "fromCommodity".to_owned(),
+        commodity("GnuCash's Commodity From: the commodity of every price, NAMESPACE::MNEMONIC, in place of the From Symbol and From Namespace columns."),
+    );
+    properties.insert("toCurrency".to_owned(), commodity("GnuCash's Currency To: the currency of every price, in place of the Currency To column."));
+    properties.insert("columns".to_owned(), json!({ "type": "array", "items": { "type": "string", "enum": columns }, "description": "Each column's type, by GnuCash's saved name." }));
+    json!({
+        "type": "object",
+        "description": "A CSV price import layout (GnuCash's price import preset). Fields left out take GnuCash's defaults.",
+        "properties": properties,
     })
 }
 

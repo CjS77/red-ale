@@ -10,6 +10,8 @@
 //! - [`Conventions`]: GnuCash's view of a locale's number conventions (`gnc_localeconv`).
 //! - [`CivilDate`] and [`Weekday`]: dates in the locale's `D_FMT`, day names ([`day_name`]), the first day of the
 //!   week and date intervals.
+//! - [`LocaleDateParser`]: dates in ICU's default date pattern for the locale, which GnuCash's `Locale` date format
+//!   reads in imports ([`Locale::date_parser`]).
 //!
 //! # Where the data comes from
 //!
@@ -32,6 +34,7 @@
 mod conventions;
 mod data;
 mod date;
+mod date_parse;
 mod icu;
 mod locale;
 mod table;
@@ -39,4 +42,5 @@ mod table;
 pub use conventions::Conventions;
 pub use data::{LocaleData, Monetary, Numeric, Time};
 pub use date::{CivilDate, Weekday};
+pub use date_parse::{LocaleDateError, LocaleDateParser};
 pub use locale::{Category, Locale, LocaleError, day_name};

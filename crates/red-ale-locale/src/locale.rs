@@ -6,6 +6,7 @@ use std::fmt;
 use crate::conventions::Conventions;
 use crate::data::{LocaleData, Monetary, Numeric, Time};
 use crate::date::{self, CivilDate, Weekday};
+use crate::date_parse::{LocaleDateError, LocaleDateParser};
 use crate::icu;
 use crate::table::LOCALES;
 
@@ -186,6 +187,19 @@ impl Locale {
     /// `5.17:libgnucash/engine/gnc-date.cpp:195-215`). Sunday under C, which ICU reads as en_US_POSIX.
     pub fn first_weekday(&self) -> Weekday {
         icu::first_weekday(self.category(Category::Messages).icu)
+    }
+
+    /// ICU's default date pattern for LC_TIME, in UTS 35 syntax: `MMM d, y` under en_US and C (which ICU reads as
+    /// en_US_POSIX), `d MMM y` under fr_FR. GnuCash's `Locale` date format parses dates in imports with it
+    /// (`5.17:libgnucash/engine/gnc-datetime.cpp:653-703`). `None` when ICU has no answer.
+    pub fn icu_date_pattern(&self) -> Option<String> {
+        icu::medium_date_pattern(self.category(Category::Time).icu).map(|(pattern, _)| pattern)
+    }
+
+    /// A parser for dates in [`Locale::icu_date_pattern`], with the locale's month names: GnuCash's `Locale` date
+    /// format, read strictly (see [`LocaleDateParser`]). An error when the locale's calendar is not Gregorian.
+    pub fn date_parser(&self) -> Result<LocaleDateParser, LocaleDateError> {
+        LocaleDateParser::new(self.category(Category::Time).icu)
     }
 
     /// ICU's interval form of a date range, `1/1/2026 – 12/31/2026` under en_US
