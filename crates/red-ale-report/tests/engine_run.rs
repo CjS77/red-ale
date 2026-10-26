@@ -261,3 +261,19 @@ fn rationals_and_handles_become_their_wire_forms() {
     assert_eq!(rows[1]["cells"][0]["date"], json!("2024-03-15T12:00:00Z"));
     assert_eq!(rows[1]["cells"][1]["display"], json!("57.12 %"));
 }
+
+/// `o.default_report_currency()` is `gnc-default-report-currency`: the report settings' currency, which
+/// `lib/options`' `add_currency` defaults to (`5.17:gnucash/report/options-utilities.scm:127-134`).
+#[test]
+fn options_read_the_default_report_currency() {
+    let script = format!(
+        "fn templates() {{ [#{{ guid: \"{GUID}\", name: \"T\" }}] }}\n\
+         fn options(p, o, b) {{ o.currency(\"General\", \"Report's currency\", \"a\", \"\", o.default_report_currency()); }}\n\
+         fn render(params, book, opts, ctx) {{ #{{ title: opts.get(\"General\", \"Report's currency\").id, sections: [] }} }}"
+    );
+    let mut host = Host::new(fixture("balsheet-pnl.gnucash"));
+    let reg = registry(&[("t.rhai", &script)]);
+    assert_eq!(host.run(&reg, GUID, &json!({})).unwrap().title, "CURRENCY::USD");
+    host.settings.currency = red_ale_core::CommodityRef::currency("GBP");
+    assert_eq!(host.run(&reg, GUID, &json!({})).unwrap().title, "CURRENCY::GBP");
+}

@@ -12,7 +12,7 @@ use rhai::{Dynamic, Engine};
 use super::log::Log;
 use super::registry::Sources;
 use super::resolver::Resolver;
-use super::{context, numbers, options};
+use super::{context, memo, numbers, options};
 use crate::limits::{Limit, Limits};
 use crate::number::SizeCap;
 use crate::query::{self, Snapshot};
@@ -50,6 +50,7 @@ pub(crate) fn engine(s: &Setup) -> Engine {
     numbers::register(&mut engine, &s.snap, SizeCap::bits(s.limits.get(Limit::NumberSize)));
     query::register(&mut engine);
     context::register(&mut engine);
+    memo::register(&mut engine, s.limits.get_usize(Limit::MapSize));
     options::register_builder(&mut engine);
     options::register_reader(&mut engine);
     engine
