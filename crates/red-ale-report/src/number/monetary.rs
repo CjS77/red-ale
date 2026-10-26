@@ -3,6 +3,7 @@
 use std::ops::Neg;
 
 use red_ale_core::CommodityRef;
+use red_ale_locale::Conventions;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -56,8 +57,8 @@ impl Monetary {
 
     /// `gnc:monetary->string` (`5.17:gnucash/report/report-utilities.scm:143-146`): the exact amount with the
     /// commodity's print info and symbol, not rounded to the SCU.
-    pub fn to_display_string(&self, format: &CommodityFormat) -> String {
-        format_amount(&self.amount, &PrintInfo::commodity(format, true))
+    pub fn to_display_string(&self, format: &CommodityFormat, conv: &Conventions) -> String {
+        format_amount(&self.amount, &PrintInfo::commodity(format, true), conv)
     }
 }
 
@@ -103,8 +104,9 @@ mod tests {
     fn rounding_and_text() {
         assert_eq!(usd("2.345").round_scu(100).unwrap(), usd("2.34"));
         let format = CommodityFormat::new(CommodityRef::currency("USD"), "$", 100);
-        assert_eq!(usd("2.345").to_display_string(&format), "$2.345");
-        assert_eq!(usd("-1234").to_display_string(&format), "-$1,234.00");
+        let c = red_ale_locale::Locale::c().conventions();
+        assert_eq!(usd("2.345").to_display_string(&format, &c), "$2.345");
+        assert_eq!(usd("-1234").to_display_string(&format, &c), "-$1,234.00");
     }
 
     #[test]

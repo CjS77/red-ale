@@ -4,6 +4,7 @@
 
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::{Book, FixedEnv, Time64, TimeZone};
+use red_ale_locale::Locale;
 use red_ale_report::engine::{Registry, RunContext, ScriptSource};
 use red_ale_report::library::Library;
 use red_ale_report::limits::Limits;
@@ -63,12 +64,13 @@ pub struct Host {
     pub period: AccountingPeriod,
     pub fiscal_year_end: Option<FiscalYearEnd>,
     pub now: Time64,
+    pub locale: Locale,
 }
 
 impl Host {
     pub fn new(book: Book) -> Self {
         let (zone, settings, period) = (TimeZone::utc(), ReportSettings::default(), AccountingPeriod::default());
-        Self { book, zone, settings, period, fiscal_year_end: None, now: NOW }
+        Self { book, zone, settings, period, fiscal_year_end: None, now: NOW, locale: Locale::c() }
     }
 
     pub fn ctx(&self) -> RunContext<'_> {
@@ -77,6 +79,7 @@ impl Host {
             now: self.now,
             zone: &self.zone,
             settings: &self.settings,
+            locale: self.locale,
             accounting_period: &self.period,
             fiscal_year_end: self.fiscal_year_end,
             style_sheets: &["Default", "Easy"],

@@ -26,6 +26,10 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 clap = { version = "4.5", features = ["derive"] }
 getrandom = "0.3"
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+icu_calendar = { version = "2.4", default-features = false, features = ["compiled_data"] }
+# `range` (date intervals) is behind `unstable`, whose API may change in a minor release: pinned exactly.
+icu_datetime = { version = "=2.4.0", default-features = false, features = ["compiled_data", "unstable"] }
+icu_locale_core = "2.4"
 indexmap = "2.14"
 jiff = { version = "0.2.38", default-features = false, features = ["std"] }
 jsonrpsee = { version = "0.25", features = ["server", "http-client", "macros"] }
@@ -46,6 +50,7 @@ serde_path_to_error = "0.1.20"
 tempfile = "3.24"
 thiserror = "2.0"
 tokio = { version = "1.49", features = ["macros", "rt-multi-thread", "signal"] }
+writeable = "0.6"
 
 red-ale-core = { path = "crates/red-ale-core" }
 red-ale-import = { path = "crates/red-ale-import" }

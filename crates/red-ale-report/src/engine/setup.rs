@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use red_ale_locale::Conventions;
 use rhai::packages::{Package, StandardPackage};
 use rhai::{Dynamic, Engine};
 
@@ -28,6 +29,8 @@ pub(crate) struct Setup {
     pub limits: Limits,
     /// The report log.
     pub log: Log,
+    /// The Locale's number format, for `m.to_string()`.
+    pub conventions: Conventions,
 }
 
 /// How often, in operations, the run time is checked against the host clock.
@@ -47,7 +50,7 @@ pub(crate) fn engine(s: &Setup) -> Engine {
     limits(&mut engine, &s.limits);
     log(&mut engine, &s.log);
     engine.set_module_resolver(Resolver::new(Arc::clone(&s.sources)));
-    numbers::register(&mut engine, &s.snap, SizeCap::bits(s.limits.get(Limit::NumberSize)));
+    numbers::register(&mut engine, &s.snap, SizeCap::bits(s.limits.get(Limit::NumberSize)), s.conventions);
     query::register(&mut engine);
     context::register(&mut engine);
     memo::register(&mut engine, s.limits.get_usize(Limit::MapSize));

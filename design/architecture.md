@@ -8,13 +8,13 @@ Each bounded context is one crate with its own model. A crate uses another only 
 |-------|---------|-----|---------------|
 | `red-ale-core` | Bookkeeping domain | The Book model and its invariants, and every domain operation (post, void, scrub, lots, capital gains, invoices, payments). Pure: no I/O, no async, no file formats. | — |
 | `red-ale-xml` | XML file format | Anti-corruption layer: parses an XML Book file into a core `Book` plus the Residue it does not model, and writes them back as GnuCash 5.17 does. | core |
-| `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. | core, xml |
-| `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. | core, service, report |
+| `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. | core, xml, locale |
+| `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. | core, service, report, locale |
 | `red-ale-mcp` | MCP adapter | Conformist to the MCP specification: one tool per JSON-RPC method, served over stdio, each call run through the `Dispatcher`. No logic of its own ([`mcp.md`](mcp.md)). | rpc |
 | `red-ale` | Binary | `red-ale serve` (the JSON-RPC server), `red-ale mcp` (the MCP server) and the CLI front end. The only crate that uses `anyhow`. | rpc, mcp, service |
-| `red-ale-report` | Reports (v0.2) | The Rhai report engine and its sandbox, the read-only query API, report options, the report result (a published language), and the HTML and SVG renderer with its style sheets. Built-in report scripts are compiled in. Pure: no I/O; script sources and settings come in as values. | core |
+| `red-ale-report` | Reports (v0.2) | The Rhai report engine and its sandbox, the read-only query API, report options, the report result (a published language), and the HTML and SVG renderer with its style sheets. Built-in report scripts are compiled in. Pure: no I/O; script sources and settings come in as values. | core, locale |
 | `red-ale-import` | Import (v0.3) | The importers translated from GnuCash (CSV, QIF, business CSV), the generic import matcher, Import maps and the Import proposal. Pure: no I/O; file content, Import settings and the Book come in as values, and the service applies a proposal as one Mutation. | core, locale |
-| `red-ale-locale` | Locales (v0.3) | The Locale table generated from glibc's locale sources: number format, date formats, day names, first day of the week. Pure data and lookups. | — |
+| `red-ale-locale` | Locales (v0.3) | The Locale table generated from glibc's locale sources (number format, `D_FMT`, day and month names) and GnuCash's view of it (`gnc_localeconv`); the first day of the week and date intervals from ICU4X. Pure data and lookups: the environment comes in as a function. | — |
 | `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, and the GnuCash oracle harness. Used only by tests. | core, xml, service, rpc |
 
 The core reaches the outside world only through `Env`: the clock, fresh GUIDs and the Local time zone. The zone is a
@@ -128,4 +128,5 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `rhai` | report | report scripting (`no_float`, `no_time`; see [`reports.md`](reports.md)) |
 | `num-bigint`, `num-rational`, `num-traits`, `num-integer` | report | the unbounded exact Rational of report arithmetic |
 | `serde_path_to_error` | report | the path of a mismatch in a report result |
+| `icu_calendar`, `icu_datetime`, `icu_locale_core`, `writeable` | locale | ICU4X with its compiled CLDR data (`Unicode-3.0`): the first day of the week and the interval form of date ranges, which GnuCash asks ICU for. `icu_datetime`'s range formatter is behind its `unstable` feature, so it is pinned to an exact version |
 | `proptest`, `tempfile` | tests | property tests and temp directories |
