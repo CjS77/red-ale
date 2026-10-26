@@ -504,7 +504,7 @@ fn price_value(amount: Numeric, price: Numeric, fraction: i64) -> DomainResult<O
 }
 
 /// `gnc_account_get_currency_or_parent` (`Account.cpp:3403-3412`).
-fn currency_or_parent(book: &Book, account: &Account) -> Option<CommodityRef> {
+pub fn currency_or_parent(book: &Book, account: &Account) -> Option<CommodityRef> {
     std::iter::successors(Some(account), |a| a.parent.and_then(|p| book.account(p)))
         .find_map(|a| a.commodity.clone().filter(CommodityRef::is_currency))
 }

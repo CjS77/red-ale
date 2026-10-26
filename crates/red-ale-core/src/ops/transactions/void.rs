@@ -54,17 +54,24 @@ fn void_split(book: &Book, t_currency: &crate::CommodityRef, s: &mut Split) -> D
 pub fn void(book: &mut Book, env: &mut dyn Env, guid: Guid, reason: &str) -> DomainResult<()> {
     let mut t = get(book, guid)?.clone();
     check_voidable(&t)?;
+    void_detached(book, env.now(), &mut t, reason)?;
+    commit::commit(book, env, &mut t)?;
+    book.transactions.insert(guid, Arc::new(t));
+    Ok(())
+}
+
+/// The engine's part of `xaccTransVoid` on a transaction that need not be in the Book yet, such as one an importer
+/// built (`5.17:gnucash/import-export/csv-imp/gnc-import-tx.cpp:649-660`): no register checks and no commit.
+pub fn void_detached(book: &Book, now: Time64, t: &mut Transaction, reason: &str) -> DomainResult<()> {
     if let Some(notes) = t.slots.get_str(slot_paths::NOTES).map(str::to_owned) {
         t.slots.set(slot_paths::VOID_FORMER_NOTES, SlotValue::String(notes));
     }
     t.slots.set_opt_str(slot_paths::NOTES, Some(VOIDED_NOTES));
     t.slots.set_opt_str(slot_paths::VOID_REASON, Some(reason));
-    t.slots.set_opt_str(slot_paths::VOID_TIME, Some(&void_time_string(env.now())));
+    t.slots.set_opt_str(slot_paths::VOID_TIME, Some(&void_time_string(now)));
     let currency = t.currency.clone();
     t.splits.iter_mut().try_for_each(|s| void_split(book, &currency, s))?;
     t.slots.set_opt_str(slot_paths::READ_ONLY, Some(VOIDED_READ_ONLY));
-    commit::commit(book, env, &mut t)?;
-    book.transactions.insert(guid, Arc::new(t));
     Ok(())
 }
 
