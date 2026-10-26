@@ -1223,6 +1223,7 @@ drops it and needs nothing from budgets.
 | Name sorting | Locale collation | Bytewise | As v0.1 |
 | Date interval in titles under the `locale` format | ICU interval format | `<from> to <to>` | No locale |
 | CSV export of the net and category charts | Offered | Not in v0.2 | Export is v0.3 |
+| Category chart series under "Percentage chart" | Fractions, shown ×100 by Chart.js's percent style (`standard/category-barchart.scm:611`, `:622-623`) | Percentages | A `percent` axis shows its values as they are |
 | GnuCash's saved-reports and style-sheet files | Read at start-up | Not read | They are Scheme programs |
 
 ## 15. Left for later

@@ -1,6 +1,6 @@
 //! The report methods (`design/api/reports.md`) over user scripts in a temporary report directory, on copies of the
-//! `reports/balsheet-pnl.gnucash` fixture. The built-in library may still be empty, so every template here is a test
-//! script.
+//! `reports/balsheet-pnl.gnucash` fixture. Every template here is a test script; listings leave the built-in reports
+//! out.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::needless_pass_by_value)]
 
@@ -130,13 +130,13 @@ fn dispatcher(config: &Path) -> Dispatcher {
     d
 }
 
-/// The reports a list gives that are not built in, in order.
+/// The user templates and saved configurations of a `report.list` result, leaving out the built-in reports.
 fn listed(list: &Value) -> Vec<&Value> {
     list["reports"].as_array().unwrap().iter().filter(|r| r["kind"] != "builtin").collect()
 }
 
 fn names(list: &Value) -> Vec<&str> {
-    listed(list).into_iter().map(|r| r["name"].as_str().unwrap()).collect()
+    listed(list).iter().map(|r| r["name"].as_str().unwrap()).collect()
 }
 
 #[test]
@@ -144,16 +144,16 @@ fn list_gives_every_template_and_the_scripts_that_did_not_load() {
     let mut s = Setup::new();
     let list = s.call("report.list", json!({}));
     assert_eq!(names(&list), ["Account Listing", "Invalid", "Shared", "Spins", "Throws"]);
-    let listed = listed(&list);
-    let listing = listed[0];
+    let user = listed(&list);
+    let listing = user[0];
     assert_eq!(listing["guid"], LISTING);
     assert_eq!(listing["kind"], "user");
     assert_eq!(listing["script"], "./mine/listing.rhai");
     assert_eq!(listing["menuPath"], json!(["_Test"]));
     assert_eq!(listing["menuTip"], "Lists accounts");
     assert_eq!(listing["inMenu"], true);
-    assert_eq!(listed[2]["guid"], SHARED);
-    assert_eq!(listed[2]["inMenu"], false, "templates out of the menus are listed too");
+    assert_eq!(user[2]["guid"], SHARED);
+    assert_eq!(user[2]["inMenu"], false, "templates out of the menus are listed too");
     let problems = list["problems"].as_array().unwrap();
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert_eq!((problems[0]["source"].as_str(), problems[0]["code"].as_str()), (Some("./broken.rhai"), Some("report-load")));
