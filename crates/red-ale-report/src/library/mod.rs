@@ -15,6 +15,7 @@ macro_rules! scripts {
 /// Every built-in script: its path below `scripts/` and its text. Paths start with `lib/`, `standard/` or `example/`
 /// and end in `.rhai`. Add a line here for each new file.
 const BUILTIN: &[(&str, &str)] = scripts![
+    "lib/accounts.rhai",
     "lib/collectors.rhai",
     "lib/dates.rhai",
     "lib/exchange.rhai",
