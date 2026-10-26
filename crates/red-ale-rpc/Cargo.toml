@@ -7,9 +7,11 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+base64.workspace = true
 chrono.workspace = true
 jsonrpsee.workspace = true
 red-ale-core.workspace = true
+red-ale-import.workspace = true
 red-ale-locale.workspace = true
 red-ale-report.workspace = true
 red-ale-service.workspace = true

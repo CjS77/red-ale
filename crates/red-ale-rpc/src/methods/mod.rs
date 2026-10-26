@@ -12,6 +12,8 @@ pub mod close_book;
 pub mod commodities;
 pub mod config;
 pub mod doc_links;
+pub mod import;
+pub mod import_map;
 pub mod lots;
 pub mod period;
 pub mod prices;
@@ -40,6 +42,8 @@ pub fn all() -> Vec<Method> {
         business::methods(),
         close_book::methods(),
         reports::methods(),
+        import::methods(),
+        import_map::methods(),
     ]
     .into_iter()
     .flatten()
