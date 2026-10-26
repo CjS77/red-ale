@@ -20,6 +20,7 @@ use red_ale_locale::Locale;
 
 pub use sheet::{
     DEFAULT_STYLE_SHEET, PREDEFINED, StyleSheet, StyleSheetEntry, StyleSheetError, StyleSheetTemplate, StyleSheets, check_css,
+    left_out,
 };
 
 use look::{Line, Look};

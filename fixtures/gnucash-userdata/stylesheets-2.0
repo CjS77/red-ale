@@ -1,0 +1,138 @@
+(let ((template (gnc:html-style-sheet-template-find "Plain")))
+  (if template
+    (let ((options ((gnc:html-style-sheet-template-options-generator template))))
+
+; Section: Colors
+
+
+; Section: Fonts
+
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Background Color")))
+  ((lambda (o) (if o (gnc:option-set-value o '(255.0 250.0 240.0 255.0)))) option))
+
+
+; Section: Tables
+
+(let ((option (gnc:lookup-option options
+                                 "Tables"
+                                 "Table cell padding")))
+  ((lambda (o) (if o (gnc:option-set-value o '6.0))) option))
+
+ (gnc:restore-html-style-sheet "Default" "Plain" options))))
+(let ((template (gnc:html-style-sheet-template-find "Easy")))
+  (if template
+    (let ((options ((gnc:html-style-sheet-template-options-generator template))))
+
+; Section: Colors
+
+
+; Section: Fonts
+
+
+; Section: General
+
+
+; Section: Images
+
+
+; Section: Tables
+
+ (gnc:restore-html-style-sheet "Easy" "Easy" options))))
+(let ((template (gnc:html-style-sheet-template-find "Footer")))
+  (if template
+    (let ((options ((gnc:html-style-sheet-template-options-generator template))))
+
+; Section: Colors
+
+(let ((option (gnc:lookup-option options
+                                 "Colors"
+                                 "Text Color")))
+  ((lambda (o) (if o (gnc:option-set-value o '(0.0 0.0 128.0 255.0)))) option))
+
+
+; Section: Fonts
+
+(let ((option (gnc:lookup-option options
+                                 "Fonts"
+                                 "Title")))
+  ((lambda (o) (if o (gnc:option-set-value o "DejaVu Serif Bold 18"))) option))
+
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Footer")))
+  ((lambda (o) (if o (gnc:option-set-value o "Acme Ltd\n\"Confidential\""))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Prepared for")))
+  ((lambda (o) (if o (gnc:option-set-value o "Acme Ltd"))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Preparer")))
+  ((lambda (o) (if o (gnc:option-set-value o "A. Bookkeeper"))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Show preparer info")))
+  ((lambda (o) (if o (gnc:option-set-value o #t))) option))
+
+
+; Section: Images
+
+(let ((option (gnc:lookup-option options
+                                 "Images"
+                                 "Heading Alignment")))
+  ((lambda (o) (if o (gnc:option-set-value o 'center))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "Images"
+                                 "Logo")))
+  ((lambda (o) (if o (gnc:option-set-value o "/home/me/acme-logo.png"))) option))
+
+
+; Section: Tables
+
+(let ((option (gnc:lookup-option options
+                                 "Tables"
+                                 "Table border width")))
+  ((lambda (o) (if o (gnc:option-set-value o '2.0))) option))
+
+ (gnc:restore-html-style-sheet "Acme" "Footer" options))))
+(let ((template (gnc:html-style-sheet-template-find "Branded")))
+  (if template
+    (let ((options ((gnc:html-style-sheet-template-options-generator template))))
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Brand")))
+  ((lambda (o) (if o (gnc:option-set-value o "Acme"))) option))
+
+ (gnc:restore-html-style-sheet "Acme branded" "Branded" options))))
+(let ((template (gnc:html-style-sheet-template-find "CSS")))
+  (if template
+    (let ((options ((gnc:html-style-sheet-template-options-generator template))))
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "CSS")))
+  ((lambda (o) (if o (gnc:option-set-value o "body { color: #333; }\ntd.number-cell { font-weight: bold; }\n"))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Obsolete Option")))
+  ((lambda (o) (if o (gnc:option-set-value o #t))) option))
+
+ (gnc:restore-html-style-sheet "Plain CSS" "CSS" options))))

@@ -1,0 +1,232 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Options for saved report "Net worth, monthly", based on template "d8b63264186b11e19038001558291366"
+(let ()
+  (define (options-gen)
+    (let
+         (
+           (options (gnc:report-template-new-options/report-guid "d8b63264186b11e19038001558291366" "Net Worth Linechart"))
+           (new-embedded-report-ids '()) ;; only used with Multicolumn View Reports
+         )
+; Section: Accounts
+
+(let ((option (gnc:lookup-option options
+                                 "Accounts"
+                                 "Accounts")))
+  ((lambda (o) (if o (gnc:option-set-value o '("a0000000000000000000000000000008" "a0000000000000000000000000000006")))) option))
+
+
+; Section: Display
+
+(let ((option (gnc:lookup-option options
+                                 "Display"
+                                 "Line Width")))
+  ((lambda (o) (if o (gnc:option-set-value o '2.5))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "Display"
+                                 "Plot Width")))
+  ((lambda (o) (if o (gnc:option-set-value o '(pixels . 800)))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "Display"
+                                 "Show table")))
+  ((lambda (o) (if o (gnc:option-set-value o #t))) option))
+
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "End Date")))
+  ((lambda (o) (if o (gnc:option-set-value o '(relative . end-prev-fin-year)))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Price Source")))
+  ((lambda (o) (if o (gnc:option-set-value o 'pricedb-latest))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Report name")))
+  ((lambda (o) (if o (gnc:option-set-value o "Net worth, monthly"))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Report's currency")))
+  ((lambda (o) (if o (gnc:option-set-value o "USD"))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Start Date")))
+  ((lambda (o) (if o (gnc:option-set-value o '(absolute . 1704106740)))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Step Size")))
+  ((lambda (o) (if o (gnc:option-set-value o 'QuarterDelta))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Stylesheet")))
+  ((lambda (o) (if o (gnc:option-set-value o 'Easy))) option))
+
+
+      options
+    )
+  )
+  (gnc:define-report
+    'version 1
+    'name "Net worth, monthly"
+    'report-guid "5e1f0a2b3c4d4e5f8a9b0c1d2e3f4a5b"
+    'parent-type "d8b63264186b11e19038001558291366"
+    'options-generator options-gen
+    'menu-path (list gnc:menuname-custom)
+    'renderer (gnc:report-template-renderer/report-guid "d8b63264186b11e19038001558291366" "Net Worth Linechart")
+  )
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Options for saved report "Transactions this month", based on template "2fe3b9833af044abb929a88d5a59620f"
+(let ()
+  (define (options-gen)
+    (let
+         (
+           (options (gnc:report-template-new-options/report-guid "2fe3b9833af044abb929a88d5a59620f" "Transaction Report"))
+           (new-embedded-report-ids '()) ;; only used with Multicolumn View Reports
+         )
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Start Date")))
+  ((lambda (o) (if o (gnc:option-set-value o '(relative . start-this-month)))) option))
+
+
+; Section: __reg
+
+(let ((option (gnc:lookup-option options
+                                 "__reg"
+                                 "query")))
+  ((lambda (o) (if o (gnc:option-set-value o '(query-v2 (terms (((("account" "guid") #f guid 3 1 ("a0000000000000000000000000000006"))))) (search-for Split) (primary-sort (("QofQueryDefaultSort") 0 #t)) (secondary-sort #f) (tertiary-sort #f) (max-results -1))))) option))
+
+
+      options
+    )
+  )
+  (gnc:define-report
+    'version 1
+    'name "Transactions this month"
+    'report-guid "6a2b3c4d5e6f40718293a4b5c6d7e8f9"
+    'parent-type "2fe3b9833af044abb929a88d5a59620f"
+    'options-generator options-gen
+    'menu-path (list gnc:menuname-custom)
+    'renderer (gnc:report-template-renderer/report-guid "2fe3b9833af044abb929a88d5a59620f" "Transaction Report")
+  )
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Options for saved report "Household budget", based on template "810ed4b25ef0486ea43bbd3dddb32b11"
+(let ()
+  (define (options-gen)
+    (let
+         (
+           (options (gnc:report-template-new-options/report-guid "810ed4b25ef0486ea43bbd3dddb32b11" "Budget Report"))
+           (new-embedded-report-ids '()) ;; only used with Multicolumn View Reports
+         )
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Budget")))
+  ((lambda (option) (if option ((gnc:option-setter option) (gnc-budget-lookup "b0000000000000000000000000000001" (gnc-get-current-book))))) option))
+
+
+      options
+    )
+  )
+  (gnc:define-report
+    'version 1
+    'name "Household budget"
+    'report-guid "7b3c4d5e6f7041829304b5c6d7e8f9a0"
+    'parent-type "810ed4b25ef0486ea43bbd3dddb32b11"
+    'options-generator options-gen
+    'menu-path (list gnc:menuname-custom)
+    'renderer (gnc:report-template-renderer/report-guid "810ed4b25ef0486ea43bbd3dddb32b11" "Budget Report")
+  )
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Options for saved report "Year-end balance sheet", based on template "c4173ac99b2b448289bf4d11c731af13"
+(let ()
+  (define (options-gen)
+    (let
+         (
+           (options (gnc:report-template-new-options/report-guid "c4173ac99b2b448289bf4d11c731af13" "Balance Sheet"))
+           (new-embedded-report-ids '()) ;; only used with Multicolumn View Reports
+         )
+; Section: Accounts
+
+(let ((option (gnc:lookup-option options
+                                 "Accounts"
+                                 "Levels of Subaccounts")))
+  ((lambda (o) (if o (gnc:option-set-value o '2))) option))
+
+
+; Section: Commodities
+
+(let ((option (gnc:lookup-option options
+                                 "Commodities"
+                                 "Report's currency")))
+  ((lambda (o) (if o (gnc:option-set-value o '(commodity-scm "CURRENCY" "USD")))) option))
+
+
+; Section: Display
+
+(let ((option (gnc:lookup-option options
+                                 "Display"
+                                 "Parent account balances")))
+  ((lambda (o) (if o (gnc:option-set-value o 'recursive-bal))) option))
+
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Balance Sheet Date")))
+  ((lambda (o) (if o (gnc:option-set-value o '(relative . end-accounting-period)))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Report name")))
+  ((lambda (o) (if o (gnc:option-set-value o "Year-end balance sheet"))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Single column Balance Sheet")))
+  ((lambda (option) (if option ((gnc:option-setter option) #f))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Stylesheet")))
+  ((lambda (o) (if o (gnc:option-set-value o '#{Head or Tail}#))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Use Tabs")))
+  ((lambda (o) (if o (gnc:option-set-value o #t))) option))
+
+
+      options
+    )
+  )
+  (gnc:define-report
+    'version 1
+    'name "Year-end balance sheet"
+    'report-guid "8c4d5e6f708142939405c6d7e8f9a0b1"
+    'parent-type "c4173ac99b2b448289bf4d11c731af13"
+    'options-generator options-gen
+    'menu-path (list gnc:menuname-custom)
+    'renderer (gnc:report-template-renderer/report-guid "c4173ac99b2b448289bf4d11c731af13" "Balance Sheet")
+  )
+)
+

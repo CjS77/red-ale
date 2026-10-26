@@ -14,12 +14,13 @@
 //! | list | `'(a b)`, or `'#f` with none (`:1073-1081`) |
 //! | number range | `'2.0` (5.17), `2` (4.x) |
 //! | plot size | `'(percent . 50)`, `'(pixels . 500)`: the number alone decides, above 100 is pixels (`:1376-1384`) |
-//! | date | `'(absolute . <seconds>)`, `'(relative . <name>)` (`5.17:libgnucash/engine/gnc-option-impl.cpp:967-984`); 2.x wrote `'(absolute <seconds> . <nanoseconds>)` (`2.6.21:src/app-utils/options.scm:571-578`) |
+//! | date | `'(absolute . <seconds>)`, `'(relative . <name>)` (`5.17:libgnucash/engine/gnc-option-impl.cpp:967-984`) |
 //! | account list | `'("<guid>" …)`, `'""` when empty (`:1226-1240`) |
 //! | account | `"<guid>"` |
 //! | currency | `"USD"` (5.17), `'(commodity-scm "CURRENCY" "USD")` (4.x) |
 //! | commodity | `'(commodity-scm "<namespace>" "<mnemonic>")` (`:1249-1263`) |
 //!
+//! 2.x wrote an absolute date as `'(absolute <seconds> . <nanoseconds>)` (`2.6.21:src/app-utils/options.scm:571-578`).
 //! Relative dates keep their name: both spellings of the accounting period's (`start-prev-fin-year`, written by 5.17,
 //! and `start-accounting-period`) are read by the option itself (`crate::options::parse_relative`).
 
@@ -150,7 +151,10 @@ fn color(d: &Datum) -> Converted<Value> {
     let items = d.as_list().filter(|l| matches!(l.len(), 3 | 4)).ok_or_else(|| format!("expected a colour (r g b a), got {d}"))?;
     let components = items
         .iter()
-        .map(|c| number(c).ok().and_then(|n| whole(&n)).filter(|v| (0..=255).contains(v)).ok_or_else(|| format!("not a colour component 0 to 255: {c}")))
+        .map(|c| {
+            let value = number(c).ok().and_then(|n| whole(&n)).filter(|v| (0..=255).contains(v));
+            value.ok_or_else(|| format!("not a colour component 0 to 255: {c}"))
+        })
         .collect::<Converted<Vec<i64>>>()?;
     let opaque = components.get(3) == Some(&255);
     let shown = if opaque { &components[..3] } else { &components[..] };

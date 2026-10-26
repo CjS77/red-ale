@@ -11,6 +11,7 @@ directory before opening it, so these files are never written.
 | `csv/` | Import files from GnuCash's CSV importer tests (see its README) | GPL-2.0-or-later, as GnuCash |
 | `reports/` | The books of GnuCash 5.17's report tests, rebuilt in GnuCash's engine by `scripts/report-fixtures/`, and the tests' expected figures (see below) | GPL-2.0-or-later, as GnuCash |
 | `qif/` | QIF files from GnuCash's `doc/examples/` (see its README) | GPL-2.0-or-later, as GnuCash |
+| `gnucash-userdata/` | A `saved-reports-2.8` and a `stylesheets-2.0` written by hand exactly as GnuCash 5.17 writes them (`5.17:gnucash/report/report-core.scm:620-643`, `5.17:gnucash/report/html-style-sheet.scm:145-166`), since the oracle has no GUI to save them | as red-ale |
 
 ## Canonical books
 

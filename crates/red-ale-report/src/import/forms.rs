@@ -216,7 +216,10 @@ fn check_bindings(bindings: &[Datum], template: &str) -> Matched<()> {
     let options_ok = matches!(options, Some([t, n]) if t.as_str() == Some(template) && n.as_str().is_some());
     let embedded_ok = match bindings.get(1..) {
         Some([]) => true,
-        Some([b]) => binding_call(b, "new-embedded-report-ids", "quote").is_some_and(|a| matches!(a, [Datum::List(l, None)] if l.is_empty())),
+        Some([b]) => {
+            let empty = |a: &[Datum]| matches!(a, [Datum::List(l, None)] if l.is_empty());
+            binding_call(b, "new-embedded-report-ids", "quote").is_some_and(empty)
+        }
         _ => false,
     };
     if options_ok && embedded_ok {
@@ -355,7 +358,8 @@ mod tests {
 
     #[test]
     fn reads_the_2_x_setter() {
-        let old = SAVED.replace("(lambda (o) (if o (gnc:option-set-value o '2)))", "(lambda (option) (if option ((gnc:option-setter option) '2)))");
+        let setter = "(lambda (option) (if option ((gnc:option-setter option) '2)))";
+        let old = SAVED.replace("(lambda (o) (if o (gnc:option-set-value o '2)))", setter);
         let options = saved_report(&first(&old)).unwrap().options.unwrap();
         assert_eq!(options[0].value.to_string(), "2");
     }

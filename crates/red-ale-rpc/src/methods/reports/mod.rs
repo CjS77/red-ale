@@ -11,6 +11,7 @@
 //! [`registry`].
 
 mod configurations;
+mod import;
 mod run;
 mod style_sheets;
 
@@ -70,6 +71,18 @@ pub fn methods() -> Vec<Method> {
         ),
         method("report.updateConfiguration", "Change options of a saved report configuration.", Effect::Write, configurations::update),
         method("report.renameConfiguration", "Rename a saved report configuration.", Effect::Write, configurations::rename),
+        method(
+            "report.importConfigurations",
+            "Import GnuCash's saved report configurations from the text of its saved-reports-2.8 file, read as data, never run.",
+            Effect::Write,
+            import::configurations,
+        ),
+        method(
+            "report.importStyleSheets",
+            "Import GnuCash's style sheets from the text of its stylesheets-2.0 file, read as data, never run.",
+            Effect::Write,
+            import::style_sheets,
+        ),
         method("report.deleteConfiguration", "Delete a saved report configuration.", Effect::Destructive, configurations::delete),
         method(
             "report.createStyleSheet",
@@ -316,6 +329,16 @@ impl Reports {
         changes: Option<&Value>,
         on: &On<'_>,
     ) -> Result<OptionDb, RpcError> {
+        let mut db = self.defaults(template, &self.style_sheet_choices(saved), on)?;
+        let values = ValueContext { book: on.book, zone: on.zone };
+        let saved = saved.map(|s| Value::Object(s.options.clone()));
+        saved.iter().chain(changes).try_for_each(|c| db.apply(c, &values)).map_err(ReportError::from)?;
+        Ok(db)
+    }
+
+    /// A template's options at their defaults, its General/"Stylesheet" option offering `style_sheets`. Defaults that
+    /// depend on the Book come from `on.book`, or from an empty Book.
+    fn defaults(&self, template: &TemplateInfo, style_sheets: &[&str], on: &On<'_>) -> Result<OptionDb, RpcError> {
         let empty;
         let book = if let Some(book) = on.book {
             book
@@ -323,12 +346,7 @@ impl Reports {
             empty = Book::new_empty(&mut FixedEnv::new(Time64(0), 0));
             &empty
         };
-        let names = self.style_sheet_choices(saved);
-        let mut db = self.registry.options(template, &self.run_context(book, on.now, on.zone, &names, self.locale(None)?))?;
-        let values = ValueContext { book: on.book, zone: on.zone };
-        let saved = saved.map(|s| Value::Object(s.options.clone()));
-        saved.iter().chain(changes).try_for_each(|c| db.apply(c, &values)).map_err(ReportError::from)?;
-        Ok(db)
+        Ok(self.registry.options(template, &self.run_context(book, on.now, on.zone, style_sheets, self.locale(None)?))?)
     }
 
     /// What a run reads besides the options: the Book, now, the zone, the Configuration's settings and the Locale.

@@ -138,7 +138,7 @@ fn replace(saved: &[SavedReport], changed: SavedReport) -> Vec<SavedReport> {
 }
 
 /// Write the saved configurations to the Configuration, atomically.
-fn store(ctx: &Context, mut config: Config, saved: &[SavedReport]) -> Result<(), RpcError> {
+pub(super) fn store(ctx: &Context, mut config: Config, saved: &[SavedReport]) -> Result<(), RpcError> {
     config.set_saved_reports(saved);
     Ok(ctx.settings.config.save(&config)?)
 }
