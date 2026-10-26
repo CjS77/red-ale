@@ -1859,6 +1859,8 @@ version = "0.2.0"
 dependencies = [
  "peak_alloc",
  "red-ale-core",
+ "red-ale-import",
+ "red-ale-locale",
  "red-ale-rpc",
  "red-ale-service",
  "red-ale-xml",
