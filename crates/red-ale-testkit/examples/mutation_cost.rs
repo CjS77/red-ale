@@ -77,7 +77,7 @@ fn import(path: &Path) {
     empty.sort();
     println!("a Mutation changing nothing {:>9.2?}", empty[POSTS / 2]);
     let mut edits = Duration::ZERO;
-    let (_, one) = timed(|| {
+    let ((), one) = timed(|| {
         session
             .mutate(|b, env| {
                 let (result, took) = timed(|| (0..IMPORT).try_for_each(|i| add(b, env, from, to, i)));
@@ -87,7 +87,7 @@ fn import(path: &Path) {
             .expect("the import posts");
     });
     println!("{IMPORT} in one Mutation  {one:>9.2?}  (of which the edits {edits:.2?})");
-    let (_, many) = timed(|| (0..MANY).for_each(|i| session.mutate(|b, env| add(b, env, from, to, i)).expect("posts")));
+    let ((), many) = timed(|| (0..MANY).for_each(|i| session.mutate(|b, env| add(b, env, from, to, i)).expect("posts")));
     println!("{MANY} Mutations of one   {many:>9.2?}  ({:.2?} each)", many / u32::try_from(MANY).unwrap_or(1));
     session.close(false).expect("closes");
 }
