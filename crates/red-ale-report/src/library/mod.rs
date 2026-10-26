@@ -16,6 +16,7 @@ macro_rules! scripts {
 /// and end in `.rhai`. Add a line here for each new file.
 const BUILTIN: &[(&str, &str)] = scripts![
     "lib/accounts.rhai",
+    "lib/balances.rhai",
     "lib/collectors.rhai",
     "lib/dates.rhai",
     "lib/exchange.rhai",
