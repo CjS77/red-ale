@@ -477,6 +477,63 @@ fn exec_fetches_quotes_and_waits_for_them() {
     assert_eq!((prices[0]["commodity"].as_str(), prices[0]["source"].as_str()), (Some("NYSE::HPE"), Some("Finance::Quote")));
 }
 
+/// The v0.3 methods through `call`: the import file is read and the export file written on the caller's side, and
+/// `price.fetchQuotes` returns at once with the fetch's ID, which `price.fetchStatus` follows (`design/api/quotes.md`,
+/// "CLI").
+#[test]
+fn call_imports_exports_and_fetches_quotes_on_a_running_server() {
+    use red_ale_testkit::quote_server::{Answer, QuoteServer};
+    let quotes = QuoteServer::start(vec![("/quote/HPE", Answer::ok(r#"{"price": "13.37", "ccy": "USD", "date": "2022-09-01"}"#))]);
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("call.gnucash").display().to_string();
+    let security = json!({ "namespace": "NYSE", "mnemonic": "HPE", "fullname": "HPE", "fraction": 10000, "quoteFlag": true,
+        "quoteSource": "alphavantage" });
+    let script = dir.path().join("setup.txt");
+    std::fs::write(&script, format!("account.create {}\ncommodity.create {security}\n", json!({ "name": "Checking", "type": "BANK", "commodity": "USD" })))
+        .unwrap();
+    let out = run(&["exec", "--create", "--book", &book, "--script", &script.display().to_string()]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let config = dir.path().join("red-ale.json");
+    let service = json!({ "format": "json", "securityUrl": format!("{}/quote/{{symbol}}", quotes.url()),
+        "pointers": { "price": "/price", "currency": "/ccy", "date": "/date" } });
+    let settings = json!({ "quotes": { "network": true, "services": { "local": service }, "sources": { "alphavantage": ["local"] } } });
+    std::fs::write(&config, settings.to_string()).unwrap();
+    let (server, url) = serve_with(&["--book", &book, "--config", &config.display().to_string()]);
+
+    let statement = dir.path().join("statement.csv");
+    std::fs::write(&statement, "Date,Description,Amount\n2024-03-01,Coffee,-4.50\n").unwrap();
+    let layout = r#"layout:={"skipStartLines": 1, "columns": ["Date", "Description", "Amount"], "baseAccount": "Checking"}"#;
+    let statement = statement.display().to_string();
+    let out = run(&["call", "--url", &url, "import.preview", "format=csvTransactions", layout, "--file", &statement]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let proposal = json(&out.stdout);
+    assert_eq!(proposal["transactions"][0]["description"], "Coffee");
+    let out = run(&["call", "--url", &url, "import.apply", &format!("proposal={}", proposal["id"].as_str().unwrap())]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+
+    let csv = dir.path().join("checking.csv").display().to_string();
+    let out = run(&["call", "--url", &url, "export.csvTransactions", r#"accounts:=["Checking"]"#, "--output", &csv]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(json(&out.stdout)["transactions"], 1);
+    assert!(std::fs::read_to_string(&csv).unwrap().contains("Coffee"));
+
+    let out = run(&["call", "--url", &url, "price.fetchQuotes"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let fetch = format!("fetch={}", json(&out.stdout)["fetch"].as_str().unwrap());
+    let finished = (0..200).find_map(|_| {
+        let status = json(&run(&["call", "--url", &url, "price.fetchStatus", &fetch]).stdout);
+        (status["state"] == "finished").then_some(status).or_else(|| {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            None
+        })
+    });
+    assert_eq!(finished.expect("the fetch finishes")["stored"], 1);
+    // `serve_with` has stopped reading the server's standard error, so its note about unsaved changes must not fail
+    // the shutdown.
+    stop(server);
+    assert!(!Path::new(&format!("{book}.LCK")).exists(), "the lock is released though the book had unsaved changes");
+}
+
 #[test]
 fn file_fills_the_text_param_of_imports() {
     let dir = tempfile::tempdir().unwrap();
