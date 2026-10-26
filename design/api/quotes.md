@@ -117,10 +117,10 @@ maps to at least one service.
 
 ```json
 {
+  "defaultCurrency": "CURRENCY::USD",
   "quotes": {
     "network": false,
     "timeoutSeconds": 30,
-    "defaultCurrency": "CURRENCY::USD",
     "services": {
       "frankfurter": {
         "format": "frankfurter",
@@ -150,9 +150,9 @@ maps to at least one service.
 
 | Setting | Meaning |
 |---------|---------|
+| `defaultCurrency` | GnuCash's default currency preference (`general/currency-other`): what currencies are quoted in, and the currency of new Owners and QIF imports ([`import.md`](import.md)). Unset, the Locale's currency, else `USD`, as `gnc_default_currency` (`gnc-ui-util.cpp:737-786`) |
 | `quotes.network` | Network access, off by default. Off, `price.fetchQuotes` fails before any connection is made |
 | `quotes.timeoutSeconds` | Per request; default 30. GnuCash has none, but a hung service must not hold a Quote fetch for ever |
-| `quotes.defaultCurrency` | The currency currencies are quoted in: GnuCash's default currency preference. Unset, the Locale's currency, else `USD`, as `gnc_default_currency` (`gnc-ui-util.cpp:737-786`) |
 | `quotes.services.<name>.format` | Which parser reads the answer (below) |
 | `…securityUrl`, `…currencyUrl` | URL templates for securities and for currency rates. A service without one can't answer that kind |
 | `…key` | The key, if one is used. Never shown by `config.get`, only whether it is set |
@@ -237,7 +237,7 @@ service gave:
   (`unsupported-source`), not left out silently, so a user can see why a price is missing. The default currency and
   `XXX` are left out, as in GnuCash. Commodities are fetched in id order (namespace, then mnemonic), not GnuCash's
   hash-table order, so a fetch is reproducible;
-- **currencies** are asked for as the rate from the currency to `quotes.defaultCurrency`, and if no service answers,
+- **currencies** are asked for as the rate from the currency to `defaultCurrency`, and if no service answers,
   the rate the other way, inverted, as the wrapper asks (`finance-quote-wrapper.in:151-180`). The quote record of a
   currency carries no date, as the wrapper's carries none, so a currency rate is stamped now, as in GnuCash, even when
   the service dates it;
