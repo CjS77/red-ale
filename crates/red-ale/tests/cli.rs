@@ -131,6 +131,27 @@ customer.create {"name": "Acme", "currency": "USD"}
     assert_eq!(balance["balances"]["balance"], json!({ "num": "100000", "denom": "100" }));
 }
 
+#[test]
+fn import_files_are_read_on_the_cli_side() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("new.gnucash").display().to_string();
+    let out = run(&["exec", "--create", "--book", &book, "account.create", "name=Checking", "type=BANK", "commodity=USD"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let file = dir.path().join("statement.csv");
+    std::fs::write(&file, b"Date,Description,Amount\n2024-03-01,Caf\xe9,-4.50\n").unwrap();
+    let layout = r#"layout:={"skipStartLines": 1, "columns": ["Date", "Description", "Amount"], "baseAccount": "Checking"}"#;
+    let file = file.display().to_string();
+    let args = ["exec", "--book", &book, "import.preview", "format=csvTransactions", layout, "--file", &file, "--encoding", "iso-8859-1"];
+    let out = run(&args);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let proposal = json(&out.stdout);
+    assert_eq!(proposal["transactions"][0]["description"], "Café");
+    assert_eq!(proposal["ignoredLines"][0]["line"], 1);
+    let out = run(&["exec", "--book", &book, "import.preview", "format=csvTransactions", layout, "--file", &file]);
+    assert_eq!(out.status.code(), Some(2), "not UTF-8");
+    assert_eq!(json(&out.stderr)["error"]["code"], 4000);
+}
+
 /// The local time zone GnuCash would read for this `TZ` (`None`: unset), and today's date in it before and after
 /// `f` runs, so a midnight in between cannot fail the test.
 fn in_zone<T>(tz: Option<&str>, f: impl FnOnce() -> T) -> (red_ale_core::TimeZone, [red_ale_core::Date; 2], T) {
