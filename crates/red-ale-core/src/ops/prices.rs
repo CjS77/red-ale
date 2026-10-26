@@ -42,6 +42,9 @@ pub const USER_PRICE_SOURCE: &str = "user:price";
 pub const XFER_DIALOG_SOURCE: &str = "user:xfer-dialog";
 /// `PRICE_SOURCE_SPLIT_REG`: a price recorded from a register transaction (`xaccTransRecordPrice`).
 pub const SPLIT_REGISTER_SOURCE: &str = "user:split-register";
+/// `PRICE_SOURCE_SPLIT_IMPORT`: a price recorded from an imported transaction (`xaccTransRecordPrice`,
+/// `5.17:gnucash/import-export/import-backend.cpp:930`).
+pub const SPLIT_IMPORT_SOURCE: &str = "user:split-import";
 const INVALID_RANK: usize = 10;
 
 /// A price source's precedence (lower wins). `gnc_price_set_source_string` matches only the known strings before
