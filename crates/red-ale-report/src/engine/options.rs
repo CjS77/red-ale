@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use red_ale_core::time::{PeriodBounds, RelativeDate};
-use red_ale_core::{AccountType, Guid, Time64, TimeZone};
+use red_ale_core::{AccountType, CommodityRef, Guid, Time64, TimeZone};
 use rhai::{Array, Dynamic, Engine, INT, Map};
 use serde_json::Value;
 
@@ -20,11 +20,13 @@ use crate::result::PlotSize;
 pub struct OptionBuilder {
     db: Rc<RefCell<OptionDb>>,
     book: BookHandle,
+    /// The report settings' currency, `gnc-default-report-currency`.
+    report_currency: CommodityRef,
 }
 
 impl OptionBuilder {
-    pub(crate) fn new(book: BookHandle) -> Self {
-        Self { db: Rc::new(RefCell::new(OptionDb::new())), book }
+    pub(crate) fn new(book: BookHandle, report_currency: CommodityRef) -> Self {
+        Self { db: Rc::new(RefCell::new(OptionDb::new())), book, report_currency }
     }
 
     /// The options declared so far.
@@ -189,6 +191,10 @@ pub(super) fn register_builder(engine: &mut Engine) {
         declare(o.db.borrow_mut().internal(classifier(s, n, k, h), d))
     });
     engine.register_fn("set_default_section", |o: &mut OptionBuilder, s: &str| o.db.borrow_mut().set_default_section(s));
+    // `gnc-default-report-currency`, the default of `gnc:options-add-currency!`
+    // (`5.17:gnucash/report/options-utilities.scm:124-130`): the report settings' currency, since `options()` has no
+    // run context.
+    engine.register_fn("default_report_currency", |o: &mut OptionBuilder| o.book.commodity(&o.report_currency));
 }
 
 /// `gnc-register-number-range-option`: numbers as Rationals, integers or decimal text.

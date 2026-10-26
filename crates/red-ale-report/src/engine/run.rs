@@ -111,7 +111,7 @@ impl<'r> Run<'r> {
 
     /// `options(params, o, book)`, then the General options every template gets.
     fn declare(&self, ctx: &RunContext<'_>) -> Result<OptionDb, ReportError> {
-        let builder = OptionBuilder::new(self.book());
+        let builder = OptionBuilder::new(self.book(), ctx.settings.currency.clone());
         let args = (self.params.clone(), builder.clone(), self.book());
         call(&self.engine, &self.ast, "options", args).map(drop).map_err(|e| self.failed(&e))?;
         let mut db = builder.into_db();

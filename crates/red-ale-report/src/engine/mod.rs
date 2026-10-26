@@ -19,6 +19,7 @@ mod context;
 mod convert;
 mod errors;
 mod log;
+mod memo;
 #[allow(clippy::needless_pass_by_value)]
 mod numbers;
 // The builder's functions mirror `gnc-register-*-option`: section, name, key and help, then the default.
@@ -30,11 +31,11 @@ mod run;
 mod setup;
 
 pub use context::ContextHandle;
+pub use memo::Memo;
 pub use options::{OptionBuilder, OptionsHandle};
 pub(crate) use registry::BUILTIN_DIRS;
 pub use registry::{Lookup, Registry, ScriptSource, TemplateInfo, TemplateKind};
 pub use run::RunContext;
-
 
 #[cfg(test)]
 mod tests;

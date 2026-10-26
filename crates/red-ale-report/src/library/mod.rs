@@ -14,7 +14,16 @@ macro_rules! scripts {
 
 /// Every built-in script: its path below `scripts/` and its text. Paths start with `lib/`, `standard/` or `example/`
 /// and end in `.rhai`. Add a line here for each new file.
-const BUILTIN: &[(&str, &str)] = scripts![];
+const BUILTIN: &[(&str, &str)] = scripts![
+    "lib/accounts.rhai",
+    "lib/acct-table.rhai",
+    "lib/balances.rhai",
+    "lib/collectors.rhai",
+    "lib/dates.rhai",
+    "lib/exchange.rhai",
+    "lib/html-utilities.rhai",
+    "lib/options.rhai",
+];
 
 /// The GUIDs and names of the GnuCash 5.17 templates red-ale translates (`design/reports.md` §11). A built-in
 /// template with one of these GUIDs must have its name, and one with one of these names its GUID, so a GUID or name

@@ -119,6 +119,20 @@ fn every_limit_raises_report_limit_with_its_name() {
     cases.into_iter().for_each(|(l, limits, body)| assert_eq!(limit(limits, &body).as_deref(), Some(l.as_str()), "{l}"));
 }
 
+/// A Memo's copies share their entries, so a table filled inside a function outlives the call
+/// (`src/engine/memo.rs`); past the map-size limit it raises `map-size`, as an object map does.
+#[test]
+fn a_memo_is_shared_by_its_copies() {
+    let body = "let m = memo(); fill(m, 3); let copy = m; fill(copy, 1);\n\
+                let v = #{ kept: m.get(3), other: m.get(1), missing: m.get(2), has: m.contains(1), len: m.len() };\n\
+                #{ title: `${v}`, sections: [] }";
+    let reg = registry(&[("test.rhai", &template_with("fn fill(m, k) { m.set(k, `v${k}`); }", body))]);
+    let title = Host::new(empty_book()).run(&reg, GUID, &json!({})).unwrap().title;
+    assert_eq!(title, r#"#{"has": true, "kept": "v3", "len": 2, "missing": (), "other": "v1"}"#);
+    let small = Limits::default().with(Limit::MapSize, 3);
+    assert_eq!(limit(small, "let m = memo(); let i = 0; loop { m.set(i, i); i += 1; }").as_deref(), Some("map-size"));
+}
+
 #[test]
 fn a_script_cannot_catch_a_limit() {
     let body =

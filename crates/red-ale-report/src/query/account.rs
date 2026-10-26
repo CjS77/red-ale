@@ -1,6 +1,6 @@
 //! The `Account` handle (`design/reports.md` §5, "Account").
 
-use red_ale_core::ops::accounts::{depth, descendants_sorted, sorted_children, tree_depth};
+use red_ale_core::ops::accounts::{depth, descendants_sorted, sorted_children, tree_depth, type_label};
 use red_ale_core::ops::balances::{Total, account_splits, account_splits_between, balance_as_of, running_totals_at};
 use red_ale_core::{Account, Guid};
 use rhai::{Array, Dynamic, Engine, INT};
@@ -48,6 +48,8 @@ fn properties(engine: &mut Engine) {
     engine.register_get("name", |a: &mut AccountHandle| -> Fallible<String> { Ok(a.get()?.name.clone()) });
     engine.register_get("fullName", |a: &mut AccountHandle| a.snap.book().full_name(a.guid).unwrap_or_default());
     engine.register_get("type", |a: &mut AccountHandle| -> Fallible<String> { Ok(a.get()?.account_type.as_str().to_owned()) });
+    // `xaccAccountGetTypeStr`, untranslated: the label GnuCash shows for the type ("Credit Card").
+    engine.register_get("typeString", |a: &mut AccountHandle| -> Fallible<String> { Ok(type_label(a.get()?.account_type).to_owned()) });
     engine.register_get("code", text(|a| a.code.as_deref()));
     engine.register_get("description", text(|a| a.description.as_deref()));
     engine.register_get("notes", text(Account::notes));

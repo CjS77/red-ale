@@ -63,6 +63,7 @@ fn render(params, book, opts, ctx) {
     // Account
     print(`current=${current.name}|${current.fullName}|${current.type}|${current.code}|${current.description}|${current.notes}|` +
           `${current.placeholder}|${current.hidden}|${current.commodity.id}|${current.parent.name}|${current.depth}`);
+    print(`type-string=${current.typeString} ${funds.typeString} ${book.root().typeString}`);
     print(`children=${names.call(bank1.children())} sorted=${names.call(bank1.children_sorted())}`);
     print(`descendants=${book.root().descendants().len()} sorted-first=${names.call(book.account("Root:Asset").descendants_sorted())}`);
     print(`tree-depth=${bank1.tree_depth()} ${current.tree_depth()} ${book.root().tree_depth()}`);
@@ -114,6 +115,7 @@ fn every_query_function_reads_the_fixture() {
         "split-query=3 earn=1 cased=0 regexp=1 none=0",
         "euro=true false €51.13 ",
         "current=Current|Root:Asset:Bank1:Current|ASSET||||false|false|CURRENCY::USD|Bank1|4",
+        "type-string=Asset Stock Root",
         "children=,Savings,Bonds,Empty,Current sorted=,Bonds,Current,Empty,Savings",
         "descendants=19 sorted-first=,Bank1,Bonds,Current,Empty,Savings,Broker,Funds,ForeignBank,ForeignSavings,House",
         "tree-depth=2 1 5",
