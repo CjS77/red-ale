@@ -29,6 +29,8 @@ struct RunContext {
     week_start: WeekStart,
     /// The accounting period at now, or why it cannot be computed (a fiscal period with no fiscal year end).
     period: Result<PeriodBounds, String>,
+    /// The export the run is for, if any.
+    export: Option<String>,
 }
 
 impl ContextHandle {
@@ -37,7 +39,8 @@ impl ContextHandle {
         let (settings, locale) = (run.settings.clone(), run.locale);
         let currency = settings.report_currency(run.book, &locale);
         let week_start = settings.week_start(&locale);
-        Self(Rc::new(RunContext { snap, zone, settings, locale, currency, week_start, period }))
+        let export = run.export.map(str::to_owned);
+        Self(Rc::new(RunContext { snap, zone, settings, locale, currency, week_start, period, export }))
     }
 
     /// The report settings of the run.
@@ -78,6 +81,10 @@ pub(super) fn register(engine: &mut Engine) {
         let l = c.0.zone.to_local(t).ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))?;
         Ok(format!("{} {:02}:{:02}:{:02}", l.date.to_file_string(), l.hour, l.minute, l.second))
     });
+    engine.register_fn("print_date_iso", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
+        Ok(c.date(time_arg(&t)?)?.to_file_string())
+    });
+    engine.register_fn("export_type", |c: &mut ContextHandle| c.0.export.clone().map_or(Dynamic::UNIT, Dynamic::from));
     engine.register_fn("accounting_period", |c: &mut ContextHandle| -> Fallible<Map> {
         let p = c.0.period.as_ref().map_err(|e| script_error(format!("the accounting period: {e}")))?;
         Ok([("start".into(), Dynamic::from(p.start.0)), ("end".into(), Dynamic::from(p.end.0))].into_iter().collect())

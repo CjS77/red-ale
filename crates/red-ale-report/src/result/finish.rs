@@ -74,6 +74,7 @@ impl ReportDraft {
             options: run.options,
             sections,
             log: run.log,
+            export: self.export,
         };
         super::validate::sections(&result.sections, Stage::Finished)?;
         Ok(result)

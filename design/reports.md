@@ -229,7 +229,8 @@ fn render(params, book, opts, ctx) {
 ```
 
 - `templates()` returns the template records: `guid` (32 lowercase hex digits), `name`, and optionally `menuPath`,
-  `menuName`, `menuTip`, `inMenu` (default true) and `params`, the values that tell one script's templates apart.
+  `menuName`, `menuTip`, `inMenu` (default true), `exportTypes` (GnuCash's `'export-types`; only `["csv"]`, v0.3)
+  and `params`, the values that tell one script's templates apart.
   GnuCash passes these as arguments to a shared options generator and renderer, for example
   `standard/account-piecharts.scm:573-600`; Rhai functions do not capture, so they come in as `params`.
 - `options(params, o, book)` declares the options through the builder `o` (section 6). `book` is the open Book, or
@@ -486,6 +487,8 @@ The run context `ctx` gives time and formatting, all in the local time zone of t
 | `ctx.make_time(fields)` | `gnc-mktime` with `isdst = -1`, fields normalised C-style (31 January + 1 month is 3 March) |
 | `ctx.print_date(t)`, `ctx.print_date_interval(from, to)` | `qof-print-date`, `gnc-date-interval-format`, under `reports.dateFormat` |
 | `ctx.print_time_iso(t)` | `gnc-print-time64` with the ISO format, for CSV dates: `YYYY-MM-DD HH:MM:SS` in local time |
+| `ctx.print_date_iso(t)` | `gnc-print-time64` with `QOF-DATE-FORMAT-ISO`'s date format, for the charts' CSV dates: `YYYY-MM-DD` in local time (v0.3) |
+| `ctx.export_type()` | The `export-type` GnuCash passes to an export thunk (`5.17:gnucash/report/report-core.scm:722`): `"csv"` when the run is for `report.exportCsv`, else `()` (v0.3) |
 | `ctx.accounting_period()` | `#{ start, end }` as Time64: `gnc-accounting-period-fiscal-start`/`-end` |
 | `ctx.report_currency()`, `ctx.week_start()` | the settings of section 4; the week starts on day 1 (Sunday) to 7, numbered as `weekday` |
 
@@ -657,6 +660,7 @@ no *host* field is set by the script. `optionsSummary` blocks come only from the
 | `now` | *host*. The time the report was run for |
 | `options` | *host*. Every option's value, in wire form, so the result says exactly what produced it |
 | `sections` | Ordered sections, each an optional `title` and ordered `blocks` |
+| `export` | Optional (v0.3). Set only when `ctx.export_type()` is `"csv"`: the rows GnuCash hands `gnc:lists->csv` (`report/trep-engine.scm:463-512`), each a list of cells that are a string, an exact number or `null`. The host turns them into the CSV of `report.exportCsv`; `report.run` never carries them |
 | `log` | *host*. The report log |
 
 ### Blocks
@@ -977,8 +981,9 @@ start-up (`report/gnc-report.cpp:55-112`). red-ale keeps the same things in its 
 - **Writing** is atomic (the store writes beside the file and renames, `config.rs`) and keeps keys red-ale does not
   know. Entries are kept in the order they were added. GnuCash rewrites its files in hash order without a temporary
   file (`report/report-core.scm:744-755`; `report/html-style-sheet.scm:145-150`).
-- **GnuCash's files are not read.** They are Scheme programs; reading them would mean evaluating Scheme. Importing
-  their option forms (`gnc:option-set-value` calls on literal values) is possible later (section 15).
+- **GnuCash's files are imported as data, never read at start-up.** They are Scheme programs, and red-ale never
+  evaluates Scheme. `report.importConfigurations` and `report.importStyleSheets` (v0.3) take their text and read only
+  the literal forms GnuCash writes into them (section 15).
 - The Book's one reference to a saved configuration, the default invoice report
   (`options/Business/Default Invoice Report`, `5.17:libgnucash/engine/qofbook.cpp:1034-1112`), belongs to invoice
   printing, which is out of scope; red-ale keeps the slot as it keeps every slot.
@@ -1127,8 +1132,15 @@ Notes for the translators:
 - **Refused**: the account table's `report_budget` (budgets are outside v0.2), `account_less_p` #t (GnuCash
   names an undefined function, HAT:573), `account_accumulate_at_dates`'s `split_to_date` (no report in scope uses
   it), and a depth limit of #f without "flatten", which fails in GnuCash too (HAT:655-659).
-- **CSV export.** net-charts and category-barchart offer CSV through GnuCash's export thunks; that is export, which
-  moves to v0.3 with the rest of `features.md` §7 (`milestone2.md`, "Out"). Their "Show table" data tables are kept.
+- **CSV export** (v0.3). net-charts and category-barchart offer CSV through GnuCash's export thunks
+  (`standard/net-charts.scm:480-517`, `standard/category-barchart.scm:721-725`). Their templates declare
+  `exportTypes: ["csv"]`; under `ctx.export_type() == "csv"` they return the rows of `net-charts.scm:433-445` and
+  `category-barchart.scm:674-700` as the result's `export`, and `report.exportCsv` writes them as `gnc:lists->csv`
+  does. Numbers are printed as Guile prints `(exact->inexact n)`: the shortest digits that read back as the double
+  nearest the exact figure, positional unless below `1.0e-3` or past seven integer digits with more than three
+  trailing zeros, computed with integers only (`number/flonum.rs`; checked against Guile 3.0.9 on 40,000 random
+  rationals). A run that gives no rows (no accounts, no figures) is GnuCash's "No exportable data"
+  (`net-charts.scm:456-457`).
 
 ### Floating point in GnuCash, exact in red-ale
 
@@ -1247,17 +1259,72 @@ drops it and needs nothing from budgets.
 | ICU data: the first day of the week, date intervals | The ICU the build links (ICU 74, CLDR 44, for the oracle) | ICU4X 2.4's compiled CLDR | Differences only where CLDR changed between them; the multi-day intervals of every supported locale sampled matched ICU 74's. A one-day interval prints ICU4X's `YMD` short pattern (`05.03.2026` under de_DE) where ICU 74 prints its `yMd` pattern (`5.3.2026`) |
 | ICU dates outside 1400–9999 | Formatted | `<from> to <to>` | GnuCash's dates cannot hold them (`5.17:libgnucash/engine/gnc-datetime.hpp:240`); ICU4X 2.4's range formatter fails on years that need an era |
 | `"%s to %s"` in titles | Translated through gettext | English | red-ale has no translations |
-| CSV export of the net and category charts | Offered | Not in v0.2 | Export is v0.3 |
 | Category chart series under "Percentage chart" | Fractions, shown ×100 by Chart.js's percent style (`standard/category-barchart.scm:611`, `:622-623`) | Percentages | A `percent` axis shows its values as they are |
 | Accounts with no commodity (the trading accounts' parents in a book with no root currency, `5.17:libgnucash/engine/Scrub.cpp:493-516`) in the Balance Sheet and Income Statement | Their zero balance is added under `#f`; the exchange-rates table fails sorting the missing commodity (`report/report-utilities.scm:242-251`) | Left out of the balances and the rates table | The same figures and rates, and the report runs |
 | Statement and account-table layout | Spacer and padding cells place amounts in columns (`standard/balance-sheet.scm:444-447`, `report/html-acct-table.scm:870-923`); the two-column forms nest tables in one row | Rows with roles, depths and staircase levels; two columns are a `group` of tables | The result carries data, not markup; the renderer draws the staircase |
-| GnuCash's saved-reports and style-sheet files | Read at start-up | Not read | They are Scheme programs |
+| GnuCash's saved-reports and style-sheet files | Evaluated at start-up | Imported on request, as data (section 15) | They are Scheme programs; red-ale never runs Scheme |
+| An entry of those files red-ale cannot import | An error while evaluating it | Skipped with its reason; the rest are imported | One entry does not cost the others |
 
-## 15. Left for later
+## 15. Importing GnuCash's report files, and what is left for later
 
-- **Importing GnuCash's saved configurations and style sheets.** Their option forms are simple literal calls
-  (`report/report-core.scm:620-643`); an importer that reads only those forms, never evaluating Scheme, would let
-  users keep them. It needs a design of its own; planned for v0.3 ([`roadmap.md`](roadmap.md)).
+### Importing saved configurations and style sheets (v0.3)
+
+GnuCash keeps saved report configurations in `saved-reports-2.8`, or `saved-reports-2.4` from older versions
+(`5.17:gnucash/report/gnc-report.h:35-36`), and style sheets in `stylesheets-2.0`
+(`5.17:gnucash/report/html-style-sheet.scm:142-143`), and evaluates them at start-up. They are Scheme programs, but
+GnuCash writes them from a few fixed forms with literal values. `report.importConfigurations` and
+`report.importStyleSheets` ([`api/reports.md`](api/reports.md)) read those forms as data, as an anti-corruption layer
+(`crates/red-ale-report/src/import/`): nothing in them is evaluated, called or looked up.
+
+- **The reader** (`import/sexp.rs`) reads what Guile's `write` prints for the values GnuCash saves: lists and dotted
+  pairs; strings with Guile's escapes (`\n \t \" \\ \a \b \v \f \r \0 \xHH \uHHHH \UHHHHHH`, and a
+  backslash before a newline); plain symbols and `#{…}#` symbols; integers, decimals, exponents and `n/d`, held
+  exactly; `#t`, `#f`, `#true`, `#false`; `'` for quote; `;` comments. Everything else is an error: vectors,
+  characters, `#|…|#` comments, quasiquote and unquote, `+inf.0` and `+nan.0`, nesting deeper than 64. Text the
+  reader cannot read ends the file with one `malformed` entry; the entries before it are kept.
+- **The forms** (`import/forms.rs`) are matched exactly: a saved configuration as
+  `gnc:report-template-serialize-internal` writes it (`5.17:gnucash/report/report-core.scm:620-643`, the same since
+  2.6), a style sheet as `gnc:save-style-sheet-options` does (`html-style-sheet.scm:145-166`), and each option as
+  `gnc:generate-restore-forms` does (`5.17:bindings/guile/options.scm:130-172`), with the 5.17 setter
+  (`gnc:option-set-value`) or the 2.x one (`(gnc:option-setter option)`). Any other form is `malformed` for its entry.
+- **The values** (`import/values.rs`) are turned into the wire form of the option they set (section 6) and applied as
+  a client's would be, so the same checks hold. They are those `save_scm_value` writes
+  (`5.17:bindings/guile/gnc-optiondb.i:1216-1342`) and those older versions wrote:
+
+| Option | Written as | Read as |
+|--------|------------|---------|
+| boolean | `#t`, `#f` | itself |
+| string, text, font | `"…"` | itself |
+| colour | `'(r g b a)`, components `0.0`–`255.0` | `#rrggbb`, each component truncated as GnuCash does; `#rrggbbaa` unless the alpha is `ff` |
+| multichoice | `'symbol`, `'"string"` or `'3` | the choice with that key |
+| list | `'(a b)`, `'#f` with none | the choices' keys |
+| number range | `'2.0` (5.17), `2` (4.x) | the exact number |
+| plot size | `'(percent . 50)`, `'(pixels . 500)` | the number; above 100 is pixels, as GnuCash decides (`gnc-optiondb.i:1376-1384`) |
+| date | `'(absolute . <seconds>)`, 2.x `'(absolute <seconds> . <ns>)`; `'(relative . <name>)` | the absolute time, or the relative date. Both spellings of the accounting period's (`start-prev-fin-year`, which 5.17 writes, and `start-accounting-period`) are accepted |
+| account list, account | `'("<guid>" …)`, `'""` when empty; `"<guid>"` | the GUIDs, kept whether or not the open book has them |
+| currency | `"USD"` (5.17), `'(commodity-scm "CURRENCY" "USD")` (4.x; `ISO4217` read as `CURRENCY`) | the currency |
+| commodity | `'(commodity-scm "<namespace>" "<mnemonic>")` | the commodity |
+
+  A value of any other shape for its option is `malformed`; one of the right shape that the option refuses is
+  `invalid-option`.
+- **A saved configuration** keeps GnuCash's GUID and name and configures the template its `'parent-type` names. It
+  stores only the options that differ from the template's defaults, as GnuCash saves (`options.scm:141`), with
+  defaults computed without a Book so the result does not depend on the book open. An option the template does not
+  have is reported (`unknown-option`) and left out, as GnuCash's `(if o …)` leaves it. A template red-ale has not
+  translated is reported (`untranslated`) and the entry skipped; importing it again once the template exists works.
+  A General/"Stylesheet" naming a style sheet red-ale does not have is kept (section 8).
+- **A style sheet** naming a predefined one holds the user's changes to it; any other name is a user style sheet.
+  The image options red-ale does not render are kept (`not-rendered`), as `report.createStyleSheet` keeps them.
+- **Nothing is overwritten.** An entry whose GUID (configurations) or name (style sheets) the Configuration already
+  has is skipped as `exists`, so a second import adds nothing and edits made in red-ale survive; a configuration
+  whose name another has is `conflict`. Everything imported is written in one atomic save; `dryRun` writes nothing.
+
+Tests: `crates/red-ale-report/src/import/` (the reader, with property tests that no input panics; every value form)
+and `crates/red-ale-rpc/tests/report_import.rs` (hand-written files in 5.17 and older forms, skips, nothing
+evaluated, and an imported configuration running as the same options set by hand).
+
+### Left for later
+
 - **Comparing with GnuCash's report output** through `gnucash-cli --report run` in a GUI build, as
   `open-questions.md` defers.
 - **Interactive charts**, should anyone want them (`open-questions.md`, "Charts are static SVG").

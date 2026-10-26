@@ -150,7 +150,7 @@ Every setting, with its default. Settings declared in v0.3 ahead of the work tha
 | `import.settings.autoClearThreshold` | integer 0–1000 | `6` | At or above this best score the match is cleared. |
 | `import.settings.atmFeeThreshold` | `decimal` string | `"2.00"` | Amount difference still matched, for ATM fees. |
 | `import.csvLayouts.<name>` | CSV layout | none | A CSV transaction import layout, named by `import.preview`'s `layout` ([`import.md`](import.md)). Its fields are those of an inline layout; `config.schema` gives them. A built-in layout's name wins over a saved one. |
-| `import.csvPriceLayouts.<name>` | object | none | A CSV price import layout. *Declared.* |
+| `import.csvPriceLayouts.<name>` | object | none | A CSV price import layout: the CSV layout's reading fields, `fromCommodity`, `toCurrency` and `columns` ([`import.md`](import.md), "CSV prices") |
 | `import.qifAccountMap` | object | `{}` | The QIF account map, saved by `import.apply` ([`import.md`](import.md), "QIF"): `accounts`, `categories` and `payees`, each QIF name → `{ account, types, description }` (`account` a full name, `types` GnuCash's account type names), and `securities`, QIF security name → `{ namespace, mnemonic }`. |
 | `quotes.network` | boolean | `false` | Let Quote fetches reach the network; nothing else does. Refused over MCP. |
 | `quotes.timeoutSeconds` | integer 1–600 | `30` | How long one request may take. |

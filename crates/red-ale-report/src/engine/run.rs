@@ -49,6 +49,10 @@ pub struct RunContext<'a> {
     pub fiscal_year_end: Option<FiscalYearEnd>,
     /// The style sheets the General "Stylesheet" option offers, by name.
     pub style_sheets: &'a [&'a str],
+    /// The export the run is for, one of the template's export types (`csv`), which the script reads as
+    /// `ctx.export_type()`, as GnuCash passes `export-type` to a renderer (`5.17:gnucash/report/report-core.scm:722`);
+    /// `None` for a plain run, whose result then has no export.
+    pub export: Option<&'a str>,
 }
 
 /// A template's engine and compiled script, over one snapshot.
@@ -151,6 +155,9 @@ impl<'r> Run<'r> {
         };
         let finished = to_json(rendered).and_then(|json| ReportDraft::from_json(&json)).and_then(|draft| draft.finish(run, &display));
         let mut result = finished.map_err(|e| self.invalid(e))?;
+        if ctx.export.is_none() {
+            result.export = None;
+        }
         let summary = db.get(GENERAL, OPTIONS_SUMMARY).map(ReportOption::value);
         if summary.is_some_and(|v| *v != OptionValue::Key(ChoiceKey::from("never"))) {
             let rows = db.summary(&display);

@@ -64,17 +64,7 @@ mod tests {
     use super::*;
 
     fn proposal() -> Arc<Proposal> {
-        Arc::new(Proposal {
-            format: Format::CsvTransactions,
-            settings: ImportSettings::default(),
-            threshold: None,
-            ignored_lines: Vec::new(),
-            errors: Vec::new(),
-            warnings: Vec::new(),
-            transactions: Vec::new(),
-            csv: None,
-            qif: None,
-        })
+        Arc::new(Proposal::empty(Format::CsvTransactions, ImportSettings::default(), None))
     }
 
     #[test]

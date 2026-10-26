@@ -152,6 +152,29 @@ fn import_files_are_read_on_the_cli_side() {
     assert_eq!(json(&out.stderr)["error"]["code"], 4000);
 }
 
+#[test]
+fn account_and_price_files_are_read_on_the_cli_side() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("new.gnucash").display().to_string();
+    let accounts = dir.path().join("accounts.csv");
+    std::fs::write(&accounts, "ASSET;Assets;Assets;;;;;USD;CURRENCY;F;F;T\nBANK;Assets:Caf\u{e9};Caf\u{e9};;;;;USD;CURRENCY;F;F;F\n").unwrap();
+    let accounts = accounts.display().to_string();
+    let out = run(&["exec", "--create", "--book", &book, "import.preview", "format=csvAccounts", "separator=semicolon", "--file", &accounts]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let proposal = json(&out.stdout);
+    assert_eq!(proposal["accounts"][1]["fullName"], "Assets:Café");
+    assert_eq!(proposal["accounts"][1]["action"], "add");
+
+    let prices = dir.path().join("prices.csv");
+    std::fs::write(&prices, "2024-03-01,USD,1.08\n").unwrap();
+    let layout = r#"layout:={"fromCommodity": "EUR", "columns": ["Date", "Currency To", "Amount"]}"#;
+    let prices = prices.display().to_string();
+    let out = run(&["exec", "--book", &book, "import.preview", "format=csvPrices", layout, "--file", &prices]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let proposal = json(&out.stdout);
+    assert_eq!(proposal["prices"][0]["value"], json!({ "num": "1080000", "denom": "1000000" }));
+}
+
 /// The local time zone GnuCash would read for this `TZ` (`None`: unset), and today's date in it before and after
 /// `f` runs, so a midnight in between cannot fail the test.
 fn in_zone<T>(tz: Option<&str>, f: impl FnOnce() -> T) -> (red_ale_core::TimeZone, [red_ale_core::Date; 2], T) {
@@ -452,4 +475,22 @@ fn exec_fetches_quotes_and_waits_for_them() {
     let out = run(&["exec", "--book", &book, "price.list"]);
     let prices = json(&out.stdout);
     assert_eq!((prices[0]["commodity"].as_str(), prices[0]["source"].as_str()), (Some("NYSE::HPE"), Some("Finance::Quote")));
+}
+
+#[test]
+fn file_fills_the_text_param_of_imports() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.json").display().to_string();
+    let saved = fixture("gnucash-userdata/saved-reports-2.8");
+    let out = run(&["exec", "--config", &config, "report.importConfigurations", "--file", &saved]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(json(&out.stdout)["imported"].as_array().unwrap().len(), 2);
+    let sheets = fixture("gnucash-userdata/stylesheets-2.0");
+    let out = run(&["exec", "--config", &config, "report.importStyleSheets", "dryRun:=true", "--file", &sheets]);
+    assert_eq!(json(&out.stdout)["dryRun"], true);
+    let out = run(&["exec", "--config", &config, "report.importStyleSheets", "text=x", "--file", &sheets]);
+    assert_eq!(out.status.code(), Some(1), "text and --file together are a usage error");
+    let stored: Value = serde_json::from_str(&std::fs::read_to_string(dir.path().join("config.json")).unwrap()).unwrap();
+    assert_eq!(stored["reports"]["saved"].as_array().unwrap().len(), 2);
+    assert!(stored["reports"].get("styleSheets").is_none(), "the dry run wrote nothing");
 }

@@ -13,12 +13,14 @@
 //! - [`settings`]: the GnuCash preferences reports read, kept in red-ale's Configuration.
 //! - [`error`]: [`ReportError`](error::ReportError), whose kinds map to the API's error codes 3000 to 3004.
 //! - [`limits`]: the bounds a report run stays within.
+//! - [`import`]: GnuCash's saved report configurations and style sheets, read as data, never evaluated.
 
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
 
 pub mod engine;
 pub mod error;
+pub mod import;
 pub mod library;
 pub mod limits;
 pub mod number;

@@ -37,7 +37,7 @@ It never depends on `red-ale-service`, so it cannot reach a Session, the journal
 
 | Module     | Contents                                                                                               |
 |------------|--------------------------------------------------------------------------------------------------------|
-| `number`   | `Rational`, `Monetary`, `SizeCap`, `Rounding`; display rounding and amount formatting, `fixed`         |
+| `number`   | `Rational`, `Monetary`, `SizeCap`, `Rounding`; display rounding and amount formatting, `fixed`; `guile_inexact`, a number as Guile prints it once inexact |
 | `options`  | `OptionDb` and the option types; setting values from JSON; `report.options` info and params schema      |
 | `result`   | `ReportDraft` (what a script returns), `ReportResult`, validation, display filling, the JSON Schema     |
 | `settings` | `ReportSettings`: report currency, reversed balances, date format, first day of the week                |
@@ -47,6 +47,8 @@ It never depends on `red-ale-service`, so it cannot reach a Session, the journal
 | `engine`   | The Rhai engine for a run, its limits and module resolver; the template `Registry`; running a template; `Memo` |
 | `query`    | The query API: read-only Rhai handles over a snapshot of the Book                                        |
 | `library`  | The built-in `.rhai` scripts, compiled in from `scripts/`                                                |
+| `render`   | The HTML renderer and style sheets; `render::csv`, a result's export rows as GnuCash's `gnc:lists->csv` writes them |
+| `import`   | GnuCash's `saved-reports-2.8` and `stylesheets-2.0` read as data, never evaluated: an s-expression reader, the forms, and option values in wire form |
 
 The HTML renderer will join these modules.
 

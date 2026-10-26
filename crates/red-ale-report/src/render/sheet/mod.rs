@@ -94,7 +94,7 @@ pub const PREDEFINED: [(&str, StyleSheetTemplate); 6] = [
 
 /// GnuCash options red-ale leaves out (`design/reports.md` §8, "Left out"): images and the banner's alignment. A value
 /// for one is accepted and has no effect.
-fn left_out(section: &str, name: &str) -> bool {
+pub fn left_out(section: &str, name: &str) -> bool {
     section == "Images" || (section == "General" && name == "Background Pixmap")
 }
 

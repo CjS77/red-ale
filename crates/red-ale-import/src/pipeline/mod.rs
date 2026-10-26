@@ -19,6 +19,8 @@ pub use review::{ImbalanceInfo, NewAccount, Review, TransactionReview, review};
 
 use red_ale_core::{Date, Guid};
 
+pub use crate::csv::accounts::ProposedAccount;
+pub use crate::csv::prices::ProposedPrice;
 use crate::matcher::{ImportSettings, TransInfo};
 use crate::qif::import::QifState;
 
@@ -29,6 +31,10 @@ pub enum Format {
     CsvTransactions,
     /// GnuCash's QIF import.
     Qif,
+    /// GnuCash's Import Accounts from CSV.
+    CsvAccounts,
+    /// GnuCash's Import Prices from CSV.
+    CsvPrices,
 }
 
 impl Format {
@@ -37,6 +43,8 @@ impl Format {
         match self {
             Self::CsvTransactions => "csvTransactions",
             Self::Qif => "qif",
+            Self::CsvAccounts => "csvAccounts",
+            Self::CsvPrices => "csvPrices",
         }
     }
 }
@@ -73,7 +81,7 @@ pub struct IgnoredLine {
     pub file: usize,
     /// The line, from 1.
     pub line: usize,
-    /// Why: `skipStartLines`, `skipEndLines` or `skipAltLines` for CSV.
+    /// Why: `skipStartLines`, `skipEndLines` or `skipAltLines` for CSV; `headerRows` or `empty` for CSV accounts.
     pub reason: &'static str,
 }
 
@@ -168,9 +176,30 @@ pub struct Proposal {
     pub csv: Option<CsvState>,
     /// QIF's own state: what applying converts again.
     pub qif: Option<Box<QifState>>,
+    /// The accounts of a CSV account import, by index.
+    pub accounts: Vec<ProposedAccount>,
+    /// The prices of a CSV price import, by index.
+    pub prices: Vec<ProposedPrice>,
 }
 
 impl Proposal {
+    /// A proposal of `format` with nothing in it yet.
+    pub fn empty(format: Format, settings: ImportSettings, threshold: Option<Date>) -> Self {
+        Self {
+            format,
+            settings,
+            threshold,
+            ignored_lines: Vec::new(),
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            transactions: Vec::new(),
+            csv: None,
+            qif: None,
+            accounts: Vec::new(),
+            prices: Vec::new(),
+        }
+    }
+
     /// The transaction with this index.
     pub fn transaction(&self, index: usize) -> Option<&ProposedTransaction> {
         self.transactions.iter().find(|t| t.info.index == index)

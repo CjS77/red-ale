@@ -101,7 +101,8 @@ settled there; in short:
 - **GnuCash preferences reports read** (report currency, reversed-balance accounts, date format, week start) are
   Report settings in the Configuration, with GnuCash's defaults.
 - **Saved configurations and style sheets are JSON in the Configuration.** GnuCash's `saved-reports-2.8` and
-  `stylesheets-2.0` are Scheme programs and are not read; importing their literal option forms is left open.
+  `stylesheets-2.0` are Scheme programs and are not read; importing their literal option forms is left open
+  (decided and done in v0.3, below).
 - **Report fixtures are built by the oracle**: Python scripts make the same engine calls as GnuCash's report tests
   and save XML books, so the fixtures are GnuCash's own files.
 - **The budget import in `test-average-balance.scm:4` is unused**: the budget module exports nothing
@@ -139,6 +140,13 @@ Two facts to carry over: Bayesian account matching sets two book features (`5.17
 and GnuCash keeps CSV import layouts in its state file, not the book
 (`5.17:gnucash/import-export/csv-imp/gnc-imp-settings-csv-tx.cpp:147`), so red-ale keeps them in its Configuration.
 
+**GnuCash's saved report configurations and style sheets are imported as data (done).** `report.importConfigurations`
+reads `saved-reports-2.8` (else `saved-reports-2.4`) and `report.importStyleSheets` reads `stylesheets-2.0`. The
+caller sends the file's text; the server never reads a path. Only the literal forms GnuCash writes are read, by an
+s-expression reader with no evaluator; any other form skips its entry with a reason. A configuration keeps GnuCash's
+GUID and name and stores only the options that differ from its template's defaults; a template red-ale has not
+translated is reported and skipped. Design: [`reports.md`](reports.md) §15; API: [`api/reports.md`](api/reports.md).
+
 ## Open
 
 - **Authentication and remote access.** The server listens on localhost with no authentication. Remote access needs
@@ -150,6 +158,3 @@ and GnuCash keeps CSV import layouts in its state file, not the book
 - **Locale-dependent collation.** GnuCash orders some ties (transactions with equal date, number and date entered)
   with `g_utf8_collate`, which depends on the locale of the GnuCash that wrote the file. red-ale appends new entities
   and keeps the order it read, which GnuCash accepts on load.
-- **Importing GnuCash's saved report configurations and style sheets.** They are Scheme programs, but their option
-  forms are literal calls (`5.17:gnucash/report/report-core.scm:620-643`). An importer that reads only those forms,
-  never evaluating Scheme, would let users bring them over. Not in v0.2.

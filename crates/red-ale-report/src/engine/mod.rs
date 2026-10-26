@@ -34,7 +34,7 @@ pub use context::ContextHandle;
 pub use memo::Memo;
 pub use options::{OptionBuilder, OptionsHandle};
 pub(crate) use registry::BUILTIN_DIRS;
-pub use registry::{Lookup, Registry, ScriptSource, TemplateInfo, TemplateKind};
+pub use registry::{EXPORT_CSV, Lookup, Registry, ScriptSource, TemplateInfo, TemplateKind};
 pub use run::RunContext;
 
 #[cfg(test)]

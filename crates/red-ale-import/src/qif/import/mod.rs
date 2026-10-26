@@ -175,15 +175,10 @@ pub fn propose(
     }
     let loaded = read::load(inputs, opts.date_format)?;
     let mut proposal = Proposal {
-        format: Format::Qif,
-        settings: ImportSettings::default(),
-        threshold,
         ignored_lines: loaded.ignored,
         errors: loaded.errors,
         warnings: loaded.warnings,
-        transactions: Vec::new(),
-        csv: None,
-        qif: None,
+        ..Proposal::empty(Format::Qif, ImportSettings::default(), threshold)
     };
     if !loaded.date_formats.is_empty() {
         let names: Vec<&str> = loaded.date_formats.iter().map(|f| f.symbol()).collect();

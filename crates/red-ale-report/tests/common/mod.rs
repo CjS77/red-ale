@@ -83,6 +83,7 @@ impl Host {
             accounting_period: &self.period,
             fiscal_year_end: self.fiscal_year_end,
             style_sheets: &["Default", "Easy"],
+            export: None,
         }
     }
 

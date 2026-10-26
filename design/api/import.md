@@ -560,9 +560,19 @@ GUID and full name, as GnuCash keeps both.
 
 **Translated as GnuCash does it**: the tokenizer, skipping, every date and number parser, grouping, the value
 methods, the transfer split, and what reaches the matcher. Under the default `C` locale, `currencyFormat: "locale"`
-reads as the period format. The `locale` date format has no parser yet: GnuCash uses ICU's there
-(`5.17:libgnucash/engine/gnc-datetime.cpp:646-703`), so every row with a date is an error row ("No locale date
-parser") until the locale work decides on ICU4X.
+reads as the period format.
+
+**The `locale` date format** (CSV transactions and prices) is ICU's default date pattern for the `locale` setting's
+LC_TIME, as GnuCash's (`DateFormat::createDateInstance (kDefault, …)`, `5.17:libgnucash/engine/gnc-datetime.cpp:646-703`;
+no fallback when ICU refuses the text): `MMM d, y` under C and en_US (`Mar 1, 2024`), `d MMM y` under fr_FR
+(`1 mars 2024`), `dd.MM.y` under de_DE. red-ale takes the pattern and CLDR's abbreviated and wide month names from
+ICU4X (`Locale::icu_date_pattern`) and reads it strictly (`red_ale_locale::LocaleDateParser`): whitespace is loose
+(around the text, and a space in the pattern matches any run or none), Arabic bidi marks are ignored, month names
+match in any case, and digits may be ASCII or the locale's own; a two-digit year in a `y` field is in ICU's default
+century (80 years back to 20 ahead). ICU's lenient parser also accepts what red-ale refuses: a day the month doesn't
+have (rolled over), a number for a month name, missing or other literal text. ICU4X's CLDR is newer than the
+oracle's ICU 74, so a pattern can differ where CLDR changed. A locale whose calendar is not Gregorian (fa_IR) is
+refused: GnuCash reads its Persian year, month and day as Gregorian ones.
 
 **Multi-currency checks** are GnuCash's: only the Account column (and the base account) count towards the currencies
 a file uses (`UpdateCrossSplitCounters`, `is_multi_currency`, `5.17:gnucash/import-export/csv-imp/gnc-imp-props-tx.cpp:391-424`;
@@ -773,14 +783,42 @@ The summary counts added and updated accounts and lists errors.
 
 ### What red-ale does
 
-**Params**: `separator` (`comma`, `semicolon` or `colon`; default `comma`) and `headerRows` (default: GnuCash's
-detection). The proposal's `accounts`: `[{ index, line, fullName, action, fields, changes }]`, with action `add`,
-`update` (the fields that would change) or `skip`; the caller may only change an `add` or `update` to `skip`.
-Accounts are created parents first; the separator is `:`.
+**Params**: `separator` (`comma`, `semicolon` or `colon`; default `comma`) and `headerRows` (records to leave out at
+the start; default: one when the first record's Type is `Type`, as GnuCash detects it). One file, UTF-8 unless it
+names another `encoding`. Characters XML can't hold are removed, as GnuCash's `gnc_utf8_strip_invalid` does, with an
+`invalid-characters` warning. A file with no account rows is an `import-file` error (`reason: "columns"`).
 
-**Deviations:** a row that doesn't match is an error row and later rows are still read; an unknown type, a missing
-parent and an unknown commodity are error rows (GnuCash makes an `INVALID` account, a top-level one, or skips); an
-unparseable colour leaves the colour as it was. The custom regex is not offered.
+The proposal's `accounts`, one record per row in file order:
+
+| Field | Meaning |
+|-------|---------|
+| `index`, `line` | Its position (the key `import.apply` changes it by) and its record in the file |
+| `fullName` | The account's full name, by which it is found |
+| `action` | `add` (create it), `update` (change the fields in `changes`) or `skip` (it exists and the row changes nothing) |
+| `account` | The existing account an `update` changes; null for an `add`, or for an account an earlier row adds |
+| `fields` | The row's cells as read: `type`, `name`, `code`, `description`, `color`, `notes`, `symbol`, `namespace`, `hidden`, `taxInfo`, `placeholder` |
+| `changes` | `[{ field, from, to }]`: the fields an update changes (`code`, `description`, `notes`, `color`) |
+| `warnings` | `color` (a colour GnuCash can't parse, left as it was) and `not-updated` (cells that differ from the account but that GnuCash's import never changes) |
+
+Rows run in file order on a copy of the Book, as applying runs them, so a parent an earlier row creates is there for
+the rows after it, and `newAccounts` lists what the import creates. The caller may only change an `add` or `update`
+to `skip`; a row that then fails (its parent skipped, say) fails the whole apply. `import.apply` reports the accounts
+in `accounts.created` and `accounts.updated`. Translated in `crates/red-ale-import/src/csv/accounts/`.
+
+**Deviations**, so that nothing lands where the file didn't say:
+
+- A record that doesn't have the twelve fields, text after a closing quote and a quote never closed are error rows,
+  and the records after them are still read; GnuCash's regex stops at the first record that doesn't fit, silently.
+  A record ends at a line break outside quotes; GnuCash lets an unquoted field run over a line break.
+- A missing parent, an unknown commodity, a type GnuCash doesn't know and a name that isn't the last part of the full
+  name are error rows. GnuCash creates a top-level account, skips the row, creates an `INVALID` account, or cuts the
+  full name by length at the wrong place (`Assets:Bank` named `Ass` looks for a parent `Asse`).
+- A new account goes through `account.create`'s rules (a type allowed under its parent's, a commodity fit for the
+  type, no `:` in the name); a row breaking one is an error row.
+- A colour GnuCash can't parse leaves the account's colour as it was, with a warning; GnuCash clears it. Colours by
+  name (`red`) are not recognised, since red-ale has no GDK colour table.
+- An existing account whose cells change nothing is `skip`; GnuCash counts it updated.
+- The custom regex is not offered.
 
 ## CSV prices
 
@@ -802,12 +840,48 @@ prices; failed lines aren't counted.
 
 ### What red-ale does
 
-**Params**: `layout` (a CSV price layout by name or whole, in `import.csvPriceLayouts`, with the same fields as a
-transaction layout plus `fromCommodity` and `toCurrency`, and the price column names), `overwrite` (bool, default
-false). The proposal's `prices`: `[{ index, line, commodity, currency, date, value, action, existing }]`, action `add`,
-or with a same-day price `update` (replace it, the default with `overwrite`) or `skip`. Prices are added through the
-same code as `price.add` ([`prices.md`](prices.md)), but with GnuCash's replace rule, which ignores source rank, since
-the user asked for it.
+**Params**: `layout` (a CSV price layout by name, in `import.csvPriceLayouts.<name>`, or whole), `overwrite` (bool,
+default false: GnuCash's "Allow existing prices to be over written", not saved with the layout). A price layout has
+the CSV transaction layout's reading fields (`format`, `separators`, `escape`, `columnWidths`, `skipStartLines`,
+`skipEndLines`, `skipAltLines`, `dateFormat`, `currencyFormat`, `encoding`), plus `fromCommodity` (a commodity ID such
+as `NASDAQ::ACME`, the default "Commodity From"), `toCurrency` (a currency, the default "Currency To"; `USD` is
+read as `CURRENCY::USD`) and `columns`, each one of GnuCash's names: `None`, `Date`, `Amount`, `From Symbol`, `From
+Namespace`, `Currency To`. The preset `No Settings` is built in. One file.
+
+Each cell is parsed as GnuCash parses it, the errors in its words (`"<column>: <reason>"`); amounts by
+`parse_amount_price`, which removes only currency symbols. A file whose columns can't give a price (no `Date`, no
+`Amount`, no commodity column or default, no currency column or default) is an `import-file` error (`reason:
+"columns"`) with GnuCash's messages.
+
+The proposal's `prices`, one record per line in file order:
+
+| Field | Meaning |
+|-------|---------|
+| `index`, `line` | Its position and its record in the file |
+| `commodity`, `currency` | The pair, as commodity IDs |
+| `date`, `time` | The line's date and the price's time: the date's day-neutral time (10:59 UTC) |
+| `amount` | The amount as the file writes it |
+| `value` | The value stored: the amount at the currency's fraction × 10000, rounded half up |
+| `action` | `add`; with a same-day price, `update` (replace it; proposed with `overwrite`) or `skip` (a duplicate; proposed without it) |
+| `existing` | The same-day price of the pair, in either direction: `{ price }` in the Book, or `{ index }` for one an earlier line adds |
+
+The caller may choose `add`, `update` or `skip` for any price. Lines run in file order on a copy of the Book, so a
+second line for the same day meets the first's price. Each price is added through `price.add`'s code
+([`prices.md`](prices.md)) with source `user:price` and type `last`, after the old price is removed for an `update`;
+`import.apply` reports `prices.added`, `prices.replaced` (the new prices that replaced one) and `prices.duplicate`
+(the same-day prices kept). Translated in `crates/red-ale-import/src/csv/prices/`.
+
+**Deviations:**
+
+- A line failing its essentials (a short line, a cell that doesn't parse) is an error row; GnuCash skips it with
+  only a log line.
+- A price `gnc_pricedb_add_price` would refuse once the old one is removed (another same-day price from a
+  better-ranked source) is an error row and the old price stays; GnuCash has already removed it.
+- A layout with both a default and the column it stands for is refused (GnuCash's assistant clears one when the
+  other is chosen), and an unknown default commodity is a `not-found` error (GnuCash's preset loader throws).
+- `escape` is honoured; GnuCash doesn't re-apply a price preset's `EnableEscape`
+  (`5.17:gnucash/import-export/csv-imp/gnc-import-price.cpp:313-314`).
+- A column name GnuCash doesn't know is refused; GnuCash loads it as `None`.
 
 ## Business documents
 
@@ -980,6 +1054,15 @@ and apply in one run.
 | QIF duplicates ticked | Only among the candidates; a voided one is kept (`xaccTransDestroy` refuses it) | `skip` on any transaction; a voided one is removed | The caller's skip is honoured whole |
 | QIF dates ambiguous in several files | Asked file by file | One `dateFormat` for the preview; files with no format in common are refused | One preview, one choice |
 | CSV account rows after one that doesn't fit | Ignored silently | Read; that row is an error | As above |
+| CSV account rows with a missing parent, unknown commodity or type, or a name that isn't the full name's end | Top-level account; skipped; `INVALID` account; cut at the wrong place | Error rows | Nothing lands where the file didn't say |
+| New CSV accounts breaking `account.create`'s rules | Created | Error rows | The Book's invariants hold for every door |
+| An unparseable CSV account colour | Clears the colour | Leaves it, with a warning; colour names not recognised | A typo shouldn't erase data; no GDK colour table |
+| A CSV account row that changes nothing | Counted updated | `skip`, with `not-updated` warnings for cells GnuCash never applies | The proposal says what will change |
+| CSV price lines failing their essentials | Skipped, logged | Error rows | The user sees every line that isn't imported |
+| A replacing CSV price the price database refuses | The old price is already removed | Error row; the old price stays | Never lose data |
+| A CSV price layout with a default and its column; an unknown default commodity | The assistant clears one when the other is chosen; the preset loader throws | Refused; `not-found` | No GUI to clear one; a layout says one thing |
+| `EnableEscape` in a CSV price preset | Not re-applied (`5.17:gnucash/import-export/csv-imp/gnc-import-price.cpp:313-314`) | Honoured | A GnuCash bug |
+| The `locale` date format | ICU's lenient parse of the medium date pattern | The ICU4X pattern, read strictly; non-Gregorian calendars refused | A rolled-over or guessed date is a wrong date |
 | Business lines over 999 bytes | Split in two | Read whole | A GnuCash limit |
 | Business notes on a new document's first entry | Un-escaped twice | Once | A GnuCash bug |
 | Business dates | Checked by `strptime`, read by `qof_scan_date` | One parser | The date checked is the date stored |
@@ -1004,5 +1087,7 @@ From [`../milestone3.md`](../milestone3.md), "Testing":
   add; a CSV export imports back to the same transactions.
 - **Oracle**: GnuCash 5.17 opens every book red-ale wrote after an import with no warnings; its own
   `gnc_account_imap_find_account_bayes` finds the account red-ale learned; the book declares only `Account GUID based
-  bayesian with flat KVP`, and only after Bayesian learning.
+  bayesian with flat KVP`, and only after Bayesian learning. After a CSV account or price import, `oracle_check` finds
+  no differences, and GnuCash ranks every imported price as `PRICE_SOURCE_USER_PRICE` with the value's stored
+  denominator the currency's fraction × 10000 (`crates/red-ale-testkit/tests/oracle_import_records.rs`).
 - **Property and fuzz tests** on every parser: no input panics.

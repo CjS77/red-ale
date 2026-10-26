@@ -1,8 +1,8 @@
-//! What imports read from the Configuration: the Import settings and the CSV import layouts
-//! (`design/api/configuration.md`, "v0.3").
+//! What imports read from the Configuration: the Import settings, the CSV import layouts and the CSV price import
+//! layouts (`design/api/configuration.md`, "v0.3").
 
 use red_ale_core::Numeric;
-use red_ale_import::csv::TxLayout;
+use red_ale_import::csv::{PriceLayout, TxLayout};
 use red_ale_import::matcher::ImportSettings;
 use serde_json::Value;
 
@@ -16,6 +16,15 @@ pub enum LayoutChoice {
     Named(String),
     /// A layout given in the params.
     Inline(Box<TxLayout>),
+}
+
+/// A CSV price import layout, by name or given whole.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PriceLayoutChoice {
+    /// The built-in layout, or one in the Configuration under `import.csvPriceLayouts.<name>`.
+    Named(String),
+    /// A layout given in the params.
+    Inline(Box<PriceLayout>),
 }
 
 impl Config {
@@ -57,6 +66,23 @@ impl Config {
             .map(TxLayout::sanitized)
             .map_err(|e| invalid(format!("the Configuration's import.csvLayouts.{name}: {e}")))
     }
+
+    /// The CSV price import layout chosen: the built-in one by name, else the Configuration's, else given whole. An
+    /// unknown name is `invalid`.
+    pub fn csv_price_layout(&self, choice: &PriceLayoutChoice) -> Result<PriceLayout, ServiceError> {
+        let name = match choice {
+            PriceLayoutChoice::Inline(layout) => return Ok(layout.as_ref().clone().sanitized()),
+            PriceLayoutChoice::Named(name) => name,
+        };
+        if let Some(preset) = PriceLayout::preset(name) {
+            return Ok(preset);
+        }
+        let layouts = self.checked("import.csvPriceLayouts")?;
+        let stored = layouts.get(name).ok_or_else(|| invalid(format!("no CSV price import layout {name:?}: not built in, nor in import.csvPriceLayouts")))?;
+        serde_json::from_value::<PriceLayout>(stored.clone())
+            .map(PriceLayout::sanitized)
+            .map_err(|e| invalid(format!("the Configuration's import.csvPriceLayouts.{name}: {e}")))
+    }
 }
 
 #[cfg(test)]
@@ -80,5 +106,14 @@ mod tests {
         assert!(config.csv_layout(&LayoutChoice::Named("GnuCash Export Format".to_owned())).unwrap().multi_split);
         assert!(config.csv_layout(&LayoutChoice::Named("Nope".to_owned())).is_err());
         assert_eq!(Config::default().import_settings().unwrap(), ImportSettings::default());
+    }
+
+    #[test]
+    fn price_layouts_come_from_the_configuration() {
+        let config = Config::parse(r#"{"import": {"csvPriceLayouts": {"Quotes": {"columns": ["Date", "Amount"], "toCurrency": "CURRENCY::EUR"}}}}"#).unwrap();
+        let quotes = config.csv_price_layout(&PriceLayoutChoice::Named("Quotes".to_owned())).unwrap();
+        assert_eq!(quotes.to_currency.as_deref(), Some("CURRENCY::EUR"));
+        assert_eq!(config.csv_price_layout(&PriceLayoutChoice::Named("No Settings".to_owned())).unwrap(), PriceLayout::default());
+        assert!(config.csv_price_layout(&PriceLayoutChoice::Named("Nope".to_owned())).is_err());
     }
 }

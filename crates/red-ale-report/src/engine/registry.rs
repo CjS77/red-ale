@@ -28,6 +28,9 @@ use crate::wire::Id;
 /// It keeps user scripts apart from built-in ones, whatever their paths.
 pub(crate) const USER_PREFIX: &str = "./";
 
+/// The one export type besides HTML: CSV, GnuCash's `'csv` (`5.17:gnucash/report/reports/standard/net-charts.scm:480`).
+pub const EXPORT_CSV: &str = "csv";
+
 /// The directories of the built-in library, as GnuCash lays out its reports (`5.17:gnucash/report/reports/`).
 pub(crate) const BUILTIN_DIRS: [&str; 3] = ["lib", "standard", "example"];
 
@@ -80,6 +83,9 @@ pub struct TemplateInfo {
     pub menu_tip: Option<String>,
     /// Whether the template shows in menus.
     pub in_menu: bool,
+    /// The exports the template offers besides HTML: `csv` for the net and category charts, GnuCash's
+    /// `'export-types '(("CSV" . csv))` (`5.17:gnucash/report/reports/standard/net-charts.scm:480`).
+    pub export_types: Vec<String>,
     /// The values that tell one script's templates apart, passed to its `options` and `render` as `params`.
     #[serde(skip)]
     pub params: Value,
@@ -282,7 +288,7 @@ pub(crate) fn call(engine: &Engine, ast: &AST, name: &str, args: impl rhai::Func
 /// `params`.
 fn record(r: &Dynamic, script: &str, builtin: bool) -> Result<TemplateInfo, String> {
     let map = r.read_lock::<Map>().ok_or_else(|| format!("a template is a map, not {}", r.type_name()))?;
-    let known = ["guid", "name", "menuPath", "menuName", "menuTip", "inMenu", "params"];
+    let known = ["guid", "name", "menuPath", "menuName", "menuTip", "inMenu", "params", "exportTypes"];
     if let Some(key) = map.keys().find(|k| !known.contains(&k.as_str())) {
         return Err(format!("unknown field {key:?}"));
     }
@@ -297,17 +303,21 @@ fn record(r: &Dynamic, script: &str, builtin: bool) -> Result<TemplateInfo, Stri
         .filter(|_| lowercase_hex)
         .ok_or_else(|| format!("guid must be 32 lowercase hex digits, not {guid_text:?}"))?;
     let name = text("name")?.filter(|n| !n.is_empty()).ok_or("name is required")?;
-    let menu_path = match map.get("menuPath") {
-        None => Vec::new(),
-        Some(v) => {
-            let items = v.read_lock::<Array>().ok_or("menuPath must be an array of strings")?;
-            items.iter().map(|p| p.clone().into_string().map_err(|t| format!("menuPath holds strings, not {t}"))).collect::<Result<_, _>>()?
-        }
+    let strings = |key: &str| -> Result<Vec<String>, String> {
+        let Some(v) = map.get(key) else { return Ok(Vec::new()) };
+        let items = v.read_lock::<Array>().ok_or_else(|| format!("{key} must be an array of strings"))?;
+        items.iter().map(|p| p.clone().into_string().map_err(|t| format!("{key} holds strings, not {t}"))).collect()
     };
+    let menu_path = strings("menuPath")?;
+    let export_types = strings("exportTypes")?;
+    if let Some(t) = export_types.iter().find(|t| *t != EXPORT_CSV) {
+        return Err(format!("exportTypes may hold only \"{EXPORT_CSV}\", not {t:?}"));
+    }
     let in_menu = map.get("inMenu").map_or(Ok(true), |v| v.as_bool().map_err(|t| format!("inMenu must be true or false, not {t}")))?;
     let json = |p: &Dynamic| to_json(p).map_err(|e| format!("params: {}", e.reason));
     let params = map.get("params").map_or(Ok(Value::Object(serde_json::Map::new())), json)?;
     let kind = if builtin { TemplateKind::Builtin } else { TemplateKind::User };
     let (menu_name, menu_tip) = (text("menuName")?, text("menuTip")?);
-    Ok(TemplateInfo { guid: Id(guid), name, kind, script: script.to_owned(), menu_path, menu_name, menu_tip, in_menu, params })
+    let script = script.to_owned();
+    Ok(TemplateInfo { guid: Id(guid), name, kind, script, menu_path, menu_name, menu_tip, in_menu, export_types, params })
 }

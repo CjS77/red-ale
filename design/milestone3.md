@@ -228,8 +228,8 @@ Bayesian matching follows GnuCash exactly, so red-ale and GnuCash pick the same 
 |   ✅   | Import map editor            |    3.0     |      | List and delete learned mappings: `importMap.list`, `importMap.delete`                     |
 |   ✅   | CSV transaction import       |    2.6     |      | The first format on the pipeline. Layouts are saved in the Configuration                   |
 |   ✅   | QIF import                   |   ≤ 1.4    |      | Translated from Scheme; its own duplicate finder; the QIF account map in the Configuration |
-|        | CSV account import           |    2.6     |      | Creates accounts from GnuCash's account CSV layout; no matcher                             |
-|        | CSV price import             |    3.0     |      | Adds prices through `price.add`'s same-day rules; no matcher                               |
+|   ✅   | CSV account import           |    2.6     |      | Creates accounts from GnuCash's account CSV layout; no matcher                             |
+|   ✅   | CSV price import             |    3.0     |      | GnuCash's same-day replace rule, then `price.add`'s; no matcher                            |
 |        | Import invoices and bills    |   2.4.1    |      | `5.17:gnucash/import-export/bi-import/`; creates and optionally posts documents            |
 |        | Import customers and vendors |    2.6     |      | `5.17:gnucash/import-export/customer-import/`                                              |
 |   ❌   | OFX/QFX import               |    1.8     |      | Parsed by LibOFX, not GnuCash (see "Out")                                                  |
@@ -387,7 +387,7 @@ unchanged, including `<from> to <to>` in titles.
 |   ✅   | Locale data                | A committed table from glibc's locale sources; ICU4X for date intervals and week start   |
 |   ✅   | Number and date formats    | Every report renderer and `display` form follows the locale                              |
 |   ✅   | Day names in import tokens | The Bayesian day-of-week token in the locale's language (`import-backend.cpp:479`)       |
-|        | Locale collation           | Out of v0.3. Name sorting stays bytewise ([`reports.md`](reports.md) §14)               |
+|   ❌   | Locale collation           | Out of v0.3. Name sorting stays bytewise ([`reports.md`](reports.md) §14)               |
 
 The trailing point after a whole amount (`5. ACME`) does not depend on the locale; see [`reports.md`](reports.md) §3.
 
@@ -395,9 +395,9 @@ The trailing point after a whole amount (`5. ACME`) does not depend on the local
 
 | Status | Feature                                     | Notes                                                                                                   |
 |:------:|---------------------------------------------|---------------------------------------------------------------------------------------------------------|
-|        | CSV export of the net and category charts   | The "Show table" data as CSV ([`reports.md`](reports.md) §12)                                          |
-|        | Import saved report configurations          | From `saved-reports-2.8`, else `saved-reports-2.4` (`5.17:gnucash/report/gnc-report.h:35-36`); literal option forms only, never evaluating Scheme |
-|        | Import style sheets                         | From `stylesheets-2.0` (`5.17:gnucash/report/html-style-sheet.scm:142-143`)                            |
+|   ✅   | CSV export of the net and category charts   | `report.exportCsv`: the rows of GnuCash's CSV export, byte for byte ([`reports.md`](reports.md) §12, [`api/reports.md`](api/reports.md)) |
+|   ✅   | Import saved report configurations          | `report.importConfigurations`: from `saved-reports-2.8`, else `saved-reports-2.4` (`5.17:gnucash/report/gnc-report.h:35-36`); literal option forms only, never evaluating Scheme ([`reports.md`](reports.md) §15) |
+|   ✅   | Import style sheets                         | `report.importStyleSheets`: from `stylesheets-2.0` (`5.17:gnucash/report/html-style-sheet.scm:142-143`); image options kept, not rendered |
 
 The details are in [`roadmap.md`](roadmap.md), "Also in v0.3": a saved configuration keeps only the options that
 differ from its template's defaults, one whose template red-ale has not translated is reported and skipped, and both

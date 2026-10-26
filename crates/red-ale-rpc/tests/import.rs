@@ -494,3 +494,24 @@ fn transfer_accounts_and_the_multi_currency_checks() {
     assert_eq!(t["currency"], "CURRENCY::EUR");
     assert_eq!((t["splits"][1]["value"].clone(), t["splits"][1]["amount"].clone()), (usd("1000"), usd("1100")));
 }
+
+/// The `locale` date format reads ICU's default date pattern for the configured locale, as GnuCash does.
+#[test]
+fn locale_dates_follow_the_configured_locale() {
+    let mut b = Book::new();
+    let layout = json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Amount"], "baseAccount": "Assets:Checking",
+                         "dateFormat": "locale", "separators": ";" });
+    let file = "Date;Description;Amount\nMar 1, 2024;Corner Grocer;-45.10\n2024-03-02;Rent March;-950.00\n";
+    let p = b.preview(file, layout.clone());
+    assert_eq!(p["transactions"][0]["datePosted"], "2024-03-01", "under C, ICU reads en_US_POSIX's MMM d, y");
+    assert_eq!(p["errors"], json!([{ "file": 0, "line": 3, "column": 1,
+        "message": "Date: Value can't be parsed into a date using the locale's date format (MMM d, y)." }]));
+    b.ok("config.set", json!({ "changes": { "locale": "fr_FR" } }));
+    let file = "Date;Description;Amount\n1 mars 2024;Corner Grocer;-45.10\n2 févr. 24;Rent;-950.00\n";
+    let p = b.preview(file, layout.clone());
+    let dates: Vec<&Value> = p["transactions"].as_array().unwrap().iter().map(|t| &t["datePosted"]).collect();
+    assert_eq!(dates, [&json!("2024-02-02"), &json!("2024-03-01")], "in date order, as GnuCash hands them to the matcher");
+    b.ok("config.set", json!({ "changes": { "locale": "de_DE" } }));
+    let p = b.preview("Date;Description;Amount\n05.03.2024;Corner Grocer;-45.10\n", layout);
+    assert_eq!(p["transactions"][0]["datePosted"], "2024-03-05");
+}

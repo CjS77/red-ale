@@ -23,6 +23,7 @@ pub use finish::{DisplayContext, RunInfo};
 pub use table::{Align, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, ReportLink, Row, RowRole, Table};
 
 use crate::error::ResultError;
+use crate::number::Rational;
 use crate::wire::{Id, Timestamp};
 
 /// The version of the report result: the `redAleApi` version it was published with (`design/api.md`).
@@ -64,6 +65,24 @@ pub struct ReportResult {
     pub sections: Vec<Section>,
     /// The report log: what the script printed.
     pub log: Vec<LogEntry>,
+    /// The rows of the report's export, when the run was for an export the template offers (`report.exportCsv`):
+    /// GnuCash's export string before it is joined (`gnc:html-document-set-export-string`). Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export: Option<ExportRows>,
+}
+
+/// The rows of an export: each a list of cells, as GnuCash's `gnc:lists->csv` takes them
+/// (`5.17:gnucash/report/trep-engine.scm:463-512`).
+pub type ExportRows = Vec<Vec<Option<ExportCell>>>;
+
+/// One cell of an export row; `null` for an empty one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ExportCell {
+    /// Text, written quoted.
+    Text(String),
+    /// An exact number, written as Guile prints it once inexact.
+    Number(Rational),
 }
 
 /// What a template's `render()` returns: a report result without the fields the host fills in.
@@ -77,6 +96,9 @@ pub struct ReportDraft {
     pub headline: Option<String>,
     /// The sections, in order.
     pub sections: Vec<Section>,
+    /// The export's rows, when the run context asks for an export (`ctx.export_type()`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export: Option<ExportRows>,
 }
 
 /// A section: an optional title and ordered blocks.

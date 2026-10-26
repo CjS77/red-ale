@@ -8,7 +8,7 @@ use red_ale_core::ops::transactions::transfer::PriceChange;
 use red_ale_core::{Book, CommodityRef, DomainError, DomainResult, Env, Guid, Numeric};
 
 use super::review::process_warning;
-use super::{AccountName, NameSource, Proposal, Warning};
+use super::{AccountName, Format, NameSource, Proposal, Warning};
 use crate::import_map::{CATEGORY_CSV_ACCOUNT_MAP, add_account, delete_account, find_account};
 use crate::matcher::{ApplyOptions, ImportAction, Learned, Processed, TransInfo, append_text, apply_batch};
 use crate::qif::guess_map::SavedMap;
@@ -65,7 +65,8 @@ pub struct LearnedEntries {
     pub csv_account_map: Vec<(String, Guid)>,
 }
 
-/// What applying did.
+/// What applying did. A format that imports records rather than transactions reports them here too: accounts
+/// created and updated, prices added, replacing a same-day price, or left as duplicates, and records skipped.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Applied {
     /// Transactions added, by index.
@@ -101,8 +102,14 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
         let n = proposal.errors.len();
         return Err(DomainError::invalid(format!("the proposal has {n} row(s) that can't be imported; apply with skipErrors to leave them out")));
     }
-    if let Some(qif) = &proposal.qif {
-        return crate::qif::import::apply(book, env, proposal, qif, changes);
+    match proposal.format {
+        Format::CsvAccounts => return crate::csv::accounts::apply(book, env, proposal, changes),
+        Format::CsvPrices => return crate::csv::prices::apply(book, env, proposal, changes),
+        Format::Qif => {
+            let qif = proposal.qif.as_deref().ok_or_else(|| DomainError::invalid("the QIF proposal has lost its state"))?;
+            return crate::qif::import::apply(book, env, proposal, qif, changes);
+        }
+        Format::CsvTransactions => {}
     }
     let mut infos: Vec<TransInfo> = proposal.transactions.iter().map(|t| t.info.clone()).collect();
     changes.iter().try_for_each(|c| change(book, proposal, &mut infos, c))?;
