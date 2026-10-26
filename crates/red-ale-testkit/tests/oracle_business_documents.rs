@@ -28,6 +28,11 @@ def find(book, kind, cls, id):
     q.search_for(kind)
     q.set_book(book)
     return [x for x in (cls(instance=i) for i in q.run()) if x.GetID() == id][0]
+def book_invoices(book):
+    q = Query()
+    q.search_for("gncInvoice")
+    q.set_book(book)
+    return [Invoice(instance=i) for i in q.run()]
 def frac(n):
     num, den = (n.num(), n.denom()) if callable(n.num) else (n.num, n.denom)
     return f"{{num}}/{{den}}"
@@ -126,4 +131,45 @@ fn a_new_book_holds_documents_gnucash_can_read() {
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     let out = gnucash(&book, "    print(frac(find(book, \"gncInvoice\", Invoice, \"000002\").GetTotal()))\n");
     assert_eq!(value(&out[0]), (3599, 50), "71.98");
+}
+
+/// Credit notes red-ale makes in a book that had none: GnuCash reads them back as credit notes with the totals of the
+/// lines red-ale wrote, shown positive as GnuCash shows them, and the book declares the `Credit Notes` feature
+/// (`5.17:libgnucash/engine/gnc-features.h:54`) so GnuCash opens it with no unknown-feature warning.
+#[test]
+fn credit_notes_made_by_red_ale_read_back_in_gnucash() {
+    let (book, mut d) = open("piecash/invoices.gnucash");
+    let mickey = guid_of(&mut d, "customer.list", "customers", "123456");
+    let looney = guid_of(&mut d, "vendor.list", "vendors", "000001");
+    call(&mut d, "account.create", &json!({ "name": "Receivable", "type": "RECEIVABLE", "parent": "Assets", "commodity": "CURRENCY::EUR" }));
+    let cn = call(&mut d, "invoice.create", &json!({ "owner": mickey, "creditNote": true }));
+    call(&mut d, "invoice.addEntry", &json!({ "invoice": cn["guid"], "description": "Returned hat", "quantity": "1", "price": "35.99", "account": "Income:Other Income" }));
+    call(&mut d, "invoice.post", &json!({ "invoice": cn["guid"], "account": "Assets:Receivable", "postDate": "2024-03-10" }));
+    let vcn = call(&mut d, "invoice.create", &json!({ "owner": looney, "creditNote": true }));
+    call(&mut d, "invoice.addEntry", &json!({ "invoice": vcn["guid"], "description": "Ink refund", "quantity": "1", "price": "12", "account": "Expenses:Supplies" }));
+    // Invoices and bills have separate counters, so a document is found by its ID and its owner's.
+    let docs = [(cn["id"].as_str().unwrap().to_owned(), "123456"), (vcn["id"].as_str().unwrap().to_owned(), "000001")];
+    let diffs = oracle_check(&mut d, &book, &[]);
+    assert!(diffs.is_empty(), "{}", diffs.join("\n"));
+    let body = docs
+        .iter()
+        .map(|(id, owner)| format!("    i = [x for x in book_invoices(book) if (x.GetID(), x.GetOwner().GetID()) == (\"{id}\", \"{owner}\")][0]\n    print(i.GetIsCreditNote(), i.GetTypeString(), frac(i.GetTotal()), i.IsPosted(), sep=\"|\")\n"))
+        .collect::<Vec<_>>()
+        .concat();
+    let out = gnucash(&book, &body);
+    let read: Vec<(&str, &str, (i64, i64), &str)> = out
+        .iter()
+        .map(|l| {
+            let f: Vec<&str> = l.split('|').collect();
+            (f[0], f[1], value(f[2]), f[3])
+        })
+        .collect();
+    assert_eq!(read, [("True", "Credit Note", (3599, 100), "True"), ("True", "Credit Note", (12, 1), "False")], "{out:?}");
+    let path = book.path_str();
+    let script = |name: &str, args: &[&str]| -> Value {
+        serde_json::from_str(&oracle::run_script(&oracle::scripts_dir().join(name), args).unwrap_or_else(|e| panic!("{e}"))).unwrap()
+    };
+    assert_eq!(script("opened.py", &[&path]), json!({ "unknownFeatures": null, "logged": [] }));
+    let features = script("book_options.py", &["slots", &path])["features"].clone();
+    assert!(features.get("Credit Notes").is_some(), "the book declares the Credit Notes feature: {features}");
 }
