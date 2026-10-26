@@ -259,8 +259,8 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |:------:|-------------------------------|---------------------------------------------------------------|:----------:|:------:|
 |        | Average Balance               | Average, highest and lowest balance per period                |   ≤ 1.4    |        |
 |        | Balance Forecast              | Projected balances including scheduled transactions           |    3.5     |        |
-|        | Net worth and income charts   | Net worth and income/expense over time, as bar or line charts |    1.6     |        |
-|        | Account bar charts            | Account balances or flows over time                           |    1.6     |        |
+|   ✅   | Net worth and income charts   | Net worth and income/expense over time, as bar or line charts |    1.6     |  0.2   |
+|   ✅   | Account bar charts            | Account balances or flows over time                           |    1.6     |  0.2   |
 |   ✅   | Account pie charts            | Share of balances or flows by account                         |    1.6     |  0.2   |
 |        | Price chart                   | A commodity's price over time                                 |    1.6     |        |
 |        | Income/expense vs day of week | Totals by day of the week                                     |   1.8.3    |        |

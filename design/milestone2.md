@@ -221,8 +221,8 @@ point either. Hover labels are SVG `<title>` elements.
 | Status | Feature                     | Introduced | Epic | Notes                                                                                                                  |
 |:------:|-----------------------------|:----------:|------|------------------------------------------------------------------------------------------------------------------------|
 |        | Average Balance             |   ≤ 1.4    |      | `example/average-balance.scm`. 5.17 files it as an example but loads it (`reports/reports.scm:51`)                     |
-|        | Net worth and income charts |    1.6     |      | Net Worth Barchart and Linechart, Income/Expense Chart, Income & Expense Linechart (`standard/net-charts.scm:475-511`) |
-|        | Account bar charts          |    1.6     |      | Income, Expense, Assets and Liabilities Over Time (`standard/category-barchart.scm:67-70`)                             |
+|   ✅   | Net worth and income charts |    1.6     |      | Net Worth Barchart and Linechart, Income/Expense Chart, Income & Expense Linechart (`standard/net-charts.scm:475-511`) |
+|   ✅   | Account bar charts          |    1.6     |      | Income, Expense, Assets and Liabilities Over Time (`standard/category-barchart.scm:67-70`)                             |
 |   ✅   | Account pie charts          |    1.6     |      | Income Accounts, Expense Accounts, Assets, Securities, Liabilities (`standard/account-piecharts.scm:59-63`)            |
 |        | Price chart                 |    1.6     |      | Price Scatterplot (`standard/price-scatter.scm:283`)                                                                   |
 
