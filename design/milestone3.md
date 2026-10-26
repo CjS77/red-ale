@@ -230,8 +230,8 @@ Bayesian matching follows GnuCash exactly, so red-ale and GnuCash pick the same 
 |        | QIF import                   |   ≤ 1.4    |      | Translated from Scheme; its own duplicate finder; the QIF account map in the Configuration |
 |   ✅   | CSV account import           |    2.6     |      | Creates accounts from GnuCash's account CSV layout; no matcher                             |
 |   ✅   | CSV price import             |    3.0     |      | GnuCash's same-day replace rule, then `price.add`'s; no matcher                            |
-|        | Import invoices and bills    |   2.4.1    |      | `5.17:gnucash/import-export/bi-import/`; creates and optionally posts documents            |
-|        | Import customers and vendors |    2.6     |      | `5.17:gnucash/import-export/customer-import/`                                              |
+|   ✅   | Import invoices and bills    |   2.4.1    |      | `5.17:gnucash/import-export/bi-import/`; creates and optionally posts documents            |
+|   ✅   | Import customers and vendors |    2.6     |      | `5.17:gnucash/import-export/customer-import/`                                              |
 |   ❌   | OFX/QFX import               |    1.8     |      | Parsed by LibOFX, not GnuCash (see "Out")                                                  |
 |   ❌   | AqBanking file import        |   1.8.9    |      | MT940, MT942 and DTAUS, parsed by AqBanking (see "Out")                                    |
 |   ❌   | CAMT import                  |    5.0     |      | Parsed by AqBanking (see "Out")                                                            |
