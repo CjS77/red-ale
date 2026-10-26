@@ -34,6 +34,7 @@ num-traits = "0.2.19"
 proptest = "1.9"
 quick-xml = "0.41"
 regex = "1.12"
+rhai = { version = "1.27.0", default-features = false, features = ["std", "no_float", "no_time", "serde"] }
 rmcp = { version = "3.7", default-features = false, features = ["server", "transport-io"] }
 schemars = "1.2"
 serde = { version = "1.0", features = ["derive"] }

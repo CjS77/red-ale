@@ -44,8 +44,11 @@ It never depends on `red-ale-service`, so it cannot reach a Session, the journal
 | `error`    | `ReportError` with the kinds `report-script`, `report-limit`, `report-option`, `report-result`, `report-load` |
 | `limits`   | The limits of a report run and their defaults                                                           |
 | `wire`     | Wire forms of GUIDs, commodities and timestamps                                                          |
+| `engine`   | The Rhai engine for a run, its limits and module resolver; the template `Registry`; running a template   |
+| `query`    | The query API: read-only Rhai handles over a snapshot of the Book                                        |
+| `library`  | The built-in `.rhai` scripts, compiled in from `scripts/`                                                |
 
-The Rhai engine, the query API, the built-in scripts and the HTML renderer will join these modules.
+The HTML renderer will join these modules.
 
 ## Usage
 
@@ -63,6 +66,37 @@ db.apply(&params["options"], &ValueContext { book: Some(&book), zone: &zone })?;
 let draft = ReportDraft::from_json(&script_output)?;
 let result = draft.finish(run_info, &DisplayContext { book: &book, zone: &zone, date_format })?;
 ```
+
+Load the built-in and user scripts once, then list, describe and run templates:
+
+```rust
+use red_ale_report::engine::{Registry, RunContext, ScriptSource};
+use red_ale_report::library::Library;
+use red_ale_report::limits::Limits;
+
+let user = vec![ScriptSource { path: "mine/report.rhai".into(), text }];
+let registry = Registry::load(&Library::builtin(), &user, Limits::default())?;
+let failed = registry.problems(); // user scripts that did not load: report-load or report-limit
+let template = registry.find("Balance Sheet")?; // Lookup::NotFound or Lookup::Ambiguous(guids)
+let ctx = RunContext { book: &book, now, zone: &zone, settings: &settings, accounting_period: &period, style_sheets: &["Default"] };
+let db = registry.options(template, &ctx)?; // report.options
+let result = registry.run(template, &[&saved, &params["options"]], None, &ctx)?;
+```
+
+The registry holds only script texts and template records, so it can be shared between threads; every call builds
+its own engine. Nothing in it reads files: the service hands in each user script's path below the report directory
+and its text.
+
+## Adding a built-in script
+
+Put the file below `scripts/`, in `standard/` or `example/` for a report and `lib/` for a shared module, as GnuCash
+lays them out, and add its path to `BUILTIN` in `src/library/mod.rs`:
+
+```rust
+const BUILTIN: &[(&str, &str)] = scripts!["lib/dates.rhai", "standard/balance-sheet.rhai"];
+```
+
+A built-in template with a GnuCash name or GUID must have both, as `GNUCASH_TEMPLATES` lists them; a test checks it.
 
 Regenerate the result schema snapshot after a deliberate change with
 `UPDATE_SNAPSHOTS=1 cargo test -p red-ale-report --test result_schema`, and review the diff.

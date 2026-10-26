@@ -29,11 +29,13 @@ pub enum Limit {
     Modules,
     /// Variables in scope (`set_max_variables`).
     Variables,
+    /// Functions one script defines (`set_max_functions`), checked when the script compiles.
+    Functions,
     /// Bits in a Rational's numerator or denominator: red-ale's own check, [`crate::number::SizeCap`].
     NumberSize,
 }
 
-const LIMITS: [(Limit, &str, u64); 10] = [
+const LIMITS: [(Limit, &str, u64); 11] = [
     (Limit::Operations, "operations", 1_000_000_000),
     (Limit::Time, "time", 120),
     (Limit::CallDepth, "call-depth", 64),
@@ -43,6 +45,7 @@ const LIMITS: [(Limit, &str, u64); 10] = [
     (Limit::MapSize, "map-size", 1_000_000),
     (Limit::Modules, "modules", 64),
     (Limit::Variables, "variables", 10_000),
+    (Limit::Functions, "functions", 1_000),
     (Limit::NumberSize, "number-size", crate::number::DEFAULT_MAX_BITS),
 ];
 
@@ -81,13 +84,56 @@ impl FromStr for Limit {
     }
 }
 
+/// The maximum of every limit for one run: the defaults, changed by the Configuration's `reports.limits`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Limits {
+    max: [u64; LIMITS.len()],
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self { max: LIMITS.map(|(_, _, d)| d) }
+    }
+}
+
+impl Limits {
+    fn index(limit: Limit) -> usize {
+        LIMITS.iter().position(|(l, _, _)| *l == limit).unwrap_or(0)
+    }
+
+    /// The maximum of `limit`.
+    pub fn get(&self, limit: Limit) -> u64 {
+        self.max[Self::index(limit)]
+    }
+
+    /// These limits with `limit` set to `max`.
+    #[must_use]
+    pub fn with(mut self, limit: Limit, max: u64) -> Self {
+        self.max[Self::index(limit)] = max;
+        self
+    }
+
+    /// The maximum of `limit` as a `usize`, saturating.
+    pub(crate) fn get_usize(&self, limit: Limit) -> usize {
+        usize::try_from(self.get(limit)).unwrap_or(usize::MAX)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn limits_start_at_the_defaults() {
+        let limits = Limits::default().with(Limit::Operations, 5);
+        assert_eq!(limits.get(Limit::Operations), 5);
+        assert_eq!(limits.get(Limit::Functions), 1_000);
+        Limit::all().filter(|l| *l != Limit::Operations).for_each(|l| assert_eq!(limits.get(l), l.default_max()));
+    }
+
+    #[test]
     fn names_and_defaults() {
-        assert_eq!(Limit::all().count(), 10);
+        assert_eq!(Limit::all().count(), 11);
         Limit::all().for_each(|l| assert_eq!(l.as_str().parse::<Limit>(), Ok(l)));
         Limit::all().for_each(|l| assert_eq!(serde_json::to_value(l).unwrap(), serde_json::json!(l.as_str())));
         assert_eq!(Limit::NumberSize.default_max(), 4096);

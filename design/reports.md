@@ -43,6 +43,12 @@ Citations are to the 5.17 tree. In them, `report/` stands for `5.17:gnucash/repo
 The renderer depends only on `result` and `number`, never on the engine or the query API, so a result a client got
 as JSON renders the same way.
 
+The engine's Rust API is small: `Registry::load(library, user_scripts, limits)` compiles the built-in and user
+scripts and collects their templates (`templates()`, `find(reference)`, `problems()` for the user scripts that did
+not load); `Registry::options(template, run_context)` declares a template's options for `report.options`; and
+`Registry::run(template, changes, configuration, run_context)` runs one. The registry is plain data, shared between
+threads; each call builds its own engine over its own snapshot of the Book.
+
 The crate depends on `red-ale-core`, `rhai`, `num-bigint`, `num-rational`, `num-traits`, `num-integer`, `serde`,
 `serde_json`, `schemars`, `chrono` (RFC 3339 timestamps on the wire, as `red-ale-rpc` writes them) and
 `serde_path_to_error` (the path of a `report-result` mismatch). It does no I/O: script sources, the report settings and the time zone come in as
@@ -101,12 +107,14 @@ the features `std`, `no_float`, `no_time` and `serde`. Never `unchecked`, `sync`
 `Engine::new_raw()`, which has no resolver and no `print` target, plus Rhai's `StandardPackage` (strings, arrays,
 maps, logic and integer arithmetic; its time and float functions are compiled out by the features above). Then:
 
-- `disable_symbol("eval")`, so a script cannot compile code at run time.
+- `disable_symbol("eval")`, so a script cannot compile code at run time. `sleep`, a function and not a symbol, is
+  overridden by one that fails, so a script cannot hold a thread while using no operations.
 - `set_strict_variables(true)` and `set_fail_on_invalid_map_property(true)`, so a misspelt variable or map key is an
   error rather than a silent `()`.
 - `on_print` and `on_debug` append to the **report log** (`{ level: "print" | "debug", text, source, line }`)
   instead of standard output, which is the MCP stdio channel. The log comes back in the result, and in the `data`
-  of a script error.
+  of a script error. It holds at most the string-length limit in bytes of text; past that one last entry says the
+  log was cut.
 - `set_module_resolver` with red-ale's resolver (below).
 - The types and functions of sections 3, 5 and 6 are registered; nothing else is.
 - The limits below are set, and `on_progress` stops the run once the run time limit passes.
@@ -126,24 +134,33 @@ Defaults; each can be changed in the Configuration (`reports.limits`, section 9)
 | Map size           | `set_max_map_size`           | 1,000,000            | `map-size`         |
 | Modules            | `set_max_modules`            | 64                   | `modules`          |
 | Variables          | `set_max_variables`          | 10,000               | `variables`        |
+| Functions          | `set_max_functions`, per script | 1,000             | `functions`        |
 | Rational size      | red-ale's own check          | 4,096 bits per part  | `number-size`      |
 
 The operation limit is deterministic. The run time limit is not, but it only turns a run into an error, never into
 different output. Rhai's data-size limits stand in for a memory limit; the Rational size check keeps one runaway
 computation from doing the same. GnuCash's exact sums stay far below 4,096 bits.
 
+The Rational size check raises Rhai's `ErrorDataTooLarge`, so, like every other limit, a script's `try … catch` cannot
+catch it. The expression-depth and function limits also apply when a script compiles; a user script that passes one
+at load time is listed with the scripts that did not load, as `report-limit`. Rhai checks the map size when maps are
+merged (`m += other`), assigned to a property or returned, but not when `m[key] = v` adds a key; the operation limit
+bounds that case.
+
 New error codes, in a range for reports (added to [`api.md`](api.md)):
 
 | Code | Name            | When                                                                                         |
 |------|-----------------|----------------------------------------------------------------------------------------------|
 | 3000 | `report-script` | The script failed at run time: `throw`, a type error, division by zero, Rhai's `ErrorArithmetic`, an unknown function, variable or module. `data`: `{ report, source, line, column, message, log }` |
-| 3001 | `report-limit`  | The script passed a limit: `ErrorTooManyOperations`, `ErrorTerminated`, `ErrorStackOverflow`, `ErrorDataTooLarge`, `ErrorTooManyModules`, `ErrorTooManyVariables`, or the Rational size check. `data`: `{ report, limit, max, log }` |
+| 3001 | `report-limit`  | The script passed a limit: `ErrorTooManyOperations`, `ErrorTerminated`, `ErrorStackOverflow`, `ErrorDataTooLarge`, `ErrorTooManyModules`, `ErrorTooManyVariables`, a compile-time depth or function limit, or the Rational size check. `data`: `{ report, source, limit, max, log }`; `source` is the script, or `null` when not known |
 | 3002 | `report-option` | An option value is not valid: unknown section or name, wrong type, not one of the choices, out of range, unknown account or commodity, or a style sheet that does not exist. `data`: `{ section, name, reason }` |
 | 3003 | `report-result` | The template returned something that is not a valid report result. `data`: `{ report, path, reason, log }` |
-| 3004 | `report-load`   | A user script does not compile, or its `templates()` is missing, malformed or repeats a GUID already defined. `data`: `{ source, line, column, message }` |
+| 3004 | `report-load`   | A user script does not compile, or its `templates()` fails, is malformed or repeats a GUID already defined, or it has `templates()` without `options` and `render`. `data`: `{ source, line, column, message }` |
 
-A built-in script that fails to compile or returns an invalid result is a bug: `internal-error`, and the tests of
-section 13 catch it before release.
+A built-in script that fails to compile, declares a malformed or repeated template, or returns an invalid result is a
+bug: `internal-error` (-32603, the JSON-RPC code), and the tests of section 13 catch it before release.
+
+A script with no `templates()` function is a module that other scripts import, not a failure to load.
 
 ### The module resolver
 
@@ -154,7 +171,13 @@ scripts handed to the engine:
 - `import "standard/<name>"` and `import "example/<name>"` load a built-in report script.
 - `import "./<path>"` loads a user script relative to the importing one, inside the report directory. `..`,
   absolute paths, a path that leaves the directory after resolving symlinks, and `./` from a built-in script are
-  refused as "module not found" (`report-script`).
+  refused as "module not found" (`report-script`). An import that comes back to a script still loading is refused
+  the same way.
+
+A user script's source name is its path below the report directory with `./` in front (`./mine/report.rhai`); a
+built-in's is its path in the library (`standard/balance-sheet.rhai`). Errors, the log and `TemplateInfo.script`
+use these names. The engine never touches the file system: the service reads the directory, resolves symlinks and
+leaves out what escapes it, and hands the engine path and text pairs.
 
 The service's loader reads the report directory (`reports.directory`, section 9) each time a report method runs:
 every `*.rhai` file below it, at most 1,000 files of at most 1 MiB each. Edits are seen without a restart.
@@ -238,11 +261,11 @@ Operations registered for scripts:
 |-----------|---------|
 | `rational(n)`, `rational(n, d)`, `rational("12.34")`, `rational("1234/100")` | Construct from an integer, a pair, or text (the forms the wire accepts). There is no float to construct from |
 | `+ - * /`, unary `-`, `==`, `!=`, `<`, `<=`, `>`, `>=` | Exact, mixing Rational and integer freely. Division by zero is a `report-script` error, as `(/ x 0)` is in Scheme |
-| `abs`, `sign`, `is_zero`, `num`, `denom`, `min`, `max` | |
+| `abs`, `sign`, `is_zero`, `is_integer`, `num`, `denom`, `min`, `max` | `num` and `denom` return Rationals, since either may pass 64 bits |
 | `r.round()` | To the nearest integer, ties to even: Scheme's `round` on an exact number, which `standard/category-barchart.scm:309` uses |
 | `r.round_to(denom, mode)` | `gnc-numeric-convert`: to a denominator with a GnuCash rounding mode: `"round"` (banker's, `GNC-RND-ROUND`), `"half-up"`, `"half-down"`, `"floor"`, `"ceiling"`, `"truncate"`, `"promote"` (`5.17:libgnucash/engine/gnc-numeric.h:91-97`) |
 | `r.to_decimal(places)` | Text with exactly `places` decimals, rounded half-up; for labels |
-| `fixed(r, width, places)` | Guile's `~w,dF`: rounds half-up to `places` and pads to `width`, dropping the leading `0` of a value below 1 when the width allows no more (`.5`), as `standard/account-piecharts.scm:552-554` relies on |
+| `fixed(r, width, places)` | `width` may be `()` for no padding. Guile's `~w,dF`: rounds half-up to `places` and pads to `width`, dropping the leading `0` of a value below 1 when the width allows no more (`.5`), as `standard/account-piecharts.scm:552-554` relies on |
 | `monetary(commodity, r)`, `m.commodity`, `m.amount`, `m + m`, `m - m`, `-m`, `m.round_scu()` | Sums of two commodities are a `report-script` error. `round_scu` rounds to the commodity's SCU with banker's rounding, the `round-scu` of `standard/account-piecharts.scm:497-500` |
 | `m.to_string()` | `gnc:monetary->string` (`report/report-utilities.scm:143-146`): the exact value, no rounding, with the commodity's symbol |
 
@@ -334,7 +357,7 @@ comes back in hash order.
 | `book.price_convert(monetary, currency, when, mode)` | Monetary | | `gnc-pricedb-convert-balance-*`: amount × `price_rate`, rounded to the currency's SCU with banker's rounding; 0 when no price (`:2529-2586`) |
 | `book.commodity_splits(accounts, until, commodity, sorted)` | Split[] | | `gnc-get-match-commodity-splits`: non-void splits of `accounts` up to `until` (inclusive) whose transaction currency differs from their account's commodity and, unless `commodity` is `()`, one of the two is `commodity` (`5.17:bindings/engine.i:167-193`). Unsorted, account after account, each in split order (`get-exchange-totals` relies on it, CU:447); `sorted`, all in split order. Callers pass the root's sorted descendants (CU:203-205) or those holding shares (`standard/price-scatter.scm:147-149`) |
 | `book.split_query(q)` | Split[] in split order | `transaction.find` | the split query of `gnc:account-get-trans-type-splits-interval` (`report/report-utilities.scm:692-725`), which the Average Balance report also runs (`example/average-balance.scm:300-345`): `q` is `#{ accounts, from, to, description: #{ text, cased, regexp }, closing }`; void splits never match (both GnuCash queries leave them out); `description` and `closing` are OR'ed, as there |
-| `is_euro_currency(c)`, `euro_convert(m, currency)` | bool, Monetary or `()` | `currency.euroConvert` | `gnc-is-euro-currency`, `gnc-convert-to-euro`/`-from-euro` (`5.17:libgnucash/engine/gnc-euro.cpp:31-106`) |
+| `is_euro_currency(c)`, `euro_convert(m, currency)` | bool, Monetary or `()` | `currency.euroConvert` | `gnc-is-euro-currency`, `gnc-convert-to-euro`/`-from-euro` (`5.17:libgnucash/engine/gnc-euro.cpp:31-106`); `()` unless both are euro currencies, as `gnc:exchange-by-euro` (`report/commodity-utilities.scm:635-644`). `c` may be a currency the Book does not hold |
 
 `mode` is `"nearest"`, `"before"` or `"latest"`; `when` is a Time64. `"latest"` keeps GnuCash's split behaviour:
 the direct lookup takes the newest price even if it is in the future, the indirect one the newest at or before now
@@ -351,9 +374,9 @@ Properties: `guid`, `name`, `fullName`, `type`, `code`, `description`, `notes`, 
 | `a.children_sorted()`, `a.descendants_sorted()` | Account[], display order (`account.tree` with `sorted`) | `gnc-account-get-children-sorted`, `-descendants-sorted` (`5.17:libgnucash/engine/Account.cpp:2957-2961`, `:3040-3045`) |
 | `a.tree_depth()` | integer, counting the account itself as 1 | `gnc-account-get-tree-depth` (`:3017-3029`) |
 | `a.splits()` | Split[] in split order | `xaccAccountGetSplits` |
-| `a.splits_between(from, to)` | Split[], both ends inclusive | `gnc-account-foreach-split-between-dates` (`5.17:libgnucash/engine/Account.hpp:51-85`) |
+| `a.splits_between(from, to)`, `a.splits_between(from, to, descendants)` | Split[], both ends inclusive; `()` leaves an end open; with `descendants` true, the sub-accounts' splits too | `gnc-account-foreach-split-between-dates` (`5.17:libgnucash/engine/Account.hpp:51-85`) |
 | `a.balance_as_of(t)` | Rational | `xaccAccountGetBalanceAsOfDate`: splits posted strictly before `t` (`Account.cpp:3505-3524`); `account.balance` |
-| `a.accumulate_at(times, what)` | (Rational or `()`)[] | `gnc-account-accumulate-to-dates` (`5.17:bindings/engine.i:196-236`): for each time, `what` (`"balance"` or `"noclosingBalance"`) of the last split posted at or before it, `()` before the first split |
+| `a.accumulate_at(times, what)` | (Rational or `()`)[] | `gnc-account-accumulate-to-dates` (`5.17:bindings/engine.i:196-236`): for each time, `what` (`"balance"`, `"noclosingBalance"`, `"clearedBalance"` or `"reconciledBalance"`) of the last split posted at or before it, `()` before the first split |
 | `a.reverse_balance(ctx)` | bool | `gnc-reverse-balance` under `reports.reverseBalancedAccounts` |
 
 ### Split, Transaction, Commodity, Price
@@ -433,12 +456,12 @@ The run context `ctx` gives time and formatting, all in the local time zone of t
 |----------|---------|
 | `ctx.now`, `ctx.today()` | `current-time`, `gnc:get-today` |
 | `ctx.start_of_day(t)`, `ctx.end_of_day(t)` | `gnc:time64-start-day-time`, `gnc:time64-end-day-time`: local 00:00:00 and 23:59:59 (`5.17:bindings/guile/date-utilities.scm:479-493`) |
-| `ctx.local(t)` | `gnc-localtime`: `#{ year, month, day, hour, minute, second, weekday, yearday }` |
+| `ctx.local(t)` | `gnc-localtime`: `#{ year, month, day, hour, minute, second, weekday, yearday }`, counted as people count them, not as `struct tm` does: `month` 1–12, `weekday` 1 (Sunday) to 7, `yearday` 1–366 |
 | `ctx.make_time(fields)` | `gnc-mktime` with `isdst = -1`, fields normalised C-style (31 January + 1 month is 3 March) |
 | `ctx.print_date(t)`, `ctx.print_date_interval(from, to)` | `qof-print-date`, `gnc-date-interval-format`, under `reports.dateFormat` |
-| `ctx.print_time_iso(t)` | `gnc-print-time64` with the ISO format, for CSV dates |
+| `ctx.print_time_iso(t)` | `gnc-print-time64` with the ISO format, for CSV dates: `YYYY-MM-DD HH:MM:SS` in local time |
 | `ctx.accounting_period()` | `#{ start, end }` as Time64: `gnc-accounting-period-fiscal-start`/`-end` |
-| `ctx.report_currency()`, `ctx.week_start()` | the settings of section 4 |
+| `ctx.report_currency()`, `ctx.week_start()` | the settings of section 4; the week starts on day 1 (Sunday) to 7, numbered as `weekday` |
 
 Calendar stepping (`incdate`, `incdate-months`, `gnc:make-date-list`, the date fractions) is Scheme in GnuCash
 (`5.17:bindings/guile/date-utilities.scm`) and is translated into `lib/dates` on top of these.
@@ -510,7 +533,7 @@ The builder passed to `options()` mirrors GnuCash's `gnc-register-*-option` func
 | `o.list(…, defaults, [[key, label, help?], …])` | `gnc-register-list-option` |
 | `o.number_range(…, default, min, max, step)` | `gnc-register-number-range-option`; numbers as integers or decimal strings |
 | `o.plot_size(…, default)` | `gnc-register-number-plot-size-option` |
-| `o.date(…, #{ default, ui, relative })` | `gnc-register-date-option-set` |
+| `o.date(…, default, #{ ui, relative })` | `gnc-register-date-option-set`; `default` is a relative date's name or a Time64. It is an argument, not a map key, because `default` is a reserved word in Rhai |
 | `o.start_date(…, both)`, `o.end_date(…, both)` | `gnc-register-start-date-option`, `-end-date-option`: UI `both` (`relative` when `both` is false), the eight start or end choices, default the accounting period's start or end (`gnc-optiondb.cpp:1052-1098`) |
 | `o.account_list(…, default, #{ types, multiple })` | `gnc-register-account-list-option`, `-limited-option` |
 | `o.account_sel(…, default, #{ types })` | `gnc-register-account-sel-limited-option` |
