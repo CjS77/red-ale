@@ -434,7 +434,9 @@ Settled at the start of v0.3, so every piece of work starts from the same answer
 
 - **Mutation cost (item 1)** waits for the memory work's measurements, as planned. Until then an import is one
   Mutation and pays the clone once.
-- **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code.
+- **Glossary (item 2):** the terms enter [`glossary.md`](glossary.md) with the import design, before import code. **Done:**
+  the terms are in [`glossary.md`](glossary.md), "Import and export", with the clashes flagged, and the designs are
+  in [`api/import.md`](api/import.md), [`api/export.md`](api/export.md) and [`api/quotes.md`](api/quotes.md).
 - **The Import proposal is held by the server (item 3).** Proposals can hold a few years of statements, too much for
   an agent to send back whole and easy to change by accident. `import.preview` returns the proposal with an ID, and
   `import.apply` takes that ID with only the caller's changes (an action, a match or an account per transaction,

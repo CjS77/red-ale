@@ -1560,6 +1560,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "red-ale-import"
+version = "0.2.0"
+dependencies = [
+ "proptest",
+ "red-ale-core",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "red-ale-locale"
+version = "0.2.0"
+
+[[package]]
 name = "red-ale-mcp"
 version = "0.2.0"
 dependencies = [

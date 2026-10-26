@@ -13,6 +13,8 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale-mcp` | MCP adapter | Conformist to the MCP specification: one tool per JSON-RPC method, served over stdio, each call run through the `Dispatcher`. No logic of its own ([`mcp.md`](mcp.md)). | rpc |
 | `red-ale` | Binary | `red-ale serve` (the JSON-RPC server), `red-ale mcp` (the MCP server) and the CLI front end. The only crate that uses `anyhow`. | rpc, mcp, service |
 | `red-ale-report` | Reports (v0.2) | The Rhai report engine and its sandbox, the read-only query API, report options, the report result (a published language), and the HTML and SVG renderer with its style sheets. Built-in report scripts are compiled in. Pure: no I/O; script sources and settings come in as values. | core |
+| `red-ale-import` | Import (v0.3) | The importers translated from GnuCash (CSV, QIF, business CSV), the generic import matcher, Import maps and the Import proposal. Pure: no I/O; file content, Import settings and the Book come in as values, and the service applies a proposal as one Mutation. | core, locale |
+| `red-ale-locale` | Locales (v0.3) | The Locale table generated from glibc's locale sources: number format, date formats, day names, first day of the week. Pure data and lookups. | — |
 | `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, and the GnuCash oracle harness. Used only by tests. | core, xml, service, rpc |
 
 The core reaches the outside world only through `Env`: the clock, fresh GUIDs and the Local time zone. The zone is a
