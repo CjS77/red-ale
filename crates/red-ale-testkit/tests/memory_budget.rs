@@ -39,11 +39,6 @@ const TRANSACTIONS: usize = 5_000;
 const AT_REST: usize = 241;
 const PEAK: usize = 362;
 
-/// Peaks reached today, above [`PEAK`] until the streaming parse and the streaming save land; each of those packages
-/// lowers its figure here, and the last sets both to [`PEAK`].
-const PEAK_OPEN_NOW: usize = 1_400;
-const PEAK_SAVE_NOW: usize = 1_560;
-
 #[test]
 fn memory_stays_within_budget() {
     let book = TempBook::new_path();
@@ -53,8 +48,8 @@ fn memory_stays_within_budget() {
         ("at rest after open", m.at_rest, AT_REST),
         ("at rest after save", m.after_save, AT_REST),
         ("peak at post", m.peak_post, PEAK),
-        ("peak at open", m.peak_open, PEAK_OPEN_NOW),
-        ("peak at save", m.peak_save, PEAK_SAVE_NOW),
+        ("peak at open", m.peak_open, PEAK),
+        ("peak at save", m.peak_save, PEAK),
     ];
     let over: Vec<String> = figures
         .iter()
