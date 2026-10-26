@@ -181,3 +181,83 @@ fn today_and_backup_names_follow_tz_at_both_extremes_and_unset() {
         assert!(local_days.iter().any(|d| d == stamp), "TZ={tz:?}: backup {backup} is not dated {local_days:?}");
     });
 }
+
+/// One user report reading the Book, in a report directory named by a Configuration in `dir`. Returns the
+/// Configuration's path.
+fn report_config(dir: &Path) -> String {
+    let reports = dir.join("reports");
+    std::fs::create_dir_all(&reports).unwrap();
+    std::fs::write(
+        reports.join("names.rhai"),
+        r#"
+fn templates() { [#{ guid: "0000000000000000000000000000b001", name: "Account Names" }] }
+fn options(params, o, book) { o.number_range("Display", "Levels", "a", "How deep.", 2, 1, 10, 1); }
+fn render(params, book, opts, ctx) {
+    let rows = book.accounts().map(|a| #{ cells: [#{ text: a.name }] });
+    #{ title: `Accounts to ${opts.get("Display", "Levels")}`,
+       sections: [#{ blocks: [#{ kind: "table", columns: [#{ label: "Account", role: "label" }], rows: rows }] }] }
+}
+"#,
+    )
+    .unwrap();
+    let config = dir.join("config.json");
+    std::fs::write(&config, r#"{"reports": {"directory": "reports"}}"#).unwrap();
+    config.display().to_string()
+}
+
+#[test]
+fn exec_runs_reports_and_writes_the_export_to_a_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = copy(dir.path(), "reports/balsheet-pnl.gnucash");
+    let config = report_config(dir.path());
+    let before = std::fs::read(&book).unwrap();
+    let html = dir.path().join("out.html");
+    let html_arg = html.display().to_string();
+    let options = r#"options:={"Display": {"Levels": 3}}"#;
+    let args = ["exec", "--book", &book, "--config", &config, "report.export", "report=Account Names", options, "--output", &html_arg];
+    let out = run(&args);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let written = std::fs::read_to_string(&html).unwrap();
+    assert_eq!(json(&out.stdout), json!({ "title": "Accounts to 3", "path": html_arg, "bytes": written.len() }));
+    assert!(written.starts_with("<!DOCTYPE html>") && !written.contains("<script"));
+    assert_eq!(std::fs::read(&book).unwrap(), before, "exec never saves a book a report only read");
+    let entries = std::fs::read_dir(dir.path()).unwrap();
+    let names: Vec<String> = entries.map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    assert!(!names.iter().any(|n| Path::new(n).extension().is_some_and(|x| x == "log")), "{names:?}");
+
+    let out = run(&["exec", "--book", &book, "--read-only", "--config", &config, "report.run", "report=Account Names", options]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(json(&out.stdout)["options"]["Display"]["Levels"], 3, "nested options parse");
+    let out = run(&["exec", "--book", &book, "--config", &config, "report.run", "report=Nope"]);
+    assert_eq!((out.status.code(), json(&out.stderr)["error"]["code"].clone()), (Some(2), json!(2000)));
+    let out = run(&["exec", "--book", &book, "book.info", "--output", &html_arg]);
+    assert_eq!(out.status.code(), Some(1), "--output needs an html result");
+}
+
+#[test]
+fn call_saves_a_configuration_and_exports_it_to_a_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = copy(dir.path(), "reports/balsheet-pnl.gnucash");
+    let config = report_config(dir.path());
+    let args = ["serve", "--listen", "127.0.0.1:0", "--book", &book, "--read-only", "--config", &config];
+    let mut server = Command::new(BIN).args(args).stderr(Stdio::piped()).spawn().unwrap();
+    let mut lines = BufReader::new(server.stderr.take().unwrap()).lines();
+    let url = lines
+        .by_ref()
+        .map_while(Result::ok)
+        .find_map(|l| l.split("serving JSON-RPC on ").nth(1).map(str::to_owned))
+        .expect("the server reports its address");
+    let options = r#"options:={"Display": {"Levels": 4}}"#;
+    let out = run(&["call", "--url", &url, "report.saveConfiguration", "name=Four levels", "report=Account Names", options]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(json(&out.stdout)["kind"], "saved");
+    let stored: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
+    assert_eq!(stored["reports"]["saved"][0]["options"], json!({ "Display": { "Levels": 4 } }));
+    let html = dir.path().join("four.html").display().to_string();
+    let out = run(&["call", "--url", &url, "report.export", "report=Four levels", "--output", &html]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(json(&out.stdout)["title"], "Accounts to 4");
+    assert!(std::fs::read_to_string(&html).unwrap().contains("<title>Accounts to 4</title>"));
+    Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
+    assert!(server.wait().unwrap().success());
+}
