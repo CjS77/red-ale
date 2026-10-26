@@ -362,7 +362,7 @@ Each is closed in v0.3 or recorded as a deviation ([`roadmap.md`](roadmap.md), "
 
 | Status | Gap                                                                  | Proposed                                                                     |
 |:------:|----------------------------------------------------------------------|------------------------------------------------------------------------------|
-|        | Balance-limit check leaves out sub-accounts in other commodities    | Close: convert at the latest price, as GnuCash does                          |
+|   ✅   | Balance-limit check leaves out sub-accounts in other commodities    | Closed: converted at the latest price, as GnuCash does; checked by the oracle |
 |        | GnuCash's business lot scrub is not an operation                     | Close, if business import needs it; else keep the oracle check only          |
 |        | Day boundaries follow zone files exactly                             | Record as a deviation; stored dates are unaffected                           |
 |        | Nothing pins the API as additive                                     | Close: a test against a committed `redAleApi` 0.2.0 schema                   |

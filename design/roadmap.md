@@ -301,8 +301,8 @@ The Dashboard (`standard/dashboard.scm`) is a preset multicolumn report of repor
 
 Known gaps in v0.2, each documented where it happens, to close in v0.3 or record as deviations:
 
-- The balance-limit check leaves out sub-accounts in other commodities; GnuCash converts them at the latest price
-  ([`api/accounts.md`](api/accounts.md)).
+- ✅ The balance-limit check left out sub-accounts in other commodities; it now converts them at the latest price as
+  GnuCash does ([`api/accounts.md`](api/accounts.md)). Closed in v0.3.
 - GnuCash's business lot scrub is not ported as an operation; tests only check that GnuCash's scrub finds nothing to
   fix in what red-ale writes ([`api/business-posting.md`](api/business-posting.md)).
 - Day boundaries follow zone files exactly, where GnuCash approximates daylight saving with one rule per year
