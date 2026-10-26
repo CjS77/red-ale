@@ -122,10 +122,10 @@ Every setting, with its default. Settings declared in v0.3 ahead of the work tha
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
 | `reports.directory` | string or null | null | The report directory; relative to the Configuration file. |
-| `reports.currency` | `commodity-id` | `CURRENCY::USD` | The default of every "Report's currency" option. |
+| `reports.currency` | `commodity-id` or null | null | The default of every "Report's currency" option. Unset, the Locale's currency if the book has it, else `USD` (`gnc_default_report_currency`). |
 | `reports.reverseBalancedAccounts` | `none`, `credit`, `incomeExpense` | `credit` | Which accounts show reversed balances. |
-| `reports.dateFormat` | `us`, `uk`, `ce`, `iso`, `locale` | `locale` | How report dates print. |
-| `reports.weekStart` | `sunday` … `saturday` | `sunday` | The first day of the week. |
+| `reports.dateFormat` | `us`, `uk`, `ce`, `iso`, `locale` | `locale` | How report dates print; `locale` is the Locale's date format. |
+| `reports.weekStart` | `sunday` … `saturday`, or null | null | The first day of the week. Unset, the Locale's (`sunday` under C). |
 | `reports.limits.<limit>` | integer ≥ 1 | §2's defaults | `operations`, `seconds`, `call-depth`, `expression-depth`, `string-size`, `array-size`, `map-size`, `modules`, `variables`, `functions`, `number-size`. |
 | `reports.saved` | list (owned) | `[]` | Saved report configurations; changed only by the `report.*Configuration` methods. |
 | `reports.styleSheets` | list (owned) | `[]` | Style sheet entries; changed only by the `report.*StyleSheet` methods. |
@@ -134,7 +134,7 @@ Every setting, with its default. Settings declared in v0.3 ahead of the work tha
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
-| `locale` | `C`, `environment` (and the supported locales) | `C` | The locale reports format in ([`../milestone3.md`](../milestone3.md), "Locales"). *Declared.* |
+| `locale` | `C`, the supported locales (`fr_FR` …), `environment` | `C` | The Locale reports format in, unless `report.run` or `report.export` names one, and the default of an unset `reports.currency` and `reports.weekStart` ([`../milestone3.md`](../milestone3.md), "Locales"; [`../reports.md`](../reports.md) §4). `environment` takes each category from `LC_ALL`, else `LC_NUMERIC`, `LC_MONETARY`, `LC_TIME` or `LC_MESSAGES`, else `LANG`, as the C library does; an unsupported value there fails the run. |
 | `defaultCurrency` | `commodity-id` or null | null | GnuCash's default currency: what currencies are quoted in, and the currency of new Owners and QIF imports. Unset, the Locale's currency, else `USD` ([`quotes.md`](quotes.md)). *Declared.* |
 | `jsonRpc.maxRequestBytes` | integer, 1 MiB to 4 GiB − 1 | 64 MiB | The largest request `red-ale serve` accepts (jsonrpsee's default is 10 MB). Read when the server starts. |
 | `mcp.maxRequestBytes` | integer, 1 MiB to 4 GiB − 1 | 64 MiB | The largest message `red-ale mcp` accepts (rmcp's default is 16 MiB). Read when the server starts. |

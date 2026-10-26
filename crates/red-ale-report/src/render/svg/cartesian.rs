@@ -22,10 +22,10 @@ pub(super) fn draw(chart: &Chart, frame: &Frame) -> String {
 
 /// A tick's text under an axis's format: `percent` adds `%`; other values are exact, grouped numbers (a currency
 /// axis names its currency in its label).
-fn tick_text(axis: &Axis, v: &Rational) -> String {
+fn tick_text(axis: &Axis, v: &Rational, frame: &Frame) -> String {
     match axis.format {
-        Some(AxisFormat::Percent) => format!("{}%", display_exact(v)),
-        _ => display_exact(v),
+        Some(AxisFormat::Percent) => format!("{}%", display_exact(v, &frame.numbers)),
+        _ => display_exact(v, &frame.numbers),
     }
 }
 
@@ -202,7 +202,7 @@ fn categories(chart: &Chart, frame: &Frame) -> String {
     let bar_ends = bars.iter().flat_map(|b| [&b.from, &b.to]);
     let line_ends = lines.iter().flat_map(|l| l.points.iter().flatten()).flat_map(|(base, top)| [base, top]);
     let y = Scale::covering(bar_ends.chain(line_ends), !bars.is_empty() || filled);
-    let y_ticks: Vec<String> = y.ticks().iter().map(|t| tick_text(&chart.y_axis, t)).collect();
+    let y_ticks: Vec<String> = y.ticks().iter().map(|t| tick_text(&chart.y_axis, t, frame)).collect();
     let plot = plot_rect(chart, frame, &y_ticks);
     let slots = Slots { plot, count: chart.labels.len().max(1) };
     let at = |v: &Rational| y.map(v, plot.y1, plot.y0);
@@ -336,7 +336,7 @@ fn scatter(chart: &Chart, frame: &Frame) -> String {
     let all = || chart.series.iter().flat_map(|s| s.points.iter().flatten());
     let x = Scale::covering(all().map(|p| &p.x), false);
     let y = Scale::covering(all().map(|p| &p.y), false);
-    let y_ticks: Vec<String> = y.ticks().iter().map(|t| tick_text(&chart.y_axis, t)).collect();
+    let y_ticks: Vec<String> = y.ticks().iter().map(|t| tick_text(&chart.y_axis, t, frame)).collect();
     let plot = plot_rect(chart, frame, &y_ticks);
     let to_x = |v: &Rational| x.map(v, plot.x0, plot.x1);
     let to_y = |v: &Rational| y.map(v, plot.y1, plot.y0);
@@ -349,7 +349,7 @@ fn scatter(chart: &Chart, frame: &Frame) -> String {
             "<text x=\"{}\" y=\"{}\" font-size=\"12\" text-anchor=\"middle\">{}</text>",
             fmt(at),
             fmt(plot.y1 + GAP + TICK_FONT),
-            escape(&tick_text(&chart.x_axis, &t))
+            escape(&tick_text(&chart.x_axis, &t, frame))
         );
         grid.into_iter().chain([label])
     });

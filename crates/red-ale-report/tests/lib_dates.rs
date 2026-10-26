@@ -67,7 +67,7 @@ fn fractions_are_exact() {
 #[test]
 fn week_fractions_follow_the_first_day_of_the_week() {
     let mut host = Host::new(empty_book());
-    host.settings.week_start = WeekStart::Monday;
+    host.settings.week_start = Some(WeekStart::Monday);
     let got = run(&host, "print(`${dates::date_to_week_fraction(ctx, ctx.now)}`);");
     check(&got, &["39589/14"]);
 }

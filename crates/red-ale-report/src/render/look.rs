@@ -1,6 +1,8 @@
 //! What a style sheet's options mean for red-ale's look (`design/reports.md` §8, "What the options do"): colours,
 //! table spacing, fonts, links, and the header and footer lines, read once from the style sheet.
 
+use red_ale_locale::{Conventions, Locale};
+
 use super::sheet::{StyleSheet, StyleSheetTemplate, check_css};
 use super::text::font_css;
 use crate::number::Rational;
@@ -67,6 +69,9 @@ pub(super) struct Look {
     pub footer: Vec<Line>,
     /// The CSS template's text, appended to the base stylesheet.
     pub css: Option<String>,
+    /// The Locale's number format, for figures a result carries no display form of and for chart ticks; the C
+    /// locale's until the page sets it.
+    pub numbers: Conventions,
 }
 
 impl Look {
@@ -100,6 +105,7 @@ impl Look {
             footer: lines(&o, template, true),
             // A style sheet never holds refused CSS; checking again costs little and keeps the page closed.
             css: o.text("General", "CSS").filter(|css| check_css(css).is_ok()).map(str::to_owned),
+            numbers: Locale::c().conventions(),
         }
     }
 }

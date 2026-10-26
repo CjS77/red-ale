@@ -1,4 +1,5 @@
 use red_ale_core::{Book, FixedEnv, Guid, Time64, TimeZone};
+use red_ale_locale::Locale;
 use serde_json::{Value, json};
 
 use super::*;
@@ -85,7 +86,7 @@ fn book() -> Book {
 fn finished() -> ReportResult {
     let book = book();
     let zone = TimeZone::utc();
-    draft().finish(run(), &DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Locale }).unwrap()
+    draft().finish(run(), &DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Locale, locale: Locale::c() }).unwrap()
 }
 
 fn cell(result: &ReportResult, row: usize, col: usize) -> &Cell {
@@ -209,7 +210,7 @@ fn scatter_charts_have_points() {
     d.validate().unwrap();
     let book = book();
     let zone = TimeZone::utc();
-    let r = d.finish(run(), &DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso }).unwrap();
+    let r = d.finish(run(), &DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso, locale: Locale::c() }).unwrap();
     let Block::Chart(chart) = &r.sections[0].blocks[2] else { panic!("not a chart") };
     assert_eq!(chart.series[0].points.as_ref().unwrap()[1].display.as_deref(), Some("1/3"));
     assert_eq!(chart.hover_label(0, Some(0)), "01/01/24\nFUNDS : 480.5");
@@ -222,7 +223,7 @@ fn unknown_commodities_are_result_errors() {
     v["sections"][0]["blocks"][1]["rows"][1]["cells"][1]["monetary"]["commodity"] = json!("NASDAQ::NONE");
     let book = book();
     let zone = TimeZone::utc();
-    let ctx = DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso };
+    let ctx = DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso, locale: Locale::c() };
     let e = ReportDraft::from_json(&v).unwrap().finish(run(), &ctx).unwrap_err();
     assert_eq!(e.path, "sections[0].blocks[1].rows[1].cells[1].monetary.commodity");
     assert!(e.reason.contains("NASDAQ::NONE"));

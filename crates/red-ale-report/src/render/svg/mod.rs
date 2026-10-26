@@ -7,6 +7,7 @@ mod geom;
 mod pie;
 
 use geom::{Hu, UNIT, fit, fmt, text_width};
+use red_ale_locale::Conventions;
 
 use super::text::escape;
 use crate::result::{Chart, ChartType, PlotSize};
@@ -60,13 +61,16 @@ pub(super) struct Frame {
     /// What the plot may use, before axis labels.
     pub area: Rect,
     legend: Option<Rect>,
+    /// The Locale's number format, for ticks.
+    pub numbers: Conventions,
 }
 
-/// The `<svg>` element for `chart`, identified by `id`.
-pub(crate) fn chart(chart: &Chart, id: &str) -> String {
+/// The `<svg>` element for `chart`, identified by `id`, its ticks in the number format `numbers`.
+pub(crate) fn chart(chart: &Chart, id: &str, numbers: Conventions) -> String {
     let (width, height) = (view_size(chart.width, PERCENT_WIDTH, MIN_WIDTH), view_size(chart.height, PERCENT_HEIGHT, MIN_HEIGHT));
     let entries = legend_entries(chart);
-    let frame = Frame::new(width * UNIT, height * UNIT, title_lines(chart).len(), if chart.legend { &entries } else { &[] });
+    let shown: &[Entry<'_>] = if chart.legend { &entries } else { &[] };
+    let frame = Frame::new(width * UNIT, height * UNIT, title_lines(chart).len(), shown, numbers);
     let body = match chart.chart_type {
         ChartType::Pie => pie::draw(chart, &frame),
         ChartType::Bar | ChartType::Line | ChartType::Scatter => cartesian::draw(chart, &frame),
@@ -111,7 +115,7 @@ fn title_lines(chart: &Chart) -> &[String] {
 }
 
 impl Frame {
-    fn new(width: Hu, height: Hu, title_lines: usize, entries: &[Entry<'_>]) -> Self {
+    fn new(width: Hu, height: Hu, title_lines: usize, entries: &[Entry<'_>], numbers: Conventions) -> Self {
         let lines = i64::try_from(title_lines).unwrap_or(0);
         let top = PAD + lines * (TITLE_FONT + 6 * UNIT);
         let widest = entries.iter().map(|e| text_width(e.label, LEGEND_FONT)).max();
@@ -122,8 +126,9 @@ impl Frame {
                 width,
                 area: Rect { x1: full.x1 - lw - PAD, ..full },
                 legend: Some(Rect { x0: full.x1 - lw, ..full }),
+                numbers,
             },
-            _ => Self { width, area: full, legend: None },
+            _ => Self { width, area: full, legend: None, numbers },
         }
     }
 }
