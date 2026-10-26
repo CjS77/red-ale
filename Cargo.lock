@@ -1883,6 +1883,7 @@ dependencies = [
  "red-ale-xml",
  "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

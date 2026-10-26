@@ -20,6 +20,7 @@ tempfile.workspace = true
 
 [dev-dependencies]
 peak_alloc.workspace = true
+tokio.workspace = true
 
 [lints]
 workspace = true
