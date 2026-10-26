@@ -83,7 +83,7 @@ mod tokenizer_csv;
 mod tokenizer_fw;
 mod unicode;
 
-pub use date::{DateContext, DateError, DateFormat, parse_date};
+pub use date::{DateContext, DateError, DateFormat, locale_parser, parse_date};
 pub use import_tx::{CreateError, DraftSplit, DraftTransaction, DraftTransfer, LineState, NearestPrice, ParsedLine, TxImport};
 pub use monetary::{CurrencyFormat, MonetaryError, MonetaryLocale, parse_monetary};
 pub use props_tx::{ColumnType, ErrMap, ParseContext, PreSplit, PreTrans, SplitAccount};

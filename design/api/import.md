@@ -559,9 +559,19 @@ GUID and full name, as GnuCash keeps both.
 
 **Translated as GnuCash does it**: the tokenizer, skipping, every date and number parser, grouping, the value
 methods, the transfer split, and what reaches the matcher. Under the default `C` locale, `currencyFormat: "locale"`
-reads as the period format. The `locale` date format has no parser yet: GnuCash uses ICU's there
-(`5.17:libgnucash/engine/gnc-datetime.cpp:646-703`), so every row with a date is an error row ("No locale date
-parser") until the locale work decides on ICU4X.
+reads as the period format.
+
+**The `locale` date format** (CSV transactions and prices) is ICU's default date pattern for the `locale` setting's
+LC_TIME, as GnuCash's (`DateFormat::createDateInstance (kDefault, …)`, `5.17:libgnucash/engine/gnc-datetime.cpp:646-703`;
+no fallback when ICU refuses the text): `MMM d, y` under C and en_US (`Mar 1, 2024`), `d MMM y` under fr_FR
+(`1 mars 2024`), `dd.MM.y` under de_DE. red-ale takes the pattern and CLDR's abbreviated and wide month names from
+ICU4X (`Locale::icu_date_pattern`) and reads it strictly (`red_ale_locale::LocaleDateParser`): whitespace is loose
+(around the text, and a space in the pattern matches any run or none), Arabic bidi marks are ignored, month names
+match in any case, and digits may be ASCII or the locale's own; a two-digit year in a `y` field is in ICU's default
+century (80 years back to 20 ahead). ICU's lenient parser also accepts what red-ale refuses: a day the month doesn't
+have (rolled over), a number for a month name, missing or other literal text. ICU4X's CLDR is newer than the
+oracle's ICU 74, so a pattern can differ where CLDR changed. A locale whose calendar is not Gregorian (fa_IR) is
+refused: GnuCash reads its Persian year, month and day as Gregorian ones.
 
 **Multi-currency checks** are GnuCash's: only the Account column (and the base account) count towards the currencies
 a file uses (`UpdateCrossSplitCounters`, `is_multi_currency`, `5.17:gnucash/import-export/csv-imp/gnc-imp-props-tx.cpp:391-424`;
