@@ -16,8 +16,12 @@
 //! | `Commodity`   | [`CommodityHandle`]   | `NAMESPACE::MNEMONIC`          |
 //! | `Price`       | [`PriceHandle`]       | GUID                           |
 
+// Functions registered with Rhai take their arguments by value: Rhai passes owned values to every parameter but
+// the first.
+#[allow(clippy::needless_pass_by_value)]
 mod account;
 mod args;
+#[allow(clippy::needless_pass_by_value)]
 mod book;
 mod entities;
 
@@ -34,7 +38,8 @@ pub(crate) use args::{account_arg, commodity_arg, rational_arg, small_count, tim
 /// The result of a script-facing function: a value, or an error the engine turns into `report-script`.
 pub(crate) type Fallible<T> = Result<T, Box<EvalAltResult>>;
 
-/// A script error with `message`.
+/// A script error with `message`. Rhai's errors are boxed.
+#[allow(clippy::unnecessary_box_returns)]
 pub(crate) fn script_error(message: impl AsRef<str>) -> Box<EvalAltResult> {
     message.as_ref().into()
 }
@@ -126,8 +131,8 @@ impl BookHandle {
         AccountHandle { snap: Rc::clone(&self.0), guid }
     }
 
-    pub(crate) fn commodity(&self, id: CommodityRef) -> CommodityHandle {
-        CommodityHandle { snap: Rc::clone(&self.0), id }
+    pub(crate) fn commodity(&self, id: &CommodityRef) -> CommodityHandle {
+        CommodityHandle { snap: Rc::clone(&self.0), id: red_ale_core::ops::commodities::canonical(id) }
     }
 
     fn split(&self, t: &Transaction, s: &Split) -> SplitHandle {

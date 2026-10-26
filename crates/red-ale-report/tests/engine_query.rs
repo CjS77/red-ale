@@ -4,6 +4,8 @@
 //! post at 10:59 UTC, each foreign transfer adds a price at midnight UTC of its day, and `check_book` there confirms
 //! the balances in GnuCash 5.17.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use common::{GUID, Host, fixture, registry};

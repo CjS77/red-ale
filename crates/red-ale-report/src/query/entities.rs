@@ -67,7 +67,7 @@ fn transaction(engine: &mut Engine) {
     let field = |f: fn(&Transaction) -> Dynamic| move |t: &mut TransactionHandle| -> Fallible<Dynamic> { Ok(f(t.get()?)) };
     engine.register_get("guid", |t: &mut TransactionHandle| t.guid.to_string());
     engine.register_get("currency", |t: &mut TransactionHandle| -> Fallible<CommodityHandle> {
-        Ok(CommodityHandle { snap: Rc::clone(&t.snap), id: t.get()?.currency.clone() })
+        Ok(BookHandle(Rc::clone(&t.snap)).commodity(&t.get()?.currency))
     });
     engine.register_get("datePosted", field(|t| Dynamic::from(t.date_posted.0)));
     engine.register_get("dateEntered", field(|t| Dynamic::from(t.date_entered.0)));
@@ -112,7 +112,7 @@ fn price(engine: &mut Engine) {
     engine.register_fn("!=", |a: &mut PriceHandle, b: PriceHandle| a.guid != b.guid);
     engine.register_fn("to_string", |p: &mut PriceHandle| format!("Price({})", p.guid));
     let field = |f: fn(&Price) -> Fallible<Dynamic>| move |p: &mut PriceHandle| -> Fallible<Dynamic> { f(p.get()?) };
-    let handle = |p: &PriceHandle, id: &red_ale_core::CommodityRef| CommodityHandle { snap: Rc::clone(&p.snap), id: id.clone() };
+    let handle = |p: &PriceHandle, id: &red_ale_core::CommodityRef| BookHandle(Rc::clone(&p.snap)).commodity(id);
     engine.register_get("guid", |p: &mut PriceHandle| p.guid.to_string());
     engine.register_get("commodity", move |p: &mut PriceHandle| -> Fallible<CommodityHandle> { Ok(handle(p, &p.get()?.commodity)) });
     engine.register_get("currency", move |p: &mut PriceHandle| -> Fallible<CommodityHandle> { Ok(handle(p, &p.get()?.currency)) });

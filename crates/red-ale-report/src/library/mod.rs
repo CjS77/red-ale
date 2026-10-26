@@ -59,7 +59,7 @@ impl Library {
         let valid = |path: &str| {
             let dir = path.split('/').next().unwrap_or("");
             crate::engine::BUILTIN_DIRS.contains(&dir)
-                && path.ends_with(".rhai")
+                && std::path::Path::new(path).extension().is_some_and(|e| e == "rhai")
                 && path.split('/').all(|c| !c.is_empty() && c != "." && c != "..")
         };
         Self { scripts: scripts.into_iter().filter(|(p, _)| valid(p)).map(|(p, t)| (p.to_owned(), t.to_owned())).collect() }
@@ -68,5 +68,33 @@ impl Library {
     /// The scripts, by path.
     pub fn scripts(&self) -> impl Iterator<Item = (&str, &str)> {
         self.scripts.iter().map(|(p, t)| (p.as_str(), t.as_str()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::Registry;
+    use crate::limits::Limits;
+
+    /// A built-in template with a GnuCash GUID has GnuCash's name for it, and one with a GnuCash name its GUID
+    /// (`design/reports.md` §11).
+    #[test]
+    fn built_in_templates_keep_gnucash_names_and_guids() {
+        let registry = Registry::load(&Library::builtin(), &[], Limits::default()).unwrap();
+        registry.templates().iter().for_each(|t| {
+            let guid = t.guid.0.to_string();
+            let by_guid = GNUCASH_TEMPLATES.iter().find(|(g, _)| *g == guid);
+            let by_name = GNUCASH_TEMPLATES.iter().find(|(_, n)| *n == t.name);
+            assert_eq!(by_guid, by_name, "{} {guid}", t.name);
+        });
+        let unique = |i: usize| GNUCASH_TEMPLATES.iter().enumerate().all(|(j, e)| j == i || e.0 != GNUCASH_TEMPLATES[i].0 && e.1 != GNUCASH_TEMPLATES[i].1);
+        assert!((0..GNUCASH_TEMPLATES.len()).all(unique));
+    }
+
+    #[test]
+    fn library_paths_are_gnucash_directories() {
+        let lib = Library::from_sources([("lib/a.rhai", ""), ("standard/b.rhai", ""), ("other/c.rhai", ""), ("lib/../d.rhai", ""), ("lib/e.txt", "")]);
+        assert_eq!(lib.scripts().map(|(p, _)| p).collect::<Vec<_>>(), ["lib/a.rhai", "standard/b.rhai"]);
     }
 }

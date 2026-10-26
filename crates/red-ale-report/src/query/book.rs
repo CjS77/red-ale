@@ -28,7 +28,7 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("accounts_of_types", accounts_of_types);
     engine.register_fn("commodity", |b: &mut BookHandle, id: &str| -> Dynamic {
         let found = parse_commodity(id).ok().and_then(|id| lookup(b.0.book(), &canonical(&id)).map(|c| c.id.clone()));
-        found.map_or(Dynamic::UNIT, |id| Dynamic::from(b.commodity(id)))
+        found.map_or(Dynamic::UNIT, |id| Dynamic::from(b.commodity(&id)))
     });
     engine.register_fn("uses_trading_accounts", |b: &mut BookHandle| uses_trading_accounts(b.0.book()));
     engine.register_fn("company_name", |b: &mut BookHandle| company_name(b.0.book()).to_owned());

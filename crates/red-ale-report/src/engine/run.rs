@@ -19,7 +19,7 @@ use super::registry::{Registry, TemplateInfo, TemplateKind, call};
 use super::setup::{Setup, engine};
 use crate::error::{ReportError, ResultError};
 use crate::limits::Limit;
-use crate::options::{ChoiceKey, GENERAL, OPTIONS_SUMMARY, OptionDb, OptionValue, ValueContext};
+use crate::options::{ChoiceKey, GENERAL, OPTIONS_SUMMARY, OptionDb, OptionValue, ReportOption, ValueContext};
 use crate::query::{BookHandle, Snapshot};
 use crate::result::{Block, DisplayContext, OptionsSummary, ReportDraft, ReportIdentity, ReportResult, RunInfo, Section};
 use crate::settings::ReportSettings;
@@ -78,7 +78,7 @@ impl Registry {
         let values = ValueContext { book: Some(ctx.book), zone: ctx.zone };
         changes.iter().try_for_each(|c| db.apply(c, &values))?;
         let rendered = run.render(&db, ctx)?;
-        run.finish(rendered, &db, configuration, ctx)
+        run.finish(&rendered, &db, configuration, ctx)
     }
 }
 
@@ -127,7 +127,7 @@ impl<'r> Run<'r> {
 
     /// The draft as a result: the run's identity, time, options and log, every display form, and the options summary
     /// when the General option asks for it (`gnc:report-render-html`, `5.17:gnucash/report/report-core.scm:764-780`).
-    fn finish(&self, rendered: Dynamic, db: &OptionDb, configuration: Option<Guid>, ctx: &RunContext<'_>) -> Result<ReportResult, ReportError> {
+    fn finish(&self, rendered: &Dynamic, db: &OptionDb, configuration: Option<Guid>, ctx: &RunContext<'_>) -> Result<ReportResult, ReportError> {
         let display = DisplayContext { book: ctx.book, zone: ctx.zone, date_format: ctx.settings.date_format };
         let run = RunInfo {
             report: ReportIdentity { guid: self.template.guid, name: self.template.name.clone(), configuration: configuration.map(Id) },
@@ -135,9 +135,9 @@ impl<'r> Run<'r> {
             options: db.values(),
             log: self.log.entries(),
         };
-        let finished = to_json(&rendered).and_then(|json| ReportDraft::from_json(&json)).and_then(|draft| draft.finish(run, &display));
+        let finished = to_json(rendered).and_then(|json| ReportDraft::from_json(&json)).and_then(|draft| draft.finish(run, &display));
         let mut result = finished.map_err(|e| self.invalid(e))?;
-        let summary = db.get(GENERAL, OPTIONS_SUMMARY).map(|o| o.value());
+        let summary = db.get(GENERAL, OPTIONS_SUMMARY).map(ReportOption::value);
         if summary.is_some_and(|v| *v != OptionValue::Key(ChoiceKey::from("never"))) {
             let rows = db.summary(&display);
             result.sections.push(Section { title: None, blocks: vec![Block::OptionsSummary(OptionsSummary { rows })] });

@@ -31,11 +31,14 @@ impl OptionBuilder {
     pub(crate) fn into_db(self) -> OptionDb {
         self.db.borrow().clone()
     }
-
-    fn declare(&self, declared: Result<(), OptionError>) -> Fallible<()> {
-        declared.map_err(|e| script_error(format!("option {}/{}: {}", e.section, e.name, e.reason)))
-    }
 }
+
+/// A declaration's error as a script error.
+fn declare(declared: Result<(), OptionError>) -> Fallible<()> {
+    declared.map_err(|e| script_error(format!("option {}/{}: {}", e.section, e.name, e.reason)))
+}
+
+type Text = fn(&mut OptionDb, Classifier, &str) -> Result<(), OptionError>;
 
 /// The resolved option values handed to a template's `render()` as `opts` (Rhai type `Options`).
 #[derive(Debug, Clone)]
@@ -132,51 +135,50 @@ pub(super) fn register_builder(engine: &mut Engine) {
     engine.register_type_with_name::<OptionBuilder>("OptionBuilder");
     engine.register_fn("to_string", |_: &mut OptionBuilder| "OptionBuilder".to_owned());
     engine.register_fn("boolean", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: bool| {
-        o.declare(o.db.borrow_mut().boolean(classifier(s, n, k, h), d))
+        declare(o.db.borrow_mut().boolean(classifier(s, n, k, h), d))
     });
-    type Text = fn(&mut OptionDb, Classifier, &str) -> Result<(), OptionError>;
     let texts: [(&str, Text); 4] = [("string", OptionDb::string), ("text", OptionDb::text), ("font", OptionDb::font), ("color", OptionDb::color)];
     texts.into_iter().for_each(|(name, f)| {
         engine.register_fn(name, move |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: &str| {
-            o.declare(f(&mut o.db.borrow_mut(), classifier(s, n, k, h), d))
+            declare(f(&mut o.db.borrow_mut(), classifier(s, n, k, h), d))
         });
     });
     engine.register_fn("multichoice", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic, c: Array| -> Fallible<()> {
         let (d, c) = (choice_key(&d)?, choices(&c)?);
-        o.declare(o.db.borrow_mut().multichoice(classifier(s, n, k, h), d, c))
+        declare(o.db.borrow_mut().multichoice(classifier(s, n, k, h), d, c))
     });
     engine.register_fn("list", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Array, c: Array| -> Fallible<()> {
         let (d, c) = (d.iter().map(choice_key).collect::<Fallible<_>>()?, choices(&c)?);
-        o.declare(o.db.borrow_mut().list(classifier(s, n, k, h), d, c))
+        declare(o.db.borrow_mut().list(classifier(s, n, k, h), d, c))
     });
     engine.register_fn("number_range", number_range);
     engine.register_fn("plot_size", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic| -> Fallible<()> {
         let d = plot_size(&d)?;
-        o.declare(o.db.borrow_mut().plot_size(classifier(s, n, k, h), d))
+        declare(o.db.borrow_mut().plot_size(classifier(s, n, k, h), d))
     });
     engine.register_fn("date", date);
     engine.register_fn("start_date", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, both: bool| {
-        o.declare(o.db.borrow_mut().start_date(classifier(s, n, k, h), both))
+        declare(o.db.borrow_mut().start_date(classifier(s, n, k, h), both))
     });
     engine.register_fn("end_date", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, both: bool| {
-        o.declare(o.db.borrow_mut().end_date(classifier(s, n, k, h), both))
+        declare(o.db.borrow_mut().end_date(classifier(s, n, k, h), both))
     });
     engine.register_fn("account_list", account_list);
     engine.register_fn("account_sel", account_sel);
     engine.register_fn("currency", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic| -> Fallible<()> {
         let d = commodity_arg(o.book.0.book(), &d)?;
-        o.declare(o.db.borrow_mut().currency(classifier(s, n, k, h), d))
+        declare(o.db.borrow_mut().currency(classifier(s, n, k, h), d))
     });
     engine.register_fn("commodity", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic| -> Fallible<()> {
         let d = commodity_arg(o.book.0.book(), &d)?;
-        o.declare(o.db.borrow_mut().commodity(classifier(s, n, k, h), d))
+        declare(o.db.borrow_mut().commodity(classifier(s, n, k, h), d))
     });
     engine.register_fn("internal", |o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic| -> Fallible<()> {
         let d = match d.as_bool() {
             Ok(b) => OptionValue::Bool(b),
             Err(_) => OptionValue::Text(d.into_string().map_err(|t| script_error(format!("an internal option is a string or a bool, got {t}")))?),
         };
-        o.declare(o.db.borrow_mut().internal(classifier(s, n, k, h), d))
+        declare(o.db.borrow_mut().internal(classifier(s, n, k, h), d))
     });
     engine.register_fn("set_default_section", |o: &mut OptionBuilder, s: &str| o.db.borrow_mut().set_default_section(s));
 }
@@ -185,7 +187,7 @@ pub(super) fn register_builder(engine: &mut Engine) {
 #[allow(clippy::too_many_arguments)]
 fn number_range(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic, min: Dynamic, max: Dynamic, step: Dynamic) -> Fallible<()> {
     let [d, min, max, step] = [d, min, max, step].map(|v| rational_arg(&v));
-    o.declare(o.db.borrow_mut().number_range(classifier(s, n, k, h), d?, min?, max?, step?))
+    declare(o.db.borrow_mut().number_range(classifier(s, n, k, h), d?, min?, max?, step?))
 }
 
 /// `gnc-register-date-option-set`: the default (a relative date's name or a Time64), then `#{ ui, relative }`. The
@@ -193,7 +195,7 @@ fn number_range(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dy
 fn date(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic, spec: Map) -> Fallible<()> {
     spec_keys(&spec, &["ui", "relative"])?;
     let (default, ui, relative) = (date_value(&d)?, date_ui(spec.get("ui"))?, relative_dates(spec.get("relative"))?);
-    o.declare(o.db.borrow_mut().date(classifier(s, n, k, h), default, ui, relative))
+    declare(o.db.borrow_mut().date(classifier(s, n, k, h), default, ui, relative))
 }
 
 /// `gnc-register-account-list-option`: the default accounts, then `#{ types, multiple }`.
@@ -201,7 +203,7 @@ fn account_list(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Ar
     spec_keys(&spec, &["types", "multiple"])?;
     let default = d.iter().map(|a| account_arg(o.book.0.book(), a)).collect::<Fallible<Vec<Guid>>>()?;
     let (types, multiple) = (account_types(spec.get("types"))?, bool_arg(spec.get("multiple"), true)?);
-    o.declare(o.db.borrow_mut().account_list(classifier(s, n, k, h), default, types, multiple))
+    declare(o.db.borrow_mut().account_list(classifier(s, n, k, h), default, types, multiple))
 }
 
 /// `gnc-register-account-sel-limited-option`: the default account or `()`, then `#{ types }`.
@@ -209,7 +211,7 @@ fn account_sel(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dyn
     spec_keys(&spec, &["types"])?;
     let default = if d.is_unit() { None } else { Some(account_arg(o.book.0.book(), &d)?) };
     let types = account_types(spec.get("types"))?;
-    o.declare(o.db.borrow_mut().account_sel(classifier(s, n, k, h), default, types))
+    declare(o.db.borrow_mut().account_sel(classifier(s, n, k, h), default, types))
 }
 
 pub(super) fn register_reader(engine: &mut Engine) {
@@ -267,7 +269,7 @@ fn value(o: &ReportOption, r: &Resolve<'_>) -> Result<Dynamic, ReportError> {
         (OptionValue::Number(n), _) => Dynamic::from(n.clone()),
         (OptionValue::PlotSize(p), _) => plot_size_value(*p),
         (OptionValue::Date(d), _) => Dynamic::from(date_time(*d, r).map_err(fail)?.0),
-        (OptionValue::Commodity(c), _) => Dynamic::from(r.book.commodity(c.clone())),
+        (OptionValue::Commodity(c), _) => Dynamic::from(r.book.commodity(c)),
         (OptionValue::Accounts(_) | OptionValue::Account(_), _) => Dynamic::UNIT,
     })
 }

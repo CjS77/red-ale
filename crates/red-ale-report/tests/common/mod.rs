@@ -1,6 +1,6 @@
 //! Helpers for the engine tests: registries of inline scripts, a run context and fixture books.
 
-#![allow(dead_code, clippy::missing_panics_doc)]
+#![allow(dead_code, clippy::missing_panics_doc, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::needless_pass_by_value)]
 
 use red_ale_core::ops::period::AccountingPeriod;
 use red_ale_core::{Book, FixedEnv, Time64, TimeZone};

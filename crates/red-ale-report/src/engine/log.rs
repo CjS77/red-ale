@@ -9,10 +9,10 @@ use crate::result::{LogEntry, LogLevel};
 /// The log of one run. It keeps at most `max` bytes of text, the string-size limit, so a script printing in a loop
 /// cannot exhaust memory; past that, lines are dropped and one note says so.
 #[derive(Debug, Clone)]
-pub(crate) struct Log(Rc<RefCell<Entries>>);
+pub(crate) struct Log(Rc<RefCell<Lines>>);
 
 #[derive(Debug)]
-struct Entries {
+struct Lines {
     entries: Vec<LogEntry>,
     bytes: usize,
     max: usize,
@@ -25,7 +25,7 @@ pub(crate) const TRUNCATED: &str = "the report log passed its size limit; later 
 impl Log {
     /// An empty log keeping at most `max` bytes of text.
     pub(crate) fn new(max: usize) -> Self {
-        Self(Rc::new(RefCell::new(Entries { entries: Vec::new(), bytes: 0, max, truncated: false })))
+        Self(Rc::new(RefCell::new(Lines { entries: Vec::new(), bytes: 0, max, truncated: false })))
     }
 
     /// Add a line.

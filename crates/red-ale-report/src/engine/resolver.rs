@@ -30,16 +30,13 @@ impl Resolver {
     /// The source name `path` names when imported from `importer`, if it names a script there is.
     fn locate(&self, importer: Option<&str>, path: &str) -> Option<String> {
         let path = path.strip_suffix(".rhai").unwrap_or(path);
-        let name = match path.strip_prefix(USER_PREFIX) {
-            Some(rest) => {
-                let importer = importer.filter(|i| i.starts_with(USER_PREFIX))?;
-                let dir = importer.rsplit_once('/').map_or(".", |(dir, _)| dir);
-                plain_components(rest).then(|| format!("{dir}/{rest}.rhai"))?
-            }
-            None => {
-                let builtin = BUILTIN_DIRS.iter().any(|d| path.strip_prefix(d).is_some_and(|rest| rest.starts_with('/')));
-                (builtin && plain_components(path)).then(|| format!("{path}.rhai"))?
-            }
+        let name = if let Some(rest) = path.strip_prefix(USER_PREFIX) {
+            let importer = importer.filter(|i| i.starts_with(USER_PREFIX))?;
+            let dir = importer.rsplit_once('/').map_or(".", |(dir, _)| dir);
+            plain_components(rest).then(|| format!("{dir}/{rest}.rhai"))?
+        } else {
+            let builtin = BUILTIN_DIRS.iter().any(|d| path.strip_prefix(d).is_some_and(|rest| rest.starts_with('/')));
+            (builtin && plain_components(path)).then(|| format!("{path}.rhai"))?
         };
         self.sources.contains_key(&name).then_some(name)
     }

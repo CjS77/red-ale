@@ -1,6 +1,8 @@
 //! The engine's sandbox (`design/reports.md` §13, "Properties and safety"): no floats, no clock, no `eval`, imports
 //! only of known scripts, `print` to the log, and every limit raising `report-limit` with its name.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use common::{EMPTY_RESULT, GUID, Host, empty_book, eval, limit_of, registry, registry_with, render, template, template_with};

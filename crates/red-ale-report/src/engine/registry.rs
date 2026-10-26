@@ -166,7 +166,7 @@ impl Registry {
         if !has_fn(&ast, "templates", 0) {
             return Ok(Vec::new());
         }
-        let malformed = |message: String| self.malformed(name, message);
+        let malformed = |message: String| self.malformed(name, &message);
         ["options", "render"].iter().zip([3, 4]).try_for_each(|(f, n)| {
             if has_fn(&ast, f, n) { Ok(()) } else { Err(malformed(format!("a script with templates() needs fn {f}() with {n} parameters"))) }
         })?;
@@ -186,8 +186,8 @@ impl Registry {
         self.sources.get(name).is_some_and(|s| s.builtin)
     }
 
-    fn malformed(&self, name: &str, message: String) -> ReportError {
-        self.internal_if_builtin(name, load_error(name, &message))
+    fn malformed(&self, name: &str, message: &str) -> ReportError {
+        self.internal_if_builtin(name, load_error(name, message))
     }
 
     /// A built-in script's failure is red-ale's bug.
@@ -255,7 +255,7 @@ fn load_error(source: &str, message: &str) -> ReportError {
 /// The source name of a user script at `path`, if the path is a plain relative `.rhai` path.
 fn user_name(path: &str) -> Option<String> {
     let plain = path.split('/').all(|c| !c.is_empty() && c != "." && c != ".." && !c.contains('\\'));
-    (plain && path.ends_with(".rhai") && path.len() > ".rhai".len()).then(|| format!("{USER_PREFIX}{path}"))
+    (plain && std::path::Path::new(path).extension().is_some_and(|e| e == "rhai") && path.len() > ".rhai".len()).then(|| format!("{USER_PREFIX}{path}"))
 }
 
 fn has_fn(ast: &AST, name: &str, params: usize) -> bool {

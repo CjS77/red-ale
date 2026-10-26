@@ -13,6 +13,7 @@ use crate::query::{BookHandle, Fallible, Snapshot, commodity_arg, rational_arg, 
 /// runaway computation always stops the run; the engine reads this name back as the `number-size` limit.
 pub(crate) const NUMBER_SIZE: &str = "Rational";
 
+#[allow(clippy::unnecessary_box_returns)]
 /// An arithmetic error as Rhai raises it: past the cap, the `number-size` limit; anything else, a script error.
 fn arithmetic(e: NumberError) -> Box<EvalAltResult> {
     match e {
@@ -62,6 +63,8 @@ fn capped(r: Rational, cap: SizeCap) -> Fallible<Rational> {
     cap.check(r).map_err(arithmetic)
 }
 
+type Test = fn(std::cmp::Ordering) -> bool;
+
 type Op = fn(&Rational, &Rational, SizeCap) -> Result<Rational, NumberError>;
 
 /// `+ - * /` and the comparisons, for every mix of Rational and integer.
@@ -75,7 +78,7 @@ fn rational_operators(engine: &mut Engine, cap: SizeCap) {
     });
     engine.register_fn("-", |a: Rational| -a);
     engine.register_fn("+", |a: Rational| a);
-    let compare: [(&str, fn(std::cmp::Ordering) -> bool); 6] = [
+    let compare: [(&str, Test); 6] = [
         ("==", std::cmp::Ordering::is_eq),
         ("!=", std::cmp::Ordering::is_ne),
         ("<", std::cmp::Ordering::is_lt),
@@ -97,7 +100,7 @@ fn monetary(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap) {
     engine.register_fn("monetary", move |c: Dynamic, amount: Dynamic| -> Fallible<Monetary> {
         Ok(Monetary::new(commodity_arg(s.book(), &c)?, capped(rational_arg(&amount)?, cap)?))
     });
-    engine.register_get("commodity", move |m: &mut Monetary| book.commodity(m.commodity.clone()));
+    engine.register_get("commodity", move |m: &mut Monetary| book.commodity(&m.commodity));
     engine.register_get("amount", |m: &mut Monetary| m.amount.clone());
     engine.register_fn("+", move |a: Monetary, b: Monetary| a.checked_add(&b, cap).map_err(arithmetic));
     engine.register_fn("-", move |a: Monetary, b: Monetary| a.checked_sub(&b, cap).map_err(arithmetic));

@@ -52,7 +52,7 @@ fn properties(engine: &mut Engine) {
     engine.register_get("placeholder", |a: &mut AccountHandle| -> Fallible<bool> { Ok(a.get()?.is_placeholder()) });
     engine.register_get("hidden", |a: &mut AccountHandle| -> Fallible<bool> { Ok(a.get()?.is_hidden()) });
     engine.register_get("commodity", |a: &mut AccountHandle| -> Fallible<Dynamic> {
-        Ok(a.get()?.commodity.clone().map_or(Dynamic::UNIT, |c| Dynamic::from(a.book().commodity(c))))
+        Ok(a.get()?.commodity.as_ref().map_or(Dynamic::UNIT, |c| Dynamic::from(a.book().commodity(c))))
     });
     engine.register_get("parent", |a: &mut AccountHandle| -> Fallible<Dynamic> {
         Ok(a.get()?.parent.map_or(Dynamic::UNIT, |p| Dynamic::from(a.book().account(p))))

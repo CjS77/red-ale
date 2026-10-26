@@ -1,6 +1,8 @@
 //! The template registry (`design/reports.md` §2, "The shape of a report script"; §11): loading scripts, their
 //! `templates()`, GUIDs, names and lookup.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use common::{Host, empty_book, registry, registry_with};

@@ -70,7 +70,7 @@ pub(super) fn register(engine: &mut Engine) {
         let p = c.0.period.as_ref().map_err(|e| script_error(format!("the accounting period: {e}")))?;
         Ok([("start".into(), Dynamic::from(p.start.0)), ("end".into(), Dynamic::from(p.end.0))].into_iter().collect())
     });
-    engine.register_fn("report_currency", |c: &mut ContextHandle| BookHandle(Rc::clone(&c.0.snap)).commodity(c.0.settings.currency.clone()));
+    engine.register_fn("report_currency", |c: &mut ContextHandle| BookHandle(Rc::clone(&c.0.snap)).commodity(&c.0.settings.currency));
     engine.register_fn("week_start", |c: &mut ContextHandle| week_start(c.0.settings.week_start));
 }
 

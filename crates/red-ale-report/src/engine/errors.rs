@@ -108,10 +108,10 @@ fn parse_limit(err: &ParseErrorType) -> Option<Limit> {
 
 /// What went wrong, without Rhai's position suffix: a thrown value as itself, anything else as Rhai describes it.
 fn message(err: &EvalAltResult) -> String {
-    if let EvalAltResult::ErrorRuntime(value, _) = err {
-        if !value.is_unit() {
-            return value.to_string();
-        }
+    if let EvalAltResult::ErrorRuntime(value, _) = err
+        && !value.is_unit()
+    {
+        return value.to_string();
     }
     let text = err.to_string();
     let suffix = format!(" ({})", err.position());

@@ -1,6 +1,8 @@
 //! Running a template (`design/reports.md` §2, §6, §7): declaring options, setting them, reading them in `render`,
 //! the run context, the finished result, and that a run reads the Book without changing it.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use common::{GUID, Host, NOW, empty_book, fixture, registry};

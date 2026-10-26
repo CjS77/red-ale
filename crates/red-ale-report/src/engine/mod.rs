@@ -12,11 +12,17 @@
 //!
 //! Each run builds its own `Engine` over a snapshot of the Book; nothing is shared between runs.
 
+// Functions registered with Rhai take their arguments by value: Rhai passes owned values to every parameter but
+// the first.
+#[allow(clippy::needless_pass_by_value)]
 mod context;
 mod convert;
 mod errors;
 mod log;
+#[allow(clippy::needless_pass_by_value)]
 mod numbers;
+// The builder's functions mirror `gnc-register-*-option`: section, name, key and help, then the default.
+#[allow(clippy::needless_pass_by_value, clippy::many_single_char_names)]
 mod options;
 mod registry;
 mod resolver;
@@ -29,3 +35,6 @@ pub(crate) use registry::BUILTIN_DIRS;
 pub use registry::{Lookup, Registry, ScriptSource, TemplateInfo, TemplateKind};
 pub use run::RunContext;
 
+
+#[cfg(test)]
+mod tests;
