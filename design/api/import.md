@@ -122,7 +122,8 @@ can't be read as the format at all).
 amount taken at a rate of 1, as GnuCash does), `no-match` (*clear* or *update* with no match selected),
 `other-split-not-updated` (*update* of a transaction whose other split can't follow the new amount), `cannot-apply`
 (the proposal as it stands would fail to apply, with the reason), `header-row`, `duplicate-id`, `not-posted`,
-`no-split`.
+`no-split`, and QIF's `possible-duplicate`, `date-format`, `qif-field`, `number-format`, `qif-log` and
+`qif-account-map` (see "QIF").
 
 **Imbalance.** GnuCash's importers do not refuse an unbalanced transaction: committing it adds an `Imbalance-<CUR>`
 split (`xaccTransScrubImbalance` from `xaccTransCommitEdit`, `5.17:libgnucash/engine/Transaction.cpp:1549-1558`;
@@ -625,10 +626,12 @@ and so on, `qif-dialog-utils.scm:66-127`). QIF types map to allowed GnuCash type
 `Port`, `Invst` → BANK; `CCard` → CREDIT; `Oth L` → LIABILITY or CREDIT; …). The map file is written only when the
 import completes.
 
-**Converting** (`qif-to-gnc.scm:257-556`): everything is built under a new root and merged in at the end. Accounts are
-made shallowest first; an existing account of a compatible type and commodity is reused, an incompatible one gets a
-new account `<name> 2` (`:62-240`); placeholders are never set. Files are converted in descending order of transaction
-count, each in file order.
+**Converting** (`qif-to-gnc.scm:257-556`): everything is built under a new root and merged in at the end
+(`gnc_account_merge_children`, which merges two siblings only when name, code, description, colour, commodity, notes
+and type are all equal, and otherwise leaves both). Accounts are made shallowest first; an existing account of a
+compatible type and commodity is reused, an incompatible one gets a new account `<name> <n>`, the first `n` from 2
+whose full name is free or compatible (`:62-240`); placeholders are never set. Files are converted in descending order
+of transaction count, each in file order.
 
 - *Bank transactions* (`:565-720`): description from the payee; num by the num field source; memo to the notes (or the
   description when there is no payee); the near split's state from `C` (`*`/`c` → `c`, `x`/`r` → `y`), else the
@@ -644,8 +647,11 @@ count, each in file order.
   voids the transaction.
 - Securities: a new commodity in the namespace the user chose (default the saved one, else `NONCURRENCY`) with
   fraction 100000 (`qif-dialog-utils.scm:725-837`).
-- Each transaction is committed, so an imbalance becomes an Imbalance split, and `xaccTransRecordPrice` records
-  `user:split-import` prices (`qif-to-gnc.scm:436-458`).
+- Each transaction is committed, so an imbalance becomes an Imbalance split, each split's amount is rounded half up
+  to its account's fraction as the split enters the account (`xaccSplitCommitEdit`,
+  `5.17:libgnucash/engine/Split.cpp:1016-1031`: 1343.648538 shares become 1343.64854), and `xaccTransRecordPrice`
+  records `user:split-import` prices (`qif-to-gnc.scm:436-458`). A transaction that ends with no split (a stock
+  action naming no accounts) is destroyed by its commit.
 - `!Type:Prices` lines (`:462-542`, `:1371-1455`): source `user:price`, type `unknown`, in the default currency, at
   10:59 local; a price with one already on that local day is skipped.
 
@@ -655,55 +661,104 @@ or many to one); the survivor is the transaction with more splits, else the inve
 
 **Duplicates of existing transactions** (`gnc:account-tree-find-duplicates`, `qif-merge-groups.scm:44-162`): for each
 new transaction, existing ones in the account of the same full name with a split of exactly equal value, posted within
-7 days (`:73`, `:133-142`). The user ticks at most one per new transaction; nothing is ticked by default. Ticked ones
-are not imported (`gnc:prune-matching-transactions`, `:175-184`); existing transactions are never changed.
+7 days (`:73`, `:133-142`), found from the first of its splits, in split order, that has any. The user ticks at most
+one per new transaction; nothing is ticked by default (`:150-152`). Ticked ones are destroyed
+(`gnc:prune-matching-transactions`, `:175-184`), except a voided one, which is read-only, so `xaccTransDestroy`
+refuses it and it stays; existing transactions are never changed.
 
 **Choices** (the assistant's pages, `assistant-qif-import.c`): the date format when ambiguous; a default account name
 for a file with no `!Account` (from the file name, `qif-objects.scm:657-675`); the account, category and payee maps;
 the default currency (`gnc_default_currency`); each new security's namespace, mnemonic and name; the duplicates.
 
 GnuCash's tests: `test/test-qif-parse.scm` (dates, years, numbers, categories, actions), `test/test-qif-imp.scm`
-(price lines), `test/test-qif-merge-groups.scm` (the duplicate finder).
+(the string helpers, price lines), `test/test-qif-merge-groups.scm` (the duplicate finder).
 
 ### What red-ale does
 
 One Rust module per `.scm` file, keeping its logic and guesses ([`../milestone3.md`](../milestone3.md), "Translated
-from GnuCash").
+from GnuCash"), in `red_ale_import::qif`: `objects`, `file`, `parse`, `string` (the reader), `guess_map`
+(`qif-guess-map.scm`), `dialog_utils` (`qif-dialog-utils.scm` without its dialogs), `to_gnc` (`qif-to-gnc.scm`:
+accounts, transfers, transactions, prices) and `merge_groups` (`qif-merge-groups.scm`). `qif::import` runs the
+assistant's steps without its pages, as one preview and one apply.
 
 **Params** of `import.preview` with `format: "qif"`:
 
 | Param | Type | Meaning |
 |-------|------|---------|
-| `files` | ImportFile[] | One or more, each optionally with `defaultAccount`: the account for its transactions with no `!Account`. Default from the file name, as GnuCash's |
-| `dateFormat` | string? | `m-d-y`, `d-m-y`, `y-m-d` or `y-d-m`, when the dates are ambiguous |
-| `currency` | CommodityId? | The default currency; default `defaultCurrency` ([`quotes.md`](quotes.md)) |
+| `files` | QifFile[] | One or more `ImportFile`s, each optionally with `defaultAccount`: the account (full name) for its transactions read under no `!Account`. Default from the file name, as GnuCash's (`qif-file:path-to-accountname`), else "QIF Import". Bytes without `encoding` are UTF-8 |
+| `dateFormat` | string? | `m-d-y`, `d-m-y`, `y-m-d` or `y-d-m`, when the dates are ambiguous: one of the proposal's `qif.dateFormats`. It decides the price dates too. Ignored when the dates are not ambiguous |
+| `currency` | CommodityId? | The default currency, which must be a currency the Book knows; default `defaultCurrency` ([`configuration.md`](configuration.md)), else the Locale's, else USD, as `gnc_default_currency` |
 | `defaultReconcileState` | string | `n`, `c` or `y` for transactions with no `C`; default `n`, as GnuCash's preference |
-| `accounts`, `categories`, `payees` | `{ "<QIF name>": "<full name>" }` | Override the guessed maps: an existing account, or a new one to create |
-| `securities` | `{ "<QIF name>": { namespace, mnemonic, fullname } }` | Override a new security |
+| `accounts`, `categories`, `payees` | `{ "<QIF name>": "<full name>" }` | Override the guessed maps, as GnuCash's account picker sets `gnc-name`: an existing account, or a new one to create. A name the files do not use is `invalid` |
+| `securities` | `{ "<QIF name>": { namespace, mnemonic, fullname } }` | GnuCash's commodity page, for a security to be created. A name that is not one is `invalid` |
 
-**The proposal** has `qif`: `dateFormats` (the formats that fit, when there is more than one and `dateFormat` is
-missing: the proposal then holds no transactions and can't be applied until a new preview gives one), `accounts`,
-`categories` and `payees` (`[{ qifName, account, type, new, guessed }]`), and `securities`. `transactions` holds the
-converted transactions; merged transfer pairs appear once. Each has the actions `add` and `skip` only; its `matches`
-are QIF's duplicate candidates, `score` null, and the default action is `add`, as nothing is ticked in GnuCash.
-Choosing `skip` is ticking a duplicate. `clear` and `update` are refused for QIF.
+**How a preview runs.** Each file is read and its fields parsed (`qif-file:read-file`, `parse-fields`). When the
+dates are ambiguous and `dateFormat` is missing, the proposal stops there. Each file read under no `!Account` gets its
+account (`qif-import:fix-from-acct`). The maps are loaded from the QIF account map, filled for every name the files use
+(`make-account-display`, `make-category-display`, `make-memo-display`, guessing where the map has nothing), then the
+caller's choices replace the GnuCash names. The securities are chosen (`update-security-hash`, then `securities`). Then
+everything is converted into a **copy** of the Book: the new securities created, `qif-import:qif-to-gnc` run, and the
+duplicate finder run against the Book. The proposal shows what that copy holds; `import.apply` converts again into the
+Book itself, inside its Mutation, which gives the same transactions in the same order, then removes the ones skipped.
 
-**The QIF account map** lives in the Configuration under `import.qifAccountMap`, as JSON: `accounts`, `categories`,
-`payees` (QIF name → full name and allowed types) and `securities`. `import.apply` saves the maps used, merged over
-what was there, as GnuCash's `save-map-prefs` does. Reading GnuCash's own `qif-accounts-map` file (Scheme data read
-with `read`, never evaluated) is left for later.
+**The proposal** has `qif`:
+
+| Field | Meaning |
+|-------|---------|
+| `dateFormats` | The formats every ambiguous file allows, in GnuCash's order, when `dateFormat` is missing: the proposal then holds no transactions (a `date-format` warning says so) and `import.apply` refuses it until a new preview gives one. Files whose ambiguities have no format in common are an `import-file` error (`reason: "date-format"`); import them one at a time |
+| `accounts`, `categories`, `payees` | `[{ qifName, account, id, type, new, guessed }]`, by QIF name: `account` the full name, `id` the account when it exists, `type` the allowed types (a new account gets the first that suits its commodity), `new` when it is to be created, `guessed` when neither the saved map nor the params named it |
+| `securities` | `[{ name, id, fullname, new }]`: each security the files' stock accounts hold, its commodity, and whether applying creates it |
+| `currency` | The default currency |
+
+`newCommodities` lists the securities applying creates, with fraction 100000. `transactions` holds the converted
+transactions in conversion order; transfer pairs between the files appear once. A split's `account` is null for an
+account still to be created, with `accountName` naming it; the Imbalance split committing adds is not among the splits
+but in `imbalance`. Each transaction has the actions `add` and `skip` only. Its `matches` are QIF's duplicate
+candidates, `score` null. A transaction with candidates defaults to `skip`, its first candidate selected, with a
+`possible-duplicate` warning saying why; one without defaults to `add`. So a file imported a second time is found
+whole and applying adds nothing (GnuCash's duplicates page ticks nothing: see the deviations). The caller may choose
+`add` for a skipped one, or `skip` for any; `skip` is ticking a duplicate, and `match` may name the candidate, which
+changes nothing else. `clear`, `update`, `account` and `amount` are refused for QIF.
+
+`ignoredLines` reasons for QIF: `unknown-option`, `date-required` (a transaction without a date, dropped),
+`class-line`, `category-line`, `security-line`, `price-line`. Warnings: `qif-field` (a field value GnuCash replaces,
+such as an unknown account type), `number-format` (a number format taken by guess between several that fit),
+`no-split` (a transaction that makes no split, which GnuCash destroys), `qif-log` (the conversion's log: a price whose
+symbol has no commodity, prices skipped for a day that has one), `possible-duplicate`, `date-format`. An `import-file`
+error has `reason` `qif` (not QIF, or a category GnuCash can't read), `format` (no format fits a field) or
+`date-format`.
+
+**The QIF account map** lives in the Configuration under `import.qifAccountMap`, as JSON with a schema
+([`configuration.md`](configuration.md)): `accounts`, `categories` and `payees`, each QIF name → `{ account, types,
+description }`, and `securities`, QIF security name → `{ namespace, mnemonic }`. A preview reads it; `import.apply`
+saves the maps the import used, entry by entry over what was there, as GnuCash's `save-map-prefs` does at the end of
+an import (guesses included). A failure to save is a `qif-account-map` warning, as GnuCash only warns. Reading GnuCash's
+own `qif-accounts-map` file (Scheme data read with `read`, never evaluated) is left for later. GnuCash records the
+account separator with the map and rewrites the names when it changed; red-ale's separator is always `:`.
 
 **Translated as GnuCash does it**, including the guesses, the account names (in English: red-ale has no translations;
 GnuCash's are translated), the reversed split order, the conversion order by file size, the stock split arithmetic,
-exact numbers, transfer merging and the duplicate finder.
+exact numbers (amounts rounded to their accounts' fractions at commit, as GnuCash's commit rounds them), transfer
+merging, the prices recorded from transactions and from `!Type:Prices`, and the duplicate finder.
 
 **Deviations, for the book's sake:**
 
-- A number that doesn't parse is an **error row**, not 0.
+- A number GnuCash reads as 0 is an **error row**: one that doesn't parse, and one a format accepts but Scheme's
+  `string->number` doesn't, such as a value padded with spaces (`15.330    `, common in Quicken's investment records,
+  `qif-parse.scm:449`).
 - A day that doesn't exist (31/02) is an error row; GnuCash posts the transaction today (`Transaction.cpp:1942-1948`).
-- An unknown investment action is an error row; GnuCash leaves the transaction to the imbalance scrub.
+- An investment transaction with an unknown action, or none, is an error row; GnuCash leaves it to the imbalance scrub.
 - An ambiguous price date is decided by `dateFormat` too; GnuCash reparses only transaction dates and then fails on
   the prices.
+- Accounts are merged as each is made, into the Book's account of the same full name, so the merge only ever joins
+  the import's accounts with existing ones; where GnuCash's merge would leave two siblings of one name (they differ in
+  code, colour or notes), red-ale gives the new one the first free `<name> <n>`.
+- `skip` is allowed for any transaction, not only one with candidates, and a skipped voided transaction is removed,
+  where GnuCash's `xaccTransDestroy` refuses a voided one and keeps it.
+
+**Order.** GnuCash walks its maps, which are hash tables, in hash order, and sorts what it shows by the locale's
+collation; red-ale walks the payee map, then the category map, then the account map, each by QIF name, and sorts
+bytewise, so the same files always make the same accounts in the same order.
 
 ## CSV accounts
 
@@ -991,10 +1046,14 @@ and apply in one run.
 | Encoding | Guessed (CSV), or the locale's charset | The client's `encoding`, else the layout's, else UTF-8; a byte-order mark wins | No guessing about what the user meant |
 | Bytes invalid in the encoding | Dropped (CSV: `boost::locale::conv::to_utf`'s default `skip`, `5.17:gnucash/import-export/csv-imp/gnc-tokenizer.cpp:108`) | `import-file` error naming the line | A dropped byte can change a name or an amount |
 | Preview with error rows | The assistant blocks until "Skip errors" is ticked | Proposed without them; `import.apply` needs `skipErrors` | The caller sees the whole proposal first |
-| Unparseable numbers (QIF, business) | 0 | Error row | A wrong amount in a book is worse than a refused row |
+| Unparseable numbers (QIF, business), and QIF numbers padded with spaces | 0 | Error row | A wrong amount in a book is worse than a refused row |
 | CSV splits failing their essentials | Dropped, logged | Error row | The user sees every row that isn't imported |
 | The last CSV transaction's void reason | Ignored | Applied | A GnuCash bug |
-| QIF invalid days, unknown actions, ambiguous price dates | Today; imbalance; failure | Error rows; decided by `dateFormat` | As above |
+| QIF invalid days, unknown or missing investment actions, ambiguous price dates | Today; imbalance; failure | Error rows; decided by `dateFormat` | As above |
+| QIF account tree merge | Built apart, then merged; siblings that differ in code, colour or notes stay with one name | Merged as each account is made; a new sibling with an existing name becomes `<name> <n>` | Two accounts of one full name can't be told apart by name |
+| QIF maps' order | Hash order, sorted by locale collation | By QIF name, bytewise | Deterministic output |
+| QIF duplicates ticked | None by default (`qif-merge-groups.scm:150-152`); only among the candidates; a voided one is kept (`xaccTransDestroy` refuses it) | A transaction with candidates defaults to `skip`, its first candidate selected, with a `possible-duplicate` warning; `add` stays a choice; `skip` on any transaction; a voided one is removed | Unticked is a window's default: with no window, a file imported twice must add nothing the second time (as the matcher auto-clears confident matches). The caller's skip is honoured whole |
+| QIF dates ambiguous in several files | Asked file by file | One `dateFormat` for the preview; files with no format in common are refused | One preview, one choice |
 | CSV account rows after one that doesn't fit | Ignored silently | Read; that row is an error | As above |
 | CSV account rows with a missing parent, unknown commodity or type, or a name that isn't the full name's end | Top-level account; skipped; `INVALID` account; cut at the wrong place | Error rows | Nothing lands where the file didn't say |
 | New CSV accounts breaking `account.create`'s rules | Created | Error rows | The Book's invariants hold for every door |

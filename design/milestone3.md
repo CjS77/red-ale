@@ -227,7 +227,7 @@ Bayesian matching follows GnuCash exactly, so red-ale and GnuCash pick the same 
 |   ✅   | Bayesian account matching    |   1.8.3    |      | Sets `Account GUID based bayesian with flat KVP` (`gnc-features.h:59`)                     |
 |   ✅   | Import map editor            |    3.0     |      | List and delete learned mappings: `importMap.list`, `importMap.delete`                     |
 |   ✅   | CSV transaction import       |    2.6     |      | The first format on the pipeline. Layouts are saved in the Configuration                   |
-|        | QIF import                   |   ≤ 1.4    |      | Translated from Scheme; its own duplicate finder; the QIF account map in the Configuration |
+|   ✅   | QIF import                   |   ≤ 1.4    |      | Translated from Scheme; its own duplicate finder; the QIF account map in the Configuration |
 |   ✅   | CSV account import           |    2.6     |      | Creates accounts from GnuCash's account CSV layout; no matcher                             |
 |   ✅   | CSV price import             |    3.0     |      | GnuCash's same-day replace rule, then `price.add`'s; no matcher                            |
 |        | Import invoices and bills    |   2.4.1    |      | `5.17:gnucash/import-export/bi-import/`; creates and optionally posts documents            |

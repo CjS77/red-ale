@@ -228,12 +228,48 @@ fn import() -> Value {
                 "propertyNames": { "minLength": 1 },
                 "additionalProperties": csv_price_layout(),
             },
-            "qifAccountMap": {
-                "type": "object", "default": {}, "additionalProperties": true,
-                "description": "The QIF account map: QIF accounts, categories, payees and securities to accounts. Saved by import.apply.",
-            },
+            "qifAccountMap": qif_account_map(),
         }),
     )
+}
+
+/// The account types a QIF map entry may list, as GnuCash names them.
+const ACCOUNT_TYPES: [&str; 20] = [
+    "NONE", "BANK", "CASH", "CREDIT", "ASSET", "LIABILITY", "STOCK", "MUTUAL", "CURRENCY", "INCOME", "EXPENSE", "EQUITY", "RECEIVABLE",
+    "PAYABLE", "ROOT", "TRADING", "CHECKING", "SAVINGS", "MONEYMRKT", "CREDITLINE",
+];
+
+/// The QIF account map (`SavedMap`'s serde form): what GnuCash keeps in its `qif-accounts-map` file
+/// (`5.17:gnucash/import-export/qif-imp/qif-guess-map.scm:296-344`). `import.apply` saves it.
+fn qif_account_map() -> Value {
+    let entry = json!({
+        "type": "object", "required": ["account"], "additionalProperties": false,
+        "properties": {
+            "account": { "type": "string", "minLength": 1, "description": "The GnuCash account's full name." },
+            "types": { "type": "array", "items": { "type": "string", "enum": ACCOUNT_TYPES }, "description": "The account types the QIF name may map to." },
+            "description": { "type": ["string", "null"], "description": "The description, from the QIF account record." },
+        },
+    });
+    let map = |what: &str| json!({ "type": "object", "default": {}, "description": what, "additionalProperties": entry });
+    json!({
+        "type": "object", "default": {},
+        "description": "The QIF account map: QIF accounts, categories, payees and securities to accounts and commodities. Saved by import.apply.",
+        "properties": {
+            "accounts": map("QIF account names to accounts."),
+            "categories": map("QIF categories to accounts."),
+            "payees": map("QIF payees and memos to accounts."),
+            "securities": {
+                "type": "object", "default": {}, "description": "QIF security names to commodities.",
+                "additionalProperties": {
+                    "type": "object", "required": ["namespace", "mnemonic"], "additionalProperties": false,
+                    "properties": {
+                        "namespace": { "type": "string", "minLength": 1, "description": "The commodity's namespace." },
+                        "mnemonic": { "type": "string", "minLength": 1, "description": "Its mnemonic." },
+                    },
+                },
+            },
+        },
+    })
 }
 
 /// The fields every CSV import layout has: GnuCash's `CsvImportSettings`
