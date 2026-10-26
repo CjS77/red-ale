@@ -115,7 +115,10 @@ impl AccountNames {
 /// `account_foreach_descendant_breadthfirst_until` with a name test: the children first, then each child's
 /// descendants the same way (`5.17:libgnucash/engine/Account.cpp:3052-3084`).
 fn lookup_by_name(book: &Book, parent: Guid, name: &str) -> Option<Guid> {
-    book.children(parent).find(|c| c.name == name).map(|c| c.guid).or_else(|| book.children(parent).find_map(|c| lookup_by_name(book, c.guid, name)))
+    book.children(parent)
+        .find(|c| c.name == name)
+        .map(|c| c.guid)
+        .or_else(|| book.children(parent).find_map(|c| lookup_by_name(book, c.guid, name)))
 }
 
 /// What applying a business proposal did, by record index.
@@ -166,7 +169,13 @@ fn check_dependencies(same_as: &[Option<usize>], actions: &[ImportAction]) -> Do
 }
 
 /// Apply business records with the caller's changes. The caller holds `book` inside one Mutation.
-pub fn apply(book: &mut Book, env: &mut dyn Env, records: &Records, changes: &[Change], threshold: Option<Date>) -> DomainResult<(RecordsApplied, Vec<Warning>)> {
+pub fn apply(
+    book: &mut Book,
+    env: &mut dyn Env,
+    records: &Records,
+    changes: &[Change],
+    threshold: Option<Date>,
+) -> DomainResult<(RecordsApplied, Vec<Warning>)> {
     match records {
         Records::Documents(docs) => {
             let actions = chosen_actions(&docs.iter().map(|d| (d.action, None)).collect::<Vec<_>>(), changes)?;

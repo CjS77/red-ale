@@ -330,8 +330,14 @@ impl Checker<'_, '_> {
     fn owner(&self, owner_id: &str) -> Option<(OwnerRef, Option<CommodityRef>)> {
         let b = &self.ctx.book.business;
         match self.opts.kind {
-            DocumentKind::Invoice => b.customers.values().find(|c| c.id == owner_id).map(|c| (OwnerRef { kind: OwnerKind::Customer, guid: c.guid }, c.currency.clone())),
-            _ => b.vendors.values().find(|v| v.id == owner_id).map(|v| (OwnerRef { kind: OwnerKind::Vendor, guid: v.guid }, v.currency.clone())),
+            DocumentKind::Invoice => {
+                let customer = b.customers.values().find(|c| c.id == owner_id)?;
+                Some((OwnerRef { kind: OwnerKind::Customer, guid: customer.guid }, customer.currency.clone()))
+            }
+            _ => {
+                let vendor = b.vendors.values().find(|v| v.id == owner_id)?;
+                Some((OwnerRef { kind: OwnerKind::Vendor, guid: vendor.guid }, vendor.currency.clone()))
+            }
         }
     }
 
@@ -339,7 +345,8 @@ impl Checker<'_, '_> {
     fn header(&mut self, row: &Row) -> Option<Header> {
         let f = &row.fields;
         if self.id.is_empty() {
-            self.errors.push(RowError { file: self.ctx.file, line: row.line, column: Some(ID + 1), message: "no invoice ID in first row of import file.".into() });
+            let message = "no invoice ID in first row of import file.".into();
+            self.errors.push(RowError { file: self.ctx.file, line: row.line, column: Some(ID + 1), message });
         }
         let owner = self.header_owner(row);
         let post = if f[DATE_POSTED].is_empty() { None } else { self.posting(row) };
@@ -509,7 +516,8 @@ fn check(ctx: &Context<'_>, opts: DocumentOptions, id: &str, rows: &[&Row]) -> R
         let mut errors = c.errors;
         let what = if id.is_empty() { "invoice without id".to_owned() } else { format!("invoice {id}") };
         let line = first.map_or(0, |r| r.line);
-        errors.push(RowError { file: ctx.file, line, column: None, message: format!("Error(s) in {what}, all rows of this invoice ignored.") });
+        let message = format!("Error(s) in {what}, all rows of this invoice ignored.");
+        errors.push(RowError { file: ctx.file, line, column: None, message });
         return Err(errors);
     };
     Ok(Checked {
@@ -545,7 +553,8 @@ fn cannot_post(book: &Book, doc: &ProposedDocument, target: Guid) -> DomainResul
     let inv = book.business.invoices.get(&target).ok_or_else(|| DomainError::not_found("invoice", &target))?;
     let customer = doc.kind == DocumentKind::Invoice;
     let currency = Some(&doc.currency);
-    let entry_accounts = entries_of(book, target).into_iter().filter_map(|e| if customer { e.i_account } else { e.b_account }).collect::<Vec<_>>();
+    let entry_accounts: Vec<Guid> =
+        entries_of(book, target).into_iter().filter_map(|e| if customer { e.i_account } else { e.b_account }).collect();
     let tax_accounts = document_totals(book, inv)?.taxes.into_iter().map(|(a, _)| a);
     let foreign = entry_accounts.into_iter().chain(tax_accounts).any(|a| book.account(a).is_some_and(|a| a.commodity.as_ref() != currency));
     if foreign {
@@ -591,11 +600,13 @@ fn new_entry(env: &mut dyn Env, kind: DocumentKind, target: Guid, p: &ProposedEn
     e.quantity = p.quantity;
     if kind == DocumentKind::Invoice {
         e.notes.clone_from(&p.notes);
-        (e.i_account, e.i_price, e.i_taxable, e.i_tax_included, e.i_tax_table) = (Some(p.account), p.price, p.taxable, p.tax_included, p.tax_table);
+        (e.i_account, e.i_price, e.i_taxable) = (Some(p.account), p.price, p.taxable);
+        (e.i_tax_included, e.i_tax_table) = (p.tax_included, p.tax_table);
         (e.i_discount, e.i_disc_type, e.i_disc_how) = (p.discount, p.discount_type, p.discount_how);
         e.invoice = Some(target);
     } else {
-        (e.b_account, e.b_price, e.b_taxable, e.b_tax_included, e.b_tax_table) = (Some(p.account), p.price, p.taxable, p.tax_included, p.tax_table);
+        (e.b_account, e.b_price, e.b_taxable) = (Some(p.account), p.price, p.taxable);
+        (e.b_tax_included, e.b_tax_table) = (p.tax_included, p.tax_table);
         e.bill = Some(target);
     }
     e
@@ -673,7 +684,8 @@ pub(super) fn apply_all(
             post_document(book, env, plan, target)?;
             out.posted.push((doc.index, target));
             if threshold.is_some_and(|t| plan.date < t) {
-                warnings.push(Warning::about(doc.index, "read-only-by-date", format!("posted although dated before the read-only threshold {}", plan.date)));
+                let message = format!("posted although dated before the read-only threshold {}", plan.date);
+                warnings.push(Warning::about(doc.index, "read-only-by-date", message));
             }
         }
         Ok(())
@@ -731,7 +743,8 @@ impl Planner<'_> {
         let Found { action, existing, same_as, notes } = self.action(&c);
         let mut warnings: Vec<Warning> = c.fixes.iter().map(|m| Warning::about(index, "fixed", m.clone())).collect();
         warnings.extend(notes.into_iter().map(|(code, m)| Warning::about(index, code, m)));
-        let source = Source { file: self.ctx.file, first_line: c.lines.first().copied().unwrap_or(0), last_line: c.lines.last().copied().unwrap_or(0) };
+        let (first_line, last_line) = (c.lines.first().copied().unwrap_or(0), c.lines.last().copied().unwrap_or(0));
+        let source = Source { file: self.ctx.file, first_line, last_line };
         ProposedDocument {
             index,
             source,
@@ -789,7 +802,8 @@ impl Planner<'_> {
         if let Some(reason) = doc.post.as_ref().and_then(|p| p.not_posted.clone()).filter(|_| doc.action != ImportAction::Skip) {
             doc.warnings.push(Warning::about(index, "not-posted", reason));
         }
-        if let (Some(t), Some(plan)) = (self.ctx.threshold, doc.post.as_ref().filter(|_| doc.will_post() && doc.action != ImportAction::Skip)) {
+        let posting = doc.post.as_ref().filter(|_| doc.will_post() && doc.action != ImportAction::Skip);
+        if let (Some(t), Some(plan)) = (self.ctx.threshold, posting) {
             doc.read_only_by_date = plan.date < t;
             if doc.read_only_by_date {
                 doc.warnings.push(Warning::about(index, "read-only-by-date", format!("posted before the read-only threshold {t}")));
@@ -833,7 +847,11 @@ impl Planner<'_> {
 /// An existing entry with the same date, description, account, quantity and price.
 fn same_entry(e: &Entry, p: &ProposedEntry, customer: bool, date: Time64) -> bool {
     let (account, price) = if customer { (e.i_account, e.i_price) } else { (e.b_account, e.b_price) };
-    e.date == date && e.description == p.description && account == Some(p.account) && e.quantity.same_value(p.quantity) && price.same_value(p.price)
+    e.date == date
+        && e.description == p.description
+        && account == Some(p.account)
+        && e.quantity.same_value(p.quantity)
+        && price.same_value(p.price)
 }
 
 /// Read a `csvDocuments` file and work out what importing it would do.
@@ -841,7 +859,8 @@ pub fn propose(text: &str, ctx: &Context<'_>, opts: &DocumentOptions) -> Result<
     let pattern = reader::line_pattern(&FIELDS, &ESCAPED, opts.separator)?;
     let read = reader::read(text, ctx.file, &FIELDS, &pattern, opts.separator);
     let env = FixedEnv::new(ctx.now, PREVIEW_GUID_SEED).with_zone(ctx.zone.clone());
-    let mut planner = Planner { ctx, opts, copy: ctx.book.clone(), env, created: Created::new(), by_guid: BTreeMap::new(), out: Proposed::default() };
+    let copy = ctx.book.clone();
+    let mut planner = Planner { ctx, opts, copy, env, created: Created::new(), by_guid: BTreeMap::new(), out: Proposed::default() };
     planner.out.ignored = read.ignored;
     planner.out.warnings = stripped_warnings(&read.stripped);
     group(&read.rows).into_iter().for_each(|(id, rows)| match check(ctx, *opts, &id, &rows) {
@@ -855,6 +874,9 @@ pub fn propose(text: &str, ctx: &Context<'_>, opts: &DocumentOptions) -> Result<
 pub(super) fn stripped_warnings(lines: &[usize]) -> Vec<Warning> {
     lines
         .iter()
-        .map(|l| Warning { code: "stripped-characters", message: format!("line {l}: control characters were removed, as GnuCash removes them"), index: None })
+        .map(|l| {
+            let message = format!("line {l}: control characters were removed, as GnuCash removes them");
+            Warning { code: "stripped-characters", message, index: None }
+        })
         .collect()
 }

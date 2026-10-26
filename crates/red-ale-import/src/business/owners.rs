@@ -89,7 +89,8 @@ impl AddressFields {
     /// The address from the eight columns starting at `at`, the first being the name.
     fn from_row(f: &[String], name: usize, at: usize) -> Self {
         let get = |i: usize| f.get(i).cloned().unwrap_or_default();
-        Self { name: get(name), lines: [get(at), get(at + 1), get(at + 2), get(at + 3)], phone: get(at + 4), fax: get(at + 5), email: get(at + 6) }
+        let lines = [get(at), get(at + 1), get(at + 2), get(at + 3)];
+        Self { name: get(name), lines, phone: get(at + 4), fax: get(at + 5), email: get(at + 6) }
     }
 
     /// Set every field of `a`, empty ones included (`dialog-customer-import.c:371-388`); the names of those that change.
@@ -309,7 +310,12 @@ fn apply_one(book: &mut Book, env: &mut dyn Env, o: &ProposedOwner, action: Impo
 }
 
 /// Apply every Owner not skipped, in file order.
-pub(super) fn apply_all(book: &mut Book, env: &mut dyn Env, owners: &[ProposedOwner], actions: &[ImportAction]) -> DomainResult<(RecordsApplied, Vec<Warning>)> {
+pub(super) fn apply_all(
+    book: &mut Book,
+    env: &mut dyn Env,
+    owners: &[ProposedOwner],
+    actions: &[ImportAction],
+) -> DomainResult<(RecordsApplied, Vec<Warning>)> {
     let mut out = RecordsApplied::default();
     let mut created = Created::new();
     owners.iter().zip(actions).try_for_each(|(o, action)| -> DomainResult<()> {
@@ -407,13 +413,16 @@ impl Planner<'_> {
             o.warnings.push(Warning::about(i, "fixed", format!("line {}: no company; the name {} is used", row.line, o.fields.company)));
         }
         if self.opts.kind != OwnerKind::Customer && !AddressFields::from_row(&row.fields, SHIP, SHIP + 1).is_empty() {
-            o.warnings.push(Warning::about(i, "ignored-columns", format!("line {}: vendors have no shipping address; its columns are ignored", row.line)));
+            let message = format!("line {}: vendors have no shipping address; its columns are ignored", row.line);
+            o.warnings.push(Warning::about(i, "ignored-columns", message));
         }
         if o.counter.is_some() && o.action == ImportAction::Update {
-            o.warnings.push(Warning::about(i, "id-in-use", format!("the Counter's next ID {} is already an Owner's; GnuCash updates that Owner", o.id)));
+            let message = format!("the Counter's next ID {} is already an Owner's; GnuCash updates that Owner", o.id);
+            o.warnings.push(Warning::about(i, "id-in-use", message));
         }
         if header {
-            let message = format!("line {}: this looks like a header row; it is skipped (GnuCash imports it as an Owner named {:?})", row.line, o.fields.company);
+            let (line, company) = (row.line, &o.fields.company);
+            let message = format!("line {line}: this looks like a header row; it is skipped (GnuCash imports it as an Owner named {company:?})");
             o.warnings.push(Warning::about(i, "header-row", message));
         } else if o.action == ImportAction::Skip {
             o.warnings.push(Warning::about(i, "unchanged", format!("line {}: {} {} would not change", row.line, o.kind.type_name(), o.id)));
@@ -459,7 +468,8 @@ impl Planner<'_> {
                 true
             }
             Err(e) => {
-                self.out.errors.push(RowError { file: self.ctx.file, line: row.line, column: None, message: format!("{} {}: {e}", o.kind.type_name(), o.id) });
+                let message = format!("{} {}: {e}", o.kind.type_name(), o.id);
+                self.out.errors.push(RowError { file: self.ctx.file, line: row.line, column: None, message });
                 false
             }
         }

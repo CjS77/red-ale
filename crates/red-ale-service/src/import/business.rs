@@ -48,7 +48,8 @@ pub(super) struct Choices {
 impl Choices {
     pub(super) fn read(config: &Config) -> Result<Self, ServiceError> {
         let name = config.checked("reports.dateFormat")?;
-        let date_format = name.as_str().and_then(DateFormat::from_name).ok_or_else(|| invalid(format!("reports.dateFormat {name} is not a date format")))?;
+        let date_format =
+            name.as_str().and_then(DateFormat::from_name).ok_or_else(|| invalid(format!("reports.dateFormat {name} is not a date format")))?;
         Ok(Self { locale: config.locale()?, date_format })
     }
 }
@@ -116,6 +117,7 @@ pub(super) fn propose_owners(
     let ctx = Context { book, locale: &choices.locale, today, now, zone: &zone, file: 0, threshold: None };
     let opts = OwnerOptions { kind: params.kind, separator: params.separator, currency: config.default_currency(book)? };
     let found = business::owners::propose(&text, &ctx, &opts).map_err(|e| invalid(e.to_string()))?;
-    let parts = business::documents::Proposed { documents: Vec::new(), errors: found.errors, ignored: found.ignored, warnings: found.warnings };
+    let parts =
+        business::documents::Proposed { documents: Vec::new(), errors: found.errors, ignored: found.ignored, warnings: found.warnings };
     Ok(proposal(book, Format::CsvOwners, today, Records::Owners(found.owners), parts))
 }

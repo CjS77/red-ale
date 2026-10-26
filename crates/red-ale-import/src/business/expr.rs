@@ -87,7 +87,8 @@ fn scan_number(s: &str, f: NumberFormat) -> Result<(Numeric, &str), ExprError> {
         return Err(ExprError::Unexpected(s.to_owned()));
     }
     let digits = format!("{integer}{fraction}");
-    let numer: i64 = if digits.is_empty() { 0 } else { digits.parse().map_err(|_| ExprError::Arithmetic(format!("{digits} does not fit")))? };
+    let numer: i64 =
+        if digits.is_empty() { 0 } else { digits.parse().map_err(|_| ExprError::Arithmetic(format!("{digits} does not fit")))? };
     let exp = u32::try_from(fraction.len()).map_err(|_| ExprError::Arithmetic("too many digits".into()))?;
     let denom = 10_i64.checked_pow(exp).ok_or_else(|| ExprError::Arithmetic(format!("{} fraction digits", fraction.len())))?;
     Ok((Numeric::new(numer, denom), rest))
