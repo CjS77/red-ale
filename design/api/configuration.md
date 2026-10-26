@@ -27,8 +27,8 @@ A setting is named by its **setting path**: its keys from the top of the Configu
 source, a CSV import layout) is a key like any other. A path may name a single setting or a group
 (`import.settings`, `quotes.services.mine`). Keys are never empty and never contain `.`; Quote service and source
 names are letters, digits, `_` and `-`. JSON Pointer was not chosen: the paths are typed on command lines and by
-agents, and no declared key needs escaping. A path cannot reach inside a free-form object (a CSV import layout, the
-QIF account map, a saved configuration's options): set the object whole.
+agents, and no declared key needs escaping. A path cannot reach inside a free-form object (the QIF account map, a
+saved configuration's options): set the object whole.
 
 ### `config.schema`
 
@@ -36,7 +36,8 @@ No params. Returns the schema document. Beyond standard JSON Schema it uses:
 
 - `format` as an assertion, with red-ale's formats: `period-bound`, `fiscal-year-end`, `guid`, `commodity-id`,
   `decimal` (a non-negative decimal string), `url-template` (an `http` or `https` URL with a host, holding no
-  placeholder but `{symbol}`, `{base}`, `{quote}`, `{date}` and `{key}`), `json-pointer`, `env-name` and `name`;
+  placeholder but `{symbol}`, `{base}`, `{quote}`, `{date}` and `{key}`), `json-pointer`, `env-name`, `name` and `encoding` (a WHATWG encoding label, such as `utf-8`, `latin1` or
+  `utf-16le`, matched as `encoding_rs` matches it);
 - `readOnly: true` for settings other methods own (`reports.saved`, `reports.styleSheets`);
 - `writeOnly: true` for secrets (a Quote service's `key`);
 - `x-refusedOverMcp: true` for settings only a person may change: `quotes.network`, and each service's `key` and
@@ -139,16 +140,16 @@ Every setting, with its default. Settings declared in v0.3 ahead of the work tha
 | `jsonRpc.maxRequestBytes` | integer, 1 MiB to 4 GiB − 1 | 64 MiB | The largest request `red-ale serve` accepts (jsonrpsee's default is 10 MB). Read when the server starts. |
 | `jsonRpc.maxResponseBytes` | integer, 1 MiB to 4 GiB − 1 | 256 MiB | The largest response `red-ale serve` sends (jsonrpsee's default is 10 MB, which a CSV export of a few years of transactions passes; [`export.md`](export.md)). A larger result is an error. Read when the server starts. `red-ale call` takes a response of any size. |
 | `mcp.maxRequestBytes` | integer, 1 MiB to 4 GiB − 1 | 64 MiB | The largest message `red-ale mcp` accepts (rmcp's default is 16 MiB). Read when the server starts. |
-| `import.settings.enableSkip` | boolean | `true` | "Skip" may be chosen (`enable-skip`). *Declared.* |
-| `import.settings.enableUpdate` | boolean | `true` | "Update and clear" may be chosen (`enable-update`). *Declared.* |
-| `import.settings.useBayes` | boolean | `true` | Bayesian matching instead of the plain account map (`use-bayes`). *Declared.* |
-| `import.settings.matchThreshold` | integer 0–1000 | `1` | Lowest score offered as a match. *Declared.* |
-| `import.settings.matchDateThreshold` | integer 0–3650 (days) | `4` | Dates this close add 2 to the score. *Declared.* |
-| `import.settings.matchDateNotThreshold` | integer 0–3650 (days) | `14` | Dates further apart take 5 off. *Declared.* |
-| `import.settings.autoAddThreshold` | integer 0–1000 | `3` | At or below this best score the transaction is added. *Declared.* |
-| `import.settings.autoClearThreshold` | integer 0–1000 | `6` | At or above this best score the match is cleared. *Declared.* |
-| `import.settings.atmFeeThreshold` | `decimal` string | `"2.00"` | Amount difference still matched, for ATM fees. *Declared.* |
-| `import.csvLayouts.<name>` | object | none | A CSV transaction import layout ([`import.md`](import.md)). Its fields are declared with CSV import. *Declared.* |
+| `import.settings.enableSkip` | boolean | `true` | "Skip" may be chosen (`enable-skip`). |
+| `import.settings.enableUpdate` | boolean | `true` | "Update and clear" may be chosen (`enable-update`). |
+| `import.settings.useBayes` | boolean | `true` | Bayesian matching instead of the plain account map (`use-bayes`). |
+| `import.settings.matchThreshold` | integer 0–1000 | `1` | Lowest score offered as a match. |
+| `import.settings.matchDateThreshold` | integer 0–3650 (days) | `4` | Dates this close add 2 to the score. |
+| `import.settings.matchDateNotThreshold` | integer 0–3650 (days) | `14` | Dates further apart take 5 off. |
+| `import.settings.autoAddThreshold` | integer 0–1000 | `3` | At or below this best score the transaction is added. |
+| `import.settings.autoClearThreshold` | integer 0–1000 | `6` | At or above this best score the match is cleared. |
+| `import.settings.atmFeeThreshold` | `decimal` string | `"2.00"` | Amount difference still matched, for ATM fees. |
+| `import.csvLayouts.<name>` | CSV layout | none | A CSV transaction import layout, named by `import.preview`'s `layout` ([`import.md`](import.md)). Its fields are those of an inline layout; `config.schema` gives them. A built-in layout's name wins over a saved one. |
 | `import.csvPriceLayouts.<name>` | object | none | A CSV price import layout. *Declared.* |
 | `import.qifAccountMap` | object | `{}` | The QIF account map, saved by `import.apply`. *Declared.* |
 | `quotes.network` | boolean | `false` | Let Quote fetches reach the network; nothing else does. Refused over MCP. |

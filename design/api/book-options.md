@@ -120,6 +120,10 @@ Allowed whatever the threshold, as in GnuCash, which checks nothing there:
 - Reconciling, scrubs, lots, capital gains and stock splits: the reconcile window and the scrub, lot and stock split
   code change splits of old transactions without asking.
 - Business posting, unposting and payments: their dialogs' date fields have no threshold.
+- Importers: `import.apply` adds, clears and updates transactions on any date, as GnuCash's generic importer and CSV
+  importer check no threshold (`gnucash/import-export/import-main-matcher.cpp`, `gnucash/import-export/csv-imp/`).
+  `import.preview` flags each transaction that is or would be read-only by date, so the caller can see it first
+  ([`import.md`](import.md)).
 - `book.replayJournal`: log replay does not check it (`gnucash/import-export/log-replay/gnc-log-replay.cpp:357-540`).
 
 Document links on transactions (v0.2) follow the delete rule: GnuCash refuses to add or remove a transaction's link

@@ -14,6 +14,7 @@ use red_ale_xml::{ReadBack, XmlResidue, read_back, read_book_from, write_book_to
 
 use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files, replace_book_file};
+use crate::import::ProposalStore;
 use crate::journal::{Journal, RecordKind, record_lines};
 use crate::lock::BookLock;
 use crate::replay::{ReplayReport, replay};
@@ -174,6 +175,8 @@ pub struct Session {
     dirty: bool,
     settings: Settings,
     env: Box<dyn EnvDebug>,
+    revision: u64,
+    proposals: ProposalStore,
 }
 
 /// An [`Env`] that can be stored in a session.
@@ -215,7 +218,19 @@ impl Session {
             }
             other => other,
         };
-        Ok(Self { journal: Journal::new(&path), path, book, residue, lock, read_only: reasons, dirty: false, settings, env: Box::new(SystemEnv) })
+        Ok(Self {
+            journal: Journal::new(&path),
+            path,
+            book,
+            residue,
+            lock,
+            read_only: reasons,
+            dirty: false,
+            settings,
+            env: Box::new(SystemEnv),
+            revision: 0,
+            proposals: ProposalStore::default(),
+        })
     }
 
     /// Create a new, empty book file, taking its lock. Fails if the file exists.
@@ -228,8 +243,19 @@ impl Session {
         let mut env = SystemEnv;
         let book = Book::new_empty(&mut env);
         let residue = XmlResidue::new_book(&book, settings.compress_new_books);
-        let mut session =
-            Self { journal: Journal::new(&path), path, book, residue, lock: Some(lock), read_only: Vec::new(), dirty: true, settings, env: Box::new(env) };
+        let mut session = Self {
+            journal: Journal::new(&path),
+            path,
+            book,
+            residue,
+            lock: Some(lock),
+            read_only: Vec::new(),
+            dirty: true,
+            settings,
+            env: Box::new(env),
+            revision: 0,
+            proposals: ProposalStore::default(),
+        };
         session.save(None)?;
         Ok(session)
     }
@@ -279,6 +305,17 @@ impl Session {
         self.journal.current_path()
     }
 
+    /// The Book revision: how many Mutations this session has applied. An Import proposal records the revision it
+    /// was made at, and is applied only at that revision (`design/milestone3.md`, "Decided").
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// The Import proposals held for this session's Book, dropped with it.
+    pub(crate) fn proposals(&mut self) -> &mut ProposalStore {
+        &mut self.proposals
+    }
+
     /// The current time from the session's environment.
     pub fn now(&mut self) -> Time64 {
         self.env.now()
@@ -321,6 +358,7 @@ impl Session {
             .map_err(|e| ServiceError::Io { path: self.path.clone(), source: e })?;
         self.book = next;
         self.dirty = true;
+        self.revision += 1;
         Ok(out)
     }
 

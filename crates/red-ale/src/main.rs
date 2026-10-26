@@ -11,6 +11,7 @@ use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context as _, Result, bail};
+use base64::Engine as _;
 use clap::{Args, Parser, Subcommand};
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::core::params::ObjectParams;
@@ -108,7 +109,45 @@ struct CallArgs {
     /// Params: one JSON object, or `key=value` (a string) and `key:=json` pairs.
     params: Vec<String>,
     #[command(flatten)]
+    input: InputArgs,
+    #[command(flatten)]
     output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+struct InputArgs {
+    /// Read an import file here and add it to the params' `files` as `{name, base64}`, so the server never reads a
+    /// path; repeat it for several files (QIF).
+    #[arg(long = "file", value_name = "FILE")]
+    files: Vec<PathBuf>,
+    /// The encoding of every `--file`, a WHATWG label such as `iso-8859-1`; default the layout's, else UTF-8.
+    #[arg(long, value_name = "LABEL", requires = "files")]
+    encoding: Option<String>,
+}
+
+impl InputArgs {
+    /// The params with each `--file` appended to `files`.
+    fn fill(&self, mut params: Value) -> Result<Value> {
+        if self.files.is_empty() {
+            return Ok(params);
+        }
+        let read = self.files.iter().map(|path| {
+            let bytes = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+            let name = path.file_name().map(|n| n.to_string_lossy().into_owned());
+            let mut file = json!({ "name": name, "base64": base64::engine::general_purpose::STANDARD.encode(bytes) });
+            if let Some(encoding) = &self.encoding {
+                file["encoding"] = json!(encoding);
+            }
+            Ok(file)
+        });
+        let read = read.collect::<Result<Vec<Value>>>()?;
+        let object = params.as_object_mut().context("params must be a JSON object")?;
+        match object.entry("files").or_insert_with(|| json!([])) {
+            Value::Array(files) => files.extend(read),
+            _ => bail!("--file adds to files, which the params give as something other than a list"),
+        }
+        Ok(params)
+    }
 }
 
 #[derive(Debug, Args)]
@@ -167,6 +206,8 @@ struct ExecArgs {
     method: Option<String>,
     /// Params: one JSON object, or `key=value` (a string) and `key:=json` pairs.
     params: Vec<String>,
+    #[command(flatten)]
+    input: InputArgs,
     #[command(flatten)]
     output: OutputArgs,
     #[command(flatten)]
@@ -314,7 +355,7 @@ fn shut_down(dispatcher: &Mutex<Dispatcher>) {
 }
 
 fn call(args: &CallArgs) -> Result<Option<RpcError>> {
-    let params = params::parse(&args.params)?;
+    let params = args.input.fill(params::parse(&args.params)?)?;
     let runtime = tokio::runtime::Runtime::new()?;
     let result: Result<Value, jsonrpsee::core::ClientError> = runtime.block_on(async {
         // The server's own limit bounds what it sends (`jsonRpc.maxResponseBytes`), so the client takes any size.
@@ -334,12 +375,12 @@ fn call(args: &CallArgs) -> Result<Option<RpcError>> {
 }
 
 fn exec(args: &ExecArgs) -> Result<Ended> {
-    if args.script.is_some() && args.output.output.is_some() {
-        bail!("--output writes one method's result; it does not combine with --script");
+    if args.script.is_some() && (args.output.output.is_some() || !args.input.files.is_empty()) {
+        bail!("--output and --file go with one method; they do not combine with --script");
     }
     let calls = match (&args.script, &args.method) {
         (Some(script), _) => read_script(script)?,
-        (None, Some(method)) => vec![(method.clone(), params::parse(&args.params)?)],
+        (None, Some(method)) => vec![(method.clone(), args.input.fill(params::parse(&args.params)?)?)],
         (None, None) => bail!("give a method or --script"),
     };
     let mut d = Dispatcher::new(args.settings.settings());

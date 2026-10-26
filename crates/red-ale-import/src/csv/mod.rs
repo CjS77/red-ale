@@ -72,6 +72,7 @@
 //!    for every draft with a [`DraftTransaction::void_reason`].
 //! 6. **Match**: each transaction goes to the generic import matcher (`gnc_gen_trans_list_add_trans_with_split_data`).
 
+pub mod build;
 pub mod date;
 pub mod import_tx;
 pub mod monetary;

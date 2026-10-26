@@ -12,7 +12,9 @@ red-ale-core.workspace = true
 red-ale-locale.workspace = true
 red-ale-xml.workspace = true
 chrono.workspace = true
+encoding_rs.workspace = true
 getrandom.workspace = true
+red-ale-import.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 

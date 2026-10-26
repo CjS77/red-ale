@@ -70,11 +70,14 @@ pub mod codes {
     /// A user report script does not load.
     pub const REPORT_LOAD: i32 = 3004;
 
+    /// An import file can't be read as its format at all.
+    pub const IMPORT_FILE: i32 = 4000;
+
     /// A method needs the network and the Configuration has it off; nothing was sent.
     pub const NETWORK_DISABLED: i32 = 5000;
 
     /// Every code with its name, for the schema document.
-    pub const ALL: [(i32, &str); 29] = [
+    pub const ALL: [(i32, &str); 30] = [
         (PARSE_ERROR, "parse-error"),
         (INVALID_REQUEST, "invalid-request"),
         (METHOD_NOT_FOUND, "method-not-found"),
@@ -103,6 +106,7 @@ pub mod codes {
         (REPORT_OPTION, "report-option"),
         (REPORT_RESULT, "report-result"),
         (REPORT_LOAD, "report-load"),
+        (IMPORT_FILE, "import-file"),
         (NETWORK_DISABLED, "network-disabled"),
     ];
 }
@@ -206,6 +210,13 @@ impl From<ServiceError> for RpcError {
             ServiceError::CurrentJournal { path: p } => Self::new(codes::INVALID, message).with_data(path(&p)),
             ServiceError::NoSession => Self::new(codes::NO_BOOK, message),
             ServiceError::AlreadyOpen { path: p } => Self::new(codes::BOOK_ALREADY_OPEN, message).with_data(path(&p)),
+            ServiceError::ImportFile { file, line, reason, message: text } => {
+                Self::new(codes::IMPORT_FILE, message).with_data(json!({ "file": file, "line": line, "reason": reason, "message": text }))
+            }
+            ServiceError::ProposalNotFound { id } => Self::new(codes::NOT_FOUND, message).with_data(json!({ "kind": "importProposal", "id": id })),
+            ServiceError::StaleProposal { proposal_revision, book_revision, .. } => Self::new(codes::CONFLICT, message).with_data(json!({
+                "reason": "book-revision", "proposalRevision": proposal_revision, "bookRevision": book_revision,
+            })),
         }
     }
 }

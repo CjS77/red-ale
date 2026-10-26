@@ -13,4 +13,5 @@
 pub mod csv;
 pub mod import_map;
 pub mod matcher;
+pub mod pipeline;
 pub mod qif;

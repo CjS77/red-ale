@@ -8,6 +8,7 @@ publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+base64.workspace = true
 clap.workspace = true
 jsonrpsee.workspace = true
 red-ale-mcp.workspace = true

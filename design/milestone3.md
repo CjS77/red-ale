@@ -223,10 +223,10 @@ Bayesian matching follows GnuCash exactly, so red-ale and GnuCash pick the same 
 
 | Status | Feature                      | Introduced | Epic | Notes                                                                                      |
 |:------:|------------------------------|:----------:|------|--------------------------------------------------------------------------------------------|
-|        | Import matcher               |    1.8     |      | The pipeline above, for CSV transaction import and business import                         |
-|        | Bayesian account matching    |   1.8.3    |      | Sets `Account GUID based bayesian with flat KVP` (`gnc-features.h:59`)                     |
-|        | Import map editor            |    3.0     |      | List and delete learned mappings: `importMap.list`, `importMap.delete`                     |
-|        | CSV transaction import       |    2.6     |      | The first format on the pipeline. Layouts are saved in the Configuration                   |
+|   ✅   | Import matcher               |    1.8     |      | The pipeline above, for CSV transaction import and business import                         |
+|   ✅   | Bayesian account matching    |   1.8.3    |      | Sets `Account GUID based bayesian with flat KVP` (`gnc-features.h:59`)                     |
+|   ✅   | Import map editor            |    3.0     |      | List and delete learned mappings: `importMap.list`, `importMap.delete`                     |
+|   ✅   | CSV transaction import       |    2.6     |      | The first format on the pipeline. Layouts are saved in the Configuration                   |
 |        | QIF import                   |   ≤ 1.4    |      | Translated from Scheme; its own duplicate finder; the QIF account map in the Configuration |
 |        | CSV account import           |    2.6     |      | Creates accounts from GnuCash's account CSV layout; no matcher                             |
 |        | CSV price import             |    3.0     |      | Adds prices through `price.add`'s same-day rules; no matcher                               |
@@ -386,7 +386,7 @@ unchanged, including `<from> to <to>` in titles.
 |   ✅   | Locale setting             | `locale` in the Configuration, and an optional `locale` param on report runs             |
 |   ✅   | Locale data                | A committed table from glibc's locale sources; ICU4X for date intervals and week start   |
 |   ✅   | Number and date formats    | Every report renderer and `display` form follows the locale                              |
-|        | Day names in import tokens | The Bayesian day-of-week token in the locale's language (`import-backend.cpp:479`)       |
+|   ✅   | Day names in import tokens | The Bayesian day-of-week token in the locale's language (`import-backend.cpp:479`)       |
 |        | Locale collation           | Out of v0.3. Name sorting stays bytewise ([`reports.md`](reports.md) §14)               |
 
 The trailing point after a whole amount (`5. ACME`) does not depend on the locale; see [`reports.md`](reports.md) §3.

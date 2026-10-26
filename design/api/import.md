@@ -67,12 +67,14 @@ Common params:
 `ImportFile`: `{ name?, text? , base64?, encoding? }`:
 
 - exactly one of `text` (the content as a JSON string) and `base64` (the bytes);
-- `encoding` names the encoding of `base64`'s bytes, as a WHATWG label decoded with `encoding_rs`, default `utf-8`; it
-  is refused with `text`, which is already Unicode. A UTF-8 byte-order mark is removed, as GnuCash's readers remove it
-  (`qif-file.scm:119-137`; the business regexes allow it, `dialog-bi-import-gui.c:312`);
+- `encoding` names the encoding of `base64`'s bytes, as a WHATWG label decoded with `encoding_rs`; it is refused with
+  `text`, which is already Unicode. Without it, the CSV import layout's `encoding` applies, else `utf-8`. Decoding
+  follows WHATWG: a UTF-8 or UTF-16 byte-order mark wins over the label and is removed, as GnuCash's readers remove a
+  UTF-8 one (`qif-file.scm:119-137`; the business regexes allow it, `dialog-bi-import-gui.c:312`);
 - `name` is shown in messages, and gives QIF's default account name (below).
 
-Bytes that are not valid in the encoding are an `import-file` error naming the line. GnuCash guesses a CSV file's
+Bytes that are not valid in the encoding are an `import-file` error (`reason: "encoding"`) naming the line: nothing is
+replaced or dropped. GnuCash guesses a CSV file's
 encoding (`5.17:gnucash/import-export/csv-imp/gnc-tokenizer.cpp:64-114`) and falls back to the locale's charset for
 other files; red-ale takes the encoding the client gives, which the CSV import layout can name.
 
@@ -91,9 +93,9 @@ can't be read as the format at all).
 | `bookRevision` | The Book revision it was made at |
 | `thresholdDate` | The auto read-only threshold date at the time of the preview, or null with no threshold ([`book-options.md`](book-options.md)) |
 | `summary` | Counts: records by Import action, `errors`, `imbalanced`, `readOnlyByDate` |
-| `ignoredLines` | `[{ file, line, reason }]`: lines the reader skipped (lines a business regex did not match, lines skipped by the layout) |
-| `errors` | `[{ file, line, column, message }]`: rows that can't be imported, with GnuCash's message for each. None of their records appear below |
-| `warnings` | `[Warning]`: things the caller should know that don't stop the import |
+| `ignoredLines` | `[{ file, line, reason }]`: lines the reader skipped (lines a business regex did not match, lines skipped by the layout). Here and wherever a record is located, `file` is the file's 0-based position in `files` and `line` the 1-based record (for CSV, the row, which a quoted line break makes longer than one text line) |
+| `errors` | `[{ file, line, column, message }]`: rows that can't be imported, with GnuCash's message for each; `column` is the 1-based position of the first column of the type at fault, or null when the layout has no column of that type. None of their records appear below |
+| `warnings` | `[Warning]`: things the caller should know that don't stop the import and belong to no one record (each record's own are with it) |
 | `newAccounts` | `[{ name, type, commodity }]`: accounts the import will create, by full name, parents first |
 | `newCommodities` | `[{ id, fullname, fraction }]`: commodities it will create (QIF securities) |
 | `transactions` | `ImportedTransaction[]`, for `csvTransactions` and `qif` |
@@ -108,16 +110,19 @@ can't be read as the format at all).
 | `source` | `{ file, lines: [first, last] }`: where it came from |
 | `currency`, `datePosted`, `num`, `description`, `notes`, `voidReason` | As built |
 | `splits` | `[{ account, accountName, value, amount, memo, action, reconcileState, reconcileDate }]`. `account` is a GUID, or null for an account to be created (`accountName` then names it). Split 0 is the *imported split*: the one in the account the file is a statement of, which the matcher matches on |
-| `other` | The balancing split GnuCash would add on *add*: `{ account, accountName, from, value, amount }`. `from` says where the account came from: `file`, `bayes`, `map`, `caller`, or null when none was found. Null when the transaction already balances |
+| `other` | The balancing split GnuCash would add on *add*: `{ account, accountName, from, value, amount }`. `from` says where the account came from: `file`, `bayes`, `map`, `caller`, or null when none was found. Shown whatever the action; null only when the imported split's value is zero, so no split would be added |
 | `action` | The Import action the matcher (or the format) chose: `add`, `clear`, `update` or `skip` |
 | `matches` | Candidate matches, best first: `[{ split, transaction, score, updateProposed, datePosted, description, num, memo, amount, value, reconcileState }]`. `score` is null for QIF, whose finder doesn't score |
 | `selectedMatch` | The split GUID of the match `clear` or `update` would use, or null |
-| `imbalance` | With the current action and accounts: `{ value, currency, account }`, the `Imbalance-<CUR>` split applying would make, or null |
+| `imbalance` | With the current action and accounts: `{ value, currency, account, accountName }`, the `Imbalance-<CUR>` split applying would make (`account` null when that account is to be created), or null. Worked out by applying the whole proposal to a copy of the Book |
 | `readOnlyByDate` | True when `datePosted` is before `thresholdDate`: the transaction would be read-only by date once added |
 | `warnings` | `[Warning]` for this transaction |
 
 `Warning`: `{ code, message, index?, … }`, with codes such as `imbalance`, `read-only-by-date`, `missing-rate` (an
-amount taken at a rate of 1, as GnuCash does), `header-row`, `duplicate-id`, `not-posted`, `no-split`.
+amount taken at a rate of 1, as GnuCash does), `no-match` (*clear* or *update* with no match selected),
+`other-split-not-updated` (*update* of a transaction whose other split can't follow the new amount), `cannot-apply`
+(the proposal as it stands would fail to apply, with the reason), `header-row`, `duplicate-id`, `not-posted`,
+`no-split`.
 
 **Imbalance.** GnuCash's importers do not refuse an unbalanced transaction: committing it adds an `Imbalance-<CUR>`
 split (`xaccTransScrubImbalance` from `xaccTransCommitEdit`, `5.17:libgnucash/engine/Transaction.cpp:1549-1558`;
@@ -413,7 +418,7 @@ online ID is empty (`:216-238`, `:292-392`).
 
 | Param | Type | Meaning |
 |-------|------|---------|
-| `entries` | `[{ account, kind, key? }]` | Each: one entry, or with no `key`, every entry of that kind on that account (the editor's parent row) |
+| `entries` | `[{ account, kind, key?, target? }]` | Each: one entry, or with no `key`, every entry of that kind on that account (the editor's parent row). A `bayes` token is held once per target account: `target` (AccountRef) picks one, and without it the token goes for every target |
 | `invalid` | bool | Instead of `entries`: every invalid entry in the book |
 
 → `{ deleted: ImportMapEntry[] }`. Deleting follows the editor: an empty plain category and an empty `import-map`
@@ -529,8 +534,9 @@ resolved by the map or full name; mapping one by hand writes `csv-account-map` o
 | `baseAccount` | AccountRef? | Overrides the layout's |
 | `accountNames` | `{ "<name in the file>": AccountRef }` | GnuCash's account match page: what each name the file uses means. Learned as `csv-account-map` at apply |
 
-**The CSV import layout** is kept in the Configuration under `import.csvLayouts.<name>`, the built-in ones being
-always there and read only:
+**The CSV import layout** is kept in the Configuration under `import.csvLayouts.<name>`. GnuCash's built-in layouts,
+`GnuCash Export Format` and `GnuCash Export Format (4.x and older)`, are always there and read only, and win over a
+saved layout of the same name, as GnuCash's preset list comes first (`config.schema` gives every field):
 
 ```json
 { "format": "csv", "separators": ",", "escape": true, "columnWidths": [],
@@ -553,8 +559,21 @@ GUID and full name, as GnuCash keeps both.
 
 **Translated as GnuCash does it**: the tokenizer, skipping, every date and number parser, grouping, the value
 methods, the transfer split, and what reaches the matcher. Under the default `C` locale, `currencyFormat: "locale"`
-reads as the period format. The `locale` date format parses with the Locale's default date pattern; GnuCash uses ICU's
-there (`5.17:libgnucash/engine/gnc-datetime.cpp:646-703`), so this waits for the locale work's ICU4X decision.
+reads as the period format. The `locale` date format has no parser yet: GnuCash uses ICU's there
+(`5.17:libgnucash/engine/gnc-datetime.cpp:646-703`), so every row with a date is an error row ("No locale date
+parser") until the locale work decides on ICU4X.
+
+**Multi-currency checks** are GnuCash's: only the Account column (and the base account) count towards the currencies
+a file uses (`UpdateCrossSplitCounters`, `is_multi_currency`, `5.17:gnucash/import-export/csv-imp/gnc-imp-props-tx.cpp:391-424`;
+`verify_column_selections`, `gnc-import-tx.cpp:542-556`), so a transfer into an account in another
+currency is not refused but gets a `missing-rate` warning unless a Price or Transfer Amount column gives the amount.
+When the Account column does make a transaction multi-currency, the layout needs a price or (negated) value column
+(single-line layouts may use a (negated) transfer amount column instead), else the preview fails with `import-file`
+`reason: "columns"`; each such line without one of those values is an error row.
+
+**Errors** of `import-file` from CSV: `reason: "tokenize"` (the tokenizer failed: an unclosed quote, a fixed-width
+layout with no widths) and `reason: "columns"` (the layout misses a required column, or the file has no line to
+import).
 
 **Deviations, for the book's sake** (also in the table at the end):
 
@@ -881,7 +900,9 @@ red-ale call import.apply proposal=imp-3 'changes:=[{"index": 4, "action": "skip
 ```
 
 The CLI reads import files on its own side: `--file <path>` on `import.preview` puts the file's bytes in `files` as
-`base64`, with its name; repeat it for QIF. With `exec`, a script can preview and apply in one run.
+`base64`, with its name; repeat it for QIF. `--encoding <label>` adds `encoding` to every file given with `--file`.
+Both work on `call` and on `exec` with one method, and are refused with `--script`. With `exec`, a script can preview
+and apply in one run.
 
 ## Deviations from GnuCash
 
@@ -893,7 +914,9 @@ The CLI reads import files on its own side: `--file <path>` on `import.preview` 
 | Comparing amounts in the matcher | Doubles, 1e-6 tolerance | Exact | Money never passes through a float |
 | Folded text comparison | Locale collation | Bytewise | As every red-ale comparison |
 | `skip` with `enable-skip` off | Unavailable | Allowed in `import.apply` | Skipping changes nothing in the Book; `enable-skip` still governs the matcher's choice |
-| Encoding | Guessed (CSV), or the locale's charset | The client's `encoding`, else UTF-8 | No guessing about what the user meant |
+| Encoding | Guessed (CSV), or the locale's charset | The client's `encoding`, else the layout's, else UTF-8; a byte-order mark wins | No guessing about what the user meant |
+| Bytes invalid in the encoding | Dropped (CSV: `boost::locale::conv::to_utf`'s default `skip`, `5.17:gnucash/import-export/csv-imp/gnc-tokenizer.cpp:108`) | `import-file` error naming the line | A dropped byte can change a name or an amount |
+| Preview with error rows | The assistant blocks until "Skip errors" is ticked | Proposed without them; `import.apply` needs `skipErrors` | The caller sees the whole proposal first |
 | Unparseable numbers (QIF, business) | 0 | Error row | A wrong amount in a book is worse than a refused row |
 | CSV splits failing their essentials | Dropped, logged | Error row | The user sees every row that isn't imported |
 | The last CSV transaction's void reason | Ignored | Applied | A GnuCash bug |

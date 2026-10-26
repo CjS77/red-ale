@@ -101,4 +101,33 @@ pub enum ServiceError {
         /// The open book.
         path: PathBuf,
     },
+    /// An import file can't be read as its format at all (`design/api/import.md`, "Errors").
+    #[error("import file {file}{}: {message}", .line.map(|l| format!(", line {l}")).unwrap_or_default())]
+    ImportFile {
+        /// The file's index among the import files.
+        file: usize,
+        /// The line, from 1, when one line is the cause.
+        line: Option<usize>,
+        /// Why, as a code: `encoding`, `tokenize` or `columns`.
+        reason: &'static str,
+        /// What is wrong, in GnuCash's words where it has them.
+        message: String,
+    },
+    /// No Import proposal is held with this ID: unknown, applied, discarded, pushed out by newer ones, or made before
+    /// the book was opened.
+    #[error("no import proposal {id} is held; preview the file again")]
+    ProposalNotFound {
+        /// The ID asked for.
+        id: String,
+    },
+    /// The Book has changed since the proposal was made.
+    #[error("the book has changed since import proposal {id} was made (revision {proposal_revision}, now {book_revision}); preview the file again")]
+    StaleProposal {
+        /// The proposal's ID.
+        id: String,
+        /// The Book revision it was made at.
+        proposal_revision: u64,
+        /// The Book revision now.
+        book_revision: u64,
+    },
 }
