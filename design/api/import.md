@@ -237,7 +237,9 @@ second `strtol` decides whether the conversion worked (`:682-686`), so an import
 an existing `0`.
 
 **Action** (`gnc_import_TransInfo_init_matches`, `import-backend.cpp:1162-1200`): candidates are sorted by score, best
-first, with a stable sort of a list built by prepending, so equal scores come in reverse query order. Then:
+first, with a stable sort. The candidates were prepended twice, into their account's bucket and then into the match
+list (`import-main-matcher.cpp:2370-2373`, `import-backend.cpp:782`), so equal scores keep the query's order
+(`xaccSplitOrder`). Then:
 
 1. best ≥ `auto-clear-threshold`: *update* if `enable-update` and the best match's `updateProposed`, else *clear*;
 2. else no match, or best ≤ `auto-add-threshold`: *add*;
@@ -266,9 +268,10 @@ transaction left with no match becomes *add*.
   (`xaccSplitGetOtherSplit`, `5.17:libgnucash/engine/Split.cpp:2161-2185`) in state `n`, that split's value becomes it
   and **so does its amount** (GnuCash reads the value where it meant the amount, `:968`, so the price branch at
   `:969-979` never runs); an other split not in `n` is left, and commit balances the transaction with an Imbalance
-  split; split 0's memo replaces the matched one if not empty; the description and notes are replaced by the imported
-  ones, **even when those are empty**, or, with "append", become `old|new` unless the new text is already there after
-  NFC normalisation (`update_desc_and_notes`, `maybe_append_string`, `:789-845`); then as *clear*.
+  split; split 0's memo replaces the matched one if not empty; the description is replaced by the imported one, **even
+  when that is empty**, and the notes by the imported notes when there are any (an imported transaction with none
+  passes a null to `xaccTransSetNotes`, which changes nothing, `5.17:libgnucash/engine/Transaction.cpp:2042-2046`);
+  or, with "append", each becomes `old|new` unless the new text is already there after NFC normalisation (`update_desc_and_notes`, `maybe_append_string`, `:789-845`); then as *clear*.
 
 The append choice is saved on the first row's account as the slot `import-append-text` (`"true"`, or removed when
 off; `import-main-matcher.cpp:577-581`; `5.17:libgnucash/engine/Account.cpp:4119-4128`, `:2557-2561`).
