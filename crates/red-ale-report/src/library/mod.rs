@@ -20,6 +20,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
     "lib/collectors.rhai",
     "lib/dates.rhai",
     "lib/exchange.rhai",
+    "lib/html-utilities.rhai",
     "lib/options.rhai",
 ];
 
