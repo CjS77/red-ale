@@ -8,3 +8,5 @@
 //! Every parser is a pure function from text to records: a malformed file is an error, never a panic.
 
 #![forbid(unsafe_code)]
+
+pub mod csv;
