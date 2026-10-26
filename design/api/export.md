@@ -9,7 +9,11 @@ book open read-only. CSV export returns its text and writes no file, as `report.
 the file on its side. Export accounts writes a new book file, as `book.create` does, and refuses a path that exists.
 
 A file red-ale exports as CSV imports back to the same transactions with the `GnuCash Export Format` CSV import
-layout ([`import.md`](import.md)), and to the same accounts with the CSV account importer.
+layout ([`import.md`](import.md)), and to the same accounts with the CSV account importer. One exception is
+GnuCash's own: before parsing a line, its CSV tokenizer turns each `""` into an escaped quote unless a separator or
+the line's edge is on both sides of it (`5.17:gnucash/import-export/csv-imp/gnc-tokenizer-csv.cpp:118-137`), so a
+`"` at the start or end of a text, or beside a comma, does not come back as written (a memo of one `"` comes back as
+`""`). red-ale reads such files as GnuCash does.
 
 ## What GnuCash does
 
@@ -246,7 +250,10 @@ error and the book is untouched. `red-ale call` accepts a response of any size, 
   each follows (`de_DE` as the other Locale); `crates/red-ale-rpc/tests/export.rs` compares `synthetic/rich.gnucash`'s
   tree and both layouts with `crates/red-ale-rpc/tests/export/*.csv`.
 - **Round trips:** (with the CSV importers) the complex export imported back with the `GnuCash Export Format` layout gives the same
-  transactions; the tree export imported back with the account importer gives the same accounts.
+  transactions; the tree export imported back with the account importer gives the same accounts. Done:
+  `crates/red-ale-rpc/tests/import.rs`, `a_csv_export_imports_back_to_the_same_transactions`, its property version
+  `any_csv_export_imports_back_to_the_same_transactions`, and `a_memo_of_one_quote_comes_back_as_two_as_in_gnucash`;
+  `import_records.rs`, `an_account_export_recreates_the_tree_in_a_new_book`.
 - **Read only:** each export on a read-only book; the book is not dirty and the journal is unchanged afterwards.
 - **Oracle:** GnuCash 5.17 opens the file `export.accounts` wrote, logging nothing, and finds the source book's
   accounts, commodities and slots, and no transactions, prices or lots (`crates/red-ale-testkit/tests/oracle_export.rs`,
