@@ -4,7 +4,7 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
-## 0.2.0 - Unreleased
+## 0.2.0 - 2026-10-26
 
 ### Added
 

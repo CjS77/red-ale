@@ -1533,7 +1533,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1549,7 +1549,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "indexmap",
@@ -1561,7 +1561,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-mcp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "red-ale-rpc",
  "red-ale-testkit",
@@ -1573,7 +1573,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-report"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "num-bigint",
@@ -1593,7 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-rpc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "jsonrpsee",
@@ -1611,7 +1611,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-service"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "getrandom 0.3.4",
@@ -1624,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-testkit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "red-ale-core",
  "red-ale-rpc",
@@ -1636,7 +1636,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-xml"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "flate2",
  "indexmap",
