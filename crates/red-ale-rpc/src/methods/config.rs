@@ -60,7 +60,7 @@ fn config_file(ctx: &Context) -> Option<String> {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct GetParams {
-    /// A setting path, keys joined with `.` (`import.matchThreshold`, `quotes.services.alphavantage`); absent for the
+    /// A setting path, keys joined with `.` (`import.settings.matchThreshold`, `quotes.services.alphavantage`); absent for the
     /// whole Configuration.
     #[serde(default)]
     pub path: Option<String>,

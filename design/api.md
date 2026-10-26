@@ -195,7 +195,7 @@ red-ale exec --book books/home.gnucash account.create name=Checking type=BANK pa
 red-ale exec --book books/home.gnucash transaction.post description=Rent datePosted=2024-07-01 \
     'splits:=[{"account": "Assets:Checking", "value": "-750.00"}, {"account": "Expenses:Rent", "value": "750.00"}]'
 red-ale exec --book books/home.gnucash --script changes.txt     # one "method {json}" per line
-red-ale exec --config red-ale.json config.set 'changes:={"import.matchThreshold": 2}'   # no book needed
+red-ale exec --config red-ale.json config.set 'changes:={"import.settings.matchThreshold": 2}'   # no book needed
 red-ale mcp --book books/home.gnucash                            # MCP over stdio, for an AI agent
 red-ale call --url http://127.0.0.1:7878 book.info
 ```

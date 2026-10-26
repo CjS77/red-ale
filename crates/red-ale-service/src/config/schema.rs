@@ -41,7 +41,11 @@ pub static SCHEMA: LazyLock<Value> = LazyLock::new(|| {
             "docLinks": doc_links(),
             "reports": reports(),
             "locale": locale(),
-            "network": network(),
+            "defaultCurrency": optional_text(
+                Some("commodity-id"),
+                "GnuCash's default currency (general/currency-other): what currencies are quoted in, and the currency of new \
+                 Owners and QIF imports. Unset, the Locale's currency, else USD.",
+            ),
             "jsonRpc": requests("JSON-RPC server"),
             "mcp": requests("MCP server"),
             "import": import(),
@@ -181,25 +185,43 @@ fn locale() -> Value {
     )
 }
 
-fn network() -> Value {
-    let mut enabled = boolean(false, "Let red-ale reach the network. Only Quote fetches use it. Not changeable through MCP.");
-    enabled[REFUSED_OVER_MCP] = json!(true);
-    group("Network access.", json!({ "enabled": enabled }))
-}
-
 fn requests(server: &str) -> Value {
     let description = format!("The largest request the {server} accepts, in bytes. Read when the server starts.");
     let bytes = integer(DEFAULT_MAX_REQUEST_BYTES, 1 << 20, u64::from(u32::MAX), &description);
     group(&format!("The {server}."), json!({ "maxRequestBytes": bytes }))
 }
 
+/// What imports keep outside the book (`design/api/import.md`): the Import settings, CSV import layouts and the QIF
+/// account map. The import work declares the layouts' and the map's contents.
+fn import() -> Value {
+    let named = |what: &str| {
+        json!({
+            "type": "object", "default": {}, "description": what,
+            "propertyNames": { "minLength": 1 },
+            "additionalProperties": { "type": "object", "additionalProperties": true },
+        })
+    };
+    group(
+        "Import: the matcher's settings, CSV import layouts and the QIF account map (design/api/import.md).",
+        json!({
+            "settings": import_settings(),
+            "csvLayouts": named("CSV transaction import layouts by name, beside the built-in ones."),
+            "csvPriceLayouts": named("CSV price import layouts by name, beside the built-in ones."),
+            "qifAccountMap": {
+                "type": "object", "default": {}, "additionalProperties": true,
+                "description": "The QIF account map: QIF accounts, categories, payees and securities to accounts. Saved by import.apply.",
+            },
+        }),
+    )
+}
+
 /// GnuCash's generic import settings, with its defaults
 /// (`5.17:gnucash/gschemas/org.gnucash.GnuCash.dialogs.import.generic.gschema.xml.in:3-47`).
-fn import() -> Value {
+fn import_settings() -> Value {
     let score = |default: u64, what: &str| integer(default, 0, 1000, what);
     let days = |default: u64, what: &str| integer(default, 0, 3650, what);
     group(
-        "Import settings: the matcher's rules and thresholds (design/milestone3.md, \"Import\").",
+        "The Import settings: the matcher's rules and thresholds.",
         json!({
             "enableSkip": boolean(true, "\"Skip\" may be chosen for a transaction (enable-skip)."),
             "enableUpdate": boolean(true, "\"Update and clear\" may be chosen (enable-update)."),
@@ -224,9 +246,13 @@ fn import() -> Value {
 }
 
 fn quotes() -> Value {
+    let mut network = boolean(false, "Let Quote fetches reach the network; nothing else does. Not changeable through MCP.");
+    network[REFUSED_OVER_MCP] = json!(true);
     group(
-        "Online quotes: where each Finance::Quote source is fetched from (design/milestone3.md, \"Quote services\").",
+        "Online quotes: where each Finance::Quote source is fetched from (design/api/quotes.md).",
         json!({
+            "network": network,
+            "timeoutSeconds": integer(30, 1, 600, "How long one request may take, in seconds."),
             "services": {
                 "type": "object",
                 "description": "Quote services by name. Changing a service's URL to another host clears its key.",
@@ -248,57 +274,84 @@ fn quotes() -> Value {
     )
 }
 
+/// The URL settings of a Quote service. A key is bound to their hosts.
+pub const SERVICE_URLS: [&str; 2] = ["securityUrl", "currencyUrl"];
+
 fn quote_service() -> Value {
-    let pointer = |what: &str| optional_text(Some("json-pointer"), &format!("For the json format: the JSON Pointer to the {what}."));
+    let url = |what: &str| {
+        let description = format!("The URL template for {what}, with {{symbol}}, {{base}}, {{quote}}, {{date}} and {{key}} filled in.");
+        optional_text(Some("url-template"), &description)
+    };
+    let pointer = |what: &str| optional_text(Some("json-pointer"), &format!("The JSON Pointer to the {what}."));
     let mut key = optional_text(None, "The service's key, if it needs one. Never shown; not changeable through MCP.");
     key["writeOnly"] = json!(true);
     key[REFUSED_OVER_MCP] = json!(true);
+    let mut key_env = optional_text(
+        Some("env-name"),
+        "An environment variable to take the key from when key is unset. Not changeable through MCP, since it hands a key on.",
+    );
+    key_env[REFUSED_OVER_MCP] = json!(true);
     json!({
         "type": "object",
-        "required": ["urlTemplate", "format"],
+        "required": ["format"],
         "properties": {
-            "urlTemplate": {
-                "type": "string", "format": "url-template",
-                "description": "The URL fetched, with {symbol}, {base}, {quote}, {date} and {key} filled in.",
-            },
             "format": { "type": "string", "enum": QUOTE_FORMATS, "description": "The response format, which picks the parser." },
+            "securityUrl": url("securities"),
+            "currencyUrl": url("currency rates"),
             "key": key,
-            "minIntervalMs": integer(0, 0, 86_400_000, "The least time between two requests, in milliseconds."),
-            "timeoutMs": integer(30_000, 1, 600_000, "How long one request may take, in milliseconds."),
-            "pricePointer": pointer("price"),
-            "currencyPointer": pointer("price's currency"),
-            "datePointer": pointer("price's date"),
+            "keyEnv": key_env,
+            "minIntervalSeconds": integer(0, 0, 86_400, "The least time between two requests to the service, in seconds."),
+            "currency": optional_text(Some("commodity-id"), "The currency of a price when the answer has none."),
+            "pointers": group(
+                "For the json format: JSON Pointers into the answer.",
+                json!({
+                    "price": pointer("price (required for the json format)"),
+                    "currency": pointer("price's currency"),
+                    "date": pointer("price's date"),
+                }),
+            ),
         },
     })
 }
 
-/// The Proposed defaults of `design/milestone3.md`, "Quote services".
+/// The Proposed defaults of `design/api/quotes.md`, "Quote services".
 fn default_services() -> Value {
-    let service = |url: &str, format: &str, min_interval_ms: u64| {
-        json!({ "urlTemplate": url, "format": format, "minIntervalMs": min_interval_ms, "timeoutMs": 30_000 })
-    };
     json!({
-        "frankfurter": service("https://api.frankfurter.dev/v1/latest?base={base}&symbols={quote}", "frankfurter", 0),
-        "alphavantage": service(
-            "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}",
-            "alphavantage",
-            12_000,
-        ),
-        "alphavantage-currency": service(
-            "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base}&to_currency={quote}&apikey={key}",
-            "alphavantage",
-            12_000,
-        ),
-        "twelvedata": service("https://api.twelvedata.com/quote?symbol={symbol}&apikey={key}", "twelvedata", 7_500),
-        "finnhub": service("https://finnhub.io/api/v1/quote?symbol={symbol}&token={key}", "finnhub", 1_000),
-        "yahoo-chart": service("https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=5d", "yahoo-chart", 2_000),
+        "frankfurter": { "format": "frankfurter", "currencyUrl": "https://api.frankfurter.dev/v1/latest?base={base}&symbols={quote}" },
+        "alphavantage": {
+            "format": "alphavantage",
+            "securityUrl": "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}",
+            "currencyUrl":
+                "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base}&to_currency={quote}&apikey={key}",
+            "keyEnv": "ALPHAVANTAGE_API_KEY",
+            "minIntervalSeconds": 15,
+        },
+        "twelvedata": {
+            "format": "twelvedata",
+            "securityUrl": "https://api.twelvedata.com/quote?symbol={symbol}&apikey={key}",
+            "currencyUrl": "https://api.twelvedata.com/exchange_rate?symbol={base}/{quote}&apikey={key}",
+            "keyEnv": "TWELVEDATA_API_KEY",
+            "minIntervalSeconds": 8,
+        },
+        "finnhub": {
+            "format": "finnhub",
+            "securityUrl": "https://finnhub.io/api/v1/quote?symbol={symbol}&token={key}",
+            "keyEnv": "FINNHUB_API_KEY",
+            "minIntervalSeconds": 1,
+        },
+        "yahoo-chart": {
+            "format": "yahoo-chart",
+            "securityUrl": "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d",
+            "currencyUrl": "https://query1.finance.yahoo.com/v8/finance/chart/{base}{quote}=X?interval=1d&range=1d",
+            "minIntervalSeconds": 2,
+        },
     })
 }
 
 fn default_sources() -> Value {
     let us = json!(["alphavantage", "twelvedata"]);
     json!({
-        "currency": ["frankfurter", "alphavantage-currency"],
+        "currency": ["frankfurter", "alphavantage"],
         "alphavantage": ["alphavantage"],
         "twelvedata": ["twelvedata"],
         "finnhub": ["finnhub"],
@@ -317,11 +370,36 @@ pub fn check_format(format: &str, text: &str) -> Result<(), String> {
         "guid" => Guid::parse(text).map(drop).map_err(|e| e.to_string()),
         "commodity-id" => commodity_id(text),
         "decimal" => decimal(text),
-        "url-template" => origin(text).map(drop).ok_or_else(|| "must be an http:// or https:// URL with a host".to_owned()),
+        "url-template" => url_template(text),
         "json-pointer" => (text.is_empty() || text.starts_with('/')).then_some(()).ok_or_else(|| "must be a JSON Pointer".to_owned()),
         "name" => name(text),
+        "env-name" => env_name(text),
         _ => Ok(()),
     }
+}
+
+/// The placeholders a URL template may hold.
+pub const PLACEHOLDERS: [&str; 5] = ["symbol", "base", "quote", "date", "key"];
+
+fn url_template(text: &str) -> Result<(), String> {
+    origin(text).ok_or_else(|| "must be an http:// or https:// URL with a host".to_owned())?;
+    let mut pieces = text.split('{').skip(1);
+    let unknown = pieces.find_map(|piece| {
+        let name = piece.split_once('}').map_or(piece, |(name, _)| name);
+        (!PLACEHOLDERS.contains(&name)).then(|| name.to_owned())
+    });
+    match unknown {
+        Some(name) => {
+            let known = PLACEHOLDERS.map(|p| format!("{{{p}}}")).join(", ");
+            Err(format!("has the placeholder {{{name}}}; only {known} are filled in"))
+        }
+        None => Ok(()),
+    }
+}
+
+fn env_name(text: &str) -> Result<(), String> {
+    let ok = text.bytes().next().is_some_and(|b| !b.is_ascii_digit()) && text.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
+    ok.then_some(()).ok_or_else(|| "must be an environment variable name: letters, digits and _".to_owned())
 }
 
 fn commodity_id(text: &str) -> Result<(), String> {
@@ -356,18 +434,29 @@ pub fn origin(url: &str) -> Option<String> {
     (!host.is_empty()).then(|| format!("{scheme}://{}", host.to_ascii_lowercase()))
 }
 
-/// Problems the schema cannot express: every service a source names must exist.
+/// Problems the schema cannot express: every service a source names exists, every service has a URL, and a `json`
+/// service says where its price is.
 pub fn cross_checks(effective: &Value) -> Vec<(String, String)> {
     let services = effective.pointer("/quotes/services").and_then(Value::as_object);
     let sources = effective.pointer("/quotes/sources").and_then(Value::as_object).into_iter().flatten();
-    sources
+    let unknown = sources
         .flat_map(|(source, names)| names.as_array().into_iter().flatten().enumerate().map(move |(i, n)| (source, i, n)))
         .filter_map(|(source, i, n)| {
             let name = n.as_str()?;
             let known = services.is_some_and(|s| s.contains_key(name));
             (!known).then(|| (format!("quotes.sources.{source}[{i}]"), format!("names the quote service {name:?}, which does not exist")))
-        })
-        .collect()
+        });
+    let incomplete = services.into_iter().flatten().filter_map(|(name, service)| {
+        let has = |key: &str| service.get(key).is_some_and(|v| !v.is_null());
+        let at = format!("quotes.services.{name}");
+        if !SERVICE_URLS.iter().any(|url| has(url)) {
+            return Some((at, "needs a securityUrl or a currencyUrl".to_owned()));
+        }
+        let json = service.get("format").and_then(Value::as_str) == Some("json");
+        let price = service.pointer("/pointers/price").is_some_and(|p| !p.is_null());
+        (json && !price).then(|| (format!("{at}.pointers.price"), "must be set for the json format".to_owned()))
+    });
+    unknown.chain(incomplete).collect()
 }
 
 #[cfg(test)]
@@ -396,6 +485,12 @@ mod tests {
         assert!(check_format("name", "yahoo_json").is_ok());
         assert!(check_format("name", "a.b").is_err());
         assert!(check_format("json-pointer", "/data/0/price").is_ok());
+        assert!(check_format("url-template", "https://q.example/{symbol}?k={key}&d={date}").is_ok());
+        assert!(check_format("url-template", "https://q.example/{ticker}").is_err());
+        assert!(check_format("url-template", "q.example/{symbol}").is_err());
+        assert!(check_format("env-name", "ALPHAVANTAGE_API_KEY").is_ok());
+        assert!(check_format("env-name", "1KEY").is_err());
+        assert!(check_format("env-name", "A-B").is_err());
     }
 
     #[test]

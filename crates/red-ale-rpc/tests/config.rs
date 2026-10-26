@@ -56,11 +56,11 @@ fn the_schema_declares_every_setting() {
     let schema = s.ok("config.schema", json!({}));
     assert_eq!(schema["$schema"], "https://json-schema.org/draft/2020-12/schema");
     let top: Vec<&String> = schema["properties"].as_object().unwrap().keys().collect();
-    assert_eq!(top, ["accountingPeriod", "docLinks", "reports", "locale", "network", "jsonRpc", "mcp", "import", "quotes"]);
+    assert_eq!(top, ["accountingPeriod", "docLinks", "reports", "locale", "defaultCurrency", "jsonRpc", "mcp", "import", "quotes"]);
     assert_eq!(schema["properties"]["locale"]["enum"], json!(["C", "environment"]));
     let key = &schema["properties"]["quotes"]["properties"]["services"]["additionalProperties"]["properties"]["key"];
     assert_eq!((key["writeOnly"].clone(), key["x-refusedOverMcp"].clone()), (json!(true), json!(true)));
-    assert_eq!(schema["properties"]["network"]["properties"]["enabled"]["x-refusedOverMcp"], true);
+    assert_eq!(schema["properties"]["quotes"]["properties"]["network"]["x-refusedOverMcp"], true);
     assert_eq!(schema["properties"]["reports"]["properties"]["saved"]["readOnly"], true);
 }
 
@@ -88,14 +88,14 @@ fn report_declarations_match_the_report_context() {
 
 #[test]
 fn get_fills_in_defaults_and_names_unknown_keys_and_problems() {
-    let mut s = Server::with(r#"{"other": 1, "import": {"matchThreshold": 2, "autoAddThreshold": -1}}"#);
+    let mut s = Server::with(r#"{"other": 1, "import": {"settings": {"matchThreshold": 2, "autoAddThreshold": -1}}}"#);
     let all = s.ok("config.get", json!({}));
     assert_eq!(all["path"], Value::Null);
-    assert_eq!(all["value"]["import"]["matchThreshold"], 2);
-    assert_eq!(all["value"]["import"]["enableSkip"], true);
+    assert_eq!(all["value"]["import"]["settings"]["matchThreshold"], 2);
+    assert_eq!(all["value"]["import"]["settings"]["enableSkip"], true);
     assert_eq!(all["value"]["mcp"]["maxRequestBytes"], 64 << 20);
     assert_eq!(all["unknown"], json!(["other"]));
-    assert_eq!(all["problems"], json!([{ "path": "import.autoAddThreshold", "message": "must be at least 0" }]));
+    assert_eq!(all["problems"], json!([{ "path": "import.settings.autoAddThreshold", "message": "must be at least 0" }]));
     assert_eq!(all["configFile"], s.file().display().to_string());
     let one = s.ok("config.get", json!({ "path": "import" }));
     assert_eq!((one["unknown"].clone(), one["problems"].as_array().unwrap().len()), (json!([]), 1));
@@ -107,15 +107,15 @@ fn get_fills_in_defaults_and_names_unknown_keys_and_problems() {
 #[test]
 fn set_writes_the_file_needs_no_book_and_null_restores_defaults() {
     let mut s = Server::with(r#"{"other": {"kept": true}}"#);
-    let set = s.set(json!({ "import.matchThreshold": 4, "locale": "environment", "reports.dateFormat": "iso" }));
-    assert_eq!(set["values"], json!({ "import.matchThreshold": 4, "locale": "environment", "reports.dateFormat": "iso" }));
+    let set = s.set(json!({ "import.settings.matchThreshold": 4, "locale": "environment", "reports.dateFormat": "iso" }));
+    assert_eq!(set["values"], json!({ "import.settings.matchThreshold": 4, "locale": "environment", "reports.dateFormat": "iso" }));
     assert_eq!(set["clearedKeys"], json!([]));
     let file: Value = serde_json::from_str(&s.text()).unwrap();
-    assert_eq!(file, json!({ "other": { "kept": true }, "import": { "matchThreshold": 4 }, "locale": "environment", "reports": { "dateFormat": "iso" } }));
-    s.set(json!({ "import.matchThreshold": null, "quotes.sources": { "tsp": ["frankfurter"] } }));
-    assert_eq!(s.get("import.matchThreshold"), 1);
+    assert_eq!(file, json!({ "other": { "kept": true }, "import": { "settings": { "matchThreshold": 4 } }, "locale": "environment", "reports": { "dateFormat": "iso" } }));
+    s.set(json!({ "import.settings.matchThreshold": null, "quotes.sources": { "tsp": ["frankfurter"] } }));
+    assert_eq!(s.get("import.settings.matchThreshold"), 1);
     assert_eq!(s.get("quotes.sources.tsp"), json!(["frankfurter"]));
-    assert_eq!(s.get("quotes.sources.currency"), json!(["frankfurter", "alphavantage-currency"]), "a whole group merges over its defaults");
+    assert_eq!(s.get("quotes.sources.currency"), json!(["frankfurter", "alphavantage"]), "a whole group merges over its defaults");
     let file: Value = serde_json::from_str(&s.text()).unwrap();
     assert!(file.get("import").is_none(), "an emptied group is removed: {file}");
     assert_eq!(file["other"]["kept"], true, "unknown keys are kept");
@@ -123,12 +123,12 @@ fn set_writes_the_file_needs_no_book_and_null_restores_defaults() {
 
 #[test]
 fn a_failed_set_changes_nothing() {
-    let text = "{\n  \"import\": { \"matchThreshold\": 2 }\n}\n";
+    let text = "{\n  \"import\": { \"settings\": { \"matchThreshold\": 2 } }\n}\n";
     let mut s = Server::with(text);
-    let e = s.err("config.set", json!({ "changes": { "locale": "environment", "import.matchThreshold": "two", "network.enabled": "yes" } }));
+    let e = s.err("config.set", json!({ "changes": { "locale": "environment", "import.settings.matchThreshold": "two", "quotes.network": "yes" } }));
     assert_eq!(e.code, codes::INVALID_PARAMS);
     let paths: Vec<&str> = e.data.as_ref().unwrap()["problems"].as_array().unwrap().iter().map(|p| p["path"].as_str().unwrap()).collect();
-    assert_eq!(paths, ["network.enabled", "import.matchThreshold"]);
+    assert_eq!(paths, ["import.settings.matchThreshold", "quotes.network"]);
     assert_eq!(s.text(), text, "the file is untouched, byte for byte");
     assert_eq!(s.err("config.set", json!({ "changes": {} })).code, codes::INVALID_PARAMS);
     assert_eq!(s.err("config.set", json!({ "changes": { "reports.saved": [] } })).code, codes::INVALID_PARAMS);
@@ -155,12 +155,12 @@ fn keys_never_appear_in_results_or_errors() {
 #[test]
 fn a_key_is_cleared_when_its_service_moves_host() {
     let mut s = Server::with(r#"{"quotes": {"services": {"finnhub": {"key": "F"}}}}"#);
-    let moved = s.set(json!({ "quotes.services.finnhub.urlTemplate": "https://elsewhere.example/q?s={symbol}&t={key}" }));
+    let moved = s.set(json!({ "quotes.services.finnhub.securityUrl": "https://elsewhere.example/q?s={symbol}&t={key}" }));
     assert_eq!(moved["clearedKeys"], json!(["quotes.services.finnhub.key"]));
     assert_eq!(s.get("quotes.services.finnhub.key"), json!({ "set": false }));
     assert!(!s.text().contains("\"F\""));
     s.set(json!({ "quotes.services.finnhub.key": "G" }));
-    let back = s.set(json!({ "quotes.services.finnhub.urlTemplate": null }));
+    let back = s.set(json!({ "quotes.services.finnhub.securityUrl": null }));
     assert_eq!(back["clearedKeys"], json!(["quotes.services.finnhub.key"]), "restoring the default URL is a move too");
 }
 
@@ -168,13 +168,13 @@ fn a_key_is_cleared_when_its_service_moves_host() {
 fn through_mcp_keys_and_the_network_switch_are_refused() {
     let mut s = Server::with("{}");
     let before = s.text();
-    let e = s.d.call_from(Origin::Mcp, "config.set", json!({ "changes": { "network.enabled": true } })).unwrap_err();
+    let e = s.d.call_from(Origin::Mcp, "config.set", json!({ "changes": { "quotes.network": true } })).unwrap_err();
     assert_eq!(e.code, codes::CONFLICT);
-    assert_eq!(e.data.unwrap(), json!({ "reason": "refused-over-mcp", "paths": ["network.enabled"] }));
+    assert_eq!(e.data.unwrap(), json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"] }));
     assert_eq!(s.text(), before);
     s.d.call_from(Origin::Mcp, "config.set", json!({ "changes": { "locale": "environment" } })).unwrap();
-    s.set(json!({ "network.enabled": true }));
-    assert_eq!(s.get("network.enabled"), true, "a person may");
+    s.set(json!({ "quotes.network": true }));
+    assert_eq!(s.get("quotes.network"), true, "a person may");
 }
 
 #[test]

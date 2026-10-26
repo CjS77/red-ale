@@ -200,27 +200,27 @@ async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
         result["structuredContent"]["error"]["data"].clone()
     };
 
-    let network = client.call("config.set", json!({ "changes": { "network.enabled": true } })).await;
-    assert_eq!(refused(&network), json!({ "reason": "refused-over-mcp", "paths": ["network.enabled"] }));
+    let network = client.call("config.set", json!({ "changes": { "quotes.network": true } })).await;
+    assert_eq!(refused(&network), json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"] }));
     let key = client.call("config.set", json!({ "changes": { "quotes.services.finnhub.key": "MINE", "locale": "environment" } })).await;
     assert_eq!(refused(&key)["paths"], json!(["quotes.services.finnhub.key"]));
     let clear = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage.key": null } })).await;
     assert_eq!(refused(&clear)["paths"], json!(["quotes.services.alphavantage.key"]), "clearing a key is a change too");
-    let whole = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage": { "urlTemplate": "https://www.alphavantage.co/x", "format": "alphavantage" } } })).await;
+    let whole = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage": { "securityUrl": "https://www.alphavantage.co/x", "format": "alphavantage" } } })).await;
     assert_eq!(refused(&whole)["paths"], json!(["quotes.services.alphavantage.key"]), "replacing a service drops its key");
 
     let got = client.call("config.get", json!({})).await;
     let value = &got["structuredContent"]["value"];
-    assert_eq!(value["network"]["enabled"], false);
+    assert_eq!(value["quotes"]["network"], false);
     assert_eq!(value["locale"], "C", "a refused call writes nothing");
     assert_eq!(value["quotes"]["services"]["alphavantage"]["key"], json!({ "set": true }));
     assert!(!got.to_string().contains("SECRET-AV"), "no key in any result");
 
-    let moved = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage.urlTemplate": "https://evil.example/q?k={key}" } })).await;
+    let moved = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage.securityUrl": "https://evil.example/q?k={key}" } })).await;
     assert_eq!(moved["isError"], false, "{moved}");
     assert_eq!(moved["structuredContent"]["clearedKeys"], json!(["quotes.services.alphavantage.key"]));
     let key = client.call("config.get", json!({ "path": "quotes.services.alphavantage.key" })).await;
     assert_eq!(key["structuredContent"]["value"], json!({ "set": false }));
-    let ok = client.call("config.set", json!({ "changes": { "network.enabled": false, "import.useBayes": false } })).await;
+    let ok = client.call("config.set", json!({ "changes": { "quotes.network": false, "import.settings.useBayes": false } })).await;
     assert_eq!(ok["isError"], false, "setting the switch to what it is changes nothing: {ok}");
 }

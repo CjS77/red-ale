@@ -1,7 +1,7 @@
 //! Settings by path: the Configuration read with its defaults filled in, checked against its schema
 //! ([`super::schema`]), and changed atomically (`config.get`, `config.set`; `design/api/configuration.md`).
 //!
-//! A **setting path** names a setting by its keys joined with `.`: `import.matchThreshold`,
+//! A **setting path** names a setting by its keys joined with `.`: `import.settings.matchThreshold`,
 //! `quotes.services.alphavantage.key`. Map entries (a Quote service, a quote source) are keys like any other.
 
 use std::collections::BTreeMap;
@@ -24,7 +24,7 @@ impl FromStr for SettingPath {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let keys: Vec<String> = s.split('.').map(str::to_owned).collect();
         if keys.iter().any(String::is_empty) {
-            return Err(SettingError::one(s, "is not a setting path: keys joined with \".\", such as import.matchThreshold"));
+            return Err(SettingError::one(s, "is not a setting path: keys joined with \".\", such as import.settings.matchThreshold"));
         }
         Ok(Self(keys))
     }
@@ -443,26 +443,27 @@ fn remove(map: &mut Map<String, Value>, keys: &[String]) {
     }
 }
 
-fn service_url<'a>(effective: &'a Value, name: &str) -> Option<&'a str> {
-    effective.get("quotes")?.get("services")?.get(name)?.get("urlTemplate")?.as_str()
+/// The origins of a service's URLs, or `None` when there is no such service.
+fn service_origins(effective: &Value, name: &str) -> Option<Vec<String>> {
+    let service = effective.get("quotes")?.get("services")?.get(name)?;
+    let urls = schema::SERVICE_URLS.iter().filter_map(|url| service.get(url)?.as_str());
+    Some(urls.filter_map(schema::origin).collect())
 }
 
-/// A key is bound to its service's host: clear the stored key of each service whose URL moved to another origin,
-/// unless the same change sets the key. Returns the keys cleared.
+/// What a key is bound with: the key itself, and the environment variable it may come from.
+const BOUND: [&str; 2] = ["key", "keyEnv"];
+
+/// A key is bound to its service's host: when a change gives a service a URL on an origin none of its URLs had, clear
+/// its stored key and key variable, unless the same change sets them. Returns the settings cleared.
 fn bind_keys(before: &Value, after: &Value, raw: &mut Value, changes: &[(SettingPath, Value)]) -> Vec<String> {
     let services = after.get("quotes").and_then(|q| q.get("services")).and_then(Value::as_object);
-    let moved: Vec<String> = services
-        .into_iter()
-        .flat_map(Map::keys)
-        .filter(|name| service_url(before, name).is_some())
-        .filter(|name| service_url(before, name).and_then(schema::origin) != service_url(after, name).and_then(schema::origin))
-        .cloned()
-        .collect();
-    let cleared: Vec<SettingPath> = moved
-        .into_iter()
-        .map(|name| SettingPath(["quotes", "services", &name, "key"].map(str::to_owned).to_vec()))
-        .filter(|key| !sets(changes, key) && value_at(raw, key.keys()).is_some_and(|k| !k.is_null()))
-        .collect();
+    let moved = services.into_iter().flat_map(Map::keys).filter(|name| {
+        let (old, new) = (service_origins(before, name), service_origins(after, name).unwrap_or_default());
+        old.is_some_and(|old| new.iter().any(|o| !old.contains(o)))
+    });
+    let bound = moved.flat_map(|name| BOUND.map(|field| SettingPath(["quotes", "services", name, field].map(str::to_owned).to_vec())));
+    let cleared: Vec<SettingPath> =
+        bound.filter(|key| !sets(changes, key) && value_at(raw, key.keys()).is_some_and(|k| !k.is_null())).collect();
     if let Value::Object(map) = raw {
         cleared.iter().for_each(|key| remove(map, key.keys()));
     }

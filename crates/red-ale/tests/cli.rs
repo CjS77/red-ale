@@ -296,17 +296,17 @@ fn stop(mut server: std::process::Child) {
 fn exec_changes_the_configuration_with_no_book() {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().join("red-ale.json").display().to_string();
-    let set = r#"changes:={"import.matchThreshold": 3, "quotes.services.finnhub.key": "SECRET-FH"}"#;
+    let set = r#"changes:={"import.settings.matchThreshold": 3, "quotes.services.finnhub.key": "SECRET-FH"}"#;
     let out = run(&["exec", "--config", &config, "config.set", set]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(json(&out.stdout)["values"]["quotes.services.finnhub.key"], json!({ "set": true }));
     let out = run(&["exec", "--config", &config, "config.get", "path=quotes.services.finnhub"]);
     assert!(!String::from_utf8_lossy(&out.stdout).contains("SECRET-FH"));
     assert_eq!(json(&out.stdout)["value"]["key"], json!({ "set": true }));
-    let out = run(&["exec", "--config", &config, "config.set", r#"changes:={"import.matchThreshold": "x"}"#]);
+    let out = run(&["exec", "--config", &config, "config.set", r#"changes:={"import.settings.matchThreshold": "x"}"#]);
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(json(&out.stderr)["error"]["code"], -32602);
-    let out = run(&["exec", "--config", &config, "config.get", "path=import.matchThreshold"]);
+    let out = run(&["exec", "--config", &config, "config.get", "path=import.settings.matchThreshold"]);
     assert_eq!(json(&out.stdout)["value"], 3, "a failed set changed nothing");
     let out = run(&["exec", "--create", "config.get"]);
     assert!(!out.status.success() && String::from_utf8_lossy(&out.stderr).contains("--book"), "--create needs --book");
@@ -317,12 +317,12 @@ fn call_changes_the_configuration_of_a_running_server() {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().join("red-ale.json").display().to_string();
     let (server, url) = serve_with(&["--config", &config]);
-    let out = run(&["call", "--url", &url, "config.set", r#"changes:={"network.enabled": true}"#]);
+    let out = run(&["call", "--url", &url, "config.set", r#"changes:={"quotes.network": true}"#]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-    let out = run(&["call", "--url", &url, "config.get", "path=network.enabled"]);
+    let out = run(&["call", "--url", &url, "config.get", "path=quotes.network"]);
     assert_eq!(json(&out.stdout)["value"], true);
     let out = run(&["call", "--url", &url, "config.schema"]);
-    assert_eq!(json(&out.stdout)["properties"]["network"]["properties"]["enabled"]["default"], false);
+    assert_eq!(json(&out.stdout)["properties"]["quotes"]["properties"]["network"]["default"], false);
     stop(server);
 }
 
