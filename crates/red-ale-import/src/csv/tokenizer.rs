@@ -44,8 +44,8 @@ pub type Row = Vec<String>;
 /// as `GncTxImport::tokenize` has its tokenizer do (`gnc-import-tx.cpp:421-427`).
 pub fn tokenize(text: &str, layout: &CsvLayout) -> Result<Vec<Row>, TokenizeError> {
     let text = normalize_line_endings(text);
-    match layout.file_format {
-        FileFormat::Csv => tokenizer_csv::tokenize(&text, &layout.separators, layout.enable_escape),
+    match layout.format {
+        FileFormat::Csv => tokenizer_csv::tokenize(&text, &layout.separators, layout.escape),
         FileFormat::FixedWidth => Ok(tokenizer_fw::tokenize(&text, &layout.column_widths)),
     }
 }

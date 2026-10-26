@@ -77,6 +77,14 @@ pub enum CreateError {
         /// The line's index.
         line: usize,
     },
+    /// A line's split fails its essentials, which GnuCash drops silently (`gnc-imp-props-tx.cpp:720-728`).
+    #[error("line {line}: {reason}")]
+    Split {
+        /// The line's index.
+        line: usize,
+        /// GnuCash's reason.
+        reason: &'static str,
+    },
     /// Adding up a line's amounts overflowed (GnuCash throws `std::overflow_error`).
     #[error("line {line}: {source}")]
     Numeric {
@@ -102,14 +110,14 @@ impl TxImport {
     /// (`set_column_type`, `:888-918`; `base_account`, `:180-209`). In multi-split mode the base account is ignored.
     pub fn parse(rows: Vec<Row>, layout: &TxLayout, ctx: &ParseContext) -> Self {
         let max_cols = rows.iter().map(Vec::len).max().unwrap_or(0);
-        let (column_types, has_base_account) = effective_column_types(layout, max_cols);
-        let layout = TxLayout { column_types, ..layout.clone() };
+        let (columns, has_base_account) = effective_columns(layout, max_cols);
+        let layout = TxLayout { columns, ..layout.clone() };
         let formats = Formats { date: layout.csv.date_format, currency: layout.csv.currency_format, multi_split: layout.multi_split };
         let lines = rows
             .into_iter()
             .enumerate()
             .filter(|(_, cells)| !cells.is_empty())
-            .map(|(row, cells)| parse_line(row, cells, &layout.column_types, has_base_account, formats, ctx))
+            .map(|(row, cells)| parse_line(row, cells, &layout.columns, has_base_account, formats, ctx))
             .collect();
         Self { layout, has_base_account, lines }
     }
@@ -208,7 +216,7 @@ impl TxImport {
 
     /// `verify_column_selections` (`gnc-import-tx.cpp:503-557`) without the multi-currency part.
     fn column_selection_errors(&self) -> Vec<String> {
-        let has = |t| self.layout.column_types.contains(&t);
+        let has = |t| self.layout.columns.contains(&t);
         let account = match (has(ColumnType::Account), self.layout.multi_split, self.has_base_account) {
             (true, _, _) | (false, false, true) => None,
             (false, true, _) => Some("Please select an account column."),
@@ -230,7 +238,7 @@ impl TxImport {
     /// Transfer Account columns on lines not skipped, sorted bytewise. These are what the assistant asks the user
     /// to match to accounts.
     pub fn account_names(&self, skip_errors: bool) -> BTreeSet<String> {
-        let column = |t| self.layout.column_types.iter().position(|&c| c == t);
+        let column = |t| self.layout.columns.iter().position(|&c| c == t);
         let columns: Vec<usize> = [column(ColumnType::Account), column(ColumnType::TransferAccount)].into_iter().flatten().collect();
         self.lines
             .iter()
@@ -262,8 +270,8 @@ impl TxImport {
 }
 
 /// The column types as GnuCash ends up using them, and whether the base account survives.
-fn effective_column_types(layout: &TxLayout, max_cols: usize) -> (Vec<ColumnType>, bool) {
-    let mut types: Vec<ColumnType> = layout.column_types.iter().map(|t| t.sanitize(layout.multi_split)).collect();
+fn effective_columns(layout: &TxLayout, max_cols: usize) -> (Vec<ColumnType>, bool) {
+    let mut types: Vec<ColumnType> = layout.columns.iter().map(|t| t.sanitize(layout.multi_split)).collect();
     types.resize(max_cols, ColumnType::None);
     let mut has_base = !layout.multi_split && layout.base_account.is_some();
     if has_base && let Some(first) = types.iter_mut().find(|t| **t == ColumnType::Account) {
@@ -293,6 +301,7 @@ fn parse_line(row: usize, cells: Row, types: &[ColumnType], base: bool, formats:
     if base {
         pre_split.account = Some(SplitAccount::Base);
     }
+    pre_split.flag_missing_reconcile_dates();
     ParsedLine { row, cells, pre_trans, pre_split }
 }
 
@@ -314,11 +323,6 @@ impl DraftBuilder {
         let new_draft = if self.created[owner] { None } else { DraftTransaction::new(line, pre_trans) };
         if let Some(draft) = new_draft {
             self.created[owner] = true;
-            // Closing the previous draft voids it when the file says so; the last draft is never closed, so is
-            // never voided (`:646-658`).
-            if let Some(previous) = self.drafts.last_mut() {
-                previous.voided = previous.void_reason.is_some();
-            }
             self.drafts.push(draft);
         } else if !self.multi_split {
             return Err(CreateError::Transaction { line });
@@ -326,9 +330,13 @@ impl DraftBuilder {
         let Some(draft) = self.drafts.last_mut() else {
             return Ok(());
         };
-        if pre_split.missing_essentials().is_empty() {
-            draft.splits.push(DraftSplit::new(line, pre_split).map_err(|source| CreateError::Numeric { line, source })?);
+        // GnuCash drops a split that fails its essentials with only a log line (`gnc-imp-props-tx.cpp:720-728`).
+        // red-ale makes it an error row (`design/api/import.md`, "Deviations"): the reconcile-date cases are line
+        // errors from parsing on, and the rest can't get past verification, so this is a last guard.
+        if let Some(reason) = pre_split.missing_essentials().first() {
+            return Err(CreateError::Split { line, reason });
         }
+        draft.splits.push(DraftSplit::new(line, pre_split).map_err(|source| CreateError::Numeric { line, source })?);
         Ok(())
     }
 }
@@ -343,7 +351,8 @@ pub struct DraftTransaction {
     pub unique_id: Option<String>,
     /// Posted date; GnuCash posts at neutral time on this date (`GncDateTime(date, DayPart::neutral)`, `:348-349`).
     pub date: Date,
-    /// Number. GnuCash sets it with `xaccTransSetNum`, which follows the book's num-field-source option.
+    /// Number. GnuCash sets it with `xaccTransSetNum`, into the transaction's num whatever the book's num-field
+    /// source (`gnc-imp-props-tx.cpp:351-352`).
     pub num: Option<String>,
     /// Description.
     pub description: Option<String>,
@@ -353,11 +362,10 @@ pub struct DraftTransaction {
     /// currency; otherwise the first split's account commodity if a currency, else that account's currency or its
     /// parent's (`gnc-import-tx.cpp:637-642`, `gnc-imp-props-tx.cpp:344-347`).
     pub commodity: Option<String>,
-    /// The Void Reason column.
+    /// The Void Reason column: the transaction is voided with this reason once built (`xaccTransVoid`). GnuCash
+    /// voids a draft only when it starts the next one, so never the file's last (`gnc-import-tx.cpp:646-660`);
+    /// red-ale voids every draft that has a reason (`design/api/import.md`, "Deviations").
     pub void_reason: Option<String>,
-    /// Whether GnuCash voids it with `void_reason` after committing it (`xaccTransVoid`). True for every draft with
-    /// a reason except the last, which GnuCash never closes.
-    pub voided: bool,
     /// The splits, one per line, in line order.
     pub splits: Vec<DraftSplit>,
 }
@@ -375,7 +383,6 @@ impl DraftTransaction {
             notes: pre_trans.notes.clone(),
             commodity: pre_trans.commodity.clone(),
             void_reason: pre_trans.void_reason.clone(),
-            voided: false,
             splits: Vec::new(),
         })
     }

@@ -27,8 +27,11 @@ use super::monetary::{CurrencyFormat, MonetaryLocale, parse_monetary};
 
 /// What a column holds: GnuCash's `GncTransPropType` (`gnc-imp-props-tx.hpp:49-78`), in its order. The derived
 /// ordering is that order, which sorts errors as GnuCash's `ErrMap` does.
+///
+/// In JSON a column type is GnuCash's saved name ([`ColumnType::gnucash_name`]), and the legacy names are read too.
+/// GnuCash loads an unknown name as `None` with a warning; red-ale refuses it, so a typo in a layout is reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(try_from = "String", into = "&'static str")]
 pub enum ColumnType {
     /// Ignored.
     #[default]
@@ -190,6 +193,20 @@ impl ColumnType {
             self == Self::UniqueId
         };
         if banned { Self::None } else { self }
+    }
+}
+
+impl From<ColumnType> for &'static str {
+    fn from(t: ColumnType) -> Self {
+        t.gnucash_name()
+    }
+}
+
+impl TryFrom<String> for ColumnType {
+    type Error = String;
+
+    fn try_from(name: String) -> Result<Self, Self::Error> {
+        Self::from_gnucash_name(&name).ok_or_else(|| format!("unknown CSV column type {name:?}"))
     }
 }
 
@@ -485,6 +502,26 @@ impl PreSplit {
     /// The errors, by property.
     pub fn errors(&self) -> &ErrMap {
         &self.errors
+    }
+
+    /// Record as line errors the reconcile-date essentials GnuCash checks only when it builds the split, and then
+    /// drops the split silently (`gnc-imp-props-tx.cpp:647-651`, `:720-728`). red-ale makes such a line an error row
+    /// instead (`design/api/import.md`, "Deviations"). An existing error on the date column is kept.
+    pub(crate) fn flag_missing_reconcile_dates(&mut self) {
+        let checks = [
+            (self.rec_state, self.rec_date, ColumnType::RecDate, "Split is reconciled but reconcile date column is missing or invalid."),
+            (
+                self.transfer_rec_state,
+                self.transfer_rec_date,
+                ColumnType::TransferRecDate,
+                "Transfer split is reconciled but transfer reconcile date column is missing or invalid.",
+            ),
+        ];
+        checks.into_iter().filter(|(state, date, _, _)| *state == Some(ReconcileState::Reconciled) && date.is_none()).for_each(
+            |(_, _, prop, reason)| {
+                self.errors.entry(prop).or_insert_with(|| prop_error(prop, reason));
+            },
+        );
     }
 
     /// `GncPreSplit::verify_essentials` (`gnc-imp-props-tx.cpp:640-673`) without its multi-currency check, which

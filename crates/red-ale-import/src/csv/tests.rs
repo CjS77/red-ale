@@ -9,7 +9,7 @@ use super::*;
 const SAMPLE1: &str = include_str!("../../../../fixtures/csv/sample1.csv");
 
 fn csv_layout(separators: &str, escape: bool) -> CsvLayout {
-    CsvLayout { separators: separators.to_owned(), enable_escape: escape, ..CsvLayout::default() }
+    CsvLayout { separators: separators.to_owned(), escape, ..CsvLayout::default() }
 }
 
 fn one_line(line: &str, separators: &str, escape: bool) -> Row {
@@ -96,7 +96,7 @@ fn gnucash_tokenize_fw() {
         ),
     ];
     cases.iter().for_each(|&(line, widths, fields)| {
-        let layout = CsvLayout { file_format: FileFormat::FixedWidth, column_widths: widths.to_vec(), ..CsvLayout::default() };
+        let layout = CsvLayout { format: FileFormat::FixedWidth, column_widths: widths.to_vec(), ..CsvLayout::default() };
         assert_eq!(tokenize(line, &layout).unwrap().remove(0), fields, "{line}");
     });
 }
@@ -118,7 +118,7 @@ fn d(y: i32, m: u32, day: u32) -> Date {
 #[test]
 fn sample1_drafts() {
     use ColumnType::{Account, Amount, AmountNeg, Date as D, Description, None as N, Notes, Num};
-    let mut layout = TxLayout { column_types: vec![D, Num, Description, Notes, Account, Amount, AmountNeg, N], ..TxLayout::default() };
+    let mut layout = TxLayout { columns: vec![D, Num, Description, Notes, Account, Amount, AmountNeg, N], ..TxLayout::default() };
     layout.csv.skip_start_lines = 1;
     layout.csv.date_format = DateFormat::Mdy;
     layout.csv.currency_format = CurrencyFormat::Period;
@@ -180,16 +180,32 @@ fn continuation_line_hides_its_own_date_error() {
     assert_eq!(imp.create_drafts(false).unwrap()[1].splits.len(), 2);
 }
 
-/// GnuCash voids every draft with a void reason when it starts the next one, so the last is never voided
-/// (`gnc-import-tx.cpp:646-660`).
+/// GnuCash voids a draft only when it starts the next one, so never the last (`gnc-import-tx.cpp:646-660`);
+/// red-ale keeps every draft's void reason, the last included (`design/api/import.md`, "Deviations").
 #[test]
-fn last_draft_is_never_voided() {
+fn every_void_reason_is_kept() {
     use ColumnType::{Account, Amount, Date as D, Description, VoidReason};
-    let layout = TxLayout { multi_split: true, column_types: vec![D, Description, VoidReason, Account, Amount], ..TxLayout::default() };
+    let layout = TxLayout { multi_split: true, columns: vec![D, Description, VoidReason, Account, Amount], ..TxLayout::default() };
     let imp = import("2024-01-01,a,oops,X,1\n2024-01-02,b,,X,2\n2024-01-03,c,again,X,3\n", &layout);
     let drafts = imp.create_drafts(false).unwrap();
-    assert_eq!(drafts.iter().map(|t| t.voided).collect::<Vec<_>>(), [true, false, false]);
-    assert_eq!(drafts[2].void_reason.as_deref(), Some("again"));
+    let reasons: Vec<_> = drafts.iter().map(|t| t.void_reason.as_deref()).collect();
+    assert_eq!(reasons, [Some("oops"), None, Some("again")]);
+}
+
+/// GnuCash drops a reconciled split with no reconcile date with only a log line (`gnc-imp-props-tx.cpp:647-651`,
+/// `:720-728`); red-ale makes the line an error row (`design/api/import.md`, "Deviations").
+#[test]
+fn reconciled_without_date_is_an_error_row() {
+    use ColumnType::{Account, Amount, Date as D, Description, RecDate, RecState};
+    let layout = TxLayout { columns: vec![D, Description, Account, Amount, RecState, RecDate], ..TxLayout::default() };
+    let imp = import("2024-01-01,a,X,1,y,\n2024-01-02,b,X,2,y,2024-01-31\n", &layout);
+    let states = imp.line_states(false);
+    assert_eq!(states[0].errors[&ColumnType::RecDate], "Reconcile Date: Split is reconciled but reconcile date column is missing or invalid.");
+    assert!(states[1].errors.is_empty());
+    assert!(matches!(imp.create_drafts(false), Err(CreateError::Verify(_))));
+    let drafts = imp.create_drafts(true).unwrap();
+    assert_eq!(drafts.len(), 1);
+    assert_eq!(drafts[0].splits[0].reconcile_date, Some(d(2024, 1, 31)));
 }
 
 /// Two-split mode: a base account replaces the Account column, every line is a transaction, and transfer columns
@@ -199,12 +215,12 @@ fn two_split_with_base_account_and_transfer() {
     use ColumnType::{Account, AmountNeg, Date as D, Description, TransferAccount, TransferAmount};
     let layout = TxLayout {
         base_account: Some(BaseAccount { guid: None, full_name: Some("Assets:Bank".to_owned()) }),
-        column_types: vec![D, Description, Account, AmountNeg, TransferAccount, TransferAmount],
+        columns: vec![D, Description, Account, AmountNeg, TransferAccount, TransferAmount],
         ..TxLayout::default()
     };
     let imp = import("2024-02-01,Coffee,ignored,3.50,Expenses:Coffee,3.5\n", &layout);
     assert!(imp.uses_base_account());
-    assert_eq!(imp.layout().column_types[2], ColumnType::None);
+    assert_eq!(imp.layout().columns[2], ColumnType::None);
     let drafts = imp.create_drafts(false).unwrap();
     let split = &drafts[0].splits[0];
     assert_eq!(split.account, SplitAccount::Base);
@@ -219,7 +235,7 @@ fn two_split_with_base_account_and_transfer() {
 #[test]
 fn values_from_price_and_price_db() {
     use ColumnType::{Account, Amount, Date as D, Description, Price};
-    let layout = TxLayout { column_types: vec![D, Description, Account, Amount, Price], ..TxLayout::default() };
+    let layout = TxLayout { columns: vec![D, Description, Account, Amount, Price], ..TxLayout::default() };
     let imp = import("2024-02-01,Buy,Assets:Shares,10,12.5\n2024-02-02,Buy,Assets:Shares,4,\n", &layout);
     let drafts = imp.create_drafts(false).unwrap();
     let priced = &drafts[0].splits[0];
@@ -255,7 +271,7 @@ fn verify_messages() {
 #[test]
 fn line_errors_block_unless_skipped() {
     use ColumnType::{Account, Amount, Date as D, Description};
-    let layout = TxLayout { column_types: vec![D, Description, Account, Amount], ..TxLayout::default() };
+    let layout = TxLayout { columns: vec![D, Description, Account, Amount], ..TxLayout::default() };
     let mut imp = import("2024-01-01,a,X,1\nbad,b,X,2\n2024-01-03,c,,3\n", &layout);
     let not_parsed = "Not all fields could be parsed. Please correct the issues reported for each line or adjust the lines to skip.";
     assert_eq!(imp.verify(true, false), [not_parsed]);
@@ -286,19 +302,19 @@ fn skip_lines() {
 }
 
 #[test]
-fn column_types_dedupe_and_fit() {
+fn columns_dedupe_and_fit() {
     use ColumnType::{Amount, Date as D, Description};
-    let layout = TxLayout { column_types: vec![D, D, Amount, Amount, Description, Description, Description], ..TxLayout::default() };
+    let layout = TxLayout { columns: vec![D, D, Amount, Amount, Description, Description, Description], ..TxLayout::default() };
     let imp = import("2024-01-01,x,1,2,d,e\n", &layout);
-    assert_eq!(imp.layout().column_types, [D, ColumnType::None, Amount, Amount, Description, ColumnType::None]);
+    assert_eq!(imp.layout().columns, [D, ColumnType::None, Amount, Amount, Description, ColumnType::None]);
     assert!(imp.lines()[0].pre_split.amount.unwrap().same_repr(Numeric::new(3, 1)));
 }
 
 proptest! {
     #[test]
     fn tokenizers_never_panic(text in "\\PC{0,200}", seps in "[,;\\t \"\\\\a-]{0,3}", escape: bool, widths in prop::collection::vec(0u32..6, 0..5)) {
-        let _ = tokenize(&text, &CsvLayout { separators: seps, enable_escape: escape, ..CsvLayout::default() });
-        let _ = tokenize(&text, &CsvLayout { file_format: FileFormat::FixedWidth, column_widths: widths, ..CsvLayout::default() });
+        let _ = tokenize(&text, &CsvLayout { separators: seps, escape, ..CsvLayout::default() });
+        let _ = tokenize(&text, &CsvLayout { format: FileFormat::FixedWidth, column_widths: widths, ..CsvLayout::default() });
     }
 
     #[test]
@@ -329,7 +345,7 @@ proptest! {
     fn imports_never_panic(text in "[0-9a-z,\\-/.\"\n]{0,200}", types in prop::collection::vec(0usize..25, 0..8), multi: bool, skip: bool) {
         let layout = TxLayout {
             multi_split: multi,
-            column_types: types.into_iter().map(|i| ColumnType::ALL[i]).collect(),
+            columns: types.into_iter().map(|i| ColumnType::ALL[i]).collect(),
             ..TxLayout::default()
         };
         if let Ok(rows) = tokenize(&text, &layout.csv) {

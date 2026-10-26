@@ -18,6 +18,19 @@
 //! The tokenizer and the shared settings ([`CsvLayout`], [`FileFormat`], [`DateFormat`], [`CurrencyFormat`],
 //! [`parse_monetary`], [`parse_date`]) are what the price importer (`gnc-import-price.cpp`) uses too.
 //!
+//! The layout is the JSON object `design/api/import.md` specifies for `import.csvLayouts.<name>` in the
+//! Configuration; [`TxLayout::presets`] are GnuCash's built-in ones.
+//!
+//! # Deviations from GnuCash
+//!
+//! Only those `design/api/import.md` lists ("Deviations from GnuCash"), each documented where it is made:
+//!
+//! - a split GnuCash would drop silently (reconciled with no reconcile date) is a line error instead
+//!   ([`TxImport::parse`]);
+//! - every draft's void reason applies, the file's last included ([`DraftTransaction::void_reason`]);
+//! - an amount whose digits overflow 64 bits is an error, where GnuCash saturates or wraps ([`monetary`]);
+//! - an unknown column type name in a layout is refused, where GnuCash reads it as `None` ([`ColumnType`]).
+//!
 //! # Use
 //!
 //! ```
@@ -25,7 +38,7 @@
 //! # use red_ale_import::csv::{ColumnType, ParseContext, TxImport, TxLayout, tokenize};
 //! let mut layout = TxLayout::default();
 //! layout.csv.skip_start_lines = 1;
-//! layout.column_types = vec![ColumnType::Date, ColumnType::Description, ColumnType::Account, ColumnType::Amount];
+//! layout.columns = vec![ColumnType::Date, ColumnType::Description, ColumnType::Account, ColumnType::Amount];
 //! let rows = tokenize("Date,Payee,Account,Amount\n2024-03-01,Rent,Expenses:Rent,950.00\n", &layout.csv).unwrap();
 //! let import = TxImport::parse(rows, &layout, &ParseContext::new(Date::from_ymd(2024, 3, 15).unwrap()));
 //! let drafts = import.create_drafts(false).unwrap();
@@ -51,11 +64,12 @@
 //!    (`gnc-imp-props-tx.cpp:654-670`); a split failing the latter is not created.
 //! 4. **Verify and draft.** [`TxImport::verify`] then [`TxImport::create_drafts`].
 //! 5. **Build the transactions** as `GncPreTrans::create_trans` and `trans_add_split` do: the transaction currency
-//!    (see [`DraftTransaction::commodity`]), posted at neutral time, num through the book's num-field-source;
+//!    (see [`DraftTransaction::commodity`]), posted at neutral time with the `date-posted` slot, num with
+//!    `xaccTransSetNum` whatever the book's num-field source;
 //!    each split's value with [`DraftSplit::split_value`]; in two-split mode the transfer split with
 //!    [`DraftSplit::transfer_amount`] when the transfer account resolves, else the transfer columns and price go to
 //!    the matcher as `GNCImportLastSplitInfo` (`assistant-csv-trans-import.cpp:2192-2210`); and `xaccTransVoid`
-//!    for drafts with [`DraftTransaction::voided`].
+//!    for every draft with a [`DraftTransaction::void_reason`].
 //! 6. **Match**: each transaction goes to the generic import matcher (`gnc_gen_trans_list_add_trans_with_split_data`).
 
 pub mod date;
