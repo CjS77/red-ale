@@ -131,6 +131,8 @@ is used only for protocol errors.
 | 3002   | `report-option`     | A report option value is not valid (`data.section`, `data.name`, `data.reason`). |
 | 3003   | `report-result`     | A report script returned an invalid report result (`data.path`).          |
 | 3004   | `report-load`       | A user report script does not load (`data.source`, `data.line`).          |
+| 4000   | `import-file`       | An import file can't be read as its format at all (`data.file`, `data.line`, `data.reason`); see [`api/import.md`](api/import.md). From 0.3.0. |
+| 5000   | `network-disabled`  | A method needs the network and the Configuration has it off; nothing was sent ([`api/quotes.md`](api/quotes.md)). From 0.3.0. |
 
 ## Book methods
 
@@ -180,6 +182,9 @@ deliberate deviations.
 | [`api/close-book.md`](api/close-book.md)                   | `book.closeBooks`: closing the books                        |
 | [`api/book-options.md`](api/book-options.md)               | `book.options`, `book.setOptions`: num field source, auto read-only threshold |
 | [`api/reports.md`](api/reports.md)                         | `report.*`: list, options, run, export, saved configurations, style sheets |
+| [`api/import.md`](api/import.md)                           | `import.*`, `importMap.*`: CSV, QIF and business import, the matcher, Import maps (v0.3) |
+| [`api/export.md`](api/export.md)                           | `export.*`: CSV export of the account tree and transactions, Export accounts (v0.3) |
+| [`api/quotes.md`](api/quotes.md)                           | `price.fetchQuotes`, `price.fetchStatus`: online quotes and Quote services (v0.3) |
 
 ## CLI
 
