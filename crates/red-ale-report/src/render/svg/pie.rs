@@ -47,7 +47,8 @@ pub(super) fn slices(values: &[Option<Rational>], centre: (Hu, Hu), r: Hu) -> Ve
         .filter(|(_, _, _, empty)| !empty)
         .map(|(index, from, to, _)| {
             let span = &to - &from;
-            Slice { index, start: on_circle(&from, centre, r), end: on_circle(&to, centre, r), large: span > half, whole: span == Rational::one() }
+            let (start, end) = (on_circle(&from, centre, r), on_circle(&to, centre, r));
+            Slice { index, start, end, large: span > half, whole: span == Rational::one() }
         })
         .collect()
 }
@@ -71,7 +72,8 @@ pub(super) fn draw(chart: &Chart, frame: &Frame) -> String {
             let color = escape(colors.get(s.index).unwrap_or(&series.color).as_str());
             let title = hover(chart, s.index, 0);
             if s.whole {
-                return format!("<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"{color}\">{title}</circle>", fmt(centre.0), fmt(centre.1), fmt(r));
+                let (cx, cy, radius) = (fmt(centre.0), fmt(centre.1), fmt(r));
+                return format!("<circle cx=\"{cx}\" cy=\"{cy}\" r=\"{radius}\" fill=\"{color}\">{title}</circle>");
             }
             let d = format!(
                 "M{} {} L{} {} A{} {} 0 {} 1 {} {} Z",

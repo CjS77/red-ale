@@ -100,7 +100,9 @@ fn css_that_could_escape_or_load_is_refused() {
     let mut css = StyleSheet::new("CSS-based stylesheet (experimental)", StyleSheetTemplate::Css);
     assert_eq!(value(&css, "General", "CSS"), OptionValue::Text(DEFAULT_CSS.into()));
     assert!(check_css(DEFAULT_CSS).is_ok());
-    for bad in ["p{}</STYLE><script>x</script>", "@IMPORT 'x.css';", "body{background:URL(http://x)}", "a{b:image-set('x' 1x)}", "a{c:u\\72l(x)}"] {
+    let refused =
+        ["p{}</STYLE><script>x</script>", "@IMPORT 'x.css';", "body{background:URL(http://x)}", "a{b:image-set('x' 1x)}", "a{c:u\\72l(x)}"];
+    for bad in refused {
         let e = css.apply(&json!({ "General": { "CSS": bad } })).unwrap_err();
         assert_eq!((e.section.as_str(), e.name.as_str()), ("General", "CSS"), "{bad}");
     }

@@ -183,7 +183,9 @@ fn without_left_out(changes: &Value) -> Value {
     };
     let kept = sections.iter().filter(|(section, _)| !left_out(section, "")).map(|(section, names)| {
         let names = match names.as_object() {
-            Some(names) => Value::Object(names.iter().filter(|(n, _)| !left_out(section, n)).map(|(n, v)| (n.clone(), v.clone())).collect()),
+            Some(names) => {
+                Value::Object(names.iter().filter(|(n, _)| !left_out(section, n)).map(|(n, v)| (n.clone(), v.clone())).collect())
+            }
             None => names.clone(),
         };
         (section.clone(), names)

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chart</title>
+<style>
+:root{color-scheme:light}
+body{margin:0;padding:24px 32px;background-color:#ffffff;color:#1f2328;line-height:1.35;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+.report{max-width:1200px;margin:0 auto}
+h1.report-title{margin:0 0 4px;font-family:"Noto Sans",sans-serif;font-size:15pt;font-weight:bold;}
+.masthead{margin:0 0 20px;color:#57606a}.masthead p,.colophon p{margin:2px 0}
+.colophon{margin:24px 0 0;padding-top:8px;border-top:1px solid #d0d7de;color:#57606a}
+section{margin:0 0 28px}section>h2{margin:0 0 10px;font-size:1.15em;font-weight:600}
+h3.text-heading{margin:16px 0 6px;font-size:1.05em;font-weight:600}p.note{color:#57606a;font-size:.92em}
+.warning{margin:12px 0;padding:10px 14px;border-left:4px solid #d4a72c;background-color:#fff8c5}.warning h3{margin:0 0 4px;font-size:1em}.warning p{margin:0}
+.table-wrap{overflow-x:auto;margin:0 0 16px}
+table.report-table{border-collapse:separate;border-spacing:0px;border:0px solid #8c959f;border-style:none;}
+table.report-table caption{text-align:left;font-weight:600;padding:0 0 6px}
+table.report-table td,table.report-table th{padding:4px;border:none;vertical-align:top}
+th{font-weight:600;border-bottom:1px solid #8c959f !important;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+th.column-heading-left{text-align:left}th.column-heading-center{text-align:center}th.column-heading-right{text-align:right}
+td.text-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.label-cell{padding-left:calc(4px + var(--depth,0) * 1.25em)}
+td.number-cell,td.total-number-cell{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}td.number-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.total-number-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.total-label-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.centered-label-cell{text-align:center;font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}
+td.date-cell{white-space:nowrap}td.align-left{text-align:left}td.align-right{text-align:right}td.align-center{text-align:center}
+.neg{color:#c0392b;}
+.link{font-family:"Noto Sans",sans-serif;font-size:10pt;font-style:italic;}
+tr.role-heading td{font-weight:600}tr.role-spacer td{height:.8em}tr.role-rule hr{border:0;border-top:1px solid #8c959f;margin:0}
+tr.role-subtotal td.total-number-cell{border-top:1px solid #57606a}
+tr.role-total td.total-number-cell,tr.role-grandTotal td.total-number-cell{border-top:3px double #24292f}
+td.rule-above{border-top:1px solid #24292f !important}
+table.commodities{border-collapse:collapse;margin-left:auto}table.commodities td{padding:0 0 0 12px;border:none;text-align:right}
+.group{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:24px;align-items:start}
+figure.chart{margin:0 0 16px}svg.chart{display:block;max-width:100%;font-family:inherit}svg.chart text{fill:#24292f}
+table.options-summary td{padding:2px 12px 2px 0}
+@media print{body{padding:0;background:none;color:#000}tr,td,th{background:none !important}table,figure,.warning{break-inside:avoid}}
+</style>
+</head>
+<body class="sheet-none">
+<div class="report">
+<header class="masthead">
+<h1 class="report-title">Chart</h1>
+</header>
+<section>
+<figure class="chart">
+<svg id="chart-0-0" class="chart" viewBox="0 0 640 360" width="640" height="360" role="img">
+<title>Income &amp; Expense Linechart</title>
+<text x="320" y="32" font-size="16" font-weight="bold" text-anchor="middle">Income &amp; Expense Linechart</text>
+<rect x="62.60" y="38" width="470.80" height="269" fill="#fffdf6"/>
+<line x1="62.60" y1="307" x2="533.40" y2="307" stroke="#e3e3e3"/>
+<text x="56.60" y="311" font-size="12" text-anchor="end">0%</text>
+<line x1="62.60" y1="253.20" x2="533.40" y2="253.20" stroke="#e3e3e3"/>
+<text x="56.60" y="257.20" font-size="12" text-anchor="end">5%</text>
+<line x1="62.60" y1="199.40" x2="533.40" y2="199.40" stroke="#e3e3e3"/>
+<text x="56.60" y="203.40" font-size="12" text-anchor="end">10%</text>
+<line x1="62.60" y1="145.60" x2="533.40" y2="145.60" stroke="#e3e3e3"/>
+<text x="56.60" y="149.60" font-size="12" text-anchor="end">15%</text>
+<line x1="62.60" y1="91.80" x2="533.40" y2="91.80" stroke="#e3e3e3"/>
+<text x="56.60" y="95.80" font-size="12" text-anchor="end">20%</text>
+<line x1="62.60" y1="38" x2="533.40" y2="38" stroke="#e3e3e3"/>
+<text x="56.60" y="42" font-size="12" text-anchor="end">25%</text>
+<line x1="62.60" y1="38" x2="62.60" y2="307" stroke="#8c8c8c"/>
+<line x1="62.60" y1="307" x2="533.40" y2="307" stroke="#8c8c8c"/>
+<text x="298" y="342" font-size="13" text-anchor="middle">Month</text>
+<text x="27" y="172.50" font-size="13" text-anchor="middle" transform="rotate(-90 27 172.50)">Percent</text>
+<text x="121.45" y="325" font-size="12" text-anchor="middle">Jan</text>
+<text x="239.15" y="325" font-size="12" text-anchor="middle">Feb</text>
+<text x="356.85" y="325" font-size="12" text-anchor="middle">Mar</text>
+<text x="474.55" y="325" font-size="12" text-anchor="middle">Apr</text>
+<polygon points="121.45,199.40 239.15,89.11 239.15,307 121.45,307" fill="#0074d9" fill-opacity="0.25"/>
+<polygon points="474.55,253.20 474.55,307" fill="#0074d9" fill-opacity="0.25"/>
+<polyline points="121.45,199.40 239.15,89.11" fill="none" stroke="#0074d9" stroke-width="1.50"/>
+<polyline points="474.55,253.20" fill="none" stroke="#0074d9" stroke-width="1.50"/>
+<circle cx="121.45" cy="199.40" r="4" fill="#0074d9"><title>Jan
+Income : 10.00%
+Expense : 5.00%</title></circle>
+<circle cx="239.15" cy="89.11" r="4" fill="#0074d9"><title>Feb
+Income : 20.25%</title></circle>
+<circle cx="474.55" cy="253.20" r="4" fill="#0074d9"><title>Apr
+Income : 5.00%
+Expense : 2.00%</title></circle>
+<polyline points="121.45,145.60 239.15,89.11 356.85,231.68 474.55,231.68" fill="none" stroke="#ff4136" stroke-width="2"/>
+<rect x="117.45" y="141.60" width="8" height="8" fill="#ff4136"><title>Jan
+Income : 10.00%
+Expense : 5.00%</title></rect>
+<rect x="235.15" y="85.11" width="8" height="8" fill="#ff4136"><title>Feb
+Income : 20.25%</title></rect>
+<rect x="352.85" y="227.68" width="8" height="8" fill="#ff4136"><title>Mar
+Expense : 7.00%</title></rect>
+<rect x="470.55" y="227.68" width="8" height="8" fill="#ff4136"><title>Apr
+Income : 5.00%
+Expense : 2.00%</title></rect>
+<g class="legend">
+<rect x="549.40" y="38" width="12" height="12" fill="#0074d9"/><text x="567.40" y="48" font-size="13">Income</text>
+<rect x="549.40" y="58" width="12" height="12" fill="#ff4136"/><text x="567.40" y="68" font-size="13">Expense</text>
+</g>
+</svg>
+</figure>
+</section>
+</div>
+</body>
+</html>

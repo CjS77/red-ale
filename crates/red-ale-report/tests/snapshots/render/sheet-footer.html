@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme Ltd Balance Sheet 12/31/24</title>
+<style>
+:root{color-scheme:light}
+body{margin:0;padding:24px 32px;background-color:#ffffff;color:#000000;line-height:1.35;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+.report{max-width:1200px;margin:0 auto}
+h1.report-title{margin:0 0 4px;font-family:"Noto Sans",sans-serif;font-size:15pt;font-weight:bold;}
+.masthead{margin:0 0 20px;color:#57606a}.masthead p,.colophon p{margin:2px 0}
+.colophon{margin:24px 0 0;padding-top:8px;border-top:1px solid #d0d7de;color:#57606a}
+section{margin:0 0 28px}section>h2{margin:0 0 10px;font-size:1.15em;font-weight:600}
+h3.text-heading{margin:16px 0 6px;font-size:1.05em;font-weight:600}p.note{color:#57606a;font-size:.92em}
+.warning{margin:12px 0;padding:10px 14px;border-left:4px solid #d4a72c;background-color:#fff8c5}.warning h3{margin:0 0 4px;font-size:1em}.warning p{margin:0}
+.table-wrap{overflow-x:auto;margin:0 0 16px}
+table.report-table{border-collapse:separate;border-spacing:1px;border:1px solid #8c959f;}
+table.report-table caption{text-align:left;font-weight:600;padding:0 0 6px}
+table.report-table td,table.report-table th{padding:1px;border:1px solid #d0d7de;vertical-align:top}
+th{font-weight:600;border-bottom:1px solid #8c959f !important;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+th.column-heading-left{text-align:left}th.column-heading-center{text-align:center}th.column-heading-right{text-align:right}
+td.text-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.label-cell{padding-left:calc(1px + var(--depth,0) * 1.25em)}
+td.number-cell,td.total-number-cell{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}td.number-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.total-number-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.total-label-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.centered-label-cell{text-align:center;font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}
+td.date-cell{white-space:nowrap}td.align-left{text-align:left}td.align-right{text-align:right}td.align-center{text-align:center}
+.neg{color:#c0392b;}
+.link{color:#b22222;font-family:"Noto Sans",sans-serif;font-size:10pt;font-style:italic;}
+tr.role-heading td{font-weight:600}tr.role-spacer td{height:.8em}tr.role-rule hr{border:0;border-top:1px solid #8c959f;margin:0}
+tr.role-subtotal td.total-number-cell{border-top:1px solid #57606a}
+tr.role-total td.total-number-cell,tr.role-grandTotal td.total-number-cell{border-top:3px double #24292f}
+td.rule-above{border-top:1px solid #24292f !important}
+table.commodities{border-collapse:collapse;margin-left:auto}table.commodities td{padding:0 0 0 12px;border:none;text-align:right}
+tr.normal-row{background-color:#ffffff}
+tr.alternate-row{background-color:#ffffff}
+tr.primary-subheading{background-color:#eee8aa}
+tr.secondary-subheading{background-color:#fafad2}
+tr.grand-total{background-color:#ffff00}
+.group{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:24px;align-items:start}
+figure.chart{margin:0 0 16px}svg.chart{display:block;max-width:100%;font-family:inherit}svg.chart text{fill:#24292f}
+table.options-summary td{padding:2px 12px 2px 0}
+@media print{body{padding:0;background:none;color:#000}tr,td,th{background:none !important}table,figure,.warning{break-inside:avoid}}
+</style>
+</head>
+<body class="sheet-footer">
+<div class="report">
+<header class="masthead">
+<h1 class="report-title">Acme Ltd Balance Sheet 12/31/24</h1>
+<p>Prepared by: <b>A. Bookkeeper</b></p>
+<p>Prepared for: <b>Acme Ltd</b></p>
+<p>Date: 01/15/2025</p>
+</header>
+<section>
+<h3 class="text-heading">Assets and liabilities</h3>
+<div class="group">
+<div>
+<div class="table-wrap">
+<table class="report-table">
+<caption>Assets</caption>
+<thead>
+<tr><th class="column-heading-left">Account</th><th class="column-heading-right" colspan="3">Balance</th></tr>
+</thead>
+<tbody>
+<tr class="role-heading primary-subheading"><td class="text-cell label-cell">Assets</td><td></td><td></td><td></td></tr>
+<tr class="role-account normal-row" data-account="4a1c0000000000000000000000000001"><td class="text-cell label-cell" style="--depth:1" data-account="4a1c0000000000000000000000000001" data-link="{&quot;account&quot;:&quot;4a1c0000000000000000000000000001&quot;}"><span class="link">Bank</span></td><td></td><td class="number-cell">$2,186.00</td><td></td></tr>
+<tr class="role-account alternate-row" data-account="4a1c0000000000000000000000000002"><td class="text-cell label-cell" style="--depth:2" data-account="4a1c0000000000000000000000000002"><span class="link">Savings</span></td><td class="number-cell neg">-$250.00</td><td></td><td></td></tr>
+<tr class="role-data normal-row"><td class="text-cell label-cell" style="--depth:1">Foreign</td><td></td><td></td><td class="number-cell"><table class="commodities"><tr><td>#608.00</td><td>$912.00</td></tr><tr><td class="neg">-30. FUNDS</td></tr></table></td></tr>
+<tr class="role-subtotal primary-subheading"><td class="total-label-cell label-cell">Total Bank</td><td></td><td class="total-number-cell">$1,936.00</td><td></td></tr>
+<tr class="role-spacer"><td colspan="4"></td></tr>
+<tr class="role-total secondary-subheading"><td class="total-label-cell label-cell">Total Assets</td><td></td><td></td><td class="total-number-cell rule-above">$116,006.33</td></tr>
+<tr class="role-rule"><td colspan="4"><hr></td></tr>
+<tr class="role-grandTotal grand-total"><td class="total-label-cell label-cell">Net Worth</td><td></td><td></td><td class="total-number-cell">$115,000.00</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<div>
+<div class="table-wrap">
+<table class="report-table">
+<thead>
+<tr><th class="column-heading-left"></th><th class="column-heading-right">Rate</th><th class="column-heading-right">Share</th><th class="column-heading-center">As of</th></tr>
+</thead>
+<tbody>
+<tr class="role-data normal-row"><td class="text-cell label-cell">1 GBP</td><td class="number-cell">$480 + 5/104</td><td class="number-cell">57.14 %</td><td class="date-cell align-center">12/31/24</td></tr>
+<tr class="role-data alternate-row"><td class="text-cell label-cell" colspan="3">Spanning note</td><td></td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="warning" role="note"><h3>No accounts selected</h3><p>This report requires accounts to be selected.</p></div>
+<p class="note">Figures in USD.<br>Rates are nearest in time.</p>
+</section>
+<section>
+<h2>Options</h2>
+<table class="options-summary">
+<tr><td><b>General / Balance Sheet Date</b></td><td>relative . end-accounting-period</td></tr>
+</table>
+</section>
+<footer class="colophon">
+<p>Confidential</p>
+</footer>
+</div>
+</body>
+</html>

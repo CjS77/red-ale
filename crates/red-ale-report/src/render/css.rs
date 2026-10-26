@@ -46,28 +46,48 @@ pub(super) fn stylesheet(look: &Look) -> String {
         Some("table.report-table caption{text-align:left;font-weight:600;padding:0 0 6px}".to_owned()),
         Some(format!("table.report-table td,table.report-table th{{padding:{};border:{cell_border};vertical-align:top}}", look.padding)),
         Some(format!("th{{font-weight:600;border-bottom:1px solid #8c959f !important;{}}}", f.number_header)),
-        Some("th.column-heading-left{text-align:left}th.column-heading-center{text-align:center}th.column-heading-right{text-align:right}".to_owned()),
+        Some(
+            "th.column-heading-left{text-align:left}th.column-heading-center{text-align:center}\
+             th.column-heading-right{text-align:right}"
+                .to_owned(),
+        ),
         Some(format!("td.text-cell{{{}}}td.label-cell{{padding-left:calc({} + var(--depth,0) * 1.25em)}}", f.text_cell, look.padding)),
         Some(format!(
             "td.number-cell,td.total-number-cell{{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}}\
              td.number-cell{{{}}}td.total-number-cell{{{}}}td.total-label-cell{{{}}}td.centered-label-cell{{text-align:center;{}}}",
             f.number_cell, f.total_number, f.total_label, f.centered_label
         )),
-        Some("td.date-cell{white-space:nowrap}td.align-left{text-align:left}td.align-right{text-align:right}td.align-center{text-align:center}".to_owned()),
+        Some(
+            "td.date-cell{white-space:nowrap}td.align-left{text-align:left}td.align-right{text-align:right}\
+             td.align-center{text-align:center}"
+                .to_owned(),
+        ),
         Some(format!(".neg{{{neg}}}")),
         Some(format!(".link{{{}{}}}", c.link.as_deref().map(|l| format!("color:{l};")).unwrap_or_default(), f.account_link)),
-        Some("tr.role-heading td{font-weight:600}tr.role-spacer td{height:.8em}tr.role-rule hr{border:0;border-top:1px solid #8c959f;margin:0}".to_owned()),
+        Some(
+            "tr.role-heading td{font-weight:600}tr.role-spacer td{height:.8em}\
+             tr.role-rule hr{border:0;border-top:1px solid #8c959f;margin:0}"
+                .to_owned(),
+        ),
         Some("tr.role-subtotal td.total-number-cell{border-top:1px solid #57606a}".to_owned()),
         Some("tr.role-total td.total-number-cell,tr.role-grandTotal td.total-number-cell{border-top:3px double #24292f}".to_owned()),
         Some("td.rule-above{border-top:1px solid #24292f !important}".to_owned()),
-        Some("table.commodities{border-collapse:collapse;margin-left:auto}table.commodities td{padding:0 0 0 12px;border:none;text-align:right}".to_owned()),
+        Some(
+            "table.commodities{border-collapse:collapse;margin-left:auto}\
+             table.commodities td{padding:0 0 0 12px;border:none;text-align:right}"
+                .to_owned(),
+        ),
         background("tr.normal-row", c.cell.as_ref()),
         background("tr.alternate-row", c.alternate.as_ref()),
         background("tr.primary-subheading", c.subheading.as_ref()),
         background("tr.secondary-subheading", c.subsubheading.as_ref()),
         background("tr.grand-total", c.grand_total.as_ref()),
         Some(".group{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:24px;align-items:start}".to_owned()),
-        Some("figure.chart{margin:0 0 16px}svg.chart{display:block;max-width:100%;font-family:inherit}svg.chart text{fill:#24292f}".to_owned()),
+        Some(
+            "figure.chart{margin:0 0 16px}svg.chart{display:block;max-width:100%;font-family:inherit}\
+             svg.chart text{fill:#24292f}"
+                .to_owned(),
+        ),
         Some("table.options-summary td{padding:2px 12px 2px 0}".to_owned()),
         Some(
             "@media print{body{padding:0;background:none;color:#000}tr,td,th{background:none !important}\

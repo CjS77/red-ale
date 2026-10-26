@@ -23,7 +23,8 @@ pub(super) fn table(t: &Table, look: &Look) -> String {
         Some(self::row(t, row, &widths, total, alternate, look))
     });
     let body = std::iter::once("<tbody>".to_owned()).chain(rows).chain(["</tbody>".to_owned()]);
-    let parts = std::iter::once("<table class=\"report-table\">".to_owned()).chain(caption).chain(head).chain(body).chain(["</table>".to_owned()]);
+    let open = std::iter::once("<table class=\"report-table\">".to_owned());
+    let parts = open.chain(caption).chain(head).chain(body).chain(["</table>".to_owned()]);
     parts.collect::<Vec<_>>().join("\n")
 }
 
@@ -176,7 +177,9 @@ fn content_html(cell: &Cell) -> String {
         Some(CellContent::Text(text)) => escape_lines(text),
         Some(CellContent::Monetary(m)) => shown(&cell.display, &|| display_exact(&m.amount)),
         Some(CellContent::Number(n) | CellContent::Price(n)) => shown(&cell.display, &|| display_exact(n)),
-        Some(CellContent::Date(t)) => shown(&cell.display, &|| cell.local_date.clone().unwrap_or_else(|| t.to_rfc3339().unwrap_or_default())),
+        Some(CellContent::Date(t)) => {
+            shown(&cell.display, &|| cell.local_date.clone().unwrap_or_else(|| t.to_rfc3339().unwrap_or_default()))
+        }
         Some(CellContent::Commodities(lines)) => {
             let rows: Vec<String> = lines
                 .iter()

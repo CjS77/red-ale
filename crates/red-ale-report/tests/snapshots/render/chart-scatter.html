@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chart</title>
+<style>
+:root{color-scheme:light}
+body{margin:0;padding:24px 32px;background-color:#ffffff;color:#1f2328;line-height:1.35;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+.report{max-width:1200px;margin:0 auto}
+h1.report-title{margin:0 0 4px;font-family:"Noto Sans",sans-serif;font-size:15pt;font-weight:bold;}
+.masthead{margin:0 0 20px;color:#57606a}.masthead p,.colophon p{margin:2px 0}
+.colophon{margin:24px 0 0;padding-top:8px;border-top:1px solid #d0d7de;color:#57606a}
+section{margin:0 0 28px}section>h2{margin:0 0 10px;font-size:1.15em;font-weight:600}
+h3.text-heading{margin:16px 0 6px;font-size:1.05em;font-weight:600}p.note{color:#57606a;font-size:.92em}
+.warning{margin:12px 0;padding:10px 14px;border-left:4px solid #d4a72c;background-color:#fff8c5}.warning h3{margin:0 0 4px;font-size:1em}.warning p{margin:0}
+.table-wrap{overflow-x:auto;margin:0 0 16px}
+table.report-table{border-collapse:separate;border-spacing:0px;border:0px solid #8c959f;border-style:none;}
+table.report-table caption{text-align:left;font-weight:600;padding:0 0 6px}
+table.report-table td,table.report-table th{padding:4px;border:none;vertical-align:top}
+th{font-weight:600;border-bottom:1px solid #8c959f !important;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+th.column-heading-left{text-align:left}th.column-heading-center{text-align:center}th.column-heading-right{text-align:right}
+td.text-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.label-cell{padding-left:calc(4px + var(--depth,0) * 1.25em)}
+td.number-cell,td.total-number-cell{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}td.number-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.total-number-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.total-label-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.centered-label-cell{text-align:center;font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}
+td.date-cell{white-space:nowrap}td.align-left{text-align:left}td.align-right{text-align:right}td.align-center{text-align:center}
+.neg{color:#c0392b;}
+.link{font-family:"Noto Sans",sans-serif;font-size:10pt;font-style:italic;}
+tr.role-heading td{font-weight:600}tr.role-spacer td{height:.8em}tr.role-rule hr{border:0;border-top:1px solid #8c959f;margin:0}
+tr.role-subtotal td.total-number-cell{border-top:1px solid #57606a}
+tr.role-total td.total-number-cell,tr.role-grandTotal td.total-number-cell{border-top:3px double #24292f}
+td.rule-above{border-top:1px solid #24292f !important}
+table.commodities{border-collapse:collapse;margin-left:auto}table.commodities td{padding:0 0 0 12px;border:none;text-align:right}
+.group{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:24px;align-items:start}
+figure.chart{margin:0 0 16px}svg.chart{display:block;max-width:100%;font-family:inherit}svg.chart text{fill:#24292f}
+table.options-summary td{padding:2px 12px 2px 0}
+@media print{body{padding:0;background:none;color:#000}tr,td,th{background:none !important}table,figure,.warning{break-inside:avoid}}
+</style>
+</head>
+<body class="sheet-none">
+<div class="report">
+<header class="masthead">
+<h1 class="report-title">Chart</h1>
+</header>
+<section>
+<figure class="chart">
+<svg id="chart-0-0" class="chart" viewBox="0 0 1000 600" style="width:100%;height:auto" role="img">
+<title>Price Scatterplot</title>
+<text x="500" y="32" font-size="16" font-weight="bold" text-anchor="middle">Price Scatterplot</text>
+<rect x="62.60" y="38" width="921.40" height="509" fill="#fffdf6"/>
+<line x1="62.60" y1="547" x2="984" y2="547" stroke="#e3e3e3"/>
+<text x="56.60" y="551" font-size="12" text-anchor="end">50</text>
+<line x1="62.60" y1="377.33" x2="984" y2="377.33" stroke="#e3e3e3"/>
+<text x="56.60" y="381.33" font-size="12" text-anchor="end">100</text>
+<line x1="62.60" y1="207.67" x2="984" y2="207.67" stroke="#e3e3e3"/>
+<text x="56.60" y="211.67" font-size="12" text-anchor="end">150</text>
+<line x1="62.60" y1="38" x2="984" y2="38" stroke="#e3e3e3"/>
+<text x="56.60" y="42" font-size="12" text-anchor="end">200</text>
+<line x1="62.60" y1="38" x2="62.60" y2="547" stroke="#8c8c8c"/>
+<line x1="62.60" y1="547" x2="984" y2="547" stroke="#8c8c8c"/>
+<text x="523.30" y="582" font-size="13" text-anchor="middle">Days</text>
+<text x="27" y="292.50" font-size="13" text-anchor="middle" transform="rotate(-90 27 292.50)">USD</text>
+<line x1="62.60" y1="38" x2="62.60" y2="547" stroke="#e3e3e3"/>
+<text x="62.60" y="565" font-size="12" text-anchor="middle">0</text>
+<line x1="369.73" y1="38" x2="369.73" y2="547" stroke="#e3e3e3"/>
+<text x="369.73" y="565" font-size="12" text-anchor="middle">20</text>
+<line x1="676.87" y1="38" x2="676.87" y2="547" stroke="#e3e3e3"/>
+<text x="676.87" y="565" font-size="12" text-anchor="middle">40</text>
+<line x1="984" y1="38" x2="984" y2="547" stroke="#e3e3e3"/>
+<text x="984" y="565" font-size="12" text-anchor="middle">60</text>
+<polyline points="62.60,377.33 538.66,538.52 984,105.87" fill="none" stroke="#ff851b" stroke-width="2"/>
+<path d="M58.60 373.33 L66.60 381.33 M66.60 373.33 L58.60 381.33" stroke="#0074d9" stroke-width="2"><title>01/01/24
+Price : $100.00</title></path>
+<path d="M534.66 534.52 L542.66 542.52 M542.66 534.52 L534.66 542.52" stroke="#0074d9" stroke-width="2"><title>02/01/24
+Price : $52.50</title></path>
+<path d="M980 101.87 L988 109.87 M988 101.87 L980 109.87" stroke="#0074d9" stroke-width="2"><title>03/01/24
+Price : $180.00</title></path>
+</svg>
+</figure>
+</section>
+</div>
+</body>
+</html>

@@ -144,7 +144,8 @@ fn block(b: &Block, path: &str, look: &Look) -> String {
         Block::Table(t) => format!("<div class=\"table-wrap\">\n{}\n</div>", table::table(t, look)),
         Block::Chart(c) => format!("<figure class=\"chart\">\n{}\n</figure>", svg::chart(c, &format!("chart-{path}"))),
         Block::Group(g) => {
-            let inner: Vec<String> = g.blocks.iter().enumerate().map(|(i, b)| format!("<div>\n{}\n</div>", block(b, &format!("{path}-{i}"), look))).collect();
+            let inner: Vec<String> =
+                g.blocks.iter().enumerate().map(|(i, b)| format!("<div>\n{}\n</div>", block(b, &format!("{path}-{i}"), look))).collect();
             format!("<div class=\"group\">\n{}\n</div>", inner.join("\n"))
         }
         Block::OptionsSummary(o) => options_summary(o),
@@ -168,6 +169,3 @@ fn options_summary(o: &OptionsSummary) -> String {
         .collect();
     format!("<table class=\"options-summary\">\n{}\n</table>", rows.join("\n"))
 }
-
-#[cfg(test)]
-mod tests;

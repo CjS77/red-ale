@@ -176,7 +176,8 @@ mod tests {
         assert_eq!(scale(&["116006.33"], true), ("0".into(), "150000".into(), "50000".into()));
         let s = Scale::covering([r("0"), r("100")].iter(), true);
         assert_eq!(s.ticks().len(), 6);
-        assert_eq!((s.map(&r("0"), 50_000, 10_000), s.map(&r("100"), 50_000, 10_000), s.map(&r("25"), 50_000, 10_000)), (50_000, 10_000, 40_000));
-        assert_eq!(s.map(&r("1000"), 50_000, 10_000), 10_000, "kept within the range");
+        let at = |v: &str| s.map(&r(v), 50_000, 10_000);
+        assert_eq!((at("0"), at("100"), at("25")), (50_000, 10_000, 40_000));
+        assert_eq!(at("1000"), 10_000, "kept within the range");
     }
 }

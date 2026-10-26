@@ -77,7 +77,8 @@ fn axis_labels(chart: &Chart, plot: Rect, frame: &Frame) -> Vec<String> {
     let x = (!chart.x_axis.label.is_empty()).then(|| {
         let shown = fit(&chart.x_axis.label, plot.width(), LABEL_FONT);
         let y = frame.area.y1 - 2 * UNIT;
-        format!("<text x=\"{}\" y=\"{}\" font-size=\"13\" text-anchor=\"middle\">{}</text>", fmt(plot.x0 + plot.width() / 2), fmt(y), escape(&shown))
+        let x = fmt(plot.x0 + plot.width() / 2);
+        format!("<text x=\"{x}\" y=\"{}\" font-size=\"13\" text-anchor=\"middle\">{}</text>", fmt(y), escape(&shown))
     });
     let y = (!chart.y_axis.label.is_empty()).then(|| {
         let shown = fit(&chart.y_axis.label, plot.height(), LABEL_FONT);
@@ -289,7 +290,8 @@ fn line(chart: &Chart, l: &Line, slots: &Slots, at: &impl Fn(&Rational) -> Hu) -
     let s = &chart.series[l.series];
     let points: Vec<Option<(Hu, Hu, Hu)>> =
         l.points.iter().enumerate().map(|(i, p)| p.as_ref().map(|(base, top)| (slots.centre(i), at(base), at(top)))).collect();
-    let runs: Vec<Vec<(Hu, Hu, Hu)>> = points.split(Option::is_none).map(|run| run.iter().flatten().copied().collect()).filter(|r: &Vec<_>| !r.is_empty()).collect();
+    let runs: Vec<Vec<(Hu, Hu, Hu)>> =
+        points.split(Option::is_none).filter(|run| !run.is_empty()).map(|run| run.iter().flatten().copied().collect()).collect();
     let color = escape(s.color.as_str());
     let fills = runs.iter().filter(|_| s.fill).map(|run| {
         let tops = run.iter().map(|(x, _, top)| format!("{},{}", fmt(*x), fmt(*top)));
@@ -318,10 +320,12 @@ fn marker(shape: Marker, cx: Hu, cy: Hu, color: &str, title: &str) -> String {
         }
         Marker::Diamond => format!("<path d=\"M{} L{} L{} L{} Z\" fill=\"{c}\">{title}</path>", at(0, -r), at(r, 0), at(0, r), at(-r, 0)),
         Marker::Cross => {
-            format!("<path d=\"M{} L{} M{} L{}\" stroke=\"{c}\" stroke-width=\"2\">{title}</path>", at(-r, -r), at(r, r), at(r, -r), at(-r, r))
+            let (m1, l1, m2, l2) = (at(-r, -r), at(r, r), at(r, -r), at(-r, r));
+            format!("<path d=\"M{m1} L{l1} M{m2} L{l2}\" stroke=\"{c}\" stroke-width=\"2\">{title}</path>")
         }
         Marker::Plus => {
-            format!("<path d=\"M{} L{} M{} L{}\" stroke=\"{c}\" stroke-width=\"2\">{title}</path>", at(-r, 0), at(r, 0), at(0, -r), at(0, r))
+            let (m1, l1, m2, l2) = (at(-r, 0), at(r, 0), at(0, -r), at(0, r));
+            format!("<path d=\"M{m1} L{l1} M{m2} L{l2}\" stroke=\"{c}\" stroke-width=\"2\">{title}</path>")
         }
     }
 }
@@ -338,7 +342,9 @@ fn scatter(chart: &Chart, frame: &Frame) -> String {
     let to_y = |v: &Rational| y.map(v, plot.y1, plot.y0);
     let x_ticks = x.ticks().into_iter().flat_map(|t| {
         let at = to_x(&t);
-        let grid = chart.grid.then(|| format!("<line x1=\"{0}\" y1=\"{1}\" x2=\"{0}\" y2=\"{2}\" stroke=\"{GRID}\"/>", fmt(at), fmt(plot.y0), fmt(plot.y1)));
+        let grid = chart.grid.then(|| {
+            format!("<line x1=\"{0}\" y1=\"{1}\" x2=\"{0}\" y2=\"{2}\" stroke=\"{GRID}\"/>", fmt(at), fmt(plot.y0), fmt(plot.y1))
+        });
         let label = format!(
             "<text x=\"{}\" y=\"{}\" font-size=\"12\" text-anchor=\"middle\">{}</text>",
             fmt(at),
@@ -351,7 +357,8 @@ fn scatter(chart: &Chart, frame: &Frame) -> String {
         let points: Vec<(Hu, Hu)> = s.points.iter().flatten().map(|p| (to_x(&p.x), to_y(&p.y))).collect();
         let joined = s.line.as_ref().filter(|_| points.len() > 1).map(|c| {
             let pts: Vec<String> = points.iter().map(|(px, py)| format!("{},{}", fmt(*px), fmt(*py))).collect();
-            format!("<polyline points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"/>", pts.join(" "), escape(c.as_str()), stroke_width(s))
+            let (stroke, width) = (escape(c.as_str()), stroke_width(s));
+            format!("<polyline points=\"{}\" fill=\"none\" stroke=\"{stroke}\" stroke-width=\"{width}\"/>", pts.join(" "))
         });
         let markers: Vec<String> = points
             .iter()
