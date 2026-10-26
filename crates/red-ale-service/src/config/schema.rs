@@ -189,7 +189,8 @@ fn network() -> Value {
 
 fn requests(server: &str) -> Value {
     let description = format!("The largest request the {server} accepts, in bytes. Read when the server starts.");
-    group(&format!("The {server}."), json!({ "maxRequestBytes": integer(DEFAULT_MAX_REQUEST_BYTES, 1 << 20, u64::from(u32::MAX), &description) }))
+    let bytes = integer(DEFAULT_MAX_REQUEST_BYTES, 1 << 20, u64::from(u32::MAX), &description);
+    group(&format!("The {server}."), json!({ "maxRequestBytes": bytes }))
 }
 
 /// GnuCash's generic import settings, with its defaults
@@ -204,10 +205,16 @@ fn import() -> Value {
             "enableUpdate": boolean(true, "\"Update and clear\" may be chosen (enable-update)."),
             "useBayes": boolean(true, "Bayesian matching instead of the plain account map (use-bayes)."),
             "matchThreshold": score(1, "Lowest score a candidate needs to be offered as a match (match-threshold)."),
-            "matchDateThreshold": days(4, "Dates this many days apart or closer add 2 to the score; the same day adds 3 (match-date-threshold)."),
+            "matchDateThreshold": days(
+                4,
+                "Dates this many days apart or closer add 2 to the score; the same day adds 3 (match-date-threshold).",
+            ),
             "matchDateNotThreshold": days(14, "Dates further apart than this many days take 5 off the score (match-date-not-threshold)."),
             "autoAddThreshold": score(3, "At or below this best score, or with no match, the transaction is added (auto-add-threshold)."),
-            "autoClearThreshold": score(6, "At or above this best score, the match is cleared, or updated and cleared (auto-clear-threshold)."),
+            "autoClearThreshold": score(
+                6,
+                "At or above this best score, the match is cleared, or updated and cleared (auto-clear-threshold).",
+            ),
             "atmFeeThreshold": {
                 "type": "string", "format": "decimal", "default": "2.00",
                 "description": "Amount difference still matched, for ATM fees (atm-fee-threshold). A decimal string.",
@@ -272,7 +279,11 @@ fn default_services() -> Value {
     };
     json!({
         "frankfurter": service("https://api.frankfurter.dev/v1/latest?base={base}&symbols={quote}", "frankfurter", 0),
-        "alphavantage": service("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}", "alphavantage", 12_000),
+        "alphavantage": service(
+            "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}",
+            "alphavantage",
+            12_000,
+        ),
         "alphavantage-currency": service(
             "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base}&to_currency={quote}&apikey={key}",
             "alphavantage",

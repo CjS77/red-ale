@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use jsonrpsee::RpcModule;
-use jsonrpsee::server::{Server, ServerHandle};
+use jsonrpsee::server::{Server, ServerConfig, ServerHandle};
 use jsonrpsee::types::{ErrorObjectOwned, Params};
 use serde_json::Value;
 
@@ -42,9 +42,14 @@ fn call(dispatcher: &Mutex<Dispatcher>, name: &str, params: &Params<'_>) -> Resu
     guard.call(name, params).map_err(to_error_object)
 }
 
-/// Start serving `dispatcher` on `addr`. Methods run one at a time, on a blocking thread.
+/// Start serving `dispatcher` on `addr`, accepting requests of up to `max_request_bytes` (the Configuration's
+/// `jsonRpc.maxRequestBytes`). Methods run one at a time, on a blocking thread.
 /// The caller keeps its handle on `dispatcher` so it can close the book on shutdown.
-pub async fn serve(dispatcher: Arc<Mutex<Dispatcher>>, addr: SocketAddr) -> Result<(SocketAddr, ServerHandle), ServerError> {
+pub async fn serve(
+    dispatcher: Arc<Mutex<Dispatcher>>,
+    addr: SocketAddr,
+    max_request_bytes: u32,
+) -> Result<(SocketAddr, ServerHandle), ServerError> {
     let mut names: Vec<&'static str> = dispatcher.lock().unwrap_or_else(std::sync::PoisonError::into_inner).methods().map(|m| m.name).collect();
     names.push("api.schema");
     let mut module = RpcModule::new(dispatcher);
@@ -54,7 +59,9 @@ pub async fn serve(dispatcher: Arc<Mutex<Dispatcher>>, addr: SocketAddr) -> Resu
             .map(|_| ())
             .map_err(|e| ServerError::Register(format!("{name}: {e}")))
     })?;
-    let server = Server::builder().build(addr).await.map_err(|source| ServerError::Bind { addr, source })?;
+    let config = ServerConfig::builder().max_request_body_size(max_request_bytes).build();
+    let builder = Server::builder().set_config(config);
+    let server = builder.build(addr).await.map_err(|source| ServerError::Bind { addr, source })?;
     let local = server.local_addr().map_err(|source| ServerError::Bind { addr, source })?;
     Ok((local, server.start(module)))
 }

@@ -418,7 +418,8 @@ fn write(raw: &mut Value, path: &SettingPath, value: &Value) -> Result<(), Setti
         if entry.is_null() {
             *entry = Value::Object(Map::new());
         }
-        entry.as_object_mut().ok_or_else(|| SettingError::one(path, format!("cannot be set: {key} in the Configuration file is not an object")))
+        let message = || format!("cannot be set: {key} in the Configuration file is not an object");
+        entry.as_object_mut().ok_or_else(|| SettingError::one(path, message()))
     })?;
     parent.insert(last.clone(), value.clone());
     Ok(())
@@ -492,7 +493,8 @@ fn refused_values(schema: &Value, value: &Value, at: &str, found: &mut BTreeMap<
         return;
     }
     if let Value::Object(map) = value {
-        map.iter().filter_map(|(key, v)| Some((key, v, child(schema, key)?))).for_each(|(key, v, s)| refused_values(s, v, &join(at, key), found));
+        let declared = map.iter().filter_map(|(key, v)| Some((key, v, child(schema, key)?)));
+        declared.for_each(|(key, v, s)| refused_values(s, v, &join(at, key), found));
     }
 }
 
