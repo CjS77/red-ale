@@ -714,10 +714,11 @@ Book itself, inside its Mutation, which gives the same transactions in the same 
 transactions in conversion order; transfer pairs between the files appear once. A split's `account` is null for an
 account still to be created, with `accountName` naming it; the Imbalance split committing adds is not among the splits
 but in `imbalance`. Each transaction has the actions `add` and `skip` only. Its `matches` are QIF's duplicate
-candidates, `score` null, with a `possible-duplicate` warning; the default action is `add`, as nothing is ticked in
-GnuCash, so importing a file a second time finds every transaction, and the caller skips them. Choosing `skip` is
-ticking a duplicate; `match` may name the candidate, which changes nothing else. `clear`, `update`, `account` and
-`amount` are refused for QIF.
+candidates, `score` null. A transaction with candidates defaults to `skip`, its first candidate selected, with a
+`possible-duplicate` warning saying why; one without defaults to `add`. So a file imported a second time is found
+whole and applying adds nothing (GnuCash's duplicates page ticks nothing: see the deviations). The caller may choose
+`add` for a skipped one, or `skip` for any; `skip` is ticking a duplicate, and `match` may name the candidate, which
+changes nothing else. `clear`, `update`, `account` and `amount` are refused for QIF.
 
 `ignoredLines` reasons for QIF: `unknown-option`, `date-required` (a transaction without a date, dropped),
 `class-line`, `category-line`, `security-line`, `price-line`. Warnings: `qif-field` (a field value GnuCash replaces,
@@ -1051,7 +1052,7 @@ and apply in one run.
 | QIF invalid days, unknown or missing investment actions, ambiguous price dates | Today; imbalance; failure | Error rows; decided by `dateFormat` | As above |
 | QIF account tree merge | Built apart, then merged; siblings that differ in code, colour or notes stay with one name | Merged as each account is made; a new sibling with an existing name becomes `<name> <n>` | Two accounts of one full name can't be told apart by name |
 | QIF maps' order | Hash order, sorted by locale collation | By QIF name, bytewise | Deterministic output |
-| QIF duplicates ticked | Only among the candidates; a voided one is kept (`xaccTransDestroy` refuses it) | `skip` on any transaction; a voided one is removed | The caller's skip is honoured whole |
+| QIF duplicates ticked | None by default (`qif-merge-groups.scm:150-152`); only among the candidates; a voided one is kept (`xaccTransDestroy` refuses it) | A transaction with candidates defaults to `skip`, its first candidate selected, with a `possible-duplicate` warning; `add` stays a choice; `skip` on any transaction; a voided one is removed | Unticked is a window's default: with no window, a file imported twice must add nothing the second time (as the matcher auto-clears confident matches). The caller's skip is honoured whole |
 | QIF dates ambiguous in several files | Asked file by file | One `dateFormat` for the preview; files with no format in common are refused | One preview, one choice |
 | CSV account rows after one that doesn't fit | Ignored silently | Read; that row is an error | As above |
 | CSV account rows with a missing parent, unknown commodity or type, or a name that isn't the full name's end | Top-level account; skipped; `INVALID` account; cut at the wrong place | Error rows | Nothing lands where the file didn't say |

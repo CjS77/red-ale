@@ -129,24 +129,32 @@ fn a_bank_file_makes_its_accounts_and_transactions() {
 }
 
 #[test]
-fn importing_the_same_file_again_finds_every_transaction_and_adds_nothing_when_skipped() {
+fn importing_the_same_file_again_finds_every_transaction_and_adds_nothing() {
     let mut b = Book::new();
     let p = b.preview(&[("checking.qif", CHECKING)], json!({}));
     b.apply(&p, json!({}));
     let again = b.preview(&[("checking.qif", CHECKING)], json!({}));
     assert_eq!(again["newAccounts"], json!([]), "the saved map sends every name to the accounts made the first time");
     assert!(again["qif"]["accounts"].as_array().unwrap().iter().all(|r| r["guessed"] == false && r["new"] == false));
+    assert_eq!(again["summary"]["skip"], 3);
+    assert_eq!(again["summary"]["add"], 0);
     let transactions = again["transactions"].as_array().unwrap();
     assert!(transactions.iter().all(|t| !t["matches"].as_array().unwrap().is_empty()), "QIF's finder finds every transaction");
-    assert!(transactions.iter().all(|t| t["matches"][0]["score"].is_null() && t["action"] == "add"), "unscored, nothing ticked");
-    assert!(transactions[0]["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "possible-duplicate"));
-    let skip: Vec<Value> = transactions.iter().map(|t| json!({ "index": t["index"], "action": "skip" })).collect();
-    let applied = b.apply(&again, json!({ "changes": skip }));
+    assert!(transactions.iter().all(|t| t["matches"][0]["score"].is_null()), "unscored");
+    assert!(transactions.iter().all(|t| t["action"] == "skip" && t["selectedMatch"] == t["matches"][0]["split"]), "skipped, first match selected");
+    assert!(transactions.iter().all(|t| t["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "possible-duplicate")));
+    let applied = b.apply(&again, json!({}));
     assert_eq!(applied["added"], json!([]));
     assert_eq!(applied["skipped"], json!([0, 1, 2]));
     assert_eq!(applied["accounts"]["created"], json!([]));
     assert_eq!(b.transactions().len(), 3, "nothing added the second time");
     assert_amount(&b.balance("Checking"), "1854.90");
+
+    // The caller may still add one.
+    let third = b.preview(&[("checking.qif", CHECKING)], json!({}));
+    let applied = b.apply(&third, json!({ "changes": [{ "index": 0, "action": "add" }] }));
+    assert_eq!(applied["added"].as_array().unwrap().len(), 1);
+    assert_eq!(b.transactions().len(), 4);
 }
 
 #[test]
@@ -399,5 +407,6 @@ fn gnucash_s_example_files_import() {
         assert_eq!(again["newAccounts"], json!([]), "{name}: the map is reused");
         let unmatched = again["transactions"].as_array().unwrap().iter().filter(|t| t["matches"].as_array().unwrap().is_empty()).count();
         assert_eq!(unmatched, 0, "{name}: every transaction is found again");
+        assert_eq!(again["summary"]["add"], 0, "{name}: so nothing is added again");
     });
 }

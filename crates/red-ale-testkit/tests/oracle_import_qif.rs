@@ -43,10 +43,10 @@ fn gnucash_reads_books_red_ale_imported_qif_into() {
         let p = preview(&mut d, &[(name, &fixture(name))]);
         call(&mut d, "import.apply", &json!({ "proposal": p["id"], "skipErrors": true }));
     });
-    // The same files again: every transaction is a duplicate, and skipping them all adds nothing.
+    // The same files again: every transaction is a duplicate, skipped by default, so applying adds nothing.
     let again = preview(&mut d, &[("checking.qif", CHECKING), ("broker.qif", BROKER)]);
-    let skip: Vec<Value> = again["transactions"].as_array().unwrap().iter().map(|t| json!({ "index": t["index"], "action": "skip" })).collect();
-    let applied = call(&mut d, "import.apply", &json!({ "proposal": again["id"], "changes": skip }));
+    assert_eq!(again["summary"]["add"], 0);
+    let applied = call(&mut d, "import.apply", &json!({ "proposal": again["id"] }));
     assert_eq!(applied["added"], json!([]));
 
     let diffs = oracle_check(&mut d, &book, &[]);

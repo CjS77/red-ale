@@ -121,27 +121,30 @@ pub(super) fn preview(book: &Book, now: Time64, zone: &TimeZone, state: &QifStat
 }
 
 /// The converted transaction as the proposal shows it: without the Imbalance split committing added (the review
-/// shows that), with QIF's duplicate candidates as matches, unscored, and the action *add*, as GnuCash ticks
-/// nothing (`qif-merge-groups.scm:150-152`).
+/// shows that), with QIF's duplicate candidates as matches, unscored. A transaction with candidates is *skip*, its
+/// first candidate selected, so a file imported twice adds nothing the second time; GnuCash's duplicates page ticks
+/// nothing (`qif-merge-groups.scm:150-152`), which is a window's default, not a book's (`design/api/import.md`, QIF
+/// deviations). One without is *add*.
 fn proposed(copy: &Book, state: &QifState, run: &Run, index: usize, c: &ConvertedXtn) -> Option<ProposedTransaction> {
     let made: BTreeSet<Guid> = c.repairs.iter().filter_map(made_split).collect();
     let mut trans = copy.transaction(c.transaction)?.clone();
     trans.splits.retain(|s| !made.contains(&s.guid));
-    let matches = run
+    let matches: Vec<MatchInfo> = run
         .duplicates
         .get(&c.transaction)
         .into_iter()
         .flatten()
         .map(|m| MatchInfo { split: m.split, transaction: m.transaction, probability: 0, update_proposed: false })
         .collect();
+    let duplicate = !matches.is_empty();
     let info = TransInfo {
         index,
         trans,
         tokens: Vec::new(),
+        selected_match: matches.first().map(|m| m.split),
         matches,
-        selected_match: None,
         match_selected_manually: false,
-        action: ImportAction::Add,
+        action: if duplicate { ImportAction::Skip } else { ImportAction::Add },
         previous_action: ImportAction::Add,
         dest_account: None,
         dest_source: None,
@@ -187,7 +190,7 @@ fn transaction_review(book: &Book, copy: &Book, threshold: Option<Date>, p: &Pro
         warnings.push(Warning::about(index, "read-only-by-date", format!("dated before the read-only threshold {threshold}")));
     }
     if !p.info.matches.is_empty() {
-        let message = "may repeat an existing transaction (see matches): skip it to leave it out";
+        let message = "may repeat an existing transaction (see matches), so it is skipped: choose add to import it anyway";
         warnings.push(Warning::about(index, "possible-duplicate", message));
     }
     TransactionReview { imbalance, read_only_by_date: read_only, warnings }
