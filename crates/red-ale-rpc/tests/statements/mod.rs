@@ -212,9 +212,13 @@ pub fn rows_labelled<'a>(result: &'a Value, label: &str) -> Vec<(&'a Value, &'a 
         .collect()
 }
 
-/// The display strings of the amount of the one row labelled `label`.
+/// The display strings of the amount of the one row labelled `label`, leaving out a section heading of the same
+/// name (the Balance Sheet's "Equity" heading above the Equity account).
 pub fn amount_of(result: &Value, label: &str) -> Vec<String> {
-    let rows = rows_labelled(result, label);
+    let mut rows = rows_labelled(result, label);
+    if rows.len() > 1 {
+        rows.retain(|(_, r)| r["role"] != "heading");
+    }
     assert_eq!(rows.len(), 1, "one row labelled {label:?}: {}", all_rows(result));
     let (table, row) = rows[0];
     displays(&row["cells"][amount_column(table)])
@@ -257,6 +261,24 @@ pub fn assert_checks(result: &Value, html: &str, checks: &[Check<'_>]) {
         let got = amount_of(result, c.label);
         assert_eq!(got, c.want, "{} (test line {}): {}", c.name, c.line, all_rows(result));
         c.want.iter().for_each(|w| assert!(html.contains(w), "{} (test line {}): {w} is in the HTML", c.name, c.line));
+    });
+}
+
+/// The position, from 0, of the one row labelled `label` in its table.
+pub fn position_of(result: &Value, label: &str) -> usize {
+    let rows = rows_labelled(result, label);
+    assert_eq!(rows.len(), 1, "one row labelled {label:?}");
+    let (table, row) = rows[0];
+    table["rows"].as_array().unwrap().iter().position(|r| std::ptr::eq(r, row)).unwrap()
+}
+
+/// The checks' rows stand where GnuCash's test reads them: its row `row` (counted from 1 in the HTML table) is the
+/// result row at `row - offset`, `offset` being 1 plus the rows GnuCash's table has before the result's (the Balance
+/// Sheet's row of spacer cells).
+pub fn assert_rows_at(result: &Value, rows: &[(&str, u32, &str)], offset: u32) {
+    rows.iter().for_each(|(name, row, label)| {
+        let want = usize::try_from(row - offset).unwrap();
+        assert_eq!(position_of(result, label), want, "{name}: GnuCash's row {row} is {label}: {}", all_rows(result));
     });
 }
 

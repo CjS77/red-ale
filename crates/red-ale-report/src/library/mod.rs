@@ -25,6 +25,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
     "lib/options.rhai",
     "standard/account-piecharts.rhai",
     "standard/account-summary.rhai",
+    "standard/balance-sheet.rhai",
     "standard/category-barchart.rhai",
     "standard/net-charts.rhai",
 ];
