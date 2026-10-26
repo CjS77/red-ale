@@ -36,6 +36,7 @@ fn defaults_fill_in_and_stored_values_show_through() {
     assert_eq!(all["docLinks"]["pathHead"], Value::Null);
     assert_eq!(all["reports"]["limits"]["seconds"], 120);
     assert_eq!(all["jsonRpc"]["maxRequestBytes"], 64 << 20);
+    assert_eq!(all["jsonRpc"]["maxResponseBytes"], 256 << 20, "room for a large CSV export");
     assert_eq!(all["quotes"]["services"]["mine"]["minIntervalSeconds"], 0, "entry fields have defaults too");
     assert_eq!(all["quotes"]["timeoutSeconds"], 30);
     assert_eq!(all["defaultCurrency"], Value::Null);

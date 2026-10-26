@@ -231,7 +231,7 @@ fn exec_runs_reports_and_writes_the_export_to_a_file() {
     let out = run(&["exec", "--book", &book, "--config", &config, "report.run", "report=Nope"]);
     assert_eq!((out.status.code(), json(&out.stderr)["error"]["code"].clone()), (Some(2), json!(2000)));
     let out = run(&["exec", "--book", &book, "book.info", "--output", &html_arg]);
-    assert_eq!(out.status.code(), Some(1), "--output needs an html result");
+    assert_eq!(out.status.code(), Some(1), "--output needs an html or csv result");
 }
 
 #[test]
@@ -273,6 +273,50 @@ fn a_reader_closing_the_pipe_ends_output_quietly() {
         assert!(out.status.success(), "{command}: {:?} {}", out.status, String::from_utf8_lossy(&out.stderr));
         assert!(out.stderr.is_empty(), "{command}: {}", String::from_utf8_lossy(&out.stderr));
     });
+}
+
+/// `--output` writes a CSV export's text on the caller's side and prints the rest of the result with the path and
+/// size (`design/api/export.md`, "CLI"); `export.accounts` writes its book file itself.
+#[test]
+fn exports_write_their_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = copy(dir.path(), "synthetic/rich.gnucash");
+    let csv = dir.path().join("food.csv").display().to_string();
+    let accounts = r#"accounts:=["Expenses:Food"]"#;
+    let args = ["exec", "--book", &book, "--read-only", "export.csvTransactions", accounts, "from=2024-06-01", "to=2024-06-30", "--output", &csv];
+    let out = run(&args);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let written = std::fs::read(&csv).unwrap();
+    assert_eq!(json(&out.stdout), json!({ "transactions": 2, "lines": 4, "path": csv, "bytes": written.len() }));
+    assert!(written.starts_with(b"Date,Transaction ID,") && written.ends_with(b"\r\n"));
+
+    let tree = dir.path().join("tree.csv").display().to_string();
+    let out = run(&["exec", "--book", &book, "--read-only", "export.csvTree", "--output", &tree]);
+    assert_eq!(json(&out.stdout)["rows"], 20, "{}", String::from_utf8_lossy(&out.stderr));
+
+    let chart = dir.path().join("chart").display().to_string();
+    let out = run(&["exec", "--book", &book, "--read-only", "export.accounts", &format!("path={chart}")]);
+    assert_eq!(json(&out.stdout)["path"], json!(format!("{chart}.gnucash")), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+/// A CSV export larger than jsonrpsee's 10 MB default reaches `call` under the default `jsonRpc.maxResponseBytes`,
+/// and a lower setting refuses it. A separator of 60,000 characters makes the 20-account tree about 13 MB.
+#[test]
+fn the_response_size_limit_comes_from_the_configuration() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = copy(dir.path(), "synthetic/rich.gnucash");
+    let separator = format!("separator={}", "|".repeat(60_000));
+    let (server, url) = serve_with(&["--book", &book, "--read-only"]);
+    let out = run(&["call", "--url", &url, "export.csvTree", &separator]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(json(&out.stdout)["csv"].as_str().unwrap().len() > 10_000_000);
+    stop(server);
+    let config = dir.path().join("red-ale.json");
+    std::fs::write(&config, r#"{"jsonRpc": {"maxResponseBytes": 1048576}}"#).unwrap();
+    let (server, url) = serve_with(&["--book", &book, "--read-only", "--config", &config.display().to_string()]);
+    let out = run(&["call", "--url", &url, "export.csvTree", &separator]);
+    assert!(!out.status.success(), "{}", String::from_utf8_lossy(&out.stdout));
+    stop(server);
 }
 
 /// Start `red-ale serve` with `args` and return it with its URL.

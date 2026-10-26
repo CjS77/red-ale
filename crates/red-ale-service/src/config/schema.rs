@@ -30,6 +30,10 @@ pub const QUOTE_FORMATS: &[&str] = &["alphavantage", "twelvedata", "finnhub", "f
 /// The largest request the JSON-RPC and MCP servers accept by default: 64 MiB, room for a few years of statements.
 pub const DEFAULT_MAX_REQUEST_BYTES: u64 = 64 << 20;
 
+/// The largest response the JSON-RPC server sends by default: 256 MiB, room for a CSV export of a large book
+/// (`design/api/export.md`). jsonrpsee's own default, 10 MB, is a few years of transactions.
+pub const DEFAULT_MAX_RESPONSE_BYTES: u64 = 256 << 20;
+
 /// The Configuration's JSON Schema document.
 pub static SCHEMA: LazyLock<Value> = LazyLock::new(|| {
     json!({
@@ -47,7 +51,7 @@ pub static SCHEMA: LazyLock<Value> = LazyLock::new(|| {
                 "GnuCash's default currency (general/currency-other): what currencies are quoted in, and the currency of new \
                  Owners and QIF imports. Unset, the Locale's currency, else USD.",
             ),
-            "jsonRpc": requests("JSON-RPC server"),
+            "jsonRpc": json_rpc(),
             "mcp": requests("MCP server"),
             "import": import(),
             "quotes": quotes(),
@@ -192,6 +196,14 @@ fn requests(server: &str) -> Value {
     let description = format!("The largest request the {server} accepts, in bytes. Read when the server starts.");
     let bytes = integer(DEFAULT_MAX_REQUEST_BYTES, 1 << 20, u64::from(u32::MAX), &description);
     group(&format!("The {server}."), json!({ "maxRequestBytes": bytes }))
+}
+
+/// The JSON-RPC server: the request limit, and the response limit a large export needs.
+fn json_rpc() -> Value {
+    let mut schema = requests("JSON-RPC server");
+    let description = "The largest response the JSON-RPC server sends, in bytes; a larger result is an error. Read when the server starts.";
+    schema["properties"]["maxResponseBytes"] = integer(DEFAULT_MAX_RESPONSE_BYTES, 1 << 20, u64::from(u32::MAX), description);
+    schema
 }
 
 /// What imports keep outside the book (`design/api/import.md`): the Import settings, CSV import layouts and the QIF
