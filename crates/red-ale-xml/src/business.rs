@@ -183,6 +183,21 @@ impl BusinessObject {
             Self::Vendor(o) => o.guid,
         }
     }
+
+    /// The element GnuCash 5.17 would write for this object.
+    pub fn to_element(&self) -> Element {
+        match self {
+            Self::BillTerm(o) => bill_term_el(o),
+            Self::Customer(o) => customer_el(o),
+            Self::Employee(o) => employee_el(o),
+            Self::Entry(o) => entry_el(o),
+            Self::Invoice(o) => invoice_el(o),
+            Self::Job(o) => job_el(o),
+            Self::Order(o) => order_el(o),
+            Self::TaxTable(o) => tax_table_el(o),
+            Self::Vendor(o) => vendor_el(o),
+        }
+    }
 }
 
 /// Read a top-level business element.
