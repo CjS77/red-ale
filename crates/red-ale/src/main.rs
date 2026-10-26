@@ -108,7 +108,32 @@ struct CallArgs {
     /// Params: one JSON object, or `key=value` (a string) and `key:=json` pairs.
     params: Vec<String>,
     #[command(flatten)]
+    input: InputArgs,
+    #[command(flatten)]
     output: OutputArgs,
+}
+
+#[derive(Debug, Args)]
+struct InputArgs {
+    /// Read this file here, on the caller's side, into the `text` param, as `report.importConfigurations` and
+    /// `report.importStyleSheets` take GnuCash's `saved-reports-2.8` and `stylesheets-2.0`. The server never reads a
+    /// path a caller names.
+    #[arg(long, value_name = "FILE")]
+    file: Option<PathBuf>,
+}
+
+impl InputArgs {
+    /// `params` with the file's text as `text`, when a file is given.
+    fn fill(&self, mut params: Value) -> Result<Value> {
+        let Some(path) = &self.file else { return Ok(params) };
+        let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let object = params.as_object_mut().context("--file needs params as an object")?;
+        if object.contains_key("text") {
+            bail!("--file fills the text param; do not give text as well");
+        }
+        object.insert("text".to_owned(), Value::String(text));
+        Ok(params)
+    }
 }
 
 #[derive(Debug, Args)]
@@ -167,6 +192,8 @@ struct ExecArgs {
     method: Option<String>,
     /// Params: one JSON object, or `key=value` (a string) and `key:=json` pairs.
     params: Vec<String>,
+    #[command(flatten)]
+    input: InputArgs,
     #[command(flatten)]
     output: OutputArgs,
     #[command(flatten)]
@@ -293,7 +320,7 @@ fn shut_down(dispatcher: &Mutex<Dispatcher>) {
 }
 
 fn call(args: &CallArgs) -> Result<Option<RpcError>> {
-    let params = params::parse(&args.params)?;
+    let params = args.input.fill(params::parse(&args.params)?)?;
     let runtime = tokio::runtime::Runtime::new()?;
     let result: Result<Value, jsonrpsee::core::ClientError> = runtime.block_on(async {
         // The server's own limit bounds what it sends (`jsonRpc.maxResponseBytes`), so the client takes any size.
@@ -316,9 +343,12 @@ fn exec(args: &ExecArgs) -> Result<Option<RpcError>> {
     if args.script.is_some() && args.output.output.is_some() {
         bail!("--output writes one method's result; it does not combine with --script");
     }
+    if args.script.is_some() && args.input.file.is_some() {
+        bail!("--file fills one method's text param; it does not combine with --script");
+    }
     let calls = match (&args.script, &args.method) {
         (Some(script), _) => read_script(script)?,
-        (None, Some(method)) => vec![(method.clone(), params::parse(&args.params)?)],
+        (None, Some(method)) => vec![(method.clone(), args.input.fill(params::parse(&args.params)?)?)],
         (None, None) => bail!("give a method or --script"),
     };
     let mut d = Dispatcher::new(args.settings.settings());
