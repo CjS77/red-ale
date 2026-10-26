@@ -134,3 +134,21 @@ fn monetary_plus_wants_one_commodity() {
         "error: monetary_plus expects 1 currency: []",
     ]);
 }
+
+/// A collector method called from another module after this script called it through the module (here `add`,
+/// first through `monetaries_add`, then from lib/balances) still finds what it needs: Rhai reuses the cached method
+/// without lib/collectors' environment, so a closure made inside it would not be found.
+#[test]
+fn methods_work_from_another_module_after_this_one() {
+    let got = run(r#"
+        import "lib/balances" as balances;
+        let current = book.account("Root:Asset:Bank1:Current");
+        let c = collectors::monetaries_add([monetary(usd, 1), monetary(gbp, 2), monetary(usd, 3)]);
+        print(`direct=${show.call(c)}`);
+        let values = balances::account_get_comm_value_at_date(current, 100000000, false);
+        print(`balances=${show.call(values)}`);
+        c.add(gbp, 0); c.add(funds, 0); c.remove_zeros();
+        print(`zeros=${show.call(c)}`);
+    "#);
+    check(&got, &[r#"direct=["GBP:2", "USD:4"]"#, r#"balances=["USD:2609"]"#, r#"zeros=["GBP:2", "USD:4"]"#]);
+}

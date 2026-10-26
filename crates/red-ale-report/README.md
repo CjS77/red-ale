@@ -117,6 +117,9 @@ Conventions a translator needs:
 - **Keyword arguments, transaction types and the account table's environment are maps** with GnuCash's keys
   (`#{ str: "Closing Entries", closing: true }`, `#{ display_tree_depth: 2, depth_limit_behavior: "flatten" }`);
   a missing key, `()` and false read as #f. Symbols are strings.
+- **No closures inside a module's methods.** Rhai caches a method's resolution for the run; called from another
+  module after its own module called it, the method runs without its module's environment, and a closure made in
+  it is "not found" (`anon$…`). lib/collectors' methods loop for this reason (`tests/lib_collectors.rs`).
 - `memo()` makes a `Memo`, a table from integers to values shared by its copies; `case_exchange_time_fn` keeps its
   daily price tables in one.
 
