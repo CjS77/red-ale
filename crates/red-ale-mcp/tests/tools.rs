@@ -106,7 +106,7 @@ fn expected_hints(effect: &str) -> Value {
     }
 }
 
-/// Done-when check for milestone 2: every JSON-RPC method is an MCP tool with the same name and params schema, and
+/// Done-when check for milestones 2 and 3: every JSON-RPC method is an MCP tool with the same name and params schema, and
 /// hints that match its Effect; there are no other tools.
 #[tokio::test]
 async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
@@ -134,6 +134,12 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     assert_eq!(tool("report.saveConfiguration")["annotations"], expected_hints("write"));
     assert_eq!(tool("report.deleteStyleSheet")["annotations"], expected_hints("destructive"));
     assert_eq!(tool("report.export")["annotations"], expected_hints("read"));
+    // The hints milestone 3 names for the methods v0.3 adds.
+    ["import.apply", "importMap.delete"].iter().for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("destructive"), "{name}"));
+    ["import.preview", "export.csvTree", "export.csvTransactions", "export.accounts", "config.get", "config.schema", "price.fetchStatus"]
+        .iter()
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
+    ["config.set", "price.fetchQuotes"].iter().for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
     let schema_tool = tool("api.schema");
     assert_eq!(schema_tool["annotations"], expected_hints("read"));
     assert_eq!(schema_tool["inputSchema"]["type"], "object");
