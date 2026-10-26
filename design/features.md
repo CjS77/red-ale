@@ -228,11 +228,11 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 
 | Status | Name                        | Short description                              | Introduced | Ported |
 |:------:|-----------------------------|------------------------------------------------|:----------:|:------:|
-|        | Report framework            | Reports with options, run over the book's data |   ≤ 1.4    |        |
-|        | Style sheets                | Named styles that control report layout        |    1.6     |        |
-|        | Saved report configurations | Stores a report with its options for reuse     |   1.8.10   |        |
+|   ✅   | Report framework            | Reports with options, run over the book's data |   ≤ 1.4    |  0.2   |
+|   ✅   | Style sheets                | Named styles that control report layout        |    1.6     |  0.2   |
+|   ✅   | Saved report configurations | Stores a report with its options for reuse     |   1.8.10   |  0.2   |
 |        | Multicolumn reports         | Combines several reports on one page           |    1.6     |        |
-|        | HTML export                 | Saves a report as HTML                         |    1.6     |        |
+|   ✅   | HTML export                 | Saves a report as HTML                         |    1.6     |  0.2   |
 |        | PDF export                  | Saves a report as PDF                          |    2.6     |        |
 |        | Interactive charts          | Charts drawn with Chart.js                     |    4.0     |        |
 

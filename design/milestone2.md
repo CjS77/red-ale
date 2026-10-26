@@ -195,10 +195,10 @@ Only reports introduced in GnuCash 1.6.0 or earlier whose features are ported. A
 
 | Status | Feature                     | Introduced | Epic | Notes                                                                                                                            |
 |:------:|-----------------------------|:----------:|------|----------------------------------------------------------------------------------------------------------------------------------|
-|        | Report framework            |   ≤ 1.4    |      | Templates with options, listed and run through the API                                                                           |
-|        | Style sheets                |    1.6     |      | 5.17's Plain, CSS, Easy, Fancy, Footer and Head or Tail, in red-ale's own clean, professional look. No logo or background images |
-|        | Saved report configurations |   1.8.10   |      | Kept in red-ale's Configuration                                                                                                  |
-|        | HTML export                 |    1.6     |      | Rendered from the report result through a style sheet; charts as inline SVG                                                      |
+|   ✅   | Report framework            |   ≤ 1.4    |      | Templates with options, listed and run through the API                                                                           |
+|   ✅   | Style sheets                |    1.6     |      | 5.17's Plain, CSS, Easy, Fancy, Footer and Head or Tail, in red-ale's own clean, professional look. No logo or background images |
+|   ✅   | Saved report configurations |   1.8.10   |      | Kept in red-ale's Configuration                                                                                                  |
+|   ✅   | HTML export                 |    1.6     |      | Rendered from the report result through a style sheet; charts as inline SVG                                                      |
 
 Report styling is red-ale's own: clean and professional, without copying GnuCash's markup. The figures are what must
 match.
