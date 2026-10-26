@@ -429,11 +429,11 @@ fn shape(b: &mut Book) -> Vec<Value> {
                     json!({ "account": account, "value": s["value"], "memo": s["memo"] })
                 })
                 .collect();
-            splits.sort_by_key(|s| s.to_string());
+            splits.sort_by_key(ToString::to_string);
             json!({ "date": full["datePosted"], "num": full["num"], "description": full["description"], "splits": splits })
         })
         .collect();
-    out.sort_by_key(|t| t.to_string());
+    out.sort_by_key(ToString::to_string);
     out
 }
 
