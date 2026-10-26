@@ -1,0 +1,101 @@
+[package]
+name = "red-ale-fuzz"
+description = "Fuzz targets for red-ale's parsers (design/testing.md, \"Fuzzing\"); never shipped"
+version = "0.0.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+red-ale-core = { path = "../crates/red-ale-core" }
+red-ale-import = { path = "../crates/red-ale-import" }
+red-ale-locale = { path = "../crates/red-ale-locale" }
+red-ale-quotes = { path = "../crates/red-ale-quotes" }
+red-ale-report = { path = "../crates/red-ale-report" }
+red-ale-xml = { path = "../crates/red-ale-xml" }
+serde_json = "1.0"
+
+# Not a member of red-ale's workspace: it builds with nightly and libFuzzer, which the workspace never needs.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "csv_tokenize"
+path = "fuzz_targets/csv_tokenize.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "csv_transactions"
+path = "fuzz_targets/csv_transactions.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "csv_cells"
+path = "fuzz_targets/csv_cells.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "csv_accounts"
+path = "fuzz_targets/csv_accounts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "csv_prices"
+path = "fuzz_targets/csv_prices.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "qif"
+path = "fuzz_targets/qif.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "business"
+path = "fuzz_targets/business.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "saved_reports"
+path = "fuzz_targets/saved_reports.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "quotes"
+path = "fuzz_targets/quotes.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "locale_date"
+path = "fuzz_targets/locale_date.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xml"
+path = "fuzz_targets/xml.rs"
+test = false
+doc = false
+bench = false

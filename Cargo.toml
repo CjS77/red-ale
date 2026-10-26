@@ -13,6 +13,8 @@ members = [
     "crates/red-ale-testkit",
     "crates/red-ale-xml",
 ]
+# Fuzz targets build with nightly and libFuzzer, outside the workspace (design/testing.md, "Fuzzing").
+exclude = ["fuzz"]
 resolver = "3"
 
 [workspace.package]
