@@ -1026,6 +1026,7 @@ dependencies = [
  "chrono",
  "indexmap",
  "jiff",
+ "num-bigint",
  "regex",
  "thiserror",
 ]

@@ -186,6 +186,13 @@ Code names are given in `code font` when they differ from the term.
 | **Open item** | An Owner's open document Lot or Payment lot in an A/R or A/P Account: what a payment can be applied to, as GnuCash's payment dialog lists it. |
 | **Transfer split** | A payment's Split in the Account the money moves through: any asset, liability or equity type but A/R and A/P. |
 
+## Scheduled transactions
+
+| Term | Meaning |
+|------|---------|
+| **Formula** | A template split's credit or debit amount as text, in GnuCash's expression grammar: exact arithmetic on numbers in the locale's format, Variables, assignments and calls to the financial functions of `fin.scm` (`pmt`, `ipmt`, `ppmt` and others), which red-ale computes exactly. **⚠** Not a spreadsheet formula: GnuCash's code calls it an *expression*. |
+| **Variable** | A name in a Formula that takes a Numeric value: bound by the caller (`i`, the instance number, and any the user supplies) or assigned within the Formula. Reading one with no value is an error in red-ale, where GnuCash takes it as 0. |
+
 ## Import and export
 
 See [`api/import.md`](api/import.md) and [`api/export.md`](api/export.md).

@@ -1779,6 +1779,7 @@ dependencies = [
  "chrono",
  "indexmap",
  "jiff",
+ "num-bigint",
  "proptest",
  "regex",
  "thiserror 2.0.21",

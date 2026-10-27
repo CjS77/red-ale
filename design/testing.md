@@ -35,6 +35,7 @@ outside the workspace that builds with nightly and libFuzzer (`libfuzzer-sys`):
 | `csv_prices`       | CSV price import: parse, file errors and proposal                           |
 | `qif`              | QIF reader, field parsers and date re-parsing                               |
 | `business`         | Invoice, bill, customer and vendor CSV; GnuCash's expression parser; dates  |
+| `formula`          | Formulas with variables and financial functions; their free variables       |
 | `saved_reports`    | The s-expression reader of saved report configurations and style sheets     |
 | `quotes`           | Quote service answers in every response format                              |
 | `locale_date`      | The locale date parser                                                       |
