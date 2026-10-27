@@ -1,8 +1,8 @@
 {
   "schema": 2,
-  "version": 0,
+  "version": 5,
   "next_ticket_seq": 1,
-  "next_epic_seq": 1,
+  "next_epic_seq": 6,
   "columns": [
     {
       "id": "todo",
@@ -21,6 +21,42 @@
       "title": "Done"
     }
   ],
-  "epics": [],
+  "epics": [
+    {
+      "id": "EP-1",
+      "title": "v0.4 Scheduled transactions",
+      "color": "#7c9cf5",
+      "status": "review",
+      "body": "Create, edit and run GnuCash scheduled transactions, today kept only as Residue. Parity with GnuCash 5.17's SchedXaction engine, Recurrence.cpp, gnc-exp-parser formulas, the Since Last Run instance model (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c`), Schedule from transaction (`dialog-sx-from-trans.cpp`) and the loan assistant (`assistant-loan.cpp`). Design: `design/milestone4.md` \"Scheduled transactions\"; research: `design/notes/engine-scheduled-transactions.md`; API: `design/api/scheduled-transactions.md`.\n\nWork (on branch `milestone-4`, one worktree branch per item):\n- [ ] Formulas with variables and exact financial functions in core\n- [ ] Scheduled transactions and template transactions in the core model and XML Backend\n- [ ] Recurrence arithmetic ported from Recurrence.cpp; next instance\n- [ ] Instance model: due instances, amounts, creating transactions, advancing schedules\n- [ ] `scheduledTransaction.*` CRUD and occurrences\n- [ ] Since Last Run: proposal, apply, discard\n- [ ] fromTransaction and loan"
+    },
+    {
+      "id": "EP-2",
+      "title": "v0.4 Budgets",
+      "color": "#5cb8a7",
+      "status": "review",
+      "body": "Create and edit GnuCash budgets (amounts and notes per account and period), estimate them from history and handle natural signs, matching GnuCash 5.17 (`5.17:libgnucash/engine/gnc-budget.cpp`, `ScrubBudget.c`, the estimate dialog in `gnc-plugin-page-budget.cpp:955-1092`). Today budgets are Residue: kept byte for byte but not editable. Design: `design/milestone4.md` \"Budgets\"; research: `design/notes/engine-budgets.md`; API: `design/api/budgets.md`.\n\nWork:\n- [ ] Budgets and recurrences in the core model and XML Backend\n- [ ] Budget operations: create, update, copy, delete, amounts, notes, natural signs, periods, actuals\n- [ ] Estimate from history\n- [ ] `budget.*` methods"
+    },
+    {
+      "id": "EP-3",
+      "title": "v0.4 Budget and forecast reports",
+      "color": "#d4a45c",
+      "status": "review",
+      "body": "Translate GnuCash 5.17's budget and forecast reports into Rhai on the v0.2 report engine: Budget Report, Budget Balance Sheet, Budget Income Statement (and Budget Profit & Loss), Budget Flow, Budget Chart, the Future Scheduled Transactions Summary and Balance Forecast. Sources and GUIDs: `design/milestone4.md` \"Reports\"; library gaps: `design/notes/engine-budgets.md` §4.11. Expected results from `test-budget.scm` and hand-worked cases (no Guile).\n\nWork:\n- [ ] Report library: budget reads, SX cash flow, acct-table report_budget/get_balance_fn, make_date_interval_list, budget/complex-boolean/callback options\n- [ ] Budget Report\n- [ ] Budget Balance Sheet, Budget Income Statement, Budget P&L\n- [ ] Budget Flow, Budget Chart\n- [ ] Future Scheduled Transactions Summary, Balance Forecast"
+    },
+    {
+      "id": "EP-4",
+      "title": "v0.4 SQLite books",
+      "color": "#c98bc9",
+      "status": "review",
+      "body": "Open, edit and save SQLite GnuCash books without loss, with GnuCash's `gnclock` lock, `.log` journal and ISO-dates Book feature; SQL books are refused outright today. Stricter than GnuCash: opening never writes, schemas are never upgraded, saves are one checked SQL transaction at `book.save`. Design: `design/milestone4.md` \"SQLite books\", `design/sql-fidelity.md`; research: `design/notes/sql-backend.md`.\n\nWork:\n- [ ] Backend seam in red-ale-service, XML behind it, no byte changes\n- [ ] red-ale-sql: schema, versions check, reading every modelled table (read-only open)\n- [ ] Lock, writing and the checked save\n- [ ] Journal, backups, book.create format, oracle-built SQLite fixtures, round-trip and oracle tests"
+    },
+    {
+      "id": "EP-5",
+      "title": "v0.4 Interfaces and audit",
+      "color": "#e08787",
+      "status": "review",
+      "body": "Make every v0.4 feature reachable through JSON-RPC, MCP and the CLI, publish `redAleApi` 0.4.0 additive over 0.3.0, and audit the milestone's \"Done when\" list with evidence, as v0.3 did.\n\nWork:\n- [x] Mutation walk (v0.3 follow-up)\n- [x] Loopback guard for quote tests (v0.3 follow-up)\n- [ ] Commit the 0.3.0 schema; api_additive against it\n- [ ] MCP hints for the new methods; CLI coverage\n- [ ] features.md Ported 0.4, roadmap, changelog\n- [ ] Done-when evidence"
+    }
+  ],
   "tickets": []
 }
