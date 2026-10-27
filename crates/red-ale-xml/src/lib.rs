@@ -13,6 +13,7 @@ pub mod error;
 pub mod export;
 mod input;
 pub mod read;
+pub mod scheduled;
 pub mod values;
 
 pub use error::XmlError;

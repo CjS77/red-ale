@@ -10,7 +10,7 @@ use red_ale_core::ops::commit;
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
 use red_ale_xml::XmlResidue;
 
-use crate::backend::{self, Access, Backend, Format, Opened, Reference, SaveOptions};
+use crate::backend::{self, Access, Backend, Format, Opened, SaveOptions};
 use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files};
 use crate::import::ProposalStore;
@@ -282,12 +282,6 @@ impl Session {
         self.backend.compressed()
     }
 
-    /// Names of the Residue's sections that refer to `to`: content red-ale keeps but does not model, which deleting
-    /// or renaming `to` would leave dangling.
-    pub fn references(&self, to: Reference<'_>) -> Vec<String> {
-        self.backend.references(to)
-    }
-
     /// Why the session is read-only; empty when it is writable.
     pub fn read_only_reasons(&self) -> &[ReadOnlyReason] {
         &self.read_only
@@ -539,10 +533,6 @@ mod tests {
                 backup: None,
                 compressed: None,
             })
-        }
-
-        fn references(&self, _: Reference<'_>) -> Vec<String> {
-            Vec::new()
         }
 
         fn compressed(&self) -> Option<bool> {

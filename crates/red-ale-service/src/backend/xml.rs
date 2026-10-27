@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use red_ale_core::{Book, Env};
 use red_ale_xml::{ReadBack, XmlResidue, read_back, read_book_from, write_book_to};
 
-use super::{Access, Backend, Format, Opened, ReadOnlyRule, Reference, SaveOptions, Saved};
+use super::{Access, Backend, Format, Opened, ReadOnlyRule, SaveOptions, Saved};
 use crate::error::ServiceError;
 use crate::files::replace_book_file;
 use crate::lock::BookLock;
@@ -151,13 +151,6 @@ impl Backend for XmlBackend {
             backup,
             compressed: Some(compressed),
         })
-    }
-
-    fn references(&self, to: Reference<'_>) -> Vec<String> {
-        match to {
-            Reference::Guid(guid) => self.residue.sections_mentioning(&guid.to_string()),
-            Reference::Commodity(commodity) => self.residue.sections_referring_to(commodity),
-        }
     }
 
     fn compressed(&self) -> Option<bool> {

@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use red_ale_core::{Book, CommodityRef, Env, Guid};
+use red_ale_core::{Book, Env};
 use red_ale_xml::XmlResidue;
 
 use crate::error::ServiceError;
@@ -92,14 +92,6 @@ fn sql_book(path: &Path) -> ServiceError {
     }
 }
 
-/// Something a Residue may refer to, for refusing deletions and renames that would leave the reference dangling.
-#[derive(Debug, Clone, Copy)]
-pub enum Reference<'a> {
-    /// An entity, by GUID.
-    Guid(Guid),
-    /// A commodity, by namespace and mnemonic.
-    Commodity(&'a CommodityRef),
-}
 
 /// What a save may change about the file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -143,9 +135,6 @@ pub trait Backend: fmt::Debug + Send {
     /// Save `book`, given `saved`, the Book as read or last saved. Writes nothing unless what it wrote reads back as
     /// `book`.
     fn save(&mut self, saved: &Book, book: &Book, options: &SaveOptions, env: &mut dyn Env) -> Result<Saved, ServiceError>;
-
-    /// Names of Residue sections that refer to `to`.
-    fn references(&self, to: Reference<'_>) -> Vec<String>;
 
     /// XML only: whether the file is gzipped.
     fn compressed(&self) -> Option<bool>;

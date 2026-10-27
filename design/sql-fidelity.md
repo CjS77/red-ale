@@ -168,12 +168,6 @@ pub fn open(path: &Path, format: Format, access: Access, rule: ReadOnlyRule<'_>)
 /// Create a new, empty book and open it for writing.
 pub fn create(path: &Path, format: Format, settings: &Settings, env: &mut dyn Env) -> Result<Opened, ServiceError>;
 
-/// A reference out-of-scope Residue may hold, for refusing deletions that would leave it dangling.
-pub enum Reference<'a> {
-    Guid(Guid),
-    Commodity(&'a CommodityRef),
-}
-
 /// What a save may change about the file.
 pub struct SaveOptions {
     /// XML only: write gzipped or plain. `Some` on an SQLite book is `invalid-params`.
@@ -215,7 +209,6 @@ pub trait Backend: fmt::Debug + Send {
     fn save(&mut self, saved: &Book, book: &Book, options: &SaveOptions, env: &mut dyn Env) -> Result<Saved, ServiceError>;
 
     /// Names of Residue sections that refer to `to`. Empty for SQLite: unknown content opens read-only.
-    fn references(&self, to: Reference<'_>) -> Vec<String>;
 
     /// XML only: whether the file is gzipped (`book.info`).
     fn compressed(&self) -> Option<bool>;
@@ -237,7 +230,7 @@ Backend holds the lock". With the SQLite Backend, `ReadOnlyReason` gains `Schema
 `schema-version`. A Book `prepare_save` returns replaces the Session's Book only once the save succeeds, and does not
 move the revision: it is not a Mutation and touches nothing an Import proposal reads.
 
-`Session::residue()` is gone; callers use `Session::references(Reference)` (deletion and rename checks),
+`Session::residue()` is gone (deletion and rename checks now read the model: budgets and scheduled transactions are in the Book); callers use
 `compressed() -> Option<bool>` (`book.info`), `xml_residue() -> Option<&XmlResidue>` (Export Accounts) and
 `format()`. `SaveReport::compressed` is `Option<bool>`; the wire still says `false` for `None` until the SQLite
 ticket decides `book.info` and `book.save`'s results.

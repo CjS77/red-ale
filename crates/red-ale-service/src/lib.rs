@@ -17,6 +17,6 @@ pub mod reports;
 pub mod session;
 pub mod zone;
 
-pub use backend::{Format, Reference};
+pub use backend::Format;
 pub use error::ServiceError;
 pub use session::{ReadOnlyReason, SaveReport, Session, Settings};

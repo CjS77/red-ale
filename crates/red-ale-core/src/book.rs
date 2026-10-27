@@ -6,6 +6,7 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 
 use crate::business::Business;
+use crate::scheduled::{ScheduledTransaction, Templates};
 use crate::{Account, Budget, Commodity, CommodityRef, Frame, Guid, Lot, Price, Time64, TimeZone, Transaction};
 
 /// Supplies what domain operations need from the outside world: the time, the local time zone and fresh GUIDs. The
@@ -96,6 +97,10 @@ pub struct Book {
     /// Budgets. GnuCash writes them in an order that changes from save to save
     /// (`design/notes/xml-format-core.md` §7.6), so the order read is kept.
     pub budgets: IndexMap<Guid, Arc<Budget>>,
+    /// The template accounts and template transactions of scheduled transactions, apart from the Account tree.
+    pub templates: Templates,
+    /// Scheduled transactions, in read order.
+    pub scheduled: IndexMap<Guid, Arc<ScheduledTransaction>>,
 }
 
 impl Book {
@@ -115,6 +120,8 @@ impl Book {
             lots: IndexMap::new(),
             business: Business::default(),
             budgets: IndexMap::new(),
+            templates: Templates::default(),
+            scheduled: IndexMap::new(),
         }
     }
 

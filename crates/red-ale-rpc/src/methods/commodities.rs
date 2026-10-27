@@ -5,7 +5,7 @@ use red_ale_core::currencies::{IsoCurrency, QuoteSourceType, euro_rate, iso_curr
 use red_ale_core::ops::commodities::{
     self as ops, CommodityChanges, NewSecurity, Usage, effective_quote, is_iso_namespace, slot_paths, usage_table,
 };
-use red_ale_core::{Book, Commodity, CommodityRef, DomainError};
+use red_ale_core::{Book, Commodity, CommodityRef};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -330,11 +330,6 @@ pub struct UpdateParams {
 
 fn update(ctx: &mut Context, p: UpdateParams) -> Result<CommodityInfo, RpcError> {
     let current = ops::require(ctx.book()?, &p.commodity.0)?;
-    let renames = p.namespace.as_deref().is_some_and(|n| n.trim() != current.namespace)
-        || p.mnemonic.as_deref().is_some_and(|m| m.trim() != current.mnemonic);
-    if renames && !current.is_currency() {
-        refuse_if_residue_mentions(ctx, &current, "renamed")?;
-    }
     let changes = CommodityChanges {
         namespace: p.namespace,
         mnemonic: p.mnemonic,
@@ -348,17 +343,6 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<CommodityInfo, RpcError>
     };
     let id = ctx.mutate(|book, _| ops::update_commodity(book, &current, &changes))?;
     describe_one(ctx.book()?, &id)
-}
-
-/// Template and scheduled transactions are kept as read, not modelled; a commodity they mention must not be renamed
-/// or deleted under them. Budgets name no commodity.
-fn refuse_if_residue_mentions(ctx: &mut Context, id: &CommodityRef, what: &str) -> Result<(), RpcError> {
-    let sections = ctx.session()?.references(red_ale_service::Reference::Commodity(id));
-    if sections.is_empty() {
-        Ok(())
-    } else {
-        Err(DomainError::conflict(format!("{id} is referred to by {}; it cannot be {what}", sections.join(", "))).into())
-    }
 }
 
 /// Params of `commodity.delete`.
@@ -382,9 +366,6 @@ pub struct DeleteResult {
 
 fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
     let id = ops::canonical(&p.commodity.0);
-    if !id.is_currency() && ctx.book()?.commodity(&id).is_some() {
-        refuse_if_residue_mentions(ctx, &id, "deleted")?;
-    }
     let deleted = ctx.mutate(|book, _| ops::delete_commodity(book, &id, p.delete_prices))?;
     Ok(DeleteResult {
         deleted_prices: deleted.into_iter().map(Id).collect(),

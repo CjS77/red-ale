@@ -96,10 +96,9 @@ Namespace, mnemonic, full name, exchange code and time zone are trimmed, because
   an account uses the currency) is remembered as `auto_quote_control = "false"`, a matching one removes the slot.
   Turning quotes off clears the time zone, as the editor does (`dialog-commodity.cpp:1263-1264`).
 - **A security** accepts every field, as the editor does. Changing `namespace` or `mnemonic` renames it: every
-  account, transaction and price that names it is changed with it (GnuCash's entities hold the commodity object, so a
-  rename reaches them all). A rename is `conflict` if the new name exists, if a customer, vendor, employee or invoice
-  has it as currency, or if template transactions, scheduled transactions or budgets (kept as read, not modelled)
-  refer to it.
+  account, transaction and price that names it is changed with it, template accounts and template transactions
+  included (GnuCash's entities hold the commodity object, so a rename reaches them all). A rename is `conflict` if the
+  new name exists, or if a customer, vendor, employee or invoice has it as currency.
 - **Fraction.** GnuCash lets the fraction of a commodity in use change, with no check
   (`5.17:libgnucash/engine/gnc-commodity.cpp:1219`). Stored amounts keep their denominators.
 - **User symbol**: empty, or equal to a currency's built-in symbol, removes the slot (`gnc_commodity_set_user_symbol`,
@@ -119,7 +118,7 @@ with it (`5.17:gnucash/gnome/dialog-commodities.cpp:160-246`). red-ale refuses:
 - a currency or the template commodity (`invalid`; the dialog disables removal, `:345`);
 - a commodity any account, transaction (as currency) or business object uses (`conflict`);
 - a commodity with prices on either side unless `deletePrices` is true (`conflict`); with it, those prices go too;
-- a commodity template transactions, scheduled transactions or budgets refer to (`conflict`).
+- a commodity a template account or template transaction uses (`conflict`).
 
 ## Display symbol
 
@@ -154,7 +153,7 @@ and the 21 currencies with a fixed rate in `5.17:libgnucash/engine/gnc-euro.cpp:
 |------|--------------|---------|-----|
 | Deleting a commodity in use as a transaction currency, by a business object, or with prices | Allowed; prices where it is the currency are left dangling (`dialog-commodities.cpp:183`, FIXME) | Refused; prices only with `deletePrices` | A dangling reference breaks the book |
 | Namespace `GNC_LEGACY_CURRENCIES` or containing `::` for a new security | Allowed | Refused | The first is a currency namespace to GnuCash (`gnc-commodity.cpp:1953`); `::` would make `NAMESPACE::MNEMONIC` ambiguous |
-| A price-less commodity with no account but used by template transactions | Deletable | Refused | Template transactions are kept as read and would point at nothing |
+| A price-less commodity with no account but used by template transactions | Deletable | Refused | The template transactions would point at nothing |
 | Converting with a currency that has no euro rate | Returns 0 | `invalid` | A zero is a silent wrong answer |
 | Quote source or time zone of a commodity without quotes | Kept in memory until the book is closed | Dropped | GnuCash does not write them (`gnc-commodity-xml-v2.cpp:97-108`), so they would not survive a save anyway |
 | Accounts of a commodity whose fraction changes | Keep the old SCU stored; after a reload they become non-standard at the old SCU (`Account.cpp:2710-2722`) | Accounts that followed the commodity's fraction store the new one | The book reads back as GnuCash showed it before the reload |

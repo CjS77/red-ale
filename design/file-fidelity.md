@@ -35,8 +35,8 @@ oracle's: GnuCash 5.17 must read red-ale's output and find the same data it find
 The Backend returns, beside the `Book`, an `XmlResidue` the Session carries untouched and hands back on save. It holds:
 
 - **Layout:** every part of `gnc:book` in the order it was read: book id and slots, each commodity, the price
-  database, each account, each transaction, out-of-scope sections, each business object. Unknown parts are kept as
-  DOM in their place.
+  database, each account, each transaction, the template transactions, each scheduled transaction, each budget, each
+  business object. Unknown parts are kept as DOM in their place.
 - **The Book as read:** an `Arc` clone of the Book read (or, after a save, of the Book saved), so this costs one
   pointer per entity.
 - **Originals:** the text of each entity whose generated form differs from the element it was read from, and nothing
@@ -44,8 +44,11 @@ The Backend returns, beside the `Book`, an `XmlResidue` the Session carries unto
   lot is read, since an account is written with its lots. A book GnuCash 5.17 wrote keeps no originals at all.
 - **Unknown children:** child elements of a known entity that the mapping did not consume, with the name of the known
   sibling they followed.
-- **Out-of-scope sections**, kept as DOM: `gnc:template-transactions`, `gnc:schedxaction`, and any business object
-  type v0.1 does not model. Budgets are in the core model since v0.4, read and generated like the other entities.
+- Nothing out of scope since v0.4: budgets, scheduled transactions and the template accounts and template
+  transactions of `gnc:template-transactions` are in the core model, read and generated like the other entities. The
+  template block is written only when the template root has descendants, as GnuCash writes it
+  (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1179-1199`). A legacy `sx:freqspec` opens the book read-only and keeps
+  its scheduled transaction's original text ([`notes/xml-format-core.md`](notes/xml-format-core.md) §8.5).
 - **Compression:** whether the file was gzipped.
 
 ## Writing
@@ -64,7 +67,7 @@ The writer walks the layout:
   transactions, scheduled transactions, budgets, then business objects in plugin registry order).
 - Commodities are kept sorted by namespace then mnemonic, GnuCash's own write order
   (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1037`).
-- `gnc:count-data` lines are recomputed with GnuCash's rules, from the Book and the out-of-scope sections.
+- `gnc:count-data` lines are recomputed with GnuCash's rules, from the Book.
 
 An account's lots are written inside the account (`act:lots`), so an account counts as changed when it or any of its
 lots changed.
@@ -74,13 +77,12 @@ lots changed.
 Writing unchanged entities from their originals hides generator bugs, so a second test path forces **every** entity
 to be generated from the model and requires the same bytes for every GnuCash 5.17 fixture. Both paths must pass.
 
-## References to out-of-scope data
+## References from schedules and budgets
 
-Scheduled transactions refer to accounts by GUID, through their template transactions. Deleting an account those
-sections mention would leave GnuCash with dangling references, so `account.delete` refuses to delete an account (or a
-sub-account it would delete with it) whose GUID appears in out-of-scope Residue, and `commodity.update` and
-`commodity.delete` refuse a commodity the Residue refers to; each says which section holds it. Budgets are not
-Residue: the core refuses to delete an account a Budget holds amounts or notes for, and names the Budget.
+Scheduled transactions refer to accounts by GUID, through the `sched-xaction/account` slot of their template splits,
+and budgets through their Slots' keys. GnuCash deletes such an account and leaves the references dangling; the core
+refuses to delete it (or a sub-account it would delete with it) and names the scheduled transactions and budgets. A
+commodity renamed is renamed in template accounts and template transactions too; one they use is not deleted.
 
 ## Compression
 
