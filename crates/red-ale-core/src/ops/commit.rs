@@ -261,11 +261,10 @@ pub fn commit_changed(before: &Book, after: &mut Book, env: &mut dyn Env) -> Dom
     if !uses_trading_accounts(after) {
         return Ok(());
     }
-    let changed: Vec<Guid> = after
-        .transactions
+    let changed: Vec<Guid> = crate::diff::changes(&before.transactions, &after.transactions)
         .iter()
-        .filter(|(g, t)| before.transactions.get(*g).is_none_or(|o| !Arc::ptr_eq(o, t) && o != *t))
-        .map(|(g, _)| *g)
+        .filter_map(crate::diff::Change::after)
+        .map(|t| t.guid)
         .collect();
     changed.into_iter().try_for_each(|guid| {
         let Some(mut t) = after.transaction(guid).cloned() else {

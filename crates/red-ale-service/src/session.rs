@@ -4,10 +4,10 @@ use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, features};
+use red_ale_core::diff::{Change, changes};
 use red_ale_core::ops::commit;
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
 use red_ale_xml::{ReadBack, XmlResidue, read_back, read_book_from, write_book_to};
@@ -386,7 +386,7 @@ impl Session {
             let changes = transaction_changes(&self.book, &next);
             changes
                 .iter()
-                .filter_map(TxnChange::after)
+                .filter_map(Change::after)
                 .try_for_each(|t| check_transaction(&next, t))?;
             journal_records(&self.book, &next, &changes, self.env.now())
         };
@@ -485,20 +485,7 @@ impl Session {
 }
 
 /// How a transaction differs between two books.
-enum TxnChange<'a> {
-    Added(&'a Transaction),
-    Changed(&'a Transaction, &'a Transaction),
-    Removed(&'a Transaction),
-}
-
-impl<'a> TxnChange<'a> {
-    fn after(&self) -> Option<&'a Transaction> {
-        match self {
-            Self::Added(t) | Self::Changed(_, t) => Some(t),
-            Self::Removed(_) => None,
-        }
-    }
-}
+type TxnChange<'a> = Change<'a, Transaction>;
 
 /// The journal records for a set of changes: `B` then `C` for an addition or edit, `B` then `D` for a deletion.
 fn journal_records(old: &Book, new: &Book, changes: &[TxnChange<'_>], now: Time64) -> Vec<Vec<String>> {
@@ -519,17 +506,7 @@ fn journal_records(old: &Book, new: &Book, changes: &[TxnChange<'_>], now: Time6
 }
 
 fn transaction_changes<'a>(old: &'a Book, new: &'a Book) -> Vec<TxnChange<'a>> {
-    let changed = new.transactions.values().filter_map(|t| match old.transactions.get(&t.guid) {
-        None => Some(TxnChange::Added(t)),
-        Some(o) if !Arc::ptr_eq(o, t) && **o != **t => Some(TxnChange::Changed(o, t)),
-        Some(_) => None,
-    });
-    let removed = old
-        .transactions
-        .values()
-        .filter(|t| !new.transactions.contains_key(&t.guid))
-        .map(|t| TxnChange::Removed(t));
-    changed.chain(removed).collect()
+    changes(&old.transactions, &new.transactions)
 }
 
 /// The invariants every changed transaction must meet.
