@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use red_ale_core::{Book, FixedEnv, Guid, Time64};
+use red_ale_core::{Book, FixedEnv, Guid, Time64, TimeZone};
 use rhai::{AST, Array, CallFnOptions, Dynamic, Engine, Map, Scope};
 use serde::Serialize;
 use serde_json::Value;
@@ -197,7 +197,7 @@ impl Registry {
 
     /// Compile `name` and read its `templates()`. A script without one is a module other scripts import.
     fn templates_of(&self, name: &str) -> Declared {
-        let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0));
+        let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0), TimeZone::utc());
         let log = Log::new(self.limits.get_usize(Limit::StringSize));
         let conventions = red_ale_locale::Locale::c().conventions();
         let setup = Setup {

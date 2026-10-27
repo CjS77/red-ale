@@ -315,14 +315,13 @@ fn pre_closing_balances_leave_closing_entries_out() {
     check(&got, &["account 0 0 Expenses $264.00", "account 0 0 Expenses $375.00"]);
 }
 
-/// What GnuCash cannot do is refused: no depth limit without "flatten" (`(< logi-depth #f)`), `account-less-p` #t
-/// (an undefined function) and budgets.
+/// What GnuCash cannot do is refused: no depth limit without "flatten" (`(< logi-depth #f)`) and `account-less-p` #t
+/// (an undefined function).
 #[test]
 fn refusals() {
     let cases = [
         ("#{}", "display_tree_depth must be an integer"),
         ("#{ display_tree_depth: 2, account_less_p: true }", "gnc:account-code-less-p"),
-        ("#{ display_tree_depth: 2, report_budget: 1 }", "report_budget"),
     ];
     cases.iter().for_each(|(env, want)| {
         let body = format!("{PRELUDE}\nhat::make_html_acct_table_env_accts(book, ctx, env_with.call({env}), assets);");

@@ -160,6 +160,42 @@ fn date_lists() {
     );
 }
 
+/// gnc:make-date-interval-list (DU:323-349): each interval ends a second before the next starts and the last at the
+/// end date; months count from the start; an empty range has no intervals, where make-date-list gives one date.
+#[test]
+fn date_interval_lists() {
+    let got = run(
+        &Host::new(empty_book()),
+        r"
+        let ivs = |xs| xs.map(|p| `${ctx.print_time_iso(p[0])}..${ctx.print_time_iso(p[1])}`);
+        print(`months=${ivs.call(dates::make_date_interval_list(ctx, t.call(2024, 1, 31), t.call(2024, 5, 15), dates::MonthDelta))}`);
+        print(`weeks=${ivs.call(dates::make_date_interval_list(ctx, t.call(2024, 3, 1), t.call(2024, 3, 20), dates::WeekDelta))}`);
+        print(`exact=${ivs.call(dates::make_date_interval_list(ctx, t.call(2024, 3, 1), t.call(2024, 3, 15), dates::WeekDelta))}`);
+        print(`swapped=${ivs.call(dates::make_date_interval_list(ctx, t.call(2024, 3, 3), t.call(2024, 3, 1), dates::DayDelta))}`);
+        print(`same=${ivs.call(dates::make_date_interval_list(ctx, t.call(2024, 3, 1), t.call(2024, 3, 1), dates::DayDelta))}`);
+        let from = dates::time64_start_day_time(ctx, t.call(2024, 3, 1));
+        let to = dates::time64_end_day_time(ctx, t.call(2024, 3, 3));
+        print(`days=${ivs.call(dates::make_date_interval_list(ctx, from, to, dates::DayDelta))}`);
+    ",
+    );
+    check(
+        &got,
+        &[
+            "months=[\"2024-01-31 10:59:00..2024-02-29 10:58:59\", \"2024-02-29 10:59:00..2024-03-31 10:58:59\", \
+         \"2024-03-31 10:59:00..2024-04-30 10:58:59\", \"2024-04-30 10:59:00..2024-05-15 10:59:00\"]",
+            "weeks=[\"2024-03-01 10:59:00..2024-03-08 10:58:59\", \"2024-03-08 10:59:00..2024-03-15 10:58:59\", \
+         \"2024-03-15 10:59:00..2024-03-20 10:59:00\"]",
+            "exact=[\"2024-03-01 10:59:00..2024-03-08 10:58:59\", \"2024-03-08 10:59:00..2024-03-15 10:59:00\"]",
+            "swapped=[\"2024-03-01 10:59:00..2024-03-02 10:58:59\", \"2024-03-02 10:59:00..2024-03-03 10:59:00\"]",
+            "same=[]",
+            // The Balance Forecast's daily intervals, from the start of the first day to the end of the last
+            // (`standard/balance-forecast.scm:143-146`).
+            "days=[\"2024-03-01 00:00:00..2024-03-01 23:59:59\", \"2024-03-02 00:00:00..2024-03-02 23:59:59\", \
+         \"2024-03-03 00:00:00..2024-03-03 23:59:59\"]",
+        ],
+    );
+}
+
 /// The day boundaries and fractions are local: in UTC+14, 2024-03-15 12:00 UTC is 02:00 on 16 March.
 #[test]
 fn local_days_follow_the_zone() {

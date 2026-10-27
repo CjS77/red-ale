@@ -212,6 +212,9 @@ pub enum OptionKind {
     Currency,
     /// Any commodity.
     Commodity,
+    /// A budget (`gnc-register-budget-option`, a `GncOptionQofInstanceValue` with the budget UI type,
+    /// `5.17:libgnucash/engine/gnc-optiondb.cpp:657-665`).
+    Budget,
     /// An option scripts keep for themselves, never shown in GnuCash's dialog: a string or a boolean.
     Internal,
 }
@@ -234,6 +237,7 @@ impl OptionKind {
             Self::AccountSel { .. } => "accountSel",
             Self::Currency => "currency",
             Self::Commodity => "commodity",
+            Self::Budget => "budget",
             Self::Internal => "internal",
         }
     }
@@ -270,6 +274,8 @@ pub enum OptionValue {
     Account(Option<Guid>),
     /// Currency or commodity.
     Commodity(CommodityRef),
+    /// A budget's GUID; `None` when the Book has no budget to default to.
+    Budget(Option<Guid>),
 }
 
 /// A declared option with its default and current value.

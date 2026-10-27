@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use crate::error::{OptionError, ReportError};
 use crate::options::{Choice, ChoiceKey, Classifier, DateUi, DateValue, OptionDb, OptionKind, OptionValue, ReportOption, parse_relative};
-use crate::query::{BookHandle, Fallible, account_arg, commodity_arg, rational_arg, script_error};
+use crate::query::{BookHandle, BudgetHandle, Fallible, account_arg, commodity_arg, rational_arg, script_error};
 use crate::result::PlotSize;
 
 /// The option builder handed to a template's `options()` as `o` (Rhai type `OptionBuilder`).
@@ -264,6 +264,9 @@ pub(super) fn register_builder(engine: &mut Engine) {
             declare(o.db.borrow_mut().internal(classifier(s, n, k, h), d))
         },
     );
+    engine.register_fn("budget", budget);
+    engine.register_fn("complex_boolean", complex_boolean);
+    engine.register_fn("multichoice_callback", multichoice_callback);
     engine.register_fn("set_default_section", |o: &mut OptionBuilder, s: &str| {
         o.db.borrow_mut().set_default_section(s);
     });
@@ -318,6 +321,47 @@ fn account_sel(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dyn
     };
     let types = account_types(spec.get("types"))?;
     declare(o.db.borrow_mut().account_sel(classifier(s, n, k, h), default, types))
+}
+
+/// `gnc-register-budget-option`: the default budget, a `Budget` or `()`; scripts pass `book.default_budget()`, as
+/// GnuCash's reports pass `gnc-budget-get-default` (`5.17:gnucash/report/reports/standard/budget.scm:121-124`).
+fn budget(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic) -> Fallible<()> {
+    let default = if d.is_unit() {
+        None
+    } else {
+        let b = d
+            .read_lock::<BudgetHandle>()
+            .ok_or_else(|| script_error(format!("a budget option defaults to a Budget or (), got {}", d.type_name())))?;
+        Some(b.guid())
+    };
+    declare(o.db.borrow_mut().budget(classifier(s, n, k, h), default))
+}
+
+/// The callback of a complex boolean or multichoice-callback option: a function or `()`. GnuCash runs it from the
+/// dialog's widget when the value changes, and every report's only makes other options selectable or not
+/// (`5.17:bindings/guile/gnc-optiondb.i:1664-1710`). red-ale has no dialog, so it is never called, and the option is
+/// a plain boolean or multichoice, saved as one.
+fn widget_callback(callback: &Dynamic) -> Fallible<()> {
+    if callback.is_unit() || callback.is_fnptr() {
+        Ok(())
+    } else {
+        Err(script_error(format!("an option's callback is a function or (), got {}", callback.type_name())))
+    }
+}
+
+/// `gnc-register-complex-boolean-option`: a boolean with a widget callback.
+#[allow(clippy::too_many_arguments)]
+fn complex_boolean(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: bool, callback: Dynamic) -> Fallible<()> {
+    widget_callback(&callback)?;
+    declare(o.db.borrow_mut().boolean(classifier(s, n, k, h), d))
+}
+
+/// `gnc-register-multichoice-callback-option`: a multichoice with a widget callback.
+#[allow(clippy::too_many_arguments)]
+fn multichoice_callback(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic, c: Array, callback: Dynamic) -> Fallible<()> {
+    widget_callback(&callback)?;
+    let (d, c) = (choice_key(&d)?, choices(&c)?);
+    declare(o.db.borrow_mut().multichoice(classifier(s, n, k, h), d, c))
 }
 
 pub(super) fn register_reader(engine: &mut Engine) {
@@ -380,6 +424,10 @@ fn value(o: &ReportOption, r: &Resolve<'_>) -> Result<Dynamic, ReportError> {
         (OptionValue::PlotSize(p), _) => plot_size_value(*p),
         (OptionValue::Date(d), _) => Dynamic::from(date_time(*d, r).map_err(fail)?.0),
         (OptionValue::Commodity(c), _) => Dynamic::from(r.book.commodity(c)),
+        // A budget deleted since the value was saved reads as none, as `gnc-budget-lookup` gives #f.
+        (OptionValue::Budget(g), _) => g
+            .filter(|g| r.book.0.book().budget(*g).is_some())
+            .map_or(Dynamic::UNIT, |g| Dynamic::from(r.book.budget(g))),
         (OptionValue::Accounts(_) | OptionValue::Account(_), _) => Dynamic::UNIT,
     })
 }

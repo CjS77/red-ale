@@ -388,9 +388,8 @@ The HTML account table takes two env keys the budget and forecast reports need (
 - `get-balance-fn` (`:591`, `:619-658`): when given, each account's balance is `(get-balance-fn acct start end)`, a
   commodity collector, instead of the split walk. Used by the Budget Balance Sheet (`budget-balance-sheet.scm:257-262`,
   `:624`, `:659`, `:690`), the Budget Income Statement (`budget-income-statement.scm:457-473`) and the Future
-  Scheduled Transactions Summary (`account-summary.scm:327-336`). red-ale's `lib/acct-table` translates neither
-  (`../reports.md` §12 lists `report_budget` as refused; `get_balance_fn` is absent from
-  `crates/red-ale-report/scripts/lib/acct-table.rhai`).
+  Scheduled Transactions Summary (`account-summary.scm:327-336`). v0.2's `lib/acct-table` already took
+  `get_balance_fn` (its `calculate_balances`); it refused `report_budget` until v0.4.
 
 ### 4.3 Budget Report (`standard/budget.scm`)
 
@@ -574,7 +573,12 @@ adjustment on `rich.gnucash`'s monthly rent (last 2024-09-01, end 2025-07-01, we
 2026-12-31 → 7. Formula evaluation could not be run: the expression parser's initialisation loads Guile
 (`gnc-exp-parser.c:85`), and the Python process segfaults there.
 
-### 4.11 What red-ale's report library lacks
+### 4.11 What red-ale's report library lacked
+
+Added in v0.4 (`../reports.md` §5 "Budget", §6, §12): the Budget handle and the three Book reads, the budget,
+complex-boolean and multichoice-callback options and the budget option's saved form, `lib/budget`, `report_budget`,
+`make_date_interval_list`; `book.price_convert(…, "nearest")` was already the nearest conversion. Still open:
+`a.earliest_date()` and `book.sx_cashflow`.
 
 | Need | Used by | GnuCash |
 |------|---------|---------|

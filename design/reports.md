@@ -421,6 +421,30 @@ Properties: `guid`, `name`, `fullName`, `type`, `typeString` (the type's label, 
 `xaccAccountOrder` (`Account.cpp:2363-2413`), both as v0.1 implements them, with names compared bytewise
 ([`api/accounts.md`](api/accounts.md)).
 
+### Budget (v0.4)
+
+Properties: `guid`, `name`, `description`, `numPeriods`, as `BudgetInfo` names them ([`api/budgets.md`](api/budgets.md)).
+Periods count from 0; every read takes any period, past the count too, as GnuCash's reports ask
+([`notes/engine-budgets.md`](notes/engine-budgets.md) §4.3). Bounds are in the run's local time zone.
+
+| Function | Returns | GnuCash (`5.17:libgnucash/engine/gnc-budget.cpp`) |
+|----------|---------|---------|
+| `book.budgets()` | Budget[], book order | the budget collection |
+| `book.budget(guid)` | Budget or `()` | `gnc-budget-lookup` |
+| `book.default_budget()` | Budget or `()` | `gnc-budget-get-default` (`:720-752`): the `Default Budget` option's budget, else the first in book order, where GnuCash takes hash order |
+| `b.period_start_date(p)`, `b.period_end_date(p)` | Time64 | `gnc-budget-get-period-start-date`, `-end-date` (`:647-659`): local 00:00:00 of the period's first day, 23:59:59 of its last |
+| `b.account_period_value(a, p)` | Rational | `gnc-budget-get-account-period-value` (`:587-597`): 0 when unset or past the count |
+| `b.is_account_period_value_set(a, p)` | bool | `gnc-budget-is-account-period-value-set` (`:578-585`) |
+| `b.account_period_note(a, p)` | string or `()` | `gnc-budget-get-account-period-note` (`:638-645`) |
+| `b.account_period_actual_value(a, p)` | Rational | `gnc-budget-get-account-period-actual-value` (`:661-669`) |
+
+`a` is an Account or its GUID or full name, as elsewhere.
+
+**Still to come**: `book.sx_cashflow(from, to)` (GUID → Rational, `gnc-sx-all-instantiate-cashflow-all`,
+[`notes/engine-budgets.md`](notes/engine-budgets.md) §4.10) for the Future Scheduled Transactions Summary and the
+Balance Forecast goes beside the Book's reads in `query/book.rs` once core has the cash flow; those reports pass it
+to the account table through `get_balance_fn`, as `standard/account-summary.scm:327-336` does.
+
 ### Core reads behind the query API
 
 Each function reads the Book through one `red_ale_core` read; the report crate adds no Book logic of its own. Reads
@@ -453,6 +477,10 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | Transaction `isClosing`, `isVoid` | `Transaction::is_closing`, `Transaction::is_void` | |
 | Commodity `symbol` | `ops::commodities::display_symbol` | |
 | `ctx.accounting_period()` | `ops::period::period_bounds` | |
+| `book.budgets()`, `book.budget(guid)`, `b.account_period_value`, `b.is_account_period_value_set`, `b.account_period_note` | `Book::budgets`, `Book::budget`, `Budget::amount`, `Budget::note` | new (v0.4) |
+| `book.default_budget()` | `ops::budgets::default_budget` | new (v0.4) |
+| `b.period_start_date(p)`, `b.period_end_date(p)` | `ops::budgets::period_times` | new (v0.4) |
+| `b.account_period_actual_value(a, p)` | `ops::budgets::actual` | new (v0.4) |
 
 Core also has the reads `lib/balances` and clients may want beyond these: `balances_at_dates`
 (`gnc:account-get-balances-at-dates`, the sum of amounts at or before each time, which counts the stock splits the
@@ -522,6 +550,7 @@ Option types used by the reports in scope and the style sheets, and their wire v
 | `accountSel` | `GncOptionAccountSelValue` | AccountRef | Account |
 | `currency`, `commodity` | `GncOptionCommodityValue`, stored by namespace and mnemonic (`gnc-option-impl.hpp:215-259`) | CommodityId | Commodity |
 | `internal` | `gnc_register_internal_option` | string or bool | |
+| `budget` | `GncOptionQofInstanceValue` with the budget UI type (`5.17:libgnucash/engine/gnc-optiondb.cpp:657-665`) (v0.4) | the budget's GUID; `null` when the Book has none to default to | Budget or `()` (also for a budget since deleted) |
 
 **Numbers in ranges.** Every number range registered from Scheme is a double (`gnc-optiondb.i:1717`); only one in
 scope is not a whole number, net-charts' "Line Width", 1.5 in steps of 0.1 (`standard/net-charts.scm:130-133`).
@@ -568,6 +597,8 @@ The builder passed to `options()` mirrors GnuCash's `gnc-register-*-option` func
 | `o.account_sel(…, default, #{ types })` | `gnc-register-account-sel-limited-option` |
 | `o.currency(…, default)`, `o.commodity(…, default)` | `gnc-register-currency-option`, `-commodity-option` |
 | `o.internal(…, default)` | `gnc_register_internal_option` |
+| `o.budget(…, default)` | `gnc-register-budget-option`; `default` is a Budget or `()`, which reports take from `book.default_budget()` (v0.4) |
+| `o.complex_boolean(…, default, callback)`, `o.multichoice_callback(…, default, choices, callback)` | `gnc-register-complex-boolean-option`, `-multichoice-callback-option` (`5.17:bindings/guile/gnc-optiondb.i:1664-1710`): a boolean and a multichoice like any other, saved as one. The callback (a function or `()`) is GnuCash's dialog hook, which in every report only makes other options selectable; red-ale has no dialog and never calls it (v0.4) |
 | `o.set_default_section(s)` | `GncOptionDBPtr-set-default-section` |
 | `o.default_report_currency()` | `gnc-default-report-currency`: the report settings' currency (section 4), since `options()` has no run context |
 
@@ -1088,9 +1119,10 @@ keeps its source's header and licence (GPL-2.0-or-later, checked at 5.17). Funct
 | `lib/accounts` | RU:149-257 | `account_has_shares`, `account_is_stock`, `account_full_name_lt`, `accounts_get_children_depth`, `account_is_inc_exp`, `filter_accountlist_type`, `decompose_accountlist` (a map by kind), `account_get_type_string_plural`, `accounts_get_commodities`, `accounts_get_commodities_sorted`, `get_current_account_tree_depth`, `accounts_and_all_descendants` |
 | `lib/balances` | RU:478-725, :863-881 | `account_get_balances_at_dates`, `account_accumulate_at_dates`, `account_get_comm_balance_at_date`, `account_get_comm_value_interval`, `account_get_comm_value_at_date`, `accounts_get_balance_helper`, `accounts_get_comm_total_assets`, `account_get_balance_interval`, `account_get_comm_balance_interval`, `accountlist_get_comm_balance_interval(_with_closing)`, `accountlist_get_comm_balance_at_date(_with_closing)`, `split_voided`, `accounts_count_splits`, `account_get_trans_type_balance_interval(_with_closing)`, `account_get_trans_type_splits_interval`, `get_assoc_account_balances`, `select_assoc_account_balance`, `get_assoc_account_balances_total` |
 | `lib/exchange` | CU:64-887 | `get_match_commodity_splits(_sorted)`, `get_all_commodity_splits`, `exchange_by_euro(_numeric)`, `exchange_if_same`, `get_commodity_totalavg_prices(_internal)`, `get_commoditylist_totalavg_prices`, `get_commodity_inst_prices`, `pricelist_price_find_nearest`, `resolve_unknown_comm`, `get_exchange_totals`, `get_exchange_cost_totals`, `make_exchange_alist`, `make_exchange_cost_alist`, `make_exchange_function`, `exchange_by_pricedb_latest`, `exchange_by_pricedb_nearest`, `exchange_by_pricedb_nearest_before`, `exchange_by_pricealist_nearest`, `case_exchange_fn`, `case_price_fn`, `case_exchange_time_fn`, and `apply_exchange_fn`, `apply_price_fn`, `apply_exchange_time_fn` to call what those return |
-| `lib/dates` | DU:176-493 | `leap_year`, `days_in_year`, `days_in_month`, the seven `date_to_*_fraction` functions, `date_get_fraction_func` and `apply_fraction_func`, `moddate`, `incdate`, `decdate`, `incdate_months`, `make_date_list`, the delta constants and `deltasym_to_delta`, `time64_start_day_time`, `time64_end_day_time` |
+| `lib/dates` | DU:176-493 | `leap_year`, `days_in_year`, `days_in_month`, the seven `date_to_*_fraction` functions, `date_get_fraction_func` and `apply_fraction_func`, `moddate`, `incdate`, `decdate`, `incdate_months`, `make_date_list`, `make_date_interval_list` (v0.4), the delta constants and `deltasym_to_delta`, `time64_start_day_time`, `time64_end_day_time` |
 | `lib/options` | OU:44-234 | `add_report_date`, `add_date_interval`, `add_interval_choice`, `add_account_levels`, `add_account_selection`, `add_currency`, `add_price_source`, `add_plot_size`, `add_marker_choice`, `add_sort_method`, `add_subtotal_view` |
 | `lib/acct-table` | HAT:524-1071 | `make_html_acct_table_env_accts` and `html_acct_table_add_accounts` (the balance calculation, the walk and the post-pass), `num_rows`, `get_row_env`, `add_labeled_amount_line`, `gnc_commodity_table` and `add_account_balances`, which append result rows (role, account, depth, level, cells) instead of HTML; the commodity table becomes a `commodities` cell |
+| `lib/budget` (v0.4) | RU:727-856 | `budget_get_start_date`, `budget_get_end_date`, `budget_account_get_net`, `budget_accountlist_get_net`, `budget_account_get_initial_balance`, `budget_accountlist_get_initial_balance`, `get_account_period_rolledup_budget_value`, `budget_account_get_rolledup_net` (the last two take the Book first, for the price database) |
 | `lib/html-utilities` | HU:226-381 | `assign_colors` (GnuCash's 18-colour palette), `make_rates_table` (a result table), `make_generic_warning`, `make_generic_simple_warning`, `make_generic_budget_warning`, `make_generic_options_warning`, `make_no_account_warning`, `make_empty_data_warning` (warning blocks) |
 
 Notes for the translators:
@@ -1129,7 +1161,9 @@ Notes for the translators:
 - **Warnings drop the report id**: `make_no_account_warning(title)`; the options link it builds needs GnuCash's
   report instances. `add_labeled_amount_line` drops the colspans and markups, which GnuCash ignores or which are
   HTML, and takes a row role for the row markup.
-- **Refused**: the account table's `report_budget` (budgets are outside v0.2), `account_less_p` #t (GnuCash
+- **Budgets in the account table** (v0.4): `report_budget` keeps a zero-balance account whose rolled-up Budget amounts
+  are not zero (HAT:749-756); `get_balance_fn` takes a caller's closure `|account, start, end|` (HAT:619-658).
+- **Refused**: `account_less_p` #t (GnuCash
   names an undefined function, HAT:573), `account_accumulate_at_dates`'s `split_to_date` (no report in scope uses
   it), and a depth limit of #f without "flatten", which fails in GnuCash too (HAT:655-659).
 - **CSV export** (v0.3). net-charts and category-barchart offer CSV through GnuCash's export thunks
@@ -1304,6 +1338,7 @@ GnuCash writes them from a few fixed forms with literal values. `report.importCo
 | account list, account | `'("<guid>" …)`, `'""` when empty; `"<guid>"` | the GUIDs, kept whether or not the open book has them |
 | currency | `"USD"` (5.17), `'(commodity-scm "CURRENCY" "USD")` (4.x; `ISO4217` read as `CURRENCY`) | the currency |
 | commodity | `'(commodity-scm "<namespace>" "<mnemonic>")` | the commodity |
+| budget (v0.4) | `(gnc-budget-lookup "<guid>" (gnc-get-current-book))` (`5.17:bindings/guile/options.scm:150-160`), matched exactly, never called | the GUID, kept whether or not the open book has it |
 
   A value of any other shape for its option is `malformed`; one of the right shape that the option refuses is
   `invalid-option`.

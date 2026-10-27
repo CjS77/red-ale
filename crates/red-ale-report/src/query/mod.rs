@@ -15,6 +15,7 @@
 //! | `Split`       | [`SplitHandle`]       | its transaction's GUID and its own |
 //! | `Commodity`   | [`CommodityHandle`]   | `NAMESPACE::MNEMONIC`          |
 //! | `Price`       | [`PriceHandle`]       | GUID                           |
+//! | `Budget`      | [`BudgetHandle`]      | GUID                           |
 
 // Functions registered with Rhai take their arguments by value: Rhai passes owned values to every parameter but
 // the first.
@@ -23,6 +24,8 @@ mod account;
 mod args;
 #[allow(clippy::needless_pass_by_value)]
 mod book;
+#[allow(clippy::needless_pass_by_value)]
+mod budget;
 mod entities;
 
 use std::cell::RefCell;
@@ -30,9 +33,10 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use red_ale_core::ops::balances::{Balances, running_balances};
-use red_ale_core::{Account, Book, CommodityRef, Guid, Price, Split, Time64, Transaction};
+use red_ale_core::{Account, Book, CommodityRef, Guid, Price, Split, Time64, TimeZone, Transaction};
 use rhai::{Engine, EvalAltResult};
 
+pub use budget::BudgetHandle;
 pub(crate) use args::{account_arg, commodity_arg, rational_arg, small_count, time_arg};
 
 /// The result of a script-facing function: a value, or an error the engine turns into `report-script`.
@@ -50,16 +54,19 @@ pub(crate) struct Snapshot {
     book: Book,
     /// The run's now: what the latest-price lookup reads instead of the clock.
     now: Time64,
+    /// The local time zone, which places budget periods' bounds as GnuCash's process time zone does.
+    zone: TimeZone,
     /// The running totals of each account's splits, by split GUID, computed when first read.
     running: RefCell<BTreeMap<Guid, Rc<BTreeMap<Guid, Balances>>>>,
 }
 
 impl Snapshot {
-    /// A snapshot of `book` for a run at `now`: a copy-on-write clone, one `Arc` per entity.
-    pub(crate) fn new(book: &Book, now: Time64) -> Rc<Self> {
+    /// A snapshot of `book` for a run at `now` in `zone`: a copy-on-write clone, one `Arc` per entity.
+    pub(crate) fn new(book: &Book, now: Time64, zone: TimeZone) -> Rc<Self> {
         Rc::new(Self {
             book: book.clone(),
             now,
+            zone,
             running: RefCell::new(BTreeMap::new()),
         })
     }
@@ -72,6 +79,11 @@ impl Snapshot {
     /// The run's now.
     pub(crate) fn now(&self) -> Time64 {
         self.now
+    }
+
+    /// The run's local time zone.
+    pub(crate) fn zone(&self) -> &TimeZone {
+        &self.zone
     }
 
     /// The running totals of `account`'s splits: `ops::balances::running_balances`, computed once per run.
@@ -237,6 +249,7 @@ impl PriceHandle {
 /// Register the query API's types and functions.
 pub(crate) fn register(engine: &mut Engine) {
     book::register(engine);
+    budget::register(engine);
     account::register(engine);
     entities::register(engine);
 }

@@ -195,6 +195,30 @@ private fn month_delta(incr) {
     }
 }
 
+/// `gnc:make-date-interval-list` (DU:323-349): intervals `[from, to]` from `startdate` in steps of `incr`, each
+/// ending a second before the next starts, the last at `enddate`, so it may be shorter. Month steps count from
+/// `startdate` with `incdate_months`, as `make_date_list` does. The dates are swapped when `enddate` is before
+/// `startdate`.
+fn make_date_interval_list(ctx, startdate, enddate, incr) {
+    if enddate < startdate {
+        let saved_enddate = enddate;
+        enddate = startdate;
+        startdate = saved_enddate;
+    }
+    let months = month_delta(incr);
+    let result = [];
+    let date = startdate;
+    let idx = 0;
+    while date < enddate {
+        let curr = if months != () { incdate_months(ctx, startdate, months * idx) } else { date };
+        let next = if months != () { incdate_months(ctx, startdate, months * (idx + 1)) } else { incdate(ctx, date, incr) };
+        result.push([curr, if next < enddate { decdate(ctx, next, delta("second", 1)) } else { enddate }]);
+        date = next;
+        idx += 1;
+    }
+    result
+}
+
 /// `gnc:make-date-list` (DU:356-381): times from `startdate` in steps of `incr`, then `enddate` itself, so the last
 /// step may be shorter. Month steps count from `startdate` with `incdate_months`, so month ends stay month ends. The
 /// dates are swapped when `enddate` is before `startdate`.

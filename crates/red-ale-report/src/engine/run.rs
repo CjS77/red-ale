@@ -98,7 +98,7 @@ impl Registry {
 impl<'r> Run<'r> {
     fn start(registry: &'r Registry, template: &'r TemplateInfo, ctx: &RunContext<'_>) -> Result<Self, ReportError> {
         let limits = registry.limits();
-        let snap = Snapshot::new(ctx.book, ctx.now);
+        let snap = Snapshot::new(ctx.book, ctx.now, ctx.zone.clone());
         let log = Log::new(limits.get_usize(Limit::StringSize));
         let conventions = ctx.locale.conventions();
         let engine = engine(&Setup {

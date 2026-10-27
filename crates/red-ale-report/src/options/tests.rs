@@ -493,3 +493,60 @@ fn the_summary_lists_changed_options_as_gnucash_shows_them() {
     let want: Vec<(String, String)> = want.iter().map(|(a, b)| ((*a).to_owned(), (*b).to_owned())).collect();
     assert_eq!(shown, want);
 }
+
+/// `book()` with the budgets "Plan" (`guid(7)`) and "Spare" (`guid(8)`).
+fn book_with_budgets() -> Book {
+    let mut book = book();
+    let start = red_ale_core::Date::from_ymd(2024, 1, 1).unwrap();
+    let recurrence = red_ale_core::Recurrence::new(1, red_ale_core::PeriodType::Month, start, red_ale_core::WeekendAdjust::None).unwrap();
+    [(7, "Plan"), (8, "Spare")].into_iter().for_each(|(n, name)| {
+        let budget = red_ale_core::Budget {
+            guid: guid(n),
+            name: name.into(),
+            description: String::new(),
+            num_periods: 12,
+            recurrence,
+            slots: red_ale_core::Frame::new(),
+        };
+        book.budgets.insert(guid(n), Arc::new(budget));
+    });
+    book
+}
+
+/// A budget option holds a GUID, as GnuCash saves it (`5.17:bindings/guile/options.scm:150-160`): a saved
+/// configuration keeps it only when it differs from the default, and reapplying what was kept gives the same options.
+/// The summary shows the budget's name (`gnc-budget-get-name`, `5.17:gnucash/report/html-utilities.scm:320`).
+#[test]
+fn budget_options_round_trip_by_guid() {
+    let (book, zone) = (book_with_budgets(), TimeZone::utc());
+    let mut db = OptionDb::new();
+    db.budget(c("General", "Budget", "a"), Some(guid(7))).unwrap();
+    assert_eq!(db.changed(), serde_json::Map::new(), "the default is not saved");
+    assert_eq!(value_of(&db, "General", "Budget"), json!(guid(7).to_string()));
+    let spare = json!({ "General": { "Budget": guid(8).to_string() } });
+    db.apply(&spare, &ctx_with(Some(&book), &zone)).unwrap();
+    let saved = Value::Object(db.changed());
+    assert_eq!(saved, spare);
+    let mut again = OptionDb::new();
+    again.budget(c("General", "Budget", "a"), Some(guid(7))).unwrap();
+    again.apply(&saved, &ctx_with(None, &zone)).unwrap();
+    assert_eq!(again, db);
+    let unknown = json!({ "General": { "Budget": guid(9).to_string() } });
+    let refused = db.apply(&unknown, &ctx_with(Some(&book), &zone)).unwrap_err();
+    assert_eq!(refused.reason, format!("unknown budget {}", guid(9)));
+    assert!(db.apply(&unknown, &ctx_with(None, &zone)).is_ok(), "without a book a GUID is kept unchecked");
+    db.apply(&spare, &ctx_with(Some(&book), &zone)).unwrap();
+    let info = &db.describe()[0];
+    assert_eq!((info.option_type.as_str(), &info.default), ("budget", &json!(guid(7).to_string())));
+    assert_eq!(db.params_schema()["properties"]["General"]["properties"]["Budget"]["type"], json!("string"));
+    let rows = db.summary(&DisplayContext {
+        book: &book,
+        zone: &zone,
+        date_format: DateFormat::Iso,
+        locale: red_ale_locale::Locale::c(),
+    });
+    assert_eq!(rows[0].value, "Spare");
+    let mut none = OptionDb::new();
+    none.budget(c("General", "Budget", "a"), None).unwrap();
+    assert_eq!(value_of(&none, "General", "Budget"), Value::Null, "no budget to default to");
+}

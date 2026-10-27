@@ -48,6 +48,7 @@ pub(super) fn read(kind: &OptionKind, default: &OptionValue, json: &Value, ctx: 
             .map(|g| OptionValue::Account(Some(g))),
         OptionKind::Currency => commodity(json, true, ctx).map(OptionValue::Commodity),
         OptionKind::Commodity => commodity(json, false, ctx).map(OptionValue::Commodity),
+        OptionKind::Budget => string(json).and_then(|s| budget(s, ctx)).map(|g| OptionValue::Budget(Some(g))),
     }
 }
 
@@ -65,6 +66,7 @@ pub(super) fn write(value: &OptionValue) -> Value {
         OptionValue::Accounts(guids) => Value::Array(guids.iter().map(|g| Value::String(g.to_string())).collect()),
         OptionValue::Account(g) => g.map_or(Value::Null, |g| Value::String(g.to_string())),
         OptionValue::Commodity(c) => Value::String(c.to_string()),
+        OptionValue::Budget(g) => g.map_or(Value::Null, |g| Value::String(g.to_string())),
     }
 }
 
@@ -278,6 +280,16 @@ fn account(text: &str, types: &[AccountType], ctx: &ValueContext<'_>) -> Read<Gu
             "account {text:?} is of type {}, not one this option allows",
             a.account_type.as_str()
         ))
+    }
+}
+
+/// A budget by GUID, as GnuCash saves it (`5.17:bindings/guile/options.scm:150-160`). With a Book it must name one of
+/// its budgets; without one it is kept unchecked, as an account's GUID is.
+fn budget(text: &str, ctx: &ValueContext<'_>) -> Read<Guid> {
+    let guid = Guid::parse(text.trim()).map_err(|_| format!("{text:?} is not a budget's GUID"))?;
+    match ctx.book {
+        Some(book) if book.budget(guid).is_none() => Err(format!("unknown budget {guid}")),
+        _ => Ok(guid),
     }
 }
 

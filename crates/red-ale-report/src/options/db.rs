@@ -163,6 +163,12 @@ impl OptionDb {
         self.register(c, OptionKind::Commodity, OptionValue::Commodity(default))
     }
 
+    /// `gnc-register-budget-option`: the default is the Book's default budget when the options are made, or none
+    /// (`5.17:gnucash/report/reports/standard/budget.scm:121-124`).
+    pub fn budget(&mut self, c: Classifier, default: Option<Guid>) -> Declared {
+        self.register(c, OptionKind::Budget, OptionValue::Budget(default))
+    }
+
     /// `gnc_register_internal_option`: a string or boolean default.
     pub fn internal(&mut self, c: Classifier, default: OptionValue) -> Declared {
         self.register(c, OptionKind::Internal, default)
@@ -333,6 +339,7 @@ fn checked_default(kind: &OptionKind, default: OptionValue) -> Result<OptionValu
         | (OptionKind::Internal, OptionValue::Bool(_) | OptionValue::Text(_))
         | (OptionKind::PlotSize, OptionValue::PlotSize(_))
         | (OptionKind::Commodity, OptionValue::Commodity(_))
+        | (OptionKind::Budget, OptionValue::Budget(_))
         | (OptionKind::AccountSel { .. }, OptionValue::Account(_)) => Ok(default),
         (OptionKind::Currency, OptionValue::Commodity(c)) if c.is_currency() => Ok(default),
         (OptionKind::Currency, OptionValue::Commodity(c)) => Err(format!("{c} is not a currency")),

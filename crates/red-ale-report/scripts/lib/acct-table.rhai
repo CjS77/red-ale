@@ -42,18 +42,19 @@
 //   get_balance_fn (a closure `|account, start_date, end_date|` returning a collector), parent_account_subtotal_mode
 //   (true or false), zero_balance_mode ("show-leaf-acct" or "omit-leaf-acct"), account_label_mode ("anchor", the
 //   default, or "name"), balance_mode ("post-closing", the default, or "pre-closing"), closing_pattern (a
-//   transaction type of lib/balances).
+//   transaction type of lib/balances), report_budget (a Budget: with "omit-leaf-acct", an account whose subtree
+//   balances to zero still gets a row when its rolled-up Budget amounts are not zero, HAT:238-241, :749-756).
 //
-// GnuCash's `report-budget` belongs to the budget reports, outside v0.2, and is refused; `column-header` is computed
-// but never used (HAT:584-587) and is left out. GnuCash renders the table to HTML; here `add_account_balances` turns
-// it into result rows: role ("account" or "subtotal", GnuCash's "primary-subheading"), `account`, `depth` (the
-// label's `indented-depth`) and `level` (the amount's position counted from the right, which is the row's
-// `display-depth`), with a label cell and an amount cell. A multi-commodity amount becomes a `commodities` cell,
+// `column-header` is computed but never used (HAT:584-587) and is left out. GnuCash renders the table to HTML; here
+// `add_account_balances` turns it into result rows: role ("account" or "subtotal", GnuCash's "primary-subheading"),
+// `account`, `depth` (the label's `indented-depth`) and `level` (the amount's position counted from the right, which
+// is the row's `display-depth`), with a label cell and an amount cell. A multi-commodity amount becomes a `commodities` cell,
 // GnuCash's nested commodity table.
 
 import "lib/collectors" as collectors;
 import "lib/balances" as balances;
 import "lib/exchange" as exchange;
+import "lib/budget" as budget;
 
 /// `env`'s value for `key`, `()` when it has none: the `get-val` of HAT:557-559.
 private fn env_get(env, key) {
@@ -153,7 +154,7 @@ fn map.acct_table_get_balance_sub(account) {
 
 /// `gnc:html-acct-table-add-accounts!` (HAT:550-825): walk the account tree from the root's children, adding a row
 /// for each account of `accounts` the depth limit lets through, and a subtotal row after a parent's children when
-/// asked; then give every row its column counts. Returns the table.
+/// asked; then give every row its column counts. Returns the table. Reads the Book for `report_budget`'s roll-up.
 fn html_acct_table_add_accounts(book, ctx, acct_table, accounts) {
     let env = acct_table.env;
     let lim = env_get(env, "display_tree_depth");
@@ -162,9 +163,6 @@ fn html_acct_table_add_accounts(book, ctx, acct_table, accounts) {
     if less_p == true {
         // GnuCash names `gnc:account-code-less-p` here but never defines it (HAT:509, :573).
         throw "account_less_p true names gnc:account-code-less-p, which GnuCash does not define";
-    }
-    if env_truthy(env_get(env, "report_budget")) {
-        throw "report_budget is for the budget reports, which red-ale does not have";
     }
     let zero_mode = env_get(env, "zero_balance_mode");
     let selected = #{};
@@ -187,6 +185,8 @@ fn html_acct_table_add_accounts(book, ctx, acct_table, accounts) {
         zero_mode: if zero_mode == () || type_of(zero_mode) == "bool" { "show-leaf-acct" } else { zero_mode },
         label_mode: or_default(env_get(env, "account_label_mode"), "anchor"),
         selected: selected,
+        book: book,
+        report_budget: or_default(env_get(env, "report_budget"), ()),
         balances: calculate_balances(book, accounts, start_date, end_date, env_get(env, "get_balance_fn"),
                                      or_default(env_get(env, "balance_mode"), "post-closing"), closing_pattern),
         rows: [],
@@ -272,11 +272,14 @@ fn map.acct_table_traverse_accounts(accts, acct_depth, logi_depth) {
         this.acct_depth_reached = max_int(this.acct_depth_reached, acct_depth);
         this.logi_depth_reached = max_int(this.logi_depth_reached, logi_depth);
         this.disp_depth_reached = max_int(this.disp_depth_reached, disp_depth);
-        // Parent accounts with a zero recursive balance count as zero-balance leaves.
+        // Parent accounts with a zero recursive balance count as zero-balance leaves; with a budget, only when their
+        // rolled-up Budget amounts are zero too (HAT:749-756).
         let zero_omitted = collectors::commodity_collector_allzero(recursive_bal) && this.zero_mode == "omit-leaf-acct";
+        let row_omitted = zero_omitted
+            && (this.report_budget == () || budget::budget_account_get_rolledup_net(this.book, this.report_budget, acct, (), ()).is_zero());
         let used = this.acct_table_use_acct(acct, logi_depth);
         let row = -1;
-        if used && !zero_omitted {
+        if used && !row_omitted {
             let row_env = grp_env;
             row_env.account_label = label;
             row_env.row_type = "account-row";

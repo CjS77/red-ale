@@ -19,6 +19,7 @@
 //! | account | `"<guid>"` |
 //! | currency | `"USD"` (5.17), `'(commodity-scm "CURRENCY" "USD")` (4.x) |
 //! | commodity | `'(commodity-scm "<namespace>" "<mnemonic>")` (`:1249-1263`) |
+//! | budget | `(gnc-budget-lookup "<guid>" (gnc-get-current-book))` (`5.17:bindings/guile/options.scm:150-160`) |
 //!
 //! 2.x wrote an absolute date as `'(absolute <seconds> . <nanoseconds>)` (`2.6.21:src/app-utils/options.scm:571-578`).
 //! Relative dates keep their name: both spellings of the accounting period's (`start-prev-fin-year`, written by 5.17,
@@ -29,7 +30,7 @@ use std::fmt::Write as _;
 use red_ale_core::Time64;
 use serde_json::{Map, Value};
 
-use super::forms::OptionForm;
+use super::forms::{OptionForm, budget_lookup};
 use super::sexp::Datum;
 use crate::error::OptionError;
 use crate::number::{Rational, Rounding};
@@ -111,6 +112,9 @@ fn value(kind: &OptionKind, default: &OptionValue, d: &Datum) -> Converted<Value
         OptionKind::AccountList { .. } => account_list(d),
         OptionKind::AccountSel { .. } => account(d),
         OptionKind::Currency | OptionKind::Commodity => commodity(d).map(Value::from),
+        OptionKind::Budget => budget_lookup(d)
+            .map(Value::from)
+            .ok_or_else(|| format!("expected (gnc-budget-lookup \"<guid>\" (gnc-get-current-book)), got {d}")),
     }
 }
 
@@ -339,6 +343,7 @@ mod tests {
         db.currency(c("currency"), CommodityRef::currency("USD")).unwrap();
         db.commodity(c("commodity"), CommodityRef::currency("USD")).unwrap();
         db.internal(c("internal"), OptionValue::Bool(false)).unwrap();
+        db.budget(c("budget"), None).unwrap();
         db
     }
 
@@ -415,6 +420,10 @@ mod tests {
             json!("NASDAQ::AAPL")
         );
         assert_eq!(wire("internal", "#t").unwrap(), json!(true));
+        let lookup = format!("(gnc-budget-lookup \"{guid}\" (gnc-get-current-book))");
+        assert_eq!(wire("budget", &lookup).unwrap(), json!(guid));
+        assert!(wire("budget", &format!("\"{guid}\"")).is_err(), "GnuCash writes only the lookup");
+        assert!(wire("account", &lookup).is_err(), "the lookup sets only a budget option");
     }
 
     #[test]

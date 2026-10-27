@@ -37,8 +37,9 @@
 //!   ((lambda (option) (if option ((gnc:option-setter option) <value>))) option))
 //! ```
 //!
-//! The value is a literal: a string, a boolean, a number, or a quoted datum (`'(relative . today)`). Anything else,
-//! such as the budget option's `(gnc-budget-lookup …)` call (`options.scm:150-160`), is refused.
+//! The value is a literal: a string, a boolean, a number, or a quoted datum (`'(relative . today)`), or the budget
+//! option's `(gnc-budget-lookup "<guid>" (gnc-get-current-book))` (`options.scm:150-160`), matched exactly and never
+//! called. Anything else is refused.
 
 use super::sexp::{Datum, Form};
 
@@ -329,13 +330,22 @@ fn setter_value(setter: &Datum) -> Option<&Datum> {
     }
 }
 
-/// A literal value: a string, boolean or number as itself, or the datum a quote holds. A symbol or an unquoted list
-/// would be a variable or a call: refused.
+/// A literal value: a string, boolean or number as itself, the datum a quote holds, or a budget lookup as itself. Any
+/// other symbol or unquoted list would be a variable or a call: refused.
 fn literal(value: &Datum) -> Option<&Datum> {
     match value {
         Datum::String(_) | Datum::Bool(_) | Datum::Number(_) => Some(value),
+        _ if budget_lookup(value).is_some() => Some(value),
         _ => value.unquoted(),
     }
+}
+
+/// The GUID of `(gnc-budget-lookup "<guid>" (gnc-get-current-book))`, the value GnuCash saves for a budget option
+/// (`5.17:bindings/guile/options.scm:150-160`).
+pub(super) fn budget_lookup(value: &Datum) -> Option<&str> {
+    let [lookup, guid, book] = value.as_list()? else { return None };
+    let current_book = book.as_list().is_some_and(|b| matches!(b, [f] if f.is_symbol("gnc-get-current-book")));
+    (lookup.is_symbol("gnc-budget-lookup") && current_book).then(|| guid.as_str()).flatten()
 }
 
 /// A datum's text, cut short for a message.
@@ -433,6 +443,18 @@ mod tests {
         assert!(saved_report(&first(&symbol)).unwrap().options.is_err());
         let extra = SAVED.replace("      options\n    )", "      (display \"hi\")\n      options\n    )");
         assert!(saved_report(&first(&extra)).unwrap().options.is_err());
+    }
+
+    /// The budget option's form, as `gnc:generate-restore-forms` writes it (5.17:bindings/guile/options.scm:150-160).
+    #[test]
+    fn reads_a_budget_lookup_as_data() {
+        let lookup = "(gnc-budget-lookup \"0123456789abcdef0123456789abcdef\" (gnc-get-current-book))";
+        let setter = format!("(lambda (option) (if option ((gnc:option-setter option) {lookup})))");
+        let budget = SAVED.replace("(lambda (o) (if o (gnc:option-set-value o '2)))", &setter);
+        let options = saved_report(&first(&budget)).unwrap().options.unwrap();
+        assert_eq!(budget_lookup(&options[0].value), Some("0123456789abcdef0123456789abcdef"));
+        let other_book = budget.replace("(gnc-get-current-book)", "(gnc-get-other-book)");
+        assert!(saved_report(&first(&other_book)).unwrap().options.unwrap_err().contains("not a literal value"));
     }
 
     #[test]

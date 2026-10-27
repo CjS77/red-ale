@@ -19,6 +19,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
     "lib/accounts.rhai",
     "lib/acct-table.rhai",
     "lib/balances.rhai",
+    "lib/budget.rhai",
     "lib/collectors.rhai",
     "lib/dates.rhai",
     "lib/exchange.rhai",
