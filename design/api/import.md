@@ -1115,6 +1115,7 @@ and apply in one run.
 | Bytes invalid in the encoding | Dropped (CSV: `boost::locale::conv::to_utf`'s default `skip`, `5.17:gnucash/import-export/csv-imp/gnc-tokenizer.cpp:108`) | `import-file` error naming the line | A dropped byte can change a name or an amount |
 | Preview with error rows | The assistant blocks until "Skip errors" is ticked | Proposed without them; `import.apply` needs `skipErrors` | The caller sees the whole proposal first |
 | Unparseable numbers (QIF, business), and QIF numbers padded with spaces | 0 | Error row | A wrong amount in a book is worse than a refused row |
+| `(5)` in a business number | −5 (`(n)` negation, `5.17:libgnucash/app-utils/calculation/expression_parser.c`) | Error row | v0.3 shipped without it; kept so a file imports as it did, until a version decides to follow GnuCash |
 | CSV splits failing their essentials | Dropped, logged | Error row | The user sees every row that isn't imported |
 | The last CSV transaction's void reason | Ignored | Applied | A GnuCash bug |
 | QIF invalid days, unknown or missing investment actions, ambiguous price dates | Today; imbalance; failure | Error rows; decided by `dateFormat` | As above |
