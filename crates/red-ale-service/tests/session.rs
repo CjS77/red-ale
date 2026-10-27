@@ -196,6 +196,33 @@ fn unknown_elements_open_read_only() {
     assert!(matches!(session.read_only_reasons(), [ReadOnlyReason::UnrecognisedContent(_)]));
 }
 
+/// GnuCash 5.17 reads a legacy frequency spec and rewrites it as a schedule (`design/notes/xml-format-core.md` §8.5),
+/// so red-ale keeps it as read and edits nothing.
+#[test]
+fn a_legacy_frequency_spec_opens_read_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let freqspec = concat!(
+        "  <sx:freqspec>\n    <gnc:freqspec version=\"1.0.0\">\n      <fs:ui_type>monthly</fs:ui_type>\n",
+        "    </gnc:freqspec>\n  </sx:freqspec>\n"
+    );
+    let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash"))
+        .unwrap()
+        .replacen("<gnc:schedxaction version=\"2.0.0\">", "<gnc:schedxaction version=\"1.0.0\">", 1)
+        .replacen("  <sx:schedule>", &format!("{freqspec}  <sx:schedule>"), 1);
+    let path = dir.path().join("book.gnucash");
+    std::fs::write(&path, &text).unwrap();
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    let [ReadOnlyReason::UnrecognisedContent(reasons)] = session.read_only_reasons() else {
+        panic!("{:?}", session.read_only_reasons())
+    };
+    assert_eq!(
+        *reasons,
+        ["scheduled transaction \"Monthly rent\" has a legacy frequency spec (sx:freqspec), which GnuCash 5.17 rewrites as a schedule"]
+    );
+    assert!(matches!(session.save(None), Err(ServiceError::ReadOnly { .. })));
+    assert_eq!(red_ale_xml::write_book_text(session.book(), session.residue()), text, "kept as read");
+}
+
 #[test]
 fn failed_mutation_changes_nothing_and_writes_no_journal() {
     let dir = tempfile::tempdir().unwrap();

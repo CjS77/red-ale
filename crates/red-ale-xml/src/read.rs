@@ -1,8 +1,8 @@
 //! Reading a book file as a stream, as GnuCash's SAX parser does (`5.17:libgnucash/backend/xml/sixtp.cpp`).
 //!
-//! Each part of the book (a commodity, a price, an account, a transaction, a business object, an out-of-scope
-//! section) is built as a small tree from the tokeniser's events, translated, and dropped, so no tree of the whole
-//! file and no copy of its text is ever held. The same walk either collects the entities into a new Book
+//! Each part of the book (a commodity, a price, an account, a transaction, the template transactions, a scheduled
+//! transaction, a budget, a business object) is built as a small tree from the tokeniser's events, translated, and
+//! dropped, so no tree of the whole file and no copy of its text is ever held. The same walk either collects the entities into a new Book
 //! ([`read_book_from`]) or compares each one with a Book already held ([`read_back`]), which is how a save checks
 //! what it wrote.
 //!
@@ -16,7 +16,9 @@ use std::io::BufRead;
 use std::sync::Arc;
 
 use red_ale_core::business::Business;
-use red_ale_core::{Account, AccountType, Book, Budget, Commodity, CommodityRef, Frame, Guid, Lot, Price, Transaction};
+use red_ale_core::{
+    Account, AccountType, Book, Budget, Commodity, CommodityRef, Frame, Guid, Lot, Price, ScheduledTransaction, Templates, Transaction,
+};
 
 use crate::XmlError;
 use crate::book::{Originals, Section, XmlResidue};
@@ -29,6 +31,7 @@ use crate::entities::{
 };
 use crate::envelope::BOOK_VERSION;
 use crate::input::TextStream;
+use crate::scheduled::{parse_scheduled, parse_template_account, scheduled_el};
 use crate::values::{Notices, parse_guid, parse_slots, slots_el};
 
 /// How much of the start of the text is checked for the XML declaration and the `gnc-v2` root. GnuCash looks at the
@@ -272,6 +275,9 @@ trait Sink {
     fn transaction(&mut self, transaction: Transaction);
     fn business(&mut self, object: BusinessObject);
     fn budget(&mut self, budget: Budget);
+    fn template_account(&mut self, account: Account);
+    fn template_transaction(&mut self, transaction: Transaction);
+    fn scheduled(&mut self, scheduled: ScheduledTransaction);
 }
 
 /// Translates each part of the book, keeping in the Residue what the Book does not hold.
@@ -288,7 +294,8 @@ struct Kept {
     originals: Originals,
     /// Account elements, compared with their generated form once every lot is read (see [`account_originals`]).
     account_els: HashMap<Guid, Element>,
-    out_of_scope: Vec<(Section, Element)>,
+    /// The template root read so far, under which a parentless template account goes.
+    template_root: Option<Guid>,
     unknown: Vec<(Section, Element)>,
     notices: Notices,
 }
@@ -306,7 +313,6 @@ impl Kept {
             book_version: self.book_version,
             snapshot: book.clone(),
             originals,
-            out_of_scope: self.out_of_scope,
             unknown: self.unknown,
             notices: self.notices,
         }
@@ -365,8 +371,16 @@ impl<S: Sink> Reader<S> {
                 );
                 self.sink.transaction(t);
             }
-            "gnc:template-transactions" => kept.out_of_scope_part(Section::Templates, el),
-            "gnc:schedxaction" => kept.out_of_scope_part(Section::ScheduledTransactions, el),
+            "gnc:template-transactions" => {
+                kept.enter(Section::Templates);
+                el.elements().try_for_each(|child| self.template_part(child))?;
+            }
+            "gnc:schedxaction" => {
+                kept.enter(Section::ScheduledTransactions);
+                let sx = parse_scheduled(el, &mut kept.notices)?;
+                keep(&mut kept.originals.scheduled, sx.guid, original_if_needed(el, Some(&scheduled_el(&sx)), 0));
+                self.sink.scheduled(sx);
+            }
             "gnc:budget" => {
                 kept.enter(Section::Budgets);
                 let b = parse_budget(el, &mut kept.notices)?;
@@ -404,10 +418,30 @@ impl<S: Sink> Reader<S> {
     }
 }
 
-impl Kept {
-    fn out_of_scope_part(&mut self, section: Section, el: &Element) {
-        self.enter(section);
-        self.out_of_scope.push((section, el.clone()));
+impl<S: Sink> Reader<S> {
+    /// One child of `gnc:template-transactions`, which holds only accounts and transactions
+    /// (`5.17:libgnucash/backend/xml/gnc-schedxaction-xml-v2.cpp:847-852`).
+    fn template_part(&mut self, el: &Element) -> Result<(), XmlError> {
+        let kept = &mut self.kept;
+        match el.name.as_str() {
+            "gnc:account" => {
+                let account = parse_template_account(el, &mut kept.template_root, &mut kept.notices)?;
+                let original = original_if_needed(el, Some(&account_el(&account, &[])), 0);
+                keep(&mut kept.originals.template_accounts, account.guid, original);
+                self.sink.template_account(account);
+            }
+            "gnc:transaction" => {
+                let t = parse_transaction(el, &mut kept.notices)?;
+                let original = original_if_needed(el, Some(&transaction_el(&t)), 0);
+                keep(&mut kept.originals.template_transactions, t.guid, original);
+                self.sink.template_transaction(t);
+            }
+            other => {
+                kept.notices.unrecognised.push(format!("unknown element {other} in gnc:template-transactions"));
+                kept.unknown.push((Section::Templates, el.clone()));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -456,6 +490,8 @@ struct Collect {
     lots: indexmap::IndexMap<Guid, Arc<Lot>>,
     business: Business,
     budgets: indexmap::IndexMap<Guid, Arc<Budget>>,
+    templates: Templates,
+    scheduled: indexmap::IndexMap<Guid, Arc<ScheduledTransaction>>,
 }
 
 impl Collect {
@@ -474,8 +510,8 @@ impl Collect {
             lots: self.lots,
             business: self.business,
             budgets: self.budgets,
-            templates: red_ale_core::Templates::default(),
-            scheduled: indexmap::IndexMap::new(),
+            templates: self.templates,
+            scheduled: self.scheduled,
         })
     }
 }
@@ -514,6 +550,21 @@ impl Sink for Collect {
 
     fn budget(&mut self, budget: Budget) {
         self.budgets.insert(budget.guid, Arc::new(budget));
+    }
+
+    fn template_account(&mut self, account: Account) {
+        if is_root(&account) {
+            self.templates.root = Some(account.guid);
+        }
+        self.templates.accounts.insert(account.guid, Arc::new(account));
+    }
+
+    fn template_transaction(&mut self, transaction: Transaction) {
+        self.templates.transactions.insert(transaction.guid, Arc::new(transaction));
+    }
+
+    fn scheduled(&mut self, scheduled: ScheduledTransaction) {
+        self.scheduled.insert(scheduled.guid, Arc::new(scheduled));
     }
 }
 
@@ -555,6 +606,7 @@ struct Verify<'a> {
     expected: &'a Book,
     guid: Option<Guid>,
     roots: Vec<Guid>,
+    template_root: Option<Guid>,
     seen: Seen,
     difference: Option<String>,
 }
@@ -568,6 +620,9 @@ struct Seen {
     lots: HashSet<Guid>,
     business: HashSet<Guid>,
     budgets: HashSet<Guid>,
+    template_accounts: HashSet<Guid>,
+    template_transactions: HashSet<Guid>,
+    scheduled: HashSet<Guid>,
 }
 
 /// True if `found` is the entity `expected` holds under its key, read for the first time.
@@ -581,6 +636,7 @@ impl<'a> Verify<'a> {
             expected,
             guid: None,
             roots: Vec::new(),
+            template_root: None,
             seen: Seen::default(),
             difference: None,
         }
@@ -599,6 +655,8 @@ impl<'a> Verify<'a> {
         let root = single_root(&self.roots)?;
         let expected = self.expected;
         self.check(root == expected.root, || "book identity differ after writing".into());
+        let template_root = self.template_root;
+        self.check(template_root == expected.templates.root, || "template root differs after writing".into());
         let commodity = expected
             .commodities
             .iter()
@@ -610,6 +668,9 @@ impl<'a> Verify<'a> {
             .or_else(|| first_missing("price", expected.prices.keys(), &self.seen.prices))
             .or_else(|| first_missing("lot", expected.lots.keys(), &self.seen.lots))
             .or_else(|| first_missing("budget", expected.budgets.keys(), &self.seen.budgets))
+            .or_else(|| first_missing("template account", expected.templates.accounts.keys(), &self.seen.template_accounts))
+            .or_else(|| first_missing("template transaction", expected.templates.transactions.keys(), &self.seen.template_transactions))
+            .or_else(|| first_missing("scheduled transaction", expected.scheduled.keys(), &self.seen.scheduled))
             .or_else(|| {
                 (business_count(&expected.business) != self.seen.business.len()).then(|| "business objects differ after writing".into())
             });
@@ -715,6 +776,29 @@ impl Sink for Verify<'_> {
         let guid = budget.guid;
         let same = matches(self.expected.budgets.get(&guid), &budget, &mut self.seen.budgets, guid);
         self.check(same, || format!("budget {guid} differs after writing"));
+    }
+
+    fn template_account(&mut self, account: Account) {
+        let guid = account.guid;
+        if is_root(&account) {
+            self.template_root = Some(guid);
+        }
+        let expected = self.expected.templates.accounts.get(&guid);
+        let same = matches(expected, &account, &mut self.seen.template_accounts, guid);
+        self.check(same, || format!("template account {guid} differs after writing"));
+    }
+
+    fn template_transaction(&mut self, transaction: Transaction) {
+        let guid = transaction.guid;
+        let expected = self.expected.templates.transactions.get(&guid);
+        let same = matches(expected, &transaction, &mut self.seen.template_transactions, guid);
+        self.check(same, || format!("template transaction {guid} differs after writing"));
+    }
+
+    fn scheduled(&mut self, scheduled: ScheduledTransaction) {
+        let guid = scheduled.guid;
+        let same = matches(self.expected.scheduled.get(&guid), &scheduled, &mut self.seen.scheduled, guid);
+        self.check(same, || format!("scheduled transaction {guid} differs after writing"));
     }
 }
 

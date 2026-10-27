@@ -121,11 +121,59 @@ fn budgets_are_read_into_the_book_and_written_from_it() {
     let food = red_ale_core::Guid::parse("1feca2abf92347288c268ebf93753ec4").unwrap();
     assert_eq!((budget.name.as_str(), budget.num_periods), ("Budget 2024", 12));
     assert_eq!(budget.note(food, 0), Some("January food"));
-    assert!(residue.out_of_scope_elements().all(|e| e.name != "gnc:budget"));
     let budget = std::sync::Arc::make_mut(book.budgets.get_index_mut(0).unwrap().1);
     budget.name = "Budget 2025".into();
     let written = write_book_text(&book, &residue);
     assert_eq!(written, text.replacen("<bgt:name>Budget 2024</bgt:name>", "<bgt:name>Budget 2025</bgt:name>", 1));
+}
+
+#[test]
+fn scheduled_and_template_transactions_are_read_into_the_book_and_written_from_it() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let (mut book, residue) = read_book(text.as_bytes()).unwrap();
+    let template_account = red_ale_core::Guid::parse("22f2905cbcfa0b910c0dbc348cfc1161").unwrap();
+    let sx = book.scheduled.values().next().unwrap();
+    assert_eq!((sx.name.as_str(), sx.template_account), ("Monthly rent", Some(template_account)));
+    assert_eq!(book.scheduled_of_template_account(template_account).map(|s| s.guid), Some(sx.guid));
+    let templates = &book.templates;
+    assert_eq!((templates.accounts.len(), templates.transactions.len()), (2, 1));
+    assert!(templates.accounts.keys().all(|g| !book.accounts.contains_key(g)), "not in the Account tree");
+    assert!(templates.transactions.keys().all(|g| !book.transactions.contains_key(g)));
+    let sx = std::sync::Arc::make_mut(book.scheduled.get_index_mut(0).unwrap().1);
+    sx.name = "Rent".into();
+    sx.advance_remind_days = 6;
+    let t = std::sync::Arc::make_mut(book.templates.transactions.get_index_mut(0).unwrap().1);
+    t.description = Some("Rent & rates".into());
+    let expected = text
+        .replacen("<sx:name>Monthly rent</sx:name>", "<sx:name>Rent</sx:name>", 1)
+        .replacen("<sx:advanceRemindDays>5<", "<sx:advanceRemindDays>6<", 1)
+        .replacen("<trn:description>Rent</trn:description>", "<trn:description>Rent &amp; rates</trn:description>", 1);
+    assert_same("rich with an edited schedule", &expected, &write_book_text(&book, &residue));
+}
+
+#[test]
+fn template_and_scheduled_transactions_generated_differently_keep_their_original_text() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let other = text
+        .replacen("<sx:enabled>y</sx:enabled>", "<sx:enabled>yes</sx:enabled>", 1)
+        .replacen("  <trn:description>Rent</trn:description>", "  <trn:num></trn:num>\n  <trn:description>Rent</trn:description>", 1);
+    let (book, residue) = read_book(other.as_bytes()).unwrap();
+    assert!(!book.scheduled[0].enabled, "only y is true");
+    assert_eq!(residue.originals_kept(), 2);
+    assert_same("rich with other spellings", &other, &write_book_text(&book, &residue));
+}
+
+#[test]
+fn a_book_with_no_scheduled_transactions_writes_no_template_block() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let (mut book, residue) = read_book(text.as_bytes()).unwrap();
+    let root = book.templates.root.unwrap();
+    book.scheduled.clear();
+    book.templates.transactions.clear();
+    book.templates.accounts.retain(|g, _| *g == root);
+    let written = write_book_text(&book, &residue);
+    assert!(!written.contains("<gnc:template-transactions>") && !written.contains("<gnc:schedxaction"));
+    assert!(!written.contains("cd:type=\"schedxaction\""));
 }
 
 #[test]

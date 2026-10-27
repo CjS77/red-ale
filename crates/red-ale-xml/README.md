@@ -9,8 +9,8 @@ a `Book` back into bytes that GnuCash 5.17 reads with no warnings.
 
 GnuCash's file is the user's financial record, so the crate's first job is to lose nothing:
 
-- **Anything red-ale doesn't model is kept.** Unknown elements, slots, scheduled transactions, budgets and other
-  out-of-scope data go into a *residue* (`XmlResidue`) and are written back unchanged.
+- **Anything red-ale doesn't model is kept.** Unknown elements and the original text of entities GnuCash 5.17 would
+  write differently go into a *residue* (`XmlResidue`) and are written back unchanged.
 - **Unchanged books come back byte for byte.** Entities are generated from the model, and the serialiser matches
   libxml2's output, the library GnuCash writes with, so they come out as GnuCash 5.17 would write them. An entity whose
   generated form differs from what was read (written by another program or an older GnuCash) keeps its original text

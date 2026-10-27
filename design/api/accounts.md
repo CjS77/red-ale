@@ -131,6 +131,9 @@ dialog's (`gnc_plugin_page_account_tree_cmd_delete_account` and `do_delete_accou
 - Refused (`conflict`) while business objects use the account: a document posted to it, an entry's income or expense
   account, an employee's credit card, a tax table (`qof_instance_get_referring_object_list`; `gncInvoice.c:230`,
   `gncEntry.c:345`, `gncEmployee.c:242`, `gncTaxTable.c:310`). red-ale also checks a sub-account it would delete.
+- Refused (`conflict`) while a budget holds amounts or notes for the account, or a template split of a scheduled
+  transaction creates splits in it (its `sched-xaction/account` slot), naming the budgets and scheduled transactions.
+  GnuCash checks neither (`design/milestone4.md`, "Compatibility in v0.4"). Sub-accounts it would delete count too.
 - Refused (`conflict`) with more than one sub-account.
 - Every target must have the deleted account's type (the dialog's "FIXME: same account type"), and not be the account
   or a sub-account being deleted (a re-parented sub-account may receive the splits). Split targets cannot be

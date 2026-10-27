@@ -168,16 +168,3 @@ fn iso_currencies_and_euro_conversion() {
         codes::INVALID
     );
 }
-
-#[test]
-fn template_transactions_count_as_references() {
-    let bytes = std::fs::read(red_ale_testkit::fixture("piecash/book_schtx.gnucash")).unwrap();
-    let (_, residue) = red_ale_xml::read_book(&bytes).unwrap();
-    let template = red_ale_core::CommodityRef::new("template", "template");
-    assert_eq!(residue.sections_referring_to(&template), ["gnc:template-transactions"]);
-    assert!(
-        residue
-            .sections_referring_to(&red_ale_core::CommodityRef::new("NASDAQ", "template"))
-            .is_empty()
-    );
-}

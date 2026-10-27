@@ -7,7 +7,7 @@ use red_ale_core::ops::accounts::{
     self as ops, ACCOUNT_TYPES, AccountEdit, CommodityRule, DeleteOptions, Disposal, Renumber, Scu, account_order, commodity_rule,
 };
 use red_ale_core::ops::balances;
-use red_ale_core::{Account, AccountType, Book, DomainError, Guid, SlotValue};
+use red_ale_core::{Account, AccountType, Book, Guid, SlotValue};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -687,31 +687,7 @@ pub struct DeleteResult {
     pub deleted_lots: Vec<Id>,
 }
 
-/// Template and scheduled transactions are kept as read, not modelled; an account they mention must not be deleted
-/// under them, nor a sub-account deleted with it (`design/file-fidelity.md`, "References to out-of-scope data").
-fn refuse_if_residue_mentions(ctx: &mut Context, p: &DeleteParams) -> Result<(), RpcError> {
-    let session = ctx.session()?;
-    let book = session.book();
-    let guid = p.account.resolve(book)?;
-    let subaccounts = if matches!(p.subaccount, Some(DisposalParam::Delete)) {
-        book.descendants(guid)
-    } else {
-        Vec::new()
-    };
-    let sections: std::collections::BTreeSet<String> = std::iter::once(guid)
-        .chain(subaccounts.iter().map(|a| a.guid))
-        .flat_map(|g| session.residue().sections_mentioning(&g.to_string()))
-        .collect();
-    if sections.is_empty() {
-        Ok(())
-    } else {
-        let names: Vec<String> = sections.into_iter().collect();
-        Err(DomainError::conflict(format!("the account is referred to by {}; it cannot be deleted", names.join(", "))).into())
-    }
-}
-
 fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
-    refuse_if_residue_mentions(ctx, &p)?;
     ctx.mutate_rpc(|book, _| {
         let guid = p.account.resolve(book)?;
         let opts = DeleteOptions {

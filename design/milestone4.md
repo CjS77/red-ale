@@ -97,7 +97,7 @@ Out of scope still never means lost, and every v0.1, v0.2 and v0.3 rule holds. A
 - **Accounts used by schedules or budgets can't be deleted silently.** GnuCash doesn't check
   ([`notes/engine-accounts-transactions.md`](notes/engine-accounts-transactions.md) §3.2), and keeps a deleted
   account's budget amounts ([`notes/engine-budgets.md`](notes/engine-budgets.md) §1.7). red-ale keeps its stricter
-  rule ([`file-fidelity.md`](file-fidelity.md), "References to out-of-scope data"), now checked in the model: deleting
+  rule ([`file-fidelity.md`](file-fidelity.md), "References from schedules and budgets"), now checked in the model: deleting
   such an Account is refused, naming the schedules and budgets that use it.
 - **Budget order is kept as read.** GnuCash's own budget write order is not reproducible
   ([`notes/xml-format-core.md`](notes/xml-format-core.md) §7.6), and GnuCash ignores it on read.

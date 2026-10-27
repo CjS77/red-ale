@@ -16,6 +16,7 @@ use crate::business;
 use crate::dom::{Element, Node, escape_attr, parse_document};
 use crate::entities::{account_el, commodity_el, commodity_is_written, price_el, transaction_el};
 use crate::budgets::budget_el;
+use crate::scheduled::scheduled_el;
 use crate::envelope::{BOOK_VERSION, FOOTER, count_line, header};
 use crate::read::read_book_from;
 use crate::values::{Notices, guid_el, slots_el};
@@ -45,6 +46,9 @@ pub(crate) struct Originals {
     pub(crate) transactions: HashMap<Guid, String>,
     pub(crate) business: HashMap<Guid, String>,
     pub(crate) budgets: HashMap<Guid, String>,
+    pub(crate) template_accounts: HashMap<Guid, String>,
+    pub(crate) template_transactions: HashMap<Guid, String>,
+    pub(crate) scheduled: HashMap<Guid, String>,
 }
 
 impl Originals {
@@ -56,6 +60,9 @@ impl Originals {
             + self.transactions.len()
             + self.business.len()
             + self.budgets.len()
+            + self.template_accounts.len()
+            + self.template_transactions.len()
+            + self.scheduled.len()
     }
 }
 
@@ -67,7 +74,6 @@ pub struct XmlResidue {
     pub(crate) book_version: String,
     pub(crate) snapshot: Book,
     pub(crate) originals: Originals,
-    pub(crate) out_of_scope: Vec<(Section, Element)>,
     pub(crate) unknown: Vec<(Section, Element)>,
     /// Content red-ale could read but cannot represent; editing such a book could lose it.
     pub notices: Notices,
@@ -81,33 +87,9 @@ impl XmlResidue {
             book_version: BOOK_VERSION.to_owned(),
             snapshot: book.clone(),
             originals: Originals::default(),
-            out_of_scope: Vec::new(),
             unknown: Vec::new(),
             notices: Notices::default(),
         }
-    }
-
-    /// Out-of-scope sections kept as read: template transactions and scheduled transactions.
-    pub fn out_of_scope_elements(&self) -> impl Iterator<Item = &Element> {
-        self.out_of_scope.iter().chain(&self.unknown).map(|(_, e)| e)
-    }
-
-    /// Names of out-of-scope sections whose text mentions `needle` (a GUID or mnemonic), for refusing deletions that
-    /// would leave them dangling.
-    pub fn sections_mentioning(&self, needle: &str) -> Vec<String> {
-        self.out_of_scope_elements()
-            .filter(|e| element_mentions(e, needle))
-            .map(|e| e.name.clone())
-            .collect()
-    }
-
-    /// Names of out-of-scope sections holding a reference to `commodity` (a `cmdty:space` and `cmdty:id` pair), for
-    /// refusing renames and deletions that would leave them dangling.
-    pub fn sections_referring_to(&self, commodity: &CommodityRef) -> Vec<String> {
-        self.out_of_scope_elements()
-            .filter(|e| refers_to(e, commodity))
-            .map(|e| e.name.clone())
-            .collect()
     }
 
     /// Forget the originals: the next write generates every entity from the model. Used to test the generators.
@@ -120,21 +102,6 @@ impl XmlResidue {
     pub fn originals_kept(&self) -> usize {
         self.originals.len()
     }
-}
-
-fn refers_to(el: &Element, commodity: &CommodityRef) -> bool {
-    let text = |name: &str| el.find(name).map(|e| e.text_content().trim().to_owned());
-    let here = text("cmdty:id").is_some_and(|id| id == commodity.mnemonic)
-        && text("cmdty:space").is_some_and(|ns| CommodityRef::new(ns, "").namespace == commodity.namespace);
-    here || el.elements().any(|child| refers_to(child, commodity))
-}
-
-fn element_mentions(el: &Element, needle: &str) -> bool {
-    el.attrs.iter().any(|(_, v)| v.contains(needle))
-        || el.children.iter().any(|c| match c {
-            crate::dom::Node::Text(t) => t.contains(needle),
-            crate::dom::Node::Element(e) => element_mentions(e, needle),
-        })
 }
 
 /// True if the bytes start with the gzip magic number.
@@ -279,7 +246,8 @@ impl<'a, W: Write> Writer<'a, W> {
         self.prices();
         self.accounts();
         self.transactions();
-        self.out_of_scope();
+        self.templates();
+        self.scheduled();
         self.budgets();
         self.business();
         self.out.push_str("</gnc:book>\n");
@@ -361,12 +329,11 @@ impl<'a, W: Write> Writer<'a, W> {
         let commodities = self.book.commodities.keys().filter(|c| !c.is_currency()).count();
         let accounts = 1 + self.book.descendants(self.book.root).len();
         let transactions = self.written_transactions().count();
-        let count_raw = |s: Section| self.residue.out_of_scope.iter().filter(|(sec, _)| *sec == s).count();
         let counts = [
             ("commodity", commodities),
             ("account", accounts),
             ("transaction", transactions),
-            ("schedxaction", count_raw(Section::ScheduledTransactions)),
+            ("schedxaction", self.book.scheduled.len()),
             ("budget", self.book.budgets.len()),
             ("price", self.book.prices.len()),
             ("gnc:GncBillTerm", b.bill_terms.len()),
@@ -468,29 +435,37 @@ impl<'a, W: Write> Writer<'a, W> {
         self.unknown_after(Section::Transactions);
     }
 
-    fn out_of_scope(&mut self) {
-        for section in [Section::Templates, Section::ScheduledTransactions] {
-            let parts: Vec<&Element> = self
-                .residue
-                .out_of_scope
-                .iter()
-                .filter(|(s, _)| *s == section)
-                .map(|(_, e)| e)
-                .collect();
-            for el in parts {
-                if section == Section::Templates {
-                    self.out.push_str("<gnc:template-transactions>\n");
-                    el.elements().for_each(|c| {
-                        self.out.push_str(&c.dump(0));
-                        self.out.push('\n');
-                    });
-                    self.out.push_str("</gnc:template-transactions>\n");
-                } else {
-                    self.line(el);
-                }
+    /// The template block, written only when the template root has descendants (`write_template_transaction_data`,
+    /// `5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1179-1199`): the template accounts, then the template transactions,
+    /// each in the order the Book holds them.
+    fn templates(&mut self) {
+        let (templates, before) = (&self.book.templates, &self.residue.snapshot.templates);
+        if templates.accounts.keys().any(|g| Some(*g) != templates.root) {
+            self.out.push_str("<gnc:template-transactions>\n");
+            for a in templates.accounts.values() {
+                let original = self.residue.originals.template_accounts.get(&a.guid);
+                let unchanged = before.accounts.get(&a.guid).is_some_and(|o| same(a, o));
+                self.entity(original.filter(|_| unchanged), || account_el(a, &[]));
             }
-            self.unknown_after(section);
+            for t in templates.transactions.values() {
+                let original = self.residue.originals.template_transactions.get(&t.guid);
+                let unchanged = before.transactions.get(&t.guid).is_some_and(|o| same(t, o));
+                self.entity(original.filter(|_| unchanged), || transaction_el(t));
+            }
+            self.out.push_str("</gnc:template-transactions>\n");
         }
+        self.unknown_after(Section::Templates);
+    }
+
+    /// Scheduled transactions in the order the Book holds them, which is GnuCash's: the order it read them in.
+    fn scheduled(&mut self) {
+        let book = self.book;
+        for sx in book.scheduled.values() {
+            let original = self.residue.originals.scheduled.get(&sx.guid);
+            let unchanged = self.residue.snapshot.scheduled.get(&sx.guid).is_some_and(|o| same(sx, o));
+            self.entity(original.filter(|_| unchanged), || scheduled_el(sx));
+        }
+        self.unknown_after(Section::ScheduledTransactions);
     }
 
     /// Budgets in the order the Book holds them: GnuCash's own order is not reproducible (`xml-format-core.md` §7.6).
