@@ -377,7 +377,9 @@ functions, the instance model's amounts, the forecast reports), expected values 
 3. **The SQLite library** is `rusqlite` with `bundled`, so the SQLite version is pinned, not the system's. It compiles
    C, a second C library in the build beside `ring`, recorded as `ring` is ([`architecture.md`](architecture.md),
    "Dependencies"); pure-Rust SQLite engines are not yet ready to trust with a user's books.
-4. **Schema versions.** Any `versions` row other than 5.17's opens read-only; red-ale never upgrades.
+4. **Schema versions.** A book whose table rows in `versions` differ from 5.17's, or whose `Gnucash-Resave` row is not
+   19920, opens read-only; the `Gnucash` row only has to lie between 19920 and 5.17's, since ordinary edits never update
+   it ([`sql-fidelity.md`](sql-fidelity.md)). red-ale never upgrades.
 5. **Double slots in SQLite** keep their eight bytes as read and are written back unchanged.
 6. **Financial functions** are computed exactly (whole numbers of periods make `(1+r)^n` rational), rounded half up to
    12 significant figures as GnuCash rounds a function's result, then to the SCU. Functions with a non-integer power

@@ -8,7 +8,8 @@ Each bounded context is one crate with its own model. A crate uses another only 
 |-------|---------|-----|---------------|
 | `red-ale-core` | Bookkeeping domain | The Book model and its invariants, and every domain operation (post, void, scrub, lots, capital gains, invoices, payments). Pure: no I/O, no async, no file formats. | — |
 | `red-ale-xml` | XML file format | Anti-corruption layer: parses an XML Book file into a core `Book` plus the Residue it does not model, and writes them back as GnuCash 5.17 does. | core |
-| `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. | core, xml, locale |
+| `red-ale-sql` | SQL file format (v0.4) | Anti-corruption layer: reads an SQLite Book into a core `Book` plus the SQL Residue, and writes a save's changed rows back in one SQL transaction, read back before it commits, as GnuCash 5.17 would write them; GnuCash's `gnclock` row and the online backup copy ([`sql-fidelity.md`](sql-fidelity.md)). Only SQLite in v0.4, written so a second SQL dialect fits beside it. | core |
+| `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. Since v0.4 both formats sit behind its `Backend` trait ([`sql-fidelity.md`](sql-fidelity.md) §2). | core, xml, sql, locale |
 | `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. Holds the open book's Quote fetches and stores their prices. | core, service, report, locale, export, quotes |
 | `red-ale-mcp` | MCP adapter | Conformist to the MCP specification: one tool per JSON-RPC method, served over stdio, each call run through the `Dispatcher`. No logic of its own ([`mcp.md`](mcp.md)). | rpc |
 | `red-ale` | Binary | `red-ale serve` (the JSON-RPC server), `red-ale mcp` (the MCP server) and the CLI front end. The only crate that uses `anyhow`. | rpc, mcp, service |
@@ -17,7 +18,7 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale-export` | Export (v0.3) | The CSV exports of the account tree and transactions, translated from GnuCash (`design/api/export.md`). Pure: no I/O; reads the Book and returns text. Numbers print through the report renderer's `xaccPrintAmount` translation under a Locale. Export accounts, which writes a file, is the XML backend's writer and the service's use case. | core, report, locale |
 | `red-ale-locale` | Locales (v0.3) | The Locale table generated from glibc's locale sources (number format, `D_FMT`, day and month names) and GnuCash's view of it (`gnc_localeconv`); the first day of the week and date intervals from ICU4X. Pure data and lookups: the environment comes in as a function. | — |
 | `red-ale-quotes` | Online quotes (v0.3) | The only crate that reaches the network ([`api/quotes.md`](api/quotes.md)). `format`: one parser per Quote service response format, pure functions from an answer's bytes to a quote record, with numbers read as text (`json_text`); `plan`: the requests for a commodity from the Configuration's Quote services and sources, keys bound to their hosts (`secret`); `fetch`: runs a Quote fetch's requests over HTTP on its own thread and tokio runtime. Which commodities are fetched and how a quote record becomes a Price are pure and live in `red-ale-core` (`ops::quotes`). | core, service |
-| `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, the GnuCash oracle harness, and a Quote service on 127.0.0.1 serving recorded answers. Used only by tests. | core, xml, service, rpc |
+| `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, the GnuCash oracle harness, and a Quote service on 127.0.0.1 serving recorded answers. Used only by tests. | core, xml, sql, service, rpc |
 
 The core reaches the outside world only through `Env`: the clock, fresh GUIDs and the Local time zone. The zone is a
 value (`TimeZone`) built from data, never from the environment; `red-ale-service` reads `TZ`, `TZDIR` and the zone
@@ -26,20 +27,23 @@ files once per process, in GnuCash's order, and hands the zone to every session'
 
 `red-ale-report` arrives in v0.2 (see [`reports.md`](reports.md)); `red-ale-rpc` depends on it for the `report.*`
 methods, and `red-ale-service` reads the report directory and keeps saved report configurations in the
-Configuration. `red-ale-sql` arrives in v0.4 as a second Backend beside `red-ale-xml`.
+Configuration. `red-ale-sql` arrives in v0.4 as a second Backend beside `red-ale-xml`; the Session reaches either
+through the `Backend` trait in `red-ale-service`.
 
 ## Context map
 
 ```
-           GnuCash XML file (external model)
-                       │
-                       ▼
-   ┌────────────── red-ale-xml ──────────────┐  anti-corruption layer
-   │ DOM ⇄ core Book  +  Residue (kept raw)   │
-   └──────────────────────────────────────────┘
-                       │ core::Book
-                       ▼
-   red-ale-service  (Session: lock, journal, backups, atomic use cases)
+       GnuCash XML file                 GnuCash SQLite file           (external models)
+              │                                  │
+              ▼                                  ▼
+   ┌──── red-ale-xml ─────┐          ┌──── red-ale-sql ─────┐        anti-corruption layers
+   │ DOM ⇄ core Book      │          │ rows ⇄ core Book     │
+   │ + XmlResidue         │          │ + SQL Residue        │
+   └──────────────────────┘          └──────────────────────┘
+              └──────────── core::Book ──────────┘
+                               │
+                               ▼
+   red-ale-service  (Session over the Backend seam: lock, journal, backups, atomic use cases)
                        │
                        ▼
    red-ale-rpc  (published language: JSON-RPC 2.0, versioned schema)
@@ -51,6 +55,9 @@ Configuration. `red-ale-sql` arrives in v0.4 as a second Backend beside `red-ale
 
 - **XML file ⇄ core:** anti-corruption layer. File quirks (element names, `quantity` for amount, slot paths used only
   by the file) stay in `red-ale-xml`.
+- **SQLite file ⇄ core:** anti-corruption layer, as for XML. Table and column names, `_num`/`_denom` pairs, the two
+  timestamp forms, slot rows with their frame GUIDs, and commodity GUIDs stay in `red-ale-sql`
+  ([`sql-fidelity.md`](sql-fidelity.md)).
 - **core ⇄ service:** customer/supplier. The service decides *when*; core decides *what is valid*.
 - **service ⇄ rpc:** the rpc crate translates wire types to core types and back; it holds no domain rules.
 - **rpc ⇄ clients:** published language (see [`api.md`](api.md)).
@@ -156,4 +163,6 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `hyper`, `hyper-util`, `http-body-util` | quotes | HTTP/1.1 GET for Quote fetches (client only, no redirects). Chosen over `reqwest` and `ureq` because `jsonrpsee` already brings exactly this stack into the build (its HTTP client is `hyper-util`'s), so the fetcher adds no crate to `Cargo.lock`; `ureq` would add a second, blocking HTTP stack, and `reqwest` a layer over the same one |
 | `hyper-rustls`, `rustls`, `rustls-native-certs` | quotes | HTTPS with the system's trust store. rustls's crypto provider is `ring`, with default features off so `aws-lc-rs` is never built. **`ring` is not pure Rust:** it compiles C and assembly with `cc` (licence `Apache-2.0 AND ISC`). Every production rustls provider does (`aws-lc-rs` is C, built with CMake; the pure-Rust `rustls-rustcrypto` is not production-ready), so `ring` is the least bad choice: smaller than `aws-lc-rs`, no CMake, and already linked for `red-ale call`'s HTTPS through `jsonrpsee`. No system C library is linked |
 | `regex` | core, rpc | GnuCash's `GncNumeric(std::string)` and `GncDate` patterns; the `--namespace` pattern of a Quote fetch |
+| `rusqlite` (`libsqlite3-sys`) | sql | SQLite books, with `bundled` so the SQLite version is pinned, not the system's, and `backup` for the online backup API; default features off (MIT; SQLite itself is public domain). **`bundled` compiles SQLite's C amalgamation with `cc`**, a second C library in the build beside `ring`; pure-Rust SQLite engines are not yet ready to trust with a user's books ([`milestone4.md`](milestone4.md), "Decided" item 3). No system SQLite is linked |
+| `rustix` | service | the host name for an SQL book's `gnclock` row (`uname`'s node name, as `gethostname` gives), without `unsafe`; feature `system` only, already in the build through `tempfile` |
 | `proptest`, `tempfile` | tests | property tests and temp directories |

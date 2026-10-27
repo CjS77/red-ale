@@ -15,16 +15,18 @@ Design comes before code. Read in this order:
    reports), its decisions and progress. In progress.
 9. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
 10. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
-11. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods. Its `api/` pages cover
+11. [`sql-fidelity.md`](sql-fidelity.md): how an SQLite book is read, locked and saved without loss, and the Backend
+    seam both formats sit behind.
+12. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods. Its `api/` pages cover
     each area; v0.3 added [`import.md`](api/import.md), [`export.md`](api/export.md), [`quotes.md`](api/quotes.md)
     and [`configuration.md`](api/configuration.md), and v0.4 adds [`budgets.md`](api/budgets.md) and
     [`scheduled-transactions.md`](api/scheduled-transactions.md).
-12. [`reports.md`](reports.md): report scripting: the Rhai engine, the query API, options, the report result,
+13. [`reports.md`](reports.md): report scripting: the Rhai engine, the query API, options, the report result,
     rendering, saved configurations, and the plan for translating and testing GnuCash's reports.
-13. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.
-14. [`manual.md`](manual.md): the Manual: user documentation for agents, users and the website, from one core. Proposed.
-15. [`testing.md`](testing.md): fixtures, round-trip tests, fuzzing and the GnuCash oracle.
-16. [`open-questions.md`](open-questions.md): decisions not yet made.
+14. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.
+15. [`manual.md`](manual.md): the Manual: user documentation for agents, users and the website, from one core. Proposed.
+16. [`testing.md`](testing.md): fixtures, round-trip tests, fuzzing and the GnuCash oracle.
+17. [`open-questions.md`](open-questions.md): decisions not yet made.
 
 `GNUCASH_REV` pins the GnuCash release red-ale matches (tag, then commit).
 
