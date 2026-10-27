@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
 
+pub mod backend;
 pub mod config;
 pub mod error;
 pub mod export;
@@ -16,5 +17,6 @@ pub mod reports;
 pub mod session;
 pub mod zone;
 
+pub use backend::{Format, Reference};
 pub use error::ServiceError;
 pub use session::{ReadOnlyReason, SaveReport, Session, Settings};

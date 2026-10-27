@@ -137,6 +137,7 @@ pub enum Format {
 impl Format {
     /// The format named by a URI scheme (`xml://`, `sqlite3://`), else the one the file's first bytes say, as GnuCash
     /// decides (`5.17:libgnucash/backend/dbi/gnc-backend-dbi.cpp:1029-1068`).
+    /// (Until the SQLite Backend lands, `of(path)` only sniffs; see "The XML Backend moves first".)
     pub fn of(spec: &str, path: &Path) -> Result<Self, ServiceError>;
 }
 
@@ -230,15 +231,27 @@ pub trait Backend: fmt::Debug + Send {
 the Book, the read-only reasons, the journal, the dirty flag, the settings, the `Env`, the revision and the Import
 proposals. `try_mutate` calls `check_storable` before it commits; `save` calls `prepare_save` (when the Book is dirty),
 then `save`, then sets `saved` to the Book, rotates the journal and applies retention, for both formats.
-`read_only_triggers` takes the Backend's findings instead of an `XmlResidue`, and `ReadOnlyReason` gains
-`SchemaVersions(Vec<String>)` with the code `schema-version`.
+`read_only_triggers` takes the Backend's findings (`&[ReadOnlyReason]`) instead of an `XmlResidue`; the rule the
+Session passes adds `Requested` first for a read-only open, so `Opened::read_only` is complete and "empty" means "the
+Backend holds the lock". With the SQLite Backend, `ReadOnlyReason` gains `SchemaVersions(Vec<String>)` with the code
+`schema-version`. A Book `prepare_save` returns replaces the Session's Book only once the save succeeds, and does not
+move the revision: it is not a Mutation and touches nothing an Import proposal reads.
+
+`Session::residue()` is gone; callers use `Session::references(Reference)` (deletion and rename checks),
+`compressed() -> Option<bool>` (`book.info`), `xml_residue() -> Option<&XmlResidue>` (Export Accounts) and
+`format()`. `SaveReport::compressed` is `Option<bool>`; the wire still says `false` for `None` until the SQLite
+ticket decides `book.info` and `book.save`'s results.
 
 **The XML Backend moves first, with no byte changing.**
 `XmlBackend { path, residue: XmlResidue, lock: Option<BookLock> }` does what `Session::open`, `save` and `close` do
 today, in the same order: lock, read, release the lock if the rule finds a reason; write a temporary file, read it
 back, back up, rename. Its `saved` argument equals the snapshot its Residue already holds and is unused at first.
-`check_storable` always passes; `prepare_save` returns `None`. The commit that adds the seam changes no test except
-imports and constructors, and every round-trip test, both writer paths included ([`file-fidelity.md`](file-fidelity.md),
+`check_storable` always passes; `prepare_save` returns `None`. Its `create` locks and builds the empty Book and a new
+book's Residue but writes nothing: `Session::create` marks the Book dirty and saves it, as before, so the first write
+goes through the same replace, journal rotation and retention as every save. Until the SQLite Backend exists,
+`Format::of` takes only the path and sniffs its first bytes (`resolve_path` still refuses `sqlite3://` with
+`sql-book`), and `open` and `create` with `Format::Sqlite` give `sql-book`. The commit that adds the seam changes no
+test except imports, constructors and one accessor (`residue().compressed` to `compressed()`), and every round-trip test, both writer paths included ([`file-fidelity.md`](file-fidelity.md),
 "Proving the generators"), passes unchanged.
 
 **`red-ale-sql`'s own surface**, which the SQLite adapter wraps:

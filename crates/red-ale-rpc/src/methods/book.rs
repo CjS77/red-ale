@@ -224,7 +224,7 @@ pub fn describe(session: &Session) -> BookInfo {
         read_only: session.is_read_only(),
         read_only_reasons: session.read_only_reasons().iter().map(reason_info).collect(),
         dirty: session.is_dirty(),
-        compressed: session.residue().compressed,
+        compressed: session.compressed().unwrap_or(false),
         journal: session.journal_path().map(|p| p.display().to_string()),
         features: features(book)
             .into_iter()
@@ -279,7 +279,7 @@ fn save(ctx: &mut Context, p: SaveParams) -> Result<SaveResult, RpcError> {
     Ok(SaveResult {
         backup: report.backup.as_ref().map(show),
         removed: report.removed.iter().map(show).collect(),
-        compressed: report.compressed,
+        compressed: report.compressed.unwrap_or(false),
     })
 }
 
