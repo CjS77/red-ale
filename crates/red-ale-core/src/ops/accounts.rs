@@ -14,7 +14,7 @@ use crate::ops::account_properties::apply_properties;
 use crate::ops::commit::{commodity_fraction, round_amount, sort_splits};
 use crate::ops::commodities::account_commodity_changed;
 use crate::transaction::slot_paths as txn_slots;
-use crate::{Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, Numeric, SlotValue, Transaction};
+use crate::{Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, Numeric, SlotValue, TemplateSplit, Transaction};
 
 /// The account separator. GnuCash makes it a user preference (default `:`,
 /// `5.17:gnucash/gschemas/org.gnucash.GnuCash.gschema.xml.in:18-22`); red-ale always uses `:`.
@@ -821,6 +821,7 @@ impl Plan {
         let doomed = self.doomed();
         check_referrers(book, &doomed)?;
         check_budgets(book, &doomed)?;
+        check_schedules(book, &doomed)?;
         if let (Some(Disposal::MoveTo(p)), Some(child)) = (self.subaccount, self.child) {
             let below: Vec<Guid> = std::iter::once(self.account.guid).chain(self.descendants.iter().copied()).collect();
             self.check_target(book, p, &below)?;
@@ -985,6 +986,32 @@ fn check_budgets(book: &Book, accounts: &[Guid]) -> DomainResult<()> {
         Err(DomainError::conflict(format!(
             "the account has amounts or notes in budgets; change them first: {}",
             budgets.join(", ")
+        )))
+    }
+}
+
+/// Template splits that create splits in an account stop its deletion. GnuCash deletes the account and leaves the
+/// template splits naming it (`design/notes/xml-format-core.md` §8.6); red-ale refuses instead and names the scheduled
+/// transactions (`design/milestone4.md`, "Compatibility in v0.4"), as `gnc_sx_get_sxes_referencing_account` finds
+/// them (`5.17:libgnucash/engine/SX-book.cpp:364-389`). A template split that belongs to no scheduled transaction
+/// refuses it too, named by its template transaction.
+fn check_schedules(book: &Book, accounts: &[Guid]) -> DomainResult<()> {
+    let users: indexmap::IndexSet<String> = book
+        .templates
+        .splits()
+        .filter(|(_, s)| TemplateSplit::of(s).and_then(|f| f.account()).is_some_and(|a| accounts.contains(&a)))
+        .map(|(t, s)| match s.account.and_then(|a| book.scheduled_of_template_account(a)) {
+            Some(sx) => format!("scheduled transaction {:?}", sx.name),
+            None => format!("template transaction {:?}", t.description.as_deref().unwrap_or_default()),
+        })
+        .collect();
+    if users.is_empty() {
+        Ok(())
+    } else {
+        let users: Vec<String> = users.into_iter().collect();
+        Err(DomainError::conflict(format!(
+            "the account is used by scheduled transactions; change them first: {}",
+            users.join(", ")
         )))
     }
 }
@@ -1446,5 +1473,68 @@ mod tests {
             ..DeleteOptions::default()
         };
         assert!(delete_account(&mut f.book, expenses, &keep_food).is_ok(), "a sub-account it keeps");
+    }
+
+    #[test]
+    fn delete_refuses_an_account_a_template_split_uses() {
+        use crate::{Date, Frame, ScheduledTransaction, Split, SlotValue};
+        let mut f = Fx::new();
+        let expenses = f.add(Guid::NULL, "Expenses", AccountType::Expense);
+        let rent = f.add(expenses, "Rent", AccountType::Expense);
+        let (template, ghost) = (Guid::from_bytes([20; 16]), Guid::from_bytes([21; 16]));
+        let template_transaction = |guid: Guid, account: Guid, description: &str| {
+            let mut frame = Frame::new();
+            frame.insert_key("account", SlotValue::Guid(rent));
+            let mut split = Split::new(Guid::from_bytes([guid.as_bytes()[0] + 2; 16]), account, Numeric::new(0, 100), Numeric::new(0, 1));
+            split.slots.insert_key(crate::scheduled::SPLIT_FRAME, SlotValue::Frame(frame));
+            Transaction {
+                guid,
+                currency: CommodityRef::currency("USD"),
+                num: None,
+                date_posted: Time64(0),
+                date_entered: Time64(0),
+                description: Some(description.into()),
+                slots: Frame::new(),
+                splits: vec![split],
+            }
+        };
+        let book = &mut f.book;
+        [(Guid::from_bytes([30; 16]), template, "Rent"), (Guid::from_bytes([31; 16]), ghost, "Old")]
+            .into_iter()
+            .for_each(|(guid, account, description)| {
+                book.templates.transactions.insert(guid, Arc::new(template_transaction(guid, account, description)));
+            });
+        let sx = ScheduledTransaction {
+            guid: Guid::from_bytes([40; 16]),
+            name: "Monthly rent".into(),
+            enabled: true,
+            auto_create: false,
+            auto_create_notify: false,
+            advance_create_days: 0,
+            advance_remind_days: 0,
+            instance_count: 1,
+            start: Date::from_ymd(2024, 1, 1).unwrap(),
+            last: None,
+            end: None,
+            occurrences: None,
+            template_account: Some(template),
+            schedule: Vec::new(),
+            deferred: Vec::new(),
+            slots: Frame::new(),
+        };
+        book.scheduled.insert(sx.guid, Arc::new(sx));
+        let refused = |book: &mut Book, guid, subaccount| {
+            let opts = DeleteOptions {
+                subaccount,
+                ..DeleteOptions::default()
+            };
+            delete_account(book, guid, &opts).unwrap_err().to_string()
+        };
+        let message = "the account is used by scheduled transactions; change them first: scheduled transaction \"Monthly rent\", \
+                       template transaction \"Old\"";
+        assert_eq!(refused(&mut f.book, rent, None), message);
+        assert_eq!(refused(&mut f.book, expenses, Some(Disposal::Delete)), message, "a sub-account it would delete");
+        let other = f.add(Guid::NULL, "Other", AccountType::Expense);
+        assert!(delete_account(&mut f.book, other, &DeleteOptions::default()).is_ok());
     }
 }

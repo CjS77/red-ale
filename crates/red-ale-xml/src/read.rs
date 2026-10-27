@@ -474,6 +474,8 @@ impl Collect {
             lots: self.lots,
             business: self.business,
             budgets: self.budgets,
+            templates: red_ale_core::Templates::default(),
+            scheduled: indexmap::IndexMap::new(),
         })
     }
 }

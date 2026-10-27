@@ -520,15 +520,17 @@ fn follow_fraction(book: &mut Book, id: &CommodityRef, fraction: i64) {
         .for_each(|a| Arc::make_mut(a).commodity_scu = Some(fraction));
 }
 
-/// GnuCash's entities hold the commodity object itself, so renaming it renames it everywhere; red-ale's hold its
-/// name, so each reference is rewritten.
+/// GnuCash's entities hold the commodity object itself, so renaming it renames it everywhere, template accounts and
+/// template transactions included; red-ale's hold its name, so each reference is rewritten.
 fn rename_references(book: &mut Book, old: &CommodityRef, new: &CommodityRef) {
     book.accounts
         .values_mut()
+        .chain(book.templates.accounts.values_mut())
         .filter(|a| a.commodity.as_ref() == Some(old))
         .for_each(|a| Arc::make_mut(a).commodity = Some(new.clone()));
     book.transactions
         .values_mut()
+        .chain(book.templates.transactions.values_mut())
         .filter(|t| t.currency == *old)
         .for_each(|t| Arc::make_mut(t).currency = new.clone());
     book.prices
@@ -569,6 +571,9 @@ pub fn delete_commodity(book: &mut Book, id: &CommodityRef, delete_prices: bool)
             used.accounts, used.transactions, used.business
         )));
     }
+    if templates_use(book, &id) {
+        return Err(DomainError::conflict(format!("{id} is in use by template transactions of scheduled transactions")));
+    }
     if used.prices > 0 && !delete_prices {
         return Err(DomainError::conflict(format!(
             "{id} has {} prices; pass deletePrices to delete them with it",
@@ -586,6 +591,14 @@ pub fn delete_commodity(book: &mut Book, id: &CommodityRef, delete_prices: bool)
     });
     book.commodities.remove(&id);
     Ok(prices)
+}
+
+/// True if a template account or template transaction refers to `id`. [`usage`] does not count them: they are not part
+/// of the Account tree.
+fn templates_use(book: &Book, id: &CommodityRef) -> bool {
+    let t = &book.templates;
+    t.accounts.values().any(|a| a.commodity.as_ref().is_some_and(|c| canonical(c) == *id))
+        || t.transactions.values().any(|x| canonical(&x.currency) == *id)
 }
 
 /// Namespaces of the table with their commodity counts, sorted. `CURRENCY` is always present.
@@ -801,5 +814,33 @@ mod tests {
         assert_eq!(delete_commodity(&mut b, &id, true).unwrap(), vec![Guid::from_bytes([3; 16])]);
         assert!(b.prices.is_empty());
         assert!(delete_commodity(&mut b, &CommodityRef::currency("USD"), true).is_err());
+    }
+
+    #[test]
+    fn template_transactions_follow_a_rename_and_stop_a_deletion() {
+        let mut b = book();
+        let id = create_security(&mut b, &acme()).unwrap();
+        let guid = Guid::from_bytes([5; 16]);
+        let template = crate::Transaction {
+            guid,
+            currency: id.clone(),
+            num: None,
+            date_posted: Time64(0),
+            date_entered: Time64(0),
+            description: None,
+            slots: crate::Frame::new(),
+            splits: Vec::new(),
+        };
+        b.templates.transactions.insert(guid, Arc::new(template));
+        let renamed = CommodityChanges {
+            mnemonic: Some("ACM".into()),
+            ..CommodityChanges::default()
+        };
+        let new = update_commodity(&mut b, &id, &renamed).unwrap();
+        assert_eq!(b.templates.transactions[&guid].currency, new);
+        assert_eq!(
+            delete_commodity(&mut b, &new, true).unwrap_err().to_string(),
+            "NASDAQ::ACM is in use by template transactions of scheduled transactions"
+        );
     }
 }
