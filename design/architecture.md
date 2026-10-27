@@ -68,11 +68,11 @@ Configuration. `red-ale-sql` arrives in v0.4 as a second Backend beside `red-ale
 ### The core owns the model; the Backend owns the file
 
 `core::Book` holds every entity red-ale models: commodities, accounts, transactions with their splits, prices, lots,
-and the business objects. The Book's own Slots and each entity's Slots are kept whole, as a Frame, so slots red-ale
-does not interpret are never lost.
+the business objects and budgets. The Book's own Slots and each entity's Slots are kept whole, as a Frame, so slots
+red-ale does not interpret are never lost.
 
 Everything else in the file is Residue, kept by the Backend beside the Book (see [`file-fidelity.md`](file-fidelity.md)):
-scheduled transactions, template transactions, budgets, and any element a later GnuCash adds. The Session carries the
+scheduled transactions, template transactions, and any element a later GnuCash adds. The Session carries the
 Book and the Residue together; only the Backend reads the Residue.
 
 ### Order is kept

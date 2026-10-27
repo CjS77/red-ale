@@ -16,10 +16,11 @@ use std::io::BufRead;
 use std::sync::Arc;
 
 use red_ale_core::business::Business;
-use red_ale_core::{Account, AccountType, Book, Commodity, CommodityRef, Frame, Guid, Lot, Price, Transaction};
+use red_ale_core::{Account, AccountType, Book, Budget, Commodity, CommodityRef, Frame, Guid, Lot, Price, Transaction};
 
 use crate::XmlError;
 use crate::book::{Originals, Section, XmlResidue};
+use crate::budgets::{budget_el, parse_budget};
 use crate::business::{self, BusinessObject};
 use crate::dom::{Element, Token, Tokens, TreeBuilder};
 use crate::entities::{
@@ -270,6 +271,7 @@ trait Sink {
     fn account(&mut self, account: Account, lots: Vec<Lot>);
     fn transaction(&mut self, transaction: Transaction);
     fn business(&mut self, object: BusinessObject);
+    fn budget(&mut self, budget: Budget);
 }
 
 /// Translates each part of the book, keeping in the Residue what the Book does not hold.
@@ -365,7 +367,12 @@ impl<S: Sink> Reader<S> {
             }
             "gnc:template-transactions" => kept.out_of_scope_part(Section::Templates, el),
             "gnc:schedxaction" => kept.out_of_scope_part(Section::ScheduledTransactions, el),
-            "gnc:budget" => kept.out_of_scope_part(Section::Budgets, el),
+            "gnc:budget" => {
+                kept.enter(Section::Budgets);
+                let b = parse_budget(el, &mut kept.notices)?;
+                keep(&mut kept.originals.budgets, b.guid, original_if_needed(el, Some(&budget_el(&b)), 0));
+                self.sink.budget(b);
+            }
             name if business::ELEMENT_NAMES.contains(&name) => {
                 kept.enter(Section::Business);
                 let obj = business::parse(el, &mut kept.notices)?;
@@ -448,6 +455,7 @@ struct Collect {
     prices: indexmap::IndexMap<Guid, Arc<Price>>,
     lots: indexmap::IndexMap<Guid, Arc<Lot>>,
     business: Business,
+    budgets: indexmap::IndexMap<Guid, Arc<Budget>>,
 }
 
 impl Collect {
@@ -465,6 +473,7 @@ impl Collect {
             prices: self.prices,
             lots: self.lots,
             business: self.business,
+            budgets: self.budgets,
         })
     }
 }
@@ -499,6 +508,10 @@ impl Sink for Collect {
 
     fn business(&mut self, object: BusinessObject) {
         insert_business(&mut self.business, object);
+    }
+
+    fn budget(&mut self, budget: Budget) {
+        self.budgets.insert(budget.guid, Arc::new(budget));
     }
 }
 
@@ -552,6 +565,7 @@ struct Seen {
     prices: HashSet<Guid>,
     lots: HashSet<Guid>,
     business: HashSet<Guid>,
+    budgets: HashSet<Guid>,
 }
 
 /// True if `found` is the entity `expected` holds under its key, read for the first time.
@@ -593,6 +607,7 @@ impl<'a> Verify<'a> {
             .or_else(|| first_missing("transaction", expected.transactions.keys(), &self.seen.transactions))
             .or_else(|| first_missing("price", expected.prices.keys(), &self.seen.prices))
             .or_else(|| first_missing("lot", expected.lots.keys(), &self.seen.lots))
+            .or_else(|| first_missing("budget", expected.budgets.keys(), &self.seen.budgets))
             .or_else(|| {
                 (business_count(&expected.business) != self.seen.business.len()).then(|| "business objects differ after writing".into())
             });
@@ -692,6 +707,12 @@ impl Sink for Verify<'_> {
         let guid = object.guid();
         let same = business_matches(&self.expected.business, &object) && self.seen.business.insert(guid);
         self.check(same, || "business objects differ after writing".into());
+    }
+
+    fn budget(&mut self, budget: Budget) {
+        let guid = budget.guid;
+        let same = matches(self.expected.budgets.get(&guid), &budget, &mut self.seen.budgets, guid);
+        self.check(same, || format!("budget {guid} differs after writing"));
     }
 }
 

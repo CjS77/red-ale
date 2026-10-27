@@ -820,6 +820,7 @@ impl Plan {
     fn check(&self, book: &Book, opts: &DeleteOptions) -> DomainResult<()> {
         let doomed = self.doomed();
         check_referrers(book, &doomed)?;
+        check_budgets(book, &doomed)?;
         if let (Some(Disposal::MoveTo(p)), Some(child)) = (self.subaccount, self.child) {
             let below: Vec<Guid> = std::iter::once(self.account.guid).chain(self.descendants.iter().copied()).collect();
             self.check_target(book, p, &below)?;
@@ -964,6 +965,26 @@ fn check_referrers(book: &Book, accounts: &[Guid]) -> DomainResult<()> {
         Err(DomainError::conflict(format!(
             "the account is used by business objects; change them first: {}",
             referrers.join(", ")
+        )))
+    }
+}
+
+/// Budgets with amounts or notes for an account stop its deletion. GnuCash deletes the account and keeps the budget's
+/// Slots for it, which then name no account (`design/notes/engine-budgets.md` §1.7); red-ale refuses instead
+/// (`design/milestone4.md`, "Compatibility in v0.4").
+fn check_budgets(book: &Book, accounts: &[Guid]) -> DomainResult<()> {
+    let budgets: Vec<String> = book
+        .budgets
+        .values()
+        .filter(|b| accounts.iter().any(|a| b.mentions(*a)))
+        .map(|b| format!("budget {:?}", b.name))
+        .collect();
+    if budgets.is_empty() {
+        Ok(())
+    } else {
+        Err(DomainError::conflict(format!(
+            "the account has amounts or notes in budgets; change them first: {}",
+            budgets.join(", ")
         )))
     }
 }
@@ -1389,5 +1410,41 @@ mod tests {
         ];
         v.sort_by(account_order);
         assert_eq!(v.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["C", "B", "A", "D"]);
+    }
+
+    #[test]
+    fn delete_refuses_an_account_a_budget_has_amounts_for() {
+        use crate::{Budget, Date, Frame, PeriodType, Recurrence, SlotValue, WeekendAdjust};
+        let mut f = Fx::new();
+        let expenses = f.add(Guid::NULL, "Expenses", AccountType::Expense);
+        let food = f.add(expenses, "Food", AccountType::Expense);
+        let mut slots = Frame::new();
+        slots.set_in(&["notes", &food.to_string(), "13"], SlotValue::String("past the last period".into()));
+        let start = Date::from_ymd(2024, 1, 1).unwrap();
+        let budget = Budget {
+            guid: Guid::from_bytes([9; 16]),
+            name: "Plan".into(),
+            description: String::new(),
+            num_periods: 12,
+            recurrence: Recurrence::new(1, PeriodType::Month, start, WeekendAdjust::None).unwrap(),
+            slots,
+        };
+        f.book.budgets.insert(budget.guid, std::sync::Arc::new(budget));
+        let refused = |book: &mut Book, guid, subaccount| {
+            let opts = DeleteOptions {
+                subaccount,
+                ..DeleteOptions::default()
+            };
+            delete_account(book, guid, &opts).unwrap_err().to_string()
+        };
+        let message = "the account has amounts or notes in budgets; change them first: budget \"Plan\"";
+        assert_eq!(refused(&mut f.book, food, None), message);
+        assert_eq!(refused(&mut f.book, expenses, Some(Disposal::Delete)), message, "a sub-account it would delete");
+        let other = f.add(Guid::NULL, "Other", AccountType::Expense);
+        let keep_food = DeleteOptions {
+            subaccount: Some(Disposal::MoveTo(other)),
+            ..DeleteOptions::default()
+        };
+        assert!(delete_account(&mut f.book, expenses, &keep_food).is_ok(), "a sub-account it keeps");
     }
 }

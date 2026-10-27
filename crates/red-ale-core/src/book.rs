@@ -6,7 +6,7 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 
 use crate::business::Business;
-use crate::{Account, Commodity, CommodityRef, Frame, Guid, Lot, Price, Time64, TimeZone, Transaction};
+use crate::{Account, Budget, Commodity, CommodityRef, Frame, Guid, Lot, Price, Time64, TimeZone, Transaction};
 
 /// Supplies what domain operations need from the outside world: the time, the local time zone and fresh GUIDs. The
 /// service passes a real one; tests pass a deterministic one, which keeps the core pure.
@@ -93,6 +93,9 @@ pub struct Book {
     pub lots: IndexMap<Guid, Arc<Lot>>,
     /// Business objects.
     pub business: Business,
+    /// Budgets. GnuCash writes them in an order that changes from save to save
+    /// (`design/notes/xml-format-core.md` §7.6), so the order read is kept.
+    pub budgets: IndexMap<Guid, Arc<Budget>>,
 }
 
 impl Book {
@@ -111,6 +114,7 @@ impl Book {
             prices: IndexMap::new(),
             lots: IndexMap::new(),
             business: Business::default(),
+            budgets: IndexMap::new(),
         }
     }
 
@@ -139,6 +143,11 @@ impl Book {
     /// The lot with this GUID.
     pub fn lot(&self, guid: Guid) -> Option<&Lot> {
         self.lots.get(&guid).map(AsRef::as_ref)
+    }
+
+    /// The budget with this GUID.
+    pub fn budget(&self, guid: Guid) -> Option<&Budget> {
+        self.budgets.get(&guid).map(AsRef::as_ref)
     }
 
     /// The defined commodity with this reference.

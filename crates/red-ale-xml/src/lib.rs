@@ -4,6 +4,7 @@
 #![deny(clippy::float_arithmetic)]
 
 pub mod book;
+pub mod budgets;
 pub mod business;
 pub mod dom;
 pub mod entities;
