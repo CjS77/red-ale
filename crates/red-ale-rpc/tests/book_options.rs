@@ -84,12 +84,12 @@ fn options_are_off_by_default_and_set_as_the_dialog_sets_them() {
     let mut b = open();
     assert_eq!(
         b.call("book.options", json!({})),
-        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false })
+        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null })
     );
     let set = b.call("book.setOptions", json!({ "splitActionForNum": true, "autoReadOnlyDays": 10 }));
     assert_eq!(
         set,
-        json!({ "splitActionForNum": true, "autoReadOnlyDays": 10, "readOnlyThreshold": "2024-06-21", "useTradingAccounts": false })
+        json!({ "splitActionForNum": true, "autoReadOnlyDays": 10, "readOnlyThreshold": "2024-06-21", "useTradingAccounts": false, "defaultBudget": null })
     );
     let info = b.call("book.info", json!({}));
     let feature = info["features"]
@@ -109,11 +109,11 @@ fn options_are_off_by_default_and_set_as_the_dialog_sets_them() {
     assert_eq!(b.call("book.info", json!({}))["readOnly"], false, "and the book opens for editing");
     let off = b.call(
         "book.setOptions",
-        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false }),
+        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null }),
     );
     assert_eq!(
         off,
-        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false })
+        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null })
     );
     let info = b.call("book.info", json!({}));
     assert!(

@@ -7,6 +7,7 @@ pub mod accounts;
 pub mod autoclear;
 pub mod book;
 pub mod book_options;
+pub mod budgets;
 pub mod business;
 pub mod close_book;
 pub mod commodities;
@@ -44,6 +45,7 @@ pub fn all() -> Vec<Method> {
         lots::methods(),
         business::methods(),
         close_book::methods(),
+        budgets::methods(),
         reports::methods(),
         import::methods(),
         import_map::methods(),

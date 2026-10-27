@@ -173,6 +173,7 @@ impl From<DomainError> for RpcError {
             }
             DomainError::Conflict(_) => Self::new(codes::CONFLICT, message),
             DomainError::Numeric(_) => Self::new(codes::ARITHMETIC, message),
+            DomainError::NaturalSigns => Self::new(codes::CONFLICT, message).with_data(json!({ "reason": "natural-signs" })),
             DomainError::ReadOnlyByDate { date, threshold } => {
                 Self::new(codes::CONFLICT, message).with_data(auto_read_only(date, threshold))
             }

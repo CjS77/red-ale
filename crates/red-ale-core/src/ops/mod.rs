@@ -6,6 +6,7 @@ pub mod account_properties;
 pub mod accounts;
 pub mod autoclear;
 pub mod balances;
+pub mod budgets;
 pub mod business;
 pub mod close_book;
 pub mod commit;

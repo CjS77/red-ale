@@ -40,6 +40,25 @@ fn exec_creates_opens_and_reports() {
     assert!(!dir.path().join("new.gnucash.LCK").exists(), "the lock is released on exit");
 }
 
+/// The examples of `design/api/budgets.md`, "CLI".
+#[test]
+fn exec_reaches_the_budget_methods() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("home.gnucash").display().to_string();
+    let out = run(&["exec", "--create", "--book", &book, "account.create", "name=Expenses", "type=EXPENSE", "commodity=USD"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    run(&["exec", "--book", &book, "account.create", "name=Groceries", "type=EXPENSE", "commodity=USD", "parent=Expenses"]);
+    let recurrence = r#"recurrence:={"mult": 1, "periodType": "month", "start": "2025-01-01"}"#;
+    let out = run(&["exec", "--book", &book, "budget.create", "name=2025", recurrence]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let guid = json(&out.stdout)["guid"].as_str().unwrap().to_owned();
+    let amounts = r#"amounts:=[{"account": "Expenses:Groceries", "period": 0, "amount": "450.00"}]"#;
+    let out = run(&["exec", "--book", &book, "budget.setAmounts", &format!("budget={guid}"), amounts]);
+    assert_eq!(json(&out.stdout)["set"], 1, "{}", String::from_utf8_lossy(&out.stderr));
+    let out = run(&["exec", "--book", &book, "budget.get", &format!("budget={guid}")]);
+    assert_eq!(json(&out.stdout)["amounts"][0]["amount"], serde_json::json!({ "num": "45000", "denom": "100" }));
+}
+
 #[test]
 fn errors_exit_with_code_2_and_save_nothing() {
     let dir = tempfile::tempdir().unwrap();

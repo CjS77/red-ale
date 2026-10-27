@@ -1,8 +1,9 @@
 //! Methods: the Book options red-ale reads, sets and follows: the num field source and the auto read-only threshold
-//! (`design/api/book-options.md`), and trading accounts (`design/api/trading-accounts.md`). The rules live in
-//! `red_ale_core::book_options`.
+//! (`design/api/book-options.md`), trading accounts (`design/api/trading-accounts.md`) and the default budget
+//! (`design/api/budgets.md`). The rules live in `red_ale_core::book_options` and `red_ale_core::ops::budgets`.
 
 use red_ale_core::book_options::{self as opts, MAX_AUTO_READONLY_DAYS};
+use red_ale_core::ops::budgets;
 use red_ale_core::{Book, Env};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -10,20 +11,20 @@ use serde::{Deserialize, Serialize};
 use crate::dispatch::{Context, Effect, Method, method};
 use crate::error::RpcError;
 use crate::methods::transactions::today;
-use crate::wire::{Day, NoParams};
+use crate::wire::{Day, Id, NoParams};
 
 /// The book options methods.
 pub fn methods() -> Vec<Method> {
     vec![
         method(
             "book.options",
-            "The book's num field source, auto read-only threshold (with today's threshold date) and trading accounts option.",
+            "The book's num field source, auto read-only threshold (with today's threshold date), trading accounts option and default budget.",
             Effect::Read,
             get,
         ),
         method(
             "book.setOptions",
-            "Set the num field source, the auto read-only threshold or trading accounts, as GnuCash's book options dialog does.",
+            "Set the num field source, the auto read-only threshold, trading accounts or the default budget, as GnuCash's book options dialog does.",
             Effect::Write,
             set,
         ),
@@ -43,6 +44,9 @@ pub struct BookOptions {
     pub read_only_threshold: Option<Day>,
     /// "Use Trading Accounts": every commit keeps the trading splits of multi-commodity transactions.
     pub use_trading_accounts: bool,
+    /// "Default Budget": the GUID the option holds, or null when it is unset. A GUID naming no budget is returned as
+    /// stored; `budget.list` gives the default in effect.
+    pub default_budget: Option<Id>,
 }
 
 /// Params of `book.setOptions`; an absent option is left as it is.
@@ -59,6 +63,9 @@ pub struct SetParams {
     /// Balance multi-commodity transactions through trading accounts. No existing transaction changes.
     #[serde(default)]
     pub use_trading_accounts: Option<bool>,
+    /// The default budget: a budget of the book. It cannot be unset.
+    #[serde(default)]
+    pub default_budget: Option<Id>,
 }
 
 fn describe(book: &Book, env: &mut dyn Env) -> Result<BookOptions, RpcError> {
@@ -68,6 +75,7 @@ fn describe(book: &Book, env: &mut dyn Env) -> Result<BookOptions, RpcError> {
         auto_read_only_days: opts::auto_readonly_days(book),
         read_only_threshold: opts::auto_readonly_threshold(book, today).map(Day),
         use_trading_accounts: opts::uses_trading_accounts(book),
+        default_budget: budgets::default_budget_option(book).map(Id),
     })
 }
 
@@ -85,6 +93,9 @@ fn set(ctx: &mut Context, p: SetParams) -> Result<BookOptions, RpcError> {
         }
         if let Some(on) = p.use_trading_accounts {
             opts::set_trading_accounts(book, on);
+        }
+        if let Some(budget) = p.default_budget {
+            budgets::set_default_budget(book, budget.0)?;
         }
         describe(book, env)
     })

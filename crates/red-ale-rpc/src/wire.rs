@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::fmt;
 
 use chrono::{DateTime, SecondsFormat, Utc};
-use red_ale_core::{Book, CommodityRef, Date, Guid, Numeric, Time64};
+use red_ale_core::{Book, CommodityRef, Date, Guid, Numeric, PeriodType, Recurrence, Time64, WeekendAdjust};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize, Serializer};
@@ -273,6 +273,106 @@ impl JsonSchema for AccountRef {
             "type": "string",
             "description": "An account, by GUID or by full name with ':' between levels (Assets:Current Assets:Checking)."
         })
+    }
+}
+
+/// A Recurrence's step, as the wire names it (`design/api.md`, "Wire types").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum PeriodTypeWire {
+    /// Once, on the start date.
+    Once,
+    /// Every *n* days.
+    Day,
+    /// Every *n* weeks.
+    Week,
+    /// Every *n* months on the start's day.
+    Month,
+    /// Every *n* months on the last day.
+    EndOfMonth,
+    /// Every *n* months on the start's weekday in the same week of the month.
+    NthWeekday,
+    /// Every *n* months on the last of the start's weekday.
+    LastWeekday,
+    /// Every *n* years.
+    Year,
+}
+
+const PERIOD_TYPES: [(PeriodTypeWire, PeriodType); 8] = [
+    (PeriodTypeWire::Once, PeriodType::Once),
+    (PeriodTypeWire::Day, PeriodType::Day),
+    (PeriodTypeWire::Week, PeriodType::Week),
+    (PeriodTypeWire::Month, PeriodType::Month),
+    (PeriodTypeWire::EndOfMonth, PeriodType::EndOfMonth),
+    (PeriodTypeWire::NthWeekday, PeriodType::NthWeekday),
+    (PeriodTypeWire::LastWeekday, PeriodType::LastWeekday),
+    (PeriodTypeWire::Year, PeriodType::Year),
+];
+
+/// Where an occurrence on a weekend moves to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum WeekendAdjustWire {
+    /// It stays on the weekend.
+    #[default]
+    None,
+    /// To the Friday before.
+    Back,
+    /// To the Monday after.
+    Forward,
+}
+
+const WEEKEND_ADJUSTS: [(WeekendAdjustWire, WeekendAdjust); 3] = [
+    (WeekendAdjustWire::None, WeekendAdjust::None),
+    (WeekendAdjustWire::Back, WeekendAdjust::Back),
+    (WeekendAdjustWire::Forward, WeekendAdjust::Forward),
+];
+
+fn wire_of<W: Copy, C: PartialEq>(table: &[(W, C)], c: C, fallback: W) -> W {
+    table.iter().find(|(_, x)| *x == c).map_or(fallback, |(w, _)| *w)
+}
+
+fn core_of<W: PartialEq, C: Copy>(table: &[(W, C)], w: W, fallback: C) -> C {
+    table.iter().find(|(x, _)| *x == w).map_or(fallback, |(_, c)| *c)
+}
+
+/// A Recurrence: every `mult` steps of `periodType` from `start`, moved off weekends by `weekendAdjust`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+#[schemars(rename = "Recurrence")]
+pub struct RecurrenceWire {
+    /// How many steps apart occurrences are; at least 1 unless `once`.
+    pub mult: u16,
+    /// The step.
+    pub period_type: PeriodTypeWire,
+    /// The first occurrence.
+    pub start: Day,
+    /// Where occurrences on a weekend move to; `none` when absent.
+    #[serde(default)]
+    pub weekend_adjust: WeekendAdjustWire,
+}
+
+impl RecurrenceWire {
+    /// The core Recurrence, as given; a zero multiplier on a repeating type is `invalid`.
+    pub fn to_core(self) -> Result<Recurrence, RpcError> {
+        Recurrence::new(
+            self.mult,
+            core_of(&PERIOD_TYPES, self.period_type, PeriodType::Once),
+            self.start.0,
+            core_of(&WEEKEND_ADJUSTS, self.weekend_adjust, WeekendAdjust::None),
+        )
+        .map_err(|e| RpcError::invalid(e.to_string()))
+    }
+}
+
+impl From<Recurrence> for RecurrenceWire {
+    fn from(r: Recurrence) -> Self {
+        Self {
+            mult: r.mult(),
+            period_type: wire_of(&PERIOD_TYPES, r.period_type(), PeriodTypeWire::Once),
+            start: Day(r.start()),
+            weekend_adjust: wire_of(&WEEKEND_ADJUSTS, r.weekend_adjust(), WeekendAdjustWire::None),
+        }
     }
 }
 

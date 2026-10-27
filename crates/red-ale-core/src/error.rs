@@ -45,6 +45,10 @@ pub enum DomainError {
         /// The threshold date.
         threshold: Date,
     },
+    /// The book has Budgets but lacks the Book feature `Use natural signs in budget amounts`, so their sign
+    /// convention is unknown until the natural-signs scrub runs (`design/api/budgets.md`, "Natural signs").
+    #[error("the book's budgets predate natural signs: run the budget sign scrub before editing budgets")]
+    NaturalSigns,
     /// Arithmetic failed.
     #[error("arithmetic error: {0}")]
     Numeric(#[from] NumericError),

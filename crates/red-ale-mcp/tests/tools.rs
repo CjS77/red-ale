@@ -177,6 +177,16 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     ["config.set", "price.fetchQuotes"]
         .iter()
         .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
+    // The hints milestone 4 names for the budget methods.
+    ["budget.delete", "budget.estimate", "budget.scrubSigns"]
+        .iter()
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("destructive"), "{name}"));
+    ["budget.get", "budget.list"]
+        .iter()
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
+    ["budget.create", "budget.update", "budget.copy", "budget.setAmounts", "budget.setNotes"]
+        .iter()
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
     let schema_tool = tool("api.schema");
     assert_eq!(schema_tool["annotations"], expected_hints("read"));
     assert_eq!(schema_tool["inputSchema"]["type"], "object");
