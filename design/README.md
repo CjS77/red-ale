@@ -12,7 +12,7 @@ Design comes before code. Read in this order:
 7. [`milestone3.md`](milestone3.md): the v0.3 scope (memory and scale, import and export, online quotes, locales,
    the Configuration API), its progress, the evidence for each "Done when" item, and follow-ups. Done.
 8. [`milestone4.md`](milestone4.md): the v0.4 scope (SQLite books, scheduled transactions, budgets and their
-   reports) and what to decide before code. Draft.
+   reports), its decisions and progress. In progress.
 9. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
 10. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
 11. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods. Its `api/` pages cover
