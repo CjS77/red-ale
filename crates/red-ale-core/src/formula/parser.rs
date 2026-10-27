@@ -3,7 +3,7 @@
 //!
 //! As in GnuCash, parsing and evaluating are one pass: the parser hands each operation to a [`Semantics`] as it reads
 //! it, so errors come in the order GnuCash meets them. [`Mode::Arithmetic`] is v0.3's business-import parser, which
-//! reads only numbers, `+-*/` and parentheses, and does not negate `(n)`.
+//! reads only numbers, `+-*/` and parentheses.
 
 use super::{FormulaError, MAX_DEPTH, NumberFormat};
 use crate::Numeric;
@@ -131,7 +131,7 @@ pub(super) fn run<'a, S: Semantics<'a>>(text: &'a str, format: NumberFormat, mod
     p.next()?;
     let value = p.assignment()?;
     match p.token {
-        Token::End if mode == Mode::Formula && p.shape == "(I)" => p.sem.negate(value),
+        Token::End if p.shape == "(I)" => p.sem.negate(value),
         Token::End => Ok(value),
         Token::Op(')') => Err(FormulaError::Parens),
         _ => Err(FormulaError::Unexpected(p.rest.to_owned())),

@@ -275,7 +275,7 @@ fn arithmetic_mode_refuses_what_formulas_add() {
     ["a", "a = 1", "foobar(1)", "\"x\"", "1 : 2"].iter().for_each(|t| {
         assert!(matches!(evaluate_arithmetic(t, f), Err(FormulaError::Unexpected(_))), "{t:?}");
     });
-    assert_eq!(evaluate_arithmetic("(5)", f), Ok(n(5, 1)), "v0.3's business parser does not negate (n)");
+    assert_eq!(evaluate_arithmetic("(5)", f), Ok(n(-5, 1)), "(n) alone is negative in business numbers too, as in GnuCash");
     assert_eq!(evaluate_arithmetic("2 3", f), Err(FormulaError::Unexpected(String::new())), "v0.3's message");
 }
 

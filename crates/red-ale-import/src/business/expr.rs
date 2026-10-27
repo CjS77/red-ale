@@ -17,8 +17,7 @@
 //!   1.2345 in a `.` locale);
 //! - fraction digits are kept exactly, where `xaccParseAmount` cuts them at twelve; a number that doesn't fit 64 bits
 //!   is refused;
-//! - division by zero and results that don't fit are refused, where GnuCash's numeric error gives 0;
-//! - `(n)` is n, where GnuCash's parser negates it (`5.17:libgnucash/app-utils/calculation/expression_parser.c:609-620`).
+//! - division by zero and results that don't fit are refused, where GnuCash's numeric error gives 0.
 
 use red_ale_core::Numeric;
 use red_ale_core::formula;
@@ -73,6 +72,16 @@ mod tests {
         ]
         .iter()
         .for_each(|t| assert!(eval(t).is_err(), "{t:?} gave {:?}", eval(t)));
+    }
+
+    /// A lone parenthesised number is negative, accounting style, as GnuCash's parser reads it
+    /// (`5.17:libgnucash/app-utils/calculation/expression_parser.c:609-620`); anything more in the parentheses is not.
+    #[test]
+    fn a_parenthesised_number_is_negative_as_in_gnucash() {
+        assert_eq!(eval("(5)"), Ok((-5, 1)));
+        assert_eq!(eval("(12.50)"), Ok((-25, 2)));
+        assert_eq!(eval("(2+3)"), Ok((5, 1)));
+        assert_eq!(eval("(5)*2"), Ok((10, 1)));
     }
 
     #[test]
