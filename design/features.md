@@ -347,8 +347,13 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | Transaction journal   | Writes every change to a `.log` file beside the book                |   ≤ 1.4    |  0.1   |
 |   ✅   | Replay journal        | Re-applies a `.log` file to recover lost changes                    |   1.8.5    |  0.1   |
 |   ✅   | Backups and retention | Timestamped backups on save, deleted after a set time               |    1.8     |  0.1   |
-|        | Autosave              | Saves the book on a timer                                           |    2.2     |        |
+|   ❌   | Autosave              | Saves the book on a timer                                           |    2.2     |        |
 |   ✅   | Open read-only        | Opens a book without taking the lock                                |    2.6     |  0.1   |
+
+**Notes:**
+
+* Autosave won't be ported. Every operation is atomic, so a timer adds nothing a client can't do with `book.save`;
+  changes made since the last save are in the journal, and `book.replayJournal` restores them.
 
 ### Other
 
@@ -386,10 +391,17 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 
 | Status | Name                            | Short description                                             | Introduced | Ported |
 |:------:|---------------------------------|---------------------------------------------------------------|:----------:|:------:|
-|        | New account hierarchy assistant | Creates a starting account tree from templates                |    1.8     |        |
-|        | Account templates               | Localised starting account trees                              |    1.6     |        |
-|        | Financial calculator            | Loan and savings calculations: payment, rate, periods, values |    1.6     |        |
+|   ❌   | New account hierarchy assistant | Creates a starting account tree from templates                |    1.8     |        |
+|   ❌   | Account templates               | Localised starting account trees                              |    1.6     |        |
+|   ❌   | Financial calculator            | Loan and savings calculations: payment, rate, periods, values |    1.6     |        |
 |   ❌   | Check printing                  | Prints cheques from transactions                              |   ≤ 1.4    |        |
+
+**Notes:**
+
+* The new account hierarchy assistant is a GUI walk-through; `account.create` builds any tree.
+* Account templates are better done as agent skills, which build a tree through `account.create`.
+* The financial calculator won't be ported. The financial functions that scheduled-transaction formulas call are
+  still translated in v0.4 ([`milestone4.md`](milestone4.md)).
 
 ## 11. User interface
 

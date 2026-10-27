@@ -11,8 +11,9 @@ rows are ✅. This page says which version each open row belongs to, and why in 
 
 v0.3 is done: every row of [`milestone3.md`](milestone3.md) is ✅ or ❌ and its "Done when" list holds, with the
 evidence for each item listed there. `features.md` has 184 rows: 106 are ✅ (60 ported in v0.1, 34 in v0.2, 12 in
-v0.3), 18 are ❌ (won't do), and 60 are open, all placed below. v0.3 added one row, "Online quotes (red-ale)", beside
-the ❌ Finance::Quote one.
+v0.3), 22 are ❌ (won't do), and 56 are open, all placed below. v0.3 added one row, "Online quotes (red-ale)", beside
+the ❌ Finance::Quote one. Autosave, the new account hierarchy assistant, account templates and the financial
+calculator became ❌ after v0.3 (see "v0.7").
 
 | Version | Theme                                                             | Open rows | Status                                         |
 |---------|-------------------------------------------------------------------|----------:|------------------------------------------------|
@@ -22,7 +23,7 @@ the ❌ Finance::Quote one.
 | v0.4    | SQLite books; scheduled transactions and budgets, with reports    |        19 | Next                                           |
 | v0.5    | Ledgers, statements, analysis and investment reports              |        17 | Proposed                                       |
 | v0.6    | The manual; business and tax reports, invoices, PDF export        |        14 | Proposed                                       |
-| v0.7    | MySQL and PostgreSQL books, autosave, setup tools                 |         6 | Proposed                                       |
+| v0.7    | MySQL and PostgreSQL books                                        |         2 | Proposed                                       |
 | v1.0    | Parity: every row ✅ or ❌                                        |         4 | Proposed                                       |
 
 ## How the order is chosen
@@ -35,7 +36,7 @@ the ❌ Finance::Quote one.
 3. **One engine, many reports.** v0.2 built the report engine and 19 reports on it; v0.5 and v0.6 are mostly
    translation work on it, split so each version is small enough to review.
 4. **Common use before niche.** Import comes first; SQLite, which needs no server, follows with scheduled transactions
-   and budgets; the server databases and the setup assistants come last.
+   and budgets; the server databases come last.
 5. **Every version is safe on its own.** A version ships only with its round-trip and oracle tests passing, and
    every v0.1 rule in `CLAUDE.md` holds throughout.
 6. **Every version ships documented.** From v0.6, a method, error code or report counts as done only when its
@@ -255,19 +256,24 @@ To settle:
   (`5.17:gnucash/gnome/gnc-plugin-page-report.cpp:2021`). red-ale needs a pure-Rust way from the report result to
   PDF that keeps the no-floats and same-bytes rules, or the row becomes ❌ with HTML as the export.
 
-## v0.7: server databases, autosave, setup tools
+## v0.7: server databases
 
-| Area                | Rows                                                                     |
-|---------------------|--------------------------------------------------------------------------|
-| §9 Formats          | MySQL/MariaDB books, PostgreSQL books                                    |
-| §9 Safety           | Autosave                                                                 |
-| §10 Setup and tools | New account hierarchy assistant, Account templates, Financial calculator |
+| Area       | Rows                                  |
+|------------|---------------------------------------|
+| §9 Formats | MySQL/MariaDB books, PostgreSQL books |
 
 The server databases reuse v0.4's `red-ale-sql`; what is new is connecting to a server and its credentials. They
 bring the open questions on authentication, remote access and concurrent clients ([`open-questions.md`](open-questions.md),
-"Open") to the front, and those need answers before this version starts. Account templates come from GnuCash's
-`data/accounts/` trees; check their licence before shipping them. Autosave in a headless server is a timer in the
-Configuration, not a GUI preference.
+"Open") to the front, and those need answers before this version starts.
+
+Four rows once planned here are ❌ ([`features.md`](features.md), §9 "Safety" and §10 "Setup and tools"):
+
+- **Autosave.** Every operation is atomic, so a timer adds nothing a client can't do with `book.save`; unsaved
+  changes are in the journal, and `book.replayJournal` restores them.
+- **New account hierarchy assistant.** A GUI walk-through; `account.create` builds any tree.
+- **Account templates.** Better done as agent skills that build a tree through `account.create`.
+- **Financial calculator.** The financial functions that scheduled-transaction formulas call are still translated in
+  v0.4 ([`milestone4.md`](milestone4.md)).
 
 ## v1.0: parity
 
