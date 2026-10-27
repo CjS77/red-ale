@@ -264,12 +264,13 @@ print("{}")
 #[test]
 fn delete_with_move_matches_gnucash() {
     let theirs = TempBook::copy("synthetic/rich.gnucash");
-    gnucash(GNUCASH_DELETE, &theirs, &["Expenses:Food", "Expenses:Fees"]);
+    // Fees, not Food: a budget and a scheduled transaction use Food, so red-ale refuses to delete it.
+    gnucash(GNUCASH_DELETE, &theirs, &["Expenses:Fees", "Expenses:Food"]);
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
     let r = call(
         &mut d,
         "account.delete",
-        &json!({ "account": "Expenses:Food", "transactions": { "moveTo": "Expenses:Fees" } }),
+        &json!({ "account": "Expenses:Fees", "transactions": { "moveTo": "Expenses:Food" } }),
     );
     assert!(!r["movedSplits"].as_array().unwrap().is_empty());
     assert_eq!(

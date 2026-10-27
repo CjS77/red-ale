@@ -387,3 +387,34 @@ fn accounting_period_in_memory_and_in_a_file() {
         (Some("previous-month"), Some("2024-12-31"))
     );
 }
+
+/// A copy of rich.gnucash whose budget has its amounts and notes for Fees instead of Food.
+fn open_with_fees_budget() -> Book {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("book.gnucash");
+    let text = std::fs::read_to_string(format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let (head, budget) = text.split_at(text.find("<gnc:budget").unwrap());
+    let food = "1feca2abf92347288c268ebf93753ec4";
+    std::fs::write(&path, format!("{head}{}", budget.replace(food, "a8cf578f585b4708856fdf5b8928e552"))).unwrap();
+    let mut d = dispatcher(Settings::default());
+    d.call("book.open", json!({ "path": path.display().to_string() })).unwrap();
+    Book { _dir: dir, d }
+}
+
+/// Accounts that budgets or scheduled transactions use are not deleted (`design/milestone4.md`, "Compatibility in
+/// v0.4"), though GnuCash would delete them and keep the references.
+#[test]
+fn accounts_that_budgets_or_schedules_use_are_not_deleted() {
+    let mut b = open("synthetic/rich.gnucash");
+    let e = b.err("account.delete", json!({ "account": "Expenses:Food", "transactions": "delete" }));
+    assert_eq!(e.code, codes::CONFLICT);
+    assert_eq!(e.message, "the account is referred to by gnc:template-transactions; it cannot be deleted");
+
+    let mut b = open_with_fees_budget();
+    let e = b.err("account.delete", json!({ "account": "Expenses:Fees", "transactions": "delete" }));
+    assert_eq!(e.code, codes::CONFLICT);
+    assert_eq!(
+        e.message,
+        "the account has amounts or notes in budgets; change them first: budget \"Budget 2024\""
+    );
+}

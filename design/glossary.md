@@ -186,6 +186,18 @@ Code names are given in `code font` when they differ from the term.
 | **Open item** | An Owner's open document Lot or Payment lot in an A/R or A/P Account: what a payment can be applied to, as GnuCash's payment dialog lists it. |
 | **Transfer split** | A payment's Split in the Account the money moves through: any asset, liability or equity type but A/R and A/P. |
 
+## Budgets
+
+See [`notes/engine-budgets.md`](notes/engine-budgets.md).
+
+| Term | Meaning |
+|------|---------|
+| **Recurrence** | A step repeated from a start Date: a multiplier, a *period type* (`once`, `day`, `week`, `month`, `end of month`, `nth weekday`, `last weekday`, `year`) and a *weekend adjustment* (`none`, `back` to the Friday, `forward` to the Monday; GnuCash sets one only on monthly and yearly types). Every 3 months from 2024-01-31, say. A Budget has one; a scheduled transaction's schedule is a list of them. |
+| **Budget** | A named plan of amounts per Account and Budget period: a description, a number of periods, a Recurrence giving the periods, and Slots holding its Budget amounts and Budget notes. A Book may hold several; its `Default Budget` option names the one reports start from. |
+| **Budget period** | One of a Budget's periods, numbered from 0. Period *p* runs from the Recurrence's *p*-th occurrence to the day before the next. **⚠** Not the *Accounting period*, which is a Configuration setting and has nothing to do with budgets. |
+| **Budget amount** | The amount planned for one Account in one Budget period, kept as written (no rounding to the SCU) in the Budget's `<account-guid>/<period>` Slot. It is *set* or *unset*: an explicit zero is set, and only an unset amount lets a report sum the Account's children instead. **⚠** Unset is not zero, though GnuCash reads both as 0. |
+| **Budget note** | Free text for one Account in one Budget period, in the Budget's `notes/<account-guid>/<period>` Slot. An empty note reads as no note. |
+
 ## Import and export
 
 See [`api/import.md`](api/import.md) and [`api/export.md`](api/export.md).

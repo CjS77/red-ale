@@ -44,8 +44,8 @@ The Backend returns, beside the `Book`, an `XmlResidue` the Session carries unto
   lot is read, since an account is written with its lots. A book GnuCash 5.17 wrote keeps no originals at all.
 - **Unknown children:** child elements of a known entity that the mapping did not consume, with the name of the known
   sibling they followed.
-- **Out-of-scope sections**, kept as DOM: `gnc:template-transactions`, `gnc:schedxaction`, `gnc:budget`, and any
-  business object type v0.1 does not model.
+- **Out-of-scope sections**, kept as DOM: `gnc:template-transactions`, `gnc:schedxaction`, and any business object
+  type v0.1 does not model. Budgets are in the core model since v0.4, read and generated like the other entities.
 - **Compression:** whether the file was gzipped.
 
 ## Writing
@@ -76,9 +76,11 @@ to be generated from the model and requires the same bytes for every GnuCash 5.1
 
 ## References to out-of-scope data
 
-Budgets and scheduled transactions refer to accounts by GUID. Deleting an account those sections mention would leave
-GnuCash with dangling references, so the Session refuses to delete any account or commodity whose GUID or mnemonic
-appears in out-of-scope Residue, and says which section holds it.
+Scheduled transactions refer to accounts by GUID, through their template transactions. Deleting an account those
+sections mention would leave GnuCash with dangling references, so `account.delete` refuses to delete an account (or a
+sub-account it would delete with it) whose GUID appears in out-of-scope Residue, and `commodity.update` and
+`commodity.delete` refuse a commodity the Residue refers to; each says which section holds it. Budgets are not
+Residue: the core refuses to delete an account a Budget holds amounts or notes for, and names the Budget.
 
 ## Compression
 

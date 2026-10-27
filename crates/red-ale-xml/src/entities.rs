@@ -360,7 +360,8 @@ pub fn transaction_el(t: &Transaction) -> Element {
         .child(splits)
 }
 
-fn report_unknown(el: &Element, known: &[&str], notices: &mut Notices) {
+/// Report each child element of `el` that is not in `known` as unrecognised content.
+pub(crate) fn report_unknown(el: &Element, known: &[&str], notices: &mut Notices) {
     unknown_children(el, known)
         .iter()
         .for_each(|(_, c)| notices.unrecognised.push(format!("unknown element {} in {}", c.name, el.name)));

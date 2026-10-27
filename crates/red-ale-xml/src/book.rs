@@ -15,6 +15,7 @@ use crate::XmlError;
 use crate::business;
 use crate::dom::{Element, Node, escape_attr, parse_document};
 use crate::entities::{account_el, commodity_el, commodity_is_written, price_el, transaction_el};
+use crate::budgets::budget_el;
 use crate::envelope::{BOOK_VERSION, FOOTER, count_line, header};
 use crate::read::read_book_from;
 use crate::values::{Notices, guid_el, slots_el};
@@ -43,6 +44,7 @@ pub(crate) struct Originals {
     pub(crate) accounts: HashMap<Guid, String>,
     pub(crate) transactions: HashMap<Guid, String>,
     pub(crate) business: HashMap<Guid, String>,
+    pub(crate) budgets: HashMap<Guid, String>,
 }
 
 impl Originals {
@@ -53,6 +55,7 @@ impl Originals {
             + self.accounts.len()
             + self.transactions.len()
             + self.business.len()
+            + self.budgets.len()
     }
 }
 
@@ -84,7 +87,7 @@ impl XmlResidue {
         }
     }
 
-    /// Out-of-scope sections kept as read: template transactions, scheduled transactions and budgets.
+    /// Out-of-scope sections kept as read: template transactions and scheduled transactions.
     pub fn out_of_scope_elements(&self) -> impl Iterator<Item = &Element> {
         self.out_of_scope.iter().chain(&self.unknown).map(|(_, e)| e)
     }
@@ -277,6 +280,7 @@ impl<'a, W: Write> Writer<'a, W> {
         self.accounts();
         self.transactions();
         self.out_of_scope();
+        self.budgets();
         self.business();
         self.out.push_str("</gnc:book>\n");
         self.out.push_str(FOOTER);
@@ -363,7 +367,7 @@ impl<'a, W: Write> Writer<'a, W> {
             ("account", accounts),
             ("transaction", transactions),
             ("schedxaction", count_raw(Section::ScheduledTransactions)),
-            ("budget", count_raw(Section::Budgets)),
+            ("budget", self.book.budgets.len()),
             ("price", self.book.prices.len()),
             ("gnc:GncBillTerm", b.bill_terms.len()),
             ("gnc:GncCustomer", b.customers.values().filter(|o| !o.id.is_empty()).count()),
@@ -465,7 +469,7 @@ impl<'a, W: Write> Writer<'a, W> {
     }
 
     fn out_of_scope(&mut self) {
-        for section in [Section::Templates, Section::ScheduledTransactions, Section::Budgets] {
+        for section in [Section::Templates, Section::ScheduledTransactions] {
             let parts: Vec<&Element> = self
                 .residue
                 .out_of_scope
@@ -487,6 +491,21 @@ impl<'a, W: Write> Writer<'a, W> {
             }
             self.unknown_after(section);
         }
+    }
+
+    /// Budgets in the order the Book holds them: GnuCash's own order is not reproducible (`xml-format-core.md` §7.6).
+    fn budgets(&mut self) {
+        let book = self.book;
+        for budget in book.budgets.values() {
+            let original = self
+                .residue
+                .originals
+                .budgets
+                .get(&budget.guid)
+                .filter(|_| self.residue.snapshot.budgets.get(&budget.guid).is_some_and(|o| same(budget, o)));
+            self.entity(original, || budget_el(budget));
+        }
+        self.unknown_after(Section::Budgets);
     }
 
     fn business_one<T: PartialEq>(&mut self, guid: Guid, now: &Arc<T>, before: Option<&Arc<T>>, generate: impl Fn(&T) -> Element) {

@@ -114,6 +114,33 @@ fn an_entity_generated_differently_keeps_its_original_text() {
 }
 
 #[test]
+fn budgets_are_read_into_the_book_and_written_from_it() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let (mut book, residue) = read_book(text.as_bytes()).unwrap();
+    let budget = book.budgets.values().next().unwrap();
+    let food = red_ale_core::Guid::parse("1feca2abf92347288c268ebf93753ec4").unwrap();
+    assert_eq!((budget.name.as_str(), budget.num_periods), ("Budget 2024", 12));
+    assert_eq!(budget.note(food, 0), Some("January food"));
+    assert!(residue.out_of_scope_elements().all(|e| e.name != "gnc:budget"));
+    let budget = std::sync::Arc::make_mut(book.budgets.get_index_mut(0).unwrap().1);
+    budget.name = "Budget 2025".into();
+    let written = write_book_text(&book, &residue);
+    assert_eq!(written, text.replacen("<bgt:name>Budget 2024</bgt:name>", "<bgt:name>Budget 2025</bgt:name>", 1));
+}
+
+#[test]
+fn a_budget_generated_differently_keeps_its_original_text() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    // The budget's recurrence is the one indented by four spaces; the scheduled transaction's is indented by six.
+    let explicit_none = "\n    </recurrence:start>\n    <recurrence:weekend_adj>none</recurrence:weekend_adj>\n";
+    let other = text.replacen("\n    </recurrence:start>\n", explicit_none, 1);
+    assert_ne!(other, text);
+    let (book, residue) = read_book(other.as_bytes()).unwrap();
+    assert_eq!(residue.originals_kept(), 1);
+    assert_same("rich with an explicit weekend adjustment", &other, &write_book_text(&book, &residue));
+}
+
+#[test]
 fn an_escaped_book_version_is_written_back_escaped() {
     let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
     let other = text.replacen("<gnc:book version=\"2.0.0\">", "<gnc:book version=\"2.0.0&amp;&quot;x&lt;\">", 1);
