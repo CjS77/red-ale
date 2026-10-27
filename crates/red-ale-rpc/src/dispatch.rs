@@ -6,6 +6,7 @@
 use std::collections::BTreeMap;
 
 use red_ale_core::{Book, DomainResult, Env, TimeZone};
+use red_ale_quotes::fetch::Hosts;
 use red_ale_service::session::{EnvDebug, SystemEnv};
 use red_ale_service::{ServiceError, Session, Settings};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
@@ -127,6 +128,8 @@ pub struct Context {
     /// The open book's Quote fetches; cleared, cancelling a running one, when the book closes.
     pub(crate) quote_fetches: QuoteFetches,
     quote_notifier: Option<Notifier>,
+    /// The hosts Quote fetches may ask.
+    pub(crate) quote_hosts: Hosts,
 }
 
 impl std::fmt::Debug for Context {
@@ -258,6 +261,7 @@ impl Dispatcher {
             origin: Origin::default(),
             quote_fetches: QuoteFetches::default(),
             quote_notifier: None,
+            quote_hosts: Hosts::Any,
         };
         Self { ctx, methods }
     }
@@ -271,6 +275,12 @@ impl Dispatcher {
     /// [`crate::quote_fetches::settle_when_fetched`]).
     pub fn set_quote_notifier(&mut self, notify: Notifier) {
         self.ctx.quote_notifier = Some(notify);
+    }
+
+    /// Let Quote fetches ask loopback hosts only, refusing any other before connecting. Test dispatchers turn this on
+    /// so a test can never reach a real Quote service; red-ale itself never does.
+    pub fn restrict_quotes_to_loopback(&mut self) {
+        self.ctx.quote_hosts = Hosts::Loopback;
     }
 
     /// Store a finished Quote fetch's prices, if its requests are done. Every call does this first.

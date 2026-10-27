@@ -635,7 +635,9 @@ Found during the milestone and not closed in it:
 - **Rhai closures.** The two closure bugs are ready to report upstream ("Carried forward from v0.2", above).
 - **A loopback guard for quote tests.** Every quote test sets its own services, but nothing in the test HTTP client
   refuses a host other than 127.0.0.1; a test adding a security with a source it doesn't override would reach the
-  default service. A guard in `red-ale-testkit` would make that impossible rather than unlikely.
+  default service. A guard in `red-ale-testkit` would make that impossible rather than unlikely. Done in v0.4: every
+  testkit dispatcher refuses non-loopback hosts before connecting ([`api/quotes.md`](api/quotes.md), "Keys and the
+  network").
 - **Fuzzing in CI.** The fuzz targets run by hand; nothing runs them regularly.
 - **Fixed in the audit:** a `gnc:book` version attribute with an escaped character was written back unescaped, so
   such a book could not be saved (`red-ale-xml/tests/round_trip.rs`, `an_escaped_book_version_is_written_back_escaped`);

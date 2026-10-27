@@ -20,6 +20,7 @@ use tokio::time::Instant;
 
 use crate::format::{self, Context};
 use crate::http::Client;
+pub use crate::http::Hosts;
 use crate::plan::Attempt;
 
 /// A Quote fetch's requests.
@@ -33,6 +34,8 @@ pub struct Fetch {
     pub timeout: Duration,
     /// The local time zone, for answers that date a quote by Unix time.
     pub zone: TimeZone,
+    /// The hosts its requests may go to.
+    pub hosts: Hosts,
 }
 
 /// Why a commodity's requests gave no quote record.
@@ -125,7 +128,7 @@ struct Job {
 type Queues = Arc<BTreeMap<String, mpsc::UnboundedSender<Job>>>;
 
 async fn run(fetch: Fetch, on_item: &(dyn Fn(usize, &Outcome) + Send + Sync)) -> Vec<Outcome> {
-    let client = match Client::new() {
+    let client = match Client::new(fetch.hosts) {
         Ok(client) => client,
         Err(e) => return fail_all(fetch.items.len(), &e.to_string()),
     };
@@ -134,6 +137,7 @@ async fn run(fetch: Fetch, on_item: &(dyn Fn(usize, &Outcome) + Send + Sync)) ->
         intervals,
         timeout,
         zone,
+        hosts: _,
     } = fetch;
     let mut workers = JoinSet::new();
     let queues: Queues = Arc::new(

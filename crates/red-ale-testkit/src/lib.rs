@@ -141,6 +141,7 @@ pub const TEST_NOW: red_ale_core::Time64 = red_ale_core::Time64(1_719_835_200);
 
 /// A dispatcher whose sessions use a fixed clock ([`TEST_NOW`]) and sequential GUIDs, so results are reproducible.
 /// Each session counts from its own seed, so a book reopened in the same test never gets a GUID it already holds.
+/// Its Quote fetches ask loopback hosts only, so a test can't reach a real Quote service.
 pub fn dispatcher() -> red_ale_rpc::Dispatcher {
     dispatcher_in(red_ale_core::TimeZone::utc())
 }
@@ -148,6 +149,7 @@ pub fn dispatcher() -> red_ale_rpc::Dispatcher {
 /// [`dispatcher`] in another local time zone.
 pub fn dispatcher_in(zone: red_ale_core::TimeZone) -> red_ale_rpc::Dispatcher {
     let mut d = red_ale_rpc::Dispatcher::new(red_ale_service::Settings::default());
+    d.restrict_quotes_to_loopback();
     let sessions = std::sync::atomic::AtomicU32::new(0);
     d.set_env_factory(Box::new(move || {
         let session = sessions.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

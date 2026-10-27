@@ -202,7 +202,10 @@ service; a service added for it can name it in `keyEnv`.
 - **Credentials through a proxy.** A service's URL can point at a local credential proxy that adds the key itself;
   its template then has no `{key}` and red-ale holds none.
 - **Only Quote fetches use the network.** Tests never do: each format is tested against recorded answers, and one
-  test checks that a fetch with `quotes.network` off fails before any connection is attempted.
+  test checks that a fetch with `quotes.network` off fails before any connection is attempted. Every dispatcher
+  `red-ale-testkit` builds lets Quote fetches ask loopback hosts only (`Dispatcher::restrict_quotes_to_loopback`), so
+  a test that leaves a default service in place fails at once instead of reaching it. It is a runtime switch, not a
+  cargo feature, so the red-ale binary built in the same workspace never has it on.
 
 ### Response formats
 

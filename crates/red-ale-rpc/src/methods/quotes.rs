@@ -271,6 +271,7 @@ fn start(
         intervals: settings.intervals(),
         timeout: settings.timeout(),
         zone,
+        hosts: ctx.quote_hosts,
     };
     let on_item = move |i: usize, outcome: &_| {
         item_entries

@@ -205,6 +205,31 @@ fn with_the_network_off_nothing_connects() {
     );
 }
 
+/// A testkit dispatcher refuses every host but loopback ones before connecting: a service the test points
+/// elsewhere, and a default service it forgot to override (`frankfurter` for currencies), both fail at once.
+#[test]
+fn testkit_fetches_reach_loopback_hosts_only() {
+    let server = QuoteServer::start(vec![]);
+    let (_book, mut d) = create();
+    let elsewhere = json!({ "format": "json", "securityUrl": "http://192.0.2.1/quote/{symbol}", "pointers": { "price": "/p" } });
+    configure(
+        &mut d,
+        &server,
+        &json!({ "quotes.timeoutSeconds": 30, "quotes.services.local": elsewhere, "quotes.sources.currency": ["frankfurter"] }),
+    );
+    security(&mut d, "NYSE", "HPE", "alphavantage");
+    call(&mut d, "commodity.update", &json!({ "commodity": "EUR", "quoteFlag": true }));
+    let begun = Instant::now();
+    let status = fetch(&mut d, &json!({}));
+    assert!(begun.elapsed() < Duration::from_secs(5), "refused, not timed out");
+    ["NYSE::HPE", "CURRENCY::EUR"].iter().for_each(|c| {
+        let item = entry(&status, c);
+        assert_eq!(item["reason"], "service-error", "{item}");
+        assert!(item["message"].as_str().unwrap().contains("refused: this client asks only loopback hosts"), "{item}");
+    });
+    assert_eq!(entry(&status, "CURRENCY::EUR")["service"], "frankfurter");
+}
+
 #[test]
 fn a_slow_fetch_holds_up_nothing_and_closing_the_book_cancels_it() {
     let server = QuoteServer::start(vec![("/quote/HPE", Answer::ok(HPE).after(Duration::from_secs(3)))]);
