@@ -17,7 +17,8 @@ Design comes before code. Read in this order:
 10. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
 11. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods. Its `api/` pages cover
     each area; v0.3 added [`import.md`](api/import.md), [`export.md`](api/export.md), [`quotes.md`](api/quotes.md)
-    and [`configuration.md`](api/configuration.md).
+    and [`configuration.md`](api/configuration.md), and v0.4 adds [`budgets.md`](api/budgets.md) and
+    [`scheduled-transactions.md`](api/scheduled-transactions.md).
 12. [`reports.md`](reports.md): report scripting: the Rhai engine, the query API, options, the report result,
     rendering, saved configurations, and the plan for translating and testing GnuCash's reports.
 13. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.

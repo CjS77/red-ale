@@ -67,6 +67,7 @@ change the book in memory and the journal; `book.save` writes the file.
 | Timestamp     | RFC 3339, written in UTC with `Z`; read with any offset.                                              |
 | CommodityId   | GnuCash's unique name `NAMESPACE::MNEMONIC` (`CURRENCY::USD`, `NASDAQ::AAPL`). A bare `USD` names a currency. |
 | AccountRef    | A GUID, or a full name with `:` between levels (`Assets:Current Assets:Checking`).                    |
+| Recurrence    | `{"mult": 1, "periodType": "month", "start": "2025-01-31", "weekendAdjust": "none"}`: `periodType` one of `once`, `day`, `week`, `month`, `endOfMonth`, `nthWeekday`, `lastWeekday`, `year`; `weekendAdjust` `none` (the default), `back` or `forward`. Read as stored; see [`api/scheduled-transactions.md`](api/scheduled-transactions.md) and [`api/budgets.md`](api/budgets.md) for what each area writes. From 0.4.0. |
 
 Value and amount keep GnuCash's meanings (see the glossary): a split's *value* is in the transaction currency, its
 *amount* in the account's commodity.
@@ -145,6 +146,7 @@ is used only for protocol errors.
 | 3004   | `report-load`       | A user report script does not load (`data.source`, `data.line`).          |
 | 4000   | `import-file`       | An import file can't be read as its format at all (`data.file`, `data.line`, `data.reason`); see [`api/import.md`](api/import.md). From 0.3.0. |
 | 5000   | `network-disabled`  | A method needs the network and the Configuration has it off; nothing was sent ([`api/quotes.md`](api/quotes.md)). From 0.3.0. |
+| 6000   | `formula`           | A scheduled transaction's formula does not parse, names a function red-ale does not compute, or can't be evaluated (`data.reason`, `data.formula`, `data.position`, where it is); see [`api/scheduled-transactions.md`](api/scheduled-transactions.md). From 0.4.0. |
 
 ## Book methods
 
@@ -157,7 +159,7 @@ is used only for protocol errors.
 | `book.close`         | write  | Release the lock. Refuses unsaved changes unless `save` or `discard`.                  |
 | `book.replayJournal` | write  | Replay a GnuCash `.log` journal: transactions created, updated or deleted by GUID.     |
 | `book.closeBooks`    | write  | Close the books: zero income and expense into equity at a date ([`api/close-book.md`](api/close-book.md)). Not `book.close`. |
-| `book.options`       | read   | The num field source, auto read-only threshold and trading accounts Book options ([`api/book-options.md`](api/book-options.md), [`api/trading-accounts.md`](api/trading-accounts.md)). |
+| `book.options`       | read   | The num field source, auto read-only threshold, trading accounts and default budget Book options ([`api/book-options.md`](api/book-options.md), [`api/trading-accounts.md`](api/trading-accounts.md), [`api/budgets.md`](api/budgets.md)). |
 | `book.setOptions`    | write  | Change them as GnuCash's book options dialog does, setting `Number Field Source` when the num field source is turned on. |
 
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
@@ -198,6 +200,8 @@ deliberate deviations.
 | [`api/export.md`](api/export.md)                           | `export.*`: CSV export of the account tree and transactions, Export accounts (v0.3) |
 | [`api/quotes.md`](api/quotes.md)                           | `price.fetchQuotes`, `price.fetchStatus`: online quotes and Quote services (v0.3) |
 | [`api/configuration.md`](api/configuration.md)             | `config.*`: the Configuration's schema, every setting, reading and changing them by path |
+| [`api/budgets.md`](api/budgets.md)                         | `budget.*`: budgets, amounts and notes, estimate, natural signs, the default budget (v0.4) |
+| [`api/scheduled-transactions.md`](api/scheduled-transactions.md) | `scheduledTransaction.*`: schedules, formulas, Since Last Run, from a transaction, the loan assistant (v0.4) |
 
 ## CLI
 

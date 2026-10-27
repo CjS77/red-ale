@@ -17,6 +17,12 @@ options dialog writes them (`GncOptionDB::save_to_kvp`, `libgnucash/engine/gnc-o
 | `Day Threshold for Read-Only Transactions (red line)` | `autoReadOnlyDays` | double, 0–3650, step 1 | the value truncated to an integer, `(gint)` (`qof_book_get_num_days_autoreadonly`, `qofbook.cpp:986-1004`); on when not 0 (`qof_book_uses_autoreadonly`, `:974-978`) |
 | `Use Trading Accounts` | `useTradingAccounts` | string `"t"` or `"f"` | on only when exactly `"t"` (`qof_book_use_trading_accounts`, `qofbook.cpp:919-928`); what it does is in [`trading-accounts.md`](trading-accounts.md) |
 
+From v0.4, one more, under `options/Budgeting/` (`5.17:libgnucash/engine/gnc-optiondb.cpp:1223-1226`):
+
+| Option | Wire name | Slot type | Read as |
+|---|---|---|---|
+| `Default Budget` | `defaultBudget` | GUID | the GUID as stored, or null when unset, even when it names no Budget; what it means is in [`budgets.md`](budgets.md), "The default budget" |
+
 The dialog writes only options the user changed. A boolean is written `"t"` or `"f"`, never deleted
 (`kvp_value_from_bool_option`, `gnc-optiondb.cpp:404-410`); a number range as a double (`:493-502`), which the XML
 backend writes with `%24.18g`, trimmed (`libgnucash/backend/xml/sixtp-dom-generators.cpp:189-203`), so whole days
@@ -29,7 +35,8 @@ read `30`.
 | `book.options`    | read   | The options and today's read-only threshold. |
 | `book.setOptions` | write  | Change any of them, as GnuCash's book options dialog does. |
 
-**Result** (both methods): `{ splitActionForNum, autoReadOnlyDays, readOnlyThreshold, useTradingAccounts }`.
+**Result** (both methods): `{ splitActionForNum, autoReadOnlyDays, readOnlyThreshold, useTradingAccounts,
+defaultBudget }`.
 `readOnlyThreshold` is the threshold date (below), or absent when the threshold is off.
 
 ### `book.setOptions`
@@ -38,7 +45,9 @@ Params, each optional; an absent option is left alone:
 
 - `splitActionForNum` (bool);
 - `autoReadOnlyDays` (integer, 0 to 3650, the dialog's range; anything else is `invalid`);
-- `useTradingAccounts` (bool; see [`trading-accounts.md`](trading-accounts.md)).
+- `useTradingAccounts` (bool; see [`trading-accounts.md`](trading-accounts.md));
+- `defaultBudget` (a Budget's GUID, written as a GUID Slot; `not-found` for an unknown Budget; see
+  [`budgets.md`](budgets.md)).
 
 As the dialog applies them (`gnc_book_options_dialog_apply_helper`, `gnucash/gnome-utils/gnc-main-window.cpp:4632-4681`):
 
@@ -95,7 +104,8 @@ minus *N* days (`qof_book_get_autoreadonly_gdate`, `qofbook.cpp:1006-1019`), and
 strictly before it is **read-only by date** (`xaccTransIsReadonlyByPostedDate`, `Transaction.cpp:2373-2409`).
 "Today" is the same today red-ale uses for default posted dates (`gnc_g_date_new_today`), and the posted date is the
 `datePosted` of `TransactionInfo` (`xaccTransGetDatePostedGDate`). Scheduled-transaction templates are exempt in
-GnuCash; red-ale's model holds none.
+GnuCash (`xaccTransIsSXTemplate`, `Transaction.cpp:2350-2371`); in red-ale they are not transactions of the Book
+([`scheduled-transactions.md`](scheduled-transactions.md)).
 
 The engine does not enforce the threshold. GnuCash's register and dialogs do, and red-ale refuses exactly what they
 refuse:
@@ -125,6 +135,9 @@ Allowed whatever the threshold, as in GnuCash, which checks nothing there:
   `import.preview` flags each transaction that is or would be read-only by date, so the caller can see it first
   ([`import.md`](import.md)).
 - `book.replayJournal`: log replay does not check it (`gnucash/import-export/log-replay/gnc-log-replay.cpp:357-540`).
+- Since Last Run: GnuCash creates instances whatever their date (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1453-1457`).
+  `scheduledTransaction.sinceLastRun` flags each instance dated before the threshold, and `scheduledTransaction.apply`
+  creates one only when the caller names it ([`scheduled-transactions.md`](scheduled-transactions.md)).
 
 Document links on transactions (v0.2) follow the delete rule: GnuCash refuses to add or remove a transaction's link
 when the transaction is read-only by date (`gnc-split-reg.c:1255`, `:1325`).

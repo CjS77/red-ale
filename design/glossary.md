@@ -27,6 +27,8 @@ Code names are given in `code font` when they differ from the term.
 | **Residue** | Content of a Book file that the core model does not represent (unknown elements, out-of-scope objects). The Backend keeps it and writes it back unchanged. |
 | **Round-trip** | Opening a Book file and saving it with no edits. A round-trip must give back a file GnuCash 5.17 considers identical; red-ale aims for byte-identical. |
 | **Oracle** | GnuCash 5.17 itself (library and Python bindings), used by tests as the judge of compatibility. |
+| **SQL book** | A Book kept in a database by GnuCash's SQL backend: an SQLite file (from v0.4), or a MySQL or PostgreSQL database (v0.7). Its lock is a row of the `gnclock` table. **⚠** An SQLite book is a file, opened by path or `sqlite3://`, but not an XML Book file: GnuCash writes each change at once and has no Save for it, while red-ale saves it at `book.save`. |
+| **Schema version** | A row of an SQL book's `versions` table: a table name and the version of that table's layout, plus the book-wide `Gnucash` and `Gnucash-Resave` rows. A book with any row other than GnuCash 5.17's opens read-only; red-ale never upgrades one. **⚠** Not a GnuCash release, nor the `version` attributes of the XML. |
 
 ## Identity and values
 
@@ -197,6 +199,26 @@ See [`notes/engine-budgets.md`](notes/engine-budgets.md).
 | **Budget period** | One of a Budget's periods, numbered from 0. Period *p* runs from the Recurrence's *p*-th occurrence to the day before the next. **⚠** Not the *Accounting period*, which is a Configuration setting and has nothing to do with budgets. |
 | **Budget amount** | The amount planned for one Account in one Budget period, kept as written (no rounding to the SCU) in the Budget's `<account-guid>/<period>` Slot. It is *set* or *unset*: an explicit zero is set, and only an unset amount lets a report sum the Account's children instead. **⚠** Unset is not zero, though GnuCash reads both as 0. |
 | **Budget note** | Free text for one Account in one Budget period, in the Budget's `notes/<account-guid>/<period>` Slot. An empty note reads as no note. |
+| **Natural signs** | Budget amounts stored with the sign a balance has in its own account type (income and liabilities positive), as GnuCash does since 3.8; the Book feature `Use natural signs in budget amounts` says a book's amounts are stored so. Books from before 3.8 store reversed signs until GnuCash's sign scrub (`budget.scrubSigns`) converts them. |
+
+## Scheduled transactions
+
+See [`api/scheduled-transactions.md`](api/scheduled-transactions.md).
+
+| Term | Meaning |
+|------|---------|
+| **Scheduled transaction** (`ScheduledTransaction`) | A transaction that recurs: a name, a Schedule, a start date, an end (a date, a number of occurrences, or none), Template transactions, whether to create Instances automatically and how many days ahead, and its state (last occurrence, Instance count, remaining occurrences, Deferred instances). One that ends is kept, enabled, with no next Occurrence. **⚠** GnuCash's code says *SX* (`SchedXaction`); red-ale says *scheduled transaction*. |
+| **Schedule** | A Scheduled transaction's list of Recurrences. Its next Occurrence is the earliest next date of any of them. **⚠** A list, not one Recurrence: GnuCash's "semi-monthly" is two monthly Recurrences, and "weekly on several days" one weekly Recurrence per day. |
+| **Occurrence** | A date a Schedule gives a Scheduled transaction: on or after its start date, up to its end. **⚠** GnuCash's code calls the next Occurrence the *next instance* (`xaccSchedXactionGetNextInstance`). |
+| **Instance** | One Occurrence as Since Last Run acts on it: its date, its Instance count, its Variable values and its state. The states are GnuCash's: *to create* (create its Transactions), *reminder* (nothing, shown again next time), *postponed* (saved as a Deferred instance), *ignored* (skipped for good) and *created*. **⚠** GnuCash calls every entity a *QofInstance*; a scheduled transaction's Instance is one occurrence of it, not an entity. |
+| **Instance count** | The number the next Instance of a Scheduled transaction gets, which is the value of its Variable `i` (`sx:instanceCount`). Starts at 1. **⚠** Not how many Transactions it has created: postponing counts, and GnuCash overwrites it from the last Instance acted on. |
+| **Deferred instance** | A postponed Instance as saved in its Scheduled transaction: the state before it (last occurrence, remaining occurrences, Instance count), so Since Last Run proposes it again. **⚠** GnuCash's GUI says *postponed*; its code and XML say *deferred* (`sx:deferredInstance`). An SQL book cannot hold them. |
+| **Template root** | The Account of type `ROOT` named `Template Root` that holds every Template account, apart from the Root account. |
+| **Template account** | The Account, one per Scheduled transaction, that holds its Template transactions: named by the scheduled transaction's GUID, commodity `template:template`, under the Template root. **⚠** Not in the Account tree: no balance, report, find query, import match, scrub or export sees it. |
+| **Template transaction** | A Transaction in a Template account that Since Last Run copies into a real Transaction for each Instance: its description, num and notes, and per *template split* a memo, an action, the real Account the copy goes to and a debit and a credit Formula (the split's `sched-xaction` Frame). **⚠** Not a *Report template*. Not a Transaction of the Book: its values are zero and nothing that reads the Book sees it. |
+| **Formula** | The text of a template split's debit or credit amount, in GnuCash's expression syntax: arithmetic, parentheses, Variables, assignments and calls of financial functions (`pmt(rate : nper : pv : fv : type)`, with `:` between arguments). Evaluated exactly. **⚠** GnuCash calls functions in Guile with doubles; red-ale computes fin.scm's financial functions exactly and refuses any other. |
+| **Variable** | A name in a Formula, given an Amount per Instance before it is created. `i` is predefined as the Instance count. An *exchange-rate variable*, named `<split mnemonic> -> <transaction mnemonic>` (`EUR -> USD`), gives the rate for a split in another Commodity. **⚠** Not GnuCash's saved calculator variables, which red-ale never reads. |
+| **Since Last Run** | Creating the Transactions of every enabled Scheduled transaction that have fallen due since it last ran, and reminding of those coming. In red-ale two calls, as an Import: `scheduledTransaction.sinceLastRun` returns a *Since Last Run proposal* of Instances, held by ID and tied to the Book revision it was made at, and `scheduledTransaction.apply` applies it with the caller's choices as one Mutation. **⚠** GnuCash's GUI runs it whenever a book opens; red-ale only when asked. |
 
 ## Import and export
 
