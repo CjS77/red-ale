@@ -265,5 +265,5 @@ fn create_new_book() {
     session.close(false).unwrap();
     let reopened = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert_eq!(reopened.book().accounts.len(), 1);
-    assert!(reopened.residue().compressed);
+    assert_eq!(reopened.compressed(), Some(true));
 }

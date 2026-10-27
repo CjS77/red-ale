@@ -1,8 +1,6 @@
 //! A Session: one open book file with its lock, journal and read-only state.
 
 use std::fmt;
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Read};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,13 +8,13 @@ use red_ale_core::book_options::{GNUCASH_FEATURES, OBSOLETE_BOOK_CURRENCY, featu
 use red_ale_core::diff::{Change, changes};
 use red_ale_core::ops::commit;
 use red_ale_core::{Book, DomainError, Env, Guid, Time64, Transaction};
-use red_ale_xml::{ReadBack, XmlResidue, read_back, read_book_from, write_book_to};
+use red_ale_xml::XmlResidue;
 
+use crate::backend::{self, Access, Backend, Format, Opened, Reference, SaveOptions};
 use crate::error::ServiceError;
-use crate::files::{Retention, remove_old_files, replace_book_file};
+use crate::files::{Retention, remove_old_files};
 use crate::import::ProposalStore;
 use crate::journal::{Journal, RecordKind, record_lines};
-use crate::lock::BookLock;
 use crate::replay::{ReplayReport, replay};
 
 /// Book features red-ale can edit safely: their data lives in slots or files red-ale keeps unchanged, or red-ale
@@ -87,8 +85,9 @@ impl fmt::Display for ReadOnlyReason {
     }
 }
 
-/// The read-only triggers a book sets off.
-pub fn read_only_triggers(book: &Book, residue: &XmlResidue) -> Vec<ReadOnlyReason> {
+/// The read-only triggers a book sets off: the Book features it declares that red-ale does not support, then what its
+/// Backend found (`findings`).
+pub fn read_only_triggers(book: &Book, findings: &[ReadOnlyReason]) -> Vec<ReadOnlyReason> {
     let declared = features(book);
     let unsupported: Vec<String> = declared
         .iter()
@@ -105,9 +104,7 @@ pub fn read_only_triggers(book: &Book, residue: &XmlResidue) -> Vec<ReadOnlyReas
     if !unsupported.is_empty() {
         reasons.push(ReadOnlyReason::UnsupportedFeatures(unsupported));
     }
-    if !residue.notices.unrecognised.is_empty() {
-        reasons.push(ReadOnlyReason::UnrecognisedContent(residue.notices.unrecognised.clone()));
-    }
+    reasons.extend_from_slice(findings);
     reasons
 }
 
@@ -170,30 +167,13 @@ pub fn resolve_path(spec: &str) -> Result<PathBuf, ServiceError> {
     }
 }
 
-/// True if the file starts with SQLite's header string.
-fn is_sqlite(path: &Path) -> Result<bool, ServiceError> {
-    const MAGIC: &[u8] = b"SQLite format 3\0";
-    let io = |source| ServiceError::Io {
-        path: path.to_owned(),
-        source,
-    };
-    let mut start = Vec::with_capacity(MAGIC.len());
-    File::open(path)
-        .and_then(|f| f.take(MAGIC.len() as u64).read_to_end(&mut start))
-        .map_err(io)?;
-    Ok(start == MAGIC)
-}
-
-/// How much of a book file is read or written at a time.
-const IO_BUFFER: usize = 64 * 1024;
-
 /// An open book.
 #[derive(Debug)]
 pub struct Session {
-    path: PathBuf,
+    backend: Box<dyn Backend>,
     book: Book,
-    residue: XmlResidue,
-    lock: Option<BookLock>,
+    /// The Book as read or last saved, which a Backend saves the difference from.
+    saved: Book,
     read_only: Vec<ReadOnlyReason>,
     journal: Journal,
     dirty: bool,
@@ -214,8 +194,8 @@ pub struct SaveReport {
     pub backup: Option<PathBuf>,
     /// Old backups and journals deleted by retention.
     pub removed: Vec<PathBuf>,
-    /// Whether the file was written gzip-compressed.
-    pub compressed: bool,
+    /// XML only: whether the file was written gzip-compressed.
+    pub compressed: Option<bool>,
 }
 
 impl Session {
@@ -223,46 +203,17 @@ impl Session {
     /// read-only.
     pub fn open(spec: &str, read_only: bool, settings: Settings) -> Result<Self, ServiceError> {
         let path = resolve_path(spec)?;
-        if is_sqlite(&path)? {
-            return Err(ServiceError::SqlBook {
-                path: path.display().to_string(),
-            });
-        }
-        let lock = if read_only { None } else { Some(BookLock::acquire(&path)?) };
-        // Read under the lock, so no other writer can change the file while it is read.
-        let file = File::open(&path).map_err(|e| ServiceError::Io {
-            path: path.clone(),
-            source: e,
-        })?;
-        let read = read_book_from(BufReader::with_capacity(IO_BUFFER, file));
-        let (book, residue) = read.map_err(|e| ServiceError::Xml {
-            path: path.clone(),
-            source: e,
-        })?;
-        let mut reasons = read_only_triggers(&book, &residue);
-        if read_only {
-            reasons.insert(0, ReadOnlyReason::Requested);
-        }
-        let lock = match lock {
-            Some(held) if !reasons.is_empty() => {
-                held.release()?;
-                None
+        let format = Format::of(&path)?;
+        let access = if read_only { Access::ReadOnly } else { Access::ReadWrite };
+        let rule = |book: &Book, findings: &[ReadOnlyReason]| {
+            let mut reasons = read_only_triggers(book, findings);
+            if read_only {
+                reasons.insert(0, ReadOnlyReason::Requested);
             }
-            other => other,
+            reasons
         };
-        Ok(Self {
-            journal: Journal::new(&path),
-            path,
-            book,
-            residue,
-            lock,
-            read_only: reasons,
-            dirty: false,
-            settings,
-            env: Box::new(SystemEnv),
-            revision: 0,
-            proposals: ProposalStore::default(),
-        })
+        let opened = backend::open(&path, format, access, &rule)?;
+        Ok(Self::from_opened(opened, settings, Box::new(SystemEnv)))
     }
 
     /// Create a new, empty book file, taking its lock. Fails if the file exists.
@@ -271,25 +222,29 @@ impl Session {
         if path.exists() {
             return Err(ServiceError::Exists { path });
         }
-        let lock = BookLock::acquire(&path)?;
         let mut env = SystemEnv;
-        let book = Book::new_empty(&mut env);
-        let residue = XmlResidue::new_book(&book, settings.compress_new_books);
-        let mut session = Self {
-            journal: Journal::new(&path),
-            path,
-            book,
-            residue,
-            lock: Some(lock),
-            read_only: Vec::new(),
-            dirty: true,
-            settings,
-            env: Box::new(env),
-            revision: 0,
-            proposals: ProposalStore::default(),
-        };
+        let opened = backend::create(&path, Format::Xml, &settings, &mut env)?;
+        let mut session = Self::from_opened(opened, settings, Box::new(env));
+        session.dirty = true;
         session.save(None)?;
         Ok(session)
+    }
+
+    /// A session over a book a Backend has opened, with nothing unsaved.
+    fn from_opened(opened: Opened, settings: Settings, env: Box<dyn EnvDebug>) -> Self {
+        let Opened { book, read_only, backend } = opened;
+        Self {
+            journal: Journal::new(backend.path()),
+            backend,
+            saved: book.clone(),
+            book,
+            read_only,
+            dirty: false,
+            settings,
+            env,
+            revision: 0,
+            proposals: ProposalStore::default(),
+        }
     }
 
     /// Replace the environment (clock and GUID source), for deterministic tests.
@@ -304,7 +259,12 @@ impl Session {
 
     /// The book's path.
     pub fn path(&self) -> &Path {
-        &self.path
+        self.backend.path()
+    }
+
+    /// The book file's format.
+    pub fn format(&self) -> Format {
+        self.backend.format()
     }
 
     /// The book as it stands.
@@ -312,9 +272,20 @@ impl Session {
         &self.book
     }
 
-    /// The file-format residue.
-    pub fn residue(&self) -> &XmlResidue {
-        &self.residue
+    /// XML only: the file-format Residue.
+    pub fn xml_residue(&self) -> Option<&XmlResidue> {
+        self.backend.xml_residue()
+    }
+
+    /// XML only: whether the file is gzip-compressed.
+    pub fn compressed(&self) -> Option<bool> {
+        self.backend.compressed()
+    }
+
+    /// Names of the Residue's sections that refer to `to`: content red-ale keeps but does not model, which deleting
+    /// or renaming `to` would leave dangling.
+    pub fn references(&self, to: Reference<'_>) -> Vec<String> {
+        self.backend.references(to)
     }
 
     /// Why the session is read-only; empty when it is writable.
@@ -388,63 +359,44 @@ impl Session {
                 .iter()
                 .filter_map(Change::after)
                 .try_for_each(|t| check_transaction(&next, t))?;
+            self.backend.check_storable(&self.book, &next)?;
             journal_records(&self.book, &next, &changes, self.env.now())
         };
         records
             .iter()
             .try_for_each(|lines| self.journal.write_record(lines))
-            .map_err(|e| ServiceError::Io {
-                path: self.path.clone(),
-                source: e,
-            })?;
+            .map_err(|e| self.io_error(e))?;
         self.book = next;
         self.dirty = true;
         self.revision += 1;
         Ok(out)
     }
 
-    /// Save the book. `compress` overrides the file's current compression. The book is written to a temporary file,
-    /// which is read back and compared, entity by entity, with the book before the old file is touched; a mismatch
-    /// refuses the save.
+    /// Save the book. `compress` overrides the file's current compression. The Backend writes the book and checks
+    /// what it wrote before the old file is touched; a mismatch refuses the save.
     pub fn save(&mut self, compress: Option<bool>) -> Result<SaveReport, ServiceError> {
         if let Some(reason) = self.read_only.first() {
             return Err(ServiceError::ReadOnly {
                 reason: reason.to_string(),
             });
         }
-        let compressed = compress.unwrap_or(self.residue.compressed);
-        let xml = |source| ServiceError::Xml {
-            path: self.path.clone(),
-            source,
-        };
-        let write = |file: &mut File| {
-            let out = write_book_to(&self.book, &self.residue, compressed, BufWriter::with_capacity(IO_BUFFER, file)).map_err(xml)?;
-            out.into_inner().map(drop).map_err(|e| xml(e.into_error().into()))
-        };
-        let check = |tmp: &Path| {
-            let file = File::open(tmp).map_err(|source| ServiceError::Io {
-                path: tmp.to_owned(),
-                source,
-            })?;
-            match read_back(BufReader::with_capacity(IO_BUFFER, file), &self.book).map_err(xml)? {
-                ReadBack::Same(residue) => Ok(*residue),
-                ReadBack::Differs(detail) => Err(ServiceError::Verification { detail }),
-            }
-        };
-        // The Residue read back has this Book as its snapshot, so it compares against this one's entities.
-        let (backup, mut residue) = replace_book_file(&self.path, write, check)?;
-        residue.notices = self.residue.notices.clone();
-        self.residue = residue;
+        let prepared = if self.dirty { self.backend.prepare_save(&self.book) } else { None };
+        let book = prepared.as_ref().unwrap_or(&self.book);
+        let options = SaveOptions { compress };
+        let saved = self.backend.save(&self.saved, book, &options, &mut *self.env)?;
+        // What a format adds on saving is not a Mutation and touches nothing an Import proposal reads, so the
+        // revision stays.
+        if let Some(prepared) = prepared {
+            self.book = prepared;
+        }
+        self.saved = self.book.clone();
         self.dirty = false;
-        self.journal.rotate().map_err(|e| ServiceError::Io {
-            path: self.path.clone(),
-            source: e,
-        })?;
-        let removed = remove_old_files(&self.path, self.settings.retention, self.journal.current_path());
+        self.journal.rotate().map_err(|e| self.io_error(e))?;
+        let removed = remove_old_files(self.backend.path(), self.settings.retention, self.journal.current_path());
         Ok(SaveReport {
-            backup,
+            backup: saved.backup,
             removed,
-            compressed,
+            compressed: saved.compressed,
         })
     }
 
@@ -473,13 +425,14 @@ impl Session {
         if save && self.dirty {
             self.save(None)?;
         }
-        self.journal.rotate().map_err(|e| ServiceError::Io {
-            path: self.path.clone(),
-            source: e,
-        })?;
-        match self.lock.take() {
-            Some(lock) => lock.release(),
-            None => Ok(()),
+        self.journal.rotate().map_err(|e| self.io_error(e))?;
+        self.backend.release_lock()
+    }
+
+    fn io_error(&self, source: std::io::Error) -> ServiceError {
+        ServiceError::Io {
+            path: self.path().to_owned(),
+            source,
         }
     }
 }
@@ -518,4 +471,151 @@ fn check_transaction(book: &Book, t: &Transaction) -> Result<(), ServiceError> {
         return Err(DomainError::invalid(format!("split {} refers to a missing account", s.guid)).into());
     }
     commit::check_committed(book, t).map_err(ServiceError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use red_ale_core::SlotValue;
+
+    use super::*;
+    use crate::backend::Saved;
+
+    /// What the test Backend was asked to do.
+    #[derive(Debug, Default)]
+    struct Seen {
+        checks: usize,
+        /// The `saved` and `book` arguments of each save.
+        saves: Vec<(Book, Book)>,
+    }
+
+    /// A Backend that writes nothing: it can refuse every Mutation, and add a slot when preparing a save.
+    #[derive(Debug)]
+    struct TestBackend {
+        path: PathBuf,
+        refuse: bool,
+        prepare: bool,
+        seen: Arc<Mutex<Seen>>,
+    }
+
+    impl Backend for TestBackend {
+        fn format(&self) -> Format {
+            Format::Xml
+        }
+
+        fn path(&self) -> &Path {
+            &self.path
+        }
+
+        fn holds_lock(&self) -> bool {
+            true
+        }
+
+        fn release_lock(&mut self) -> Result<(), ServiceError> {
+            Ok(())
+        }
+
+        fn check_storable(&self, _before: &Book, _after: &Book) -> Result<(), ServiceError> {
+            self.seen.lock().unwrap().checks += 1;
+            if self.refuse {
+                Err(DomainError::invalid("not storable").into())
+            } else {
+                Ok(())
+            }
+        }
+
+        fn prepare_save(&self, book: &Book) -> Option<Book> {
+            self.prepare.then(|| {
+                let mut prepared = book.clone();
+                prepared.slots.set("test/prepared", SlotValue::String("yes".into()));
+                prepared
+            })
+        }
+
+        fn save(&mut self, saved: &Book, book: &Book, _: &SaveOptions, _: &mut dyn Env) -> Result<Saved, ServiceError> {
+            self.seen.lock().unwrap().saves.push((saved.clone(), book.clone()));
+            Ok(Saved {
+                backup: None,
+                compressed: None,
+            })
+        }
+
+        fn references(&self, _: Reference<'_>) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn compressed(&self) -> Option<bool> {
+            None
+        }
+
+        fn xml_residue(&self) -> Option<&XmlResidue> {
+            None
+        }
+    }
+
+    fn session(dir: &Path, refuse: bool, prepare: bool) -> (Session, Arc<Mutex<Seen>>) {
+        let seen = Arc::new(Mutex::new(Seen::default()));
+        let backend = TestBackend {
+            path: dir.join("b.gnucash"),
+            refuse,
+            prepare,
+            seen: Arc::clone(&seen),
+        };
+        let opened = Opened {
+            book: Book::new_empty(&mut SystemEnv),
+            read_only: Vec::new(),
+            backend: Box::new(backend),
+        };
+        (Session::from_opened(opened, Settings::default(), Box::new(SystemEnv)), seen)
+    }
+
+    fn set_note(session: &mut Session, note: &str) -> Result<(), ServiceError> {
+        session.mutate(|book, _| {
+            book.slots.set("test/note", SlotValue::String(note.into()));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn check_storable_runs_for_every_mutation() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut session, seen) = session(dir.path(), false, false);
+        ["a", "b", "c"].iter().for_each(|note| set_note(&mut session, note).unwrap());
+        assert_eq!(seen.lock().unwrap().checks, 3);
+        assert_eq!(session.revision(), 3);
+    }
+
+    #[test]
+    fn a_refused_mutation_leaves_the_book_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut session, seen) = session(dir.path(), true, false);
+        let before = session.book().clone();
+        let err = set_note(&mut session, "a").unwrap_err();
+        assert!(matches!(err, ServiceError::Domain(_)), "{err}");
+        assert_eq!(seen.lock().unwrap().checks, 1);
+        assert_eq!(session.book(), &before);
+        assert!(!session.is_dirty());
+        assert_eq!(session.revision(), 0);
+        assert!(session.journal_path().is_none());
+    }
+
+    #[test]
+    fn a_save_gets_the_last_saved_book_and_keeps_what_prepare_save_adds() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut session, seen) = session(dir.path(), false, true);
+        let read = session.book().clone();
+        set_note(&mut session, "a").unwrap();
+        session.save(None).unwrap();
+        let first = session.book().clone();
+        assert_eq!(first.slots.get_str("test/prepared"), Some("yes"));
+        assert!(!session.is_dirty());
+        set_note(&mut session, "b").unwrap();
+        session.save(None).unwrap();
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.saves.len(), 2);
+        assert_eq!(seen.saves[0], (read, first.clone()));
+        assert_eq!(seen.saves[1].0, first);
+        assert_eq!(&seen.saves[1].1, session.book());
+    }
 }

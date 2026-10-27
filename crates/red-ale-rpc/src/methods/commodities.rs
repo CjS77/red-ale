@@ -353,7 +353,7 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<CommodityInfo, RpcError>
 /// Template and scheduled transactions are kept as read, not modelled; a commodity they mention must not be renamed
 /// or deleted under them. Budgets name no commodity.
 fn refuse_if_residue_mentions(ctx: &mut Context, id: &CommodityRef, what: &str) -> Result<(), RpcError> {
-    let sections = ctx.session()?.residue().sections_referring_to(id);
+    let sections = ctx.session()?.references(red_ale_service::Reference::Commodity(id));
     if sections.is_empty() {
         Ok(())
     } else {

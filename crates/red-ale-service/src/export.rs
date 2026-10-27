@@ -13,7 +13,7 @@ use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 
 use red_ale_core::DomainError;
-use red_ale_xml::{ExportCounts, check_accounts_export, write_accounts_to};
+use red_ale_xml::{ExportCounts, XmlResidue, check_accounts_export, write_accounts_to};
 
 use crate::ServiceError;
 use crate::files::replace_book_file;
@@ -75,8 +75,16 @@ fn write(session: &Session, path: &Path) -> Result<ExportCounts, ServiceError> {
         path: path.to_owned(),
         source,
     };
+    // A book of another format has no XML Residue, so every account is generated, as for a new book.
+    let fresh;
+    let residue = if let Some(residue) = session.xml_residue() {
+        residue
+    } else {
+        fresh = XmlResidue::new_book(session.book(), false);
+        &fresh
+    };
     let write = |file: &mut File| {
-        let out = write_accounts_to(session.book(), session.residue(), BufWriter::new(file)).map_err(xml)?;
+        let out = write_accounts_to(session.book(), residue, BufWriter::new(file)).map_err(xml)?;
         out.into_inner().map(drop).map_err(|e| xml(e.into_error().into()))
     };
     let check = |tmp: &Path| {

@@ -700,7 +700,7 @@ fn refuse_if_residue_mentions(ctx: &mut Context, p: &DeleteParams) -> Result<(),
     };
     let sections: std::collections::BTreeSet<String> = std::iter::once(guid)
         .chain(subaccounts.iter().map(|a| a.guid))
-        .flat_map(|g| session.residue().sections_mentioning(&g.to_string()))
+        .flat_map(|g| session.references(red_ale_service::Reference::Guid(g)))
         .collect();
     if sections.is_empty() {
         Ok(())
