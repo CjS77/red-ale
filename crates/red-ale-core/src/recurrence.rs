@@ -1,12 +1,16 @@
 //! Recurrences: a step repeated from a start date. GnuCash's `Recurrence` (`5.17:libgnucash/engine/Recurrence.h:51-86`).
 //! A Budget takes its periods from one; a scheduled transaction's schedule is a list of them.
 
+mod arithmetic;
+
 use std::fmt;
 use std::str::FromStr;
 
 use thiserror::Error;
 
 use crate::Date;
+
+pub use arithmetic::next_instance_of_list;
 
 /// The step of a Recurrence. Names are as GnuCash writes them (`5.17:libgnucash/engine/Recurrence.cpp:44-48`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -129,6 +133,10 @@ pub enum RecurrenceError {
     /// A repeating Recurrence that never steps.
     #[error("a recurrence every 0 {0} periods never repeats")]
     ZeroMultiplier(PeriodType),
+    /// A date GnuCash's calendar (`GDate`, years 1 to 65535) cannot hold, as a start, a reference or a step on the way
+    /// to the next occurrence. GLib refuses the step there (`g_return_if_fail`) and leaves a wrong date.
+    #[error("recurrence date {0} is outside years 1 to 65535")]
+    OutOfRange(Date),
 }
 
 /// A Recurrence: every `mult` steps of `period_type` from `start`, moved off weekends by `weekend_adjust`.

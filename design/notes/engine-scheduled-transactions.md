@@ -310,14 +310,20 @@ start (2025-06-02).
 
 ### 2.7 GnuCash's tests
 
-- `5.17:libgnucash/engine/test/test-recurrence.c`: `test_some` (`:361-399`) checks 21 fixed cases
-  `(type, mult, start, ref) → next` with weekend adjustment `none`, including years 1–1340 (e.g. yearly ×3 from
+- `5.17:libgnucash/engine/test/test-recurrence.c`: `test_some` (`:361-399`) checks 27 fixed cases (24
+  distinct: `:363`, `:366` and `:367` are one case, as are `:379` and `:395`) `(type, mult, start, ref) → next` with weekend adjustment `none`, including years 1–1340 (e.g. yearly ×3 from
   0838-09-08, ref 1094-06-30 → 1096-09-08; monthly from 0001-01-30, ref 0001-02-27 → 0001-02-28; end of month ×5
   from 0001-02-28, ref 0001-05-21 → 0001-07-31). `test_all` (`:212-252`) runs every type × weekend adjustment × 300
   start dates × 300 random references × multipliers 0–9 through `check_valid` (`:33-202`): the result is strictly
   after the reference, and its phase (day of month, weekday and week of month, end of month, or days modulo the
   period) agrees with the start, allowing the weekend moves. A port should run the same property over the same
-  ranges, with the oracle as the reference for exact dates.
+  ranges, with the oracle as the reference for exact dates. The ranges are narrow: starts are Julian days 2003·365
+  to 2003·365 + 299 (2002-09-02 to 2003-06-28) and references 1 to 2^19 (0001-01-01 to 1436-06-14), so every
+  reference is before the start and only the adjusted start is ever checked. Past the start, `check_valid`'s phase
+  test (C's `%`, allowing a month difference of −1 for `back`) fails on GnuCash's own results: monthly ×2 `back`
+  from 2002-10-01, after 2002-10-01, is 2002-11-29 (Sunday 12-01 moved back), a difference of 1; and yearly ×2
+  `back` from Saturday 2000-01-01 gives 1999-12-31, which its year test rejects. Comparing phases modulo the
+  multiplier holds (red-ale's `crates/red-ale-core/tests/recurrence.rs`).
 - `5.17:libgnucash/app-utils/test/test-sx.cpp`: instances of a daily scheduled transaction from yesterday to
   tomorrow (`test_basic`, `:37-85`); none for an empty book (`:87-101`); a once-only one (`:103-144`); the state-change
   rule (`test_state_changes`, `:152-223`, §4.3); auto-create with values `123`, `0`, empty formulas, and empty

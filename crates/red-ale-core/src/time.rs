@@ -122,6 +122,11 @@ impl Date {
         self.0.day()
     }
 
+    /// Day of the week, Monday 1 to Sunday 7, as GLib's `GDateWeekday` numbers it.
+    pub fn weekday(self) -> u32 {
+        self.0.weekday().number_from_monday()
+    }
+
     /// `YYYY-MM-DD`, as GnuCash writes `gdate` elements.
     pub fn to_file_string(self) -> String {
         self.0.format("%Y-%m-%d").to_string()
