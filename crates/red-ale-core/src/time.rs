@@ -102,6 +102,12 @@ impl fmt::Display for Time64 {
 }
 
 impl Date {
+    /// 1970-01-01, the date GnuCash puts in place of an unset one where it needs a date to step from.
+    pub const EPOCH: Self = match NaiveDate::from_ymd_opt(1970, 1, 1) {
+        Some(d) => Self(d),
+        None => Self(NaiveDate::MIN),
+    };
+
     /// A date from year, month and day, if valid.
     pub fn from_ymd(year: i32, month: u32, day: u32) -> Option<Self> {
         NaiveDate::from_ymd_opt(year, month, day).map(Self)

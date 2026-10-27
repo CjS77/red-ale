@@ -94,3 +94,41 @@ fn scheduled_transactions_red_ale_saved_read_back_in_gnucash_unchanged() {
     assert!(text.contains("<act:description>petty</act:description>"), "the book was rewritten");
     assert_eq!(gnucash_scheduled(&book), expected);
 }
+
+/// red-ale's view of the questions `scheduled.py next` asks GnuCash about each scheduled transaction.
+fn red_ale_next(sx: &red_ale_core::ScheduledTransaction) -> Value {
+    use red_ale_core::ops::scheduled::{TemporalState, Upcoming, next_instance};
+    let shown = |d: Option<red_ale_core::Date>| d.map(red_ale_core::Date::to_file_string);
+    let steps: Vec<Value> = Upcoming::after(sx, TemporalState::of(sx))
+        .take(15)
+        .map(|o| o.unwrap())
+        .map(|o| json!([o.date.to_file_string(), o.instance_count, o.before.remaining]))
+        .collect();
+    let deferred: Vec<Value> = sx
+        .deferred
+        .iter()
+        .map(|d| json!(shown(next_instance(sx, Some(&TemporalState::of_deferred(d))).unwrap())))
+        .collect();
+    json!({ "null": shown(next_instance(sx, None).unwrap()), "steps": steps, "deferred": deferred })
+}
+
+/// `xaccSchedXactionGetNextInstance` (`5.17:libgnucash/engine/SchedXaction.cpp:885-926`) and
+/// `gnc_sx_incr_temporal_state` (`:1044-1054`), called by GnuCash on books holding the fixture's rent, `make`'s loan
+/// and `cases`' schedules (weekend adjustment, ended counts, end dates, deferred instances, two recurrences, once,
+/// instance count 0, every period type, a leap day and a last occurrence before the start), agree with red-ale's next
+/// occurrences, with no state, stepped from the temporal state, and from each deferred instance.
+#[test]
+fn next_instances_agree_with_gnucash() {
+    let book = TempBook::copy("synthetic/rich.gnucash");
+    script(&["make", &book.path_str()]);
+    script(&["cases", &book.path_str()]);
+    let gnucash: Value = serde_json::from_str(&script(&["next", &book.path_str()])).unwrap();
+    let (read, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
+    assert_eq!(read.scheduled.len(), 13);
+    read.scheduled.values().for_each(|sx| {
+        let expected = &gnucash[sx.guid.to_string()];
+        assert_eq!(red_ale_next(sx), *expected, "{}", sx.name);
+    });
+    assert_eq!(gnucash["0000000000000000000000000000ca04"]["deferred"], json!(["2025-01-01"]), "the note's §9.2 Defer");
+    assert_eq!(gnucash["0000000000000000000000000000ca01"]["null"], "2025-06-30", "the note's Fact 11");
+}
