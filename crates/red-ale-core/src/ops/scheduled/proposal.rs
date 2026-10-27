@@ -4,7 +4,9 @@
 use std::collections::BTreeSet;
 
 use super::occurrences::{TemporalState, Upcoming, next_instance};
-use super::template::{INSTANCE_COUNT_VARIABLE, variables};
+use super::create::{BuiltTransaction, build_instance, check_account};
+use super::error::ScheduledError;
+use super::template::{INSTANCE_COUNT_VARIABLE, template_transactions, variables};
 use crate::book_options::auto_readonly_threshold;
 use crate::formula::{NumberFormat, Variables};
 use crate::{Book, Date, Guid, Numeric, RecurrenceError, ScheduledTransaction};
@@ -64,6 +66,11 @@ pub struct Instance {
     pub variables: Vec<Variable>,
     /// Dated before the auto read-only threshold: creating it needs the caller's explicit choice.
     pub read_only_by_date: bool,
+    /// What creating it as it stands would fail on, found without the caller's values: Formulas that don't parse or
+    /// don't evaluate, and template splits whose account can't take the split.
+    pub errors: Vec<ScheduledError>,
+    /// When every variable has a value: the transactions creating it would make. Otherwise `None`.
+    pub transactions: Option<Vec<BuiltTransaction>>,
 }
 
 impl Instance {
@@ -119,6 +126,42 @@ impl Proposal {
     pub fn instance(&self, index: usize) -> Option<(&ScheduleInstances, &Instance)> {
         self.instances().find(|(_, i)| i.index == index)
     }
+
+    /// Counts of its instances.
+    pub fn summary(&self) -> Summary {
+        self.instances().fold(Summary::default(), |mut s, (schedule, i)| {
+            match i.state {
+                InstanceState::ToCreate => s.to_create += 1,
+                InstanceState::Reminder => s.reminders += 1,
+                InstanceState::Postponed => s.postponed += 1,
+                InstanceState::Ignored | InstanceState::Created => {}
+            }
+            s.auto_create += usize::from(schedule.auto_create);
+            s.need_variables += usize::from(i.state == InstanceState::ToCreate && i.unbound().next().is_some());
+            s.read_only_by_date += usize::from(i.read_only_by_date);
+            s.errors += usize::from(!i.errors.is_empty());
+            s
+        })
+    }
+}
+
+/// How many instances a proposal holds, by what they are.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Summary {
+    /// Proposed to create.
+    pub to_create: usize,
+    /// Proposed as reminders.
+    pub reminders: usize,
+    /// Postponed before.
+    pub postponed: usize,
+    /// Of auto-create scheduled transactions.
+    pub auto_create: usize,
+    /// To create, with a variable still unbound.
+    pub need_variables: usize,
+    /// Dated before the read-only threshold.
+    pub read_only_by_date: usize,
+    /// With errors.
+    pub errors: usize,
 }
 
 /// Propose the due instances of every enabled scheduled transaction on `today` (the local day of the caller's clock),
@@ -155,20 +198,24 @@ fn schedule_instances(
     next_index: &mut usize,
 ) -> Result<ScheduleInstances, RecurrenceError> {
     let due = due(sx, today)?;
-    let names = if due.is_empty() { BTreeSet::new() } else { variables(book, sx, format).0 };
+    let (names, problems) = if due.is_empty() { (BTreeSet::new(), Vec::new()) } else { template_problems(book, sx, format) };
     let instances = due
         .into_iter()
         .map(|(date, state, before)| {
             let index = *next_index;
             *next_index += 1;
-            Instance {
+            let mut instance = Instance {
                 index,
                 date,
                 state,
                 before,
                 variables: unbound(&names, before.instance_count),
                 read_only_by_date: threshold.is_some_and(|t| date < t),
-            }
+                errors: problems.iter().cloned().map(|e| e.at(index)).collect(),
+                transactions: None,
+            };
+            preview(book, sx, format, &mut instance);
+            instance
         })
         .collect();
     Ok(ScheduleInstances {
@@ -178,6 +225,29 @@ fn schedule_instances(
         notify: sx.auto_create_notify,
         instances,
     })
+}
+
+/// A scheduled transaction's Variables, with the problems of its template that no value can fix: Formulas that don't
+/// parse, and splits whose account can't take the split.
+fn template_problems(book: &Book, sx: &ScheduledTransaction, format: NumberFormat) -> (BTreeSet<String>, Vec<ScheduledError>) {
+    let (names, mut errors) = variables(book, sx, format);
+    let accounts = template_transactions(book, sx)
+        .into_iter()
+        .flat_map(|t| t.splits.iter().map(move |s| (t, s)))
+        .filter_map(|(t, s)| check_account(book, sx, t, s).err());
+    accounts.for_each(|e| if !errors.contains(&e) { errors.push(e) });
+    (names, errors)
+}
+
+/// When an instance has every variable bound and no template problem, what creating it would make, or why it can't.
+fn preview(book: &Book, sx: &ScheduledTransaction, format: NumberFormat, instance: &mut Instance) {
+    if instance.unbound().next().is_some() || !instance.errors.is_empty() {
+        return;
+    }
+    match build_instance(book, sx, &instance.bindings(), format) {
+        Ok(built) => instance.transactions = Some(built),
+        Err(e) => instance.errors.push(e.at(instance.index)),
+    }
 }
 
 /// The dates, states and temporal states of a scheduled transaction's instances on `today`.
