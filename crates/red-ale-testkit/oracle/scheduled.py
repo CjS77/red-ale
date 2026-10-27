@@ -8,6 +8,15 @@ Usage:
                              transaction with formulas and a marker split, and save the book
   scheduled.py dump <book>   print, as JSON, every scheduled transaction as GnuCash reads it, with its template
                              transactions' splits and their `sched-xaction` properties
+  scheduled.py cases <book>  add the scheduled transactions of CASES (temporal state and schedule only) and save
+  scheduled.py next <book>   print, as JSON, each scheduled transaction's `xaccSchedXactionGetNextInstance` with no
+                             state, the occurrences stepped from its temporal state, the next instance of each
+                             deferred instance, and `gnc_sx_get_num_occur_daterange` over RANGES
+  scheduled.py created <book>
+                             print, as JSON, every transaction with a `from-sched-xaction` Slot as GnuCash's getters
+                             read it
+
+Every command checks, before it exits, that no Guile library was mapped into the process.
 
 `make` adds "Loan & rates" (GUID 000000000000000000000000005c4ed1): disabled, auto-create with notify, 3 days to
 create and 2 to remind in advance, instance count 7, from 2024-01-31, last occurrence 2024-05-31, 12 occurrences of
@@ -26,8 +35,9 @@ from gnc_engine import GncNumeric, engine, gobject, ptr
 LOAN = "000000000000000000000000005c4ed1"
 FOOD = "1feca2abf92347288c268ebf93753ec4"
 CASH = "c080059e1aec4c0b9ad4671e80965686"
-PERIOD_WEEK, PERIOD_END_OF_MONTH = 2, 4
-WEEKEND_ADJ_NONE, WEEKEND_ADJ_BACK = 0, 1
+(PERIOD_ONCE, PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH, PERIOD_END_OF_MONTH, PERIOD_NTH_WEEKDAY, PERIOD_LAST_WEEKDAY,
+ PERIOD_YEAR) = range(8)
+WEEKEND_ADJ_NONE, WEEKEND_ADJ_BACK, WEEKEND_ADJ_FORWARD = 0, 1, 2
 
 VP, I, S = ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p
 glib = ctypes.CDLL("libglib-2.0.so.0")
@@ -75,6 +85,8 @@ add_defer = e("gnc_sx_add_defer_instance", None, VP, VP)
 get_sxes = e("gnc_book_get_schedxactions", VP, VP)
 add_sx = e("gnc_sxes_add_sx", None, VP, VP)
 recurrence_set = e("recurrenceSet", None, VP, ctypes.c_uint16, I, VP, I)
+next_instance = e("xaccSchedXactionGetNextInstance", ctypes.c_uint64, VP, VP)
+set_end = e("xaccSchedXactionSetEndDate", None, VP, VP)
 
 get_name = e("xaccSchedXactionGetName", S, VP)
 get_enabled = e("xaccSchedXactionGetEnabled", I, VP)
@@ -331,7 +343,175 @@ def dump(path):
         session.end()
 
 
+# (guid, name, start, last, end, (total, remaining), instance count, [(mult, period type, start, weekend)],
+#  deferred states as (remaining, instance count), taken before the last occurrence is set)
+CASES = [
+    ("0000000000000000000000000000ca01", "Weekend", (2025, 5, 31), None, None, None, 1,
+     [(1, PERIOD_MONTH, (2025, 5, 31), WEEKEND_ADJ_BACK)], []),
+    ("0000000000000000000000000000ca02", "Ends", (2025, 1, 1), (2025, 2, 1), None, (2, 0), 3,
+     [(1, PERIOD_MONTH, (2025, 1, 1), WEEKEND_ADJ_NONE)], []),
+    ("0000000000000000000000000000ca03", "EndDate", (2025, 1, 1), (2025, 2, 1), (2025, 2, 1), None, 3,
+     [(1, PERIOD_MONTH, (2025, 1, 1), WEEKEND_ADJ_NONE)], []),
+    ("0000000000000000000000000000ca04", "Defer", (2025, 1, 1), (2025, 2, 1), None, (6, 4), 3,
+     [(1, PERIOD_MONTH, (2025, 1, 1), WEEKEND_ADJ_NONE)], [(6, 1)]),
+    ("0000000000000000000000000000ca05", "Twice", (2025, 1, 1), (2025, 1, 15), None, None, 3,
+     [(1, PERIOD_MONTH, (2025, 1, 1), WEEKEND_ADJ_NONE), (1, PERIOD_MONTH, (2025, 1, 15), WEEKEND_ADJ_NONE)], []),
+    ("0000000000000000000000000000ca06", "Once", (2026, 3, 9), None, None, None, 1,
+     [(0, PERIOD_ONCE, (2026, 3, 9), WEEKEND_ADJ_NONE)], []),
+    ("0000000000000000000000000000ca07", "Daily", (2025, 2, 26), None, None, (5, 5), 0,
+     [(1, PERIOD_DAY, (2025, 2, 26), WEEKEND_ADJ_NONE)], []),
+    ("0000000000000000000000000000ca08", "Fortnight", (2024, 1, 3), (2024, 2, 14), (2024, 6, 30), None, 4,
+     [(2, PERIOD_WEEK, (2024, 1, 3), WEEKEND_ADJ_NONE)], []),
+    ("0000000000000000000000000000ca09", "Weekdays", (2025, 1, 14), None, None, (9, 9), 1,
+     [(1, PERIOD_NTH_WEEKDAY, (2025, 1, 14), WEEKEND_ADJ_NONE), (2, PERIOD_LAST_WEEKDAY, (2025, 1, 28), WEEKEND_ADJ_NONE)],
+     []),
+    ("0000000000000000000000000000ca0a", "Leap", (2024, 2, 29), None, None, None, 1,
+     [(1, PERIOD_YEAR, (2024, 2, 29), WEEKEND_ADJ_FORWARD)], []),
+    ("0000000000000000000000000000ca0b", "Late start", (2025, 1, 31), (2020, 1, 1), None, None, 6,
+     [(1, PERIOD_END_OF_MONTH, (2025, 1, 31), WEEKEND_ADJ_FORWARD)], []),
+]
+
+
+def cases(path):
+    session = Session("xml://" + path, SessionOpenMode.SESSION_NORMAL_OPEN)
+    try:
+        b = ptr(session.book)
+        for (g, name, start, last, end, occur, count, recurrences, deferred) in CASES:
+            sx = sx_malloc(b)
+            set_guid(sx, guid(g))
+            set_name(sx, name.encode())
+            set_start(sx, date(*start))
+            schedule = None
+            for (mult, pt, rstart, wadj) in recurrences:
+                schedule = glib.g_list_append(schedule, recurrence(mult, pt, date(*rstart), wadj))
+            set_schedule(sx, schedule)
+            for (rem, inst) in deferred:
+                state = create_state(sx)
+                tmp = ctypes.cast(state, ctypes.POINTER(TmpState)).contents
+                tmp.num_occur_rem, tmp.num_inst = rem, inst
+                add_defer(sx, state)
+            if last:
+                set_last(sx, date(*last))
+            if end:
+                set_end(sx, date(*end))
+            if occur:
+                set_num_occur(sx, occur[0])
+                set_rem_occur(sx, occur[1])
+            set_instances(sx, count)
+            add_sx(get_sxes(b), sx)
+        session.save()
+    finally:
+        session.end()
+
+
+def next_text(sx, state):
+    d = ctypes.c_uint64(next_instance(sx, state))
+    return date_text(ctypes.addressof(d))
+
+
+def stepped(sx, count):
+    """Occurrences from the temporal state, each with the state's instance count and remaining before it."""
+    state = create_state(sx)
+    tmp = ctypes.cast(state, ctypes.POINTER(TmpState)).contents
+    out = []
+    while len(out) < count:
+        d = next_text(sx, state)
+        if d is None:
+            break
+        out.append([d, tmp.num_inst, tmp.num_occur_rem])
+        incr_state(sx, state)
+    return out
+
+
+# Date ranges, both ends inclusive, for `gnc_sx_get_num_occur_daterange`: the engine-budgets note's exp6 ranges on
+# the fixture's rent, and ranges across the cases' ends, limits and starts.
+RANGES = [
+    ((2024, 9, 1), (2024, 12, 31)), ((2024, 8, 1), (2024, 9, 30)), ((2024, 11, 29), (2024, 11, 29)),
+    ((2024, 12, 1), (2024, 12, 31)), ((2025, 1, 1), (2026, 12, 31)), ((2025, 1, 1), (2025, 1, 31)),
+    ((2025, 2, 1), (2025, 2, 1)), ((2025, 2, 26), (2025, 3, 2)), ((2025, 3, 1), (2025, 12, 31)),
+    ((2020, 1, 1), (2030, 12, 31)), ((2026, 3, 9), (2026, 3, 9)), ((2024, 1, 1), (2024, 3, 31)),
+]
+num_occur_daterange = e("gnc_sx_get_num_occur_daterange", I, VP, VP, VP)
+
+
+def ranges(sx):
+    return {f"{date_text(date(*a))}..{date_text(date(*b))}": num_occur_daterange(sx, date(*a), date(*b)) for a, b in RANGES}
+
+
+def nexts(path):
+    session = Session("xml://" + path, SessionOpenMode.SESSION_READ_ONLY)
+    try:
+        found = []
+        callback = FOREACH(lambda instance, _: found.append(instance))
+        collection_foreach(get_collection(ptr(session.book), b"SchedXaction"), callback, None)
+        print(json.dumps({guid_text(instance_guid(sx)): {
+            "null": next_text(sx, None),
+            "steps": stepped(sx, 15),
+            "deferred": [next_text(sx, d) for d in glist(get_deferred(sx))],
+            "ranges": ranges(sx),
+        } for sx in found}, sort_keys=True, indent=1))
+    finally:
+        session.end()
+
+
+trans_get_notes = e("xaccTransGetNotes", S, VP)
+trans_get_date = e("xaccTransGetDate", ctypes.c_int64, VP)
+trans_get_date_entered = e("xaccTransGetDateEntered", ctypes.c_int64, VP)
+trans_get_gdate = e("xaccTransGetDatePostedGDate", ctypes.c_uint64, VP)
+trans_get_splits = e("xaccTransGetSplitList", ctypes.POINTER(GList), VP)
+split_get_action = e("xaccSplitGetAction", S, VP)
+
+
+def from_scheduled(trans):
+    out = VP()
+    gobject.g_object_get(VP(trans), b"from-sched-xaction", ctypes.byref(out), None)
+    return guid_to_string(out.value).decode() if out.value else None
+
+
+def created(path):
+    """Every transaction with a `from-sched-xaction` Slot, as GnuCash's getters read it."""
+    session = Session("xml://" + path, SessionOpenMode.SESSION_READ_ONLY)
+    try:
+        found = []
+        callback = FOREACH(lambda instance, _: found.append(instance))
+        collection_foreach(get_collection(ptr(session.book), b"Trans"), callback, None)
+        out = {}
+        for t in found:
+            sx = from_scheduled(t)
+            if sx is None:
+                continue
+            gdate = ctypes.c_uint64(trans_get_gdate(t))
+            notes, num = trans_get_notes(t), trans_get_num(t)
+            out[guid_text(instance_guid(t))] = {
+                "scheduledTransaction": sx,
+                "description": trans_get_description(t).decode(),
+                "num": num.decode() if num else "",
+                "notes": notes.decode() if notes else None,
+                "currency": commodity_name(trans_get_currency(t)).decode(),
+                "datePosted": trans_get_date(t),
+                "datePostedGDate": date_text(ctypes.addressof(gdate)),
+                "dateEntered": trans_get_date_entered(t),
+                "splits": [{
+                    "account": guid_text(instance_guid(split_get_account(s))),
+                    "memo": split_get_memo(s).decode(),
+                    "action": split_get_action(s).decode(),
+                    "value": numeric(split_get_value(s)),
+                    "amount": numeric(split_get_amount(s)),
+                } for s in glist(trans_get_splits(t))],
+            }
+        print(json.dumps(out, sort_keys=True, indent=1))
+    finally:
+        session.end()
+
+
+def no_guile():
+    with open("/proc/self/maps") as maps:
+        if "libguile" in maps.read():
+            sys.exit("Guile was loaded")
+
+
 if __name__ == "__main__":
     if _sw_core_utils.gnc_version() != "5.17":
         sys.exit("the oracle must be GnuCash 5.17")
-    {"make": make, "dump": dump}[sys.argv[1]](sys.argv[2])
+    {"make": make, "dump": dump, "cases": cases, "next": nexts, "created": created}[sys.argv[1]](sys.argv[2])
+    no_guile()

@@ -17,6 +17,7 @@ pub mod period;
 pub mod prices;
 pub mod quotes;
 pub mod reconcile;
+pub mod scheduled;
 pub mod scrub;
 pub mod trading;
 pub mod transactions;
