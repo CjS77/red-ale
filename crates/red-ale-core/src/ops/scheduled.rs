@@ -7,6 +7,7 @@
 //! ("Deviations in Since Last Run") says why.
 
 mod apply;
+mod cashflow;
 mod create;
 mod error;
 #[cfg(test)]
@@ -16,6 +17,7 @@ mod proposal;
 mod template;
 
 pub use apply::{Applied, ApplyOptions, Choice, CreatedInstance, apply};
+pub use cashflow::{CashFlow, CashFlowError, cash_flow, occurrences_in_range};
 pub use create::{BuiltSplit, BuiltTransaction, Created, FROM_SCHEDULED, ImbalanceSplit, build_instance, create_built, create_instance};
 pub use error::{AccountProblem, FormulaFailure, Refusal, ScheduledError, Side, Site};
 pub use occurrences::{Occurrence, TemporalState, Upcoming, advance, has_occurrence_limit, next_instance, occurrences};

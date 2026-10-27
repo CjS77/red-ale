@@ -10,8 +10,8 @@ Usage:
                              transactions' splits and their `sched-xaction` properties
   scheduled.py cases <book>  add the scheduled transactions of CASES (temporal state and schedule only) and save
   scheduled.py next <book>   print, as JSON, each scheduled transaction's `xaccSchedXactionGetNextInstance` with no
-                             state, the occurrences stepped from its temporal state, and the next instance of each
-                             deferred instance
+                             state, the occurrences stepped from its temporal state, the next instance of each
+                             deferred instance, and `gnc_sx_get_num_occur_daterange` over RANGES
   scheduled.py created <book>
                              print, as JSON, every transaction with a `from-sched-xaction` Slot as GnuCash's getters
                              read it
@@ -423,6 +423,21 @@ def stepped(sx, count):
     return out
 
 
+# Date ranges, both ends inclusive, for `gnc_sx_get_num_occur_daterange`: the engine-budgets note's exp6 ranges on
+# the fixture's rent, and ranges across the cases' ends, limits and starts.
+RANGES = [
+    ((2024, 9, 1), (2024, 12, 31)), ((2024, 8, 1), (2024, 9, 30)), ((2024, 11, 29), (2024, 11, 29)),
+    ((2024, 12, 1), (2024, 12, 31)), ((2025, 1, 1), (2026, 12, 31)), ((2025, 1, 1), (2025, 1, 31)),
+    ((2025, 2, 1), (2025, 2, 1)), ((2025, 2, 26), (2025, 3, 2)), ((2025, 3, 1), (2025, 12, 31)),
+    ((2020, 1, 1), (2030, 12, 31)), ((2026, 3, 9), (2026, 3, 9)), ((2024, 1, 1), (2024, 3, 31)),
+]
+num_occur_daterange = e("gnc_sx_get_num_occur_daterange", I, VP, VP, VP)
+
+
+def ranges(sx):
+    return {f"{date_text(date(*a))}..{date_text(date(*b))}": num_occur_daterange(sx, date(*a), date(*b)) for a, b in RANGES}
+
+
 def nexts(path):
     session = Session("xml://" + path, SessionOpenMode.SESSION_READ_ONLY)
     try:
@@ -433,6 +448,7 @@ def nexts(path):
             "null": next_text(sx, None),
             "steps": stepped(sx, 15),
             "deferred": [next_text(sx, d) for d in glist(get_deferred(sx))],
+            "ranges": ranges(sx),
         } for sx in found}, sort_keys=True, indent=1))
     finally:
         session.end()

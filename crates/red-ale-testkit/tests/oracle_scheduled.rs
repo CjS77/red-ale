@@ -96,8 +96,9 @@ fn scheduled_transactions_red_ale_saved_read_back_in_gnucash_unchanged() {
 }
 
 /// red-ale's view of the questions `scheduled.py next` asks GnuCash about each scheduled transaction.
-fn red_ale_next(sx: &red_ale_core::ScheduledTransaction) -> Value {
-    use red_ale_core::ops::scheduled::{TemporalState, Upcoming, next_instance};
+/// `ranges` are GnuCash's occurrence counts, keyed `start..end`, whose ranges red-ale counts too.
+fn red_ale_next(sx: &red_ale_core::ScheduledTransaction, ranges: &Value) -> Value {
+    use red_ale_core::ops::scheduled::{TemporalState, Upcoming, next_instance, occurrences_in_range};
     let shown = |d: Option<red_ale_core::Date>| d.map(red_ale_core::Date::to_file_string);
     let steps: Vec<Value> = Upcoming::after(sx, TemporalState::of(sx))
         .take(15)
@@ -109,14 +110,26 @@ fn red_ale_next(sx: &red_ale_core::ScheduledTransaction) -> Value {
         .iter()
         .map(|d| json!(shown(next_instance(sx, Some(&TemporalState::of_deferred(d))).unwrap())))
         .collect();
-    json!({ "null": shown(next_instance(sx, None).unwrap()), "steps": steps, "deferred": deferred })
+    let counted: serde_json::Map<String, Value> = ranges
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(|key| {
+            let (start, end) = key.split_once("..").unwrap();
+            let date = |d: &str| red_ale_core::Date::parse(d).unwrap();
+            (key.clone(), json!(occurrences_in_range(sx, date(start), date(end)).unwrap()))
+        })
+        .collect();
+    json!({ "null": shown(next_instance(sx, None).unwrap()), "steps": steps, "deferred": deferred, "ranges": counted })
 }
 
 /// `xaccSchedXactionGetNextInstance` (`5.17:libgnucash/engine/SchedXaction.cpp:885-926`) and
 /// `gnc_sx_incr_temporal_state` (`:1044-1054`), called by GnuCash on books holding the fixture's rent, `make`'s loan
 /// and `cases`' schedules (weekend adjustment, ended counts, end dates, deferred instances, two recurrences, once,
 /// instance count 0, every period type, a leap day and a last occurrence before the start), agree with red-ale's next
-/// occurrences, with no state, stepped from the temporal state, and from each deferred instance.
+/// occurrences, with no state, stepped from the temporal state, and from each deferred instance; and
+/// `gnc_sx_get_num_occur_daterange` (`:739-812`), which the cash flow counts with, agrees with
+/// `occurrences_in_range` over twelve ranges.
 #[test]
 fn next_instances_agree_with_gnucash() {
     // One book per command: two saves within a second would collide on GnuCash's timestamped backup name.
@@ -130,13 +143,16 @@ fn next_instances_agree_with_gnucash() {
             assert_eq!(read.scheduled.len(), count);
             read.scheduled.values().for_each(|sx| {
                 let expected = &gnucash[sx.guid.to_string()];
-                assert_eq!(red_ale_next(sx), *expected, "{}", sx.name);
+                assert_eq!(red_ale_next(sx, &expected["ranges"]), *expected, "{}", sx.name);
             });
             gnucash
         })
         .collect();
     assert_eq!(gnucash[1]["0000000000000000000000000000ca04"]["deferred"], json!(["2025-01-01"]), "the note's §9.2 Defer");
     assert_eq!(gnucash[1]["0000000000000000000000000000ca01"]["null"], "2025-06-30", "the note's Fact 11");
+    let rent = &gnucash[0][RENT]["ranges"];
+    let exp6 = ["2024-09-01..2024-12-31", "2024-08-01..2024-09-30", "2024-11-29..2024-11-29", "2024-12-01..2024-12-31", "2025-01-01..2026-12-31"];
+    assert_eq!(exp6.map(|k| rent[k].clone()), [3, 0, 1, 0, 7].map(|n| json!(n)), "the engine-budgets note's exp6");
 }
 
 /// Since Last Run on the fixture's rent (monthly from 2024-08-01 adjusted back, last 2024-09-01, Instance count 2, a
