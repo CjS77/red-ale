@@ -1,7 +1,7 @@
 //! The note's hand-worked cases H7 and H8 (`design/notes/engine-scheduled-transactions.md` §9.3), worked from
 //! `5.17:libgnucash/app-utils/gnc-sx-instance-model.c:482-556`, `:1042-1058`, `:1445-1596` and
 //! `5.17:libgnucash/engine/SchedXaction.cpp:885-926`, `:1031-1125`, and `test_state_changes`
-//! (`5.17:libgnucash/app-utils/test/test-sx.cpp:146-223`) without its Guile.
+//! (`5.17:libgnucash/app-utils/test/test-sx.cpp:152-223`) without its Guile.
 
 use proptest::prelude::*;
 
@@ -166,7 +166,7 @@ fn a_postponed_instance_set_to_reminder_is_dropped() {
     assert_eq!(shown(&propose(&f, date(2026, 1, 20))), [(date(2026, 2, 1), Reminder, 2), (date(2026, 3, 1), Reminder, 3)]);
 }
 
-/// `test_state_changes` (`test-sx.cpp:146-223`): four daily instances to create. Choosing to create one, or to postpone
+/// `test_state_changes` (`test-sx.cpp:152-223`): four daily instances to create. Choosing to create one, or to postpone
 /// one, is allowed and changes no other. Making the second a reminder makes GnuCash turn the third and fourth into
 /// reminders (`gnc-sx-instance-model.c:1556-1596`); red-ale refuses it, naming them (deviation 4), and accepts it with
 /// them reminders too.
@@ -261,7 +261,7 @@ fn auto_create_only_acts_on_auto_create_schedules() {
 }
 
 /// A schedule with only reminders is not touched (`:1467-1471`, `:1550-1552`); one with no template transactions
-/// creates nothing and advances (`:1430-1442`).
+/// creates nothing and advances (`:1424-1443`).
 #[test]
 fn reminders_touch_nothing_and_empty_templates_still_advance() {
     let mut f = Fixture::new();

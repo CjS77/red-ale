@@ -1,6 +1,6 @@
-//! `test_basic`'s occurrence counts (`5.17:libgnucash/app-utils/test/test-sx.cpp:72-79`) and the note's hand-worked
+//! `test_basic`'s occurrence counts (`5.17:libgnucash/app-utils/test/test-sx.cpp:76-81`) and the note's hand-worked
 //! case H10 (`design/notes/engine-scheduled-transactions.md` §9.3), worked from
-//! `5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1087-1118`, `:1715-1976` and
+//! `5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1087-1118`, `:1734-1976` and
 //! `5.17:libgnucash/engine/SchedXaction.cpp:739-812`.
 
 use std::sync::Arc;
@@ -13,7 +13,7 @@ fn flow(f: &Fixture, start: Date, end: Date) -> CashFlow {
     cash_flow(&f.book, start, end, NumberFormat::default()).unwrap()
 }
 
-/// `test_basic` (`test-sx.cpp:72-79`): a daily schedule from yesterday ending tomorrow occurs 0 times the day before
+/// `test_basic` (`test-sx.cpp:76-81`): a daily schedule from yesterday ending tomorrow occurs 0 times the day before
 /// yesterday, once today, twice today and tomorrow, three times from yesterday to tomorrow, once tomorrow and never
 /// after.
 #[test]

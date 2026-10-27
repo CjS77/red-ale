@@ -17,14 +17,14 @@ fn rent(f: &mut Fixture, sx: ScheduledTransaction) -> Guid {
     f.add(sx, &usd(), &[&[T(food, "750", ""), T(bank, "", "750")]])
 }
 
-/// `test_empty` (`5.17:libgnucash/app-utils/test/test-sx.cpp:84-97`): no scheduled transactions, no instances.
+/// `test_empty` (`5.17:libgnucash/app-utils/test/test-sx.cpp:87-101`): no scheduled transactions, no instances.
 #[test]
 fn no_scheduled_transactions_propose_nothing() {
     let f = Fixture::new();
     assert!(propose(&f, date(2038, 12, 31)).schedules.is_empty());
 }
 
-/// `test_basic` (`test-sx.cpp:37-82`): a daily schedule from yesterday, asked for up to tomorrow, has three instances
+/// `test_basic` (`test-sx.cpp:37-85`): a daily schedule from yesterday, asked for up to tomorrow, has three instances
 /// to create: yesterday, today and tomorrow.
 #[test]
 fn a_daily_schedule_from_yesterday_has_three_to_create_up_to_tomorrow() {
@@ -38,7 +38,7 @@ fn a_daily_schedule_from_yesterday_has_three_to_create_up_to_tomorrow() {
     assert_eq!(states, [to_create(today.add_days(-1)), to_create(today), to_create(today.add_days(1))]);
 }
 
-/// `test_once` (`test-sx.cpp:105-144`): a once-only schedule, within a year either way, asked for up to a year ahead,
+/// `test_once` (`test-sx.cpp:103-145`): a once-only schedule, within a year either way, asked for up to a year ahead,
 /// has one instance on its date.
 #[test]
 fn a_once_only_schedule_has_one_instance() {
@@ -105,7 +105,7 @@ fn disabled_and_idle_schedules_have_no_entry() {
 
 /// `gnc-sx-instance-model.c:424-459`: every variable unbound but `i`, the Instance count; an instance count of 0 in
 /// the file gives `i` = 0 (the note's H6). The exchange-rate variable names the split's and the transaction's
-/// mnemonics (`:286-311`).
+/// mnemonics (`:300-311`).
 #[test]
 fn variables_are_unbound_but_i() {
     let mut f = Fixture::new();

@@ -102,7 +102,7 @@ struct Resolved<'a> {
 /// advances; a reminder does nothing. Advancing (`increment_sx_state`, `:1042-1058`) makes the instance's date the
 /// last occurrence if later, the instance's `i` + 1 the Instance count (overwritten, not maximised), and takes one from
 /// the remaining occurrences above zero. A postponed instance left postponed does nothing, where GnuCash advances
-/// again on every run it stays postponed (`:1509-1516`). A scheduled transaction no instance changed is not touched.
+/// again on every run it stays postponed (`:1510-1517`). A scheduled transaction no instance changed is not touched.
 pub fn apply(
     book: &mut Book,
     env: &mut dyn Env,

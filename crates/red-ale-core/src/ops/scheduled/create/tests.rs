@@ -125,7 +125,7 @@ fn other_commodities_take_the_exchange_rate() {
 }
 
 /// A rate of 0 for a split with a value is refused, where GnuCash leaves an amount of 0 (`gnc-sx-instance-model.c:1218-1224`,
-/// `Split.cpp:1248`); with no rate bound, 1 is used (`:1205-1214`).
+/// `Split.cpp:1246`); with no rate bound, 1 is used (`:1204-1215`).
 #[test]
 fn a_zero_rate_is_refused_and_a_missing_one_is_one() {
     let mut f = Fixture::new();

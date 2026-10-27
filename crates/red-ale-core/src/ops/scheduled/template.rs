@@ -105,7 +105,7 @@ pub fn transaction_currency(book: &Book, sx: &ScheduledTransaction, t: &Transact
 }
 
 /// The exchange-rate variable for a split in `split` commodity of a transaction in `currency`: `EUR -> USD`
-/// (`var_name_from_commodities`, `gnc-sx-instance-model.c:286-298`).
+/// (`var_name_from_commodities`, `gnc-sx-instance-model.c:300-311`).
 pub fn exchange_rate_variable(split: &CommodityRef, currency: &CommodityRef) -> String {
     format!("{} -> {}", split.mnemonic, currency.mnemonic)
 }

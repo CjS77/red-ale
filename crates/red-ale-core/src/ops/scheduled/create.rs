@@ -79,7 +79,7 @@ pub struct Created {
 }
 
 /// The transactions an instance with `bindings` would create, in the template account's split order, without
-/// changing the Book. A template transaction with no splits creates nothing, as in GnuCash (`:1348-1356`).
+/// changing the Book. A template transaction with no splits creates nothing, as in GnuCash (`:1349-1356`).
 ///
 /// Where GnuCash creates a transaction anyway, this refuses (deviation (b) and the placeholder row of
 /// `design/api/scheduled-transactions.md`): a Formula that fails ([`ScheduledError::Formula`]); a split whose account

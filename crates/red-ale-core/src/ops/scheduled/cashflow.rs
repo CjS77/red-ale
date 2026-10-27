@@ -1,5 +1,5 @@
 //! The scheduled transactions' cash flow over a date range, which the forecast reports read
-//! (`gnc_sx_all_instantiate_cashflow_all`, `5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1715-1976`; the note
+//! (`gnc_sx_all_instantiate_cashflow_all`, `5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1734-1976`; the note
 //! §3.9, `design/notes/engine-budgets.md` §4.10).
 
 use std::ops::ControlFlow;

@@ -97,7 +97,7 @@ fn a_last_occurrence_before_the_start_is_ignored() {
     assert_eq!(TemporalState::of(&monthly(date(2025, 1, 1))).last, Some(Date::EPOCH));
 }
 
-/// `test_once` (`5.17:libgnucash/app-utils/test/test-sx.cpp:105-144`): a once-only schedule occurs on its date only.
+/// `test_once` (`5.17:libgnucash/app-utils/test/test-sx.cpp:103-145`): a once-only schedule occurs on its date only.
 #[test]
 fn a_once_only_schedule_occurs_once() {
     let when = date(2026, 3, 9);
