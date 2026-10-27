@@ -11,8 +11,9 @@ plugin (`gnc-plugin-page-budget.cpp`, `gnc-plugin-budget.c`, `gnc-budget-view.c`
 hold (the Book feature, the copy's name, estimate), so red-ale follows the GUI where it adds rules to the engine and
 says so. Where the GUI changes a book on open, red-ale does not: the change waits for an explicit call.
 
-Code (planned): `red-ale-core::budget` (the entity, amounts, periods), `red-ale-core::ops::budgets` (the Mutations),
-`red-ale-rpc::methods::budgets`.
+Code: `red_ale_core::budget` (the entity), `red_ale_core::ops::budgets` (the Mutations, periods, actuals, the
+estimate and the scrub), `red_ale_rpc::methods::budgets` (the methods), and the `Recurrence` wire type in
+`red_ale_rpc::wire`. Where what was built differs from this design as first written, the text says so ("As built").
 
 ## The model on the wire
 
@@ -48,8 +49,12 @@ red-ale creates only Recurrences with weekend adjustment `none` (see "Recurrence
 | `periods` | `[{ index, startDate, endDate }]`, one per period below `numPeriods` (see "Period dates") |
 | `amounts` | `[{ account, accountName, period, amount }]`: every set amount of an account in the tree, for periods below `numPeriods`, by account full name then period |
 | `notes` | `[{ account, accountName, period, note }]`, likewise |
-| `hidden` | `{ amounts, notes }`: how many amount and note Slots are at or beyond `numPeriods`. Kept, never listed |
-| `orphaned` | `{ amounts, notes }`: how many are for GUIDs that name no account. Kept, never listed |
+| `hidden` | `{ amounts, notes }`: how many amount and note Slots of accounts in the tree are at or beyond `numPeriods`. Kept, never listed |
+| `orphaned` | `{ amounts, notes }`: how many are for GUIDs that name no account in the tree. Kept, never listed |
+
+As built, both count what would be listed if the count were raised or the account came back: numeric Slots for
+amounts and non-empty string Slots for notes, at period keys written as GnuCash writes them (`std::to_string`, so
+`015` is not a period). Any other Slot is kept and not counted.
 
 `budget.list` returns each Budget without `periods`, `amounts` and `notes`.
 
@@ -178,7 +183,8 @@ Allowed in a book that needs the sign scrub: deleting changes no other Budget's 
 | `budget` | GUID | |
 | `amounts` | `[{ account, period, amount }]` | `account` an AccountRef, `period` 0-based, `amount` an Amount or null |
 
-→ `{ budget, set, unset }`: how many cells were set and unset.
+→ `{ budget, set, unset }`: how many cells were set, and how many set cells were unset (an unset cell asked to be
+unset is not counted).
 
 Every cell applies, or none does. Each is GnuCash's budget cell edit (`5.17:gnucash/gnome/gnc-budget-view.c:1258-1288`)
 without the display sign:
@@ -200,7 +206,8 @@ account. A template account of a scheduled transaction is not in the tree and re
 
 ### `budget.setNotes` (write)
 
-`{ budget, notes: [{ account, period, note }] }` → `{ budget, set, deleted }`.
+`{ budget, notes: [{ account, period, note }] }` → `{ budget, set, deleted }`: `deleted` counts the note Slots
+removed.
 
 As `gnc_budget_set_account_period_note` (`gnc-budget.cpp:599-636`), with the GUI's empty-text rule
 (`gnc-plugin-page-budget.cpp:1295-1296`): a non-empty string sets the note; `""` or null deletes it. An empty-string
@@ -215,7 +222,7 @@ length limit. The checks and atomicity are `budget.setAmounts`'.
 |-------|------|---------|---------|
 | `budget` | GUID | | |
 | `accounts` | AccountRef[], at least one | | the view's selection; none is refused, "You must select at least one account to estimate." (`:1029-1041`) |
-| `startDate` | Date | **required** | the dialog shows today the first time, then the last date used on that page (`:1052-1058`) |
+| `startDate` | Date | **required** (`invalid-params` when absent, as the schema requires it) | the dialog shows today the first time, then the last date used on that page (`:1052-1058`) |
 | `significantDigits` | integer, 1–12 | 1 | `:1060-1062`; the spin button's range (`5.17:gnucash/gtkbuilder/gnc-plugin-page-budget.glade:5-11`) |
 | `useAverage` | bool | false | `:1064-1065` |
 
@@ -244,9 +251,10 @@ denominator. With the default of 1, 1234.56 becomes `1235/1`, 5.6789 `6/1`, 0.56
 average is divided with the same rounding. A zero change is stored as a set zero, `0/1`.
 
 **It overwrites.** Every period of every chosen account is written, set amounts included, so the Effect is
-`destructive`. Choosing a parent and its child estimates both, each from its own subtree.
+`destructive`. Choosing a parent and its child estimates both, each from its own subtree. An account given twice is
+estimated once.
 
-Errors: `invalid` (no account, `significantDigits` out of range, the root account, a missing `startDate`),
+Errors: `invalid` (no account, `significantDigits` out of range, the root account),
 `not-found`, `conflict` (`natural-signs`), `arithmetic` (a change or the average overflows: the whole estimate is
 refused, where GnuCash skips the period or stores an error).
 
@@ -364,7 +372,7 @@ Codes from [`../api.md`](../api.md); no new ones.
 |------|------|
 | `no-book`, `read-only` | As everywhere |
 | `not-found` | An unknown Budget or account (`data.kind`: `budget`, `account`) |
-| `invalid` | Out-of-range `numPeriods`, `period` or `significantDigits`; a `once` Recurrence or a weekend adjustment; a cell twice; the root account; no accounts to estimate; a missing `startDate` |
+| `invalid` | Out-of-range `numPeriods`, `period` or `significantDigits`; a `once` Recurrence or a weekend adjustment; a cell twice; the root account; no accounts to estimate. A missing `startDate`, an amount as a JSON number or with a zero denominator, and a `significantDigits` that is not a small integer are `invalid-params` |
 | `conflict` | `data.reason: "natural-signs"`: the book has Budgets and lacks the feature |
 | `arithmetic` | An estimate overflowed |
 
@@ -400,6 +408,7 @@ red-ale exec --book books/home.gnucash budget.setAmounts budget=0123456789abcdef
 | Default budget fallback | First in hash order | First in book order | Deterministic |
 | Deleting an account with budget amounts | Allowed; the amounts stay in every Budget | Refused, naming the Budgets | [`../file-fidelity.md`](../file-fidelity.md), "References to out-of-scope data" |
 | Display sign | The GUI negates input and display for reverse-balance accounts | Natural signs on the wire | The preference is a display choice; clients apply it |
+| Unsetting a cell that was never set | `KvpFrame::set_path` creates the account's frame on the way (`5.17:libgnucash/engine/kvp-frame.cpp:84-98`, `:133-141`), so an empty `<account-guid>` frame is written | Nothing changes | GnuCash reads the two books alike; an empty frame carries nothing |
 
 ## Tests
 
@@ -416,3 +425,19 @@ From [`../milestone4.md`](../milestone4.md), "Testing":
   notes, period dates, the default budget; GnuCash's own scrub on a copy gives what `budget.scrubSigns` gave; the
   estimate's figures against `xaccAccountGetNoclosingBalanceChangeForPeriod` and `gnc_numeric_convert` on the same
   book; the book declares only the features GnuCash would have set.
+
+As built:
+
+- **Unit tests**: `crates/red-ale-core/src/ops/budgets/tests.rs`: defaults and the feature, every refusal, set against
+  unset against zero and stored denominators, notes, hidden and orphaned counts, copy, delete and the stale default,
+  the scrub's four rows and its overflow case, period dates, and exp4's actuals and estimate figures, hand-worked from
+  [`../notes/engine-budgets.md`](../notes/engine-budgets.md) §7.4, with the `SIGFIGS` table of §3.4.
+- **API tests**: `crates/red-ale-rpc/tests/budgets.rs`; MCP hints in `crates/red-ale-mcp/tests/tools.rs`; the CLI
+  examples above in `crates/red-ale/tests/cli.rs`.
+- **Oracle**: `crates/red-ale-testkit/tests/oracle_budgets.rs` with `oracle/budgets.py`. GnuCash's Estimate dialog
+  needs its GUI, so the oracle runs the dialog helper's engine calls on the same book
+  (`xaccAccountGetNoclosingBalanceChangeForPeriod`, `gnc_numeric_convert` and `gnc_numeric_div` with `SIGFIGS`,
+  `5.17:gnucash/gnome/gnc-plugin-page-budget.cpp:955-1005`) and compares every figure. Actuals are compared with
+  `gnc_budget_get_account_period_actual_value` for every account and 14 periods (past the count too), and the scrub
+  with `gnc_maybe_scrub_all_budget_signs`, which loads no Guile. `utest-Budget.c`'s cases are covered by the unit
+  tests; the reports' `test-budget.scm` fixture belongs to the budget reports.

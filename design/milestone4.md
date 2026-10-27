@@ -235,10 +235,10 @@ records (§6.3) are not copied.
 
 | Status | Feature               | Notes                                                                                                   |
 |:------:|-----------------------|---------------------------------------------------------------------------------------------------------|
-|        | Budgets               | In the core model; `budget.*` to create, list, get, update, copy and delete                             |
-|        | Estimate from history | `budget.estimate`: fills amounts for chosen accounts from past transactions, as GnuCash's dialog does   |
-|        | Budget notes          | A note per account and period                                                                           |
-|        | Natural signs         | Amounts kept in natural signs; older books scrubbed only when asked                                     |
+|   ✅   | Budgets               | In the core model; `budget.*` to create, list, get, update, copy and delete                             |
+|   ✅   | Estimate from history | `budget.estimate`: fills amounts for chosen accounts from past transactions, as GnuCash's dialog does   |
+|   ✅   | Budget notes          | A note per account and period                                                                           |
+|   ✅   | Natural signs         | Amounts kept in natural signs; older books scrubbed only when asked                                     |
 
 What GnuCash does is in [`notes/engine-budgets.md`](notes/engine-budgets.md).
 
