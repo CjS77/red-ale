@@ -16,6 +16,7 @@ pub mod double;
 pub mod error;
 pub mod rows;
 pub mod schema;
+pub mod slots;
 pub mod tables;
 
 pub use error::SqlError;

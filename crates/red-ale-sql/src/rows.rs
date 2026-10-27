@@ -5,6 +5,8 @@
 //! A decoder returns `None` when the row cannot enter the Book (its primary key, or a value the entity cannot do
 //! without, is refused); every refusal is a finding.
 
+pub mod business;
+
 use std::collections::HashMap;
 
 use red_ale_core::budget::DEFAULT_NUM_PERIODS;
