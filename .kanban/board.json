@@ -1,0 +1,26 @@
+{
+  "schema": 2,
+  "version": 0,
+  "next_ticket_seq": 1,
+  "next_epic_seq": 1,
+  "columns": [
+    {
+      "id": "todo",
+      "title": "To do"
+    },
+    {
+      "id": "doing",
+      "title": "Doing"
+    },
+    {
+      "id": "review",
+      "title": "Review"
+    },
+    {
+      "id": "done",
+      "title": "Done"
+    }
+  ],
+  "epics": [],
+  "tickets": []
+}
