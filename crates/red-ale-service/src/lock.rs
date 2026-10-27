@@ -68,10 +68,8 @@ fn lock_error(path: &Path, e: &io::Error) -> ServiceError {
         io::ErrorKind::AlreadyExists => ServiceError::Locked {
             lock_file: path.to_owned(),
         },
-        io::ErrorKind::PermissionDenied | io::ErrorKind::ReadOnlyFilesystem | io::ErrorKind::StorageFull => ServiceError::CannotLock {
-            lock_file: path.to_owned(),
-            reason: e.to_string(),
-        },
+        // GnuCash gives EACCES, EROFS and ENOSPC their own code (`ERR_BACKEND_READONLY`) and every other errno
+        // `ERR_FILEIO_FILE_LOCKERR`; to a client both are a lock that could not be taken.
         _ => ServiceError::CannotLock {
             lock_file: path.to_owned(),
             reason: e.to_string(),

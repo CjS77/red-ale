@@ -122,7 +122,7 @@ fn walk(path: &str, expected: &Value, actual: &Value, ignore: &[&str], out: &mut
                     b.get(k).unwrap_or(&Value::Null),
                     ignore,
                     out,
-                )
+                );
             });
         }
         (Value::Array(a), Value::Array(b)) if a.len() == b.len() => {

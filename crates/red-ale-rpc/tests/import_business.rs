@@ -723,6 +723,7 @@ fn owner_row(cells: &[&str; 19], sep: char) -> String {
 /// Every column, the header row, the company fix-up (`dialog-customer-import.c:236-254`), updating by ID and the
 /// Counter for an empty ID (`:321-352`), then the same file again.
 #[test]
+#[allow(clippy::too_many_lines)]
 fn customers_are_created_and_updated_by_id_with_every_field() {
     let mut b = Book::new();
     b.ok("config.set", json!({ "changes": { "defaultCurrency": "EUR" } }));

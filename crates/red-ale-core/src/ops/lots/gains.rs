@@ -196,7 +196,7 @@ fn create_gains_txn(book: &mut Book, env: &mut dyn Env, sale: &Sale, gain_accoun
     sort_splits(&mut t);
     book.transactions.insert(t.guid, Arc::new(t));
     edit_split(book, sale.split, |s| {
-        s.slots.set(split_slots::GAINS_SPLIT, SlotValue::Guid(lot_split_guid))
+        s.slots.set(split_slots::GAINS_SPLIT, SlotValue::Guid(lot_split_guid));
     })
 }
 

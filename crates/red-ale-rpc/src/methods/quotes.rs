@@ -276,7 +276,7 @@ fn start(
         item_entries
             .get(i)
             .into_iter()
-            .for_each(|&entry| progress.item_done(entry, outcome))
+            .for_each(|&entry| progress.item_done(entry, outcome));
     };
     let handle = fetch::start(fetch, on_item, move |outcomes| delivery.deliver(outcomes))
         .map_err(|e| RpcError::internal(format!("cannot start the Quote fetch: {e}")))?;

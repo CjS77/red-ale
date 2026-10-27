@@ -131,7 +131,7 @@ fn expense_over_time_defaults() {
             (s["stack"].as_str(), s["fill"].as_bool()),
             (Some("default"), Some(true)),
             ":587-588"
-        )
+        );
     });
     assert!(blocks_of(&result, "table").is_empty(), "no table by default (:165-169)");
 }

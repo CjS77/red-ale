@@ -149,6 +149,7 @@ pub enum RepairWire {
 }
 
 impl From<Repair> for RepairWire {
+    #[allow(clippy::too_many_lines)] // One arm per Repair variant; splitting it would only scatter the mapping.
     fn from(r: Repair) -> Self {
         match r {
             Repair::AccountCreated { account, name, commodity } => Self::AccountCreated {

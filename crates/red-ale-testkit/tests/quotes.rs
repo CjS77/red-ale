@@ -387,7 +387,7 @@ fn a_keyed_fetch_journals_its_price_and_not_its_key() {
             !String::from_utf8_lossy(&std::fs::read(f).unwrap()).contains(KEY),
             "{}",
             f.display()
-        )
+        );
     });
 }
 

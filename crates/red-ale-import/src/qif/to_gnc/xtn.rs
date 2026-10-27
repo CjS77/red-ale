@@ -145,9 +145,9 @@ impl XtnContext<'_> {
         if let Some(number) = &x.number {
             // `gnc-set-num-action` with no action (`5.17:gnucash/gnome-utils/gnc-ui-util.cpp`).
             if self.num_action {
-                near.action = Some(number.clone())
+                near.action = Some(number.clone());
             } else {
-                t.num = Some(number.clone())
+                t.num = Some(number.clone());
             }
         }
         let memo = x.default_split.as_ref().or(x.splits.first()).and_then(|s| s.memo.clone());

@@ -483,7 +483,7 @@ impl Builder<'_> {
                     price: s.price,
                     amount: s.transfer.amount,
                     account: transfer,
-                })
+                });
             }
         }
         Ok(())

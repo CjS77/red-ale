@@ -167,6 +167,7 @@ fn build_accounts(book: &mut Book, env: &mut dyn Env) -> DomainResult<Accounts> 
 /// Transactions on several accounts: three on one day whose nums and actions disagree, cross-currency transfers,
 /// reconciled and cleared splits, a closing transaction on the same day as an ordinary one, and stock splits GnuCash
 /// skips. Returns the void candidate.
+#[allow(clippy::too_many_lines)]
 fn build_transactions(book: &mut Book, env: &mut dyn Env, a: &Accounts) -> DomainResult<Guid> {
     let usd = |cents: i64| n(cents, 100);
     let with = |mut l: Leg, f: &dyn Fn(&mut Leg)| {

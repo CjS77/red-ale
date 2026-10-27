@@ -99,9 +99,9 @@ fn upsert(book: &mut Book, env: &mut dyn Env, lines: &[&JournalLine], report: &m
     commit::commit(book, env, &mut t)?;
     book.transactions.insert(guid, Arc::new(t));
     if created {
-        report.created.push(guid)
+        report.created.push(guid);
     } else {
-        report.updated.push(guid)
+        report.updated.push(guid);
     }
     Ok(())
 }

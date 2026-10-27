@@ -94,11 +94,26 @@ pub(super) fn stylesheet(look: &Look) -> String {
              table.commodities td{padding:0 0 0 12px;border:none;text-align:right}"
                 .to_owned(),
         ),
+    ];
+    let rules = rules.into_iter().chain(row_backgrounds(look)).chain(layout_rules(look));
+    rules.flatten().collect::<Vec<_>>().join("\n")
+}
+
+/// The row colours the style sheet sets.
+fn row_backgrounds(look: &Look) -> [Option<String>; 5] {
+    let c = &look.colors;
+    [
         background("tr.normal-row", c.cell.as_ref()),
         background("tr.alternate-row", c.alternate.as_ref()),
         background("tr.primary-subheading", c.subheading.as_ref()),
         background("tr.secondary-subheading", c.subsubheading.as_ref()),
         background("tr.grand-total", c.grand_total.as_ref()),
+    ]
+}
+
+/// Groups, charts, the options summary, print rules, then the style sheet's own CSS, which comes last so it wins.
+fn layout_rules(look: &Look) -> [Option<String>; 5] {
+    [
         Some(".group{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:24px;align-items:start}".to_owned()),
         Some(
             "figure.chart{margin:0 0 16px}svg.chart{display:block;max-width:100%;font-family:inherit}\
@@ -112,6 +127,5 @@ pub(super) fn stylesheet(look: &Look) -> String {
                 .to_owned(),
         ),
         look.css.clone(),
-    ];
-    rules.into_iter().flatten().collect::<Vec<_>>().join("\n")
+    ]
 }

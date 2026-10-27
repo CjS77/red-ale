@@ -281,7 +281,7 @@ pub fn parse(text: &str) -> Result<(Vec<JournalRecord>, Vec<SkippedLine>), Journ
                     start_line: idx + 1,
                     lines: Vec::new(),
                     complete: true,
-                })
+                });
             }
             "===== END" => records.extend(current.take()),
             _ if line.starts_with(HEADER) || line.starts_with("-----") => {}

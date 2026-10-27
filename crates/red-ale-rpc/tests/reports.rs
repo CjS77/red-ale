@@ -411,6 +411,7 @@ fn saved_configurations_round_trip_through_the_configuration_file() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn style_sheets_are_created_changed_and_deleted_in_the_configuration() {
     let mut s = Setup::new();
     let list = s.call("report.styleSheets", json!({}));
