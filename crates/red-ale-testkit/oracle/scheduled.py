@@ -12,6 +12,9 @@ Usage:
   scheduled.py next <book>   print, as JSON, each scheduled transaction's `xaccSchedXactionGetNextInstance` with no
                              state, the occurrences stepped from its temporal state, and the next instance of each
                              deferred instance
+  scheduled.py created <book>
+                             print, as JSON, every transaction with a `from-sched-xaction` Slot as GnuCash's getters
+                             read it
 
 Every command checks, before it exits, that no Guile library was mapped into the process.
 
@@ -435,6 +438,56 @@ def nexts(path):
         session.end()
 
 
+trans_get_notes = e("xaccTransGetNotes", S, VP)
+trans_get_date = e("xaccTransGetDate", ctypes.c_int64, VP)
+trans_get_date_entered = e("xaccTransGetDateEntered", ctypes.c_int64, VP)
+trans_get_gdate = e("xaccTransGetDatePostedGDate", ctypes.c_uint64, VP)
+trans_get_splits = e("xaccTransGetSplitList", ctypes.POINTER(GList), VP)
+split_get_action = e("xaccSplitGetAction", S, VP)
+
+
+def from_scheduled(trans):
+    out = VP()
+    gobject.g_object_get(VP(trans), b"from-sched-xaction", ctypes.byref(out), None)
+    return guid_to_string(out.value).decode() if out.value else None
+
+
+def created(path):
+    """Every transaction with a `from-sched-xaction` Slot, as GnuCash's getters read it."""
+    session = Session("xml://" + path, SessionOpenMode.SESSION_READ_ONLY)
+    try:
+        found = []
+        callback = FOREACH(lambda instance, _: found.append(instance))
+        collection_foreach(get_collection(ptr(session.book), b"Trans"), callback, None)
+        out = {}
+        for t in found:
+            sx = from_scheduled(t)
+            if sx is None:
+                continue
+            gdate = ctypes.c_uint64(trans_get_gdate(t))
+            notes, num = trans_get_notes(t), trans_get_num(t)
+            out[guid_text(instance_guid(t))] = {
+                "scheduledTransaction": sx,
+                "description": trans_get_description(t).decode(),
+                "num": num.decode() if num else "",
+                "notes": notes.decode() if notes else None,
+                "currency": commodity_name(trans_get_currency(t)).decode(),
+                "datePosted": trans_get_date(t),
+                "datePostedGDate": date_text(ctypes.addressof(gdate)),
+                "dateEntered": trans_get_date_entered(t),
+                "splits": [{
+                    "account": guid_text(instance_guid(split_get_account(s))),
+                    "memo": split_get_memo(s).decode(),
+                    "action": split_get_action(s).decode(),
+                    "value": numeric(split_get_value(s)),
+                    "amount": numeric(split_get_amount(s)),
+                } for s in glist(trans_get_splits(t))],
+            }
+        print(json.dumps(out, sort_keys=True, indent=1))
+    finally:
+        session.end()
+
+
 def no_guile():
     with open("/proc/self/maps") as maps:
         if "libguile" in maps.read():
@@ -444,5 +497,5 @@ def no_guile():
 if __name__ == "__main__":
     if _sw_core_utils.gnc_version() != "5.17":
         sys.exit("the oracle must be GnuCash 5.17")
-    {"make": make, "dump": dump, "cases": cases, "next": nexts}[sys.argv[1]](sys.argv[2])
+    {"make": make, "dump": dump, "cases": cases, "next": nexts, "created": created}[sys.argv[1]](sys.argv[2])
     no_guile()

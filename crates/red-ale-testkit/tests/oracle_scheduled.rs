@@ -119,16 +119,78 @@ fn red_ale_next(sx: &red_ale_core::ScheduledTransaction) -> Value {
 /// occurrences, with no state, stepped from the temporal state, and from each deferred instance.
 #[test]
 fn next_instances_agree_with_gnucash() {
+    // One book per command: two saves within a second would collide on GnuCash's timestamped backup name.
+    let gnucash: Vec<Value> = [("make", 2), ("cases", 12)]
+        .into_iter()
+        .map(|(command, count)| {
+            let book = TempBook::copy("synthetic/rich.gnucash");
+            script(&[command, &book.path_str()]);
+            let gnucash: Value = serde_json::from_str(&script(&["next", &book.path_str()])).unwrap();
+            let (read, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
+            assert_eq!(read.scheduled.len(), count);
+            read.scheduled.values().for_each(|sx| {
+                let expected = &gnucash[sx.guid.to_string()];
+                assert_eq!(red_ale_next(sx), *expected, "{}", sx.name);
+            });
+            gnucash
+        })
+        .collect();
+    assert_eq!(gnucash[1]["0000000000000000000000000000ca04"]["deferred"], json!(["2025-01-01"]), "the note's §9.2 Defer");
+    assert_eq!(gnucash[1]["0000000000000000000000000000ca01"]["null"], "2025-06-30", "the note's Fact 11");
+}
+
+/// Since Last Run on the fixture's rent (monthly from 2024-08-01 adjusted back, last 2024-09-01, Instance count 2, a
+/// deferred instance saved at 2024-09-01, 5 days to remind) on 2024-11-15, applied through a Session and saved: the
+/// deferred instance ignored, October created and November postponed. GnuCash 5.17 reads back the created
+/// transaction's fields and the scheduled transaction's temporal state as red-ale wrote them
+/// (`gnc-sx-instance-model.c:1042-1058`, `:1310-1422`, `:1445-1554`), and its view of the whole book is red-ale's.
+#[test]
+fn gnucash_reads_back_the_instances_red_ale_applied() {
+    use red_ale_core::formula::NumberFormat;
+    use red_ale_core::ops::scheduled::{ApplyOptions, Choice, InstanceState, apply, since_last_run};
+    use red_ale_core::{Date, DomainError, FixedEnv, Time64};
+    use red_ale_service::{Session, Settings};
+
     let book = TempBook::copy("synthetic/rich.gnucash");
-    script(&["make", &book.path_str()]);
-    script(&["cases", &book.path_str()]);
-    let gnucash: Value = serde_json::from_str(&script(&["next", &book.path_str()])).unwrap();
-    let (read, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
-    assert_eq!(read.scheduled.len(), 13);
-    read.scheduled.values().for_each(|sx| {
-        let expected = &gnucash[sx.guid.to_string()];
-        assert_eq!(red_ale_next(sx), *expected, "{}", sx.name);
-    });
-    assert_eq!(gnucash["0000000000000000000000000000ca04"]["deferred"], json!(["2025-01-01"]), "the note's §9.2 Defer");
-    assert_eq!(gnucash["0000000000000000000000000000ca01"]["null"], "2025-06-30", "the note's Fact 11");
+    let mut session = Session::open(&book.path_str(), false, Settings::default()).unwrap();
+    session.set_env(FixedEnv::new(Time64(1_731_672_000), 0xfeed_0000_0000_0000_0000_0000_0000_0000));
+    let today = Date::from_ymd(2024, 11, 15).unwrap();
+    let proposal = session.query(|b, _| since_last_run(b, today, NumberFormat::default())).unwrap();
+    let shown: Vec<Value> = proposal
+        .instances()
+        .map(|(_, i)| json!([i.date.to_file_string(), i.state.as_str(), i.instance_count()]))
+        .collect();
+    let expected = [json!(["2024-10-01", "postponed", 3]), json!(["2024-10-01", "toCreate", 2]), json!(["2024-11-01", "toCreate", 3])];
+    assert_eq!(shown, expected);
+    let choice = |index, state| Choice {
+        index,
+        state: Some(state),
+        ..Choice::default()
+    };
+    let choices = [choice(0, InstanceState::Ignored), choice(2, InstanceState::Postponed)];
+    let applied = session
+        .mutate(|b, env| apply(b, env, &proposal, &choices, ApplyOptions::default()).map_err(|e| DomainError::invalid(e.to_string())))
+        .unwrap();
+    session.save(None).unwrap();
+    session.close(false).unwrap();
+    let created = applied.created[0].transactions[0].transaction.to_string();
+
+    let rent = &gnucash_scheduled(&book)[RENT];
+    assert_eq!(json!([rent["last"], rent["instanceCount"]]), json!(["2024-11-01", 4]));
+    assert_eq!(rent["deferred"], json!([{ "last": "2024-10-01", "remOccur": 0, "instanceCount": 3 }]));
+    let transactions: Value = serde_json::from_str(&script(&["created", &book.path_str()])).unwrap();
+    assert_eq!(transactions.as_object().map(serde_json::Map::len), Some(1));
+    let t = &transactions[&created];
+    assert_eq!(t["scheduledTransaction"], RENT);
+    assert_eq!(json!([t["description"], t["num"], t["notes"], t["currency"]]), json!(["Rent", "", null, "CURRENCY::USD"]));
+    let dates = json!([t["datePosted"], t["datePostedGDate"], t["dateEntered"]]);
+    assert_eq!(dates, json!([1_727_780_340, "2024-10-01", 1_731_672_000]));
+    let split = |account: &str, value: &str| json!({ "account": account, "memo": "", "action": "", "value": value, "amount": value });
+    let food = split("1feca2abf92347288c268ebf93753ec4", "45600/100");
+    assert_eq!(t["splits"], json!([food, split("c080059e1aec4c0b9ad4671e80965686", "-45600/100")]));
+
+    let gnucash = oracle::dump(&book.path).unwrap();
+    let (ours, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
+    let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
+    assert_eq!(red_ale_testkit::diff(&gnucash, &red_ale_testkit::model::dump(&ours), &skip), Vec::<String>::new());
 }

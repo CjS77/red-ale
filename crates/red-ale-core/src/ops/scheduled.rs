@@ -6,6 +6,7 @@
 //! (§1.4–1.5, §3.5–3.9, §4) records them. Where red-ale departs from GnuCash, `design/api/scheduled-transactions.md`
 //! ("Deviations in Since Last Run") says why.
 
+mod apply;
 mod create;
 mod error;
 #[cfg(test)]
@@ -14,6 +15,7 @@ mod occurrences;
 mod proposal;
 mod template;
 
+pub use apply::{Applied, ApplyOptions, Choice, CreatedInstance, apply};
 pub use create::{BuiltSplit, BuiltTransaction, Created, FROM_SCHEDULED, ImbalanceSplit, build_instance, create_built, create_instance};
 pub use error::{AccountProblem, FormulaFailure, Refusal, ScheduledError, Side, Site};
 pub use occurrences::{Occurrence, TemporalState, Upcoming, advance, has_occurrence_limit, next_instance, occurrences};
