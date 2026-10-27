@@ -11,7 +11,10 @@
 #![deny(clippy::float_arithmetic)]
 
 pub mod cell;
+mod connection;
 pub mod double;
 pub mod error;
+pub mod schema;
+pub mod tables;
 
 pub use error::SqlError;
