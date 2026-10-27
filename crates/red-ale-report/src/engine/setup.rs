@@ -44,7 +44,9 @@ pub(crate) fn engine(s: &Setup) -> Engine {
     engine.disable_symbol("eval");
     // The standard package's `sleep` would block past the run-time limit, which is checked only between operations.
     // Functions registered on the engine are found before the package's.
-    engine.register_fn("sleep", |_: rhai::INT| -> Result<(), Box<rhai::EvalAltResult>> { Err("sleep is not available to reports".into()) });
+    engine.register_fn("sleep", |_: rhai::INT| -> Result<(), Box<rhai::EvalAltResult>> {
+        Err("sleep is not available to reports".into())
+    });
     engine.set_strict_variables(true);
     engine.set_fail_on_invalid_map_property(true);
     limits(&mut engine, &s.limits);

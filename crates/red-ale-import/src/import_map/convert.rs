@@ -35,12 +35,16 @@ pub fn check_import_map_data(book: &mut Book) -> DomainResult<bool> {
     if has_flat_feature(book) {
         return Ok(false);
     }
-    let converted: Vec<(Guid, Frame)> =
-        descendants_sorted(book, book.root).into_iter().filter_map(|a| converted_slots(book, a).map(|s| (a.guid, s))).collect();
+    let converted: Vec<(Guid, Frame)> = descendants_sorted(book, book.root)
+        .into_iter()
+        .filter_map(|a| converted_slots(book, a).map(|s| (a.guid, s)))
+        .collect();
     if converted.is_empty() {
         return Ok(false);
     }
-    converted.into_iter().try_for_each(|(guid, slots)| slots_mut(book, guid).map(|s| *s = slots))?;
+    converted
+        .into_iter()
+        .try_for_each(|(guid, slots)| slots_mut(book, guid).map(|s| *s = slots))?;
     set_feature_used(book, FLAT_BAYESIAN_FEATURE);
     Ok(true)
 }

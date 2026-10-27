@@ -77,8 +77,23 @@ pub(super) fn save(ctx: &mut Context, p: SaveParams) -> Result<ReportInfo, RpcEr
     let (saved, info) = ctx.query_any(|book, env| {
         let (template, base) = reports.resolve(reports.find(&p.report.0)?)?;
         let now = env.now();
-        let db = reports.configured(template, base, p.options.as_ref().map(|o| &o.0), &On { book, now, zone: env.zone() })?;
-        let saved = SavedReport { guid: env.new_guid(), name, template: template.guid.0, options: db.changed(), other: Map::new() };
+        let db = reports.configured(
+            template,
+            base,
+            p.options.as_ref().map(|o| &o.0),
+            &On {
+                book,
+                now,
+                zone: env.zone(),
+            },
+        )?;
+        let saved = SavedReport {
+            guid: env.new_guid(),
+            name,
+            template: template.guid.0,
+            options: db.changed(),
+            other: Map::new(),
+        };
         let info = ReportInfo::saved(&saved, Some(template));
         Ok((saved, info))
     })?;
@@ -96,9 +111,23 @@ pub(super) fn update(ctx: &mut Context, p: UpdateParams) -> Result<ReportInfo, R
     let template = reports.template_of(current)?;
     let options = ctx.query_any(|book, env| {
         let now = env.now();
-        Ok(reports.configured(template, Some(current), Some(&p.options.0), &On { book, now, zone: env.zone() })?.changed())
+        Ok(reports
+            .configured(
+                template,
+                Some(current),
+                Some(&p.options.0),
+                &On {
+                    book,
+                    now,
+                    zone: env.zone(),
+                },
+            )?
+            .changed())
     })?;
-    let updated = SavedReport { options, ..current.clone() };
+    let updated = SavedReport {
+        options,
+        ..current.clone()
+    };
     let info = ReportInfo::saved(&updated, Some(template));
     let all = replace(&reports.saved, updated);
     store(ctx, reports.config, &all)?;
@@ -134,7 +163,10 @@ pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult,
 
 /// `saved` with the entry of `changed`'s GUID replaced, in its place.
 fn replace(saved: &[SavedReport], changed: SavedReport) -> Vec<SavedReport> {
-    saved.iter().map(|s| if s.guid == changed.guid { changed.clone() } else { s.clone() }).collect()
+    saved
+        .iter()
+        .map(|s| if s.guid == changed.guid { changed.clone() } else { s.clone() })
+        .collect()
 }
 
 /// Write the saved configurations to the Configuration, atomically.

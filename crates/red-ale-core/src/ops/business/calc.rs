@@ -4,7 +4,9 @@
 //! results match it exactly (`design/notes/engine-business.md` §3.2, §4.2, §5.1). Calendar dates are UTC dates: red-ale
 //! treats UTC as the local time zone, as the oracle does (`TZ=UTC`).
 
-use crate::business::{AmountType, BillTerm, BillTermKind, DiscountHow, Entry, Invoice, OwnerKind, OwnerRef, PaymentType, TaxTable, TaxTableEntry};
+use crate::business::{
+    AmountType, BillTerm, BillTermKind, DiscountHow, Entry, Invoice, OwnerKind, OwnerRef, PaymentType, TaxTable, TaxTableEntry,
+};
 use crate::ops::business::{contacts, documents};
 use crate::ops::commit::commodity_fraction;
 use crate::time::days_in_month;
@@ -47,7 +49,9 @@ pub fn account_values_add_list(list: &mut AccountValues, other: &AccountValues) 
 /// whose type was never set, gives the day-neutral time of the posting date. A proximo term with a due day of zero or
 /// less is refused: GnuCash passes it to `gnc_dmy2time64_neutral` unchecked and the result is undefined.
 pub fn due_date(term: Option<&BillTerm>, post: Time64, zone: &TimeZone) -> DomainResult<Time64> {
-    let date = zone.local_date(post).ok_or_else(|| DomainError::invalid(format!("posting time {} is out of range", post.0)))?;
+    let date = zone
+        .local_date(post)
+        .ok_or_else(|| DomainError::invalid(format!("posting time {} is out of range", post.0)))?;
     let Some(term) = term else { return Ok(post) };
     match term.kind {
         None => Ok(zone.neutral_time(date)),
@@ -58,19 +62,31 @@ pub fn due_date(term: Option<&BillTerm>, post: Time64, zone: &TimeZone) -> Domai
 
 fn proximo_due(date: Date, due_day: i64, cutoff_day: i64, name: &str, zone: &TimeZone) -> DomainResult<Time64> {
     if due_day <= 0 {
-        return Err(DomainError::invalid(format!("billing term {name:?} has a proximo due day of {due_day}")));
+        return Err(DomainError::invalid(format!(
+            "billing term {name:?} has a proximo due day of {due_day}"
+        )));
     }
     let (year, month) = proximo_month(date, cutoff_day);
     let last = i64::from(days_in_month(year, month));
     let day = u32::try_from(due_day.min(last)).map_err(|_| DomainError::invalid("due day out of range"))?;
-    Date::from_ymd(year, month, day).map(|d| zone.neutral_time(d)).ok_or_else(|| DomainError::invalid("due date out of range"))
+    Date::from_ymd(year, month, day)
+        .map(|d| zone.neutral_time(d))
+        .ok_or_else(|| DomainError::invalid("due date out of range"))
 }
 
 /// `compute_monthyear`: the month a proximo term falls due in (`5.17:libgnucash/engine/gncBillTerm.c:751-781`).
 fn proximo_month(date: Date, cutoff_day: i64) -> (i32, u32) {
-    let cutoff = if cutoff_day <= 0 { cutoff_day + i64::from(days_in_month(date.year(), date.month())) } else { cutoff_day };
+    let cutoff = if cutoff_day <= 0 {
+        cutoff_day + i64::from(days_in_month(date.year(), date.month()))
+    } else {
+        cutoff_day
+    };
     let month = date.month() + if i64::from(date.day()) <= cutoff { 1 } else { 2 };
-    if month > 12 { (date.year() + 1, month - 12) } else { (date.year(), month) }
+    if month > 12 {
+        (date.year() + 1, month - 12)
+    } else {
+        (date.year(), month)
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -125,13 +141,20 @@ pub fn invoice_type(book: &Book, invoice: &Invoice) -> DomainResult<InvoiceType>
     if !contacts::owner_exists(book, end_owner) {
         return Err(DomainError::not_found(end_owner.kind.type_name(), &end_owner.guid));
     }
-    Ok(InvoiceType { end_owner, credit_note: invoice.is_credit_note() })
+    Ok(InvoiceType {
+        end_owner,
+        credit_note: invoice.is_credit_note(),
+    })
 }
 
 /// A tax table's lines in GnuCash's order: by account full name, then amount (`gncTaxTableEntryCompare`,
 /// `5.17:libgnucash/engine/gncTaxTable.c:594-606`, `:821-841`).
 pub fn sorted_tax_lines<'a>(book: &Book, table: &'a TaxTable) -> Vec<&'a TaxTableEntry> {
-    let mut lines: Vec<(Option<String>, &TaxTableEntry)> = table.entries.iter().map(|e| (e.account.and_then(|a| book.full_name(a)), e)).collect();
+    let mut lines: Vec<(Option<String>, &TaxTableEntry)> = table
+        .entries
+        .iter()
+        .map(|e| (e.account.and_then(|a| book.full_name(a)), e))
+        .collect();
     lines.sort_by(|(na, a), (nb, b)| na.cmp(nb).then_with(|| a.amount.cmp_value(b.amount)));
     lines.into_iter().map(|(_, e)| e).collect()
 }
@@ -177,12 +200,14 @@ fn percent(n: Numeric) -> DomainResult<Numeric> {
 
 /// Σ VALUE amounts and Σ PERCENT amounts / 100 of a tax table.
 fn tax_rates(lines: &[&TaxTableEntry]) -> DomainResult<(Numeric, Numeric)> {
-    let (tvalue, tpercent) = lines.iter().try_fold((Numeric::ZERO, Numeric::ZERO), |(tv, tp), l| -> DomainResult<_> {
-        Ok(match l.kind {
-            AmountType::Value => (tv.add(l.amount, DENOM_AUTO, LCD)?, tp),
-            AmountType::Percent => (tv, tp.add(l.amount, DENOM_AUTO, LCD)?),
-        })
-    })?;
+    let (tvalue, tpercent) = lines
+        .iter()
+        .try_fold((Numeric::ZERO, Numeric::ZERO), |(tv, tp), l| -> DomainResult<_> {
+            Ok(match l.kind {
+                AmountType::Value => (tv.add(l.amount, DENOM_AUTO, LCD)?, tp),
+                AmountType::Percent => (tv, tp.add(l.amount, DENOM_AUTO, LCD)?),
+            })
+        })?;
     Ok((tvalue, percent(tpercent)?))
 }
 
@@ -195,7 +220,11 @@ pub fn compute_value(p: &Pricing<'_>) -> DomainResult<EntryValue> {
     let (mut pretax, net_price) = if p.tax_lines.is_some() && p.tax_included {
         let base = aggregate.sub(tvalue, DENOM_AUTO, LCD)?;
         let pretax = base.div(tpercent.add(Numeric::ONE, DENOM_AUTO, LCD)?, DENOM_AUTO, REDUCE_ROUND)?;
-        let net = if p.quantity.is_zero() { p.price } else { pretax.div(p.quantity, DENOM_AUTO, REDUCE_ROUND)? };
+        let net = if p.quantity.is_zero() {
+            p.price
+        } else {
+            pretax.div(p.quantity, DENOM_AUTO, REDUCE_ROUND)?
+        };
         (pretax, net)
     } else {
         (aggregate, p.price)
@@ -224,7 +253,12 @@ pub fn compute_value(p: &Pricing<'_>) -> DomainResult<EntryValue> {
             (pretax.sub(discount, DENOM_AUTO, LCD)?, discount)
         }
     };
-    Ok(EntryValue { value, discount, taxes: tax_values(lines, pretax)?, net_price })
+    Ok(EntryValue {
+        value,
+        discount,
+        taxes: tax_values(lines, pretax)?,
+        net_price,
+    })
 }
 
 /// The tax list: one value per tax account, new accounts prepended.
@@ -267,9 +301,13 @@ pub struct EntryAmounts {
 /// (`5.17:libgnucash/engine/gncEntry.c:1338-1358`).
 pub fn entry_denom(book: &Book, entry: &Entry) -> i64 {
     let fraction = |doc: Option<Guid>| {
-        doc.and_then(|g| book.business.invoices.get(&g)).and_then(|i| i.currency.as_ref()).and_then(|c| commodity_fraction(book, c))
+        doc.and_then(|g| book.business.invoices.get(&g))
+            .and_then(|i| i.currency.as_ref())
+            .and_then(|c| commodity_fraction(book, c))
     };
-    fraction(entry.invoice).or_else(|| fraction(entry.bill)).unwrap_or(NO_DOCUMENT_DENOM)
+    fraction(entry.invoice)
+        .or_else(|| fraction(entry.bill))
+        .unwrap_or(NO_DOCUMENT_DENOM)
 }
 
 /// The pricing of one side of an entry: the invoice side for customer documents, the bill side otherwise. The bill
@@ -301,7 +339,14 @@ fn entry_pricing<'a>(entry: &Entry, customer: bool, lines: Option<&'a [&'a TaxTa
 /// The tax table one side of an entry uses.
 pub fn entry_tax_table<'a>(book: &'a Book, entry: &Entry, customer: bool) -> DomainResult<Option<&'a TaxTable>> {
     let guid = if customer { entry.i_tax_table } else { entry.b_tax_table };
-    guid.map(|g| book.business.tax_tables.get(&g).map(AsRef::as_ref).ok_or_else(|| DomainError::not_found("tax table", &g))).transpose()
+    guid.map(|g| {
+        book.business
+            .tax_tables
+            .get(&g)
+            .map(AsRef::as_ref)
+            .ok_or_else(|| DomainError::not_found("tax table", &g))
+    })
+    .transpose()
 }
 
 /// Compute one side of an entry, rounded to `denom`.
@@ -309,8 +354,14 @@ pub fn entry_amounts(book: &Book, entry: &Entry, customer: bool, denom: i64) -> 
     let table = entry_tax_table(book, entry, customer)?;
     let lines = table.map(|t| sorted_tax_lines(book, t));
     let computed = compute_value(&entry_pricing(entry, customer, lines.as_deref()))?;
-    let tax = computed.taxes.iter().try_fold(Numeric::ZERO, |acc, (_, v)| acc.add(*v, DENOM_AUTO, REDUCE_HALF_UP))?;
-    let tax_rounded = computed.taxes.iter().try_fold(Numeric::ZERO, |acc, (_, v)| acc.add(*v, denom, EXACT_HALF_UP))?;
+    let tax = computed
+        .taxes
+        .iter()
+        .try_fold(Numeric::ZERO, |acc, (_, v)| acc.add(*v, DENOM_AUTO, REDUCE_HALF_UP))?;
+    let tax_rounded = computed
+        .taxes
+        .iter()
+        .try_fold(Numeric::ZERO, |acc, (_, v)| acc.add(*v, denom, EXACT_HALF_UP))?;
     let discount = if customer { computed.discount } else { Numeric::ZERO };
     Ok(EntryAmounts {
         value: computed.value,
@@ -337,7 +388,9 @@ pub fn entry_net_price(book: &Book, entry: &Entry, customer: bool) -> DomainResu
 /// (`5.17:libgnucash/engine/gncEntry.c:1548-1563`).
 fn doc_tax_values(taxes: &AccountValues, credit_note: bool) -> DomainResult<AccountValues> {
     let mut out = AccountValues::new();
-    taxes.iter().try_for_each(|(a, v)| account_value_add(&mut out, *a, if credit_note { v.neg() } else { *v }))?;
+    taxes
+        .iter()
+        .try_for_each(|(a, v)| account_value_add(&mut out, *a, if credit_note { v.neg() } else { *v }))?;
     Ok(out)
 }
 
@@ -371,19 +424,33 @@ pub fn document_totals_of(book: &Book, invoice: &Invoice, payment: Option<Paymen
     let denom = document_denom(book, invoice);
     let mut subtotal = Numeric::ZERO;
     let mut taxes = AccountValues::new();
-    documents::entries_of(book, invoice.guid).into_iter().filter(|e| payment.is_none_or(|p| e.b_payment == p)).try_for_each(|e| -> DomainResult<()> {
-        let amounts = entry_amounts(book, e, kind.is_customer(), entry_denom(book, e))?;
-        let value = if kind.credit_note { amounts.value_rounded.neg() } else { amounts.value_rounded };
-        subtotal = subtotal.add(value, DENOM_AUTO, LCD)?;
-        account_values_add_list(&mut taxes, &doc_tax_values(&amounts.taxes, kind.credit_note)?)
-    })?;
+    documents::entries_of(book, invoice.guid)
+        .into_iter()
+        .filter(|e| payment.is_none_or(|p| e.b_payment == p))
+        .try_for_each(|e| -> DomainResult<()> {
+            let amounts = entry_amounts(book, e, kind.is_customer(), entry_denom(book, e))?;
+            let value = if kind.credit_note {
+                amounts.value_rounded.neg()
+            } else {
+                amounts.value_rounded
+            };
+            subtotal = subtotal.add(value, DENOM_AUTO, LCD)?;
+            account_values_add_list(&mut taxes, &doc_tax_values(&amounts.taxes, kind.credit_note)?)
+        })?;
     taxes.iter_mut().try_for_each(|(_, v)| -> DomainResult<()> {
         *v = v.convert(denom, EXACT_HALF_UP)?;
         Ok(())
     })?;
-    let tax = taxes.iter().try_fold(Numeric::ZERO, |acc, (_, v)| acc.add(*v, DENOM_AUTO, EXACT_HALF_UP))?;
+    let tax = taxes
+        .iter()
+        .try_fold(Numeric::ZERO, |acc, (_, v)| acc.add(*v, DENOM_AUTO, EXACT_HALF_UP))?;
     let total = subtotal.add(tax, DENOM_AUTO, EXACT_HALF_UP)?;
-    Ok(DocumentTotals { subtotal, tax, total, taxes })
+    Ok(DocumentTotals {
+        subtotal,
+        tax,
+        total,
+        taxes,
+    })
 }
 
 /// One entry's rounded values as printed on its document (`gncEntryGetDoc*Value`, `5.17:libgnucash/engine/gncEntry.c:1535-1566`).
@@ -407,7 +474,12 @@ pub fn document_lines(book: &Book, invoice: &Invoice) -> DomainResult<Vec<Docume
         .into_iter()
         .map(|e| {
             let a = entry_amounts(book, e, kind.is_customer(), entry_denom(book, e))?;
-            Ok(DocumentLine { entry: e.guid, value: sign(a.value_rounded), discount: sign(a.discount_rounded), tax: sign(a.tax_rounded) })
+            Ok(DocumentLine {
+                entry: e.guid,
+                value: sign(a.value_rounded),
+                discount: sign(a.discount_rounded),
+                tax: sign(a.tax_rounded),
+            })
         })
         .collect()
 }
@@ -427,7 +499,11 @@ mod tests {
     }
 
     fn line(account: u8, kind: AmountType, amount: Numeric) -> TaxTableEntry {
-        TaxTableEntry { account: Some(Guid::from_bytes([account; 16])), amount, kind }
+        TaxTableEntry {
+            account: Some(Guid::from_bytes([account; 16])),
+            amount,
+            kind,
+        }
     }
 
     fn pricing<'a>(
@@ -439,7 +515,15 @@ mod tests {
         discount_type: AmountType,
         discount_how: DiscountHow,
     ) -> Pricing<'a> {
-        Pricing { quantity, price, tax_lines, tax_included, discount, discount_type, discount_how }
+        Pricing {
+            quantity,
+            price,
+            tax_lines,
+            tax_included,
+            discount,
+            discount_type,
+            discount_how,
+        }
     }
 
     /// `design/notes/engine-business.md` §12.3: qty 4, price 5, Fee VALUE 2 + VAT 10 %.
@@ -458,13 +542,34 @@ mod tests {
         let expect = |got: (Numeric, Numeric, Numeric, Numeric), want: [Numeric; 4]| {
             assert_eq!([got.0, got.1, got.2, got.3], want, "{got:?}");
         };
-        expect(case(true, Numeric::ZERO, pct, DiscountHow::PreTax), [n(180, 11), n(40, 11), Numeric::ZERO, n(45, 11)]);
-        expect(case(false, n(3, 1), val, DiscountHow::PreTax), [n(17, 1), n(37, 10), n(3, 1), n(5, 1)]);
-        expect(case(false, n(10, 1), pct, DiscountHow::SameTime), [n(18, 1), n(4, 1), n(2, 1), n(5, 1)]);
-        expect(case(false, n(10, 1), pct, DiscountHow::PreTax), [n(18, 1), n(19, 5), n(2, 1), n(5, 1)]);
-        expect(case(false, n(10, 1), pct, DiscountHow::PostTax), [n(88, 5), n(4, 1), n(12, 5), n(5, 1)]);
-        expect(case(false, n(3, 1), val, DiscountHow::PostTax), [n(17, 1), n(4, 1), n(3, 1), n(5, 1)]);
-        expect(case(true, n(10, 1), pct, DiscountHow::PreTax), [n(162, 11), n(191, 55), n(18, 11), n(45, 11)]);
+        expect(
+            case(true, Numeric::ZERO, pct, DiscountHow::PreTax),
+            [n(180, 11), n(40, 11), Numeric::ZERO, n(45, 11)],
+        );
+        expect(
+            case(false, n(3, 1), val, DiscountHow::PreTax),
+            [n(17, 1), n(37, 10), n(3, 1), n(5, 1)],
+        );
+        expect(
+            case(false, n(10, 1), pct, DiscountHow::SameTime),
+            [n(18, 1), n(4, 1), n(2, 1), n(5, 1)],
+        );
+        expect(
+            case(false, n(10, 1), pct, DiscountHow::PreTax),
+            [n(18, 1), n(19, 5), n(2, 1), n(5, 1)],
+        );
+        expect(
+            case(false, n(10, 1), pct, DiscountHow::PostTax),
+            [n(88, 5), n(4, 1), n(12, 5), n(5, 1)],
+        );
+        expect(
+            case(false, n(3, 1), val, DiscountHow::PostTax),
+            [n(17, 1), n(4, 1), n(3, 1), n(5, 1)],
+        );
+        expect(
+            case(true, n(10, 1), pct, DiscountHow::PreTax),
+            [n(162, 11), n(191, 55), n(18, 11), n(45, 11)],
+        );
     }
 
     #[test]
@@ -473,9 +578,25 @@ mod tests {
         let gst = line(1, AmountType::Percent, n(5, 1));
         let pst = line(2, AmountType::Percent, n(75, 10));
         let lines = [&gst, &pst];
-        let v = compute_value(&pricing(n(3, 1), n(3333, 100), Some(&lines), false, n(10, 1), AmountType::Percent, DiscountHow::PreTax)).unwrap();
-        assert_eq!(v.taxes.iter().map(|(a, _)| *a).collect::<Vec<_>>(), vec![Guid::from_bytes([2; 16]), Guid::from_bytes([1; 16])]);
-        let rounded = v.taxes.iter().try_fold(Numeric::ZERO, |acc, (_, x)| acc.add(*x, 100, EXACT_HALF_UP)).unwrap();
+        let v = compute_value(&pricing(
+            n(3, 1),
+            n(3333, 100),
+            Some(&lines),
+            false,
+            n(10, 1),
+            AmountType::Percent,
+            DiscountHow::PreTax,
+        ))
+        .unwrap();
+        assert_eq!(
+            v.taxes.iter().map(|(a, _)| *a).collect::<Vec<_>>(),
+            vec![Guid::from_bytes([2; 16]), Guid::from_bytes([1; 16])]
+        );
+        let rounded = v
+            .taxes
+            .iter()
+            .try_fold(Numeric::ZERO, |acc, (_, x)| acc.add(*x, 100, EXACT_HALF_UP))
+            .unwrap();
         assert!(rounded.same_repr(n(1125, 100)));
         assert!(v.value.to_denom(100, Round::HalfUp).unwrap().same_repr(n(8999, 100)));
     }
@@ -501,8 +622,21 @@ mod tests {
     /// `design/notes/engine-business.md` §3.2, oracle table.
     #[test]
     fn due_dates_match_the_oracle() {
-        let days = |d| term(BillTermKind::Days { due_days: d, disc_days: 0, discount: Numeric::ZERO });
-        let prox = |due, cutoff| term(BillTermKind::Proximo { due_day: due, disc_day: 0, discount: Numeric::ZERO, cutoff_day: cutoff });
+        let days = |d| {
+            term(BillTermKind::Days {
+                due_days: d,
+                disc_days: 0,
+                discount: Numeric::ZERO,
+            })
+        };
+        let prox = |due, cutoff| {
+            term(BillTermKind::Proximo {
+                due_day: due,
+                disc_day: 0,
+                discount: Numeric::ZERO,
+                cutoff_day: cutoff,
+            })
+        };
         let check = |t: &BillTerm, post: Time64, want: Time64| assert_eq!(due_date(Some(t), post, &TimeZone::utc()).unwrap(), want);
         check(&days(30), day(2026, 1, 15), day(2026, 2, 14));
         check(&days(0), day(2010, 6, 14), day(2010, 6, 14));

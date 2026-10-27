@@ -11,11 +11,14 @@ use crate::book_options::num_action_targets;
 use crate::business::{BillTerm, Entry, Invoice, OwnerKind, PaymentType, TaxTable};
 use crate::lot::slot_paths as lot_slots;
 use crate::ops::business::calc::{self, AccountValues, InvoiceType};
-use crate::ops::business::{contacts, documents};
 use crate::ops::business::payments::{self, LotWork, TXN_TYPE_INVOICE};
-use crate::ops::commit::{account_scu, build_split, check_balanced, set_date_posted, sort_splits, NewSplit};
+use crate::ops::business::{contacts, documents};
+use crate::ops::commit::{NewSplit, account_scu, build_split, check_balanced, set_date_posted, sort_splits};
 use crate::transaction::slot_paths as txn_slots;
-use crate::{AccountType, Book, CommodityRef, DENOM_AUTO, Date, DenomMode, DomainError, DomainResult, Env, Frame, Guid, How, Lot, Numeric, Round, SlotValue, Time64, Transaction};
+use crate::{
+    AccountType, Book, CommodityRef, DENOM_AUTO, Date, DenomMode, DomainError, DomainResult, Env, Frame, Guid, How, Lot, Numeric, Round,
+    SlotValue, Time64, Transaction,
+};
 
 /// The transaction slot holding a posted document's due date (`5.17:libgnucash/engine/Transaction.cpp:182`).
 pub const DATE_DUE: &str = "trans-date-due";
@@ -69,19 +72,33 @@ struct Plan {
 }
 
 fn plan(book: &Book, req: &PostRequest) -> DomainResult<Plan> {
-    let inv = book.business.invoices.get(&req.invoice).cloned().ok_or_else(|| DomainError::not_found("invoice", &req.invoice))?;
+    let inv = book
+        .business
+        .invoices
+        .get(&req.invoice)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("invoice", &req.invoice))?;
     if inv.is_posted() {
         return Err(DomainError::conflict(format!("document {} is already posted", inv.id)));
     }
     let kind = calc::invoice_type(book, &inv)?;
-    let currency = inv.currency.clone().ok_or_else(|| DomainError::invalid(format!("document {} has no currency", inv.id)))?;
+    let currency = inv
+        .currency
+        .clone()
+        .ok_or_else(|| DomainError::invalid(format!("document {} has no currency", inv.id)))?;
     check_post_account(book, &kind, &currency, req.account)?;
     let entries: Vec<Entry> = documents::entries_of(book, inv.guid).into_iter().cloned().collect();
     if entries.is_empty() {
         return Err(DomainError::invalid(format!("document {} has no entries", inv.id)));
     }
     let card = card_account(book, &kind, &currency)?;
-    Ok(Plan { inv, kind, currency, entries, card })
+    Ok(Plan {
+        inv,
+        kind,
+        currency,
+        entries,
+        card,
+    })
 }
 
 /// The posting account must be A/R for customers and A/P otherwise (`5.17:libgnucash/engine/gncOwner.c:1443-1460`),
@@ -89,7 +106,11 @@ fn plan(book: &Book, req: &PostRequest) -> DomainResult<Plan> {
 /// `xaccSplitSetBaseValue` cannot set the amount of a split in another commodity.
 fn check_post_account(book: &Book, kind: &InvoiceType, currency: &CommodityRef, account: Guid) -> DomainResult<()> {
     let acc = book.account(account).ok_or_else(|| DomainError::not_found("account", &account))?;
-    let wanted = if kind.is_customer() { AccountType::Receivable } else { AccountType::Payable };
+    let wanted = if kind.is_customer() {
+        AccountType::Receivable
+    } else {
+        AccountType::Payable
+    };
     if acc.account_type != wanted {
         return Err(DomainError::invalid(format!("{} is not an {} account", acc.name, wanted.as_str())));
     }
@@ -97,7 +118,10 @@ fn check_post_account(book: &Book, kind: &InvoiceType, currency: &CommodityRef, 
         return Err(DomainError::invalid(format!("{} is a placeholder account", acc.name)));
     }
     if acc.commodity.as_ref() != Some(currency) {
-        return Err(DomainError::invalid(format!("{} is not in the document currency {currency}", acc.name)));
+        return Err(DomainError::invalid(format!(
+            "{} is not in the document currency {currency}",
+            acc.name
+        )));
     }
     Ok(())
 }
@@ -111,7 +135,10 @@ fn card_account(book: &Book, kind: &InvoiceType, currency: &CommodityRef) -> Dom
     if let Some(card) = card {
         let acc = book.account(card).ok_or_else(|| DomainError::not_found("account", &card))?;
         if acc.commodity.as_ref() != Some(currency) {
-            return Err(DomainError::invalid(format!("card account {} is not in the document currency {currency}", acc.name)));
+            return Err(DomainError::invalid(format!(
+                "card account {} is not in the document currency {currency}",
+                acc.name
+            )));
         }
     }
     Ok(card)
@@ -151,7 +178,11 @@ fn plan_splits(book: &Book, req: &PostRequest, p: &Plan) -> DomainResult<SplitPl
         let account = entry_account(entry, &p.kind)?;
         let amounts = calc::entry_amounts(book, entry, p.kind.is_customer(), calc::entry_denom(book, entry))?;
         // gncEntryGetBalValue: the internal value, negated on customer documents.
-        let value = if p.kind.is_customer() { amounts.value_rounded.neg() } else { amounts.value_rounded };
+        let value = if p.kind.is_customer() {
+            amounts.value_rounded.neg()
+        } else {
+            amounts.value_rounded
+        };
         if req.accumulate {
             calc::account_value_add(&mut splitinfo, account, value)?;
         } else {
@@ -165,7 +196,11 @@ fn plan_splits(book: &Book, req: &PostRequest, p: &Plan) -> DomainResult<SplitPl
     calc::account_values_add_list(&mut splitinfo, &taxes)?;
     splitinfo.iter().for_each(|(a, v)| out.push(*a, *v, &req.memo, type_str));
     if let Some(card) = p.card.filter(|_| !p.inv.charge_amount.is_zero()) {
-        let charge = if p.kind.credit_note { p.inv.charge_amount.neg() } else { p.inv.charge_amount };
+        let charge = if p.kind.credit_note {
+            p.inv.charge_amount.neg()
+        } else {
+            p.inv.charge_amount
+        };
         out.push(card, charge.neg(), EXTRA_CHARGE_MEMO, type_str);
         total = total.sub(charge, scu, EXACT_HALF_UP)?;
     }
@@ -176,8 +211,12 @@ fn plan_splits(book: &Book, req: &PostRequest, p: &Plan) -> DomainResult<SplitPl
 /// Give splits to accounts in another commodity their amount: `value / price` (`gncInvoicePostAddSplit`,
 /// `5.17:libgnucash/engine/gncInvoice.c:1408-1436`).
 fn convert_foreign(book: &Book, currency: &CommodityRef, prices: &[(CommodityRef, Numeric)], s: &mut NewSplit) -> DomainResult<()> {
-    let acc = book.account(s.account).ok_or_else(|| DomainError::not_found("account", &s.account))?;
-    let Some(commodity) = acc.commodity.as_ref().filter(|c| *c != currency) else { return Ok(()) };
+    let acc = book
+        .account(s.account)
+        .ok_or_else(|| DomainError::not_found("account", &s.account))?;
+    let Some(commodity) = acc.commodity.as_ref().filter(|c| *c != currency) else {
+        return Ok(());
+    };
     let price = prices.iter().find(|(c, _)| c == commodity).map(|(_, p)| *p);
     let price = price.ok_or_else(|| DomainError::invalid(format!("account {} is in {commodity}: give a price for it", acc.name)))?;
     if price.is_zero() || price.is_negative() {
@@ -206,21 +245,43 @@ pub fn post(book: &mut Book, env: &mut dyn Env, req: &PostRequest) -> DomainResu
     let p = plan(book, req)?;
     let due = due_time(book, req, &p.inv, env.zone())?;
     let mut splits = plan_splits(book, req, &p)?;
-    splits.splits.iter_mut().try_for_each(|s| convert_foreign(book, &p.currency, &req.prices, s))?;
+    splits
+        .splits
+        .iter_mut()
+        .try_for_each(|s| convert_foreign(book, &p.currency, &req.prices, s))?;
     let lot = env.new_guid();
     let posted_split = splits.splits.len() - 1;
     splits.splits[posted_split].lot = Some(lot);
-    let built = splits.splits.into_iter().map(|s| build_split(book, env, &p.currency, s)).collect::<DomainResult<Vec<_>>>()?;
+    let built = splits
+        .splits
+        .into_iter()
+        .map(|s| build_split(book, env, &p.currency, s))
+        .collect::<DomainResult<Vec<_>>>()?;
     let txn = posted_transaction(book, env, req, &p, due, built)?;
     let mut lot_slots_frame = Frame::new();
     lot_slots_frame.set(lot_slots::INVOICE, SlotValue::Guid(p.inv.guid));
-    lot_slots_frame.set(lot_slots::TITLE, SlotValue::String(format!("{} {}", p.kind.type_string(), p.inv.id)));
-    book.lots.insert(lot, Arc::new(Lot { guid: lot, account: req.account, slots: lot_slots_frame }));
+    lot_slots_frame.set(
+        lot_slots::TITLE,
+        SlotValue::String(format!("{} {}", p.kind.type_string(), p.inv.id)),
+    );
+    book.lots.insert(
+        lot,
+        Arc::new(Lot {
+            guid: lot,
+            account: req.account,
+            slots: lot_slots_frame,
+        }),
+    );
     let txn_guid = txn.guid;
     let date_posted = txn.date_posted;
     book.transactions.insert(txn_guid, Arc::new(txn));
     freeze(book, env, &p)?;
-    let inv = book.business.invoices.get_mut(&req.invoice).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("invoice", &req.invoice))?;
+    let inv = book
+        .business
+        .invoices
+        .get_mut(&req.invoice)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("invoice", &req.invoice))?;
     inv.post_txn = Some(txn_guid);
     inv.post_lot = Some(lot);
     inv.post_acc = Some(req.account);
@@ -228,16 +289,29 @@ pub fn post(book: &mut Book, env: &mut dyn Env, req: &PostRequest) -> DomainResu
     if req.autopay {
         payments::auto_apply_invoice(book, env, req.invoice)?;
     }
-    Ok(Posted { transaction: txn_guid, lot, due })
+    Ok(Posted {
+        transaction: txn_guid,
+        lot,
+        due,
+    })
 }
 
 /// The posted transaction with GnuCash's strings and slots (`5.17:libgnucash/engine/gncInvoice.c:1495-1515`, `:1705-1716`). Its num is the document
 /// ID, or the type word with the num field source on (`gnc_set_num_action`, `:1504`).
-fn posted_transaction(book: &Book, env: &mut dyn Env, req: &PostRequest, p: &Plan, due: Time64, splits: Vec<crate::Split>) -> DomainResult<Transaction> {
+fn posted_transaction(
+    book: &Book,
+    env: &mut dyn Env,
+    req: &PostRequest,
+    p: &Plan,
+    due: Time64,
+    splits: Vec<crate::Split>,
+) -> DomainResult<Transaction> {
     let mut t = Transaction {
         guid: env.new_guid(),
         currency: p.currency.clone(),
-        num: Some(num_action_targets(book, &p.inv.id, p.kind.type_string()).0).filter(|n| !n.is_empty()).map(str::to_owned),
+        num: Some(num_action_targets(book, &p.inv.id, p.kind.type_string()).0)
+            .filter(|n| !n.is_empty())
+            .map(str::to_owned),
         date_posted: env.zone().neutral_time(req.post_date),
         date_entered: env.now(),
         description: Some(contacts::owner_name(book, p.kind.end_owner).unwrap_or_default()),
@@ -268,7 +342,12 @@ fn freeze(book: &mut Book, env: &mut dyn Env, p: &Plan) -> DomainResult<()> {
 }
 
 fn freeze_entry(book: &mut Book, env: &mut dyn Env, kind: &InvoiceType, entry: Guid) -> DomainResult<()> {
-    let e = book.business.entries.get(&entry).cloned().ok_or_else(|| DomainError::not_found("entry", &entry))?;
+    let e = book
+        .business
+        .entries
+        .get(&entry)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("entry", &entry))?;
     let customer = kind.is_customer();
     let table = if customer { e.i_tax_table } else { e.b_tax_table };
     if let Some(t) = table {
@@ -276,7 +355,12 @@ fn freeze_entry(book: &mut Book, env: &mut dyn Env, kind: &InvoiceType, entry: G
         set_entry_table(book, entry, customer, Some(child))?;
     }
     if !customer && e.billable {
-        let current = book.business.entries.get(&entry).cloned().ok_or_else(|| DomainError::not_found("entry", &entry))?;
+        let current = book
+            .business
+            .entries
+            .get(&entry)
+            .cloned()
+            .ok_or_else(|| DomainError::not_found("entry", &entry))?;
         let net = calc::entry_net_price(book, &current, false)?;
         let e = entry_mut(book, entry)?;
         e.i_price = net;
@@ -286,15 +370,27 @@ fn freeze_entry(book: &mut Book, env: &mut dyn Env, kind: &InvoiceType, entry: G
 }
 
 fn entry_mut(book: &mut Book, entry: Guid) -> DomainResult<&mut Entry> {
-    book.business.entries.get_mut(&entry).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("entry", &entry))
+    book.business
+        .entries
+        .get_mut(&entry)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("entry", &entry))
 }
 
 fn table_mut(book: &mut Book, table: Guid) -> DomainResult<&mut TaxTable> {
-    book.business.tax_tables.get_mut(&table).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("tax table", &table))
+    book.business
+        .tax_tables
+        .get_mut(&table)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("tax table", &table))
 }
 
 fn term_mut(book: &mut Book, term: Guid) -> DomainResult<&mut BillTerm> {
-    book.business.bill_terms.get_mut(&term).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("billing term", &term))
+    book.business
+        .bill_terms
+        .get_mut(&term)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("billing term", &term))
 }
 
 /// `gncTaxTableIncRef`/`DecRef`: no-ops on children and invisible tables; never below zero
@@ -330,7 +426,12 @@ fn set_entry_table(book: &mut Book, entry: Guid, customer: bool, table: Option<G
 
 /// `gncInvoiceSetTerms` (`5.17:libgnucash/engine/gncInvoice.c:514-526`).
 fn set_invoice_terms(book: &mut Book, invoice: Guid, terms: Option<Guid>) -> DomainResult<()> {
-    let inv = book.business.invoices.get_mut(&invoice).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
+    let inv = book
+        .business
+        .invoices
+        .get_mut(&invoice)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
     if inv.terms == terms {
         return Ok(());
     }
@@ -342,7 +443,12 @@ fn set_invoice_terms(book: &mut Book, invoice: Guid, terms: Option<Guid>) -> Dom
 /// `gncTaxTableReturnChild(table, TRUE)`: the table's frozen copy, made on first use (`5.17:libgnucash/engine/gncTaxTable.c:749-762`).
 /// The copy has a new GUID, the same name and lines, refcount 0, and is invisible.
 fn table_return_child(book: &mut Book, env: &mut dyn Env, table: Guid) -> DomainResult<Guid> {
-    let t = book.business.tax_tables.get(&table).cloned().ok_or_else(|| DomainError::not_found("tax table", &table))?;
+    let t = book
+        .business
+        .tax_tables
+        .get(&table)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("tax table", &table))?;
     if let Some(child) = t.child {
         return Ok(child);
     }
@@ -350,7 +456,16 @@ fn table_return_child(book: &mut Book, env: &mut dyn Env, table: Guid) -> Domain
         return Ok(table);
     }
     let lines = calc::sorted_tax_lines(book, &t).into_iter().cloned().collect();
-    let child = TaxTable { guid: env.new_guid(), name: t.name.clone(), refcount: 0, invisible: true, child: None, parent: Some(table), entries: lines, slots: Frame::new() };
+    let child = TaxTable {
+        guid: env.new_guid(),
+        name: t.name.clone(),
+        refcount: 0,
+        invisible: true,
+        child: None,
+        parent: Some(table),
+        entries: lines,
+        slots: Frame::new(),
+    };
     let g = child.guid;
     book.business.tax_tables.insert(g, Arc::new(child));
     table_mut(book, table)?.child = Some(g);
@@ -359,7 +474,12 @@ fn table_return_child(book: &mut Book, env: &mut dyn Env, table: Guid) -> Domain
 
 /// `gncBillTermReturnChild(term, TRUE)` (`5.17:libgnucash/engine/gncBillTerm.c:571-609`).
 fn term_return_child(book: &mut Book, env: &mut dyn Env, term: Guid) -> DomainResult<Guid> {
-    let t = book.business.bill_terms.get(&term).cloned().ok_or_else(|| DomainError::not_found("billing term", &term))?;
+    let t = book
+        .business
+        .bill_terms
+        .get(&term)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("billing term", &term))?;
     if let Some(child) = t.child {
         return Ok(child);
     }
@@ -391,7 +511,12 @@ fn term_return_child(book: &mut Book, env: &mut dyn Env, term: Guid) -> DomainRe
 /// links to other documents and re-apply what they linked; clear the posted state; with `reset_tax_tables`, point
 /// entries back at the visible parent tax tables. The frozen billing term stays.
 pub fn unpost(book: &mut Book, env: &mut dyn Env, invoice: Guid, reset_tax_tables: bool) -> DomainResult<()> {
-    let inv = book.business.invoices.get(&invoice).cloned().ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
+    let inv = book
+        .business
+        .invoices
+        .get(&invoice)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
     let (Some(txn), Some(lot)) = (inv.post_txn, inv.post_lot) else {
         return Err(DomainError::conflict(format!("document {} is not posted", inv.id)));
     };
@@ -400,7 +525,11 @@ pub fn unpost(book: &mut Book, env: &mut dyn Env, invoice: Guid, reset_tax_table
     }
     let mut work = LotWork::default();
     payments::destroy_transaction(book, &mut work, txn);
-    let l = book.lots.get_mut(&lot).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("lot", &lot))?;
+    let l = book
+        .lots
+        .get_mut(&lot)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("lot", &lot))?;
     l.slots.remove(lot_slots::INVOICE);
     payments::attach_owner(&mut l.slots, inv.owner);
     relink_remaining(book, env, &mut work, lot, &inv)?;
@@ -408,7 +537,12 @@ pub fn unpost(book: &mut Book, env: &mut dyn Env, invoice: Guid, reset_tax_table
         book.lots.shift_remove(&lot);
     }
     work.drop_empty_lots(book);
-    let i = book.business.invoices.get_mut(&invoice).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
+    let i = book
+        .business
+        .invoices
+        .get_mut(&invoice)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
     i.post_acc = None;
     i.post_txn = None;
     i.post_lot = None;
@@ -423,7 +557,9 @@ pub fn unpost(book: &mut Book, env: &mut dyn Env, invoice: Guid, reset_tax_table
 /// (`5.17:libgnucash/engine/gncInvoice.c:1775-1828`).
 fn relink_remaining(book: &mut Book, env: &mut dyn Env, work: &mut LotWork, lot: Guid, inv: &Invoice) -> DomainResult<()> {
     for split in work.splits(book, lot).clone() {
-        let Some((t, _)) = payments::find_split(book, split) else { continue };
+        let Some((t, _)) = payments::find_split(book, split) else {
+            continue;
+        };
         if t.txn_type() != Some('L') {
             continue;
         }
@@ -431,9 +567,15 @@ fn relink_remaining(book: &mut Book, env: &mut dyn Env, work: &mut LotWork, lot:
         let mut others: Vec<Option<Guid>> = t.splits.iter().filter(|s| s.lot != Some(lot)).map(|s| s.lot).collect();
         payments::destroy_transaction(book, work, txn);
         payments::auto_apply_with_lots(book, env, work, inv.owner, &mut others)?;
-        others.into_iter().flatten().filter(|l| work.count(book, *l) == 0).collect::<Vec<_>>().into_iter().for_each(|l| {
-            book.lots.shift_remove(&l);
-        });
+        others
+            .into_iter()
+            .flatten()
+            .filter(|l| work.count(book, *l) == 0)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|l| {
+                book.lots.shift_remove(&l);
+            });
     }
     Ok(())
 }
@@ -491,7 +633,11 @@ mod tests {
             invisible: false,
             child: None,
             parent: None,
-            entries: vec![TaxTableEntry { account: Some(gst), amount: Numeric::from_int(5), kind: AmountType::Percent }],
+            entries: vec![TaxTableEntry {
+                account: Some(gst),
+                amount: Numeric::from_int(5),
+                kind: AmountType::Percent,
+            }],
             slots: Frame::new(),
         };
         let table_guid = table.guid;
@@ -513,9 +659,21 @@ mod tests {
             tax_table: None,
             slots: Frame::new(),
         };
-        let owner = OwnerRef { kind: OwnerKind::Customer, guid: customer.guid };
+        let owner = OwnerRef {
+            kind: OwnerKind::Customer,
+            guid: customer.guid,
+        };
         book.business.customers.insert(customer.guid, Arc::new(customer));
-        Fixture { book, env, ar, bank, sales, gst, table: table_guid, customer: owner }
+        Fixture {
+            book,
+            env,
+            ar,
+            bank,
+            sales,
+            gst,
+            table: table_guid,
+            customer: owner,
+        }
     }
 
     /// An invoice with one entry per (quantity, price) pair, each taxed with the 5 % table.
@@ -567,25 +725,41 @@ mod tests {
     }
 
     fn lot_balance(book: &Book, lot: Guid) -> Numeric {
-        book.splits_in_lot(lot).fold(Numeric::ZERO, |a, (_, s)| a.add_exact(s.amount).unwrap())
+        book.splits_in_lot(lot)
+            .fold(Numeric::ZERO, |a, (_, s)| a.add_exact(s.amount).unwrap())
     }
 
     #[test]
     fn post_freezes_the_tax_table_and_unpost_resets_it() {
         let mut f = fixture();
-        let inv = invoice(&mut f, "I1", &[(Numeric::from_int(2), Numeric::new(1050, 100)), (Numeric::from_int(1), Numeric::new(333, 100))]);
+        let inv = invoice(
+            &mut f,
+            "I1",
+            &[
+                (Numeric::from_int(2), Numeric::new(1050, 100)),
+                (Numeric::from_int(1), Numeric::new(333, 100)),
+            ],
+        );
         let req = request(&f, inv);
         let posted = post(&mut f.book, &mut f.env, &req).unwrap();
         let t = f.book.transaction(posted.transaction).unwrap();
         let accounts: Vec<Guid> = t.splits.iter().filter_map(|s| s.account).collect();
         assert_eq!(accounts, vec![f.ar, f.gst, f.sales], "A/R first, then tax, then income");
-        assert_eq!(lot_balance(&f.book, posted.lot), Numeric::new(2555, 100), "24.33 + 5 % (1.2165 → 1.22)");
+        assert_eq!(
+            lot_balance(&f.book, posted.lot),
+            Numeric::new(2555, 100),
+            "24.33 + 5 % (1.2165 → 1.22)"
+        );
         let parent = &f.book.business.tax_tables[&f.table];
         let child = parent.child.unwrap();
         assert_eq!(parent.refcount, 0, "each entry dropped its reference to the parent");
         assert!(f.book.business.tax_tables[&child].invisible);
         assert!(f.book.business.entries.values().all(|e| e.i_tax_table == Some(child)));
-        assert_eq!(posted.due, Date::from_ymd(2024, 3, 5).unwrap().neutral_time(), "no term: the posting date, as the dialog gives it");
+        assert_eq!(
+            posted.due,
+            Date::from_ymd(2024, 3, 5).unwrap().neutral_time(),
+            "no term: the posting date, as the dialog gives it"
+        );
         assert!(matches!(post(&mut f.book, &mut f.env, &req), Err(DomainError::Conflict(_))));
 
         unpost(&mut f.book, &mut f.env, inv, true).unwrap();

@@ -14,8 +14,8 @@ use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
 use statements::{
-    Check, Setup, amount_of, assert_checks, assert_rows_at, blocks, expected, expected_run, labels, options_param, rates,
-    rows_labelled, tables, test_settings,
+    Check, Setup, amount_of, assert_checks, assert_rows_at, blocks, expected, expected_run, labels, options_param, rates, rows_labelled,
+    tables, test_settings,
 };
 
 const INCOME_STATEMENT: &str = "Income Statement";
@@ -34,7 +34,11 @@ fn check(name: &'static str, line: u32, label: &'static str, want: &'static [&'s
 
 /// Total Revenue under one price source: GnuCash's row 4 (Revenues, Income, Income-GBP, Total Revenue).
 fn revenue_run(id: &'static str, name: &'static str, line: u32, want: &'static [&'static str]) -> Run {
-    Run { id, checks: vec![check(name, line, "Total Revenue", want)], rows: vec![(name, 4, "Total Revenue")] }
+    Run {
+        id,
+        checks: vec![check(name, line, "Total Revenue", want)],
+        rows: vec![(name, 4, "Total Revenue")],
+    }
 }
 
 const INCOME_ALL: &[&str] = &["-#600.00", "-$1,020.00", "-$250.00", "-$250.00"];
@@ -137,8 +141,11 @@ fn expected_figures_of_gnucash_test() {
     expected_figures(INCOME_STATEMENT);
     let e = expected("balsheet-pnl.expected.json");
     let runs = runs();
-    let ours: BTreeSet<&str> =
-        runs.iter().flat_map(|r| r.checks.iter().map(|c| c.name)).chain(rates_checks().iter().map(|c| c.1)).collect();
+    let ours: BTreeSet<&str> = runs
+        .iter()
+        .flat_map(|r| r.checks.iter().map(|c| c.name))
+        .chain(rates_checks().iter().map(|c| c.1))
+        .collect();
     let theirs: BTreeSet<&str> = e["runs"]
         .as_array()
         .unwrap()
@@ -172,13 +179,46 @@ fn default_layout() {
     let period = json!({ "General": { "Start Date": { "absolute": "1980-01-01" }, "End Date": { "absolute": "1981-01-01" } } });
     let result = fixture().run(INCOME_STATEMENT, &period);
     let table = tables(&result)[0];
-    assert_eq!(labels(table), ["Revenues", "Income", "Income-GBP", "Total Revenue", "Expenses", "Total Expenses", "Net income for Period"]);
-    let roles: Vec<&str> = table["rows"].as_array().unwrap().iter().map(|r| r["role"].as_str().unwrap()).collect();
-    assert_eq!(roles, ["heading", "account", "account", "total", "rule", "heading", "total", "rule", "grandTotal"]);
+    assert_eq!(
+        labels(table),
+        [
+            "Revenues",
+            "Income",
+            "Income-GBP",
+            "Total Revenue",
+            "Expenses",
+            "Total Expenses",
+            "Net income for Period"
+        ]
+    );
+    let roles: Vec<&str> = table["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["role"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        roles,
+        [
+            "heading",
+            "account",
+            "account",
+            "total",
+            "rule",
+            "heading",
+            "total",
+            "rule",
+            "grandTotal"
+        ]
+    );
     let (_, net) = rows_labelled(&result, "Net income for Period")[0];
     assert_eq!(net["level"], 0);
     assert_eq!(table["columns"][1]["levels"], 3);
-    assert_eq!(amount_of(&result, "Income-GBP"), ["-#600.00", "-$1,020.00"], "the nearest price, $1.70");
+    assert_eq!(
+        amount_of(&result, "Income-GBP"),
+        ["-#600.00", "-$1,020.00"],
+        "the nearest price, $1.70"
+    );
 }
 
 fn layout(display: Value) -> Value {
@@ -194,22 +234,37 @@ fn two_column_and_expense_first_layouts() {
     let two = layout(json!({ "Display as a two column report": true }));
     assert_eq!(two["sections"][0]["blocks"][0]["kind"], "group");
     let columns: Vec<Vec<String>> = tables(&two).iter().map(|t| labels(t)).collect();
-    assert_eq!(columns, [
-        vec!["Revenues", "Income", "Income-GBP", "Total Revenue"],
-        vec!["Expenses", "Total Expenses", "Net income for Period"],
-    ]);
+    assert_eq!(
+        columns,
+        [
+            vec!["Revenues", "Income", "Income-GBP", "Total Revenue"],
+            vec!["Expenses", "Total Expenses", "Net income for Period"],
+        ]
+    );
     assert_eq!(amount_of(&two, "Net income for Period"), ["$1,270.00"]);
 
     let expense_first = layout(json!({ "Display in standard, income first, order": false }));
-    assert_eq!(labels(tables(&expense_first)[0]), [
-        "Expenses", "Total Expenses", "Revenues", "Income", "Income-GBP", "Total Revenue", "Net income for Period",
-    ]);
+    assert_eq!(
+        labels(tables(&expense_first)[0]),
+        [
+            "Expenses",
+            "Total Expenses",
+            "Revenues",
+            "Income",
+            "Income-GBP",
+            "Total Revenue",
+            "Net income for Period",
+        ]
+    );
     let both = layout(json!({ "Display as a two column report": true, "Display in standard, income first, order": false }));
     let columns: Vec<Vec<String>> = tables(&both).iter().map(|t| labels(t)).collect();
-    assert_eq!(columns, [
-        vec!["Expenses", "Total Expenses"],
-        vec!["Revenues", "Income", "Income-GBP", "Total Revenue", "Net income for Period"],
-    ]);
+    assert_eq!(
+        columns,
+        [
+            vec!["Expenses", "Total Expenses"],
+            vec!["Revenues", "Income", "Income-GBP", "Total Revenue", "Net income for Period"],
+        ]
+    );
     let unlabelled = layout(json!({ "Label the revenue section": false, "Include revenue total": false,
                                     "Label the expense section": false, "Include expense total": false }));
     assert_eq!(labels(tables(&unlabelled)[0]), ["Income", "Income-GBP", "Net income for Period"]);
@@ -238,8 +293,17 @@ fn march(entries: Value) -> Value {
 /// `(revenue, expenses, Income's row, Expenses' row, net line)` of a run.
 fn figures(result: &Value) -> (String, String, String, String, String) {
     let one = |label: &str| amount_of(result, label).join(" ");
-    let net = ["Net income for Period", "Net loss for Period"].iter().find(|l| !rows_labelled(result, l).is_empty()).unwrap();
-    (one("Total Revenue"), one("Total Expenses"), one("Income"), one("Expenses"), format!("{net} {}", one(net)))
+    let net = ["Net income for Period", "Net loss for Period"]
+        .iter()
+        .find(|l| !rows_labelled(result, l).is_empty())
+        .unwrap();
+    (
+        one("Total Revenue"),
+        one("Total Expenses"),
+        one("Income"),
+        one("Expenses"),
+        format!("{net} {}", one(net)),
+    )
 }
 
 /// The closing-entries pattern (IS:232-240, :324-328) picks out the closing transactions, which the totals leave out
@@ -257,8 +321,14 @@ fn closing_entries_pattern() {
     let cases = [
         (json!({}), &matched),
         (json!({ "Closing Entries pattern": "closing entries" }), &matched),
-        (json!({ "Closing Entries pattern": "closing entries", "Closing Entries pattern is case-sensitive": true }), &unmatched),
-        (json!({ "Closing Entries pattern": "^Clos.*ries$", "Closing Entries Pattern is regular expression": true }), &matched),
+        (
+            json!({ "Closing Entries pattern": "closing entries", "Closing Entries pattern is case-sensitive": true }),
+            &unmatched,
+        ),
+        (
+            json!({ "Closing Entries pattern": "^Clos.*ries$", "Closing Entries Pattern is regular expression": true }),
+            &matched,
+        ),
         (json!({ "Closing Entries pattern": "^Clos.*ries$" }), &unmatched),
         (json!({ "Closing Entries pattern": "Nothing" }), &unmatched),
     ];
@@ -268,7 +338,13 @@ fn closing_entries_pattern() {
 }
 
 fn want([revenue, expenses, income, expense, net]: [&str; 5]) -> (String, String, String, String, String) {
-    (revenue.to_owned(), expenses.to_owned(), income.to_owned(), expense.to_owned(), net.to_owned())
+    (
+        revenue.to_owned(),
+        expenses.to_owned(),
+        income.to_owned(),
+        expense.to_owned(),
+        net.to_owned(),
+    )
 }
 
 /// Transactions that close the books carry the `book_closing` slot, which the pattern matches whatever their
@@ -286,7 +362,10 @@ fn closing_transactions_match_whatever_their_description() {
     s.call("book.closeBooks", close);
     s.transfer("2024-03-25", "Repairs", "Checking", "Expenses", "600.00");
     let result = s.run(INCOME_STATEMENT, &march(json!({ "Closing Entries pattern": "Nothing" })));
-    assert_eq!(figures(&result), want(["$500.00", "$720.00", "-$500.00", "$720.00", "Net loss for Period $220.00"]));
+    assert_eq!(
+        figures(&result),
+        want(["$500.00", "$720.00", "-$500.00", "$720.00", "Net loss for Period $220.00"])
+    );
 }
 
 /// A trading book: $50 of fees on 2024-03-02 and €100 bought for $110 on 2024-03-05, EUR at $1.20 on 2024-03-14;
@@ -299,8 +378,14 @@ fn trading_book() -> Setup {
     s.account("Income", "INCOME", None, "CURRENCY::USD");
     s.transfer("2024-03-02", "Fees", "Income", "Checking", "50.00");
     let splits = json!([{ "account": "Euro", "value": "110.00", "amount": "100.00" }, { "account": "Checking", "value": "-110.00" }]);
-    s.call("transaction.post", json!({ "datePosted": "2024-03-05", "currency": "CURRENCY::USD", "splits": splits }));
-    s.call("price.add", json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.20", "date": "2024-03-14" }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-03-05", "currency": "CURRENCY::USD", "splits": splits }),
+    );
+    s.call(
+        "price.add",
+        json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.20", "date": "2024-03-14" }),
+    );
     s
 }
 
@@ -318,10 +403,21 @@ fn with_trading(display: Value) -> Value {
 #[test]
 fn trading_section() {
     let result = with_trading(json!({}));
-    assert_eq!(labels(tables(&result)[0]), [
-        "Revenues", "Income", "Total Revenue", "Trading", "EUR", "USD", "Total Trading", "Expenses", "Total Expenses",
-        "Net income for Period",
-    ]);
+    assert_eq!(
+        labels(tables(&result)[0]),
+        [
+            "Revenues",
+            "Income",
+            "Total Revenue",
+            "Trading",
+            "EUR",
+            "USD",
+            "Total Trading",
+            "Expenses",
+            "Total Expenses",
+            "Net income for Period",
+        ]
+    );
     assert_eq!(amount_of(&result, "EUR"), ["-€100.00", "-$120.00"]);
     assert_eq!(amount_of(&result, "USD"), ["$110.00"]);
     assert_eq!(amount_of(&result, "Total Trading"), ["-$10.00"]);
@@ -347,7 +443,11 @@ fn empty_book() {
 #[test]
 fn read_only_and_deterministic() {
     let mut s = Setup::with_config(&test_settings("iso"));
-    std::fs::copy(format!("{}/../../fixtures/reports/balsheet-pnl.gnucash", env!("CARGO_MANIFEST_DIR")), s.book()).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/reports/balsheet-pnl.gnucash", env!("CARGO_MANIFEST_DIR")),
+        s.book(),
+    )
+    .unwrap();
     let book = s.book().display().to_string();
     s.call("book.open", json!({ "path": book }));
     let before = s.d.context().book().unwrap().clone();

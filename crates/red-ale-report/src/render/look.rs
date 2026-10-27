@@ -91,7 +91,11 @@ impl Look {
         let defaults = StyleSheetTemplate::Plain.options();
         // The CSS template has no fonts or tables; the base look's stand in for them.
         let fonts_from = if db.get("Fonts", "Title").is_some() { db } else { &defaults };
-        let tables = if db.get("Tables", "Table cell padding").is_some() { db } else { &defaults };
+        let tables = if db.get("Tables", "Table cell padding").is_some() {
+            db
+        } else {
+            &defaults
+        };
         Self {
             template,
             colors: colors(&o, template),
@@ -159,7 +163,10 @@ impl Options<'_> {
 
 /// A length, which the option's range keeps between 0 and 20, to hundredths of a pixel, half-even.
 fn pixels(n: &Rational) -> String {
-    let hundredths = n.abs().round_to(100, crate::number::Rounding::Bankers).unwrap_or_else(|_| Rational::zero());
+    let hundredths = n
+        .abs()
+        .round_to(100, crate::number::Rounding::Bankers)
+        .unwrap_or_else(|_| Rational::zero());
     hundredths.to_exact_decimal().unwrap_or_else(|| "0".to_owned())
 }
 
@@ -215,8 +222,18 @@ fn lines(o: &Options<'_>, template: Option<StyleSheetTemplate>, bottom: bool) ->
             if bottom {
                 text("Footer").map(Line::Note).into_iter().collect()
             } else if o.flag("General", "Show preparer info") {
-                let date = Some(Line::Date { label: "Date: ", time: false });
-                [text("Preparer").map(Line::PreparedBy), text("Prepared for").map(Line::PreparedFor), date].into_iter().flatten().collect()
+                let date = Some(Line::Date {
+                    label: "Date: ",
+                    time: false,
+                });
+                [
+                    text("Preparer").map(Line::PreparedBy),
+                    text("Prepared for").map(Line::PreparedFor),
+                    date,
+                ]
+                .into_iter()
+                .flatten()
+                .collect()
             } else {
                 Vec::new()
             }
@@ -226,9 +243,16 @@ fn lines(o: &Options<'_>, template: Option<StyleSheetTemplate>, bottom: bool) ->
             let comments_here = o.flag("General", "Show comments at bottom") == bottom;
             let time = o.flag("General", "Show time in addition to date");
             [
-                here("Show preparer info", "Show preparer info at bottom").then(|| text("Preparer").map(Line::PreparedBy)).flatten(),
-                here("Show receiver info", "Show receiver info at bottom").then(|| text("Prepared for").map(Line::PreparedFor)).flatten(),
-                here("Show date", "Show date/time at bottom").then_some(Line::Date { label: "Report Creation Date: ", time }),
+                here("Show preparer info", "Show preparer info at bottom")
+                    .then(|| text("Preparer").map(Line::PreparedBy))
+                    .flatten(),
+                here("Show receiver info", "Show receiver info at bottom")
+                    .then(|| text("Prepared for").map(Line::PreparedFor))
+                    .flatten(),
+                here("Show date", "Show date/time at bottom").then_some(Line::Date {
+                    label: "Report Creation Date: ",
+                    time,
+                }),
                 here("Show GnuCash Version", "Show GnuCash version at bottom").then_some(Line::Version),
                 comments_here.then(|| text("Additional Comments").map(Line::Note)).flatten(),
             ]
@@ -250,9 +274,15 @@ mod tests {
     fn the_base_look_has_no_colours_and_default_fonts() {
         let base = Look::of(None);
         assert_eq!((base.template, base.colors.clone()), (None, Colors::default()));
-        assert_eq!((base.padding.as_str(), base.spacing.as_str(), base.border.as_str()), ("4px", "0px", "0px"));
+        assert_eq!(
+            (base.padding.as_str(), base.spacing.as_str(), base.border.as_str()),
+            ("4px", "0px", "0px")
+        );
         assert!(base.links && base.negative_red && base.header.is_empty() && base.css.is_none());
-        assert_eq!(base.fonts.title, "font-family:\"Noto Sans\",sans-serif;font-size:15pt;font-weight:bold;");
+        assert_eq!(
+            base.fonts.title,
+            "font-family:\"Noto Sans\",sans-serif;font-size:15pt;font-weight:bold;"
+        );
     }
 
     #[test]
@@ -260,7 +290,16 @@ mod tests {
         let tail = Look::of(Some(&StyleSheet::new("Head or Tail", StyleSheetTemplate::HeadOrTail)));
         assert_eq!(tail.colors.subheading, None);
         assert_eq!(tail.colors.grand_total.as_deref(), Some("#ffff00"));
-        assert_eq!(tail.header, [Line::Date { label: "Report Creation Date: ", time: true }, Line::Version]);
+        assert_eq!(
+            tail.header,
+            [
+                Line::Date {
+                    label: "Report Creation Date: ",
+                    time: true
+                },
+                Line::Version
+            ]
+        );
         assert!(tail.footer.is_empty());
     }
 
@@ -276,17 +315,30 @@ mod tests {
             .unwrap();
         let look = Look::of(Some(&sheet));
         assert_eq!(look.header, [Line::PreparedBy("Ann".into()), Line::PreparedFor("Bob".into())]);
-        assert_eq!(look.footer, [Line::Date { label: "Report Creation Date: ", time: false }, Line::Note("Draft".into())]);
+        assert_eq!(
+            look.footer,
+            [
+                Line::Date {
+                    label: "Report Creation Date: ",
+                    time: false
+                },
+                Line::Note("Draft".into())
+            ]
+        );
         assert_eq!(look.colors.background.as_deref(), Some("#f0f0f0"));
     }
 
     #[test]
     fn the_css_template_borrows_the_base_fonts_and_tables() {
-        let look = Look::of(Some(&StyleSheet::new("CSS-based stylesheet (experimental)", StyleSheetTemplate::Css)));
+        let look = Look::of(Some(&StyleSheet::new(
+            "CSS-based stylesheet (experimental)",
+            StyleSheetTemplate::Css,
+        )));
         assert_eq!(look.padding, "4px");
         assert!(look.css.is_some_and(|c| c.starts_with("/* default style */")));
         let mut easy = StyleSheet::new("Easy", StyleSheetTemplate::Easy);
-        easy.apply(&json!({ "Tables": { "Table cell padding": "2.5" }, "General": { "Enable Links": false } })).unwrap();
+        easy.apply(&json!({ "Tables": { "Table cell padding": "2.5" }, "General": { "Enable Links": false } }))
+            .unwrap();
         let look = Look::of(Some(&easy));
         assert_eq!((look.padding.as_str(), look.links), ("2.5px", false));
     }

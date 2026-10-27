@@ -48,15 +48,22 @@ pub(super) struct Choices {
 impl Choices {
     pub(super) fn read(config: &Config) -> Result<Self, ServiceError> {
         let name = config.checked("reports.dateFormat")?;
-        let date_format =
-            name.as_str().and_then(DateFormat::from_name).ok_or_else(|| invalid(format!("reports.dateFormat {name} is not a date format")))?;
-        Ok(Self { locale: config.locale()?, date_format })
+        let date_format = name
+            .as_str()
+            .and_then(DateFormat::from_name)
+            .ok_or_else(|| invalid(format!("reports.dateFormat {name} is not a date format")))?;
+        Ok(Self {
+            locale: config.locale()?,
+            date_format,
+        })
     }
 }
 
 /// The one file's text.
 fn one_file(files: &[ImportFile], format: &str) -> Result<String, ServiceError> {
-    let [file] = files else { return Err(invalid(format!("{format} takes exactly one file, not {}", files.len()))) };
+    let [file] = files else {
+        return Err(invalid(format!("{format} takes exactly one file, not {}", files.len())));
+    };
     decode(0, file, "utf-8")
 }
 
@@ -83,7 +90,15 @@ pub(super) fn propose_documents(
     let today = env.today().ok_or_else(|| invalid("the session's clock is outside the calendar"))?;
     let now = env.now();
     let zone = env.zone().clone();
-    let ctx = Context { book, locale: &choices.locale, today, now, zone: &zone, file: 0, threshold: review::threshold(book, Some(today)) };
+    let ctx = Context {
+        book,
+        locale: &choices.locale,
+        today,
+        now,
+        zone: &zone,
+        file: 0,
+        threshold: review::threshold(book, Some(today)),
+    };
     let opts = DocumentOptions {
         kind: params.kind,
         separator: params.separator,
@@ -110,10 +125,26 @@ pub(super) fn propose_owners(
     let today = env.today().ok_or_else(|| invalid("the session's clock is outside the calendar"))?;
     let now = env.now();
     let zone = env.zone().clone();
-    let ctx = Context { book, locale: &choices.locale, today, now, zone: &zone, file: 0, threshold: None };
-    let opts = OwnerOptions { kind: params.kind, separator: params.separator, currency: config.default_currency(book)? };
+    let ctx = Context {
+        book,
+        locale: &choices.locale,
+        today,
+        now,
+        zone: &zone,
+        file: 0,
+        threshold: None,
+    };
+    let opts = OwnerOptions {
+        kind: params.kind,
+        separator: params.separator,
+        currency: config.default_currency(book)?,
+    };
     let found = business::owners::propose(&text, &ctx, &opts).map_err(|e| invalid(e.to_string()))?;
-    let parts =
-        business::documents::Proposed { documents: Vec::new(), errors: found.errors, ignored: found.ignored, warnings: found.warnings };
+    let parts = business::documents::Proposed {
+        documents: Vec::new(),
+        errors: found.errors,
+        ignored: found.ignored,
+        warnings: found.warnings,
+    };
     Ok(proposal(book, Format::CsvOwners, today, Records::Owners(found.owners), parts))
 }

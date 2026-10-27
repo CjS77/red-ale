@@ -140,7 +140,11 @@ pub struct Forms {
 
 /// Read every top-level form of `text`, stopping at the first that is not in the subset.
 pub fn read_all(text: &str) -> Forms {
-    let mut reader = Reader { chars: text.chars().collect(), pos: 0, line: 1 };
+    let mut reader = Reader {
+        chars: text.chars().collect(),
+        pos: 0,
+        line: 1,
+    };
     let mut out = Forms::default();
     loop {
         match reader.skip_atmosphere() {
@@ -164,7 +168,10 @@ pub fn read_one(text: &str) -> Result<Datum, ReadError> {
     }
     match forms.len() {
         1 => Ok(forms.remove(0).datum),
-        n => Err(ReadError { line: 1, message: format!("expected one datum, found {n}") }),
+        n => Err(ReadError {
+            line: 1,
+            message: format!("expected one datum, found {n}"),
+        }),
     }
 }
 
@@ -196,7 +203,10 @@ impl Reader {
     }
 
     fn error<T>(&self, message: impl Into<String>) -> Read<T> {
-        Err(ReadError { line: self.line, message: message.into() })
+        Err(ReadError {
+            line: self.line,
+            message: message.into(),
+        })
     }
 
     /// Skip whitespace and comments; whether anything is left.
@@ -321,7 +331,9 @@ impl Reader {
                 }
                 Ok(())
             }
-            Some(c) => simple(c).map(|e| out.push(e)).map_or_else(|| self.error(format!("unknown string escape \\{c}")), Ok),
+            Some(c) => simple(c)
+                .map(|e| out.push(e))
+                .map_or_else(|| self.error(format!("unknown string escape \\{c}")), Ok),
         }
     }
 
@@ -412,7 +424,11 @@ fn exact(token: &str) -> Option<Rational> {
     let m = Rational::parse(mantissa).ok()?;
     let scale = Rational::from_integer(BigInt::from(10).pow(exponent.unsigned_abs()));
     let cap = SizeCap::default();
-    if exponent < 0 { m.checked_div(&scale, cap).ok() } else { m.checked_mul(&scale, cap).ok() }
+    if exponent < 0 {
+        m.checked_div(&scale, cap).ok()
+    } else {
+        m.checked_mul(&scale, cap).ok()
+    }
 }
 
 #[cfg(test)]
@@ -448,7 +464,10 @@ mod tests {
     #[test]
     fn strings_take_guiles_escapes() {
         // What Guile 3.0's `write` prints for "a\n\t\"\\" BEL ESC é DEL CR NUL, U+2028.
-        assert_eq!(read(r#""a\n\t\"\\\a\x1bé\x7f\r\x00 ""#), Datum::String("a\n\t\"\\\u{7}\u{1b}é\u{7f}\r\0\u{2028}".to_owned()));
+        assert_eq!(
+            read(r#""a\n\t\"\\\a\x1bé\x7f\r\x00 ""#),
+            Datum::String("a\n\t\"\\\u{7}\u{1b}é\u{7f}\r\0\u{2028}".to_owned())
+        );
         assert_eq!(read("\"line\nbreak\""), Datum::String("line\nbreak".to_owned()));
         assert_eq!(read("\"joined \\\n   here\""), Datum::String("joined here".to_owned()));
         assert!(read_one(r#""\q""#).is_err());
@@ -463,10 +482,25 @@ mod tests {
 
     #[test]
     fn lists_pairs_and_quote() {
-        assert_eq!(read("'(relative . today)"), Datum::quoted(Datum::List(vec![sym("relative")], Some(Box::new(sym("today"))))));
-        assert_eq!(read("(a (b) ())"), Datum::List(vec![sym("a"), Datum::List(vec![sym("b")], None), Datum::List(vec![], None)], None));
-        assert_eq!(read("(absolute 12 . 0)"), Datum::List(vec![sym("absolute"), num("12")], Some(Box::new(num("0")))));
-        assert_eq!(read("'(0.0 202.0 59.0 255.0)").unquoted().and_then(Datum::as_list).map(<[Datum]>::len), Some(4));
+        assert_eq!(
+            read("'(relative . today)"),
+            Datum::quoted(Datum::List(vec![sym("relative")], Some(Box::new(sym("today")))))
+        );
+        assert_eq!(
+            read("(a (b) ())"),
+            Datum::List(vec![sym("a"), Datum::List(vec![sym("b")], None), Datum::List(vec![], None)], None)
+        );
+        assert_eq!(
+            read("(absolute 12 . 0)"),
+            Datum::List(vec![sym("absolute"), num("12")], Some(Box::new(num("0"))))
+        );
+        assert_eq!(
+            read("'(0.0 202.0 59.0 255.0)")
+                .unquoted()
+                .and_then(Datum::as_list)
+                .map(<[Datum]>::len),
+            Some(4)
+        );
     }
 
     #[test]
@@ -478,9 +512,23 @@ mod tests {
 
     #[test]
     fn refuses_what_is_not_data() {
-        ["#(1 2)", "#\\a", "`(a ,b)", "#|c|#", "+inf.0", "-nan.0", "(a . b c)", "( . a)", "(a", ")", "\"open", "1.2.3", "1e999"]
-            .iter()
-            .for_each(|t| assert!(read_one(t).is_err(), "{t} should not read"));
+        [
+            "#(1 2)",
+            "#\\a",
+            "`(a ,b)",
+            "#|c|#",
+            "+inf.0",
+            "-nan.0",
+            "(a . b c)",
+            "( . a)",
+            "(a",
+            ")",
+            "\"open",
+            "1.2.3",
+            "1e999",
+        ]
+        .iter()
+        .for_each(|t| assert!(read_one(t).is_err(), "{t} should not read"));
     }
 
     #[test]

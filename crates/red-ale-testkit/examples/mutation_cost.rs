@@ -12,9 +12,9 @@
 
 #![allow(clippy::expect_used, clippy::panic, clippy::cast_precision_loss)]
 
+use std::hint::black_box;
 use std::path::Path;
 use std::sync::Arc;
-use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use red_ale_core::ops::commit::{NewSplit, NewTransaction};
@@ -64,16 +64,38 @@ fn single_posts(path: &Path) {
 fn import(path: &Path) {
     let book = copy(path);
     let mut session = Session::open(&book.path_str(), false, Settings::default()).expect("the book opens");
-    let (from, to) = (account(session.book(), "Assets:Assets 0000"), account(session.book(), "Expenses:Expenses 0000"));
+    let (from, to) = (
+        account(session.book(), "Assets:Assets 0000"),
+        account(session.book(), "Expenses:Expenses 0000"),
+    );
     let (clone, clone_time) = timed(|| session.book().clone());
     println!("clone the Book          {clone_time:>9.2?}");
     let old = session.book();
-    let (_, hashed) = timed(|| black_box(black_box(&clone).transactions.values().filter(|t| old.transactions.get(&t.guid).is_none_or(|o| !Arc::ptr_eq(o, t))).count()));
+    let (_, hashed) = timed(|| {
+        black_box(
+            black_box(&clone)
+                .transactions
+                .values()
+                .filter(|t| old.transactions.get(&t.guid).is_none_or(|o| !Arc::ptr_eq(o, t)))
+                .count(),
+        )
+    });
     println!("find changes by GUID    {hashed:>9.2?}");
-    let (_, aligned) = timed(|| black_box(black_box(&clone).transactions.iter().zip(&old.transactions).filter(|((g, t), (h, o))| g != h || !Arc::ptr_eq(o, t)).count()));
+    let (_, aligned) = timed(|| {
+        black_box(
+            black_box(&clone)
+                .transactions
+                .iter()
+                .zip(&old.transactions)
+                .filter(|((g, t), (h, o))| g != h || !Arc::ptr_eq(o, t))
+                .count(),
+        )
+    });
     println!("find changes in order   {aligned:>9.2?}");
     drop(clone);
-    let mut empty: Vec<Duration> = (0..POSTS).map(|_| timed(|| session.mutate(|_, _| Ok(())).expect("changes nothing")).1).collect();
+    let mut empty: Vec<Duration> = (0..POSTS)
+        .map(|_| timed(|| session.mutate(|_, _| Ok(())).expect("changes nothing")).1)
+        .collect();
     empty.sort();
     println!("a Mutation changing nothing {:>9.2?}", empty[POSTS / 2]);
     let mut edits = Duration::ZERO;
@@ -88,19 +110,29 @@ fn import(path: &Path) {
     });
     println!("{IMPORT} in one Mutation  {one:>9.2?}  (of which the edits {edits:.2?})");
     let ((), many) = timed(|| (0..MANY).for_each(|i| session.mutate(|b, env| add(b, env, from, to, i)).expect("posts")));
-    println!("{MANY} Mutations of one   {many:>9.2?}  ({:.2?} each)", many / u32::try_from(MANY).unwrap_or(1));
+    println!(
+        "{MANY} Mutations of one   {many:>9.2?}  ({:.2?} each)",
+        many / u32::try_from(MANY).unwrap_or(1)
+    );
     session.close(false).expect("closes");
 }
 
 fn account(book: &Book, name: &str) -> Guid {
-    *book.accounts.keys().find(|g| book.full_name(**g).as_deref() == Some(name)).unwrap_or_else(|| panic!("no account {name}"))
+    *book
+        .accounts
+        .keys()
+        .find(|g| book.full_name(**g).as_deref() == Some(name))
+        .unwrap_or_else(|| panic!("no account {name}"))
 }
 
 fn add(book: &mut Book, env: &mut dyn Env, from: Guid, to: Guid, i: usize) -> DomainResult<()> {
     let cents = i64::try_from(i % 10_000).unwrap_or(0) + 1;
     let mut new = NewTransaction::new(CommodityRef::new("CURRENCY", "USD"), Date::from_ymd(2024, 6, 20).expect("a date"));
     new.description = Some(format!("Imported {i}"));
-    new.splits = vec![NewSplit::new(from, Numeric::new(-cents, 100)), NewSplit::new(to, Numeric::new(cents, 100))];
+    new.splits = vec![
+        NewSplit::new(from, Numeric::new(-cents, 100)),
+        NewSplit::new(to, Numeric::new(cents, 100)),
+    ];
     post(book, env, new).map(drop)
 }
 

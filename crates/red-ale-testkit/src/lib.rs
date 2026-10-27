@@ -115,16 +115,26 @@ fn walk(path: &str, expected: &Value, actual: &Value, ignore: &[&str], out: &mut
             let mut keys: Vec<&String> = a.keys().chain(b.keys()).collect();
             keys.sort();
             keys.dedup();
-            keys.into_iter().for_each(|k| walk(&join(k), a.get(k).unwrap_or(&Value::Null), b.get(k).unwrap_or(&Value::Null), ignore, out));
+            keys.into_iter().for_each(|k| {
+                walk(
+                    &join(k),
+                    a.get(k).unwrap_or(&Value::Null),
+                    b.get(k).unwrap_or(&Value::Null),
+                    ignore,
+                    out,
+                )
+            });
         }
         (Value::Array(a), Value::Array(b)) if a.len() == b.len() => {
-            a.iter().zip(b).enumerate().for_each(|(i, (x, y))| walk(&join(&i.to_string()), x, y, ignore, out));
+            a.iter()
+                .zip(b)
+                .enumerate()
+                .for_each(|(i, (x, y))| walk(&join(&i.to_string()), x, y, ignore, out));
         }
         (a, b) if a != b => out.push(format!("{path}: GnuCash {a} != red-ale {b}")),
         _ => {}
     }
 }
-
 
 /// The instant [`dispatcher`]'s clock reports: 2024-07-01 12:00:00 UTC.
 pub const TEST_NOW: red_ale_core::Time64 = red_ale_core::Time64(1_719_835_200);
@@ -165,7 +175,8 @@ pub fn create() -> (TempBook, red_ale_rpc::Dispatcher) {
 
 /// Call a method that must succeed.
 pub fn call(d: &mut red_ale_rpc::Dispatcher, method: &str, params: &Value) -> Value {
-    d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {}", e.data.clone().unwrap_or_default()))
+    d.call(method, params.clone())
+        .unwrap_or_else(|e| panic!("{method} {params}: {e} {}", e.data.clone().unwrap_or_default()))
 }
 
 /// Call a method that must fail; returns the error.

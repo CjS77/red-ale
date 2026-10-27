@@ -44,7 +44,15 @@ pub enum MapKind {
 
 impl MapKind {
     /// Every kind, in listing order.
-    pub const ALL: [Self; 7] = [Self::Bayes, Self::Desc, Self::Memo, Self::CsvAccountMap, Self::OnlineId, Self::Hbci, Self::OfxIncomeAccount];
+    pub const ALL: [Self; 7] = [
+        Self::Bayes,
+        Self::Desc,
+        Self::Memo,
+        Self::CsvAccountMap,
+        Self::OnlineId,
+        Self::Hbci,
+        Self::OfxIncomeAccount,
+    ];
 
     /// The name `design/api/import.md` gives it.
     pub fn as_str(self) -> &'static str {
@@ -109,11 +117,19 @@ pub struct ListFilter {
 
 /// Every entry the filter allows, by account full name, then kind, then key, bytewise.
 pub fn list(book: &Book, filter: ListFilter) -> Vec<MapEntry> {
-    let names: BTreeMap<Guid, String> = descendants_sorted(book, book.root).iter().map(|a| (a.guid, book.full_name(a.guid).unwrap_or_default())).collect();
+    let names: BTreeMap<Guid, String> = descendants_sorted(book, book.root)
+        .iter()
+        .map(|a| (a.guid, book.full_name(a.guid).unwrap_or_default()))
+        .collect();
     let mut entries: Vec<MapEntry> = names
         .keys()
         .filter(|g| filter.account.is_none_or(|a| a == **g))
-        .flat_map(|g| MapKind::ALL.into_iter().filter(|k| filter.kind.is_none_or(|f| f == *k)).flat_map(move |k| entries_of(book, *g, k)))
+        .flat_map(|g| {
+            MapKind::ALL
+                .into_iter()
+                .filter(|k| filter.kind.is_none_or(|f| f == *k))
+                .flat_map(move |k| entries_of(book, *g, k))
+        })
         .filter(|e| !filter.invalid_only || !e.valid)
         .collect();
     entries.sort_by(|a, b| (names.get(&a.account), a.kind, &a.key, &a.head).cmp(&(names.get(&b.account), b.kind, &b.key, &b.head)));
@@ -123,7 +139,10 @@ pub fn list(book: &Book, filter: ListFilter) -> Vec<MapEntry> {
 fn entries_of(book: &Book, account: Guid, kind: MapKind) -> Vec<MapEntry> {
     match kind {
         MapKind::Bayes => bayes_info(book, account).into_iter().map(|i| from_info(kind, i)).collect(),
-        MapKind::Desc | MapKind::Memo | MapKind::CsvAccountMap => plain_info(book, account, kind.category()).into_iter().map(|i| from_info(kind, i)).collect(),
+        MapKind::Desc | MapKind::Memo | MapKind::CsvAccountMap => plain_info(book, account, kind.category())
+            .into_iter()
+            .map(|i| from_info(kind, i))
+            .collect(),
         MapKind::OnlineId | MapKind::Hbci | MapKind::OfxIncomeAccount => online_entry(book, account, kind).into_iter().collect(),
     }
 }
@@ -144,9 +163,20 @@ fn from_info(kind: MapKind, info: ImapInfo) -> MapEntry {
 /// ID is invalid: the editor counts no other online entry (`:303-306`).
 fn online_entry(book: &Book, account: Guid, kind: MapKind) -> Option<MapEntry> {
     let slots = &book.account(account)?.slots;
-    let entry = |head: &str, key: String, target: Option<Guid>, valid: bool| MapEntry { account, kind, key, target, count: None, valid, head: head.to_owned() };
+    let entry = |head: &str, key: String, target: Option<Guid>, valid: bool| MapEntry {
+        account,
+        kind,
+        key,
+        target,
+        count: None,
+        valid,
+        head: head.to_owned(),
+    };
     match kind {
-        MapKind::OnlineId => slots.get_key(ONLINE_ID).and_then(SlotValue::as_str).map(|id| entry(ONLINE_ID, id.to_owned(), None, !id.is_empty())),
+        MapKind::OnlineId => slots
+            .get_key(ONLINE_ID)
+            .and_then(SlotValue::as_str)
+            .map(|id| entry(ONLINE_ID, id.to_owned(), None, !id.is_empty())),
         MapKind::Hbci => {
             let field = |k: &str| slots.get_in(&[HBCI, k]).and_then(SlotValue::as_str).map(str::to_owned);
             Some(entry(HBCI, format!("{},{}", field("bank-code")?, field("account-id")?), None, true))
@@ -193,17 +223,30 @@ pub fn delete(book: &mut Book, requests: &[DeleteRequest]) -> DomainResult<Vec<M
 /// Delete every invalid entry in the book: the editor's "Delete invalid mappings" (`gnc_imap_remove_invalid_maps`,
 /// `dialog-imap-editor.c:317-392`) over all three lists.
 pub fn delete_invalid(book: &mut Book) -> DomainResult<Vec<MapEntry>> {
-    let invalid = list(book, ListFilter { invalid_only: true, ..ListFilter::default() });
+    let invalid = list(
+        book,
+        ListFilter {
+            invalid_only: true,
+            ..ListFilter::default()
+        },
+    );
     invalid.iter().try_for_each(|e| delete_entry(book, e))?;
     Ok(invalid)
 }
 
 fn matching(book: &Book, r: &DeleteRequest) -> DomainResult<Vec<MapEntry>> {
-    let found: Vec<MapEntry> = list(book, ListFilter { account: Some(r.account), kind: Some(r.kind), invalid_only: false })
-        .into_iter()
-        .filter(|e| r.key.as_ref().is_none_or(|k| *k == e.key))
-        .filter(|e| r.target.is_none_or(|t| e.target == Some(t)))
-        .collect();
+    let found: Vec<MapEntry> = list(
+        book,
+        ListFilter {
+            account: Some(r.account),
+            kind: Some(r.kind),
+            invalid_only: false,
+        },
+    )
+    .into_iter()
+    .filter(|e| r.key.as_ref().is_none_or(|k| *k == e.key))
+    .filter(|e| r.target.is_none_or(|t| e.target == Some(t)))
+    .collect();
     if found.is_empty() {
         let what = format!("{} {} on {}", r.kind.as_str(), r.key.as_deref().unwrap_or("(all)"), r.account);
         return Err(DomainError::not_found("importMapEntry", &what));

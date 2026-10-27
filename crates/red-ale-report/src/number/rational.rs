@@ -45,7 +45,11 @@ impl SizeCap {
     /// `r` itself when both its parts fit, else [`NumberError::TooLarge`].
     pub fn check(self, r: Rational) -> Result<Rational, NumberError> {
         let bits = r.bits();
-        if bits > self.0 { Err(NumberError::TooLarge { bits, max: self.0 }) } else { Ok(r) }
+        if bits > self.0 {
+            Err(NumberError::TooLarge { bits, max: self.0 })
+        } else {
+            Ok(r)
+        }
     }
 }
 
@@ -307,7 +311,11 @@ impl Rational {
         let scaled = self.scaled_half_up(places);
         let sign = if scaled.is_negative() { "-" } else { "" };
         let (whole, frac) = split_decimal(&scaled.abs(), places);
-        if places == 0 { format!("{sign}{whole}") } else { format!("{sign}{whole}.{frac}") }
+        if places == 0 {
+            format!("{sign}{whole}")
+        } else {
+            format!("{sign}{whole}.{frac}")
+        }
     }
 
     /// Parse an integer (`-12`), a decimal (`12.34`, `.5`, `3.`) or a ratio (`1234/100`), with an optional sign and
@@ -375,7 +383,11 @@ impl FromStr for Rational {
 /// `num/denom`, or just `num` for a whole number.
 impl fmt::Display for Rational {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_integer() { write!(f, "{}", self.numer()) } else { write!(f, "{}/{}", self.numer(), self.denom()) }
+        if self.is_integer() {
+            write!(f, "{}", self.numer())
+        } else {
+            write!(f, "{}/{}", self.numer(), self.denom())
+        }
     }
 }
 
@@ -426,7 +438,11 @@ impl Serialize for Rational {
             num: String,
             denom: String,
         }
-        Wire { num: self.numer().to_string(), denom: self.denom().to_string() }.serialize(s)
+        Wire {
+            num: self.numer().to_string(),
+            denom: self.denom().to_string(),
+        }
+        .serialize(s)
     }
 }
 
@@ -523,13 +539,19 @@ mod tests {
         assert_eq!(r("3."), Rational::from_int(3));
         assert_eq!(r("-6/4"), Rational::new(-3, 2).unwrap());
         assert_eq!(r("123456789012345678901234567890").to_string(), "123456789012345678901234567890");
-        ["", ".", "1e5", "1,000", "1/0", "1/-2", "--1", "a/2", "1.2.3"].iter().for_each(|s| assert!(Rational::parse(s).is_err(), "{s}"));
+        ["", ".", "1e5", "1,000", "1/0", "1/-2", "--1", "a/2", "1.2.3"]
+            .iter()
+            .for_each(|s| assert!(Rational::parse(s).is_err(), "{s}"));
     }
 
     #[test]
     fn numerics_convert_exactly() {
         assert_eq!(Rational::from_numeric(Numeric::new(1234, 100)).unwrap(), r("12.34"));
-        assert_eq!(Rational::from_numeric(Numeric::new(3, -10)).unwrap(), Rational::from_int(30), "a negative denominator multiplies");
+        assert_eq!(
+            Rational::from_numeric(Numeric::new(3, -10)).unwrap(),
+            Rational::from_int(30),
+            "a negative denominator multiplies"
+        );
         assert!(Rational::from_numeric(Numeric::new(1, 0)).is_err());
         assert_eq!(r("12.34").to_numeric(), Some(Numeric::new(617, 50)));
         assert_eq!(r("123456789012345678901234567890").to_numeric(), None);
@@ -568,7 +590,9 @@ mod tests {
             ("-2.6", ["-3", "-2", "-2", "-3", "-3", "-3", "-3"]),
         ];
         let modes = MODES;
-        cases.iter().for_each(|(v, want)| modes.iter().zip(want).for_each(|(m, w)| assert_eq!(to(v, *m), *w, "{v} {m}")));
+        cases
+            .iter()
+            .for_each(|(v, want)| modes.iter().zip(want).for_each(|(m, w)| assert_eq!(to(v, *m), *w, "{v} {m}")));
         assert_eq!(r("0.125").round_to(100, Rounding::Bankers).unwrap(), r("0.12"));
         assert_eq!(r("0.135").round_to(100, Rounding::Bankers).unwrap(), r("0.14"));
         assert_eq!(r("1/3").round_to(100, Rounding::Bankers).unwrap(), r("0.33"));

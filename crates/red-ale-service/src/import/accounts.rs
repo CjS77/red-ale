@@ -20,16 +20,34 @@ pub struct AccountsParams {
 }
 
 /// Read the file and build the proposal. The file is UTF-8 unless it names another encoding.
-pub(super) fn propose(book: &Book, files: &[ImportFile], params: &AccountsParams, settings: ImportSettings) -> Result<Proposal, ServiceError> {
-    let [file] = files else { return Err(invalid(format!("csvAccounts takes exactly one file, not {}", files.len()))) };
+pub(super) fn propose(
+    book: &Book,
+    files: &[ImportFile],
+    params: &AccountsParams,
+    settings: ImportSettings,
+) -> Result<Proposal, ServiceError> {
+    let [file] = files else {
+        return Err(invalid(format!("csvAccounts takes exactly one file, not {}", files.len())));
+    };
     let text = decode(0, file, "utf-8")?;
     let read = accounts::read(&text, params.separator, params.header_rows, 0);
     if read.rows.is_empty() && read.errors.is_empty() {
         let message = "the file has no account rows".to_owned();
-        return Err(ServiceError::ImportFile { file: 0, line: None, reason: "columns", message });
+        return Err(ServiceError::ImportFile {
+            file: 0,
+            line: None,
+            reason: "columns",
+            message,
+        });
     }
     let (records, mut errors) = accounts::propose(book, &read.rows, 0);
     errors.extend(read.errors);
     errors.sort_by_key(|e| e.line);
-    Ok(Proposal { ignored_lines: read.ignored, errors, warnings: read.warnings, accounts: records, ..Proposal::empty(Format::CsvAccounts, settings, None) })
+    Ok(Proposal {
+        ignored_lines: read.ignored,
+        errors,
+        warnings: read.warnings,
+        accounts: records,
+        ..Proposal::empty(Format::CsvAccounts, settings, None)
+    })
 }

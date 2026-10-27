@@ -57,7 +57,13 @@ impl StringMatch {
             .then(|| RegexBuilder::new(text).case_insensitive(!match_case).build())
             .transpose()
             .map_err(|e| DomainError::invalid(format!("not a regular expression: {e}")))?;
-        Ok(Self { op, text: text.to_owned(), folded: fold(text), match_case, regex })
+        Ok(Self {
+            op,
+            text: text.to_owned(),
+            folded: fold(text),
+            match_case,
+            regex,
+        })
     }
 
     /// `string_match_predicate` (`5.17:libgnucash/engine/qofquerycore.cpp:126-191`); a missing string reads as "".
@@ -152,7 +158,10 @@ impl NumericMatch {
         }
         match self.compare {
             Compare::Equal | Compare::NotEqual => {
-                let close = n.abs().sub(self.amount.abs(), 100_000, How::round(Round::HalfUp)).is_ok_and(|d| d.abs().cmp_value(Numeric::new(1, 10_000)).is_lt());
+                let close = n
+                    .abs()
+                    .sub(self.amount.abs(), 100_000, How::round(Round::HalfUp))
+                    .is_ok_and(|d| d.abs().cmp_value(Numeric::new(1, 10_000)).is_lt());
                 close == (self.compare == Compare::Equal)
             }
             c => c.holds(n.abs().cmp_value(self.amount)),
@@ -256,7 +265,9 @@ pub fn share_price(s: &Split) -> Numeric {
     if s.amount.is_zero() {
         return Numeric::ZERO;
     }
-    s.value.div(s.amount, crate::DENOM_AUTO, How::round(Round::HalfUp)).unwrap_or(Numeric::ZERO)
+    s.value
+        .div(s.amount, crate::DENOM_AUTO, How::round(Round::HalfUp))
+        .unwrap_or(Numeric::ZERO)
 }
 
 impl Query {
@@ -269,7 +280,9 @@ impl Query {
             Self::Description(m) => m.matches(t.description.as_deref()),
             Self::Notes(m) => m.matches(t.notes()),
             Self::Memo(m) => m.matches(s.memo.as_deref()),
-            Self::DescriptionNotesOrMemo(m) => [t.description.as_deref(), t.notes(), s.memo.as_deref()].into_iter().any(|x| m.matches(x)),
+            Self::DescriptionNotesOrMemo(m) => [t.description.as_deref(), t.notes(), s.memo.as_deref()]
+                .into_iter()
+                .any(|x| m.matches(x)),
             Self::Num(m) => m.matches(t.num.as_deref()),
             Self::Action(m) => m.matches(s.action.as_deref()),
             Self::DatePosted(d) => d.matches(t.date_posted, zone),
@@ -295,7 +308,9 @@ impl Query {
         match self {
             Self::All(qs) | Self::Any(qs) => qs.iter().try_for_each(|q| q.check(book)),
             Self::Not(q) => q.check(book),
-            Self::Accounts { accounts, .. } if accounts.is_empty() => Err(DomainError::invalid("an account criterion needs at least one account")),
+            Self::Accounts { accounts, .. } if accounts.is_empty() => {
+                Err(DomainError::invalid("an account criterion needs at least one account"))
+            }
             Self::Accounts { accounts, .. } => match accounts.iter().find(|a| book.account(**a).is_none()) {
                 Some(a) => Err(DomainError::not_found("account", a)),
                 None => Ok(()),
@@ -321,13 +336,24 @@ pub fn find(book: &Book, query: &Query, limit: Option<usize>, zone: &TimeZone) -
     query.check(book)?;
     let hits = matching(book, query, zone);
     let skip = limit.map_or(0, |n| hits.len().saturating_sub(n));
-    Ok(hits.into_iter().skip(skip).map(|(t, s)| Found { transaction: t.guid, split: s.guid }).collect())
+    Ok(hits
+        .into_iter()
+        .skip(skip)
+        .map(|(t, s)| Found {
+            transaction: t.guid,
+            split: s.guid,
+        })
+        .collect())
 }
 
 /// Every split matching `query`, with its transaction, in `xaccSplitOrder`.
 fn matching<'a>(book: &'a Book, query: &Query, zone: &TimeZone) -> Vec<(&'a Transaction, &'a Split)> {
-    let mut hits: Vec<(&Transaction, &Split)> =
-        book.transactions.values().flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s))).filter(|(t, s)| query.matches(t, s, zone)).collect();
+    let mut hits: Vec<(&Transaction, &Split)> = book
+        .transactions
+        .values()
+        .flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s)))
+        .filter(|(t, s)| query.matches(t, s, zone))
+        .collect();
     let num_action = crate::book_options::uses_split_action_for_num(book);
     hits.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
     hits
@@ -375,8 +401,14 @@ impl PeriodQuery {
             (description, closing) => Query::Any(description.into_iter().chain(closing.then_some(Query::Closing(true))).collect()),
         };
         Ok(Query::All(vec![
-            Query::Reconcile { states: vec![ReconcileState::Voided], negate: true },
-            Query::Accounts { how: AccountMatch::Any, accounts: self.accounts.clone() },
+            Query::Reconcile {
+                states: vec![ReconcileState::Voided],
+                negate: true,
+            },
+            Query::Accounts {
+                how: AccountMatch::Any,
+                accounts: self.accounts.clone(),
+            },
             open(self.from),
             close(self.to),
             kind,
@@ -420,13 +452,20 @@ pub fn cross_commodity_splits<'a>(
     let commodity = commodity.map(canonical);
     let wanted = |t: &Transaction, s: &Split| {
         let txn = canonical(&t.currency);
-        let acc = s.account.and_then(|a| book.account(a)).and_then(|a| a.commodity.as_ref()).map(canonical);
+        let acc = s
+            .account
+            .and_then(|a| book.account(a))
+            .and_then(|a| a.commodity.as_ref())
+            .map(canonical);
         s.reconcile_state != ReconcileState::Voided
             && acc.as_ref() != Some(&txn)
             && commodity.as_ref().is_none_or(|c| *c == txn || acc.as_ref() == Some(c))
     };
-    let mut found: Vec<(&Transaction, &Split)> =
-        accounts.iter().flat_map(|a| account_splits_between(book, *a, None, until, false)).filter(|(t, s)| wanted(t, s)).collect();
+    let mut found: Vec<(&Transaction, &Split)> = accounts
+        .iter()
+        .flat_map(|a| account_splits_between(book, *a, None, until, false))
+        .filter(|(t, s)| wanted(t, s))
+        .collect();
     if sorted {
         let num_action = crate::book_options::uses_split_action_for_num(book);
         found.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
@@ -460,11 +499,23 @@ mod tests {
         let m = |compare, amount, sign| NumericMatch { compare, amount, sign };
         assert!(m(Compare::Equal, usd(1000), Sign::Any).matches(usd(-1000)));
         assert!(!m(Compare::Equal, usd(1000), Sign::Debit).matches(usd(-1000)));
-        assert!(m(Compare::Equal, usd(0), Sign::Credit).matches(usd(0)), "zero is both a debit and a credit");
-        assert!(m(Compare::Equal, Numeric::new(1_000_005, 100_000), Sign::Any).matches(usd(1000)), "within 1/10000");
-        assert!(!m(Compare::Equal, Numeric::new(100_001, 10_000), Sign::Any).matches(usd(1000)), "1/10000 apart is not equal");
+        assert!(
+            m(Compare::Equal, usd(0), Sign::Credit).matches(usd(0)),
+            "zero is both a debit and a credit"
+        );
+        assert!(
+            m(Compare::Equal, Numeric::new(1_000_005, 100_000), Sign::Any).matches(usd(1000)),
+            "within 1/10000"
+        );
+        assert!(
+            !m(Compare::Equal, Numeric::new(100_001, 10_000), Sign::Any).matches(usd(1000)),
+            "1/10000 apart is not equal"
+        );
         assert!(m(Compare::Greater, usd(500), Sign::Any).matches(usd(-1000)));
-        assert!(!m(Compare::Less, usd(-500), Sign::Any).matches(usd(-100)), "the magnitude is compared with the amount as entered");
+        assert!(
+            !m(Compare::Less, usd(-500), Sign::Any).matches(usd(-100)),
+            "the magnitude is compared with the amount as entered"
+        );
     }
 
     #[test]
@@ -495,14 +546,36 @@ mod tests {
         let b = simple(&mut f, 200);
         let lunch = Query::Memo(text(StringOp::Contains, "lunch"));
         let found = find(&f.book, &lunch, None, &TimeZone::utc()).unwrap();
-        assert_eq!(found.iter().map(|x| x.transaction).collect::<Vec<_>>(), [a, b], "same date and num: date entered, then GUID");
-        let q = Query::All(vec![lunch.clone(), Query::Value(NumericMatch { compare: Compare::Greater, amount: usd(150), sign: Sign::Any })]);
+        assert_eq!(
+            found.iter().map(|x| x.transaction).collect::<Vec<_>>(),
+            [a, b],
+            "same date and num: date entered, then GUID"
+        );
+        let q = Query::All(vec![
+            lunch.clone(),
+            Query::Value(NumericMatch {
+                compare: Compare::Greater,
+                amount: usd(150),
+                sign: Sign::Any,
+            }),
+        ]);
         assert_eq!(find(&f.book, &q, None, &TimeZone::utc()).unwrap().len(), 1);
-        let all = Query::Accounts { how: AccountMatch::All, accounts: vec![f.bank, f.food] };
+        let all = Query::Accounts {
+            how: AccountMatch::All,
+            accounts: vec![f.bank, f.food],
+        };
         assert_eq!(find(&f.book, &all, None, &TimeZone::utc()).unwrap().len(), 4);
         assert_eq!(find(&f.book, &all, Some(1), &TimeZone::utc()).unwrap().len(), 1);
-        assert_eq!(find(&f.book, &Query::Not(Box::new(Query::All(vec![]))), None, &TimeZone::utc()).unwrap().len(), 0);
-        let none = Query::Accounts { how: AccountMatch::Any, accounts: vec![] };
+        assert_eq!(
+            find(&f.book, &Query::Not(Box::new(Query::All(vec![]))), None, &TimeZone::utc())
+                .unwrap()
+                .len(),
+            0
+        );
+        let none = Query::Accounts {
+            how: AccountMatch::Any,
+            accounts: vec![],
+        };
         assert!(find(&f.book, &none, None, &TimeZone::utc()).is_err());
     }
 
@@ -522,25 +595,84 @@ mod tests {
         let lunch = posted(&mut f, 2, "lunch", 200);
         let dinner = posted(&mut f, 3, "Dinner", 300);
         let closing = crate::SlotValue::Integer(1);
-        Arc::make_mut(f.book.transactions.get_mut(&dinner).unwrap()).slots.set(crate::transaction::slot_paths::BOOK_CLOSING, closing);
+        Arc::make_mut(f.book.transactions.get_mut(&dinner).unwrap())
+            .slots
+            .set(crate::transaction::slot_paths::BOOK_CLOSING, closing);
         let voided = posted(&mut f, 2, "voided", 400);
         let void = Arc::make_mut(f.book.transactions.get_mut(&voided).unwrap());
         void.splits.iter_mut().for_each(|s| s.reconcile_state = ReconcileState::Voided);
         let day = |d| Date::from_ymd(2024, 6, d).unwrap().neutral_time();
         let found = |q: &PeriodQuery| period_splits(&f.book, q).unwrap().iter().map(|(t, _)| t.guid).collect::<Vec<_>>();
-        let food = PeriodQuery { accounts: vec![f.food], ..PeriodQuery::default() };
+        let food = PeriodQuery {
+            accounts: vec![f.food],
+            ..PeriodQuery::default()
+        };
         assert_eq!(found(&food), [closing_entries, lunch, dinner], "the void split is left out");
-        let inclusive = PeriodQuery { from: Some(day(2)), to: Some(day(3)), ..food.clone() };
+        let inclusive = PeriodQuery {
+            from: Some(day(2)),
+            to: Some(day(3)),
+            ..food.clone()
+        };
         assert_eq!(found(&inclusive), [lunch, dinner], "both ends inclusive, to the second");
-        assert_eq!(found(&PeriodQuery { to: Some(Time64(day(3).0 - 1)), ..food.clone() }), [closing_entries, lunch]);
-        let pattern = |text: &str, cased, regexp| Some(DescriptionPattern { text: text.into(), cased, regexp });
-        assert_eq!(found(&PeriodQuery { description: pattern("closing", false, false), ..food.clone() }), [closing_entries]);
-        assert!(found(&PeriodQuery { description: pattern("closing", true, false), ..food.clone() }).is_empty());
-        assert_eq!(found(&PeriodQuery { description: pattern("closing", true, false), closing: true, ..food.clone() }), [dinner], "OR'ed");
-        assert_eq!(found(&PeriodQuery { description: pattern("^(l|d)", false, true), ..food.clone() }), [lunch, dinner]);
-        let empty = PeriodQuery { description: pattern("", true, false), ..food.clone() };
+        assert_eq!(
+            found(&PeriodQuery {
+                to: Some(Time64(day(3).0 - 1)),
+                ..food.clone()
+            }),
+            [closing_entries, lunch]
+        );
+        let pattern = |text: &str, cased, regexp| {
+            Some(DescriptionPattern {
+                text: text.into(),
+                cased,
+                regexp,
+            })
+        };
+        assert_eq!(
+            found(&PeriodQuery {
+                description: pattern("closing", false, false),
+                ..food.clone()
+            }),
+            [closing_entries]
+        );
+        assert!(
+            found(&PeriodQuery {
+                description: pattern("closing", true, false),
+                ..food.clone()
+            })
+            .is_empty()
+        );
+        assert_eq!(
+            found(&PeriodQuery {
+                description: pattern("closing", true, false),
+                closing: true,
+                ..food.clone()
+            }),
+            [dinner],
+            "OR'ed"
+        );
+        assert_eq!(
+            found(&PeriodQuery {
+                description: pattern("^(l|d)", false, true),
+                ..food.clone()
+            }),
+            [lunch, dinner]
+        );
+        let empty = PeriodQuery {
+            description: pattern("", true, false),
+            ..food.clone()
+        };
         assert_eq!(found(&empty), [closing_entries, lunch, dinner], "empty matches all");
-        assert!(period_splits(&f.book, &PeriodQuery { description: pattern("(", false, true), ..food.clone() }).is_err());
+        assert!(
+            period_splits(
+                &f.book,
+                &PeriodQuery {
+                    description: pattern("(", false, true),
+                    ..food.clone()
+                }
+            )
+            .is_err()
+        );
         assert!(found(&PeriodQuery::default()).is_empty());
     }
 
@@ -549,7 +681,10 @@ mod tests {
         use crate::ops::commit::{NewSplit, NewTransaction};
         let mut f = fixture();
         let mut new = NewTransaction::new(CommodityRef::currency("USD"), Date::from_ymd(2024, 6, 2).unwrap());
-        new.splits = vec![NewSplit::new(f.bank, usd(-1000)), NewSplit::new(f.eur, usd(1000)).with_amount(Numeric::new(900, 100))];
+        new.splits = vec![
+            NewSplit::new(f.bank, usd(-1000)),
+            NewSplit::new(f.eur, usd(1000)).with_amount(Numeric::new(900, 100)),
+        ];
         let usd_eur = super::super::post(&mut f.book, &mut f.env, new).unwrap();
         let mut new = NewTransaction::new(CommodityRef::currency("GBP"), Date::from_ymd(2024, 6, 1).unwrap());
         new.splits = vec![
@@ -564,10 +699,21 @@ mod tests {
             let found = cross_commodity_splits(&f.book, &accounts, until, c.as_ref(), sorted);
             found.iter().map(|(t, s)| (t.guid, s.account.unwrap())).collect::<Vec<_>>()
         };
-        assert_eq!(found(None, None, false), [(usd_eur, f.eur), (gbp_usd, f.bank)], "account after account");
+        assert_eq!(
+            found(None, None, false),
+            [(usd_eur, f.eur), (gbp_usd, f.bank)],
+            "account after account"
+        );
         assert_eq!(found(None, None, true), [(gbp_usd, f.bank), (usd_eur, f.eur)], "split order");
         assert_eq!(found(None, Some("EUR"), false), [(usd_eur, f.eur)]);
-        assert_eq!(found(None, Some("GBP"), false), [(gbp_usd, f.bank)], "the transaction currency counts too");
-        assert_eq!(found(Some(Date::from_ymd(2024, 6, 1).unwrap().neutral_time()), None, false), [(gbp_usd, f.bank)]);
+        assert_eq!(
+            found(None, Some("GBP"), false),
+            [(gbp_usd, f.bank)],
+            "the transaction currency counts too"
+        );
+        assert_eq!(
+            found(Some(Date::from_ymd(2024, 6, 1).unwrap().neutral_time()), None, false),
+            [(gbp_usd, f.bank)]
+        );
     }
 }

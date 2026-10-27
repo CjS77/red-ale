@@ -43,12 +43,16 @@ static DATE: Pattern =
 
 /// `decimal-radix-regexp`: for example 1000.00, 1,500.00 or 2'000.00. `qif-parse.scm:397-400`.
 static DECIMAL_RADIX: Pattern = LazyLock::new(|| {
-    compile(r"^ *[$]?[+-]?[$]?[0-9]+[+-]?$|^ *[$]?[+-]?[$]?[0-9]?[0-9]?[0-9]?([,'][0-9][0-9][0-9])*(\.[0-9]*)?[+-]? *$|^ *[$]?[+-]?[$]?[0-9]+\.[0-9]*[+-]? *$")
+    compile(
+        r"^ *[$]?[+-]?[$]?[0-9]+[+-]?$|^ *[$]?[+-]?[$]?[0-9]?[0-9]?[0-9]?([,'][0-9][0-9][0-9])*(\.[0-9]*)?[+-]? *$|^ *[$]?[+-]?[$]?[0-9]+\.[0-9]*[+-]? *$",
+    )
 });
 
 /// `comma-radix-regexp`: for example 5.000,00 or 4'500,00. `qif-parse.scm:402-405`.
 static COMMA_RADIX: Pattern = LazyLock::new(|| {
-    compile(r"^ *[$]?[+-]?[$]?[0-9]+[+-]?$|^ *[$]?[+-]?[$]?[0-9]?[0-9]?[0-9]?([.'][0-9][0-9][0-9])*(,[0-9]*)?[+-]? *$|^ *[$]?[+-]?[$]?[0-9]+,[0-9]*[+-]? *$")
+    compile(
+        r"^ *[$]?[+-]?[$]?[0-9]+[+-]?$|^ *[$]?[+-]?[$]?[0-9]?[0-9]?[0-9]?([.'][0-9][0-9][0-9])*(,[0-9]*)?[+-]? *$|^ *[$]?[+-]?[$]?[0-9]+,[0-9]*[+-]? *$",
+    )
 });
 
 /// `rational-regexp`: for example 1/2, 32/15 or 4. `qif-parse.scm:407-410`.
@@ -84,7 +88,10 @@ pub struct CategoryParseError(pub String);
 /// is a category or `[account]`, field2 its class, field3 a miscx category or `[miscx-account]` and field4 its class.
 /// `qif-parse.scm:75-108`.
 pub fn parse_category(value: &str) -> Result<CategoryInfo, CategoryParseError> {
-    let caps = CATEGORY.as_ref().and_then(|re| re.captures(value)).ok_or_else(|| CategoryParseError(value.to_owned()))?;
+    let caps = CATEGORY
+        .as_ref()
+        .and_then(|re| re.captures(value))
+        .ok_or_else(|| CategoryParseError(value.to_owned()))?;
     let group = |i: usize| caps.get(i).map(|m| m.as_str().to_owned());
     let has = |i: usize| caps.get(i).is_some();
     Ok(CategoryInfo {
@@ -101,7 +108,11 @@ pub fn parse_category(value: &str) -> Result<CategoryInfo, CategoryParseError> {
 /// an optional sign and digits. Anything else (another kind of datum, or nothing) is `None`. Integers beyond 64 bits,
 /// which Scheme keeps exactly, saturate; the years and days GnuCash compares them with are far smaller.
 pub fn read_integer(s: &str) -> Option<i64> {
-    let token: String = s.trim_start().chars().take_while(|c| !c.is_whitespace() && !"()\";".contains(*c)).collect();
+    let token: String = s
+        .trim_start()
+        .chars()
+        .take_while(|c| !c.is_whitespace() && !"()\";".contains(*c))
+        .collect();
     let (negative, digits) = match token.strip_prefix('-') {
         Some(rest) => (true, rest),
         None => (false, token.strip_prefix('+').unwrap_or(&token)),
@@ -109,7 +120,9 @@ pub fn read_integer(s: &str) -> Option<i64> {
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    let magnitude = digits.bytes().fold(0_i64, |acc, b| acc.saturating_mul(10).saturating_add(i64::from(b - b'0')));
+    let magnitude = digits
+        .bytes()
+        .fold(0_i64, |acc, b| acc.saturating_mul(10).saturating_add(i64::from(b - b'0')));
     Some(if negative { -magnitude } else { magnitude })
 }
 
@@ -222,7 +235,10 @@ impl QifSection {
 
     /// Whether the section is a transaction list. `qif-file.scm:201-202`, `:261-262`.
     pub fn is_transactions(&self) -> bool {
-        matches!(self, Self::Bank | Self::Cash | Self::Ccard | Self::Invst | Self::Port | Self::OthA | Self::OthL | Self::OthS)
+        matches!(
+            self,
+            Self::Bank | Self::Cash | Self::Ccard | Self::Invst | Self::Port | Self::OthA | Self::OthL | Self::OthS
+        )
     }
 
     /// Whether the section is an investment transaction list, where `N` is the action. `qif-file.scm:297-301`.
@@ -325,7 +341,10 @@ const ACTION_MAP: [(Action, &[&str]); 34] = [
 impl Action {
     /// GnuCash's symbol for the action; `None` for [`Action::Unrecognized`].
     pub fn symbol(self) -> Option<&'static str> {
-        ACTION_MAP.iter().find(|(a, _)| *a == self).and_then(|(_, names)| names.first().copied())
+        ACTION_MAP
+            .iter()
+            .find(|(a, _)| *a == self)
+            .and_then(|(_, names)| names.first().copied())
     }
 }
 
@@ -365,7 +384,9 @@ pub fn parse_cleared_field(read_value: &str, errorproc: impl FnOnce(String)) -> 
         '*' | 'C' | 'c' => Cleared::Cleared,
         '?' | '!' => Cleared::Budgeted,
         _ => {
-            errorproc(format!("The unknown reconciliation status '{read_value}' will be replaced by 'uncleared'."));
+            errorproc(format!(
+                "The unknown reconciliation status '{read_value}' will be replaced by 'uncleared'."
+            ));
             Cleared::Unrecognized
         }
     })
@@ -433,7 +454,11 @@ fn date_parts(date_string: &str, format: Option<DateFormat>) -> Option<[String; 
 /// An eight-digit date split at two positions: `qif-date-mdy-compiled-rexp` (2, 4) and `qif-date-ymd-compiled-rexp`
 /// (4, 6). `qif-parse.scm:308-314`.
 fn split_digits(digits: &str, first: usize, second: usize) -> Option<[String; 3]> {
-    Some([digits.get(..first)?.to_owned(), digits.get(first..second)?.to_owned(), digits.get(second..)?.to_owned()])
+    Some([
+        digits.get(..first)?.to_owned(),
+        digits.get(first..second)?.to_owned(),
+        digits.get(second..)?.to_owned(),
+    ])
 }
 
 /// `parse-check-date-format`: the formats of `possible` the three parts of a date could be in. A four-digit year must
@@ -472,7 +497,9 @@ pub fn check_date_format(date_string: &str, possible: &[DateFormat]) -> Option<V
     }
     let wants = |formats: [DateFormat; 2]| formats.iter().any(|f| possible.contains(f));
     let try_split = |format: DateFormat| {
-        date_parts(date_string, Some(format)).map(|parts| parse_check_date_format(&parts, possible)).unwrap_or_default()
+        date_parts(date_string, Some(format))
+            .map(|parts| parse_check_date_format(&parts, possible))
+            .unwrap_or_default()
     };
     let mut formats = Vec::new();
     if wants([DateFormat::Ydm, DateFormat::Ymd]) {
@@ -493,7 +520,11 @@ pub fn parse_date_format(date_string: &str, format: DateFormat) -> Option<QifDat
         let day = n[dd].filter(|d| (1..=31).contains(d))?;
         let month = n[mm].filter(|m| (1..=12).contains(m))?;
         let year = fix_year(&parts[yy], 50)?;
-        Some(QifDate { day: u32::try_from(day).ok()?, month: u32::try_from(month).ok()?, year })
+        Some(QifDate {
+            day: u32::try_from(day).ok()?,
+            month: u32::try_from(month).ok()?,
+            year,
+        })
     };
     match format {
         DateFormat::Dmy => refs(0, 1, 2),
@@ -609,7 +640,11 @@ fn exact_decimal(mantissa: &str, exponent: Option<&str>) -> Syntax {
     let ratio = || {
         let value = parse_digits(&digits)?;
         let power = 10_i128.checked_pow(u32::try_from(scale.unsigned_abs()).ok()?)?;
-        if scale >= 0 { Some((value, power)) } else { Some((value.checked_mul(power)?, 1)) }
+        if scale >= 0 {
+            Some((value, power))
+        } else {
+            Some((value.checked_mul(power)?, 1))
+        }
     };
     ratio().map_or(Syntax::Overflow, |(n, d)| Syntax::Ratio(n, d))
 }
@@ -625,7 +660,9 @@ fn read_exponent(e: &str) -> Option<i64> {
 
 /// Digits as a 128-bit integer; `None` on overflow.
 fn parse_digits(digits: &str) -> Option<i128> {
-    digits.bytes().try_fold(0_i128, |acc, b| acc.checked_mul(10)?.checked_add(i128::from(b - b'0')))
+    digits
+        .bytes()
+        .try_fold(0_i128, |acc, b| acc.checked_mul(10)?.checked_add(i128::from(b - b'0')))
 }
 
 fn gcd(a: i128, b: i128) -> i128 {
@@ -671,12 +708,18 @@ pub fn number_is_readable(value_string: &str, format: NumberFormat) -> bool {
 
 /// `qif-parse:check-number-formats`: the formats every present amount could be in. `qif-parse.scm:452-463`.
 pub fn check_number_formats(amt_strings: &[Option<&str>], formats: &[NumberFormat]) -> Vec<NumberFormat> {
-    amt_strings.iter().flatten().fold(formats.to_vec(), |formats, amt| check_number_format(amt, &formats))
+    amt_strings
+        .iter()
+        .flatten()
+        .fold(formats.to_vec(), |formats, amt| check_number_format(amt, &formats))
 }
 
 /// `qif-parse:parse-numbers/format`: each amount parsed in `format`, a missing one as zero. `qif-parse.scm:465-471`.
 pub fn parse_numbers_format(amt_strings: &[Option<&str>], format: NumberFormat) -> Result<Vec<Numeric>, NumberOverflow> {
-    amt_strings.iter().map(|amt| amt.map_or(Ok(Numeric::ZERO), |a| parse_number_format(a, format))).collect()
+    amt_strings
+        .iter()
+        .map(|amt| amt.map_or(Ok(Numeric::ZERO), |a| parse_number_format(a, format)))
+        .collect()
 }
 
 #[cfg(test)]
@@ -692,7 +735,9 @@ mod tests {
 
     #[test]
     fn every_pattern_compiles() {
-        [&CATEGORY, &DATE, &DECIMAL_RADIX, &COMMA_RADIX, &RATIONAL, &INTEGER].iter().for_each(|p| assert!(p.is_some()));
+        [&CATEGORY, &DATE, &DECIMAL_RADIX, &COMMA_RADIX, &RATIONAL, &INTEGER]
+            .iter()
+            .for_each(|p| assert!(p.is_some()));
     }
 
     #[test]
@@ -773,14 +818,56 @@ mod tests {
     #[test]
     fn parse_date_format() {
         // test-qif-parse.scm:180-188
-        assert_eq!(super::parse_date_format("31/01/81", Dmy), Some(QifDate { day: 31, month: 1, year: 1981 }));
+        assert_eq!(
+            super::parse_date_format("31/01/81", Dmy),
+            Some(QifDate {
+                day: 31,
+                month: 1,
+                year: 1981
+            })
+        );
         assert_eq!(super::parse_date_format("31/01/81", Mdy), None);
         // Hand-worked from qif-parse.scm:343-390 and fix-year.
-        assert_eq!(super::parse_date_format("1/ 2' 4", Mdy), Some(QifDate { day: 2, month: 1, year: 2004 }));
-        assert_eq!(super::parse_date_format("03/25/099Share Withdrawal", Mdy), Some(QifDate { day: 25, month: 3, year: 1999 }));
-        assert_eq!(super::parse_date_format("19790303", Ydm), Some(QifDate { day: 3, month: 3, year: 1979 }));
-        assert_eq!(super::parse_date_format("03121984", Mdy), Some(QifDate { day: 12, month: 3, year: 1984 }));
-        assert_eq!(super::parse_date_format("2/31/2001", Mdy), Some(QifDate { day: 31, month: 2, year: 2001 }));
+        assert_eq!(
+            super::parse_date_format("1/ 2' 4", Mdy),
+            Some(QifDate {
+                day: 2,
+                month: 1,
+                year: 2004
+            })
+        );
+        assert_eq!(
+            super::parse_date_format("03/25/099Share Withdrawal", Mdy),
+            Some(QifDate {
+                day: 25,
+                month: 3,
+                year: 1999
+            })
+        );
+        assert_eq!(
+            super::parse_date_format("19790303", Ydm),
+            Some(QifDate {
+                day: 3,
+                month: 3,
+                year: 1979
+            })
+        );
+        assert_eq!(
+            super::parse_date_format("03121984", Mdy),
+            Some(QifDate {
+                day: 12,
+                month: 3,
+                year: 1984
+            })
+        );
+        assert_eq!(
+            super::parse_date_format("2/31/2001", Mdy),
+            Some(QifDate {
+                day: 31,
+                month: 2,
+                year: 2001
+            })
+        );
         assert_eq!(super::parse_date_format("nonsense", Mdy), None);
     }
 
@@ -793,7 +880,10 @@ mod tests {
         assert_eq!(super::check_number_format("999.20", &all), vec![Decimal]);
         assert_eq!(super::check_number_format("9.200,99", &all), vec![Comma]);
         assert_eq!(super::check_number_format("$1000", &all), vec![Comma, Integer, Decimal]);
-        assert_eq!(super::check_number_format("7/4", &[Decimal, Comma, NumberFormat::Rational]), vec![NumberFormat::Rational]);
+        assert_eq!(
+            super::check_number_format("7/4", &[Decimal, Comma, NumberFormat::Rational]),
+            vec![NumberFormat::Rational]
+        );
     }
 
     #[test]
@@ -821,7 +911,10 @@ mod tests {
         assert_eq!(super::parse_number_format("1.000.000,5", Comma), Ok(n(2_000_001, 2)));
         assert_eq!(super::parse_number_format("1/0", NumberFormat::Rational), Ok(Numeric::ZERO));
         assert!(super::parse_number_format("99999999999999999999", Decimal).is_err());
-        assert_eq!(super::parse_number_format("1.0000000000000000000000000000000000000000", Decimal), Ok(n(1, 1)));
+        assert_eq!(
+            super::parse_number_format("1.0000000000000000000000000000000000000000", Decimal),
+            Ok(n(1, 1))
+        );
         assert_eq!(exact_number("1e5"), Ok(Some(n(100_000, 1))));
         assert_eq!(exact_number("2.5E-3"), Ok(Some(n(1, 400))));
         assert_eq!(exact_number("e5"), Ok(None));
@@ -834,10 +927,16 @@ mod tests {
     fn check_number_formats() {
         // test-qif-parse.scm:243-262
         let all = [Decimal, Comma, Integer];
-        assert_eq!(super::check_number_formats(&[Some("1,00"), Some("2,00"), Some("300,00")], &all), vec![Comma]);
+        assert_eq!(
+            super::check_number_formats(&[Some("1,00"), Some("2,00"), Some("300,00")], &all),
+            vec![Comma]
+        );
         assert_eq!(super::check_number_formats(&[Some("10.50"), Some("20.54")], &all), vec![Decimal]);
         assert_eq!(super::check_number_formats(&[Some("123,45"), None], &all), vec![Comma]);
-        assert_eq!(super::check_number_formats(&[Some("1234"), Some("4567")], &all), vec![Decimal, Comma, Integer]);
+        assert_eq!(
+            super::check_number_formats(&[Some("1234"), Some("4567")], &all),
+            vec![Decimal, Comma, Integer]
+        );
     }
 
     #[test]
@@ -875,14 +974,26 @@ mod tests {
         assert_eq!(parse("Category/Class"), category("Category", false, "Class", None));
         assert_eq!(parse("Category"), category("Category", false, "", None));
         assert_eq!(parse("[Transfer]"), category("Transfer", true, "", None));
-        assert_eq!(parse("Category/|miscx-category"), category("Category", false, "", Some(("miscx-category", false, ""))));
-        assert_eq!(parse("Category/Class|miscx-category"), category("Category", false, "Class", Some(("miscx-category", false, ""))));
-        assert_eq!(parse("[Transfer]/Class|miscx-category"), category("Transfer", true, "Class", Some(("miscx-category", false, ""))));
+        assert_eq!(
+            parse("Category/|miscx-category"),
+            category("Category", false, "", Some(("miscx-category", false, "")))
+        );
+        assert_eq!(
+            parse("Category/Class|miscx-category"),
+            category("Category", false, "Class", Some(("miscx-category", false, "")))
+        );
+        assert_eq!(
+            parse("[Transfer]/Class|miscx-category"),
+            category("Transfer", true, "Class", Some(("miscx-category", false, "")))
+        );
         assert_eq!(
             parse("[Transfer]/Class|miscx-category/miscx-class"),
             category("Transfer", true, "Class", Some(("miscx-category", false, "miscx-class")))
         );
-        assert_eq!(parse("Category/|[miscx-account]"), category("Category", false, "", Some(("miscx-account", true, ""))));
+        assert_eq!(
+            parse("Category/|[miscx-account]"),
+            category("Category", false, "", Some(("miscx-account", true, "")))
+        );
         assert_eq!(
             parse("Category/|miscx-category/miscx-class"),
             category("Category", false, "", Some(("miscx-category", false, "miscx-class")))
@@ -898,7 +1009,10 @@ mod tests {
         // qif-parse.scm:89-92: only the opening bracket makes an account; text after `]` is the class.
         assert_eq!(super::parse_category("[Checking").unwrap(), category("Checking", true, "", None));
         assert_eq!(super::parse_category("Food]x").unwrap(), category("Food", false, "x", None));
-        assert_eq!(super::parse_category("Food:Groceries ").unwrap(), category("Food:Groceries ", false, "", None));
+        assert_eq!(
+            super::parse_category("Food:Groceries ").unwrap(),
+            category("Food:Groceries ", false, "", None)
+        );
     }
 
     #[test]
@@ -907,11 +1021,16 @@ mod tests {
         assert_eq!(super::parse_bang_field("Type:Bank  "), "type:bank");
         assert_eq!(super::parse_bang_field("type bank"), "type:bank");
         assert_eq!(super::parse_bang_field("Type:Oth A"), "type:oth a");
-        assert_eq!(QifSection::from_symbol(&super::parse_bang_field("Option:AutoSwitch")), QifSection::OptionAutoSwitch);
+        assert_eq!(
+            QifSection::from_symbol(&super::parse_bang_field("Option:AutoSwitch")),
+            QifSection::OptionAutoSwitch
+        );
     }
 
     #[test]
     fn date_format_symbols_round_trip() {
-        DATE_FORMATS.iter().for_each(|f| assert_eq!(DateFormat::from_symbol(f.symbol()), Some(*f)));
+        DATE_FORMATS
+            .iter()
+            .for_each(|f| assert_eq!(DateFormat::from_symbol(f.symbol()), Some(*f)));
     }
 }

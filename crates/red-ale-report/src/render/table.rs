@@ -13,7 +13,11 @@ use crate::result::{Align, Cell, CellContent, Column, ColumnRole, Row, RowRole, 
 const MAX_WIDTH: usize = 64;
 
 pub(super) fn table(t: &Table, look: &Look) -> String {
-    let widths: Vec<usize> = t.columns.iter().map(|c| usize::try_from(c.levels.unwrap_or(1)).unwrap_or(1).clamp(1, MAX_WIDTH)).collect();
+    let widths: Vec<usize> = t
+        .columns
+        .iter()
+        .map(|c| usize::try_from(c.levels.unwrap_or(1)).unwrap_or(1).clamp(1, MAX_WIDTH))
+        .collect();
     let total: usize = widths.iter().sum::<usize>().max(1);
     let caption = t.title.as_ref().map(|title| format!("<caption>{}</caption>", escape(title)));
     let head = t.columns.iter().any(|c| !c.label.is_empty()).then(|| head(&t.columns, &widths));
@@ -31,7 +35,8 @@ pub(super) fn table(t: &Table, look: &Look) -> String {
 }
 
 fn align_of(c: &Column) -> Align {
-    c.align.unwrap_or(if c.role == ColumnRole::Amount { Align::Right } else { Align::Left })
+    c.align
+        .unwrap_or(if c.role == ColumnRole::Amount { Align::Right } else { Align::Left })
 }
 
 fn align_name(a: Align) -> &'static str {
@@ -50,7 +55,14 @@ fn head(columns: &[Column], widths: &[usize]) -> String {
     let cells: Vec<String> = columns
         .iter()
         .zip(widths)
-        .map(|(c, w)| format!("<th class=\"column-heading-{}\"{}>{}</th>", align_name(align_of(c)), colspan(*w), escape_lines(&c.label)))
+        .map(|(c, w)| {
+            format!(
+                "<th class=\"column-heading-{}\"{}>{}</th>",
+                align_name(align_of(c)),
+                colspan(*w),
+                escape_lines(&c.label)
+            )
+        })
         .collect();
     format!("<thead>\n<tr>{}</tr>\n</thead>", cells.concat())
 }
@@ -87,7 +99,11 @@ fn is_total(r: RowRole) -> bool {
 
 fn row(t: &Table, row: &Row, widths: &[usize], total: usize, alternate: bool, look: &Look) -> String {
     let style = row_style(row.role, alternate).map(|s| format!(" {s}")).unwrap_or_default();
-    let account = row.account.filter(|_| look.links).map(|a| format!(" data-account=\"{}\"", a.0)).unwrap_or_default();
+    let account = row
+        .account
+        .filter(|_| look.links)
+        .map(|a| format!(" data-account=\"{}\"", a.0))
+        .unwrap_or_default();
     let open = format!("<tr class=\"role-{}{style}\"{account}>", role_name(row.role));
     let cells = match row.role {
         RowRole::Rule => format!("<td{}><hr></td>", colspan(total)),
@@ -103,7 +119,9 @@ fn cells(t: &Table, row: &Row, widths: &[usize], look: &Look) -> String {
         .iter()
         .scan(0_usize, |next, cell| {
             let start = *next;
-            let span = cell.as_ref().map_or(1, |c| usize::try_from(c.columns()).unwrap_or(1).clamp(1, MAX_WIDTH));
+            let span = cell
+                .as_ref()
+                .map_or(1, |c| usize::try_from(c.columns()).unwrap_or(1).clamp(1, MAX_WIDTH));
             *next += span;
             Some((start, span, cell))
         })
@@ -116,7 +134,12 @@ fn cells(t: &Table, row: &Row, widths: &[usize], look: &Look) -> String {
             if span == 1 && levels > 1 {
                 let level = usize::try_from(row.level.unwrap_or(0)).unwrap_or(0).min(levels - 1);
                 let before = levels - 1 - level;
-                format!("{}{}{}", "<td></td>".repeat(before), td(cell, column, row, look, 1), "<td></td>".repeat(level))
+                format!(
+                    "{}{}{}",
+                    "<td></td>".repeat(before),
+                    td(cell, column, row, look, 1),
+                    "<td></td>".repeat(level)
+                )
             } else {
                 td(cell, column, row, look, (start..start + span).map(width).sum())
             }
@@ -153,9 +176,17 @@ fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize)
         }),
     ];
     let class = classes.into_iter().flatten().collect::<Vec<_>>().join(" ");
-    let depth = row.depth.filter(|d| *d > 0 && label_column).map(|d| format!(" style=\"--depth:{d}\"")).unwrap_or_default();
+    let depth = row
+        .depth
+        .filter(|d| *d > 0 && label_column)
+        .map(|d| format!(" style=\"--depth:{d}\""))
+        .unwrap_or_default();
     let data = data_attributes(cell, look);
-    format!("<td class=\"{class}\"{}{depth}{data}>{}</td>", colspan(span), linked(cell, look, content_html(cell, &look.numbers)))
+    format!(
+        "<td class=\"{class}\"{}{depth}{data}>{}</td>",
+        colspan(span),
+        linked(cell, look, content_html(cell, &look.numbers))
+    )
 }
 
 fn data_attributes(cell: &Cell, look: &Look) -> String {
@@ -163,14 +194,22 @@ fn data_attributes(cell: &Cell, look: &Look) -> String {
         return String::new();
     }
     let account = cell.account.map(|a| format!(" data-account=\"{}\"", a.0));
-    let link = cell.link.as_ref().and_then(|l| serde_json::to_string(l).ok()).map(|json| format!(" data-link=\"{}\"", escape(&json)));
+    let link = cell
+        .link
+        .as_ref()
+        .and_then(|l| serde_json::to_string(l).ok())
+        .map(|json| format!(" data-link=\"{}\"", escape(&json)));
     account.into_iter().chain(link).collect()
 }
 
 /// Content that names an account or links somewhere, marked so the link font and colour apply, as GnuCash's `<a>`
 /// would be; with links off, plain text, as GnuCash drops the `<a>` tag.
 fn linked(cell: &Cell, look: &Look, html: String) -> String {
-    if look.links && (cell.account.is_some() || cell.link.is_some()) { format!("<span class=\"link\">{html}</span>") } else { html }
+    if look.links && (cell.account.is_some() || cell.link.is_some()) {
+        format!("<span class=\"link\">{html}</span>")
+    } else {
+        html
+    }
 }
 
 fn content_html(cell: &Cell, numbers: &Conventions) -> String {
@@ -180,9 +219,9 @@ fn content_html(cell: &Cell, numbers: &Conventions) -> String {
         Some(CellContent::Text(text)) => escape_lines(text),
         Some(CellContent::Monetary(m)) => shown(&cell.display, &|| display_exact(&m.amount)),
         Some(CellContent::Number(n) | CellContent::Price(n)) => shown(&cell.display, &|| display_exact(n)),
-        Some(CellContent::Date(t)) => {
-            shown(&cell.display, &|| cell.local_date.clone().unwrap_or_else(|| t.to_rfc3339().unwrap_or_default()))
-        }
+        Some(CellContent::Date(t)) => shown(&cell.display, &|| {
+            cell.local_date.clone().unwrap_or_else(|| t.to_rfc3339().unwrap_or_default())
+        }),
         Some(CellContent::Commodities(lines)) => {
             let rows: Vec<String> = lines
                 .iter()
@@ -190,9 +229,17 @@ fn content_html(cell: &Cell, numbers: &Conventions) -> String {
                     let neg = |negative: bool| if negative { " class=\"neg\"" } else { "" };
                     let native = shown(&l.display, &|| display_exact(&l.monetary.amount));
                     let converted = l.converted.as_ref().map(|c| {
-                        format!("<td{}>{}</td>", neg(c.amount.is_negative()), shown(&l.converted_display, &|| display_exact(&c.amount)))
+                        format!(
+                            "<td{}>{}</td>",
+                            neg(c.amount.is_negative()),
+                            shown(&l.converted_display, &|| display_exact(&c.amount))
+                        )
                     });
-                    format!("<tr><td{}>{native}</td>{}</tr>", neg(l.monetary.amount.is_negative()), converted.unwrap_or_default())
+                    format!(
+                        "<tr><td{}>{native}</td>{}</tr>",
+                        neg(l.monetary.amount.is_negative()),
+                        converted.unwrap_or_default()
+                    )
                 })
                 .collect();
             format!("<table class=\"commodities\">{}</table>", rows.concat())

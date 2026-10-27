@@ -13,9 +13,9 @@ pub mod business;
 pub mod commodity;
 pub mod currencies;
 pub mod error;
+pub mod guid;
 #[allow(clippy::unreadable_literal)] // Generated; fractions are copied verbatim from GnuCash's table.
 mod iso4217_table;
-pub mod guid;
 pub mod lot;
 pub mod numeric;
 pub mod ops;

@@ -72,8 +72,16 @@ impl AccountType {
     pub fn is_asset_side(self) -> bool {
         matches!(
             self,
-            Self::Bank | Self::Cash | Self::Asset | Self::Stock | Self::Mutual | Self::Currency | Self::Receivable | Self::Checking
-                | Self::Savings | Self::MoneyMarket
+            Self::Bank
+                | Self::Cash
+                | Self::Asset
+                | Self::Stock
+                | Self::Mutual
+                | Self::Currency
+                | Self::Receivable
+                | Self::Checking
+                | Self::Savings
+                | Self::MoneyMarket
         )
     }
 
@@ -102,7 +110,16 @@ impl AccountType {
     pub fn compatible_with_parent(self, parent: Self) -> bool {
         use AccountType as T;
         let asset_liability = [
-            T::Bank, T::Cash, T::Asset, T::Stock, T::Mutual, T::Currency, T::Credit, T::Liability, T::Receivable, T::Payable,
+            T::Bank,
+            T::Cash,
+            T::Asset,
+            T::Stock,
+            T::Mutual,
+            T::Currency,
+            T::Credit,
+            T::Liability,
+            T::Receivable,
+            T::Payable,
         ];
         match self {
             T::Bank | T::Cash | T::Asset | T::Stock | T::Mutual | T::Currency | T::Credit | T::Liability | T::Receivable | T::Payable => {
@@ -120,7 +137,11 @@ impl FromStr for AccountType {
     type Err = ParseAccountTypeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        TYPE_NAMES.iter().find(|(_, n)| *n == s).map(|(t, _)| *t).ok_or_else(|| ParseAccountTypeError(s.to_owned()))
+        TYPE_NAMES
+            .iter()
+            .find(|(_, n)| *n == s)
+            .map(|(t, _)| *t)
+            .ok_or_else(|| ParseAccountTypeError(s.to_owned()))
     }
 }
 
@@ -202,7 +223,13 @@ pub struct Account {
 
 impl Account {
     /// A new account with no code, description or slots.
-    pub fn new(guid: Guid, name: impl Into<String>, account_type: AccountType, commodity: Option<CommodityRef>, parent: Option<Guid>) -> Self {
+    pub fn new(
+        guid: Guid,
+        name: impl Into<String>,
+        account_type: AccountType,
+        commodity: Option<CommodityRef>,
+        parent: Option<Guid>,
+    ) -> Self {
         Self {
             guid,
             name: name.into(),
@@ -271,7 +298,9 @@ impl Account {
 
     /// The colour as GnuCash's GUI sees it: the `color` slot, with `Not Set` and empty read as none.
     pub fn color(&self) -> Option<&str> {
-        self.slots.get_str(slot_paths::COLOR).filter(|c| !c.is_empty() && *c != COLOR_NOT_SET)
+        self.slots
+            .get_str(slot_paths::COLOR)
+            .filter(|c| !c.is_empty() && *c != COLOR_NOT_SET)
     }
 
     /// The `color` slot as stored, `Not Set` included (`xaccAccountGetColor`).

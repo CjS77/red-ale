@@ -58,7 +58,9 @@ type Groups = Vec<(CommodityRef, Vec<(Guid, Numeric)>)>;
 /// Close the books: income into `income_total`, then expense into `expense_total`
 /// (`gnc_book_close_response_cb`, `5.17:gnucash/gnome-utils/dialog-book-close.c:284-308`).
 pub fn close_books(book: &mut Book, env: &mut dyn Env, req: &CloseBooks) -> DomainResult<CloseReport> {
-    [req.income_total, req.expense_total].iter().try_for_each(|g| check_equity(book, *g))?;
+    [req.income_total, req.expense_total]
+        .iter()
+        .try_for_each(|g| check_equity(book, *g))?;
     let mut report = CloseReport::default();
     close_type(book, env, req, AccountType::Income, req.income_total, &mut report)?;
     close_type(book, env, req, AccountType::Expense, req.expense_total, &mut report)?;
@@ -72,7 +74,9 @@ fn check_equity(book: &Book, guid: Guid) -> DomainResult<()> {
         Ok(())
     } else {
         let name = book.full_name(guid).unwrap_or_default();
-        Err(DomainError::invalid(format!("{name} is not an equity account; closing the books needs one")))
+        Err(DomainError::invalid(format!(
+            "{name} is not an equity account; closing the books needs one"
+        )))
     }
 }
 
@@ -92,7 +96,13 @@ fn close_type(
         report.created_accounts.extend(created);
         let total = accounts.iter().try_fold(Numeric::ZERO, |sum, (_, bal)| sum.add_fixed(*bal))?;
         let guid = post_closing(book, env, req, &currency, &accounts, equity_account, total)?;
-        report.transactions.push(ClosingTransaction { guid, kind, currency, equity_account, total });
+        report.transactions.push(ClosingTransaction {
+            guid,
+            kind,
+            currency,
+            equity_account,
+            total,
+        });
         Ok(())
     })
 }
@@ -101,21 +111,26 @@ fn close_type(
 /// currency (`close_accounts_cb`, `5.17:gnucash/gnome-utils/dialog-book-close.c:123-157`).
 fn balances_by_currency(book: &Book, kind: AccountType, day_end: Time64) -> DomainResult<Groups> {
     let mut groups: Groups = Vec::new();
-    book.descendants(book.root).iter().filter(|a| a.account_type == kind).try_for_each(|a| -> DomainResult<()> {
-        let bal = balances(book, a.guid, Some(day_end))?.balance;
-        if bal.is_zero() {
-            return Ok(());
-        }
-        let currency = a.commodity.clone().filter(CommodityRef::is_currency).ok_or_else(|| {
-            let name = book.full_name(a.guid).unwrap_or_default();
-            DomainError::invalid(format!("{name} has a balance in a commodity that is not a currency; it cannot be closed into equity"))
+    book.descendants(book.root)
+        .iter()
+        .filter(|a| a.account_type == kind)
+        .try_for_each(|a| -> DomainResult<()> {
+            let bal = balances(book, a.guid, Some(day_end))?.balance;
+            if bal.is_zero() {
+                return Ok(());
+            }
+            let currency = a.commodity.clone().filter(CommodityRef::is_currency).ok_or_else(|| {
+                let name = book.full_name(a.guid).unwrap_or_default();
+                DomainError::invalid(format!(
+                    "{name} has a balance in a commodity that is not a currency; it cannot be closed into equity"
+                ))
+            })?;
+            match groups.iter_mut().find(|(c, _)| *c == currency) {
+                Some((_, accounts)) => accounts.push((a.guid, bal)),
+                None => groups.push((currency, vec![(a.guid, bal)])),
+            }
+            Ok(())
         })?;
-        match groups.iter_mut().find(|(c, _)| *c == currency) {
-            Some((_, accounts)) => accounts.push((a.guid, bal)),
-            None => groups.push((currency, vec![(a.guid, bal)])),
-        }
-        Ok(())
-    })?;
     Ok(groups)
 }
 
@@ -137,7 +152,9 @@ fn equity_account(
         let commodity = book.account(found).and_then(|a| a.commodity.as_ref());
         if commodity != Some(currency) {
             let name = book.full_name(found).unwrap_or_default();
-            return Err(DomainError::invalid(format!("{name} should hold {currency} closing entries but is in another commodity")));
+            return Err(DomainError::invalid(format!(
+                "{name} should hold {currency} closing entries but is in another commodity"
+            )));
         }
         return Ok((found, None));
     }
@@ -167,7 +184,10 @@ fn post_closing(
 ) -> DomainResult<Guid> {
     let mut new = NewTransaction::new(currency.clone(), req.date);
     new.description = Some(req.description.clone());
-    new.splits = accounts.iter().map(|(a, bal)| NewSplit::new(*a, bal.neg()).with_amount(bal.neg())).collect();
+    new.splits = accounts
+        .iter()
+        .map(|(a, bal)| NewSplit::new(*a, bal.neg()).with_amount(bal.neg()))
+        .collect();
     new.splits.push(NewSplit::new(equity, total).with_amount(total));
     let guid = add_transaction(book, env, new)?;
     if let Some(t) = book.transactions.get_mut(&guid) {
@@ -198,7 +218,13 @@ mod tests {
         }
 
         fn add(&mut self, name: &str, ty: AccountType, commodity: &CommodityRef, parent: Option<Guid>) -> Guid {
-            let a = Account::new(self.env.new_guid(), name, ty, Some(commodity.clone()), Some(parent.unwrap_or(self.book.root)));
+            let a = Account::new(
+                self.env.new_guid(),
+                name,
+                ty,
+                Some(commodity.clone()),
+                Some(parent.unwrap_or(self.book.root)),
+            );
             let g = a.guid;
             self.book.accounts.insert(g, Arc::new(a));
             g
@@ -214,7 +240,13 @@ mod tests {
 
         fn request(income: Guid, expense: Guid) -> CloseBooks {
             let date = Date::from_ymd(2024, 6, 30).unwrap();
-            CloseBooks { date, day_end: date.end_utc(), income_total: income, expense_total: expense, description: "Closing".into() }
+            CloseBooks {
+                date,
+                day_end: date.end_utc(),
+                income_total: income,
+                expense_total: expense,
+                description: "Closing".into(),
+            }
         }
 
         fn balance(&self, a: Guid, at: Time64) -> Numeric {
@@ -246,13 +278,23 @@ mod tests {
         assert_eq!(totals, [(AccountType::Income, n("-1050.25")), (AccountType::Expense, n("120.10"))]);
         let income_txn = f.book.transaction(report.transactions[0].guid).unwrap();
         let splits: Vec<(Option<Guid>, Numeric)> = income_txn.splits.iter().map(|s| (s.account, s.value)).collect();
-        let expected = [(Some(income), n("50.25")), (Some(salary), n("1000.00")), (Some(retained), n("-1050.25"))];
+        let expected = [
+            (Some(income), n("50.25")),
+            (Some(salary), n("1000.00")),
+            (Some(retained), n("-1050.25")),
+        ];
         assert_eq!(splits, expected, "debits first, tree order");
         assert_eq!(income_txn.slots.get(slot_paths::BOOK_CLOSING), Some(&SlotValue::Integer(1)));
         assert_eq!(income_txn.description.as_deref(), Some("Closing"));
         assert_eq!(income_txn.date_posted, req.date.neutral_time());
-        [income, salary, food].iter().for_each(|a| assert!(f.balance(*a, req.day_end).is_zero()));
-        assert_eq!(f.balance(salary, Date::from_ymd(2024, 7, 2).unwrap().end_utc()), n("-999.00"), "later income stays");
+        [income, salary, food]
+            .iter()
+            .for_each(|a| assert!(f.balance(*a, req.day_end).is_zero()));
+        assert_eq!(
+            f.balance(salary, Date::from_ymd(2024, 7, 2).unwrap().end_utc()),
+            n("-999.00"),
+            "later income stays"
+        );
         assert_eq!(f.balance(retained, req.day_end), n("-930.15"));
     }
 
@@ -285,16 +327,30 @@ mod tests {
         let mut f = Fixture::new();
         let equity = f.add("Equity", AccountType::Equity, &usd(), None);
         let bank = f.add("Bank", AccountType::Bank, &usd(), None);
-        assert_eq!(close_books(&mut f.book, &mut f.env, &Fixture::request(equity, equity)).unwrap(), CloseReport::default());
-        assert!(matches!(close_books(&mut f.book, &mut f.env, &Fixture::request(bank, equity)), Err(DomainError::Invalid(_))));
+        assert_eq!(
+            close_books(&mut f.book, &mut f.env, &Fixture::request(equity, equity)).unwrap(),
+            CloseReport::default()
+        );
+        assert!(matches!(
+            close_books(&mut f.book, &mut f.env, &Fixture::request(bank, equity)),
+            Err(DomainError::Invalid(_))
+        ));
 
         let shares = CommodityRef::new("NASDAQ", "ACME");
         let odd = f.add("Odd", AccountType::Income, &shares, None);
         let holding = f.add("Holding", AccountType::Stock, &shares, None);
-        f.book.commodities.insert(shares.clone(), Arc::new(crate::Commodity::new(shares.clone(), None, 1)));
+        f.book
+            .commodities
+            .insert(shares.clone(), Arc::new(crate::Commodity::new(shares.clone(), None, 1)));
         let mut t = NewTransaction::new(usd(), Date::from_ymd(2024, 1, 1).unwrap());
-        t.splits = vec![NewSplit::new(holding, n("0")).with_amount(n("5")), NewSplit::new(odd, n("0")).with_amount(n("-5"))];
+        t.splits = vec![
+            NewSplit::new(holding, n("0")).with_amount(n("5")),
+            NewSplit::new(odd, n("0")).with_amount(n("-5")),
+        ];
         add_transaction(&mut f.book, &mut f.env, t).unwrap();
-        assert!(matches!(close_books(&mut f.book, &mut f.env, &Fixture::request(equity, equity)), Err(DomainError::Invalid(_))));
+        assert!(matches!(
+            close_books(&mut f.book, &mut f.env, &Fixture::request(equity, equity)),
+            Err(DomainError::Invalid(_))
+        ));
     }
 }

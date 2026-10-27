@@ -5,7 +5,8 @@ use red_ale_core::{Book, Split, Transaction};
 use red_ale_import::business::Records;
 use red_ale_import::matcher::{DestSource, MatchInfo, TransInfo};
 use red_ale_import::pipeline::{
-    AccountName, Format, IgnoredLine, ImbalanceInfo, NewAccount, Proposal, ProposedTransaction, RowError, Source, TransactionReview, Warning,
+    AccountName, Format, IgnoredLine, ImbalanceInfo, NewAccount, Proposal, ProposedTransaction, RowError, Source, TransactionReview,
+    Warning,
 };
 use red_ale_import::qif::import::{MapRow, NewCommodity, QifState};
 use red_ale_service::import::Previewed;
@@ -348,31 +349,51 @@ pub struct AccountNameWire {
 
 impl From<&Warning> for WarningWire {
     fn from(w: &Warning) -> Self {
-        Self { code: w.code.to_owned(), message: w.message.clone(), index: w.index }
+        Self {
+            code: w.code.to_owned(),
+            message: w.message.clone(),
+            index: w.index,
+        }
     }
 }
 
 impl From<&RowError> for RowErrorWire {
     fn from(e: &RowError) -> Self {
-        Self { file: e.file, line: e.line, column: e.column, message: e.message.clone() }
+        Self {
+            file: e.file,
+            line: e.line,
+            column: e.column,
+            message: e.message.clone(),
+        }
     }
 }
 
 impl From<&IgnoredLine> for IgnoredLineWire {
     fn from(l: &IgnoredLine) -> Self {
-        Self { file: l.file, line: l.line, reason: l.reason.to_owned() }
+        Self {
+            file: l.file,
+            line: l.line,
+            reason: l.reason.to_owned(),
+        }
     }
 }
 
 impl From<&NewAccount> for NewAccountWire {
     fn from(a: &NewAccount) -> Self {
-        Self { name: a.name.clone(), account_type: a.account_type.as_str().to_owned(), commodity: a.commodity.clone().map(CommodityId) }
+        Self {
+            name: a.name.clone(),
+            account_type: a.account_type.as_str().to_owned(),
+            commodity: a.commodity.clone().map(CommodityId),
+        }
     }
 }
 
 impl From<Source> for SourceWire {
     fn from(s: Source) -> Self {
-        Self { file: s.file, lines: [s.first_line, s.last_line] }
+        Self {
+            file: s.file,
+            lines: [s.first_line, s.last_line],
+        }
     }
 }
 
@@ -380,16 +401,28 @@ impl From<Source> for SourceWire {
 pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
     let proposal = &p.proposal;
     let qif = proposal.qif.as_deref();
-    let transactions: Vec<ImportedTransactionWire> =
-        proposal.transactions.iter().zip(&p.review.transactions).map(|(t, r)| imported_transaction(book, qif, t, r)).collect();
+    let transactions: Vec<ImportedTransactionWire> = proposal
+        .transactions
+        .iter()
+        .zip(&p.review.transactions)
+        .map(|(t, r)| imported_transaction(book, qif, t, r))
+        .collect();
     let warnings = proposal.warnings.iter().chain(&p.review.warnings).map(WarningWire::from).collect();
     let (documents, owners) = match &proposal.business {
         Some(Records::Documents(d)) => (Some(d.iter().map(|d| business::document_wire(book, d)).collect::<Vec<_>>()), None),
         Some(Records::Owners(o)) => (None, Some(o.iter().map(business::owner_wire).collect::<Vec<_>>())),
         None => (None, None),
     };
-    let business_actions = documents.iter().flatten().map(|d| d.action).chain(owners.iter().flatten().map(|o| o.action));
-    let actions = transactions.iter().map(|t| t.action).chain(record_actions(proposal)).chain(business_actions);
+    let business_actions = documents
+        .iter()
+        .flatten()
+        .map(|d| d.action)
+        .chain(owners.iter().flatten().map(|o| o.action));
+    let actions = transactions
+        .iter()
+        .map(|t| t.action)
+        .chain(record_actions(proposal))
+        .chain(business_actions);
     let mut summary = summary(actions, &transactions, proposal.errors.len());
     summary.read_only_by_date += documents.iter().flatten().filter(|d| d.read_only_by_date).count();
     ProposalResult {
@@ -402,9 +435,13 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
         errors: proposal.errors.iter().map(RowErrorWire::from).collect(),
         warnings,
         new_accounts: p.review.new_accounts.iter().map(NewAccountWire::from).collect(),
-        new_commodities: qif.map(|q| q.new_commodities.iter().map(new_commodity).collect()).unwrap_or_default(),
+        new_commodities: qif
+            .map(|q| q.new_commodities.iter().map(new_commodity).collect())
+            .unwrap_or_default(),
         transactions,
-        csv: proposal.csv.as_ref().map(|c| CsvWire { account_names: c.account_names.iter().map(|n| account_name(book, n)).collect() }),
+        csv: proposal.csv.as_ref().map(|c| CsvWire {
+            account_names: c.account_names.iter().map(|n| account_name(book, n)).collect(),
+        }),
         documents,
         owners,
         qif: qif.map(|q| qif_wire(book, q)),
@@ -414,7 +451,11 @@ pub fn proposal_result(book: &Book, p: &Previewed) -> ProposalResult {
 }
 
 fn new_commodity(c: &NewCommodity) -> NewCommodityWire {
-    NewCommodityWire { id: CommodityId(c.id.clone()), fullname: c.fullname.clone(), fraction: c.fraction }
+    NewCommodityWire {
+        id: CommodityId(c.id.clone()),
+        fullname: c.fullname.clone(),
+        fraction: c.fraction,
+    }
 }
 
 fn qif_wire(book: &Book, q: &QifState) -> QifWire {
@@ -427,7 +468,12 @@ fn qif_wire(book: &Book, q: &QifState) -> QifWire {
         securities: q
             .securities
             .iter()
-            .map(|s| QifSecurityWire { name: s.name.clone(), id: CommodityId(s.id.clone()), fullname: s.fullname.clone(), new: s.new })
+            .map(|s| QifSecurityWire {
+                name: s.name.clone(),
+                id: CommodityId(s.id.clone()),
+                fullname: s.fullname.clone(),
+                new: s.new,
+            })
             .collect(),
         currency: q.currency.clone().map(CommodityId),
     }
@@ -446,19 +492,29 @@ fn map_row(book: &Book, r: &MapRow) -> QifMapRowWire {
 
 /// The actions of the account and price records.
 fn record_actions(proposal: &Proposal) -> impl Iterator<Item = ActionWire> + '_ {
-    proposal.accounts.iter().map(|a| a.action.into()).chain(proposal.prices.iter().map(|p| p.action.into()))
+    proposal
+        .accounts
+        .iter()
+        .map(|a| a.action.into())
+        .chain(proposal.prices.iter().map(|p| p.action.into()))
 }
 
 fn summary(actions: impl Iterator<Item = ActionWire>, transactions: &[ImportedTransactionWire], errors: usize) -> Summary {
-    let counted = actions.fold(Summary { errors, ..Summary::default() }, |mut s, action| {
-        match action {
-            ActionWire::Add => s.add += 1,
-            ActionWire::Clear => s.clear += 1,
-            ActionWire::Update => s.update += 1,
-            ActionWire::Skip => s.skip += 1,
-        }
-        s
-    });
+    let counted = actions.fold(
+        Summary {
+            errors,
+            ..Summary::default()
+        },
+        |mut s, action| {
+            match action {
+                ActionWire::Add => s.add += 1,
+                ActionWire::Clear => s.clear += 1,
+                ActionWire::Update => s.update += 1,
+                ActionWire::Skip => s.skip += 1,
+            }
+            s
+        },
+    );
     transactions.iter().fold(counted, |mut s, t| {
         s.imbalanced += usize::from(t.imbalance.is_some());
         s.read_only_by_date += usize::from(t.read_only_by_date);
@@ -515,7 +571,9 @@ fn imported_transaction(book: &Book, qif: Option<&QifState>, t: &ProposedTransac
 }
 
 fn void_reason(t: &Transaction) -> Option<String> {
-    t.slots.get_str(red_ale_core::transaction::slot_paths::VOID_REASON).map(str::to_owned)
+    t.slots
+        .get_str(red_ale_core::transaction::slot_paths::VOID_REASON)
+        .map(str::to_owned)
 }
 
 fn other(book: &Book, info: &TransInfo) -> Option<OtherWire> {
@@ -560,5 +618,10 @@ fn match_wire(book: &Book, m: &MatchInfo, scored: bool) -> MatchWire {
 }
 
 fn imbalance_wire(i: &ImbalanceInfo) -> ImbalanceWire {
-    ImbalanceWire { value: i.value.into(), currency: CommodityId(i.currency.clone()), account: i.account.map(Id), account_name: i.account_name.clone() }
+    ImbalanceWire {
+        value: i.value.into(),
+        currency: CommodityId(i.currency.clone()),
+        account: i.account.map(Id),
+        account_name: i.account_name.clone(),
+    }
 }

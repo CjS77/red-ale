@@ -23,16 +23,22 @@ fn open_broken(read_only: bool) -> (tempfile::TempDir, Dispatcher) {
             "<split:value>1000/100</split:value>\n      <split:quantity>1000/100</split:quantity>",
             1,
         )
-        .replacen(&format!("{EQUITY}</split:account>"), "2222222222222222222222222222cccc</split:account>", 1);
+        .replacen(
+            &format!("{EQUITY}</split:account>"),
+            "2222222222222222222222222222cccc</split:account>",
+            1,
+        );
     std::fs::write(&path, text).unwrap();
     let mut d = Dispatcher::new(Settings::default());
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(1_719_835_200), 1 << 100))));
-    d.call("book.open", json!({ "path": path.display().to_string(), "readOnly": read_only })).unwrap();
+    d.call("book.open", json!({ "path": path.display().to_string(), "readOnly": read_only }))
+        .unwrap();
     (dir, d)
 }
 
 fn call(d: &mut Dispatcher, method: &str, params: &Value) -> Value {
-    d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+    d.call(method, params.clone())
+        .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
 }
 
 fn err(d: &mut Dispatcher, method: &str, params: &Value) -> i32 {
@@ -40,7 +46,12 @@ fn err(d: &mut Dispatcher, method: &str, params: &Value) -> i32 {
 }
 
 fn kinds(result: &Value) -> Vec<String> {
-    result["repairs"].as_array().unwrap().iter().map(|r| r["kind"].as_str().unwrap().to_owned()).collect()
+    result["repairs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["kind"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 #[test]
@@ -53,7 +64,10 @@ fn imbalance_of_one_transaction() {
     assert_eq!(repairs[0]["commodity"], "CURRENCY::USD");
     assert_eq!(repairs[1]["value"], json!({ "num": "234", "denom": "100" }));
     assert_eq!(repairs[1]["transaction"], GROCERIES);
-    assert!(kinds(&call(&mut d, "scrub.imbalance", &json!({ "transaction": GROCERIES }))).is_empty(), "nothing left to repair");
+    assert!(
+        kinds(&call(&mut d, "scrub.imbalance", &json!({ "transaction": GROCERIES }))).is_empty(),
+        "nothing left to repair"
+    );
     let info = call(&mut d, "book.info", &json!({}));
     assert_eq!(info["dirty"], true);
 }
@@ -70,25 +84,58 @@ fn account_scopes() {
     let result = call(&mut d, "scrub.orphans", &json!({}));
     assert_eq!(kinds(&result), ["accountCreated", "orphanAssigned"]);
     assert_eq!(result["repairs"][1]["transaction"], OPENING);
-    let result = call(&mut d, "scrub.checkAndRepair", &json!({ "account": "Expenses", "subaccounts": true, "lots": true }));
+    let result = call(
+        &mut d,
+        "scrub.checkAndRepair",
+        &json!({ "account": "Expenses", "subaccounts": true, "lots": true }),
+    );
     assert_eq!(kinds(&result), ["accountCreated", "balanceSplitAdded"], "Groceries, through Food");
-    assert!(kinds(&call(&mut d, "scrub.checkAndRepair", &json!({}))).is_empty(), "everything but lots is repaired");
+    assert!(
+        kinds(&call(&mut d, "scrub.checkAndRepair", &json!({}))).is_empty(),
+        "everything but lots is repaired"
+    );
     // rich.gnucash has lots GnuCash's own lot scrub would repair (an unrecorded gain on ACME, among others).
     let lots = kinds(&call(&mut d, "scrub.checkAndRepair", &json!({ "lots": true })));
     assert!(!lots.is_empty() && lots.iter().all(|k| k == "lotsRepaired"), "{lots:?}");
-    assert!(kinds(&call(&mut d, "scrub.checkAndRepair", &json!({ "lots": true }))).is_empty(), "a second run changes nothing");
+    assert!(
+        kinds(&call(&mut d, "scrub.checkAndRepair", &json!({ "lots": true }))).is_empty(),
+        "a second run changes nothing"
+    );
     assert!(kinds(&call(&mut d, "scrub.currency", &json!({}))).is_empty());
 }
 
 #[test]
 fn refusals() {
     let (_dir, mut d) = open_broken(false);
-    assert_eq!(err(&mut d, "scrub.imbalance", &json!({ "transaction": GROCERIES, "account": "Expenses" })), codes::INVALID_PARAMS);
-    assert_eq!(err(&mut d, "scrub.imbalance", &json!({ "subaccounts": true })), codes::INVALID_PARAMS);
-    assert_eq!(err(&mut d, "scrub.imbalance", &json!({ "transaction": GROCERIES, "subaccounts": true })), codes::INVALID_PARAMS);
+    assert_eq!(
+        err(
+            &mut d,
+            "scrub.imbalance",
+            &json!({ "transaction": GROCERIES, "account": "Expenses" })
+        ),
+        codes::INVALID_PARAMS
+    );
+    assert_eq!(
+        err(&mut d, "scrub.imbalance", &json!({ "subaccounts": true })),
+        codes::INVALID_PARAMS
+    );
+    assert_eq!(
+        err(&mut d, "scrub.imbalance", &json!({ "transaction": GROCERIES, "subaccounts": true })),
+        codes::INVALID_PARAMS
+    );
     assert_eq!(err(&mut d, "scrub.orphans", &json!({ "account": "Nowhere" })), codes::NOT_FOUND);
-    assert_eq!(err(&mut d, "scrub.imbalance", &json!({ "transaction": "0123456789abcdef0123456789abcdef" })), codes::NOT_FOUND);
-    assert_eq!(err(&mut d, "scrub.checkAndRepair", &json!({ "transaction": GROCERIES, "lots": true })), codes::INVALID);
+    assert_eq!(
+        err(
+            &mut d,
+            "scrub.imbalance",
+            &json!({ "transaction": "0123456789abcdef0123456789abcdef" })
+        ),
+        codes::NOT_FOUND
+    );
+    assert_eq!(
+        err(&mut d, "scrub.checkAndRepair", &json!({ "transaction": GROCERIES, "lots": true })),
+        codes::INVALID
+    );
     assert_eq!(call(&mut d, "book.info", &json!({}))["dirty"], false, "refusals change nothing");
     let (_dir, mut d) = open_broken(true);
     assert_eq!(err(&mut d, "scrub.checkAndRepair", &json!({})), codes::READ_ONLY);
@@ -98,7 +145,10 @@ fn refusals() {
 fn reconciling_an_unbalanced_transaction_is_refused_until_scrubbed() {
     let (_dir, mut d) = open_broken(false);
     let split = "117dda4092564917b4eb353ecb4e5d62";
-    assert_eq!(err(&mut d, "reconcile.setState", &json!({ "split": split, "state": "c" })), codes::UNBALANCED);
+    assert_eq!(
+        err(&mut d, "reconcile.setState", &json!({ "split": split, "state": "c" })),
+        codes::UNBALANCED
+    );
     call(&mut d, "scrub.imbalance", &json!({ "transaction": GROCERIES }));
     call(&mut d, "reconcile.setState", &json!({ "split": split, "state": "c" }));
 }

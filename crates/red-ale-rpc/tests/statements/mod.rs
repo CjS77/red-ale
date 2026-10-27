@@ -2,7 +2,14 @@
 //! Loss): run a built-in report through `report.run` and `report.export` on a copy of a fixture or on a book built
 //! through the API, and read the figures back by row label.
 
-#![allow(dead_code, clippy::missing_panics_doc, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::needless_pass_by_value)]
+#![allow(
+    dead_code,
+    clippy::missing_panics_doc,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::needless_pass_by_value
+)]
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -68,11 +75,16 @@ impl Setup {
     }
 
     pub fn call(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     pub fn err(&mut self, method: &str, params: Value) -> RpcError {
-        self.d.call(method, params.clone()).err().unwrap_or_else(|| panic!("{method} {params} should fail"))
+        self.d
+            .call(method, params.clone())
+            .err()
+            .unwrap_or_else(|| panic!("{method} {params} should fail"))
     }
 
     /// `report.run` of `report` with `options`.
@@ -82,13 +94,18 @@ impl Setup {
 
     /// The HTML `report.export` gives for `report` with `options`.
     pub fn export(&mut self, report: &str, options: &Value) -> String {
-        self.call("report.export", json!({ "report": report, "options": options }))["html"].as_str().unwrap().to_owned()
+        self.call("report.export", json!({ "report": report, "options": options }))["html"]
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
 
     /// Files in the book's directory, to see that nothing was written beside the book.
     pub fn files(&self) -> Vec<String> {
-        let mut names: Vec<String> =
-            std::fs::read_dir(self.dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        let mut names: Vec<String> = std::fs::read_dir(self.dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
         names.sort();
         names
     }
@@ -112,7 +129,10 @@ impl Setup {
 
 /// A dispatcher keeping its Configuration in `config`, with the fixed clock of `NOW`.
 pub fn dispatcher(config: &Path) -> Dispatcher {
-    let settings = Settings { config: ConfigStore::at(PathBuf::from(config)), ..Settings::default() };
+    let settings = Settings {
+        config: ConfigStore::at(PathBuf::from(config)),
+        ..Settings::default()
+    };
     let mut d = Dispatcher::new(settings);
     let made = AtomicU32::new(0);
     d.set_env_factory(Box::new(move || {
@@ -141,7 +161,12 @@ pub fn expected(name: &str) -> Value {
 
 /// The run of `expected` with this `id`.
 pub fn expected_run<'a>(expected: &'a Value, id: &str) -> &'a Value {
-    expected["runs"].as_array().unwrap().iter().find(|r| r["id"] == id).unwrap_or_else(|| panic!("no run {id}"))
+    expected["runs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == id)
+        .unwrap_or_else(|| panic!("no run {id}"))
 }
 
 /// Every block of the result, groups opened, in order.
@@ -154,7 +179,12 @@ pub fn blocks(result: &Value) -> Vec<&Value> {
         }
     }
     let mut out = vec![];
-    result["sections"].as_array().unwrap().iter().flat_map(|s| s["blocks"].as_array().unwrap()).for_each(|b| walk(b, &mut out));
+    result["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|s| s["blocks"].as_array().unwrap())
+        .for_each(|b| walk(b, &mut out));
     out
 }
 
@@ -187,18 +217,35 @@ pub fn displays(cell: &Value) -> Vec<String> {
 
 /// The label column of a table: the column with role `label`.
 fn label_column(table: &Value) -> usize {
-    table["columns"].as_array().unwrap().iter().position(|c| c["role"] == "label").unwrap_or(0)
+    table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|c| c["role"] == "label")
+        .unwrap_or(0)
 }
 
 /// The amount column of a table: the last column with role `amount`.
 fn amount_column(table: &Value) -> usize {
-    table["columns"].as_array().unwrap().iter().rposition(|c| c["role"] == "amount").unwrap()
+    table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rposition(|c| c["role"] == "amount")
+        .unwrap()
 }
 
 /// The labels of every row of `table` that has one, in order.
 pub fn labels(table: &Value) -> Vec<String> {
     let col = label_column(table);
-    table["rows"].as_array().unwrap().iter().map(|r| &r["cells"][col]).filter(|c| !c.is_null()).map(cell_text).collect()
+    table["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| &r["cells"][col])
+        .filter(|c| !c.is_null())
+        .map(cell_text)
+        .collect()
 }
 
 /// The rows of every table of `result` whose label is `label`.
@@ -207,7 +254,12 @@ pub fn rows_labelled<'a>(result: &'a Value, label: &str) -> Vec<(&'a Value, &'a 
         .into_iter()
         .flat_map(|t| {
             let col = label_column(t);
-            t["rows"].as_array().unwrap().iter().filter(move |r| cell_text(&r["cells"][col]) == label).map(move |r| (t, r))
+            t["rows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(move |r| cell_text(&r["cells"][col]) == label)
+                .map(move |r| (t, r))
         })
         .collect()
 }
@@ -236,10 +288,17 @@ pub fn all_rows(result: &Value) -> String {
     tables(result)
         .iter()
         .flat_map(|t| {
-            let (lc, ac) = (label_column(t), t["columns"].as_array().unwrap().iter().rposition(|c| c["role"] == "amount"));
+            let (lc, ac) = (
+                label_column(t),
+                t["columns"].as_array().unwrap().iter().rposition(|c| c["role"] == "amount"),
+            );
             t["rows"].as_array().unwrap().iter().map(move |r| {
                 let amount = ac.map(|a| displays(&r["cells"][a])).unwrap_or_default();
-                format!("{} {}: {amount:?}", r["role"].as_str().unwrap_or("data"), cell_text(&r["cells"][lc]))
+                format!(
+                    "{} {}: {amount:?}",
+                    r["role"].as_str().unwrap_or("data"),
+                    cell_text(&r["cells"][lc])
+                )
             })
         })
         .collect::<Vec<_>>()
@@ -260,7 +319,9 @@ pub fn assert_checks(result: &Value, html: &str, checks: &[Check<'_>]) {
     checks.iter().for_each(|c| {
         let got = amount_of(result, c.label);
         assert_eq!(got, c.want, "{} (test line {}): {}", c.name, c.line, all_rows(result));
-        c.want.iter().for_each(|w| assert!(html.contains(w), "{} (test line {}): {w} is in the HTML", c.name, c.line));
+        c.want
+            .iter()
+            .for_each(|w| assert!(html.contains(w), "{} (test line {}): {w} is in the HTML", c.name, c.line));
     });
 }
 
@@ -278,7 +339,12 @@ pub fn position_of(result: &Value, label: &str) -> usize {
 pub fn assert_rows_at(result: &Value, rows: &[(&str, u32, &str)], offset: u32) {
     rows.iter().for_each(|(name, row, label)| {
         let want = usize::try_from(row - offset).unwrap();
-        assert_eq!(position_of(result, label), want, "{name}: GnuCash's row {row} is {label}: {}", all_rows(result));
+        assert_eq!(
+            position_of(result, label),
+            want,
+            "{name}: GnuCash's row {row} is {label}: {}",
+            all_rows(result)
+        );
     });
 }
 

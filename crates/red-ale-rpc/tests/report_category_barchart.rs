@@ -36,8 +36,14 @@ fn test_standard_category_report_daily_and_assets() {
 // test-standard-category-report.scm:117-207: averages for every step and averaging pair.
 #[test]
 fn test_standard_category_report_averages() {
-    let ids = ["single-txn-test-average-week", "single-txn-test-average-month", "single-txn-test-average-day",
-               "single-txn-test-weekly-average-day", "single-txn-test-weekly-average-week", "single-txn-test-weekly-average-month"];
+    let ids = [
+        "single-txn-test-average-week",
+        "single-txn-test-average-month",
+        "single-txn-test-average-day",
+        "single-txn-test-weekly-average-day",
+        "single-txn-test-weekly-average-week",
+        "single-txn-test-weekly-average-month",
+    ];
     expected_runs("category-average", &ids);
 }
 
@@ -76,7 +82,12 @@ fn march(display: Value) -> Value {
 }
 
 fn labels(result: &Value) -> Vec<String> {
-    chart(result)["series"].as_array().unwrap().iter().map(|s| s["label"].as_str().unwrap().to_owned()).collect()
+    chart(result)["series"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["label"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 fn strings(v: &[&str]) -> Vec<String> {
@@ -103,7 +114,11 @@ fn expense_over_time_defaults() {
     assert_eq!(ch["title"], json!(["Expense Over Time", "01/01/24 to 12/31/24"]), ":532-535");
     assert_eq!(ch["labels"].as_array().unwrap().len(), 12);
     assert_eq!(ch["labels"][2], "03/01/24");
-    assert_eq!(ch["yAxis"], json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" }), ":547-549, :618-623");
+    assert_eq!(
+        ch["yAxis"],
+        json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" }),
+        ":547-549, :618-623"
+    );
     assert_eq!(ch["tooltip"], json!({ "grouped": false, "nonZeroOnly": true }), ":187-195");
     assert_eq!(labels(&result), ["Auto", "Groceries", "Rent", "Expenses"]);
     let series = ch["series"].as_array().unwrap();
@@ -111,7 +126,13 @@ fn expense_over_time_defaults() {
     assert_eq!(colors, ["#ff4136", "#ff851b", "#ffdc00", "#2ecc40"]);
     assert_eq!(values(&series[0]), months("1984"));
     assert_eq!(values(&series[3]), months("496"));
-    series.iter().for_each(|s| assert_eq!((s["stack"].as_str(), s["fill"].as_bool()), (Some("default"), Some(true)), ":587-588"));
+    series.iter().for_each(|s| {
+        assert_eq!(
+            (s["stack"].as_str(), s["fill"].as_bool()),
+            (Some("default"), Some(true)),
+            ":587-588"
+        )
+    });
     assert!(blocks_of(&result, "table").is_empty(), "no table by default (:165-169)");
 }
 
@@ -143,15 +164,25 @@ fn series_link_to_sub_accounts_or_the_account() {
 #[test]
 fn levels_of_subaccounts_fold_accounts_in() {
     let mut c = multi();
-    let one = c.run("Expense Over Time", &json!({ "Accounts": { "Levels of Subaccounts": 1 }, "Display": { "Show table": true } }));
+    let one = c.run(
+        "Expense Over Time",
+        &json!({ "Accounts": { "Levels of Subaccounts": 1 }, "Display": { "Show table": true } }),
+    );
     assert_eq!(labels(&one), ["Expenses"]);
     assert_eq!(values(&chart(&one)["series"][0]), months("3472"));
     assert_eq!(table(&one).header, ["Date", "Expenses"]);
     assert_eq!(table(&one).rows[2], ["03/01/24", "$3,472.00"]);
     let all = c.run("Expense Over Time", &json!({ "Accounts": { "Levels of Subaccounts": "all" } }));
     assert_eq!(labels(&all), ["Petrol", "Parking", "Tax", "Auto", "Rent", "Groceries", "Expenses"]);
-    chart(&all)["series"].as_array().unwrap().iter().for_each(|s| assert_eq!(values(s), months("496")));
-    assert_eq!(chart(&all)["series"][3]["link"]["report"]["options"]["Accounts"]["Levels of Subaccounts"], 5);
+    chart(&all)["series"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .for_each(|s| assert_eq!(values(s), months("496")));
+    assert_eq!(
+        chart(&all)["series"][3]["link"]["report"]["options"]["Accounts"]["Levels of Subaccounts"],
+        5
+    );
 }
 
 // Maximum Bars (:160-163, :554-574): past it, the smallest series are summed into "Other", which links to this
@@ -159,17 +190,26 @@ fn levels_of_subaccounts_fold_accounts_in() {
 #[test]
 fn maximum_bars_sums_the_rest_into_other() {
     let mut c = multi();
-    let result = c.run("Expense Over Time", &json!({ "Display": { "Maximum Bars": 2, "Show table": true } }));
+    let result = c.run(
+        "Expense Over Time",
+        &json!({ "Display": { "Maximum Bars": 2, "Show table": true } }),
+    );
     assert_eq!(labels(&result), ["Auto", "Other"]);
     let ch = chart(&result);
     assert_eq!(values(&ch["series"][1]), months("1488"));
     assert_eq!(ch["series"][1]["color"], "#ff851b");
-    assert_eq!(ch["series"][1]["link"]["report"]["options"]["Accounts"]["Accounts"], json!([GROCERIES, RENT, EXPENSES]));
+    assert_eq!(
+        ch["series"][1]["link"]["report"]["options"]["Accounts"]["Accounts"],
+        json!([GROCERIES, RENT, EXPENSES])
+    );
     let t = table(&result);
     assert_eq!(t.header, ["Date", "Auto", "Other", "Grand Total"]);
     assert_eq!(t.rows[2], ["03/01/24", "$1,984.00", "$1,488.00", "$3,472.00"]);
     assert_eq!(t.rows[0], ["01/01/24", "$0.00", "$0.00", "$0.00"]);
-    let err = c.err("report.run", json!({ "report": EXPENSE_OVER_TIME, "options": { "Display": { "Maximum Bars": 1 } } }));
+    let err = c.err(
+        "report.run",
+        json!({ "report": EXPENSE_OVER_TIME, "options": { "Display": { "Maximum Bars": 1 } } }),
+    );
     assert_eq!(err.code, red_ale_rpc::codes::REPORT_OPTION, "below the range");
 }
 
@@ -178,10 +218,18 @@ fn maximum_bars_sums_the_rest_into_other() {
 #[test]
 fn stacking_and_chart_type() {
     let mut c = multi();
-    let result = c.run("Expense Over Time", &json!({ "Display": { "Use Stacked Charts": false, "Chart Type": "linechart" } }));
+    let result = c.run(
+        "Expense Over Time",
+        &json!({ "Display": { "Use Stacked Charts": false, "Chart Type": "linechart" } }),
+    );
     let ch = chart(&result);
     assert_eq!((ch["type"].as_str(), ch["stacked"].as_bool()), (Some("line"), Some(false)));
-    let stacks: Vec<&str> = ch["series"].as_array().unwrap().iter().map(|s| s["stack"].as_str().unwrap()).collect();
+    let stacks: Vec<&str> = ch["series"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["stack"].as_str().unwrap())
+        .collect();
     assert_eq!(stacks, ["0", "1", "2", "3"]);
     assert!(ch["series"][0].get("fill").is_none());
 }
@@ -192,8 +240,14 @@ fn stacking_and_chart_type() {
 fn sort_methods_and_long_names() {
     let mut c = multi();
     let sorted = |c: &mut Charts, display: Value| labels(&c.run("Expense Over Time", &json!({ "Display": display })));
-    assert_eq!(sorted(&mut c, json!({ "Sort Method": "alphabetical" })), ["Auto", "Expenses", "Groceries", "Rent"]);
-    assert_eq!(sorted(&mut c, json!({ "Sort Method": "acct-code" })), ["Groceries", "Rent", "Auto", "Expenses"]);
+    assert_eq!(
+        sorted(&mut c, json!({ "Sort Method": "alphabetical" })),
+        ["Auto", "Expenses", "Groceries", "Rent"]
+    );
+    assert_eq!(
+        sorted(&mut c, json!({ "Sort Method": "acct-code" })),
+        ["Groceries", "Rent", "Auto", "Expenses"]
+    );
     let long = sorted(&mut c, json!({ "Sort Method": "alphabetical", "Show long account names": true }));
     assert_eq!(long, ["Expenses", "Expenses:Auto", "Expenses:Groceries", "Expenses:Rent"]);
 }
@@ -212,7 +266,10 @@ fn show_average_divides_by_the_period_lengths() {
     assert_eq!(ch["labels"], json!(["03/01/24", "03/08/24", "03/15/24", "03/22/24", "03/29/24"]));
     assert_eq!(values(&ch["series"][0]), strings(&["4", "11", "18", "25", "90/7"]));
     let t = table(&result);
-    assert_eq!(t.rows.iter().map(|r| r[1].as_str()).collect::<Vec<_>>(), ["$4.00", "$11.00", "$18.00", "$25.00", "$12.86"]);
+    assert_eq!(
+        t.rows.iter().map(|r| r[1].as_str()).collect::<Vec<_>>(),
+        ["$4.00", "$11.00", "$18.00", "$25.00", "$12.86"]
+    );
 }
 
 // Percentage chart (:173-177, :611, :636-637): each series as a share of the row's total. The chart's series hold
@@ -227,7 +284,10 @@ fn percentage_chart_values_are_percentages() {
     // Week 1: Auto 4 × 28 = $112 of $196.
     assert_eq!(values(&ch["series"][0])[0], "400/7");
     assert_eq!(ch["series"][0]["displays"][0], "57.14%");
-    assert_eq!(table(&result).rows[0], ["03/01/24", "57.14 %", "14.29 %", "14.29 %", "14.29 %", "$196.00"]);
+    assert_eq!(
+        table(&result).rows[0],
+        ["03/01/24", "57.14 %", "14.29 %", "14.29 %", "14.29 %", "$196.00"]
+    );
 }
 
 /// A new book in `c` with a top-level Expenses tree and a Bank, and the transactions `(account, day of January 2024,
@@ -236,15 +296,24 @@ fn small_book(c: &mut Charts, children: &[&str], posts: &[(&str, u32, i64)]) {
     let book = c.path().join("small.gnucash").display().to_string();
     c.call("book.create", json!({ "path": book }));
     c.call("account.create", json!({ "name": "Bank", "type": "BANK", "commodity": "USD" }));
-    c.call("account.create", json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "USD" }));
+    c.call(
+        "account.create",
+        json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "USD" }),
+    );
     children.iter().for_each(|n| {
-        c.call("account.create", json!({ "name": n, "type": "EXPENSE", "commodity": "USD", "parent": "Expenses" }));
+        c.call(
+            "account.create",
+            json!({ "name": n, "type": "EXPENSE", "commodity": "USD", "parent": "Expenses" }),
+        );
     });
     let decimal = |cents: i64| format!("{}{}.{:02}", if cents < 0 { "-" } else { "" }, cents.abs() / 100, cents.abs() % 100);
     posts.iter().for_each(|(account, day, cents)| {
         let splits = json!([{ "account": format!("Expenses:{account}"), "value": decimal(*cents) },
                             { "account": "Bank", "value": decimal(-cents) }]);
-        c.call("transaction.post", json!({ "datePosted": format!("2024-01-{day:02}"), "description": "t", "splits": splits }));
+        c.call(
+            "transaction.post",
+            json!({ "datePosted": format!("2024-01-{day:02}"), "description": "t", "splits": splits }),
+        );
     });
 }
 
@@ -256,21 +325,36 @@ fn warnings() {
     let mut c = Charts::new("locale");
     small_book(&mut c, &["Food", "Fuel"], &[("Food", 10, 5000), ("Fuel", 12, -2000)]);
     let january = json!({ "Start Date": { "absolute": "2024-01-01" }, "End Date": { "absolute": "2024-01-31" } });
-    let result = c.run("Expense Over Time", &json!({ "General": january, "Display": { "Percentage chart": true } }));
+    let result = c.run(
+        "Expense Over Time",
+        &json!({ "General": january, "Display": { "Percentage chart": true } }),
+    );
     let warning = &blocks_of(&result, "warning")[0];
     assert_eq!(warning["title"], "Negative amounts detected");
     assert_eq!(blocks_of(&result, "text")[0]["text"], "Fuel");
     assert!(blocks_of(&result, "chart").is_empty());
     let plain = c.run("Expense Over Time", &json!({ "General": january }));
-    assert_eq!(values(&chart(&plain)["series"][1]), ["-20"], "without percentages the refund charts");
+    assert_eq!(
+        values(&chart(&plain)["series"][1]),
+        ["-20"],
+        "without percentages the refund charts"
+    );
     let february = json!({ "Start Date": { "absolute": "2024-02-01" }, "End Date": { "absolute": "2024-02-29" } });
-    assert_eq!(blocks_of(&c.run("Expense Over Time", &json!({ "General": february })), "warning")[0]["title"], "No data");
+    assert_eq!(
+        blocks_of(&c.run("Expense Over Time", &json!({ "General": february })), "warning")[0]["title"],
+        "No data"
+    );
     let backwards = json!({ "Start Date": { "absolute": "2024-01-31" }, "End Date": { "absolute": "2024-01-01" } });
     let invalid = &blocks_of(&c.run("Expense Over Time", &json!({ "General": backwards })), "warning")[0];
-    assert_eq!((invalid["title"].as_str(), invalid["text"].as_str()),
-               (Some("Invalid dates"), Some("Start date must be earlier than End date")));
+    assert_eq!(
+        (invalid["title"].as_str(), invalid["text"].as_str()),
+        (Some("Invalid dates"), Some("Start date must be earlier than End date"))
+    );
     let none = &blocks_of(&c.run("Liabilities Over Time", &json!({})), "warning")[0];
-    assert_eq!(none["title"], "No accounts selected", "the book has no liability account, so the default is empty");
+    assert_eq!(
+        none["title"], "No accounts selected",
+        "the book has no liability account, so the default is empty"
+    );
 }
 
 // Only top-level accounts of the chart's types are walked (:261-264): in test-data every account sits below the

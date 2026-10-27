@@ -8,9 +8,14 @@ use super::{AnswerError, Ask, Context, text};
 const FORMAT: &str = "frankfurter";
 
 pub fn parse(v: &Value, cx: &Context<'_>) -> Result<QuoteRecord, AnswerError> {
-    let Ask::Rate { base, quote } = cx.ask else { return Err(AnswerError::unexpected(FORMAT, "Frankfurter has only currency rates")) };
+    let Ask::Rate { base, quote } = cx.ask else {
+        return Err(AnswerError::unexpected(FORMAT, "Frankfurter has only currency rates"));
+    };
     let rates = v.get("rates").ok_or_else(|| AnswerError::unexpected(FORMAT, "no \"rates\""))?;
-    Ok(text(rates, quote).map_or_else(|| QuoteRecord::failed(format!("no rate from {base} to {quote}")), |r| QuoteRecord::last(r, None, None)))
+    Ok(text(rates, quote).map_or_else(
+        || QuoteRecord::failed(format!("no rate from {base} to {quote}")),
+        |r| QuoteRecord::last(r, None, None),
+    ))
 }
 
 #[cfg(test)]
@@ -26,6 +31,9 @@ mod tests {
         let missing = read(Format::Frankfurter, "frankfurter-latest.json", &rate("EUR", "XAU"), None);
         assert_eq!(missing, Ok(QuoteRecord::failed("no rate from EUR to XAU")));
         assert!(read(Format::Frankfurter, "frankfurter-latest.json", &security("AAPL"), None).is_err());
-        assert!(matches!(read(Format::Frankfurter, "frankfurter-not-found.json", &rate("EUR", "ZZZ"), None), Err(AnswerError::Unexpected { .. })));
+        assert!(matches!(
+            read(Format::Frankfurter, "frankfurter-not-found.json", &rate("EUR", "ZZZ"), None),
+            Err(AnswerError::Unexpected { .. })
+        ));
     }
 }

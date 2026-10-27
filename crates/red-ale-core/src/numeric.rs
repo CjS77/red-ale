@@ -87,7 +87,10 @@ pub struct How {
 impl How {
     /// Round with `round`, using the denominator given to the operation.
     pub const fn round(round: Round) -> Self {
-        Self { denom: DenomMode::None, round }
+        Self {
+            denom: DenomMode::None,
+            round,
+        }
     }
 
     /// Combine a denominator mode and a rounding mode.
@@ -96,13 +99,25 @@ impl How {
     }
 
     /// `GNC_HOW_DENOM_EXACT`: exact result.
-    pub const EXACT: Self = Self { denom: DenomMode::Exact, round: Round::Never };
+    pub const EXACT: Self = Self {
+        denom: DenomMode::Exact,
+        round: Round::Never,
+    };
     /// `GNC_HOW_DENOM_FIXED | GNC_HOW_RND_NEVER`, as used by `gnc_numeric_add_fixed`.
-    pub const FIXED_NEVER: Self = Self { denom: DenomMode::Fixed, round: Round::Never };
+    pub const FIXED_NEVER: Self = Self {
+        denom: DenomMode::Fixed,
+        round: Round::Never,
+    };
     /// `GNC_HOW_DENOM_REDUCE | GNC_HOW_RND_NEVER`.
-    pub const REDUCE_NEVER: Self = Self { denom: DenomMode::Reduce, round: Round::Never };
+    pub const REDUCE_NEVER: Self = Self {
+        denom: DenomMode::Reduce,
+        round: Round::Never,
+    };
     /// `GNC_HOW_DENOM_LCD | GNC_HOW_RND_NEVER`.
-    pub const LCD_NEVER: Self = Self { denom: DenomMode::Lcd, round: Round::Never };
+    pub const LCD_NEVER: Self = Self {
+        denom: DenomMode::Lcd,
+        round: Round::Never,
+    };
 }
 
 /// An exact rational number with 64-bit numerator and denominator.
@@ -281,11 +296,19 @@ impl Rational {
     /// `prepare_conversion`, `5.17:libgnucash/engine/gnc-rational.cpp:145`.
     fn prepare_conversion(self, new_denom: i128) -> Result<Conversion, NumericError> {
         if new_denom == self.den || new_denom == 0 {
-            return Ok(Conversion { num: self.num, den: self.den, rem: 0 });
+            return Ok(Conversion {
+                num: self.num,
+                den: self.den,
+                rem: 0,
+            });
         }
         let conv = Self::new(new_denom, self.den).reduce();
         let scaled = self.num.checked_mul(conv.num).ok_or(NumericError::Overflow)?;
-        Ok(Conversion { num: scaled / conv.den, den: conv.den, rem: scaled % conv.den })
+        Ok(Conversion {
+            num: scaled / conv.den,
+            den: conv.den,
+            rem: scaled % conv.den,
+        })
     }
 
     /// `sigfigs_denom`, `5.17:libgnucash/engine/gnc-rational.cpp:161`.
@@ -387,7 +410,11 @@ impl Rational {
 
     /// `GncNumeric(GncRational)`, `5.17:libgnucash/engine/gnc-numeric.cpp:71`: fit into 64 bits, rounding if big.
     fn fit(self) -> Result<Numeric, NumericError> {
-        if self.is_big() { self.reduce().round_to_numeric()?.to_numeric() } else { self.to_numeric() }
+        if self.is_big() {
+            self.reduce().round_to_numeric()?.to_numeric()
+        } else {
+            self.to_numeric()
+        }
     }
 }
 
@@ -519,13 +546,19 @@ impl Numeric {
     /// The negation, keeping the denominator (`gnc_numeric_neg`).
     #[must_use]
     pub const fn neg(self) -> Self {
-        Self { num: -self.num, denom: self.denom }
+        Self {
+            num: -self.num,
+            denom: self.denom,
+        }
     }
 
     /// The absolute value, keeping the denominator (`gnc_numeric_abs`).
     #[must_use]
     pub const fn abs(self) -> Self {
-        Self { num: self.num.abs(), denom: self.denom }
+        Self {
+            num: self.num.abs(),
+            denom: self.denom,
+        }
     }
 
     /// The reciprocal, with the sign on the numerator (`gnc_numeric_invert`,
@@ -536,10 +569,17 @@ impl Numeric {
             return Err(NumericError::Arg);
         }
         let overflow = |x: Option<i64>| x.ok_or(NumericError::Overflow);
-        let (num, denom) = if self.denom < 0 { (overflow(self.num.checked_mul(-self.denom))?, 1) } else { (self.num, self.denom) };
+        let (num, denom) = if self.denom < 0 {
+            (overflow(self.num.checked_mul(-self.denom))?, 1)
+        } else {
+            (self.num, self.denom)
+        };
         match num {
             0 => Ok(Self::ZERO),
-            n if n < 0 => Ok(Self { num: overflow(denom.checked_neg())?, denom: overflow(n.checked_neg())? }),
+            n if n < 0 => Ok(Self {
+                num: overflow(denom.checked_neg())?,
+                denom: overflow(n.checked_neg())?,
+            }),
             n => Ok(Self { num: denom, denom: n }),
         }
     }
@@ -671,7 +711,10 @@ impl Numeric {
         let scale = u32::try_from(frac.len()).map_err(|_| err())?;
         let denom = 10_i64.checked_pow(scale).ok_or_else(err)?;
         let magnitude: i64 = format!("{whole}{frac}").parse().map_err(|_| err())?;
-        Ok(Self { num: if negative { -magnitude } else { magnitude }, denom })
+        Ok(Self {
+            num: if negative { -magnitude } else { magnitude },
+            denom,
+        })
     }
 
     /// Parse either form: `num/denom` (or a bare integer) or a decimal.
@@ -810,7 +853,9 @@ mod tests {
 
     #[test]
     fn div_sigfigs() {
-        let r = n(100, 1).div(n(3, 1), DENOM_AUTO, How::new(DenomMode::SigFigs(6), Round::Bankers)).unwrap();
+        let r = n(100, 1)
+            .div(n(3, 1), DENOM_AUTO, How::new(DenomMode::SigFigs(6), Round::Bankers))
+            .unwrap();
         assert!(r.same_repr(n(333_333, 10_000)));
     }
 

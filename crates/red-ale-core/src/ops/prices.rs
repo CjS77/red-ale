@@ -51,7 +51,9 @@ const INVALID_RANK: usize = 10;
 /// `invalid`; anything else, or no source, leaves a price at `PRICE_SOURCE_INVALID`
 /// (`5.17:libgnucash/engine/gnc-pricedb.cpp:530-542`, `:90-96`).
 pub fn source_rank(source: Option<&str>) -> usize {
-    source.and_then(|s| SOURCES[..INVALID_RANK].iter().position(|k| *k == s)).unwrap_or(INVALID_RANK)
+    source
+        .and_then(|s| SOURCES[..INVALID_RANK].iter().position(|k| *k == s))
+        .unwrap_or(INVALID_RANK)
 }
 
 /// The local calendar day of a price's time, the day GnuCash compares prices by.
@@ -77,7 +79,12 @@ pub fn prices<'a>(book: &'a Book, commodity: &CommodityRef, currency: Option<&Co
     let currency = currency.map(canonical);
     let forward = |p: &Price| p.commodity == commodity && currency.as_ref().is_none_or(|c| p.currency == *c);
     let reverse = |p: &Price| both_directions && currency.as_ref().is_some_and(|c| p.commodity == *c && p.currency == commodity);
-    let mut out: Vec<&Price> = book.prices.values().map(AsRef::as_ref).filter(|p| forward(p) || reverse(p)).collect();
+    let mut out: Vec<&Price> = book
+        .prices
+        .values()
+        .map(AsRef::as_ref)
+        .filter(|p| forward(p) || reverse(p))
+        .collect();
     out.sort_by(|a, b| by_date(a, b));
     out
 }
@@ -86,7 +93,12 @@ pub fn prices<'a>(book: &'a Book, commodity: &CommodityRef, currency: Option<&Co
 /// (`stable_price_traversal`, `5.17:libgnucash/engine/gnc-pricedb.cpp:2688-2729`).
 pub fn all_prices(book: &Book) -> Vec<&Price> {
     let mut out: Vec<&Price> = book.prices.values().map(AsRef::as_ref).collect();
-    out.sort_by(|a, b| a.commodity.cmp(&b.commodity).then_with(|| a.currency.cmp(&b.currency)).then_with(|| by_date(a, b)));
+    out.sort_by(|a, b| {
+        a.commodity
+            .cmp(&b.commodity)
+            .then_with(|| a.currency.cmp(&b.currency))
+            .then_with(|| by_date(a, b))
+    });
     out
 }
 
@@ -139,7 +151,11 @@ fn nearest_in_time<'a>(list: &[&'a Price], t: Time64, same_day: Option<&TimeZone
     let Some(next) = split.map(|i| list[i]) else {
         return Some(current).filter(|p| on_day(p));
     };
-    let closer = if (current.time.0 - t.0).abs() < (next.time.0 - t.0).abs() { current } else { next };
+    let closer = if (current.time.0 - t.0).abs() < (next.time.0 - t.0).abs() {
+        current
+    } else {
+        next
+    };
     match (on_day(current), on_day(next)) {
         (true, true) => Some(closer),
         (true, false) => Some(current),
@@ -166,7 +182,10 @@ fn resolve_sides(book: &Book, price: &mut Price) -> DomainResult<()> {
     price.commodity = require(book, &price.commodity)?;
     price.currency = require(book, &price.currency)?;
     if price.commodity == price.currency {
-        return Err(DomainError::invalid(format!("a price of {} in itself means nothing", price.commodity)));
+        return Err(DomainError::invalid(format!(
+            "a price of {} in itself means nothing",
+            price.commodity
+        )));
     }
     Ok(())
 }
@@ -174,7 +193,9 @@ fn resolve_sides(book: &Book, price: &mut Price) -> DomainResult<()> {
 /// A source must be one GnuCash can store, so that what red-ale writes reads back the same in GnuCash.
 pub fn check_source(source: Option<&str>) -> DomainResult<()> {
     match source {
-        Some(s) if !SOURCES.contains(&s) => Err(DomainError::invalid(format!("unknown price source {s:?}; GnuCash knows {SOURCES:?}"))),
+        Some(s) if !SOURCES.contains(&s) => Err(DomainError::invalid(format!(
+            "unknown price source {s:?}; GnuCash knows {SOURCES:?}"
+        ))),
         _ => Ok(()),
     }
 }
@@ -190,7 +211,8 @@ pub fn add_price(book: &mut Book, mut price: Price, zone: &TimeZone) -> DomainRe
         return Err(DomainError::conflict(format!("price {} already exists", price.guid)));
     }
     let mut result = AddResult::default();
-    let old = nearest(book, &price.commodity, &price.currency, price.time, Nearest::SameDay, zone).map(|p| (p.guid, source_rank(p.source.as_deref())));
+    let old = nearest(book, &price.commodity, &price.currency, price.time, Nearest::SameDay, zone)
+        .map(|p| (p.guid, source_rank(p.source.as_deref())));
     if let Some((old, old_rank)) = old {
         if source_rank(price.source.as_deref()) > old_rank {
             result.rejected_by = Some(old);
@@ -239,7 +261,11 @@ pub struct PriceChanges {
 /// Where GnuCash would then drop the edited price itself (a same-day price with better precedence, or an identical
 /// one), red-ale refuses with `Conflict` instead of losing it.
 pub fn update_price(book: &mut Book, guid: Guid, changes: &PriceChanges, zone: &TimeZone) -> DomainResult<Option<Guid>> {
-    let mut price = book.prices.get(&guid).map(|p| p.as_ref().clone()).ok_or_else(|| DomainError::not_found("price", &guid))?;
+    let mut price = book
+        .prices
+        .get(&guid)
+        .map(|p| p.as_ref().clone())
+        .ok_or_else(|| DomainError::not_found("price", &guid))?;
     let moved = changes.commodity.as_ref().is_some_and(|c| canonical(c) != price.commodity)
         || changes.currency.as_ref().is_some_and(|c| canonical(c) != price.currency)
         || changes.time.is_some_and(|t| t != price.time);
@@ -281,10 +307,13 @@ fn readd_moved(book: &mut Book, price: Price, zone: &TimeZone) -> DomainResult<O
     let guid = price.guid;
     let mut others = book.clone();
     others.prices.shift_remove(&guid);
-    let other = nearest(&others, &price.commodity, &price.currency, price.time, Nearest::SameDay, zone).map(|p| (p.guid, source_rank(p.source.as_deref())));
+    let other = nearest(&others, &price.commodity, &price.currency, price.time, Nearest::SameDay, zone)
+        .map(|p| (p.guid, source_rank(p.source.as_deref())));
     if let Some((other, rank)) = other {
         if source_rank(price.source.as_deref()) > rank {
-            return Err(DomainError::conflict(format!("price {other} on that day has a source with better precedence")));
+            return Err(DomainError::conflict(format!(
+                "price {other} on that day has a source with better precedence"
+            )));
         }
         others.prices.shift_remove(&other);
     }
@@ -301,7 +330,10 @@ fn readd_moved(book: &mut Book, price: Price, zone: &TimeZone) -> DomainResult<O
 
 /// Delete a price (`gnc_pricedb_remove_price`, `5.17:libgnucash/engine/gnc-pricedb.cpp:1219`).
 pub fn delete_price(book: &mut Book, guid: Guid) -> DomainResult<Price> {
-    book.prices.shift_remove(&guid).map(|p| p.as_ref().clone()).ok_or_else(|| DomainError::not_found("price", &guid))
+    book.prices
+        .shift_remove(&guid)
+        .map(|p| p.as_ref().clone())
+        .ok_or_else(|| DomainError::not_found("price", &guid))
 }
 
 /// Which prices "remove old prices" may delete, by source (`PriceRemoveSourceFlags`,
@@ -363,9 +395,18 @@ pub struct RemoveOld {
 /// `gnc_pricedb_remove_old_prices` (`5.17:libgnucash/engine/gnc-pricedb.cpp:1549-1610`), with the dialog's
 /// "scaled" option. Returns the deleted prices in the order they were deleted. Periods compare local dates in `zone`.
 pub fn remove_old_prices(book: &mut Book, opts: &RemoveOld, zone: &TimeZone) -> DomainResult<Vec<Guid>> {
-    let commodities = opts.commodities.iter().map(|c| require(book, c)).collect::<DomainResult<Vec<_>>>()?;
+    let commodities = opts
+        .commodities
+        .iter()
+        .map(|c| require(book, c))
+        .collect::<DomainResult<Vec<_>>>()?;
     let pass = |book: &mut Book, cutoff: Time64, keep: Keep| {
-        let rule = Removal { sources: opts.sources, keep, fiscal_end: opts.fiscal_year_end, zone };
+        let rule = Removal {
+            sources: opts.sources,
+            keep,
+            fiscal_end: opts.fiscal_year_end,
+            zone,
+        };
         remove_pass(book, &commodities, cutoff, &rule)
     };
     if opts.keep != Keep::Scaled {
@@ -388,7 +429,12 @@ struct Removal<'a> {
 }
 
 fn remove_pass(book: &mut Book, commodities: &[CommodityRef], cutoff: Time64, rule: &Removal) -> Vec<Guid> {
-    let Removal { sources, keep, fiscal_end, zone } = *rule;
+    let Removal {
+        sources,
+        keep,
+        fiscal_end,
+        zone,
+    } = *rule;
     let mut candidates: Vec<&Price> = book
         .prices
         .values()
@@ -396,7 +442,9 @@ fn remove_pass(book: &mut Book, commodities: &[CommodityRef], cutoff: Time64, ru
         .filter(|p| commodities.contains(&p.commodity) && sources.matches(p.source.as_deref()) && p.time < cutoff)
         .collect();
     candidates.sort_by(|a, b| {
-        by_unique_name(&a.commodity, &b.commodity).then_with(|| by_unique_name(&a.currency, &b.currency)).then_with(|| by_date(a, b))
+        by_unique_name(&a.commodity, &b.commodity)
+            .then_with(|| by_unique_name(&a.currency, &b.currency))
+            .then_with(|| by_date(a, b))
     });
     let mut kept: Option<&Price> = None;
     let doomed: Vec<Guid> = candidates
@@ -508,13 +556,49 @@ mod tests {
         });
         let guid = |p: Option<&Price>| p.map(|p| p.guid.as_bytes()[0]);
         assert_eq!(guid(latest(&b, &usd(), &eur())), Some(5));
-        assert_eq!(guid(nearest(&b, &eur(), &usd(), at("2024-01-02"), Nearest::Nearest, &TimeZone::utc())), Some(1), "a tie goes to the older");
-        assert_eq!(guid(nearest(&b, &eur(), &usd(), at("2024-01-04").plus_seconds(1), Nearest::Nearest, &TimeZone::utc())), Some(5));
-        assert_eq!(guid(nearest(&b, &eur(), &usd(), at("2024-01-04"), Nearest::Before, &TimeZone::utc())), Some(3));
-        assert_eq!(guid(nearest(&b, &eur(), &usd(), at("2023-12-01"), Nearest::Before, &TimeZone::utc())), None);
-        assert_eq!(guid(nearest(&b, &eur(), &usd(), at("2023-12-01"), Nearest::Nearest, &TimeZone::utc())), Some(1));
-        assert_eq!(guid(nearest(&b, &eur(), &usd(), at("2024-01-04"), Nearest::SameDay, &TimeZone::utc())), None);
-        assert_eq!(guid(nearest(&b, &eur(), &usd(), at("2024-01-03").plus_seconds(3600), Nearest::SameDay, &TimeZone::utc())), Some(3));
+        assert_eq!(
+            guid(nearest(&b, &eur(), &usd(), at("2024-01-02"), Nearest::Nearest, &TimeZone::utc())),
+            Some(1),
+            "a tie goes to the older"
+        );
+        assert_eq!(
+            guid(nearest(
+                &b,
+                &eur(),
+                &usd(),
+                at("2024-01-04").plus_seconds(1),
+                Nearest::Nearest,
+                &TimeZone::utc()
+            )),
+            Some(5)
+        );
+        assert_eq!(
+            guid(nearest(&b, &eur(), &usd(), at("2024-01-04"), Nearest::Before, &TimeZone::utc())),
+            Some(3)
+        );
+        assert_eq!(
+            guid(nearest(&b, &eur(), &usd(), at("2023-12-01"), Nearest::Before, &TimeZone::utc())),
+            None
+        );
+        assert_eq!(
+            guid(nearest(&b, &eur(), &usd(), at("2023-12-01"), Nearest::Nearest, &TimeZone::utc())),
+            Some(1)
+        );
+        assert_eq!(
+            guid(nearest(&b, &eur(), &usd(), at("2024-01-04"), Nearest::SameDay, &TimeZone::utc())),
+            None
+        );
+        assert_eq!(
+            guid(nearest(
+                &b,
+                &eur(),
+                &usd(),
+                at("2024-01-03").plus_seconds(3600),
+                Nearest::SameDay,
+                &TimeZone::utc()
+            )),
+            Some(3)
+        );
     }
 
     #[test]
@@ -522,9 +606,23 @@ mod tests {
         let mut b = book();
         add_utc(&mut b, price(1, eur(), usd(), "2024-01-10", EDITOR_SOURCE, 110)).unwrap();
         add_utc(&mut b, price(2, eur(), usd(), "2024-01-11", FQ_SOURCE, 111)).unwrap();
-        let onto = PriceChanges { time: Some(at("2024-01-10")), ..PriceChanges::default() };
-        assert!(matches!(update_price(&mut b, Guid::from_bytes([2; 16]), &onto, &TimeZone::utc()), Err(DomainError::Conflict(_))));
-        let replaced = update_price(&mut b, Guid::from_bytes([1; 16]), &PriceChanges { time: Some(at("2024-01-11")), ..PriceChanges::default() }, &TimeZone::utc());
+        let onto = PriceChanges {
+            time: Some(at("2024-01-10")),
+            ..PriceChanges::default()
+        };
+        assert!(matches!(
+            update_price(&mut b, Guid::from_bytes([2; 16]), &onto, &TimeZone::utc()),
+            Err(DomainError::Conflict(_))
+        ));
+        let replaced = update_price(
+            &mut b,
+            Guid::from_bytes([1; 16]),
+            &PriceChanges {
+                time: Some(at("2024-01-11")),
+                ..PriceChanges::default()
+            },
+            &TimeZone::utc(),
+        );
         assert_eq!(replaced.unwrap(), Some(Guid::from_bytes([2; 16])));
     }
 
@@ -533,12 +631,16 @@ mod tests {
         let mut b = book();
         let days = ["2021-01-15", "2022-01-10", "2022-01-20", "2023-01-05", "2023-06-01", "2023-06-02"];
         (1u8..).zip(days).for_each(|(n, d)| {
-            b.prices.insert(Guid::from_bytes([n; 16]), Arc::new(price(n, eur(), usd(), d, FQ_SOURCE, 1)));
+            b.prices
+                .insert(Guid::from_bytes([n; 16]), Arc::new(price(n, eur(), usd(), d, FQ_SOURCE, 1)));
         });
         let opts = RemoveOld {
             commodities: vec![eur()],
             cutoff: at("2024-01-01"),
-            sources: SourceFlags { fetched: true, ..SourceFlags::default() },
+            sources: SourceFlags {
+                fetched: true,
+                ..SourceFlags::default()
+            },
             keep: Keep::LastOfMonth,
             fiscal_year_end: Date::from_ymd(2024, 12, 31).unwrap(),
         };
@@ -551,13 +653,28 @@ mod tests {
 
     #[test]
     fn fiscal_quarters_and_years() {
-        assert_eq!((1..=12).map(|m| fiscal_quarter(m, 13)).collect::<Vec<_>>(), [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]);
+        assert_eq!(
+            (1..=12).map(|m| fiscal_quarter(m, 13)).collect::<Vec<_>>(),
+            [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]
+        );
         assert_eq!(fiscal_quarter(4, 4), 1);
         let end = Date::from_ymd(2024, 3, 31).unwrap();
         assert_eq!(fiscal_year_end_year(Date::from_ymd(2023, 3, 31).unwrap(), end), 2023);
         assert_eq!(fiscal_year_end_year(Date::from_ymd(2023, 4, 1).unwrap(), end), 2024);
-        assert!(SourceFlags { app: true, ..SourceFlags::default() }.matches(Some("weird")));
-        assert!(!SourceFlags { app: true, ..SourceFlags::default() }.matches(Some(USER_PRICE_SOURCE)));
+        assert!(
+            SourceFlags {
+                app: true,
+                ..SourceFlags::default()
+            }
+            .matches(Some("weird"))
+        );
+        assert!(
+            !SourceFlags {
+                app: true,
+                ..SourceFlags::default()
+            }
+            .matches(Some(USER_PRICE_SOURCE))
+        );
     }
 
     proptest::proptest! {

@@ -11,9 +11,9 @@ use std::path::Path;
 
 use proptest::prelude::*;
 use red_ale_core::TimeZone;
+use red_ale_report::ReportResult;
 use red_ale_report::render::{self, RenderContext, StyleSheet, StyleSheetTemplate, StyleSheets};
 use red_ale_report::settings::DateFormat;
-use red_ale_report::ReportResult;
 use serde_json::{Value, json};
 
 const BANK: &str = "4a1c0000000000000000000000000001";
@@ -74,16 +74,19 @@ fn balance_sheet() -> ReportResult {
             { "cells": [ { "text": "Spanning note", "span": 3 }, null ] }
         ]
     });
-    result("Acme Ltd Balance Sheet 12/31/24", json!([
-        { "title": null, "blocks": [
-            { "kind": "text", "text": "Assets and liabilities", "role": "heading" },
-            { "kind": "group", "blocks": [ assets, rates ] },
-            { "kind": "warning", "title": "No accounts selected", "text": "This report requires accounts to be selected." },
-            { "kind": "text", "text": "Figures in USD.\nRates are nearest in time.", "role": "note" }
-        ] },
-        { "title": "Options", "blocks": [ { "kind": "optionsSummary", "rows": [
-            { "section": "General", "name": "Balance Sheet Date", "value": "relative . end-accounting-period" } ] } ] }
-    ]))
+    result(
+        "Acme Ltd Balance Sheet 12/31/24",
+        json!([
+            { "title": null, "blocks": [
+                { "kind": "text", "text": "Assets and liabilities", "role": "heading" },
+                { "kind": "group", "blocks": [ assets, rates ] },
+                { "kind": "warning", "title": "No accounts selected", "text": "This report requires accounts to be selected." },
+                { "kind": "text", "text": "Figures in USD.\nRates are nearest in time.", "role": "note" }
+            ] },
+            { "title": "Options", "blocks": [ { "kind": "optionsSummary", "rows": [
+                { "section": "General", "name": "Balance Sheet Date", "value": "relative . end-accounting-period" } ] } ] }
+        ]),
+    )
 }
 
 fn chart(chart: &Value) -> ReportResult {
@@ -146,7 +149,11 @@ fn price_scatter() -> Value {
 }
 
 fn ctx(zone: &TimeZone) -> RenderContext<'_> {
-    RenderContext { zone, date_format: DateFormat::Us, locale: red_ale_locale::Locale::c() }
+    RenderContext {
+        zone,
+        date_format: DateFormat::Us,
+        locale: red_ale_locale::Locale::c(),
+    }
 }
 
 /// A predefined style sheet with every header and footer line on, so the golden pages show them.
@@ -176,20 +183,29 @@ fn page(result: &ReportResult, sheet: Option<&StyleSheet>) -> String {
 }
 
 fn golden(name: &str, html: &str) {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots/render").join(format!("{name}.html"));
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/snapshots/render")
+        .join(format!("{name}.html"));
     if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, html).unwrap();
     }
     let expected = std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("missing {}; run with UPDATE_SNAPSHOTS=1", path.display()));
-    assert!(html == expected, "{name}.html changed; regenerate with UPDATE_SNAPSHOTS=1 and review the diff");
+    assert!(
+        html == expected,
+        "{name}.html changed; regenerate with UPDATE_SNAPSHOTS=1 and review the diff"
+    );
 }
 
 #[test]
 fn tables_render_through_each_predefined_style_sheet() {
     let report = balance_sheet();
     StyleSheets::predefined().iter().for_each(|s| {
-        let slug: String = s.name().chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' }).collect();
+        let slug: String = s
+            .name()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+            .collect();
         golden(&format!("sheet-{slug}"), &page(&report, Some(&sheet(s.name()))));
     });
     golden("sheet-none", &page(&report, None));
@@ -247,9 +263,15 @@ fn style_sheet_options_reach_the_page() {
     assert!(html.contains(".neg{}"));
     assert!(html.contains("h1.report-title{margin:0 0 4px;font-family:\"Liberation Serif\",sans-serif;font-size:20pt;font-style:italic;}"));
     let tail = page(&balance_sheet(), Some(&sheet("Head or Tail")));
-    assert!(!tail.contains("tr.primary-subheading{"), "Head or Tail's invalid subheading colour sets none");
+    assert!(
+        !tail.contains("tr.primary-subheading{"),
+        "Head or Tail's invalid subheading colour sets none"
+    );
     assert!(tail.contains("<p>Report Creation Date: 01/15/2025 10:30:00 +0100</p>"));
-    let css = StyleSheets::predefined().get("CSS-based stylesheet (experimental)").unwrap().clone();
+    let css = StyleSheets::predefined()
+        .get("CSS-based stylesheet (experimental)")
+        .unwrap()
+        .clone();
     let html = page(&balance_sheet(), Some(&css));
     assert!(html.contains("/* default style */") && html.contains("<body class=\"sheet-css\">"));
 }
@@ -257,7 +279,9 @@ fn style_sheet_options_reach_the_page() {
 #[test]
 fn hostile_text_is_escaped_everywhere() {
     let evil = "</title><script>alert(1)</script><img src=x onerror=\"alert(2)\">";
-    let report = result(evil, json!([ { "title": evil, "blocks": [
+    let report = result(
+        evil,
+        json!([ { "title": evil, "blocks": [
         { "kind": "text", "text": evil },
         { "kind": "warning", "title": evil, "text": evil },
         { "kind": "table", "title": evil, "columns": [ { "label": evil, "role": "label" }, { "label": evil, "role": "amount" } ],
@@ -267,7 +291,8 @@ fn hostile_text_is_escaped_everywhere() {
         { "kind": "chart", "type": "pie", "title": [evil], "labels": [evil],
           "series": [ { "label": evil, "color": "#000000", "values": ["1"], "displays": [evil] } ] },
         { "kind": "optionsSummary", "rows": [ { "section": evil, "name": evil, "value": evil } ] }
-    ] } ]));
+    ] } ]),
+    );
     let mut s = StyleSheet::new("Evil", StyleSheetTemplate::HeadOrTail);
     s.apply(&json!({
         "General": { "Preparer": evil, "Prepared for": evil, "Additional Comments": evil },
@@ -281,7 +306,10 @@ fn hostile_text_is_escaped_everywhere() {
     assert!(html.contains("font-family:\"x  body  background urlhttpevil.example  p\",sans-serif;font-size:12pt;"));
     assert!(html.contains("&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;&lt;img src=x onerror=&quot;alert(2)&quot;&gt;"));
     let mut css = StyleSheet::new("CSS", StyleSheetTemplate::Css);
-    assert!(css.apply(&json!({ "General": { "CSS": "p{}</style><script>alert(1)</script>" } })).is_err());
+    assert!(
+        css.apply(&json!({ "General": { "CSS": "p{}</style><script>alert(1)</script>" } }))
+            .is_err()
+    );
 }
 
 #[test]
@@ -290,7 +318,10 @@ fn a_missing_style_sheet_renders_with_the_base_look() {
     assert!(sheets.get("Deleted").is_none());
     let html = page(&balance_sheet(), sheets.get("Deleted"));
     assert!(html.contains("<body class=\"sheet-none\">"));
-    assert_eq!(render::missing_style_sheet("Deleted").text, "style sheet \"Deleted\" does not exist; rendered with no style sheet");
+    assert_eq!(
+        render::missing_style_sheet("Deleted").text,
+        "style sheet \"Deleted\" does not exist; rendered with no style sheet"
+    );
 }
 
 // ---- Checks every page passes ----
@@ -298,17 +329,38 @@ fn a_missing_style_sheet_renders_with_the_base_look() {
 /// No script, nothing that loads, and well-formed markup with SVG inside its viewBox.
 fn check_page(html: &str) {
     let lower = html.to_ascii_lowercase();
-    ["<script", "<iframe", "<object", "<embed", "<link", "<img", "<image", "<use", "<foreignobject"]
-        .iter()
-        .for_each(|bad| assert!(!lower.contains(bad), "the page contains {bad:?}"));
+    [
+        "<script",
+        "<iframe",
+        "<object",
+        "<embed",
+        "<link",
+        "<img",
+        "<image",
+        "<use",
+        "<foreignobject",
+    ]
+    .iter()
+    .for_each(|bad| assert!(!lower.contains(bad), "the page contains {bad:?}"));
     // Escaped text may say anything; markup and the stylesheet may not load or run anything.
     let style = &lower[lower.find("<style>").unwrap()..lower.find("</style>").unwrap()];
-    ["url(", "@import", "http:", "https:", "javascript:", "\\"].iter().for_each(|bad| assert!(!style.contains(bad), "the CSS has {bad:?}"));
-    lower.split('<').skip(1).map(|t| &t[..t.find('>').unwrap_or(t.len())]).for_each(|tag| {
-        let outside_values: String = tag.split('"').step_by(2).collect();
-        [" href=", " src=", " xlink:href=", " on"].iter().for_each(|bad| assert!(!outside_values.contains(bad), "<{tag}> has {bad:?}"));
-        assert!(!tag.contains("http:") && !tag.contains("https:") && !tag.contains("url("), "<{tag}> names a URL");
-    });
+    ["url(", "@import", "http:", "https:", "javascript:", "\\"]
+        .iter()
+        .for_each(|bad| assert!(!style.contains(bad), "the CSS has {bad:?}"));
+    lower
+        .split('<')
+        .skip(1)
+        .map(|t| &t[..t.find('>').unwrap_or(t.len())])
+        .for_each(|tag| {
+            let outside_values: String = tag.split('"').step_by(2).collect();
+            [" href=", " src=", " xlink:href=", " on"]
+                .iter()
+                .for_each(|bad| assert!(!outside_values.contains(bad), "<{tag}> has {bad:?}"));
+            assert!(
+                !tag.contains("http:") && !tag.contains("https:") && !tag.contains("url("),
+                "<{tag}> names a URL"
+            );
+        });
     assert!(html.starts_with("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">"));
     check_well_formed(html);
     svgs(html).iter().for_each(|svg| check_svg(svg));
@@ -359,12 +411,16 @@ fn check_text(text: &str) {
 fn check_attributes(tag: &str) {
     let quotes = tag.matches('"').count();
     assert!(quotes.is_multiple_of(2), "unbalanced quotes in <{tag}>");
-    tag.split('"').step_by(2).for_each(|outside| assert!(!outside.contains('<') && !outside.contains('\''), "<{tag}>"));
+    tag.split('"')
+        .step_by(2)
+        .for_each(|outside| assert!(!outside.contains('<') && !outside.contains('\''), "<{tag}>"));
     tag.split('"').skip(1).step_by(2).for_each(check_text);
 }
 
 fn svgs(html: &str) -> Vec<&str> {
-    html.match_indices("<svg ").map(|(at, _)| &html[at..at + html[at..].find("</svg>").unwrap()]).collect()
+    html.match_indices("<svg ")
+        .map(|(at, _)| &html[at..at + html[at..].find("</svg>").unwrap()])
+        .collect()
 }
 
 fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
@@ -377,7 +433,10 @@ fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
 
 fn numbers(text: &str) -> Vec<f64> {
     // Floating point only to read the test's own output; the renderer has none.
-    text.split(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-')).filter(|s| !s.is_empty()).map(|s| s.parse().unwrap()).collect()
+    text.split(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-'))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.parse().unwrap())
+        .collect()
 }
 
 /// Every coordinate of every shape and text lies within the viewBox.
@@ -385,36 +444,42 @@ fn check_svg(svg: &str) {
     let view = numbers(attr(svg, "viewBox").unwrap());
     let (w, h) = (view[2], view[3]);
     let inside = |x: f64, y: f64, what: &str| {
-        assert!((0.0..=w).contains(&x) && (0.0..=h).contains(&y), "{what}: ({x}, {y}) outside {w}×{h}");
+        assert!(
+            (0.0..=w).contains(&x) && (0.0..=h).contains(&y),
+            "{what}: ({x}, {y}) outside {w}×{h}"
+        );
     };
-    svg.split('<').skip(1).map(|t| &t[..t.find('>').unwrap_or(t.len())]).for_each(|tag| {
-        let num = |name: &str| attr(tag, name).map(|v| v.parse::<f64>().unwrap());
-        if let (Some(x), Some(y)) = (num("x"), num("y")) {
-            inside(x, y, tag);
-            let (dw, dh) = (num("width").unwrap_or(0.0), num("height").unwrap_or(0.0));
-            assert!(dw >= 0.0 && dh >= 0.0, "{tag}");
-            inside(x + dw, y + dh, tag);
-        }
-        if let (Some(cx), Some(cy)) = (num("cx"), num("cy")) {
-            let r = num("r").unwrap_or(0.0);
-            inside(cx - r, cy - r, tag);
-            inside(cx + r, cy + r, tag);
-        }
-        if let (Some(x1), Some(y1), Some(x2), Some(y2)) = (num("x1"), num("y1"), num("x2"), num("y2")) {
-            inside(x1, y1, tag);
-            inside(x2, y2, tag);
-        }
-        if let Some(points) = attr(tag, "points") {
-            numbers(points).chunks(2).for_each(|p| inside(p[0], p[1], tag));
-        }
-        if let Some(d) = attr(tag, "d") {
-            path_points(d).into_iter().for_each(|(x, y)| inside(x, y, tag));
-        }
-        if let Some(t) = attr(tag, "transform") {
-            let n = numbers(t);
-            inside(n[1], n[2], tag);
-        }
-    });
+    svg.split('<')
+        .skip(1)
+        .map(|t| &t[..t.find('>').unwrap_or(t.len())])
+        .for_each(|tag| {
+            let num = |name: &str| attr(tag, name).map(|v| v.parse::<f64>().unwrap());
+            if let (Some(x), Some(y)) = (num("x"), num("y")) {
+                inside(x, y, tag);
+                let (dw, dh) = (num("width").unwrap_or(0.0), num("height").unwrap_or(0.0));
+                assert!(dw >= 0.0 && dh >= 0.0, "{tag}");
+                inside(x + dw, y + dh, tag);
+            }
+            if let (Some(cx), Some(cy)) = (num("cx"), num("cy")) {
+                let r = num("r").unwrap_or(0.0);
+                inside(cx - r, cy - r, tag);
+                inside(cx + r, cy + r, tag);
+            }
+            if let (Some(x1), Some(y1), Some(x2), Some(y2)) = (num("x1"), num("y1"), num("x2"), num("y2")) {
+                inside(x1, y1, tag);
+                inside(x2, y2, tag);
+            }
+            if let Some(points) = attr(tag, "points") {
+                numbers(points).chunks(2).for_each(|p| inside(p[0], p[1], tag));
+            }
+            if let Some(d) = attr(tag, "d") {
+                path_points(d).into_iter().for_each(|(x, y)| inside(x, y, tag));
+            }
+            if let Some(t) = attr(tag, "transform") {
+                let n = numbers(t);
+                inside(n[1], n[2], tag);
+            }
+        });
 }
 
 /// The end points of a path's `M`, `L` and `A` commands.
@@ -439,14 +504,27 @@ fn rational() -> impl Strategy<Value = Value> {
 }
 
 fn plot_size() -> impl Strategy<Value = Value> {
-    prop_oneof![(1_u32..=100).prop_map(|p| json!({ "percent": p })), (1_u32..3000).prop_map(|p| json!({ "pixels": p }))]
+    prop_oneof![
+        (1_u32..=100).prop_map(|p| json!({ "percent": p })),
+        (1_u32..3000).prop_map(|p| json!({ "pixels": p }))
+    ]
 }
 
 fn any_chart() -> impl Strategy<Value = Value> {
     let kind = prop_oneof![Just("bar"), Just("line"), Just("pie"), Just("scatter")];
     let labels = proptest::collection::vec("[a-zA-Z0-9 <&>]{0,40}", 0..14);
     let titles = proptest::collection::vec("[a-z ]{0,80}", 0..5);
-    (kind, labels, titles, plot_size(), plot_size(), any::<bool>(), any::<bool>(), 1_usize..5, proptest::collection::vec(rational(), 60))
+    (
+        kind,
+        labels,
+        titles,
+        plot_size(),
+        plot_size(),
+        any::<bool>(),
+        any::<bool>(),
+        1_usize..5,
+        proptest::collection::vec(rational(), 60),
+    )
         .prop_map(|(kind, labels, titles, width, height, stacked, legend, series, values)| {
             let n = labels.len();
             let series_count = if kind == "pie" { 1 } else { series };
@@ -455,7 +533,10 @@ fn any_chart() -> impl Strategy<Value = Value> {
                     let vals: Vec<Value> = (0..n).map(|i| values[(s * 13 + i) % values.len()].clone()).collect();
                     let points: Vec<Value> = (0..n)
                         .map(|i| {
-                            let pick = |k: usize| match &values[k % values.len()] { Value::Null => json!("0"), v => v.clone() };
+                            let pick = |k: usize| match &values[k % values.len()] {
+                                Value::Null => json!("0"),
+                                v => v.clone(),
+                            };
                             json!({ "x": pick(s + i), "y": pick(s * 7 + i + 3) })
                         })
                         .collect();

@@ -10,7 +10,9 @@ use red_ale_core::ops::commit::{NewSplit, NewTransaction};
 use red_ale_core::ops::scrub::Repair;
 use red_ale_core::ops::transactions::post;
 use red_ale_core::transaction::slot_paths::{NOTES, ONLINE_ID};
-use red_ale_core::{Account, AccountType, Book, CommodityRef, Date, Env, FixedEnv, Guid, Numeric, ReconcileState, SlotValue, Split, Time64, Transaction};
+use red_ale_core::{
+    Account, AccountType, Book, CommodityRef, Date, Env, FixedEnv, Guid, Numeric, ReconcileState, SlotValue, Split, Time64, Transaction,
+};
 use red_ale_locale::Locale;
 
 use super::batch::resolve_conflicts;
@@ -51,7 +53,15 @@ fn fx() -> Fx {
     let food = add("Food", AccountType::Expense, "USD");
     let drink = add("Drink", AccountType::Expense, "USD");
     let eur_cash = add("Euro", AccountType::Currency, "EUR");
-    Fx { book, env, bank, card, food, drink, eur_cash }
+    Fx {
+        book,
+        env,
+        bank,
+        card,
+        food,
+        drink,
+        eur_cash,
+    }
 }
 
 impl Fx {
@@ -65,7 +75,14 @@ impl Fx {
     }
 
     fn split_in(&self, t: Guid, account: Guid) -> Guid {
-        self.book.transaction(t).unwrap().splits.iter().find(|s| s.account == Some(account)).unwrap().guid
+        self.book
+            .transaction(t)
+            .unwrap()
+            .splits
+            .iter()
+            .find(|s| s.account == Some(account))
+            .unwrap()
+            .guid
     }
 
     /// An imported transaction: one split of `amount` in `account`.
@@ -92,17 +109,28 @@ impl Fx {
     }
 
     fn batch(&mut self, ts: Vec<Transaction>, settings: &ImportSettings) -> MatchBatch {
-        let imported = ts.into_iter().map(|transaction| ImportedTransaction { transaction, last_split: None }).collect();
+        let imported = ts
+            .into_iter()
+            .map(|transaction| ImportedTransaction {
+                transaction,
+                last_split: None,
+            })
+            .collect();
         match_batch(&self.book, settings, imported, &Locale::c()).unwrap()
     }
 }
 
 fn plain() -> ImportSettings {
-    ImportSettings { use_bayes: false, ..ImportSettings::default() }
+    ImportSettings {
+        use_bayes: false,
+        ..ImportSettings::default()
+    }
 }
 
 fn assert_balanced(book: &Book) {
-    book.transactions.values().for_each(|t| assert!(t.is_balanced(), "{} unbalanced: {:?}", t.guid, t.imbalance()));
+    book.transactions
+        .values()
+        .for_each(|t| assert!(t.is_balanced(), "{} unbalanced: {:?}", t.guid, t.imbalance()));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -138,7 +166,9 @@ fn create_trans_info_bayes() {
     unique.sort();
     unique.dedup();
     assert_eq!(unique.len(), tokens.len(), "{tokens:?}");
-    ["Wednesday", "description", "memo"].iter().for_each(|w| assert!(tokens.iter().any(|t| t == w), "{w}"));
+    ["Wednesday", "description", "memo"]
+        .iter()
+        .for_each(|w| assert!(tokens.iter().any(|t| t == w), "{w}"));
 
     crate::import_map::bayes::add_account_bayes(&mut f.book, bank, &tokens, food).unwrap();
     let info = f.info(t, &ImportSettings::default());
@@ -176,9 +206,14 @@ fn weekday_is_taken_in_utc() {
 /// No glibc full day name is longer than GnuCash's 15-byte `strftime` buffer in the locales red-ale has.
 #[test]
 fn day_names_fit_gnucash_buffer() {
-    ["C", "en_US", "fr_FR", "de_DE", "en_GB"].iter().filter_map(|n| Locale::by_name(n).ok()).for_each(|l| {
-        red_ale_locale::Weekday::ALL.iter().for_each(|w| assert!(l.day_name(*w).len() < 16, "{}", l.day_name(*w)));
-    });
+    ["C", "en_US", "fr_FR", "de_DE", "en_GB"]
+        .iter()
+        .filter_map(|n| Locale::by_name(n).ok())
+        .for_each(|l| {
+            red_ale_locale::Weekday::ALL
+                .iter()
+                .for_each(|w| assert!(l.day_name(*w).len() < 16, "{}", l.day_name(*w)));
+        });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -194,7 +229,10 @@ fn score(f: &mut Fx, imported: &Transaction, existing: Guid, settings: &ImportSe
 fn every_scoring_branch() {
     let mut f = fx();
     let (bank, food) = (f.bank, f.food);
-    let s = ImportSettings { match_threshold: -100, ..ImportSettings::default() };
+    let s = ImportSettings {
+        match_threshold: -100,
+        ..ImportSettings::default()
+    };
     let e = f.existing(10, bank, food, usd(-2000), "Grocer", Some("101"));
     let mut t = f.imported(10, bank, usd(-2000), "");
     let m = score(&mut f, &t, e, &s).unwrap();
@@ -218,7 +256,11 @@ fn every_scoring_branch() {
     assert_eq!(score(&mut f, &t, e, &s).unwrap().probability, 4, "different number −2");
     t.num = None;
     t.description = Some("GROCER".into());
-    assert_eq!(score(&mut f, &t, e, &s).unwrap().probability, 8, "equal description, case-folded +2");
+    assert_eq!(
+        score(&mut f, &t, e, &s).unwrap().probability,
+        8,
+        "equal description, case-folded +2"
+    );
     t.description = Some("Grocery".into());
     assert_eq!(score(&mut f, &t, e, &s).unwrap().probability, 7, "half-prefix +1");
     let s1 = ImportSettings::default();
@@ -235,7 +277,11 @@ fn memo_is_scored_on_the_imported_split() {
     let e = f.existing(10, bank, food, usd(-2000), "", None);
     let mut t = f.imported(10, bank, usd(-2000), "");
     let mut book_t = f.book.transaction(e).unwrap().clone();
-    book_t.splits.iter_mut().filter(|s| s.account == Some(bank)).for_each(|s| s.memo = Some("REF 1".into()));
+    book_t
+        .splits
+        .iter_mut()
+        .filter(|s| s.account == Some(bank))
+        .for_each(|s| s.memo = Some("REF 1".into()));
     f.book.transactions.insert(e, Arc::new(book_t));
     t.splits[0].memo = Some("ref 1".into());
     assert_eq!(score(&mut f, &t, e, &s).unwrap().probability, 8);
@@ -272,12 +318,41 @@ fn init_matches_chooses_as_gnucash() {
     };
     assert_eq!(act(&[(6, false)], &s), ImportAction::Clear);
     assert_eq!(act(&[(6, true)], &s), ImportAction::Update);
-    assert_eq!(act(&[(6, true)], &ImportSettings { enable_update: false, ..s.clone() }), ImportAction::Clear);
+    assert_eq!(
+        act(
+            &[(6, true)],
+            &ImportSettings {
+                enable_update: false,
+                ..s.clone()
+            }
+        ),
+        ImportAction::Clear
+    );
     assert_eq!(act(&[(3, false)], &s), ImportAction::Add);
     assert_eq!(act(&[], &s), ImportAction::Add);
     assert_eq!(act(&[(4, false)], &s), ImportAction::Skip);
-    assert_eq!(act(&[(5, false)], &ImportSettings { enable_skip: false, ..s.clone() }), ImportAction::Update, "update whatever update_proposed says");
-    assert_eq!(act(&[(5, false)], &ImportSettings { enable_skip: false, enable_update: false, ..s.clone() }), ImportAction::Add);
+    assert_eq!(
+        act(
+            &[(5, false)],
+            &ImportSettings {
+                enable_skip: false,
+                ..s.clone()
+            }
+        ),
+        ImportAction::Update,
+        "update whatever update_proposed says"
+    );
+    assert_eq!(
+        act(
+            &[(5, false)],
+            &ImportSettings {
+                enable_skip: false,
+                enable_update: false,
+                ..s.clone()
+            }
+        ),
+        ImportAction::Add
+    );
 }
 
 #[test]
@@ -299,7 +374,12 @@ fn conflicts_resolve_greedily_without_recomputing_the_action() {
         i.matches = tops
             .iter()
             .enumerate()
-            .map(|(n, (t, p))| MatchInfo { split: Guid::from_bytes([u8::try_from(n).unwrap() + 1; 16]), transaction: *t, probability: *p, update_proposed: false })
+            .map(|(n, (t, p))| MatchInfo {
+                split: Guid::from_bytes([u8::try_from(n).unwrap() + 1; 16]),
+                transaction: *t,
+                probability: *p,
+                update_proposed: false,
+            })
             .collect();
         i.init_matches(&ImportSettings::default());
         i
@@ -321,7 +401,11 @@ fn conflicts_resolve_greedily_without_recomputing_the_action() {
     let mut demoted = vec![mk(&[(a, 9)]), mk(&[(a, 7), (b, 4)])];
     resolve_conflicts(&mut demoted);
     assert_eq!(demoted[1].matches[0].probability, 4);
-    assert_eq!(demoted[1].action, ImportAction::Clear, "the action is not recomputed for the weaker match");
+    assert_eq!(
+        demoted[1].action,
+        ImportAction::Clear,
+        "the action is not recomputed for the weaker match"
+    );
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -343,8 +427,17 @@ fn batch_finds_candidates_in_the_window_and_account() {
     assert_eq!(b.infos[0].action, ImportAction::Clear);
     let mut later = f.imported(5, bank, usd(-1000), "Shop");
     later.date_posted = Date::from_ymd(2024, 2, 21).unwrap().neutral_time();
-    let b = f.batch(vec![later], &ImportSettings { match_threshold: -100, ..ImportSettings::default() });
-    assert!(b.infos[0].matches.iter().any(|m| m.transaction == far), "42 days after the far one: inside the window");
+    let b = f.batch(
+        vec![later],
+        &ImportSettings {
+            match_threshold: -100,
+            ..ImportSettings::default()
+        },
+    );
+    assert!(
+        b.infos[0].matches.iter().any(|m| m.transaction == far),
+        "42 days after the far one: inside the window"
+    );
 }
 
 #[test]
@@ -375,7 +468,10 @@ fn batch_works_in_reverse_arrival_order() {
     let second = f.imported(5, bank, usd(-1000), "Shop");
     let b = f.batch(vec![first, second], &ImportSettings::default());
     assert_eq!(b.infos.iter().map(|i| i.index).collect::<Vec<_>>(), [0, 1]);
-    assert_eq!(b.infos[1].matches[0].transaction, e, "the last to arrive is GnuCash's first row and wins the tie");
+    assert_eq!(
+        b.infos[1].matches[0].transaction, e,
+        "the last to arrive is GnuCash's first row and wins the tie"
+    );
     assert!(b.infos[0].matches.is_empty());
 }
 
@@ -399,7 +495,11 @@ fn dest_amount_follows_currency_price_and_given_amount() {
     info.set_dest_amount(&f.book, Numeric::new(900, 100));
     assert!(info.dest_amount.same_value(usd(900)), "a given amount is kept");
     let t = f.imported(5, bank, usd(-1000), "x");
-    let last = LastSplitInfo { price: None, amount: Some(Numeric::new(950, 100)), account: Some(eur) };
+    let last = LastSplitInfo {
+        price: None,
+        amount: Some(Numeric::new(950, 100)),
+        account: Some(eur),
+    };
     let info = TransInfo::new(&f.book, &plain(), 0, t, Some(&last), &Locale::c()).unwrap();
     assert_eq!((info.dest_account, info.dest_source), (Some(eur), Some(DestSource::File)));
     assert!(info.dest_amount.same_value(Numeric::new(950, 100)));
@@ -426,7 +526,10 @@ fn add_balances_with_the_destination_and_learns_nothing_automatic() {
     let added = f.book.transaction(p.transaction.unwrap()).unwrap();
     assert_eq!(added.splits.len(), 2);
     let near = added.splits.iter().find(|s| s.account == Some(bank)).unwrap();
-    assert_eq!((near.reconcile_state, near.reconcile_date), (ReconcileState::Cleared, Some(f.env.now)));
+    assert_eq!(
+        (near.reconcile_state, near.reconcile_date),
+        (ReconcileState::Cleared, Some(f.env.now))
+    );
     let other = added.splits.iter().find(|s| s.account == Some(food)).unwrap();
     assert!(other.value.same_value(usd(1000)) && other.memo.is_none() && other.reconcile_state == ReconcileState::New);
     assert_eq!(f.book.account(bank).unwrap().slots, before);
@@ -459,7 +562,9 @@ fn add_to_a_priced_account_records_an_import_price_or_warns() {
     info.set_dest_amount(&f.book, Numeric::new(900, 100));
     let p = process_trans_item(&mut f.book, &mut f.env, &info, opts(false, false)).unwrap();
     assert!(p.warnings.is_empty());
-    let [red_ale_core::ops::transactions::transfer::PriceChange::Created(price)] = p.prices[..] else { panic!("{:?}", p.prices) };
+    let [red_ale_core::ops::transactions::transfer::PriceChange::Created(price)] = p.prices[..] else {
+        panic!("{:?}", p.prices)
+    };
     let price = &f.book.prices[&price];
     assert_eq!(price.source.as_deref(), Some("user:split-import"));
     assert_eq!(price.commodity, CommodityRef::currency("EUR"));
@@ -480,7 +585,10 @@ fn clear_reconciles_copies_online_id_and_learns_the_other_account() {
     let p = process_trans_item(&mut f.book, &mut f.env, info, opts(true, false)).unwrap();
     assert_eq!(p.transaction, Some(e));
     let split = f.book.transaction(e).unwrap().split(s).unwrap();
-    assert_eq!((split.reconcile_state, split.reconcile_date), (ReconcileState::Cleared, Some(f.env.now)));
+    assert_eq!(
+        (split.reconcile_state, split.reconcile_date),
+        (ReconcileState::Cleared, Some(f.env.now))
+    );
     assert_eq!(split.slots.get_key(ONLINE_ID), Some(&SlotValue::String("BANK-9".into())));
     assert!(matches!(&p.learned[..], [Learned::Bayes { target, .. }] if *target == food));
     assert_eq!(find_account_bayes(&f.book, bank, &info.tokens), Some(food));
@@ -492,7 +600,11 @@ fn clear_redates_a_reconciled_split_and_skips_learning_with_three_splits() {
     let mut f = fx();
     let (bank, food, drink) = (f.bank, f.food, f.drink);
     let mut new = NewTransaction::new(CommodityRef::currency("USD"), day(5));
-    new.splits = vec![NewSplit::new(bank, usd(-1000)), NewSplit::new(food, usd(600)), NewSplit::new(drink, usd(400))];
+    new.splits = vec![
+        NewSplit::new(bank, usd(-1000)),
+        NewSplit::new(food, usd(600)),
+        NewSplit::new(drink, usd(400)),
+    ];
     let e = post(&mut f.book, &mut f.env, new).unwrap();
     let s = f.split_in(e, bank);
     let mut t = (*f.book.transactions[&e]).clone();
@@ -504,7 +616,11 @@ fn clear_redates_a_reconciled_split_and_skips_learning_with_three_splits() {
     let b = f.batch(vec![imp], &ImportSettings::default());
     let p = process_trans_item(&mut f.book, &mut f.env, &b.infos[0], opts(true, false)).unwrap();
     let split = f.book.transaction(e).unwrap().split(s).unwrap();
-    assert_eq!((split.reconcile_state, split.reconcile_date), (ReconcileState::Reconciled, Some(f.env.now)), "y stays y, re-dated");
+    assert_eq!(
+        (split.reconcile_state, split.reconcile_date),
+        (ReconcileState::Reconciled, Some(f.env.now)),
+        "y stays y, re-dated"
+    );
     assert!(p.learned.is_empty(), "no single other split");
 }
 
@@ -529,7 +645,10 @@ fn update_changes_the_match_from_the_import() {
     let near = t.splits.iter().find(|s| s.account == Some(bank)).unwrap();
     let other = t.splits.iter().find(|s| s.account == Some(food)).unwrap();
     assert!(near.amount.same_value(usd(-1050)) && near.value.same_value(usd(-1050)));
-    assert!(other.amount.same_value(usd(1050)) && other.value.same_value(usd(1050)), "the other split takes the balancing value");
+    assert!(
+        other.amount.same_value(usd(1050)) && other.value.same_value(usd(1050)),
+        "the other split takes the balancing value"
+    );
     assert_eq!(near.memo.as_deref(), Some("card"));
     assert_eq!(near.reconcile_state, ReconcileState::Cleared);
     assert_eq!(t.description.as_deref(), Some("SHOP 123"));
@@ -553,7 +672,11 @@ fn update_leaves_a_cleared_other_split_and_balances_with_imbalance() {
     info.set_action(ImportAction::Update);
     let p = process_trans_item(&mut f.book, &mut f.env, &info, opts(true, false)).unwrap();
     assert_eq!(p.warnings, [ProcessWarning::OtherSplitNotUpdated]);
-    assert!(p.repairs.iter().any(|r| matches!(r, Repair::BalanceSplitAdded { value, .. } if value.same_value(usd(100)))));
+    assert!(
+        p.repairs
+            .iter()
+            .any(|r| matches!(r, Repair::BalanceSplitAdded { value, .. } if value.same_value(usd(100))))
+    );
     assert_balanced(&f.book);
 }
 
@@ -567,7 +690,9 @@ fn update_appends_text_as_gnucash() {
         (Some("abc"), Some("abcd"), Some("abc|abcd")),
         (Some("Cafe\u{301}"), Some("Café"), None),
     ];
-    cases.iter().for_each(|(m, i, want)| assert_eq!(process::maybe_append(*m, *i).as_deref(), *want, "{m:?} {i:?}"));
+    cases
+        .iter()
+        .for_each(|(m, i, want)| assert_eq!(process::maybe_append(*m, *i).as_deref(), *want, "{m:?} {i:?}"));
 }
 
 #[test]
@@ -597,9 +722,17 @@ fn apply_batch_saves_append_text_and_learns_chosen_destinations() {
     assert_eq!(out.iter().map(|p| p.index).collect::<Vec<_>>(), [0, 1]);
     assert!(append_text(&f.book, bank), "saved on the first row's account: the last to arrive");
     assert!(!append_text(&f.book, card));
-    assert_eq!(find_account(&f.book, card, Some(CATEGORY_DESC), "Pub"), Some(drink), "learned though skipped, as GnuCash");
+    assert_eq!(
+        find_account(&f.book, card, Some(CATEGORY_DESC), "Pub"),
+        Some(drink),
+        "learned though skipped, as GnuCash"
+    );
     assert_eq!(find_account(&f.book, bank, Some(CATEGORY_DESC), "Bakery"), Some(food));
-    assert_eq!(find_account(&f.book, bank, Some(CATEGORY_MEMO), "Bakery"), None, "no memo, no memo entry");
+    assert_eq!(
+        find_account(&f.book, bank, Some(CATEGORY_MEMO), "Bakery"),
+        None,
+        "no memo, no memo entry"
+    );
     assert!(!out[0].applied && out[1].applied);
     set_append_text(&mut f.book, bank, false).unwrap();
     assert!(f.book.account(bank).unwrap().slots.get_key(process::APPEND_TEXT).is_none());

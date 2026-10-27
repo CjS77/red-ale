@@ -57,7 +57,11 @@ pub(crate) struct Snapshot {
 impl Snapshot {
     /// A snapshot of `book` for a run at `now`: a copy-on-write clone, one `Arc` per entity.
     pub(crate) fn new(book: &Book, now: Time64) -> Rc<Self> {
-        Rc::new(Self { book: book.clone(), now, running: RefCell::new(BTreeMap::new()) })
+        Rc::new(Self {
+            book: book.clone(),
+            now,
+            running: RefCell::new(BTreeMap::new()),
+        })
     }
 
     /// The Book, read-only.
@@ -128,15 +132,25 @@ pub struct PriceHandle {
 
 impl BookHandle {
     pub(crate) fn account(&self, guid: Guid) -> AccountHandle {
-        AccountHandle { snap: Rc::clone(&self.0), guid }
+        AccountHandle {
+            snap: Rc::clone(&self.0),
+            guid,
+        }
     }
 
     pub(crate) fn commodity(&self, id: &CommodityRef) -> CommodityHandle {
-        CommodityHandle { snap: Rc::clone(&self.0), id: red_ale_core::ops::commodities::canonical(id) }
+        CommodityHandle {
+            snap: Rc::clone(&self.0),
+            id: red_ale_core::ops::commodities::canonical(id),
+        }
     }
 
     fn split(&self, t: &Transaction, s: &Split) -> SplitHandle {
-        SplitHandle { snap: Rc::clone(&self.0), transaction: t.guid, guid: s.guid }
+        SplitHandle {
+            snap: Rc::clone(&self.0),
+            transaction: t.guid,
+            guid: s.guid,
+        }
     }
 
     fn splits<'a>(&self, found: impl IntoIterator<Item = (&'a Transaction, &'a Split)>) -> rhai::Array {
@@ -151,7 +165,10 @@ impl AccountHandle {
     }
 
     fn get(&self) -> Fallible<&Account> {
-        self.snap.book.account(self.guid).ok_or_else(|| script_error(format!("no account {}", self.guid)))
+        self.snap
+            .book
+            .account(self.guid)
+            .ok_or_else(|| script_error(format!("no account {}", self.guid)))
     }
 
     fn book(&self) -> BookHandle {
@@ -166,7 +183,10 @@ impl TransactionHandle {
     }
 
     fn get(&self) -> Fallible<&Transaction> {
-        self.snap.book.transaction(self.guid).ok_or_else(|| script_error(format!("no transaction {}", self.guid)))
+        self.snap
+            .book
+            .transaction(self.guid)
+            .ok_or_else(|| script_error(format!("no transaction {}", self.guid)))
     }
 }
 
@@ -177,8 +197,16 @@ impl SplitHandle {
     }
 
     fn get(&self) -> Fallible<(&Transaction, &Split)> {
-        let t = self.snap.book.transaction(self.transaction).ok_or_else(|| script_error(format!("no transaction {}", self.transaction)))?;
-        let s = t.splits.iter().find(|s| s.guid == self.guid).ok_or_else(|| script_error(format!("no split {}", self.guid)))?;
+        let t = self
+            .snap
+            .book
+            .transaction(self.transaction)
+            .ok_or_else(|| script_error(format!("no transaction {}", self.transaction)))?;
+        let s = t
+            .splits
+            .iter()
+            .find(|s| s.guid == self.guid)
+            .ok_or_else(|| script_error(format!("no split {}", self.guid)))?;
         Ok((t, s))
     }
 }
@@ -197,7 +225,12 @@ impl PriceHandle {
     }
 
     fn get(&self) -> Fallible<&Price> {
-        self.snap.book.prices.get(&self.guid).map(AsRef::as_ref).ok_or_else(|| script_error(format!("no price {}", self.guid)))
+        self.snap
+            .book
+            .prices
+            .get(&self.guid)
+            .map(AsRef::as_ref)
+            .ok_or_else(|| script_error(format!("no price {}", self.guid)))
     }
 }
 

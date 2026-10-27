@@ -52,7 +52,13 @@ pub fn markable_xtns(files: &[QifFile]) -> Vec<XtnRef> {
     let mut list: Vec<XtnRef> = files
         .iter()
         .enumerate()
-        .flat_map(|(f, file)| file.xtns.iter().enumerate().filter(|(_, x)| x.splits.iter().any(|s| s.category_is_account)).map(move |(i, _)| (f, i)))
+        .flat_map(|(f, file)| {
+            file.xtns
+                .iter()
+                .enumerate()
+                .filter(|(_, x)| x.splits.iter().any(|s| s.category_is_account))
+                .map(move |(i, _)| (f, i))
+        })
         .collect();
     list.reverse();
     list
@@ -76,11 +82,19 @@ pub fn mark_transfers(files: &mut [QifFile], markable: &[XtnRef]) -> Vec<String>
 /// `qif-import:mark-matching-xtns`: find the other half of each of the transaction's splits to an account.
 /// `qif-to-gnc.scm:929-945`.
 fn mark_matching_xtns(files: &mut [QifFile], here: XtnRef, candidates: &[XtnRef], log: &mut Vec<String>) {
-    let Some(count) = xtn(files, here).map(|x| x.splits.len()) else { return };
+    let Some(count) = xtn(files, here).map(|x| x.splits.len()) else {
+        return;
+    };
     let mut splits_left: Vec<usize> = (0..count).collect();
     while let Some(&first) = splits_left.first() {
-        let wanted = xtn(files, here).and_then(|x| x.splits.get(first)).is_some_and(|s| !s.mark && s.category_is_account);
-        splits_left = if wanted { mark_some_splits(files, here, &splits_left, candidates, log) } else { splits_left[1..].to_vec() };
+        let wanted = xtn(files, here)
+            .and_then(|x| x.splits.get(first))
+            .is_some_and(|s| !s.mark && s.category_is_account);
+        splits_left = if wanted {
+            mark_some_splits(files, here, &splits_left, candidates, log)
+        } else {
+            splits_left[1..].to_vec()
+        };
     }
 }
 
@@ -102,10 +116,21 @@ fn wanted(x: &QifXtn, splits: &[usize]) -> Option<Wanted> {
     let amount = Some(split_amount(split).neg());
     if x.security_name.is_none() {
         let far = split.category.clone();
-        let (same, different): (Vec<usize>, Vec<usize>) =
-            splits.iter().partition(|i| x.splits.get(**i).is_some_and(|s| s.category_is_account && s.category == far));
-        let group_amount = same.iter().filter_map(|i| x.splits.get(*i)).try_fold(Numeric::ZERO, |g, s| g.sub(split_amount(s), 0, How::LCD_NEVER).ok());
-        return Some(Wanted { near: x.from_acct.clone(), far: Some(far), amount, group_amount, same, different });
+        let (same, different): (Vec<usize>, Vec<usize>) = splits
+            .iter()
+            .partition(|i| x.splits.get(**i).is_some_and(|s| s.category_is_account && s.category == far));
+        let group_amount = same
+            .iter()
+            .filter_map(|i| x.splits.get(*i))
+            .try_fold(Numeric::ZERO, |g, s| g.sub(split_amount(s), 0, How::LCD_NEVER).ok());
+        return Some(Wanted {
+            near: x.from_acct.clone(),
+            far: Some(far),
+            amount,
+            group_amount,
+            same,
+            different,
+        });
     }
     let (mut near, mut far, _) = accounts_affected(split, x);
     let mut amount = amount;
@@ -120,14 +145,23 @@ fn wanted(x: &QifXtn, splits: &[usize]) -> Option<Wanted> {
         Some(A::XOut) => amount = negated,
         _ => {}
     }
-    Some(Wanted { near, far, amount, group_amount: None, same: vec![first], different: Vec::new() })
+    Some(Wanted {
+        near,
+        far,
+        amount,
+        group_amount: None,
+        same: vec![first],
+        different: Vec::new(),
+    })
 }
 
 /// `qif-import:mark-some-splits`: look through the candidates for the other half of the first of `splits`, merge
 /// and mark when found, and return the splits still to look at. `qif-to-gnc.scm:954-1050`.
 fn mark_some_splits(files: &mut [QifFile], here: XtnRef, splits: &[usize], candidates: &[XtnRef], log: &mut Vec<String>) -> Vec<usize> {
     let rest = || splits.get(1..).unwrap_or_default().to_vec();
-    let Some((w, date)) = xtn(files, here).and_then(|x| Some((wanted(x, splits)?, x.date.clone()))) else { return rest() };
+    let Some((w, date)) = xtn(files, here).and_then(|x| Some((wanted(x, splits)?, x.date.clone()))) else {
+        return rest();
+    };
     let (Some(near), Some(far)) = (w.near.as_deref(), w.far.as_deref()) else {
         log.push("Transaction with no or only one associated account.".to_owned());
         return rest();
@@ -154,7 +188,10 @@ fn mark_some_splits(files: &mut [QifFile], here: XtnRef, splits: &[usize], candi
 /// Some investment actions' amounts are positive in QIF either way. `qif-to-gnc.scm:1082-1089`.
 fn reverses_sign(a: Action) -> bool {
     use Action as A;
-    matches!(a, A::XOut | A::SellX | A::IntIncX | A::DivX | A::CgLongX | A::CgShortX | A::MiscIncX | A::MiscExpX)
+    matches!(
+        a,
+        A::XOut | A::SellX | A::IntIncX | A::DivX | A::CgLongX | A::CgShortX | A::MiscIncX | A::MiscExpX
+    )
 }
 
 /// `qif-import:xtn-has-matches?`: on the same date, a split of the candidate to `acct_name` of the amount, or of the
@@ -173,7 +210,12 @@ fn xtn_has_matches(
     let negate = cand.security_name.is_some() && action(cand).is_some_and(reverses_sign);
     let mut same: Vec<usize> = Vec::new();
     let mut group = Some(Numeric::ZERO);
-    for (j, split) in cand.splits.iter().enumerate().filter(|(_, s)| s.category_is_account && s.category == acct_name) {
+    for (j, split) in cand
+        .splits
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.category_is_account && s.category == acct_name)
+    {
         let this = if negate { split_amount(split).neg() } else { split_amount(split) };
         if equal(Some(this), amount) {
             return Some(How2::OneToOne(j));
@@ -190,15 +232,30 @@ fn xtn_has_matches(
 /// `qif-split:accounts-affected`: the near, far and commission accounts of a split. `qif-to-gnc.scm:1127-1203`.
 pub fn accounts_affected(split: &QifSplit, x: &QifXtn) -> (Option<String>, Option<String>, Option<String>) {
     let from = x.from_acct.clone().unwrap_or_default();
-    let Some(security) = x.security_name.as_deref() else { return (x.from_acct.clone(), Some(split.category.clone()), None) };
+    let Some(security) = x.security_name.as_deref() else {
+        return (x.from_acct.clone(), Some(split.category.clone()), None);
+    };
     let first = x.splits.first();
     let category = || first.map(|s| s.category.clone());
     let near = match action(x) {
         Some(
-            A::Buy | A::BuyX | A::Sell | A::SellX | A::ReinvInt | A::ReinvDiv | A::ReinvSg | A::ReinvSh | A::ReinvLg | A::ReinvMd | A::ShrsIn | A::ShrsOut
+            A::Buy
+            | A::BuyX
+            | A::Sell
+            | A::SellX
+            | A::ReinvInt
+            | A::ReinvDiv
+            | A::ReinvSg
+            | A::ReinvSh
+            | A::ReinvLg
+            | A::ReinvMd
+            | A::ShrsIn
+            | A::ShrsOut
             | A::StkSplit,
         ) => Some(default_stock_acct(&from, security)),
-        Some(A::Div | A::CgShort | A::CgLong | A::CgMid | A::IntInc | A::MiscInc | A::MiscExp | A::RtrnCap | A::MargInt | A::XIn | A::XOut) => Some(from.clone()),
+        Some(
+            A::Div | A::CgShort | A::CgLong | A::CgMid | A::IntInc | A::MiscInc | A::MiscExp | A::RtrnCap | A::MargInt | A::XIn | A::XOut,
+        ) => Some(from.clone()),
         Some(A::DivX | A::CgShortX | A::CgLongX | A::CgMidX | A::IntIncX | A::RtrnCapX | A::MargIntX) => category(),
         Some(A::MiscIncX | A::MiscExpX) => first.and_then(|s| s.miscx_category.clone()),
         _ => None,
@@ -257,7 +314,9 @@ fn mark_here(x: &QifXtn, other: &QifXtn) -> bool {
 /// and give the other's matching splits its cleared flag. `qif-to-gnc.scm:1212-1302`.
 fn merge_and_mark_xtns(files: &mut [QifFile], here: XtnRef, splits: &[usize], other: XtnRef, how: &How2) {
     let Some(&split) = splits.first() else { return };
-    let (Some(x), Some(o)) = (xtn(files, here), xtn(files, other)) else { return };
+    let (Some(x), Some(o)) = (xtn(files, here), xtn(files, other)) else {
+        return;
+    };
     let here_cleared = x.cleared.clone();
     let other_cleared = o.cleared.clone();
     // (marked transaction, its split, the transaction kept, its splits that take the marked one's cleared flag)
@@ -270,7 +329,11 @@ fn merge_and_mark_xtns(files: &mut [QifFile], here: XtnRef, splits: &[usize], ot
     mark_split(files, marked, marked_split);
     merge_xtn_info(files, marked, kept);
     if let Some(k) = xtn_mut(files, kept) {
-        k.splits.iter_mut().enumerate().filter(|(i, _)| kept_splits.contains(i)).for_each(|(_, s)| s.matching_cleared.clone_from(&cleared));
+        k.splits
+            .iter_mut()
+            .enumerate()
+            .filter(|(i, _)| kept_splits.contains(i))
+            .for_each(|(_, s)| s.matching_cleared.clone_from(&cleared));
     }
 }
 
@@ -309,7 +372,11 @@ mod tests {
     fn bank(from: &str, to: &str, amount: i64, cleared: Option<Cleared>) -> QifXtn {
         let mut x = QifXtn::new(1);
         x.from_acct = Some(from.into());
-        x.date = Some(Field::Value(QifDate { day: 1, month: 2, year: 2003 }));
+        x.date = Some(Field::Value(QifDate {
+            day: 1,
+            month: 2,
+            year: 2003,
+        }));
         x.cleared = cleared.map(Field::Value);
         let mut s = QifSplit::new();
         s.category = to.into();
@@ -321,8 +388,14 @@ mod tests {
 
     #[test]
     fn the_two_halves_of_a_transfer_become_one() {
-        let checking = QifFile { xtns: vec![bank("Checking", "Savings", -100, Some(Cleared::Reconciled))], ..QifFile::default() };
-        let mut savings = QifFile { xtns: vec![bank("Savings", "Checking", 100, None)], ..QifFile::default() };
+        let checking = QifFile {
+            xtns: vec![bank("Checking", "Savings", -100, Some(Cleared::Reconciled))],
+            ..QifFile::default()
+        };
+        let mut savings = QifFile {
+            xtns: vec![bank("Savings", "Checking", 100, None)],
+            ..QifFile::default()
+        };
         savings.xtns[0].payee = Some("Transfer".into());
         let mut files = [checking, savings];
         let markable = markable_xtns(&files);
@@ -338,13 +411,32 @@ mod tests {
     #[test]
     fn different_dates_or_amounts_do_not_match() {
         let mut other = bank("Savings", "Checking", 99, None);
-        let mut files = [QifFile { xtns: vec![bank("Checking", "Savings", -100, None)], ..QifFile::default() }, QifFile::default()];
+        let mut files = [
+            QifFile {
+                xtns: vec![bank("Checking", "Savings", -100, None)],
+                ..QifFile::default()
+            },
+            QifFile::default(),
+        ];
         files[1].xtns.push(other.clone());
         let markable = markable_xtns(&files);
         mark_transfers(&mut files, &markable);
         assert!(!files[0].xtns[0].mark && !files[1].xtns[0].mark);
-        other.date = Some(Field::Value(QifDate { day: 2, month: 2, year: 2003 }));
-        assert_eq!(xtn_has_matches(&other, "Checking", files[0].xtns[0].date.as_ref(), Some(Numeric::from_int(100)), None), None);
+        other.date = Some(Field::Value(QifDate {
+            day: 2,
+            month: 2,
+            year: 2003,
+        }));
+        assert_eq!(
+            xtn_has_matches(
+                &other,
+                "Checking",
+                files[0].xtns[0].date.as_ref(),
+                Some(Numeric::from_int(100)),
+                None
+            ),
+            None
+        );
     }
 
     #[test]
@@ -354,7 +446,13 @@ mod tests {
         let mut second = many.splits[0].clone();
         second.amount = Some(Field::Value(Numeric::from_int(40)));
         many.splits.push(second);
-        let how = xtn_has_matches(&many, "Checking", many.date.as_ref(), Some(Numeric::from_int(100)), Some(Numeric::ZERO));
+        let how = xtn_has_matches(
+            &many,
+            "Checking",
+            many.date.as_ref(),
+            Some(Numeric::from_int(100)),
+            Some(Numeric::ZERO),
+        );
         assert_eq!(how, Some(How2::ManyToOne(vec![1, 0])));
     }
 }

@@ -28,7 +28,13 @@ const SECS_PER_DAY: i64 = 86_400;
 ///
 /// **Deviation** (`design/api/import.md`): GnuCash compares the amounts as doubles, equal within 1e-6; red-ale
 /// compares them exactly, and the ATM fee threshold exactly.
-pub fn split_find_match(book: &Book, imported: &Transaction, candidate_txn: &Transaction, candidate: &Split, settings: &ImportSettings) -> Option<MatchInfo> {
+pub fn split_find_match(
+    book: &Book,
+    imported: &Transaction,
+    candidate_txn: &Transaction,
+    candidate: &Split,
+    settings: &ImportSettings,
+) -> Option<MatchInfo> {
     let fsplit = imported.splits.first()?;
     let mut prob = amount_points(fsplit.amount, candidate.amount, settings.atm_fee_threshold);
     prob += date_points(imported, candidate_txn, settings);
@@ -60,7 +66,12 @@ fn abs_difference_at_most(a: Numeric, b: Numeric, limit: Numeric) -> Option<bool
     if !a.is_valid() || !b.is_valid() || !limit.is_valid() {
         return None;
     }
-    let (an, ad, bn, bd) = (i128::from(a.num()), i128::from(a.denom()), i128::from(b.num()), i128::from(b.denom()));
+    let (an, ad, bn, bd) = (
+        i128::from(a.num()),
+        i128::from(a.denom()),
+        i128::from(b.num()),
+        i128::from(b.denom()),
+    );
     let (ln, ld) = (i128::from(limit.num()), i128::from(limit.denom()));
     // |an/ad − bn/bd| ≤ ln/ld  ⇔  |an·bd − bn·ad| · ld ≤ ln · ad · bd, with every denominator positive.
     let difference = an.checked_mul(bd)?.checked_sub(bn.checked_mul(ad)?)?.checked_abs()?;
@@ -95,7 +106,11 @@ fn number_points(imported: &str, existing: &str) -> i32 {
     }
     let (imported_number, _) = strtol(imported);
     let (existing_number, conversion_ok) = strtol(existing);
-    if (conversion_ok && existing_number == imported_number) || imported == existing { 4 } else { -2 }
+    if (conversion_ok && existing_number == imported_number) || imported == existing {
+        4
+    } else {
+        -2
+    }
 }
 
 /// C's `strtol(s, &end, 10)` with GnuCash's success test `!(errno || end == s)`: leading white space, an optional
@@ -127,7 +142,9 @@ fn strtol(s: &str) -> (i64, bool) {
 /// locale; red-ale lowercases and compares bytewise, which differs only for the few characters whose folding is not
 /// their lowercase (such as `ß`) and for distinct strings a locale collates as equal.
 fn text_points(imported: Option<&str>, existing: Option<&str>) -> i32 {
-    let (Some(a), Some(b)) = (imported.filter(|s| !s.is_empty()), existing.filter(|s| !s.is_empty())) else { return 0 };
+    let (Some(a), Some(b)) = (imported.filter(|s| !s.is_empty()), existing.filter(|s| !s.is_empty())) else {
+        return 0;
+    };
     if a.to_lowercase() == b.to_lowercase() {
         return 2;
     }
@@ -138,7 +155,12 @@ fn text_points(imported: Option<&str>, existing: Option<&str>) -> i32 {
 /// counting as a NUL byte that ends the comparison.
 fn strncasecmp_equal(a: &[u8], b: &[u8], n: usize) -> bool {
     (0..n)
-        .map(|i| (a.get(i).copied().unwrap_or(0).to_ascii_lowercase(), b.get(i).copied().unwrap_or(0).to_ascii_lowercase()))
+        .map(|i| {
+            (
+                a.get(i).copied().unwrap_or(0).to_ascii_lowercase(),
+                b.get(i).copied().unwrap_or(0).to_ascii_lowercase(),
+            )
+        })
         .find(|(x, y)| x != y || *x == 0)
         .is_none_or(|(x, y)| x == y)
 }
@@ -177,7 +199,11 @@ mod tests {
         assert_eq!(text_points(Some("Coffee shop 123"), Some("coffee shop 999")), 1);
         assert_eq!(text_points(Some("Coffee"), Some("COFFEE")), 2);
         assert_eq!(text_points(Some("Ä"), Some("ä")), 2, "lowercased by Unicode");
-        assert_eq!(text_points(Some("x"), Some("xy")), 0, "both must be longer than one byte for the fuzzy test");
+        assert_eq!(
+            text_points(Some("x"), Some("xy")),
+            0,
+            "both must be longer than one byte for the fuzzy test"
+        );
         assert_eq!(text_points(None, Some("x")), 0);
     }
 
@@ -186,9 +212,21 @@ mod tests {
         let atm = Numeric::new(200, 100);
         assert_eq!(amount_points(Numeric::new(-10000, 100), Numeric::new(-100, 1), atm), 3);
         assert_eq!(amount_points(Numeric::new(-10000, 100), Numeric::new(-10125, 100), atm), 2);
-        assert_eq!(amount_points(Numeric::new(-10000, 100), Numeric::new(-10200, 100), atm), 2, "the threshold is inclusive");
+        assert_eq!(
+            amount_points(Numeric::new(-10000, 100), Numeric::new(-10200, 100), atm),
+            2,
+            "the threshold is inclusive"
+        );
         assert_eq!(amount_points(Numeric::new(-10000, 100), Numeric::new(-10201, 100), atm), -5);
-        assert_eq!(amount_points(Numeric::new(1, 1_000_000_000), Numeric::ZERO, atm), 2, "GnuCash's 1e-6 tolerance is not kept");
-        assert_eq!(amount_points(Numeric::new(i64::MAX, 1), Numeric::new(i64::MIN, 1), atm), -5, "overflow is far apart");
+        assert_eq!(
+            amount_points(Numeric::new(1, 1_000_000_000), Numeric::ZERO, atm),
+            2,
+            "GnuCash's 1e-6 tolerance is not kept"
+        );
+        assert_eq!(
+            amount_points(Numeric::new(i64::MAX, 1), Numeric::new(i64::MIN, 1), atm),
+            -5,
+            "overflow is far apart"
+        );
     }
 }

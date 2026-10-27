@@ -38,21 +38,28 @@ pub struct ReplayReport {
 /// Apply `records` to `book`. With `skip_invalid`, a record that cannot be applied is reported and skipped;
 /// otherwise the first one fails the whole replay.
 pub fn replay(book: &mut Book, env: &mut dyn Env, records: &[JournalRecord], skip_invalid: bool) -> DomainResult<ReplayReport> {
-    let mut report = ReplayReport { records: records.len(), ..ReplayReport::default() };
-    records.iter().try_for_each(|record| match apply_record(book, env, record, &mut report) {
-        Err(e) if skip_invalid => {
-            report.skipped_records.push(format!("record at line {}: {e}", record.start_line));
-            Ok(())
-        }
-        Err(e) => Err(DomainError::invalid(format!("journal record at line {}: {e}", record.start_line))),
-        Ok(()) => Ok(()),
-    })?;
+    let mut report = ReplayReport {
+        records: records.len(),
+        ..ReplayReport::default()
+    };
+    records
+        .iter()
+        .try_for_each(|record| match apply_record(book, env, record, &mut report) {
+            Err(e) if skip_invalid => {
+                report.skipped_records.push(format!("record at line {}: {e}", record.start_line));
+                Ok(())
+            }
+            Err(e) => Err(DomainError::invalid(format!("journal record at line {}: {e}", record.start_line))),
+            Ok(()) => Ok(()),
+        })?;
     Ok(report)
 }
 
 fn apply_record(book: &mut Book, env: &mut dyn Env, record: &JournalRecord, report: &mut ReplayReport) -> DomainResult<()> {
     if !record.complete {
-        report.skipped_records.push(format!("record at line {}: some lines could not be read", record.start_line));
+        report
+            .skipped_records
+            .push(format!("record at line {}: some lines could not be read", record.start_line));
         return Ok(());
     }
     let Some(first) = record.lines.first() else { return Ok(()) };
@@ -65,7 +72,12 @@ fn apply_record(book: &mut Book, env: &mut dyn Env, record: &JournalRecord, repo
             }
             Ok(())
         }
-        RecordKind::Commit => upsert(book, env, &record.lines.iter().filter(|l| l.kind == RecordKind::Commit).collect::<Vec<_>>(), report),
+        RecordKind::Commit => upsert(
+            book,
+            env,
+            &record.lines.iter().filter(|l| l.kind == RecordKind::Commit).collect::<Vec<_>>(),
+            report,
+        ),
         RecordKind::Begin | RecordKind::Rollback => Ok(()),
     }
 }
@@ -80,10 +92,17 @@ fn upsert(book: &mut Book, env: &mut dyn Env, lines: &[&JournalLine], report: &m
         None => new_transaction(book, guid, lines)?,
     };
     apply_transaction_fields(&mut t, first);
-    lines.iter().filter(|l| l.split.is_some()).try_for_each(|line| apply_split(book, &mut t, line))?;
+    lines
+        .iter()
+        .filter(|l| l.split.is_some())
+        .try_for_each(|line| apply_split(book, &mut t, line))?;
     commit::commit(book, env, &mut t)?;
     book.transactions.insert(guid, Arc::new(t));
-    if created { report.created.push(guid) } else { report.updated.push(guid) }
+    if created {
+        report.created.push(guid)
+    } else {
+        report.updated.push(guid)
+    }
     Ok(())
 }
 
@@ -133,14 +152,19 @@ fn apply_split(book: &mut Book, t: &mut Transaction, line: &JournalLine) -> Doma
     let Some(split_guid) = line.split else { return Ok(()) };
     if t.split(split_guid).is_none() {
         let moved = take_split_from_elsewhere(book, t.guid, split_guid)?;
-        t.splits.push(moved.unwrap_or_else(|| Split { account: None, ..Split::new(split_guid, Guid::from_bytes([0; 16]), Numeric::ZERO, Numeric::ZERO) }));
+        t.splits.push(moved.unwrap_or_else(|| Split {
+            account: None,
+            ..Split::new(split_guid, Guid::from_bytes([0; 16]), Numeric::ZERO, Numeric::ZERO)
+        }));
     }
     let account = match line.account {
         Some(a) if book.account(a).is_some() => Some(Some(a)),
         Some(a) => return Err(DomainError::not_found("account", &a)),
         None => None,
     };
-    let split = t.split_mut(split_guid).ok_or_else(|| DomainError::not_found("split", &split_guid))?;
+    let split = t
+        .split_mut(split_guid)
+        .ok_or_else(|| DomainError::not_found("split", &split_guid))?;
     if let Some(a) = account {
         split.account = a;
     }
@@ -169,11 +193,24 @@ fn apply_split(book: &mut Book, t: &mut Transaction, line: &JournalLine) -> Doma
 }
 
 fn take_split_from_elsewhere(book: &mut Book, keep: Guid, split: Guid) -> DomainResult<Option<Split>> {
-    let Some(owner) = book.transactions.values().find(|t| t.guid != keep && t.split(split).is_some()).map(|t| t.guid) else {
+    let Some(owner) = book
+        .transactions
+        .values()
+        .find(|t| t.guid != keep && t.split(split).is_some())
+        .map(|t| t.guid)
+    else {
         return Ok(None);
     };
-    let other = book.transactions.get_mut(&owner).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("transaction", &owner))?;
-    let index = other.splits.iter().position(|s| s.guid == split).ok_or_else(|| DomainError::not_found("split", &split))?;
+    let other = book
+        .transactions
+        .get_mut(&owner)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("transaction", &owner))?;
+    let index = other
+        .splits
+        .iter()
+        .position(|s| s.guid == split)
+        .ok_or_else(|| DomainError::not_found("split", &split))?;
     Ok(Some(other.splits.remove(index)))
 }
 
@@ -189,7 +226,8 @@ mod tests {
         let usd = CommodityRef::currency("USD");
         let mut add = |guid: &str, name: &str, ty| {
             let g = Guid::parse(guid).unwrap();
-            book.accounts.insert(g, Arc::new(Account::new(g, name, ty, Some(usd.clone()), Some(book.root))));
+            book.accounts
+                .insert(g, Arc::new(Account::new(g, name, ty, Some(usd.clone()), Some(book.root))));
             g
         };
         let bank = add("d031a27171554d279107453116bb1dee", "Bank", AccountType::Bank);
@@ -201,7 +239,9 @@ mod tests {
     const HEAD: &str = "mod\ttrans_guid\tsplit_guid\ttime_now\tdate_entered\tdate_posted\tacc_guid\tacc_name\tnum\tdescription\tnotes\tmemo\taction\treconciled\tamount\tvalue\tdate_reconciled\n-----------------\n";
 
     fn line(flag: char, desc: &str, split: &str, acc: &str, amount: &str) -> String {
-        format!("{flag}\t65e21d8a290f4355b9555dfca9bfe888\t{split}\t2026-10-25 13:04:17\t2026-10-25 13:04:17\t2024-03-15 10:59:00\t{acc}\tX\t101\t{desc}\ta note\t\t\tn\t{amount}\t{amount}\t1970-01-01 00:00:00\n")
+        format!(
+            "{flag}\t65e21d8a290f4355b9555dfca9bfe888\t{split}\t2026-10-25 13:04:17\t2026-10-25 13:04:17\t2024-03-15 10:59:00\t{acc}\tX\t101\t{desc}\ta note\t\t\tn\t{amount}\t{amount}\t1970-01-01 00:00:00\n"
+        )
     }
 
     fn record(lines: &[String]) -> String {
@@ -212,8 +252,17 @@ mod tests {
     fn creates_updates_and_deletes_by_guid() {
         let (mut b, bank, food) = book();
         let (s1, s2) = ("4b9a929657604caaa5a5f57b2a4b1917", "b7fa927032c94a4ea19da098987e9b42");
-        let commit = |desc: &str| record(&[line('C', desc, s1, &bank.to_string(), "-1234/100"), line('C', desc, s2, &food.to_string(), "1234/100")]);
-        let text = format!("{HEAD}===== START\n===== END\n{}{}", commit("Groceries"), commit("Groceries edited"));
+        let commit = |desc: &str| {
+            record(&[
+                line('C', desc, s1, &bank.to_string(), "-1234/100"),
+                line('C', desc, s2, &food.to_string(), "1234/100"),
+            ])
+        };
+        let text = format!(
+            "{HEAD}===== START\n===== END\n{}{}",
+            commit("Groceries"),
+            commit("Groceries edited")
+        );
         let (records, skipped) = parse(&text).unwrap();
         assert!(skipped.is_empty());
         let report = replay(&mut b, &mut FixedEnv::new(Time64(0), 1 << 64), &records, false).unwrap();
@@ -233,7 +282,10 @@ mod tests {
     #[test]
     fn unbalanced_and_partial_records_are_refused_or_skipped() {
         let (mut b, bank, food) = book();
-        let unbalanced = record(&[line('C', "x", "4b9a929657604caaa5a5f57b2a4b1917", &bank.to_string(), "-5/1"), line('C', "x", "b7fa927032c94a4ea19da098987e9b42", &food.to_string(), "4/1")]);
+        let unbalanced = record(&[
+            line('C', "x", "4b9a929657604caaa5a5f57b2a4b1917", &bank.to_string(), "-5/1"),
+            line('C', "x", "b7fa927032c94a4ea19da098987e9b42", &food.to_string(), "4/1"),
+        ]);
         let (records, _) = parse(&format!("{HEAD}{unbalanced}")).unwrap();
         assert!(replay(&mut b.clone(), &mut FixedEnv::new(Time64(0), 1 << 64), &records, false).is_err());
         let report = replay(&mut b, &mut FixedEnv::new(Time64(0), 1 << 64), &records, true).unwrap();

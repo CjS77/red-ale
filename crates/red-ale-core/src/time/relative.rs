@@ -110,7 +110,10 @@ impl RelativeDate {
     }
 
     fn row(self) -> (Kind, Step, &'static str) {
-        TABLE.iter().find(|row| row.0 == self).map_or((Last, Step::None, "today"), |row| (row.1, row.2, row.3))
+        TABLE
+            .iter()
+            .find(|row| row.0 == self)
+            .map_or((Last, Step::None, "today"), |row| (row.1, row.2, row.3))
     }
 
     /// GnuCash's storage string, such as `start-this-month`.
@@ -130,14 +133,18 @@ impl RelativeDate {
 
     /// `reldate_is_prev`.
     fn is_prev(self) -> bool {
-        matches!(self, R::StartPrevYear | R::EndPrevYear | R::StartPrevQuarter | R::EndPrevQuarter | R::StartPrevMonth | R::EndPrevMonth)
-            || self.row().0 == Last
+        matches!(
+            self,
+            R::StartPrevYear | R::EndPrevYear | R::StartPrevQuarter | R::EndPrevQuarter | R::StartPrevMonth | R::EndPrevMonth
+        ) || self.row().0 == Last
     }
 
     /// `reldate_is_next`.
     fn is_next(self) -> bool {
-        matches!(self, R::StartNextYear | R::EndNextYear | R::StartNextQuarter | R::EndNextQuarter | R::StartNextMonth | R::EndNextMonth)
-            || self.row().0 == Next
+        matches!(
+            self,
+            R::StartNextYear | R::EndNextYear | R::StartNextQuarter | R::EndNextQuarter | R::StartNextMonth | R::EndNextMonth
+        ) || self.row().0 == Next
     }
 }
 
@@ -145,7 +152,11 @@ impl FromStr for RelativeDate {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        TABLE.iter().find(|row| row.3 == s).map(|row| row.0).ok_or_else(|| format!("not a relative date: {s:?}"))
+        TABLE
+            .iter()
+            .find(|row| row.3 == s)
+            .map(|row| row.0)
+            .ok_or_else(|| format!("not a relative date: {s:?}"))
     }
 }
 
@@ -183,7 +194,14 @@ impl Tm {
     fn from_local(l: LocalTime) -> Self {
         let month = i32::try_from(l.date.month()).unwrap_or(1);
         let mday = i32::try_from(l.date.day()).unwrap_or(1);
-        Self { year: l.date.year() - 1900, mon: month - 1, mday, hour: l.hour, min: l.minute, sec: l.second }
+        Self {
+            year: l.date.year() - 1900,
+            mon: month - 1,
+            mday,
+            hour: l.hour,
+            min: l.minute,
+            sec: l.second,
+        }
     }
 
     /// `get_last_day_of_month`: the month's length, bringing the month into 0 to 11 first (C division truncates).
@@ -227,7 +245,9 @@ impl Tm {
 
 /// `days_in_month(month, year)`: month 0 to 11, years since 1900.
 fn month_days(mon: i32, year: i32) -> i32 {
-    u32::try_from(mon + 1).ok().map_or(31, |m| i32::try_from(days_in_month(year + 1900, m)).unwrap_or(31))
+    u32::try_from(mon + 1)
+        .ok()
+        .map_or(31, |m| i32::try_from(days_in_month(year + 1900, m)).unwrap_or(31))
 }
 
 /// The instant a relative date names at `now`, as `gnc_relative_date_to_time64` computes it in the local time zone.
@@ -253,7 +273,15 @@ pub fn relative_date(period: RelativeDate, now: Time64, zone: &TimeZone, account
 /// The `switch (offset)` of `gnc_relative_date_to_time64` (`5.17:libgnucash/engine/gnc-option-date.cpp:534-584`).
 fn shift(tm: &mut Tm, period: RelativeDate, step: Step, offset_quarter: bool, acct: Tm) {
     let (prev, next) = (period.is_prev(), period.is_next());
-    let by = |n: i32| if prev { -n } else if next { n } else { 0 };
+    let by = |n: i32| {
+        if prev {
+            -n
+        } else if next {
+            n
+        } else {
+            0
+        }
+    };
     match step {
         Step::None => {}
         Step::Year => {
@@ -330,7 +358,10 @@ mod tests {
     }
 
     fn year_2024(zone: &TimeZone) -> PeriodBounds {
-        PeriodBounds { start: zone.day_start(Date::parse("2024-01-01").unwrap()), end: zone.day_end(Date::parse("2024-12-31").unwrap()) }
+        PeriodBounds {
+            start: zone.day_start(Date::parse("2024-01-01").unwrap()),
+            end: zone.day_end(Date::parse("2024-12-31").unwrap()),
+        }
     }
 
     fn rel(p: RelativeDate, now: &str) -> String {
@@ -357,7 +388,11 @@ mod tests {
 
     #[test]
     fn offsets_keep_the_time_and_roll_over_month_ends() {
-        assert_eq!(rel(R::OneMonthAgo, "2024-03-31 08:30:00"), "2024-03-02 08:30:00 +0000", "31 February is 2 March");
+        assert_eq!(
+            rel(R::OneMonthAgo, "2024-03-31 08:30:00"),
+            "2024-03-02 08:30:00 +0000",
+            "31 February is 2 March"
+        );
         assert_eq!(rel(R::OneWeekAhead, "2024-12-28 08:30:00"), "2025-01-04 08:30:00 +0000");
         assert_eq!(rel(R::SixMonthsAgo, "2024-03-15 08:30:00"), "2023-09-15 08:30:00 +0000");
         assert_eq!(rel(R::Today, "2024-03-15 08:30:00"), "2024-03-15 08:30:00 +0000");
@@ -369,11 +404,17 @@ mod tests {
         assert_eq!(rel(R::EndCurrentQuarter, "2024-05-15 08:00:00"), "2024-06-30 23:59:59 +0000");
         assert_eq!(rel(R::StartPrevQuarter, "2024-02-15 08:00:00"), "2023-10-01 00:00:00 +0000");
         let utc = TimeZone::utc();
-        let fy = PeriodBounds { start: utc.day_start(Date::parse("2024-02-01").unwrap()), end: utc.day_end(Date::parse("2025-01-31").unwrap()) };
+        let fy = PeriodBounds {
+            start: utc.day_start(Date::parse("2024-02-01").unwrap()),
+            end: utc.day_end(Date::parse("2025-01-31").unwrap()),
+        };
         let q = |p, now| relative_date(p, at(now), &utc, fy).unwrap().to_file_string();
         assert_eq!(q(R::StartCurrentQuarter, "2024-05-15 08:00:00"), "2024-05-01 00:00:00 +0000");
         assert_eq!(q(R::EndCurrentQuarter, "2024-05-15 08:00:00"), "2024-07-31 23:59:59 +0000");
-        let mid = PeriodBounds { start: utc.day_start(Date::parse("2024-01-15").unwrap()), end: fy.end };
+        let mid = PeriodBounds {
+            start: utc.day_start(Date::parse("2024-01-15").unwrap()),
+            end: fy.end,
+        };
         let m = |p, now| relative_date(p, at(now), &utc, mid).unwrap().to_file_string();
         assert_eq!(m(R::StartCurrentQuarter, "2024-05-20 08:00:00"), "2024-04-15 00:00:00 +0000");
         assert_eq!(m(R::EndCurrentQuarter, "2024-05-20 08:00:00"), "2024-07-14 23:59:59 +0000");

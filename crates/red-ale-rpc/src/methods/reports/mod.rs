@@ -53,7 +53,12 @@ pub fn methods() -> Vec<Method> {
             Effect::Read,
             run::options,
         ),
-        method("report.run", "Run a report on the open book: the report result, with exact figures.", Effect::Read, run::run),
+        method(
+            "report.run",
+            "Run a report on the open book: the report result, with exact figures.",
+            Effect::Read,
+            run::run,
+        ),
         method(
             "report.export",
             "Run a report and render it through a style sheet as one self-contained HTML document.",
@@ -66,7 +71,12 @@ pub fn methods() -> Vec<Method> {
             Effect::Read,
             run::export_csv,
         ),
-        method("report.styleSheets", "Style sheet templates and style sheets, with their options.", Effect::Read, style_sheets::list),
+        method(
+            "report.styleSheets",
+            "Style sheet templates and style sheets, with their options.",
+            Effect::Read,
+            style_sheets::list,
+        ),
     ];
     let configuration = [
         method(
@@ -75,8 +85,18 @@ pub fn methods() -> Vec<Method> {
             Effect::Write,
             configurations::save,
         ),
-        method("report.updateConfiguration", "Change options of a saved report configuration.", Effect::Write, configurations::update),
-        method("report.renameConfiguration", "Rename a saved report configuration.", Effect::Write, configurations::rename),
+        method(
+            "report.updateConfiguration",
+            "Change options of a saved report configuration.",
+            Effect::Write,
+            configurations::update,
+        ),
+        method(
+            "report.renameConfiguration",
+            "Rename a saved report configuration.",
+            Effect::Write,
+            configurations::rename,
+        ),
         method(
             "report.importConfigurations",
             "Import GnuCash's saved report configurations from the text of its saved-reports-2.8 file, read as data, never run.",
@@ -89,14 +109,24 @@ pub fn methods() -> Vec<Method> {
             Effect::Write,
             import::style_sheets,
         ),
-        method("report.deleteConfiguration", "Delete a saved report configuration.", Effect::Destructive, configurations::delete),
+        method(
+            "report.deleteConfiguration",
+            "Delete a saved report configuration.",
+            Effect::Destructive,
+            configurations::delete,
+        ),
         method(
             "report.createStyleSheet",
             "Create a style sheet from a style sheet template in red-ale's configuration.",
             Effect::Write,
             style_sheets::create,
         ),
-        method("report.updateStyleSheet", "Change a style sheet's options.", Effect::Write, style_sheets::update),
+        method(
+            "report.updateStyleSheet",
+            "Change a style sheet's options.",
+            Effect::Write,
+            style_sheets::update,
+        ),
         method(
             "report.deleteStyleSheet",
             "Delete a user style sheet, or reset a predefined one to its template's defaults.",
@@ -104,7 +134,10 @@ pub fn methods() -> Vec<Method> {
             style_sheets::delete,
         ),
     ];
-    reads.into_iter().chain(configuration.into_iter().map(Method::on_configuration)).collect()
+    reads
+        .into_iter()
+        .chain(configuration.into_iter().map(Method::on_configuration))
+        .collect()
 }
 
 /// A report: a GUID (a template or a saved configuration), or a name.
@@ -189,7 +222,11 @@ impl ReportInfo {
         Self {
             guid: Id(t.guid.0),
             name: t.name.clone(),
-            kind: if t.kind == TemplateKind::Builtin { ReportKind::Builtin } else { ReportKind::User },
+            kind: if t.kind == TemplateKind::Builtin {
+                ReportKind::Builtin
+            } else {
+                ReportKind::User
+            },
             template: None,
             script: Some(t.script.clone()),
             menu_path: t.menu_path.clone(),
@@ -276,7 +313,9 @@ impl Reports {
             }
         }
         let templates = self.registry.named(reference).into_iter().map(Found::Template);
-        let mut matches: Vec<Found<'_>> = templates.chain(self.saved.iter().filter(|s| s.name == reference).map(Found::Saved)).collect();
+        let mut matches: Vec<Found<'_>> = templates
+            .chain(self.saved.iter().filter(|s| s.name == reference).map(Found::Saved))
+            .collect();
         match matches.len() {
             0 => Err(RpcError::not_found("report", reference)),
             1 => Ok(matches.remove(0)),
@@ -292,7 +331,9 @@ impl Reports {
     fn configuration(&self, reference: &str) -> Result<&SavedReport, RpcError> {
         let guid = Guid::parse(reference.trim()).ok();
         let by_guid = guid.and_then(|g| self.saved.iter().find(|s| s.guid == g));
-        by_guid.or_else(|| self.saved.iter().find(|s| s.name == reference)).ok_or_else(|| RpcError::not_found("configuration", reference))
+        by_guid
+            .or_else(|| self.saved.iter().find(|s| s.name == reference))
+            .ok_or_else(|| RpcError::not_found("configuration", reference))
     }
 
     /// The template a saved configuration configures. One that is not loaded (its user script was removed or no
@@ -324,7 +365,10 @@ impl Reports {
     /// (`design/reports.md` §8).
     fn style_sheet_choices<'a>(&'a self, saved: Option<&'a SavedReport>) -> Vec<&'a str> {
         let mut choices = self.sheets.names();
-        let named = saved.and_then(|s| s.options.get(GENERAL)).and_then(|g| g.get(STYLESHEET)).and_then(Value::as_str);
+        let named = saved
+            .and_then(|s| s.options.get(GENERAL))
+            .and_then(|g| g.get(STYLESHEET))
+            .and_then(Value::as_str);
         if let Some(name) = named.filter(|n| !choices.contains(n)) {
             choices.push(name);
         }
@@ -341,9 +385,16 @@ impl Reports {
         on: &On<'_>,
     ) -> Result<OptionDb, RpcError> {
         let mut db = self.defaults(template, &self.style_sheet_choices(saved), on)?;
-        let values = ValueContext { book: on.book, zone: on.zone };
+        let values = ValueContext {
+            book: on.book,
+            zone: on.zone,
+        };
         let saved = saved.map(|s| Value::Object(s.options.clone()));
-        saved.iter().chain(changes).try_for_each(|c| db.apply(c, &values)).map_err(ReportError::from)?;
+        saved
+            .iter()
+            .chain(changes)
+            .try_for_each(|c| db.apply(c, &values))
+            .map_err(ReportError::from)?;
         Ok(db)
     }
 
@@ -357,7 +408,9 @@ impl Reports {
             empty = Book::new_empty(&mut FixedEnv::new(Time64(0), 0));
             &empty
         };
-        Ok(self.registry.options(template, &self.run_context(book, on.now, on.zone, style_sheets, self.locale(None)?))?)
+        Ok(self
+            .registry
+            .options(template, &self.run_context(book, on.now, on.zone, style_sheets, self.locale(None)?))?)
     }
 
     /// What a run reads besides the options: the Book, now, the zone, the Configuration's settings and the Locale.
@@ -402,17 +455,38 @@ pub(crate) fn settings(config: &Config) -> Result<ReportSettings, RpcError> {
 
 /// The limits of `reports.limits` over the defaults; `seconds` is the run time limit.
 fn limits(config: &Config) -> Result<Limits, RpcError> {
-    config.report_limits()?.into_iter().try_fold(Limits::default(), |limits, (name, max)| {
-        let limit = if name == "seconds" { Ok(Limit::Time) } else { name.parse::<Limit>() };
-        limit.map(|l| limits.with(l, max)).map_err(|e| RpcError::invalid(format!("the Configuration's reports.limits: {e}")))
-    })
+    config
+        .report_limits()?
+        .into_iter()
+        .try_fold(Limits::default(), |limits, (name, max)| {
+            let limit = if name == "seconds" {
+                Ok(Limit::Time)
+            } else {
+                name.parse::<Limit>()
+            };
+            limit
+                .map(|l| limits.with(l, max))
+                .map_err(|e| RpcError::invalid(format!("the Configuration's reports.limits: {e}")))
+        })
 }
 
 /// The scripts of the report directory, and the files left out of it.
 fn user_scripts(ctx: &Context, config: &Config) -> Result<(Vec<ScriptSource>, Vec<ScriptProblem>), RpcError> {
-    let Some(dir) = config.report_directory()? else { return Ok((Vec::new(), Vec::new())) };
+    let Some(dir) = config.report_directory()? else {
+        return Ok((Vec::new(), Vec::new()));
+    };
     let found = load_report_scripts(&ctx.settings.config.resolve(&dir));
-    Ok((found.scripts.into_iter().map(|s| ScriptSource { path: s.path, text: s.text }).collect(), found.problems))
+    Ok((
+        found
+            .scripts
+            .into_iter()
+            .map(|s| ScriptSource {
+                path: s.path,
+                text: s.text,
+            })
+            .collect(),
+        found.problems,
+    ))
 }
 
 /// The style sheets reports can name: the predefined ones with the Configuration's entries over them.
@@ -422,7 +496,11 @@ fn style_sheets(records: &[StyleSheetRecord]) -> Result<StyleSheets, RpcError> {
 }
 
 fn entry(r: &StyleSheetRecord) -> StyleSheetEntry {
-    StyleSheetEntry { name: r.name.clone(), template: r.template.clone(), options: r.options.clone() }
+    StyleSheetEntry {
+        name: r.name.clone(),
+        template: r.template.clone(),
+        options: r.options.clone(),
+    }
 }
 
 /// What the cached registry was built from.
@@ -451,7 +529,11 @@ fn registry(user: Vec<ScriptSource>, limits: Limits) -> Result<Arc<Registry>, Rp
 
 /// Name a new saved configuration or style sheet.
 fn name(name: &str, what: &str) -> Result<String, RpcError> {
-    if name.trim().is_empty() { Err(RpcError::invalid_params(format!("a {what} needs a name"))) } else { Ok(name.to_owned()) }
+    if name.trim().is_empty() {
+        Err(RpcError::invalid_params(format!("a {what} needs a name")))
+    } else {
+        Ok(name.to_owned())
+    }
 }
 
 /// A name already taken by a `what`, whose errors have `data.kind` `kind`.

@@ -41,7 +41,13 @@ fn view(path: &Path) -> Value {
 }
 
 fn invoice_guid(book: &Book, id: &str) -> String {
-    book.business.invoices.values().find(|i| i.id == id).unwrap_or_else(|| panic!("no document {id}")).guid.to_string()
+    book.business
+        .invoices
+        .values()
+        .find(|i| i.id == id)
+        .unwrap_or_else(|| panic!("no document {id}"))
+        .guid
+        .to_string()
 }
 
 fn owner(book: &Book, name: &str) -> Value {
@@ -65,7 +71,14 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
     let opt = |key: &str| op.get(key).cloned().unwrap_or(Value::Null);
     match op["op"].as_str().unwrap() {
         "post" => {
-            let prices: Vec<Value> = op.get("prices").and_then(Value::as_array).cloned().unwrap_or_default().iter().map(|p| json!({ "commodity": p[0], "price": p[1] })).collect();
+            let prices: Vec<Value> = op
+                .get("prices")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .map(|p| json!({ "commodity": p[0], "price": p[1] }))
+                .collect();
             let params = json!({
                 "invoice": inv("invoice"), "account": op["account"], "postDate": op["postDate"], "dueDate": opt("dueDate"),
                 "memo": opt("memo"), "accumulateSplits": opt("accumulate"), "autoPay": op.get("autopay").cloned().unwrap_or(json!(false)),
@@ -74,10 +87,21 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
             call(d, "invoice.post", &params);
         }
         "unpost" => {
-            call(d, "invoice.unpost", &json!({ "invoice": inv("invoice"), "resetTaxTables": op.get("reset").cloned().unwrap_or(json!(false)) }));
+            call(
+                d,
+                "invoice.unpost",
+                &json!({ "invoice": inv("invoice"), "resetTaxTables": op.get("reset").cloned().unwrap_or(json!(false)) }),
+            );
         }
         "pay" => {
-            let apply: Vec<String> = op.get("applyTo").and_then(Value::as_array).cloned().unwrap_or_default().iter().map(|i| invoice_guid(&book, i.as_str().unwrap())).collect();
+            let apply: Vec<String> = op
+                .get("applyTo")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .map(|i| invoice_guid(&book, i.as_str().unwrap()))
+                .collect();
             let params = json!({
                 "owner": owner(&book, op["owner"].as_str().unwrap()), "account": op["account"], "transferAccount": opt("transfer"),
                 "amount": op["amount"], "exchangeRate": opt("exch"), "date": op["date"], "memo": opt("memo"), "num": opt("num"),
@@ -109,9 +133,17 @@ fn compare(ops: &Value) {
     call(&mut d, "book.open", &json!({ "path": ours.path_str() }));
     ops.as_array().unwrap().iter().for_each(|op| red_ale_op(&mut d, op));
     let fidelity = oracle_check(&mut d, &ours, &[]);
-    assert!(fidelity.is_empty(), "GnuCash reads red-ale's book differently:\n{}", fidelity.join("\n"));
+    assert!(
+        fidelity.is_empty(),
+        "GnuCash reads red-ale's book differently:\n{}",
+        fidelity.join("\n")
+    );
     let differences = diff(&view(&gnucash.path), &view(&ours.path), &[]);
-    assert!(differences.is_empty(), "red-ale's result differs from GnuCash's:\n{}", differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "red-ale's result differs from GnuCash's:\n{}",
+        differences.join("\n")
+    );
 }
 
 fn post(invoice: &str, account: &str, date: &str) -> Value {
@@ -260,7 +292,9 @@ fn documents_due_match_gnucash_dates_and_balances() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|i| i["paid"] == json!(false) && (i["type"] == "Invoice") == customer && i["dateDue"].as_i64().unwrap() <= now + 7 * 86_400)
+            .filter(|i| {
+                i["paid"] == json!(false) && (i["type"] == "Invoice") == customer && i["dateDue"].as_i64().unwrap() <= now + 7 * 86_400
+            })
             .map(|i| (i["dateDue"].as_i64().unwrap(), i["id"].as_str().unwrap().to_owned()))
             .collect();
         expected.sort();

@@ -50,25 +50,56 @@ fn setup(d: &mut Dispatcher) {
         }
         call(d, "account.create", &p);
     });
-    call(d, "taxTable.create", &json!({ "name": "VAT", "entries": [{ "account": "Liabilities:Tax", "amount": "20", "type": "percent" }] }));
+    call(
+        d,
+        "taxTable.create",
+        &json!({ "name": "VAT", "entries": [{ "account": "Liabilities:Tax", "amount": "20", "type": "percent" }] }),
+    );
     call(d, "config.set", &json!({ "changes": { "defaultCurrency": "USD" } }));
     let customers = "C-ACME;Acme Ltd;Wile E;1 Road;Town;;;555;;wile@acme;Good payer;Dock;2 Pier;;;;556;;dock@acme\n\
                      C-GLOBEX;Globex;Hank;;;;;;;;;;;;;;;;\n";
-    let p = call(d, "import.preview", &json!({ "format": "csvOwners", "files": [{ "text": customers }] }));
+    let p = call(
+        d,
+        "import.preview",
+        &json!({ "format": "csvOwners", "files": [{ "text": customers }] }),
+    );
     call(d, "import.apply", &json!({ "proposal": p["id"] }));
     let vendors = "\"V-INK\",\"Ink, Ltd\",\"Ann\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"\n\
                    V-PAPER,Paper Co,Bob,9 Mill Lane,,,,,,,,,,,,,,,\n";
-    let p = call(d, "import.preview", &json!({
-        "format": "csvOwners", "ownerKind": "vendor", "separator": "commaQuoted", "files": [{ "text": vendors }]
-    }));
+    let p = call(
+        d,
+        "import.preview",
+        &json!({
+            "format": "csvOwners", "ownerKind": "vendor", "separator": "commaQuoted", "files": [{ "text": vendors }]
+        }),
+    );
     call(d, "import.apply", &json!({ "proposal": p["id"] }));
 }
 
 /// A document row: its fields by name, the rest empty.
 fn row(fields: &[(&str, &str)]) -> String {
     const NAMES: [&str; 22] = [
-        "id", "date_opened", "owner_id", "billing_id", "notes", "date", "desc", "action", "account", "quantity", "price", "disc_type",
-        "disc_how", "discount", "taxable", "taxincluded", "tax_table", "date_posted", "due_date", "account_posted", "memo_posted",
+        "id",
+        "date_opened",
+        "owner_id",
+        "billing_id",
+        "notes",
+        "date",
+        "desc",
+        "action",
+        "account",
+        "quantity",
+        "price",
+        "disc_type",
+        "disc_how",
+        "discount",
+        "taxable",
+        "taxincluded",
+        "tax_table",
+        "date_posted",
+        "due_date",
+        "account_posted",
+        "memo_posted",
         "accu_splits",
     ];
     let cell = |n: &str| fields.iter().find(|(k, _)| *k == n).map_or("", |(_, v)| v);
@@ -100,8 +131,19 @@ fn bills() -> Vec<Vec<(&'static str, &'static str)>> {
             ("memo_posted", "imported"),
             ("accu_splits", "yes"),
         ],
-        vec![("date", "2024-03-03"), ("desc", "Paper"), ("account", "Expenses:Office"), ("quantity", "10"), ("price", "1.25")],
-        vec![("desc", "Ink"), ("account", "Expenses:Office"), ("quantity", "1"), ("price", "3.10")],
+        vec![
+            ("date", "2024-03-03"),
+            ("desc", "Paper"),
+            ("account", "Expenses:Office"),
+            ("quantity", "10"),
+            ("price", "1.25"),
+        ],
+        vec![
+            ("desc", "Ink"),
+            ("account", "Expenses:Office"),
+            ("quantity", "1"),
+            ("price", "3.10"),
+        ],
         vec![
             ("id", "B-101"),
             ("date_opened", "2024-03-06"),
@@ -214,13 +256,25 @@ fn invoices() -> Vec<Vec<(&'static str, &'static str)>> {
 }
 
 fn csv(rows: &[Vec<(&str, &str)>], posting: bool) -> String {
-    rows.iter().map(|r| row(&r.iter().copied().filter(|(k, _)| posting || !POSTING.contains(k)).collect::<Vec<_>>())).collect()
+    rows.iter()
+        .map(|r| {
+            row(&r
+                .iter()
+                .copied()
+                .filter(|(k, _)| posting || !POSTING.contains(k))
+                .collect::<Vec<_>>())
+        })
+        .collect()
 }
 
 fn import(d: &mut Dispatcher, text: &str, kind: &str, update: bool) -> Value {
-    let p = call(d, "import.preview", &json!({
-        "format": "csvDocuments", "documentKind": kind, "dateFormat": "iso", "updateExisting": update, "files": [{ "text": text }]
-    }));
+    let p = call(
+        d,
+        "import.preview",
+        &json!({
+            "format": "csvDocuments", "documentKind": kind, "dateFormat": "iso", "updateExisting": update, "files": [{ "text": text }]
+        }),
+    );
     assert_eq!(p["errors"], json!([]), "{}", p["errors"]);
     call(d, "import.apply", &json!({ "proposal": p["id"] }));
     p
@@ -232,7 +286,11 @@ fn assert_scrub_clean(book: &Path) {
     std::fs::copy(book, &copy.path).unwrap();
     run("business_payments.py", &["scrub", &copy.path_str()]);
     let differences = diff(&view(book), &view(&copy.path), &[]);
-    assert!(differences.is_empty(), "GnuCash's business scrub changed red-ale's book:\n{}", differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "GnuCash's business scrub changed red-ale's book:\n{}",
+        differences.join("\n")
+    );
 }
 
 #[test]
@@ -249,7 +307,11 @@ fn gnucash_reads_imported_documents_and_owners_and_its_scrub_finds_nothing() {
     let appended = import(&mut d, &csv(&invoices(), true), "invoice", true);
     assert_eq!(appended["summary"]["update"], 1, "only the unposted invoice takes rows again");
     let acme = "C-ACME;Acme Ltd;Wile E;1 Road;Town;;;555;;wile@acme;Good payer;Dock;2 Pier;;;;556;;dock@acme\n";
-    let owners = call(&mut d, "import.preview", &json!({ "format": "csvOwners", "files": [{ "text": acme }] }));
+    let owners = call(
+        &mut d,
+        "import.preview",
+        &json!({ "format": "csvOwners", "files": [{ "text": acme }] }),
+    );
     assert_eq!(owners["summary"]["skip"], 1, "an unchanged Owner");
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
@@ -264,7 +326,11 @@ fn post_ops(rows: &[Vec<(&str, &str)>]) -> Vec<Value> {
         .filter(|r| r.iter().any(|(k, v)| *k == "date_posted" && !v.is_empty()))
         .map(|r| {
             let get = |k: &str| r.iter().find(|(f, _)| *f == k).map_or("", |(_, v)| *v);
-            let due = if get("due_date").is_empty() { get("date_posted") } else { get("due_date") };
+            let due = if get("due_date").is_empty() {
+                get("date_posted")
+            } else {
+                get("due_date")
+            };
             let accumulate = matches!(get("accu_splits").chars().next(), Some('y' | 't' | '1' | 'x'));
             json!({
                 "op": "post", "invoice": get("id"), "account": get("account_posted"), "postDate": get("date_posted"), "dueStart": due,
@@ -306,5 +372,9 @@ fn documents_the_import_posts_are_what_gnucash_posts() {
     std::fs::write(&ops_file, Value::Array(ops).to_string()).unwrap();
     run("business_posting.py", &["do", &theirs.path_str(), &ops_file.display().to_string()]);
     let differences = diff(&view(&theirs.path), &view(&ours.path), &[]);
-    assert!(differences.is_empty(), "red-ale's import posted differently from GnuCash:\n{}", differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "red-ale's import posted differently from GnuCash:\n{}",
+        differences.join("\n")
+    );
 }

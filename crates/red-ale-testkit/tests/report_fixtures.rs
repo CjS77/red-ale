@@ -41,9 +41,19 @@ fn every_report_fixture_round_trips_byte_for_byte() {
         let bytes = std::fs::read(fixture(name)).unwrap();
         let text = String::from_utf8(bytes.clone()).expect("report fixtures are written uncompressed");
         let (book, mut residue) = read_book(&bytes).unwrap();
-        assert!(residue.notices.unrecognised.is_empty(), "{name}: {:?}", residue.notices.unrecognised);
-        assert!(write_book_text(&book, &residue) == text, "{name}: changed when written with its original elements");
+        assert!(
+            residue.notices.unrecognised.is_empty(),
+            "{name}: {:?}",
+            residue.notices.unrecognised
+        );
+        assert!(
+            write_book_text(&book, &residue) == text,
+            "{name}: changed when written with its original elements"
+        );
         residue.forget_originals();
-        assert!(write_book_text(&book, &residue) == text, "{name}: changed when every entity was regenerated");
+        assert!(
+            write_book_text(&book, &residue) == text,
+            "{name}: changed when every entity was regenerated"
+        );
     });
 }

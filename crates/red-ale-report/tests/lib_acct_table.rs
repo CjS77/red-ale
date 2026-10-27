@@ -57,22 +57,28 @@ fn host() -> Host {
 /// amount's place from the right, is the display depth (HAT:1045-1066).
 #[test]
 fn every_selected_account_at_its_depth() {
-    let got = run(&host(), r#"
+    let got = run(
+        &host(),
+        r#"
         show.call(table.call(env_with.call(#{ display_tree_depth: 3 }), assets, #{ parent_account_balance_mode: "immediate-bal" }));
-    "#);
-    check(&got, &[
-        "account 0 0 Asset $0.00",
-        "account 1 1 Bank1 $0.00",
-        "account 2 2 Bonds $2,000.00",
-        "account 2 2 Current $2,609.00",
-        "account 2 2 Empty $0.00",
-        "account 2 2 Savings $100.00",
-        "account 1 1 Broker $2,000.00",
-        "account 2 2 Funds $9,000.30",
-        "account 1 1 ForeignBank $0.00",
-        "account 2 2 ForeignSavings $297.03",
-        "account 1 1 House $100,000.00",
-    ]);
+    "#,
+    );
+    check(
+        &got,
+        &[
+            "account 0 0 Asset $0.00",
+            "account 1 1 Bank1 $0.00",
+            "account 2 2 Bonds $2,000.00",
+            "account 2 2 Current $2,609.00",
+            "account 2 2 Empty $0.00",
+            "account 2 2 Savings $100.00",
+            "account 1 1 Broker $2,000.00",
+            "account 2 2 Funds $9,000.30",
+            "account 1 1 ForeignBank $0.00",
+            "account 2 2 ForeignSavings $297.03",
+            "account 1 1 House $100,000.00",
+        ],
+    );
 }
 
 /// With subtotals, a parent whose children show gets a "Total" row after them with its recursive balance, each
@@ -80,26 +86,32 @@ fn every_selected_account_at_its_depth() {
 /// ("omit-bal"), and rule_mode puts a rule above subtotals.
 #[test]
 fn subtotals_follow_their_children() {
-    let got = run(&host(), r"
+    let got = run(
+        &host(),
+        r"
         show.call(table.call(env_with.call(#{ display_tree_depth: 3, parent_account_subtotal_mode: true }), assets, #{ rule_mode: true }));
-    ");
-    check(&got, &[
-        "account 0 0 Asset -",
-        "account 1 1 Bank1 -",
-        "account 2 2 Bonds $2,000.00",
-        "account 2 2 Current $2,609.00",
-        "account 2 2 Empty $0.00",
-        "account 2 2 Savings $100.00",
-        "subtotal 1 1 Total Bank1 |$4,709.00",
-        "account 1 1 Broker -",
-        "account 2 2 Funds $9,000.30",
-        "subtotal 1 1 Total Broker |$11,000.30",
-        "account 1 1 ForeignBank -",
-        "account 2 2 ForeignSavings $297.03",
-        "subtotal 1 1 Total ForeignBank |$297.03",
-        "account 1 1 House $100,000.00",
-        "subtotal 0 0 Total Asset |$116,006.33",
-    ]);
+    ",
+    );
+    check(
+        &got,
+        &[
+            "account 0 0 Asset -",
+            "account 1 1 Bank1 -",
+            "account 2 2 Bonds $2,000.00",
+            "account 2 2 Current $2,609.00",
+            "account 2 2 Empty $0.00",
+            "account 2 2 Savings $100.00",
+            "subtotal 1 1 Total Bank1 |$4,709.00",
+            "account 1 1 Broker -",
+            "account 2 2 Funds $9,000.30",
+            "subtotal 1 1 Total Broker |$11,000.30",
+            "account 1 1 ForeignBank -",
+            "account 2 2 ForeignSavings $297.03",
+            "subtotal 1 1 Total ForeignBank |$297.03",
+            "account 1 1 House $100,000.00",
+            "subtotal 0 0 Total Asset |$116,006.33",
+        ],
+    );
 }
 
 /// At depth 2 the three behaviours differ (HAT:1018-1024): "summarize" gives the last level its subtree's balance,
@@ -107,7 +119,9 @@ fn subtotals_follow_their_children() {
 /// parent.
 #[test]
 fn depth_limits_summarize_flatten_or_truncate() {
-    let got = run(&host(), r#"
+    let got = run(
+        &host(),
+        r#"
         let params = #{ parent_account_balance_mode: "immediate-bal" };
         for behavior in ["summarize", "flatten", "truncate"] {
             print(behavior);
@@ -116,37 +130,41 @@ fn depth_limits_summarize_flatten_or_truncate() {
         print("flatten, no limit");
         let funds = book.account("Root:Asset:Broker:Funds");
         show.call(table.call(env_with.call(#{ depth_limit_behavior: "flatten" }), [asset, funds], params));
-    "#);
-    check(&got, &[
-        "summarize",
-        "account 0 0 Asset $0.00",
-        "account 1 1 Bank1 $4,709.00",
-        "account 1 1 Broker $11,000.30",
-        "account 1 1 ForeignBank $297.03",
-        "account 1 1 House $100,000.00",
-        "flatten",
-        "account 0 0 Asset $0.00",
-        "account 1 1 Bank1 $0.00",
-        "account 1 1 Bonds $2,000.00",
-        "account 1 1 Current $2,609.00",
-        "account 1 1 Empty $0.00",
-        "account 1 1 Savings $100.00",
-        "account 1 1 Broker $2,000.00",
-        "account 1 1 Funds $9,000.30",
-        "account 1 1 ForeignBank $0.00",
-        "account 1 1 ForeignSavings $297.03",
-        "account 1 1 House $100,000.00",
-        "truncate",
-        "account 0 0 Asset $0.00",
-        "account 1 1 Bank1 $0.00",
-        "account 1 1 Broker $2,000.00",
-        "account 1 1 ForeignBank $0.00",
-        "account 1 1 House $100,000.00",
-        // Funds is the second selected account down its branch, so it is one level below Asset.
-        "flatten, no limit",
-        "account 0 0 Asset $0.00",
-        "account 1 1 Funds $9,000.30",
-    ]);
+    "#,
+    );
+    check(
+        &got,
+        &[
+            "summarize",
+            "account 0 0 Asset $0.00",
+            "account 1 1 Bank1 $4,709.00",
+            "account 1 1 Broker $11,000.30",
+            "account 1 1 ForeignBank $297.03",
+            "account 1 1 House $100,000.00",
+            "flatten",
+            "account 0 0 Asset $0.00",
+            "account 1 1 Bank1 $0.00",
+            "account 1 1 Bonds $2,000.00",
+            "account 1 1 Current $2,609.00",
+            "account 1 1 Empty $0.00",
+            "account 1 1 Savings $100.00",
+            "account 1 1 Broker $2,000.00",
+            "account 1 1 Funds $9,000.30",
+            "account 1 1 ForeignBank $0.00",
+            "account 1 1 ForeignSavings $297.03",
+            "account 1 1 House $100,000.00",
+            "truncate",
+            "account 0 0 Asset $0.00",
+            "account 1 1 Bank1 $0.00",
+            "account 1 1 Broker $2,000.00",
+            "account 1 1 ForeignBank $0.00",
+            "account 1 1 House $100,000.00",
+            // Funds is the second selected account down its branch, so it is one level below Asset.
+            "flatten, no limit",
+            "account 0 0 Asset $0.00",
+            "account 1 1 Funds $9,000.30",
+        ],
+    );
 }
 
 /// Zero balances (HAT:740-748, :1036-1043): "omit-leaf-acct" drops accounts whose subtree is all zero, here Empty;
@@ -154,7 +172,9 @@ fn depth_limits_summarize_flatten_or_truncate() {
 /// account rows only.
 #[test]
 fn zeros_and_commodity_tables() {
-    let got = run(&host(), r#"
+    let got = run(
+        &host(),
+        r#"
         let env = env_with.call(#{ display_tree_depth: 3, zero_balance_mode: "omit-leaf-acct", parent_account_subtotal_mode: true });
         let bank1 = book.account("Root:Asset:Bank1");
         show.call(table.call(env, [bank1] + bank1.children_sorted(), #{ zero_balance_display_mode: "omit-balance" }));
@@ -167,28 +187,34 @@ fn zeros_and_commodity_tables() {
         show.call(table.call(env, assets, params));
         // Only the selected accounts' balances are counted (HAT:612-651): here Broker's own $2,000.
         show.call(table.call(env, [asset, broker], params));
-    "#);
-    check(&got, &[
-        "account 0 0 Bank1 -",
-        "account 1 1 Bonds $2,000.00",
-        "account 1 1 Current $2,609.00",
-        "account 1 1 Savings $100.00",
-        "subtotal 0 0 Total Bank1 $4,709.00",
-        "table",
-        // Depth 1 summarizes Asset; the commodity table lists the collector's commodities in its order, the report
-        // currency too, each with its value.
-        "account 0 0 Asset #200.00=$297.03 30. FUNDS=$9,000.30 $106,709.00=$106,709.00",
-        // At the latest prices, GnuCash's own figures for Asset (test-balsheet-pnl.scm:281).
-        "account 0 0 Asset #200.00=$340.00 30. FUNDS=$14,424.52 $106,709.00=$106,709.00",
-        "account 0 0 Asset $2,000.00",
-    ]);
+    "#,
+    );
+    check(
+        &got,
+        &[
+            "account 0 0 Bank1 -",
+            "account 1 1 Bonds $2,000.00",
+            "account 1 1 Current $2,609.00",
+            "account 1 1 Savings $100.00",
+            "subtotal 0 0 Total Bank1 $4,709.00",
+            "table",
+            // Depth 1 summarizes Asset; the commodity table lists the collector's commodities in its order, the report
+            // currency too, each with its value.
+            "account 0 0 Asset #200.00=$297.03 30. FUNDS=$9,000.30 $106,709.00=$106,709.00",
+            // At the latest prices, GnuCash's own figures for Asset (test-balsheet-pnl.scm:281).
+            "account 0 0 Asset #200.00=$340.00 30. FUNDS=$14,424.52 $106,709.00=$106,709.00",
+            "account 0 0 Asset $2,000.00",
+        ],
+    );
 }
 
 /// The table's environment and each row's (HAT:540-848): the walk's keys, the column counts of the post-pass, and
 /// `children_displayed`, which a key of the environment overrides.
 #[test]
 fn row_environments() {
-    let got = run(&host(), r#"
+    let got = run(
+        &host(),
+        r#"
         let env = env_with.call(#{ display_tree_depth: 3, initial_indent: 2, account_label_mode: "name",
                                    parent_account_subtotal_mode: true });
         let t = hat::make_html_acct_table_env_accts(book, ctx, env, assets);
@@ -206,20 +232,24 @@ fn row_environments() {
         let forced_env = env_with.call(#{ display_tree_depth: 3, children_displayed: "env" });
         let forced = hat::make_html_acct_table_env_accts(book, ctx, forced_env, assets);
         print(`forced=${hat::get_row_env(forced, 0).children_displayed}`);
-    "#);
-    check(&got, &[
-        "rows=15 past=[] before=[]",
-        "Bank1 Root:Asset:Bank1 ASSET Asset 2 1",
-        // Indented by initial_indent; three label columns (depths 0-2) and, the limit being 3, three account columns
-        // plus the indent; logical columns are the deepest logical depth, 2.
-        "account-row display=1 indented=3 children=true colspan=2 label=3 account=5 logical=2",
-        "#{\"text\": \"Bank1\"} Bank1 [\"Bonds\", \"Current\", \"Empty\", \"Savings\"] Asset",
-        "$4,709.00 $0.00 [] 1",
-        // Only account rows record whether their children showed (HAT:771-774).
-        "subtotal-row Total Bank1 false",
-        "Bonds children=false",
-        "forced=env",
-    ]);
+    "#,
+    );
+    check(
+        &got,
+        &[
+            "rows=15 past=[] before=[]",
+            "Bank1 Root:Asset:Bank1 ASSET Asset 2 1",
+            // Indented by initial_indent; three label columns (depths 0-2) and, the limit being 3, three account columns
+            // plus the indent; logical columns are the deepest logical depth, 2.
+            "account-row display=1 indented=3 children=true colspan=2 label=3 account=5 logical=2",
+            "#{\"text\": \"Bank1\"} Bank1 [\"Bonds\", \"Current\", \"Empty\", \"Savings\"] Asset",
+            "$4,709.00 $0.00 [] 1",
+            // Only account rows record whether their children showed (HAT:771-774).
+            "subtotal-row Total Bank1 false",
+            "Bonds children=false",
+            "forced=env",
+        ],
+    );
 }
 
 /// The sort closure orders each level (HAT:690); reversed balances follow the run's settings; a get_balance_fn
@@ -228,7 +258,9 @@ fn row_environments() {
 fn sorting_reversed_balances_and_balance_functions() {
     let mut credit = host();
     credit.settings.reverse_balanced_accounts = ReverseBalanced::Credit;
-    let got = run(&credit, r#"
+    let got = run(
+        &credit,
+        r#"
         let env = env_with.call(#{ display_tree_depth: 2, account_less_p: |a, b| a.name > b.name });
         let bank1 = book.account("Root:Asset:Bank1");
         show.call(table.call(env, [bank1] + bank1.children_sorted(), #{}));
@@ -239,32 +271,38 @@ fn sorting_reversed_balances_and_balance_functions() {
         print("get_balance_fn");
         let one = |a, s, e| { let c = collectors::make_commodity_collector(); c.add(a.commodity, e - e + 1); c };
         show.call(table.call(env_with.call(#{ display_tree_depth: 2, get_balance_fn: one }), [bank1] + bank1.children_sorted(), #{}));
-    "#);
-    check(&got, &[
-        "account 0 0 Bank1 -",
-        "account 1 1 Savings $100.00",
-        "account 1 1 Empty $0.00",
-        "account 1 1 Current $2,609.00",
-        "account 1 1 Bonds $2,000.00",
-        "reversed",
-        "account 0 0 Liability $9,500.00",
-        "account 1 1 Bank2 $9,500.00",
-        "account 2 2 CreditCard $500.00",
-        "account 2 2 Loan $9,000.00",
-        "get_balance_fn",
-        "account 0 0 Bank1 -",
-        "account 1 1 Bonds $1.00",
-        "account 1 1 Current $1.00",
-        "account 1 1 Empty $1.00",
-        "account 1 1 Savings $1.00",
-    ]);
+    "#,
+    );
+    check(
+        &got,
+        &[
+            "account 0 0 Bank1 -",
+            "account 1 1 Savings $100.00",
+            "account 1 1 Empty $0.00",
+            "account 1 1 Current $2,609.00",
+            "account 1 1 Bonds $2,000.00",
+            "reversed",
+            "account 0 0 Liability $9,500.00",
+            "account 1 1 Bank2 $9,500.00",
+            "account 2 2 CreditCard $500.00",
+            "account 2 2 Loan $9,000.00",
+            "get_balance_fn",
+            "account 0 0 Bank1 -",
+            "account 1 1 Bonds $1.00",
+            "account 1 1 Current $1.00",
+            "account 1 1 Empty $1.00",
+            "account 1 1 Savings $1.00",
+        ],
+    );
 }
 
 /// "pre-closing" takes the closing transactions back out (HAT:635-641): on test-data.gnucash Expenses hold $264
 /// after the closing entry of 1977 moved $111 to Equity, $375 before it.
 #[test]
 fn pre_closing_balances_leave_closing_entries_out() {
-    let got = run(&Host::new(fixture("test-data.gnucash")), r#"
+    let got = run(
+        &Host::new(fixture("test-data.gnucash")),
+        r#"
         let expenses = book.account("Root:Expenses");
         let fx = exchange::case_exchange_fn(book, "pricedb-nearest", usd, ctx.now);
         let env = #{ display_tree_depth: 1, report_commodity: usd, exchange_fn: fx };
@@ -272,7 +310,8 @@ fn pre_closing_balances_leave_closing_entries_out() {
             env.balance_mode = mode;
             show.call(table.call(env, [expenses], #{}));
         }
-    "#);
+    "#,
+    );
     check(&got, &["account 0 0 Expenses $264.00", "account 0 0 Expenses $375.00"]);
 }
 
@@ -296,7 +335,9 @@ fn refusals() {
 /// rows of an account table as a table block of a finished result.
 #[test]
 fn labeled_lines_and_a_finished_table() {
-    let got = run(&host(), r#"
+    let got = run(
+        &host(),
+        r#"
         let rows = hat::add_labeled_amount_line((), 4, "total", true, "Total Assets", 0, monetary(usd, 5), 3);
         rows = hat::add_labeled_amount_line(rows, (), (), false, "Defaults", (), (), ());
         rows = hat::add_labeled_amount_line(rows, (), (), true, #{ text: "Ruled" }, 2, (), ());
@@ -304,13 +345,17 @@ fn labeled_lines_and_a_finished_table() {
         let c = collectors::make_commodity_collector(); c.add(book.commodity("GBP"), 10); c.add(usd, 1);
         let fx = exchange::make_exchange_function([[book.commodity("GBP"), rational(3, 2)]]);
         print(`${hat::gnc_commodity_table(c, usd, fx).commodities.map(|l| `${l.monetary} ${l.converted}`)}`);
-    "#);
-    check(&got, &[
-        "total 0 0 Total Assets |$5.00",
-        "data 0 0 Defaults -",
-        "data 2 0 Ruled |\"\"",
-        "[\"$1.00 $1.00\", \"#10.00 $15.00\"]",
-    ]);
+    "#,
+    );
+    check(
+        &got,
+        &[
+            "total 0 0 Total Assets |$5.00",
+            "data 0 0 Defaults -",
+            "data 2 0 Ruled |\"\"",
+            "[\"$1.00 $1.00\", \"#10.00 $15.00\"]",
+        ],
+    );
 
     let body = format!(
         "{PRELUDE}\nlet rows = table.call(env_with.call(#{{ display_tree_depth: 2, parent_account_subtotal_mode: true }}), assets, \

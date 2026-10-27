@@ -36,7 +36,11 @@ pub struct Element {
 impl Element {
     /// An empty element.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), attrs: Vec::new(), children: Vec::new() }
+        Self {
+            name: name.into(),
+            attrs: Vec::new(),
+            children: Vec::new(),
+        }
     }
 
     /// An element holding only text, built like GnuCash's `text_to_dom_tree` (`xmlNodeAddContent`): empty text adds
@@ -250,7 +254,11 @@ impl<R: BufRead> Tokens<R> {
         let config = reader.config_mut();
         config.trim_text(false);
         config.expand_empty_elements = false;
-        Self { reader, buf: Vec::new(), position: 0 }
+        Self {
+            reader,
+            buf: Vec::new(),
+            position: 0,
+        }
     }
 
     /// Byte offset in the decoded text of the token last read.
@@ -315,7 +323,10 @@ impl Unbalanced {
             Self::End => "unbalanced end tag",
             Self::Open => "unexpected end of document",
         };
-        XmlError::Syntax { offset, message: message.into() }
+        XmlError::Syntax {
+            offset,
+            message: message.into(),
+        }
     }
 }
 
@@ -371,7 +382,8 @@ impl TreeBuilder {
 
 fn drop_formatting(el: &mut Element) {
     if el.children.iter().any(|c| matches!(c, Node::Element(_))) {
-        el.children.retain(|c| !matches!(c, Node::Text(t) if t.chars().all(char::is_whitespace)));
+        el.children
+            .retain(|c| !matches!(c, Node::Text(t) if t.chars().all(char::is_whitespace)));
     }
 }
 
@@ -380,13 +392,20 @@ fn start_element(start: &BytesStart<'_>) -> Result<Element, XmlError> {
     let attrs = start
         .attributes()
         .map(|a| {
-            let a = a.map_err(|e| XmlError::Syntax { offset: 0, message: e.to_string() })?;
+            let a = a.map_err(|e| XmlError::Syntax {
+                offset: 0,
+                message: e.to_string(),
+            })?;
             let key = String::from_utf8(a.key.as_ref().to_vec()).map_err(|_| XmlError::Encoding)?;
             let raw = std::str::from_utf8(&a.value).map_err(|_| XmlError::Encoding)?;
             Ok((key, unescape(raw)?))
         })
         .collect::<Result<Vec<_>, XmlError>>()?;
-    Ok(Element { name, attrs, children: Vec::new() })
+    Ok(Element {
+        name,
+        attrs,
+        children: Vec::new(),
+    })
 }
 
 /// Unescape entity and character references in attribute text.
@@ -396,9 +415,14 @@ fn unescape(raw: &str) -> Result<String, XmlError> {
     while let Some(amp) = rest.find('&') {
         out.push_str(&rest[..amp]);
         let after = &rest[amp + 1..];
-        let semi = after.find(';').ok_or_else(|| XmlError::Syntax { offset: 0, message: format!("bad reference in {raw:?}") })?;
-        let resolved = resolve_reference(&after[..semi])
-            .ok_or_else(|| XmlError::Syntax { offset: 0, message: format!("unknown entity in {raw:?}") })?;
+        let semi = after.find(';').ok_or_else(|| XmlError::Syntax {
+            offset: 0,
+            message: format!("bad reference in {raw:?}"),
+        })?;
+        let resolved = resolve_reference(&after[..semi]).ok_or_else(|| XmlError::Syntax {
+            offset: 0,
+            message: format!("unknown entity in {raw:?}"),
+        })?;
         out.push_str(&resolved);
         rest = &after[semi + 1..];
     }

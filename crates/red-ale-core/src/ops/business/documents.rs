@@ -90,11 +90,19 @@ pub fn document_kind(book: &Book, invoice: &Invoice) -> Option<DocumentKind> {
 }
 
 fn invoice(book: &Book, guid: Guid) -> DomainResult<&Invoice> {
-    book.business.invoices.get(&guid).map(AsRef::as_ref).ok_or_else(|| DomainError::not_found("invoice", &guid))
+    book.business
+        .invoices
+        .get(&guid)
+        .map(AsRef::as_ref)
+        .ok_or_else(|| DomainError::not_found("invoice", &guid))
 }
 
 fn order(book: &Book, guid: Guid) -> DomainResult<&Order> {
-    book.business.orders.get(&guid).map(AsRef::as_ref).ok_or_else(|| DomainError::not_found("order", &guid))
+    book.business
+        .orders
+        .get(&guid)
+        .map(AsRef::as_ref)
+        .ok_or_else(|| DomainError::not_found("order", &guid))
 }
 
 fn refuse_posted(inv: &Invoice) -> DomainResult<()> {
@@ -170,9 +178,15 @@ pub fn add_invoice(book: &mut Book, mut inv: Invoice) -> DomainResult<Guid> {
 pub fn update_invoice(book: &mut Book, inv: Invoice) -> DomainResult<()> {
     let old = invoice(book, inv.guid)?.clone();
     if old.is_posted() {
-        let only_active = Invoice { active: inv.active, ..old.clone() };
+        let only_active = Invoice {
+            active: inv.active,
+            ..old.clone()
+        };
         if inv != only_active {
-            return Err(DomainError::conflict(format!("document {} is posted; only its active flag can change", old.id)));
+            return Err(DomainError::conflict(format!(
+                "document {} is posted; only its active flag can change",
+                old.id
+            )));
         }
     } else {
         if inv.id.is_empty() {
@@ -185,10 +199,15 @@ pub fn update_invoice(book: &mut Book, inv: Invoice) -> DomainResult<()> {
         let doc = check_invoice(book, &inv, Some(&old))?;
         // GnuCash's dialog sets the flag only on a new or duplicated document (5.17:gnucash/gnome/dialog-invoice.c:420-434).
         if inv.is_credit_note() != old.is_credit_note() {
-            return Err(DomainError::invalid("whether a document is a credit note is fixed when it is created"));
+            return Err(DomainError::invalid(
+                "whether a document is a credit note is fixed when it is created",
+            ));
         }
         if document_kind(book, &old) != Some(doc) {
-            return Err(DomainError::invalid(format!("the owner must stay a {} owner", doc_owner_word(document_kind(book, &old)))));
+            return Err(DomainError::invalid(format!(
+                "the owner must stay a {} owner",
+                doc_owner_word(document_kind(book, &old))
+            )));
         }
         retarget_bill_term(book, old.terms, inv.terms);
     }
@@ -212,11 +231,20 @@ fn doc_owner_word(doc: Option<DocumentKind>) -> &'static str {
 pub fn delete_invoice(book: &mut Book, guid: Guid) -> DomainResult<()> {
     let inv = invoice(book, guid)?.clone();
     refuse_posted(&inv)?;
-    if book.lots.values().any(|l| l.slots.get("gncInvoice/invoice-guid").and_then(SlotValue::as_guid) == Some(guid)) {
+    if book
+        .lots
+        .values()
+        .any(|l| l.slots.get("gncInvoice/invoice-guid").and_then(SlotValue::as_guid) == Some(guid))
+    {
         return Err(DomainError::conflict("a lot still refers to this document"));
     }
-    let lines: Vec<Guid> =
-        book.business.entries.values().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(|e| e.guid).collect();
+    let lines: Vec<Guid> = book
+        .business
+        .entries
+        .values()
+        .filter(|e| e.invoice == Some(guid) || e.bill == Some(guid))
+        .map(|e| e.guid)
+        .collect();
     lines.into_iter().for_each(|g| detach_line(book, g, guid));
     retarget_bill_term(book, inv.terms, None);
     book.business.invoices.remove(&guid);
@@ -257,13 +285,13 @@ pub fn entry_order(a: &Entry, b: &Entry) -> std::cmp::Ordering {
 
 /// The lines of a document or order, in GnuCash's order.
 pub fn entries_of(book: &Book, doc: Guid) -> Vec<&Entry> {
-    let mut lines: Vec<&Entry> =
-        book.business
-            .entries
-            .values()
-            .map(AsRef::as_ref)
-            .filter(|e| e.invoice == Some(doc) || e.bill == Some(doc) || e.order == Some(doc))
-            .collect();
+    let mut lines: Vec<&Entry> = book
+        .business
+        .entries
+        .values()
+        .map(AsRef::as_ref)
+        .filter(|e| e.invoice == Some(doc) || e.bill == Some(doc) || e.order == Some(doc))
+        .collect();
     lines.sort_by(|a, b| entry_order(a, b));
     lines
 }
@@ -273,7 +301,9 @@ pub fn entries_of(book: &Book, doc: Guid) -> Vec<&Entry> {
 /// (`5.17:gnucash/register/ledger-core/gncEntryLedger.c:286-294`).
 pub fn entry_document_kind(book: &Book, e: &Entry) -> Option<DocumentKind> {
     let of_invoice = |g: Option<Guid>| g.and_then(|g| book.business.invoices.get(&g)).and_then(|i| document_kind(book, i));
-    of_invoice(e.invoice).or_else(|| of_invoice(e.bill)).or_else(|| e.order.map(|_| DocumentKind::Invoice))
+    of_invoice(e.invoice)
+        .or_else(|| of_invoice(e.bill))
+        .or_else(|| e.order.map(|_| DocumentKind::Invoice))
 }
 
 /// A line's links: its invoice must be a customer invoice and its bill a bill or voucher, both unposted, and its
@@ -309,13 +339,27 @@ fn check_line_links(book: &Book, e: &Entry) -> DomainResult<()> {
 /// accounts, and expense accounts on customer documents or income accounts on bills and vouchers
 /// (`5.17:gnucash/register/ledger-core/gncEntryLedgerLoad.c:140-181`).
 fn check_line_account(book: &Book, account: Option<Guid>, old: Option<Guid>, customer: bool) -> DomainResult<()> {
-    let Some(g) = account.filter(|_| account != old) else { return Ok(()) };
-    let a = book.account(g).filter(|_| g != book.root).ok_or_else(|| DomainError::not_found("account", &g))?;
-    let excluded =
-        [AccountType::Payable, AccountType::Receivable, AccountType::Cash, AccountType::Bank, AccountType::Equity, AccountType::Trading];
+    let Some(g) = account.filter(|_| account != old) else {
+        return Ok(());
+    };
+    let a = book
+        .account(g)
+        .filter(|_| g != book.root)
+        .ok_or_else(|| DomainError::not_found("account", &g))?;
+    let excluded = [
+        AccountType::Payable,
+        AccountType::Receivable,
+        AccountType::Cash,
+        AccountType::Bank,
+        AccountType::Equity,
+        AccountType::Trading,
+    ];
     let wrong_side = if customer { AccountType::Expense } else { AccountType::Income };
     if excluded.contains(&a.account_type) || a.account_type == wrong_side {
-        return Err(DomainError::invalid(format!("a line cannot use a {} account", a.account_type.as_str())));
+        return Err(DomainError::invalid(format!(
+            "a line cannot use a {} account",
+            a.account_type.as_str()
+        )));
     }
     if a.is_placeholder() {
         return Err(DomainError::invalid("a line cannot use a placeholder account"));
@@ -344,7 +388,9 @@ pub fn add_entry(book: &mut Book, e: Entry) -> DomainResult<Guid> {
         return Err(DomainError::conflict(format!("{} is already in use", e.guid)));
     }
     if e.order.is_some() && e.bill.is_some() {
-        return Err(DomainError::invalid("order lines use the invoice side, so a new one cannot be on a bill or voucher"));
+        return Err(DomainError::invalid(
+            "order lines use the invoice side, so a new one cannot be on a bill or voucher",
+        ));
     }
     check_line(book, &e, None)?;
     retarget_tax_table(book, None, e.i_tax_table);
@@ -357,7 +403,12 @@ pub fn add_entry(book: &mut Book, e: Entry) -> DomainResult<Guid> {
 
 /// Replace a line with its new state. Its links do not change.
 pub fn update_entry(book: &mut Book, e: Entry) -> DomainResult<()> {
-    let old = book.business.entries.get(&e.guid).cloned().ok_or_else(|| DomainError::not_found("entry", &e.guid))?;
+    let old = book
+        .business
+        .entries
+        .get(&e.guid)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("entry", &e.guid))?;
     if (e.invoice, e.bill, e.order) != (old.invoice, old.bill, old.order) {
         return Err(DomainError::invalid("a line cannot move between documents"));
     }
@@ -372,7 +423,12 @@ pub fn update_entry(book: &mut Book, e: Entry) -> DomainResult<()> {
 /// Delete a line from its order and documents, as the entry ledger does
 /// (`5.17:gnucash/register/ledger-core/gncEntryLedger.c:837-880`). Its documents must be unposted and its order open.
 pub fn remove_entry(book: &mut Book, guid: Guid) -> DomainResult<()> {
-    let e = book.business.entries.get(&guid).cloned().ok_or_else(|| DomainError::not_found("entry", &guid))?;
+    let e = book
+        .business
+        .entries
+        .get(&guid)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("entry", &guid))?;
     check_line_links(book, &e)?;
     destroy_line(book, guid);
     Ok(())
@@ -389,17 +445,35 @@ pub fn default_entry(book: &Book, guid: Guid, date: Time64, entered: Time64, own
     if doc == DocumentKind::ExpenseVoucher {
         return e;
     }
-    let price =
-        (owner.kind == OwnerKind::Job).then(|| book.business.jobs.get(&owner.guid).map(|j| job_rate(j))).flatten().unwrap_or_default();
+    let price = (owner.kind == OwnerKind::Job)
+        .then(|| book.business.jobs.get(&owner.guid).map(|j| job_rate(j)))
+        .flatten()
+        .unwrap_or_default();
     let b = &book.business;
     let end = end_owner(book, owner).map(|o| o.guid).unwrap_or_default();
     let (included, override_table, discount, option) = match doc {
-        DocumentKind::Invoice => b.customers.get(&end).map_or((TaxIncluded::UseGlobal, None, None, OPT_DEFAULT_CUSTOMER_TAX_TABLE), |c| {
-            (c.tax_included, c.use_tax_table.then_some(c.tax_table).flatten(), Some(c.discount), OPT_DEFAULT_CUSTOMER_TAX_TABLE)
-        }),
-        _ => b.vendors.get(&end).map_or((TaxIncluded::UseGlobal, None, None, OPT_DEFAULT_VENDOR_TAX_TABLE), |v| {
-            (v.tax_included, v.use_tax_table.then_some(v.tax_table).flatten(), None, OPT_DEFAULT_VENDOR_TAX_TABLE)
-        }),
+        DocumentKind::Invoice => b
+            .customers
+            .get(&end)
+            .map_or((TaxIncluded::UseGlobal, None, None, OPT_DEFAULT_CUSTOMER_TAX_TABLE), |c| {
+                (
+                    c.tax_included,
+                    c.use_tax_table.then_some(c.tax_table).flatten(),
+                    Some(c.discount),
+                    OPT_DEFAULT_CUSTOMER_TAX_TABLE,
+                )
+            }),
+        _ => b
+            .vendors
+            .get(&end)
+            .map_or((TaxIncluded::UseGlobal, None, None, OPT_DEFAULT_VENDOR_TAX_TABLE), |v| {
+                (
+                    v.tax_included,
+                    v.use_tax_table.then_some(v.tax_table).flatten(),
+                    None,
+                    OPT_DEFAULT_VENDOR_TAX_TABLE,
+                )
+            }),
     };
     let table = override_table.or_else(|| default_tax_table(book, option));
     let included = included != TaxIncluded::No;
@@ -433,7 +507,11 @@ pub fn document_quantity(quantity: crate::Numeric, credit_note: bool) -> crate::
 
 /// Whether an entry is on a credit note.
 pub fn entry_on_credit_note(book: &Book, e: &Entry) -> bool {
-    [e.invoice, e.bill].into_iter().flatten().filter_map(|g| book.business.invoices.get(&g)).any(|i| i.is_credit_note())
+    [e.invoice, e.bill]
+        .into_iter()
+        .flatten()
+        .filter_map(|g| book.business.invoices.get(&g))
+        .any(|i| i.is_credit_note())
 }
 
 /// The book's default tax table, if it names a visible one. `gncTaxTableGetDefault` reads the option without the
@@ -543,7 +621,11 @@ mod tests {
         let income = account(&mut book, &mut env, "Income", AccountType::Income);
         let expense = account(&mut book, &mut env, "Expenses", AccountType::Expense);
         let tax = account(&mut book, &mut env, "Tax", AccountType::Liability);
-        let line = TaxTableEntry { account: Some(tax), amount: Numeric::from_int(10), kind: AmountType::Percent };
+        let line = TaxTableEntry {
+            account: Some(tax),
+            amount: Numeric::from_int(10),
+            kind: AmountType::Percent,
+        };
         let table = add_tax_table(&mut book, &mut env, "VAT", vec![line]).unwrap();
         let eur = Some(CommodityRef::currency("EUR"));
         let c = Customer {
@@ -579,7 +661,15 @@ mod tests {
             slots: Frame::new(),
         };
         let vendor = add_vendor(&mut book, v).unwrap();
-        World { book, env, customer, vendor, income, expense, table }
+        World {
+            book,
+            env,
+            customer,
+            vendor,
+            income,
+            expense,
+            table,
+        }
     }
 
     fn new_invoice(w: &mut World, owner: OwnerRef) -> Invoice {
@@ -606,8 +696,14 @@ mod tests {
     #[test]
     fn documents_are_numbered_per_type() {
         let mut w = world();
-        let cust = OwnerRef { kind: OwnerKind::Customer, guid: w.customer };
-        let vend = OwnerRef { kind: OwnerKind::Vendor, guid: w.vendor };
+        let cust = OwnerRef {
+            kind: OwnerKind::Customer,
+            guid: w.customer,
+        };
+        let vend = OwnerRef {
+            kind: OwnerKind::Vendor,
+            guid: w.vendor,
+        };
         let inv = new_invoice(&mut w, cust);
         let bill = new_invoice(&mut w, vend);
         let inv = add_invoice(&mut w.book, inv).unwrap();
@@ -623,7 +719,10 @@ mod tests {
     #[test]
     fn a_credit_note_sets_the_book_feature_and_keeps_its_flag() {
         let mut w = world();
-        let cust = OwnerRef { kind: OwnerKind::Customer, guid: w.customer };
+        let cust = OwnerRef {
+            kind: OwnerKind::Customer,
+            guid: w.customer,
+        };
         let plain = new_invoice(&mut w, cust);
         let plain = add_invoice(&mut w.book, plain).unwrap();
         assert!(crate::book_options::features(&w.book).is_empty(), "an invoice sets no feature");
@@ -645,12 +744,18 @@ mod tests {
     #[test]
     fn lines_take_owner_defaults_and_count_tax_tables() {
         let mut w = world();
-        let c = OwnerRef { kind: OwnerKind::Customer, guid: w.customer };
+        let c = OwnerRef {
+            kind: OwnerKind::Customer,
+            guid: w.customer,
+        };
         let inv = new_invoice(&mut w, c);
         let inv = add_invoice(&mut w.book, inv).unwrap();
         let refs_before = w.book.business.tax_tables[&w.table].refcount;
         let mut e = default_entry(&w.book, w.env.new_guid(), Time64(0), Time64(0), c);
-        assert_eq!((e.i_tax_table, e.i_taxable, e.i_tax_included, e.i_discount), (Some(w.table), true, false, Numeric::from_int(5)));
+        assert_eq!(
+            (e.i_tax_table, e.i_taxable, e.i_tax_included, e.i_discount),
+            (Some(w.table), true, false, Numeric::from_int(5))
+        );
         e.invoice = Some(inv);
         e.i_account = Some(w.expense);
         assert!(add_entry(&mut w.book, e.clone()).is_err(), "expense account on an invoice");
@@ -675,7 +780,10 @@ mod tests {
     #[test]
     fn order_lines_survive_invoice_deletion_and_orders_close() {
         let mut w = world();
-        let cust = OwnerRef { kind: OwnerKind::Customer, guid: w.customer };
+        let cust = OwnerRef {
+            kind: OwnerKind::Customer,
+            guid: w.customer,
+        };
         let ord = Order {
             guid: w.env.new_guid(),
             id: String::new(),

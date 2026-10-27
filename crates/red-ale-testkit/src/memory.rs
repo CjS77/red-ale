@@ -59,7 +59,14 @@ pub fn measure(path: &Path, heap: &dyn HeapCounter) -> Measurement {
     let peak_save = step(heap, base, || call(&mut d, "book.save", &json!({})));
     let after_save = heap.current().saturating_sub(base);
     call(&mut d, "book.close", &json!({ "save": false }));
-    Measurement { file, peak_open, at_rest, peak_post, peak_save, after_save }
+    Measurement {
+        file,
+        peak_open,
+        at_rest,
+        peak_post,
+        peak_save,
+        after_save,
+    }
 }
 
 /// Heap held by the Book alone, read from the file at `path` with its Residue dropped.

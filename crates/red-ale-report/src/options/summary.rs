@@ -13,7 +13,11 @@ impl OptionDb {
         self.options()
             .into_iter()
             .filter(|o| o.is_changed() && o.name() != OPTIONS_SUMMARY && o.kind != OptionKind::Internal)
-            .map(|o| OptionsSummaryRow { section: o.section().to_owned(), name: o.name().to_owned(), value: disp(o.value(), ctx) })
+            .map(|o| OptionsSummaryRow {
+                section: o.section().to_owned(),
+                name: o.name().to_owned(),
+                value: disp(o.value(), ctx),
+            })
             .collect()
     }
 }

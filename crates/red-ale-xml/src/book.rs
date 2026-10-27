@@ -92,13 +92,19 @@ impl XmlResidue {
     /// Names of out-of-scope sections whose text mentions `needle` (a GUID or mnemonic), for refusing deletions that
     /// would leave them dangling.
     pub fn sections_mentioning(&self, needle: &str) -> Vec<String> {
-        self.out_of_scope_elements().filter(|e| element_mentions(e, needle)).map(|e| e.name.clone()).collect()
+        self.out_of_scope_elements()
+            .filter(|e| element_mentions(e, needle))
+            .map(|e| e.name.clone())
+            .collect()
     }
 
     /// Names of out-of-scope sections holding a reference to `commodity` (a `cmdty:space` and `cmdty:id` pair), for
     /// refusing renames and deletions that would leave them dangling.
     pub fn sections_referring_to(&self, commodity: &CommodityRef) -> Vec<String> {
-        self.out_of_scope_elements().filter(|e| refers_to(e, commodity)).map(|e| e.name.clone()).collect()
+        self.out_of_scope_elements()
+            .filter(|e| refers_to(e, commodity))
+            .map(|e| e.name.clone())
+            .collect()
     }
 
     /// Forget the originals: the next write generates every entity from the model. Used to test the generators.
@@ -138,11 +144,17 @@ pub fn decode(bytes: &[u8]) -> Result<(String, bool), XmlError> {
     if is_gzip(bytes) {
         let mut text = String::new();
         GzDecoder::new(bytes).read_to_string(&mut text).map_err(|e| {
-            if e.kind() == std::io::ErrorKind::InvalidData { XmlError::Encoding } else { XmlError::Io(e) }
+            if e.kind() == std::io::ErrorKind::InvalidData {
+                XmlError::Encoding
+            } else {
+                XmlError::Io(e)
+            }
         })?;
         Ok((text, true))
     } else {
-        String::from_utf8(bytes.to_vec()).map(|t| (t, false)).map_err(|_| XmlError::Encoding)
+        String::from_utf8(bytes.to_vec())
+            .map(|t| (t, false))
+            .map_err(|_| XmlError::Encoding)
     }
 }
 
@@ -180,7 +192,15 @@ struct Writer<'a, W: Write> {
 
 impl<'a, W: Write> Writer<'a, W> {
     fn new(book: &'a Book, residue: &'a XmlResidue, sink: W, flush_at: usize) -> Self {
-        Self { book, residue, lots_by_account: lots_by_account(book), out: String::new(), sink, flush_at, error: None }
+        Self {
+            book,
+            residue,
+            lots_by_account: lots_by_account(book),
+            out: String::new(),
+            sink,
+            flush_at,
+            error: None,
+        }
     }
 
     fn line(&mut self, el: &Element) {
@@ -217,18 +237,26 @@ impl<'a, W: Write> Writer<'a, W> {
     }
 
     fn account_unchanged(&self, account: &Arc<Account>) -> bool {
-        let Some(old) = self.residue.snapshot.accounts.get(&account.guid) else { return false };
+        let Some(old) = self.residue.snapshot.accounts.get(&account.guid) else {
+            return false;
+        };
         if !same(account, old) {
             return false;
         }
         let now: Vec<&Lot> = self.lots_by_account.get(&account.guid).cloned().unwrap_or_default();
         let before: Vec<&Arc<Lot>> = self.residue.snapshot.lots.values().filter(|l| l.account == account.guid).collect();
-        now.len() == before.len() && now.iter().all(|l| self.residue.snapshot.lots.get(&l.guid).is_some_and(|o| **o == **l))
+        now.len() == before.len()
+            && now
+                .iter()
+                .all(|l| self.residue.snapshot.lots.get(&l.guid).is_some_and(|o| **o == **l))
     }
 
     fn written_transactions(&self) -> impl Iterator<Item = &'a Arc<Transaction>> + use<'a, W> {
         let accounts = &self.book.accounts;
-        self.book.transactions.values().filter(move |t| t.splits.iter().any(|s| s.account.is_some_and(|a| accounts.contains_key(&a))))
+        self.book
+            .transactions
+            .values()
+            .filter(move |t| t.splits.iter().any(|s| s.account.is_some_and(|a| accounts.contains_key(&a))))
     }
 
     /// Write the book. Returns the text not yet handed to the sink (all of it, if `flush_at` is `usize::MAX`) and
@@ -263,7 +291,11 @@ impl<'a, W: Write> Writer<'a, W> {
     fn write_accounts_export(mut self) -> Result<(String, W), std::io::Error> {
         let accounts = exported_accounts(self.book);
         self.out.push_str(&header());
-        count_line(&mut self.out, "commodity", self.book.commodities.keys().filter(|c| !c.is_currency()).count());
+        count_line(
+            &mut self.out,
+            "commodity",
+            self.book.commodities.keys().filter(|c| !c.is_currency()).count(),
+        );
         count_line(&mut self.out, "account", accounts.len());
         self.commodity_elements();
         accounts.into_iter().for_each(|a| self.account_without_lots(a));
@@ -274,8 +306,19 @@ impl<'a, W: Write> Writer<'a, W> {
     /// An account as a full save writes it, less its `act:lots`: from its original text, if it is unchanged and has
     /// one, else as generated.
     fn account_without_lots(&mut self, account: &Arc<Account>) {
-        let unchanged = self.residue.snapshot.accounts.get(&account.guid).is_some_and(|old| same(account, old));
-        let original = self.residue.originals.accounts.get(&account.guid).filter(|_| unchanged).and_then(|text| parse_document(text).ok());
+        let unchanged = self
+            .residue
+            .snapshot
+            .accounts
+            .get(&account.guid)
+            .is_some_and(|old| same(account, old));
+        let original = self
+            .residue
+            .originals
+            .accounts
+            .get(&account.guid)
+            .filter(|_| unchanged)
+            .and_then(|text| parse_document(text).ok());
         let el = original.map_or_else(
             || account_el(account, &[]),
             |mut el| {
@@ -346,8 +389,12 @@ impl<'a, W: Write> Writer<'a, W> {
             if !commodity_is_written(c) {
                 continue;
             }
-            let original =
-                self.residue.originals.commodities.get(id).filter(|_| self.residue.snapshot.commodities.get(id).is_some_and(|o| same(c, o)));
+            let original = self
+                .residue
+                .originals
+                .commodities
+                .get(id)
+                .filter(|_| self.residue.snapshot.commodities.get(id).is_some_and(|o| same(c, o)));
             match original {
                 Some(text) => self.text_line(text),
                 None => {
@@ -364,11 +411,21 @@ impl<'a, W: Write> Writer<'a, W> {
     fn prices(&mut self) {
         if !self.book.prices.is_empty() {
             let mut prices: Vec<&Arc<red_ale_core::Price>> = self.book.prices.values().collect();
-            prices.sort_by(|a, b| a.commodity.cmp(&b.commodity).then_with(|| a.currency.cmp(&b.currency)).then_with(|| b.time.cmp(&a.time)).then_with(|| a.guid.cmp(&b.guid)));
+            prices.sort_by(|a, b| {
+                a.commodity
+                    .cmp(&b.commodity)
+                    .then_with(|| a.currency.cmp(&b.currency))
+                    .then_with(|| b.time.cmp(&a.time))
+                    .then_with(|| a.guid.cmp(&b.guid))
+            });
             self.out.push_str("<gnc:pricedb version=\"1\">\n");
             for p in prices {
-                let original =
-                    self.residue.originals.prices.get(&p.guid).filter(|_| self.residue.snapshot.prices.get(&p.guid).is_some_and(|o| same(p, o)));
+                let original = self
+                    .residue
+                    .originals
+                    .prices
+                    .get(&p.guid)
+                    .filter(|_| self.residue.snapshot.prices.get(&p.guid).is_some_and(|o| same(p, o)));
                 let text = original.cloned().unwrap_or_else(|| price_el(p).dump(1));
                 self.out.push_str("  ");
                 self.text_line(&text);
@@ -381,7 +438,12 @@ impl<'a, W: Write> Writer<'a, W> {
     fn accounts(&mut self) {
         let book = self.book;
         for account in book.accounts.values() {
-            let original = self.residue.originals.accounts.get(&account.guid).filter(|_| self.account_unchanged(account));
+            let original = self
+                .residue
+                .originals
+                .accounts
+                .get(&account.guid)
+                .filter(|_| self.account_unchanged(account));
             let lots = self.lots_by_account.get(&account.guid).cloned().unwrap_or_default();
             self.entity(original, || account_el(account, &lots));
         }
@@ -404,7 +466,13 @@ impl<'a, W: Write> Writer<'a, W> {
 
     fn out_of_scope(&mut self) {
         for section in [Section::Templates, Section::ScheduledTransactions, Section::Budgets] {
-            let parts: Vec<&Element> = self.residue.out_of_scope.iter().filter(|(s, _)| *s == section).map(|(_, e)| e).collect();
+            let parts: Vec<&Element> = self
+                .residue
+                .out_of_scope
+                .iter()
+                .filter(|(s, _)| *s == section)
+                .map(|(_, e)| e)
+                .collect();
             for el in parts {
                 if section == Section::Templates {
                     self.out.push_str("<gnc:template-transactions>\n");
@@ -422,32 +490,61 @@ impl<'a, W: Write> Writer<'a, W> {
     }
 
     fn business_one<T: PartialEq>(&mut self, guid: Guid, now: &Arc<T>, before: Option<&Arc<T>>, generate: impl Fn(&T) -> Element) {
-        let original = self.residue.originals.business.get(&guid).filter(|_| before.is_some_and(|o| same(now, o)));
+        let original = self
+            .residue
+            .originals
+            .business
+            .get(&guid)
+            .filter(|_| before.is_some_and(|o| same(now, o)));
         self.entity(original, || generate(now));
     }
 
     fn business(&mut self) {
         let b = &self.book.business;
         let old = &self.residue.snapshot.business;
-        b.bill_terms.iter().for_each(|(g, o)| self.business_one(*g, o, old.bill_terms.get(g), business::bill_term_el));
-        b.customers.iter().filter(|(_, o)| !o.id.is_empty()).for_each(|(g, o)| self.business_one(*g, o, old.customers.get(g), business::customer_el));
-        b.employees.iter().filter(|(_, o)| !o.id.is_empty()).for_each(|(g, o)| self.business_one(*g, o, old.employees.get(g), business::employee_el));
+        b.bill_terms
+            .iter()
+            .for_each(|(g, o)| self.business_one(*g, o, old.bill_terms.get(g), business::bill_term_el));
+        b.customers
+            .iter()
+            .filter(|(_, o)| !o.id.is_empty())
+            .for_each(|(g, o)| self.business_one(*g, o, old.customers.get(g), business::customer_el));
+        b.employees
+            .iter()
+            .filter(|(_, o)| !o.id.is_empty())
+            .for_each(|(g, o)| self.business_one(*g, o, old.employees.get(g), business::employee_el));
         b.entries
             .iter()
             .filter(|(_, o)| o.invoice.is_some() || o.bill.is_some() || o.order.is_some())
             .for_each(|(g, o)| self.business_one(*g, o, old.entries.get(g), business::entry_el));
-        b.invoices.iter().filter(|(_, o)| !o.id.is_empty()).for_each(|(g, o)| self.business_one(*g, o, old.invoices.get(g), business::invoice_el));
-        b.jobs.iter().filter(|(_, o)| !o.id.is_empty()).for_each(|(g, o)| self.business_one(*g, o, old.jobs.get(g), business::job_el));
-        b.orders.iter().filter(|(_, o)| !o.id.is_empty()).for_each(|(g, o)| self.business_one(*g, o, old.orders.get(g), business::order_el));
-        b.tax_tables.iter().for_each(|(g, o)| self.business_one(*g, o, old.tax_tables.get(g), business::tax_table_el));
-        b.vendors.iter().filter(|(_, o)| !o.id.is_empty()).for_each(|(g, o)| self.business_one(*g, o, old.vendors.get(g), business::vendor_el));
+        b.invoices
+            .iter()
+            .filter(|(_, o)| !o.id.is_empty())
+            .for_each(|(g, o)| self.business_one(*g, o, old.invoices.get(g), business::invoice_el));
+        b.jobs
+            .iter()
+            .filter(|(_, o)| !o.id.is_empty())
+            .for_each(|(g, o)| self.business_one(*g, o, old.jobs.get(g), business::job_el));
+        b.orders
+            .iter()
+            .filter(|(_, o)| !o.id.is_empty())
+            .for_each(|(g, o)| self.business_one(*g, o, old.orders.get(g), business::order_el));
+        b.tax_tables
+            .iter()
+            .for_each(|(g, o)| self.business_one(*g, o, old.tax_tables.get(g), business::tax_table_el));
+        b.vendors
+            .iter()
+            .filter(|(_, o)| !o.id.is_empty())
+            .for_each(|(g, o)| self.business_one(*g, o, old.vendors.get(g), business::vendor_el));
         self.unknown_after(Section::Business);
     }
 }
 
 /// The accounts an account-tree export writes: the root and its descendants, in the order a full save writes them.
 fn exported_accounts(book: &Book) -> Vec<&Arc<Account>> {
-    let tree: HashSet<Guid> = std::iter::once(book.root).chain(book.descendants(book.root).iter().map(|a| a.guid)).collect();
+    let tree: HashSet<Guid> = std::iter::once(book.root)
+        .chain(book.descendants(book.root).iter().map(|a| a.guid))
+        .collect();
     book.accounts.values().filter(|a| tree.contains(&a.guid)).collect()
 }
 
@@ -460,7 +557,10 @@ pub fn write_accounts_to<W: Write>(book: &Book, residue: &XmlResidue, sink: W) -
 /// Serialise a book to XML text.
 pub fn write_book_text(book: &Book, residue: &XmlResidue) -> String {
     // The text stays in the writer, so the sink is never written to and cannot fail.
-    Writer::new(book, residue, std::io::sink(), usize::MAX).write().map(|(text, _)| text).unwrap_or_default()
+    Writer::new(book, residue, std::io::sink(), usize::MAX)
+        .write()
+        .map(|(text, _)| text)
+        .unwrap_or_default()
 }
 
 /// Serialise a book to the bytes of a file, gzipped if `compress` (zlib's default level, mtime 0 and OS Unix, as
@@ -475,7 +575,10 @@ pub fn write_book_to<W: Write>(book: &Book, residue: &XmlResidue, compress: bool
     if !compress {
         return Ok(Writer::new(book, residue, sink, CHUNK).write()?.1);
     }
-    let encoder = flate2::GzBuilder::new().mtime(0).operating_system(3).write(sink, flate2::Compression::default());
+    let encoder = flate2::GzBuilder::new()
+        .mtime(0)
+        .operating_system(3)
+        .write(sink, flate2::Compression::default());
     let (_, encoder) = Writer::new(book, residue, encoder, CHUNK).write()?;
     Ok(encoder.finish()?)
 }

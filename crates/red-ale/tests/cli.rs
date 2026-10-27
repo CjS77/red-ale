@@ -68,7 +68,12 @@ fn scripts_run_in_order_and_stop_at_the_first_failure() {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child.stdin.take().unwrap().write_all(b"# comment\nbook.info\n{\"method\": \"book.info\", \"params\": {}}\n").unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"# comment\nbook.info\n{\"method\": \"book.info\", \"params\": {}}\n")
+        .unwrap();
     let out = child.wait_with_output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(json(&out.stdout).as_array().unwrap().len(), 2);
@@ -79,14 +84,24 @@ fn methods_and_schema_list_the_api() {
     let out = run(&["methods"]);
     assert!(String::from_utf8_lossy(&out.stdout).lines().any(|l| l.starts_with("book.open")));
     let schema = json(&run(&["schema"]).stdout);
-    assert!(schema["methods"].as_array().unwrap().iter().any(|m| m["name"] == "book.replayJournal"));
+    assert!(
+        schema["methods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["name"] == "book.replayJournal")
+    );
 }
 
 #[test]
 fn serve_and_call_over_http() {
     let dir = tempfile::tempdir().unwrap();
     let book = copy(dir.path(), "synthetic/rich.gnucash");
-    let mut server = Command::new(BIN).args(["serve", "--listen", "127.0.0.1:0", "--book", &book]).stderr(Stdio::piped()).spawn().unwrap();
+    let mut server = Command::new(BIN)
+        .args(["serve", "--listen", "127.0.0.1:0", "--book", &book])
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
     let mut lines = BufReader::new(server.stderr.take().unwrap()).lines();
     let url = lines
         .by_ref()
@@ -126,7 +141,15 @@ customer.create {"name": "Acme", "currency": "USD"}
     assert_eq!(json(&out.stdout).as_array().unwrap().len(), 5);
     let info = json(&run(&["exec", "--book", &book, "--read-only", "book.info"]).stdout);
     let counts = &info["counts"];
-    assert_eq!((&counts["accounts"], &counts["transactions"], &counts["prices"], &counts["customers"]), (&json!(3), &json!(1), &json!(1), &json!(1)));
+    assert_eq!(
+        (
+            &counts["accounts"],
+            &counts["transactions"],
+            &counts["prices"],
+            &counts["customers"]
+        ),
+        (&json!(3), &json!(1), &json!(1), &json!(1))
+    );
     let balance = json(&run(&["exec", "--book", &book, "--read-only", "account.balance", "account=Checking"]).stdout);
     assert_eq!(balance["balances"]["balance"], json!({ "num": "100000", "denom": "100" }));
 }
@@ -135,19 +158,48 @@ customer.create {"name": "Acme", "currency": "USD"}
 fn import_files_are_read_on_the_cli_side() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("new.gnucash").display().to_string();
-    let out = run(&["exec", "--create", "--book", &book, "account.create", "name=Checking", "type=BANK", "commodity=USD"]);
+    let out = run(&[
+        "exec",
+        "--create",
+        "--book",
+        &book,
+        "account.create",
+        "name=Checking",
+        "type=BANK",
+        "commodity=USD",
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let file = dir.path().join("statement.csv");
     std::fs::write(&file, b"Date,Description,Amount\n2024-03-01,Caf\xe9,-4.50\n").unwrap();
     let layout = r#"layout:={"skipStartLines": 1, "columns": ["Date", "Description", "Amount"], "baseAccount": "Checking"}"#;
     let file = file.display().to_string();
-    let args = ["exec", "--book", &book, "import.preview", "format=csvTransactions", layout, "--file", &file, "--encoding", "iso-8859-1"];
+    let args = [
+        "exec",
+        "--book",
+        &book,
+        "import.preview",
+        "format=csvTransactions",
+        layout,
+        "--file",
+        &file,
+        "--encoding",
+        "iso-8859-1",
+    ];
     let out = run(&args);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let proposal = json(&out.stdout);
     assert_eq!(proposal["transactions"][0]["description"], "Café");
     assert_eq!(proposal["ignoredLines"][0]["line"], 1);
-    let out = run(&["exec", "--book", &book, "import.preview", "format=csvTransactions", layout, "--file", &file]);
+    let out = run(&[
+        "exec",
+        "--book",
+        &book,
+        "import.preview",
+        "format=csvTransactions",
+        layout,
+        "--file",
+        &file,
+    ]);
     assert_eq!(out.status.code(), Some(2), "not UTF-8");
     assert_eq!(json(&out.stderr)["error"]["code"], 4000);
 }
@@ -157,9 +209,23 @@ fn account_and_price_files_are_read_on_the_cli_side() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("new.gnucash").display().to_string();
     let accounts = dir.path().join("accounts.csv");
-    std::fs::write(&accounts, "ASSET;Assets;Assets;;;;;USD;CURRENCY;F;F;T\nBANK;Assets:Caf\u{e9};Caf\u{e9};;;;;USD;CURRENCY;F;F;F\n").unwrap();
+    std::fs::write(
+        &accounts,
+        "ASSET;Assets;Assets;;;;;USD;CURRENCY;F;F;T\nBANK;Assets:Caf\u{e9};Caf\u{e9};;;;;USD;CURRENCY;F;F;F\n",
+    )
+    .unwrap();
     let accounts = accounts.display().to_string();
-    let out = run(&["exec", "--create", "--book", &book, "import.preview", "format=csvAccounts", "separator=semicolon", "--file", &accounts]);
+    let out = run(&[
+        "exec",
+        "--create",
+        "--book",
+        &book,
+        "import.preview",
+        "format=csvAccounts",
+        "separator=semicolon",
+        "--file",
+        &accounts,
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let proposal = json(&out.stdout);
     assert_eq!(proposal["accounts"][1]["fullName"], "Assets:Café");
@@ -169,7 +235,16 @@ fn account_and_price_files_are_read_on_the_cli_side() {
     std::fs::write(&prices, "2024-03-01,USD,1.08\n").unwrap();
     let layout = r#"layout:={"fromCommodity": "EUR", "columns": ["Date", "Currency To", "Amount"]}"#;
     let prices = prices.display().to_string();
-    let out = run(&["exec", "--book", &book, "import.preview", "format=csvPrices", layout, "--file", &prices]);
+    let out = run(&[
+        "exec",
+        "--book",
+        &book,
+        "import.preview",
+        "format=csvPrices",
+        layout,
+        "--file",
+        &prices,
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let proposal = json(&out.stdout);
     assert_eq!(proposal["prices"][0]["value"], json!({ "num": "1080000", "denom": "1000000" }));
@@ -181,7 +256,10 @@ fn in_zone<T>(tz: Option<&str>, f: impl FnOnce() -> T) -> (red_ale_core::TimeZon
     let tzdir = std::env::var_os("TZDIR").map(std::path::PathBuf::from);
     let zone = red_ale_service::zone::zone_from(tz, tzdir.as_deref(), &|p| std::fs::read(p).ok());
     let today = |z: &red_ale_core::TimeZone| {
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         z.local_date(red_ale_core::Time64(i64::try_from(now).unwrap())).unwrap()
     };
     let before = today(&zone);
@@ -206,23 +284,53 @@ fn run_in(tz: Option<&str>, args: &[&str]) -> Output {
 
 #[test]
 fn today_and_backup_names_follow_tz_at_both_extremes_and_unset() {
-    [Some("Pacific/Pago_Pago"), Some("Pacific/Kiritimati"), Some("XYZ-11"), Some(":Pacific/Kiritimati"), None].iter().for_each(|tz| {
+    [
+        Some("Pacific/Pago_Pago"),
+        Some("Pacific/Kiritimati"),
+        Some("XYZ-11"),
+        Some(":Pacific/Kiritimati"),
+        None,
+    ]
+    .iter()
+    .for_each(|tz| {
         let dir = tempfile::tempdir().unwrap();
         let book = dir.path().join("b.gnucash").display().to_string();
-        let (zone, days, out) = in_zone(*tz, || run_in(*tz, &["exec", "--create", "--book", &book, "period.dates", "start=today", "end=today"]));
+        let (zone, days, out) = in_zone(*tz, || {
+            run_in(
+                *tz,
+                &["exec", "--create", "--book", &book, "period.dates", "start=today", "end=today"],
+            )
+        });
         assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
         let dates = json(&out.stdout);
-        let today = days.iter().find(|d| dates["today"] == d.to_string()).unwrap_or_else(|| panic!("TZ={tz:?}: {dates} is not {days:?}"));
+        let today = days
+            .iter()
+            .find(|d| dates["today"] == d.to_string())
+            .unwrap_or_else(|| panic!("TZ={tz:?}: {dates} is not {days:?}"));
         assert_eq!(dates["startTime"], rfc3339(zone.day_start(*today)), "TZ={tz:?}");
         assert_eq!(dates["endTime"], rfc3339(zone.day_end(*today)), "TZ={tz:?}");
 
-        let (_, days, out) = in_zone(*tz, || run_in(*tz, &["exec", "--book", &book, "account.create", "name=Bank", "type=BANK", "commodity=USD"]));
+        let (_, days, out) = in_zone(*tz, || {
+            run_in(
+                *tz,
+                &["exec", "--book", &book, "account.create", "name=Bank", "type=BANK", "commodity=USD"],
+            )
+        });
         assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-        let names: Vec<String> = std::fs::read_dir(dir.path()).unwrap().filter_map(|e| e.unwrap().file_name().into_string().ok()).collect();
-        let backup = names.iter().find(|n| n.starts_with("b.gnucash.") && n.ends_with(".gnucash")).unwrap_or_else(|| panic!("TZ={tz:?}: {names:?}"));
+        let names: Vec<String> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.unwrap().file_name().into_string().ok())
+            .collect();
+        let backup = names
+            .iter()
+            .find(|n| n.starts_with("b.gnucash.") && n.ends_with(".gnucash"))
+            .unwrap_or_else(|| panic!("TZ={tz:?}: {names:?}"));
         let stamp = &backup["b.gnucash.".len().."b.gnucash.".len() + 8];
         let local_days = days.map(|d| d.to_string().replace('-', ""));
-        assert!(local_days.iter().any(|d| d == stamp), "TZ={tz:?}: backup {backup} is not dated {local_days:?}");
+        assert!(
+            local_days.iter().any(|d| d == stamp),
+            "TZ={tz:?}: backup {backup} is not dated {local_days:?}"
+        );
     });
 }
 
@@ -258,22 +366,52 @@ fn exec_runs_reports_and_writes_the_export_to_a_file() {
     let html = dir.path().join("out.html");
     let html_arg = html.display().to_string();
     let options = r#"options:={"Display": {"Levels": 3}}"#;
-    let args = ["exec", "--book", &book, "--config", &config, "report.export", "report=Account Names", options, "--output", &html_arg];
+    let args = [
+        "exec",
+        "--book",
+        &book,
+        "--config",
+        &config,
+        "report.export",
+        "report=Account Names",
+        options,
+        "--output",
+        &html_arg,
+    ];
     let out = run(&args);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let written = std::fs::read_to_string(&html).unwrap();
-    assert_eq!(json(&out.stdout), json!({ "title": "Accounts to 3", "path": html_arg, "bytes": written.len() }));
+    assert_eq!(
+        json(&out.stdout),
+        json!({ "title": "Accounts to 3", "path": html_arg, "bytes": written.len() })
+    );
     assert!(written.starts_with("<!DOCTYPE html>") && !written.contains("<script"));
     assert_eq!(std::fs::read(&book).unwrap(), before, "exec never saves a book a report only read");
     let entries = std::fs::read_dir(dir.path()).unwrap();
     let names: Vec<String> = entries.map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
-    assert!(!names.iter().any(|n| Path::new(n).extension().is_some_and(|x| x == "log")), "{names:?}");
+    assert!(
+        !names.iter().any(|n| Path::new(n).extension().is_some_and(|x| x == "log")),
+        "{names:?}"
+    );
 
-    let out = run(&["exec", "--book", &book, "--read-only", "--config", &config, "report.run", "report=Account Names", options]);
+    let out = run(&[
+        "exec",
+        "--book",
+        &book,
+        "--read-only",
+        "--config",
+        &config,
+        "report.run",
+        "report=Account Names",
+        options,
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(json(&out.stdout)["options"]["Display"]["Levels"], 3, "nested options parse");
     let out = run(&["exec", "--book", &book, "--config", &config, "report.run", "report=Nope"]);
-    assert_eq!((out.status.code(), json(&out.stderr)["error"]["code"].clone()), (Some(2), json!(2000)));
+    assert_eq!(
+        (out.status.code(), json(&out.stderr)["error"]["code"].clone()),
+        (Some(2), json!(2000))
+    );
     let out = run(&["exec", "--book", &book, "book.info", "--output", &html_arg]);
     assert_eq!(out.status.code(), Some(1), "--output needs an html or csv result");
 }
@@ -283,7 +421,16 @@ fn call_saves_a_configuration_and_exports_it_to_a_file() {
     let dir = tempfile::tempdir().unwrap();
     let book = copy(dir.path(), "reports/balsheet-pnl.gnucash");
     let config = report_config(dir.path());
-    let args = ["serve", "--listen", "127.0.0.1:0", "--book", &book, "--read-only", "--config", &config];
+    let args = [
+        "serve",
+        "--listen",
+        "127.0.0.1:0",
+        "--book",
+        &book,
+        "--read-only",
+        "--config",
+        &config,
+    ];
     let mut server = Command::new(BIN).args(args).stderr(Stdio::piped()).spawn().unwrap();
     let mut lines = BufReader::new(server.stderr.take().unwrap()).lines();
     let url = lines
@@ -292,7 +439,15 @@ fn call_saves_a_configuration_and_exports_it_to_a_file() {
         .find_map(|l| l.split("serving JSON-RPC on ").nth(1).map(str::to_owned))
         .expect("the server reports its address");
     let options = r#"options:={"Display": {"Levels": 4}}"#;
-    let out = run(&["call", "--url", &url, "report.saveConfiguration", "name=Four levels", "report=Account Names", options]);
+    let out = run(&[
+        "call",
+        "--url",
+        &url,
+        "report.saveConfiguration",
+        "name=Four levels",
+        "report=Account Names",
+        options,
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(json(&out.stdout)["kind"], "saved");
     let stored: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
@@ -311,10 +466,20 @@ fn call_saves_a_configuration_and_exports_it_to_a_file() {
 #[test]
 fn a_reader_closing_the_pipe_ends_output_quietly() {
     ["schema", "methods"].into_iter().for_each(|command| {
-        let mut child = Command::new(BIN).arg(command).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        let mut child = Command::new(BIN)
+            .arg(command)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
         drop(child.stdout.take());
         let out = child.wait_with_output().unwrap();
-        assert!(out.status.success(), "{command}: {:?} {}", out.status, String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "{command}: {:?} {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        );
         assert!(out.stderr.is_empty(), "{command}: {}", String::from_utf8_lossy(&out.stderr));
     });
 }
@@ -327,11 +492,25 @@ fn exports_write_their_files() {
     let book = copy(dir.path(), "synthetic/rich.gnucash");
     let csv = dir.path().join("food.csv").display().to_string();
     let accounts = r#"accounts:=["Expenses:Food"]"#;
-    let args = ["exec", "--book", &book, "--read-only", "export.csvTransactions", accounts, "from=2024-06-01", "to=2024-06-30", "--output", &csv];
+    let args = [
+        "exec",
+        "--book",
+        &book,
+        "--read-only",
+        "export.csvTransactions",
+        accounts,
+        "from=2024-06-01",
+        "to=2024-06-30",
+        "--output",
+        &csv,
+    ];
     let out = run(&args);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let written = std::fs::read(&csv).unwrap();
-    assert_eq!(json(&out.stdout), json!({ "transactions": 2, "lines": 4, "path": csv, "bytes": written.len() }));
+    assert_eq!(
+        json(&out.stdout),
+        json!({ "transactions": 2, "lines": 4, "path": csv, "bytes": written.len() })
+    );
     assert!(written.starts_with(b"Date,Transaction ID,") && written.ends_with(b"\r\n"));
 
     let tree = dir.path().join("tree.csv").display().to_string();
@@ -340,7 +519,12 @@ fn exports_write_their_files() {
 
     let chart = dir.path().join("chart").display().to_string();
     let out = run(&["exec", "--book", &book, "--read-only", "export.accounts", &format!("path={chart}")]);
-    assert_eq!(json(&out.stdout)["path"], json!(format!("{chart}.gnucash")), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(
+        json(&out.stdout)["path"],
+        json!(format!("{chart}.gnucash")),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 /// A CSV export larger than jsonrpsee's 10 MB default reaches `call` under the default `jsonRpc.maxResponseBytes`,
@@ -365,7 +549,13 @@ fn the_response_size_limit_comes_from_the_configuration() {
 
 /// Start `red-ale serve` with `args` and return it with its URL.
 fn serve_with(args: &[&str]) -> (std::process::Child, String) {
-    let mut server = Command::new(BIN).arg("serve").args(["--listen", "127.0.0.1:0"]).args(args).stderr(Stdio::piped()).spawn().unwrap();
+    let mut server = Command::new(BIN)
+        .arg("serve")
+        .args(["--listen", "127.0.0.1:0"])
+        .args(args)
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
     let mut lines = BufReader::new(server.stderr.take().unwrap()).lines();
     let url = lines
         .by_ref()
@@ -391,13 +581,22 @@ fn exec_changes_the_configuration_with_no_book() {
     let out = run(&["exec", "--config", &config, "config.get", "path=quotes.services.finnhub"]);
     assert!(!String::from_utf8_lossy(&out.stdout).contains("SECRET-FH"));
     assert_eq!(json(&out.stdout)["value"]["key"], json!({ "set": true }));
-    let out = run(&["exec", "--config", &config, "config.set", r#"changes:={"import.settings.matchThreshold": "x"}"#]);
+    let out = run(&[
+        "exec",
+        "--config",
+        &config,
+        "config.set",
+        r#"changes:={"import.settings.matchThreshold": "x"}"#,
+    ]);
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(json(&out.stderr)["error"]["code"], -32602);
     let out = run(&["exec", "--config", &config, "config.get", "path=import.settings.matchThreshold"]);
     assert_eq!(json(&out.stdout)["value"], 3, "a failed set changed nothing");
     let out = run(&["exec", "--create", "config.get"]);
-    assert!(!out.status.success() && String::from_utf8_lossy(&out.stderr).contains("--book"), "--create needs --book");
+    assert!(
+        !out.status.success() && String::from_utf8_lossy(&out.stderr).contains("--book"),
+        "--create needs --book"
+    );
 }
 
 #[test]
@@ -422,7 +621,9 @@ fn post_large(url: &str, bytes: usize) -> String {
     let addr = url.trim_start_matches("http://").trim_end_matches('/');
     let mut stream = std::net::TcpStream::connect(addr).unwrap();
     let length = body.len();
-    let head = format!("POST / HTTP/1.1\r\nHost: {addr}\r\nContent-Type: application/json\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n");
+    let head = format!(
+        "POST / HTTP/1.1\r\nHost: {addr}\r\nContent-Type: application/json\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n"
+    );
     stream.write_all(head.as_bytes()).unwrap();
     // The server may answer 413 and close before reading the whole body.
     let _ = stream.write_all(body.as_bytes());
@@ -436,7 +637,10 @@ fn the_request_size_limit_comes_from_the_configuration() {
     let dir = tempfile::tempdir().unwrap();
     let (server, url) = serve_with(&[]);
     let status = post_large(&url, 12 << 20);
-    assert!(status.contains("200"), "above jsonrpsee's 10 MB default, within red-ale's 64 MiB: {status}");
+    assert!(
+        status.contains("200"),
+        "above jsonrpsee's 10 MB default, within red-ale's 64 MiB: {status}"
+    );
     stop(server);
     let config = dir.path().join("red-ale.json");
     std::fs::write(&config, r#"{"jsonRpc": {"maxRequestBytes": 1048576}}"#).unwrap();
@@ -451,7 +655,10 @@ fn the_request_size_limit_comes_from_the_configuration() {
 #[test]
 fn exec_fetches_quotes_and_waits_for_them() {
     use red_ale_testkit::quote_server::{Answer, QuoteServer};
-    let server = QuoteServer::start(vec![("/quote/HPE", Answer::ok(r#"{"price": "13.37", "ccy": "USD", "date": "2022-09-01"}"#))]);
+    let server = QuoteServer::start(vec![(
+        "/quote/HPE",
+        Answer::ok(r#"{"price": "13.37", "ccy": "USD", "date": "2022-09-01"}"#),
+    )]);
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("quotes.gnucash").display().to_string();
     let config = dir.path().join("red-ale.json");
@@ -471,10 +678,16 @@ fn exec_fetches_quotes_and_waits_for_them() {
     let out = run(&["exec", "--config", &config, "--book", &book, "price.fetchQuotes"]);
     assert_eq!(out.status.code(), Some(2), "{}", String::from_utf8_lossy(&out.stderr));
     let status = json(&out.stdout);
-    assert_eq!((status["state"].as_str(), status["stored"].as_u64(), status["failed"].as_u64()), (Some("finished"), Some(1), Some(1)));
+    assert_eq!(
+        (status["state"].as_str(), status["stored"].as_u64(), status["failed"].as_u64()),
+        (Some("finished"), Some(1), Some(1))
+    );
     let out = run(&["exec", "--book", &book, "price.list"]);
     let prices = json(&out.stdout);
-    assert_eq!((prices[0]["commodity"].as_str(), prices[0]["source"].as_str()), (Some("NYSE::HPE"), Some("Finance::Quote")));
+    assert_eq!(
+        (prices[0]["commodity"].as_str(), prices[0]["source"].as_str()),
+        (Some("NYSE::HPE"), Some("Finance::Quote"))
+    );
 }
 
 /// The v0.3 methods through `call`: the import file is read and the export file written on the caller's side, and
@@ -483,14 +696,23 @@ fn exec_fetches_quotes_and_waits_for_them() {
 #[test]
 fn call_imports_exports_and_fetches_quotes_on_a_running_server() {
     use red_ale_testkit::quote_server::{Answer, QuoteServer};
-    let quotes = QuoteServer::start(vec![("/quote/HPE", Answer::ok(r#"{"price": "13.37", "ccy": "USD", "date": "2022-09-01"}"#))]);
+    let quotes = QuoteServer::start(vec![(
+        "/quote/HPE",
+        Answer::ok(r#"{"price": "13.37", "ccy": "USD", "date": "2022-09-01"}"#),
+    )]);
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("call.gnucash").display().to_string();
     let security = json!({ "namespace": "NYSE", "mnemonic": "HPE", "fullname": "HPE", "fraction": 10000, "quoteFlag": true,
         "quoteSource": "alphavantage" });
     let script = dir.path().join("setup.txt");
-    std::fs::write(&script, format!("account.create {}\ncommodity.create {security}\n", json!({ "name": "Checking", "type": "BANK", "commodity": "USD" })))
-        .unwrap();
+    std::fs::write(
+        &script,
+        format!(
+            "account.create {}\ncommodity.create {security}\n",
+            json!({ "name": "Checking", "type": "BANK", "commodity": "USD" })
+        ),
+    )
+    .unwrap();
     let out = run(&["exec", "--create", "--book", &book, "--script", &script.display().to_string()]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let config = dir.path().join("red-ale.json");
@@ -504,15 +726,38 @@ fn call_imports_exports_and_fetches_quotes_on_a_running_server() {
     std::fs::write(&statement, "Date,Description,Amount\n2024-03-01,Coffee,-4.50\n").unwrap();
     let layout = r#"layout:={"skipStartLines": 1, "columns": ["Date", "Description", "Amount"], "baseAccount": "Checking"}"#;
     let statement = statement.display().to_string();
-    let out = run(&["call", "--url", &url, "import.preview", "format=csvTransactions", layout, "--file", &statement]);
+    let out = run(&[
+        "call",
+        "--url",
+        &url,
+        "import.preview",
+        "format=csvTransactions",
+        layout,
+        "--file",
+        &statement,
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let proposal = json(&out.stdout);
     assert_eq!(proposal["transactions"][0]["description"], "Coffee");
-    let out = run(&["call", "--url", &url, "import.apply", &format!("proposal={}", proposal["id"].as_str().unwrap())]);
+    let out = run(&[
+        "call",
+        "--url",
+        &url,
+        "import.apply",
+        &format!("proposal={}", proposal["id"].as_str().unwrap()),
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
 
     let csv = dir.path().join("checking.csv").display().to_string();
-    let out = run(&["call", "--url", &url, "export.csvTransactions", r#"accounts:=["Checking"]"#, "--output", &csv]);
+    let out = run(&[
+        "call",
+        "--url",
+        &url,
+        "export.csvTransactions",
+        r#"accounts:=["Checking"]"#,
+        "--output",
+        &csv,
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(json(&out.stdout)["transactions"], 1);
     assert!(std::fs::read_to_string(&csv).unwrap().contains("Coffee"));
@@ -531,7 +776,10 @@ fn call_imports_exports_and_fetches_quotes_on_a_running_server() {
     // `serve_with` has stopped reading the server's standard error, so its note about unsaved changes must not fail
     // the shutdown.
     stop(server);
-    assert!(!Path::new(&format!("{book}.LCK")).exists(), "the lock is released though the book had unsaved changes");
+    assert!(
+        !Path::new(&format!("{book}.LCK")).exists(),
+        "the lock is released though the book had unsaved changes"
+    );
 }
 
 #[test]
@@ -543,7 +791,15 @@ fn file_fills_the_text_param_of_imports() {
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(json(&out.stdout)["imported"].as_array().unwrap().len(), 2);
     let sheets = fixture("gnucash-userdata/stylesheets-2.0");
-    let out = run(&["exec", "--config", &config, "report.importStyleSheets", "dryRun:=true", "--file", &sheets]);
+    let out = run(&[
+        "exec",
+        "--config",
+        &config,
+        "report.importStyleSheets",
+        "dryRun:=true",
+        "--file",
+        &sheets,
+    ]);
     assert_eq!(json(&out.stdout)["dryRun"], true);
     let out = run(&["exec", "--config", &config, "report.importStyleSheets", "text=x", "--file", &sheets]);
     assert_eq!(out.status.code(), Some(1), "text and --file together are a usage error");

@@ -70,8 +70,14 @@ pub struct ListResult {
 
 pub(super) fn list(ctx: &mut Context, _: NoParams) -> Result<ListResult, RpcError> {
     let sheets = style_sheets(&ctx.settings.config.load()?.style_sheets()?)?;
-    let templates = StyleSheetTemplate::ALL.iter().map(|t| TemplateInfo { name: t.name().to_owned(), options: t.options().describe() });
-    Ok(ListResult { templates: templates.collect(), style_sheets: sheets.iter().map(StyleSheetInfo::of).collect() })
+    let templates = StyleSheetTemplate::ALL.iter().map(|t| TemplateInfo {
+        name: t.name().to_owned(),
+        options: t.options().describe(),
+    });
+    Ok(ListResult {
+        templates: templates.collect(),
+        style_sheets: sheets.iter().map(StyleSheetInfo::of).collect(),
+    })
 }
 
 /// Params of `report.createStyleSheet`.
@@ -119,7 +125,10 @@ pub struct UpdateParams {
 pub(super) fn update(ctx: &mut Context, p: UpdateParams) -> Result<StyleSheetInfo, RpcError> {
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
-    let mut sheet = style_sheets(&records)?.get(&p.name).cloned().ok_or_else(|| RpcError::not_found(KIND, &p.name))?;
+    let mut sheet = style_sheets(&records)?
+        .get(&p.name)
+        .cloned()
+        .ok_or_else(|| RpcError::not_found(KIND, &p.name))?;
     sheet.apply(&p.options.0).map_err(ReportError::from)?;
     let previous = records.iter().rev().find(|r| r.name == p.name);
     let raw = merge(previous.map(|r| r.options.clone()).unwrap_or_default(), &p.options.0);
@@ -154,10 +163,16 @@ pub struct DeleteResult {
 pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
-    let sheet = style_sheets(&records)?.get(&p.name).cloned().ok_or_else(|| RpcError::not_found(KIND, &p.name))?;
+    let sheet = style_sheets(&records)?
+        .get(&p.name)
+        .cloned()
+        .ok_or_else(|| RpcError::not_found(KIND, &p.name))?;
     records.retain(|r| r.name != p.name);
     store(ctx, config, &records)?;
-    Ok(DeleteResult { deleted: StyleSheetInfo::of(&sheet), reset: sheet.is_predefined() })
+    Ok(DeleteResult {
+        deleted: StyleSheetInfo::of(&sheet),
+        reset: sheet.is_predefined(),
+    })
 }
 
 /// The Configuration entry for `sheet`: the options that differ from its template's defaults, and from `raw` the
@@ -165,12 +180,19 @@ pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult,
 pub(super) fn record(sheet: &StyleSheet, raw: &Map<String, Value>, other: Map<String, Value>) -> StyleSheetRecord {
     let kept = raw.iter().filter_map(|(section, names)| {
         let names = names.as_object()?;
-        let left_out = names.iter().filter(|(n, v)| !v.is_null() && sheet.options().get(section, n).is_none());
+        let left_out = names
+            .iter()
+            .filter(|(n, v)| !v.is_null() && sheet.options().get(section, n).is_none());
         let left_out: Map<String, Value> = left_out.map(|(n, v)| (n.clone(), v.clone())).collect();
         (!left_out.is_empty()).then(|| (section.clone(), Value::Object(left_out)))
     });
     let options = merge(sheet.changed(), &Value::Object(kept.collect()));
-    StyleSheetRecord { name: sheet.name().to_owned(), template: sheet.template().name().to_owned(), options, other }
+    StyleSheetRecord {
+        name: sheet.name().to_owned(),
+        template: sheet.template().name().to_owned(),
+        options,
+        other,
+    }
 }
 
 /// `base` with `changes` merged in by section and name; `null` removes a value.

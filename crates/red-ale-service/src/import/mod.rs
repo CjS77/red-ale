@@ -21,9 +21,9 @@ use red_ale_import::pipeline::{self, Applied, ApplyChoices, Change, Proposal, Re
 pub use accounts::AccountsParams;
 pub use business::{DocumentsParams, OwnersParams};
 pub use csv::CsvParams;
+pub use file::{FileContent, ImportFile};
 pub use prices::PricesParams;
 pub use qif::QifParams;
-pub use file::{FileContent, ImportFile};
 pub use settings::{LayoutChoice, PriceLayoutChoice};
 pub use store::{KEPT, ProposalStore};
 
@@ -93,30 +93,59 @@ pub fn preview(session: &mut Session, config: &Config, files: &[ImportFile], par
     let revision = session.revision();
     let proposal = Arc::new(proposal);
     let id = session.proposals().insert(revision, Arc::clone(&proposal));
-    Ok(Previewed { id, revision, proposal, review })
+    Ok(Previewed {
+        id,
+        revision,
+        proposal,
+        review,
+    })
 }
 
 /// Apply a held proposal with the caller's changes as one Mutation. A proposal made at another Book revision is
 /// refused; a failed apply leaves the Book as it was and the proposal held. A QIF import then saves its account map
 /// in the Configuration `store` holds; a failure to save is a warning, as it is in GnuCash
 /// (`5.17:gnucash/import-export/qif-imp/assistant-qif-import.c:3533-3535`).
-pub fn apply(session: &mut Session, store: &ConfigStore, id: &str, changes: &[Change], choices: ApplyChoices) -> Result<Applied, ServiceError> {
+pub fn apply(
+    session: &mut Session,
+    store: &ConfigStore,
+    id: &str,
+    changes: &[Change],
+    choices: ApplyChoices,
+) -> Result<Applied, ServiceError> {
     if let Some(reason) = session.read_only_reasons().first() {
-        return Err(ServiceError::ReadOnly { reason: reason.to_string() });
+        return Err(ServiceError::ReadOnly {
+            reason: reason.to_string(),
+        });
     }
-    let held = session.proposals().get(id).cloned().ok_or_else(|| ServiceError::ProposalNotFound { id: id.to_owned() })?;
+    let held = session
+        .proposals()
+        .get(id)
+        .cloned()
+        .ok_or_else(|| ServiceError::ProposalNotFound { id: id.to_owned() })?;
     if held.revision != session.revision() {
-        return Err(ServiceError::StaleProposal { id: id.to_owned(), proposal_revision: held.revision, book_revision: session.revision() });
+        return Err(ServiceError::StaleProposal {
+            id: id.to_owned(),
+            proposal_revision: held.revision,
+            book_revision: session.revision(),
+        });
     }
     let mut applied = session.mutate(|book, env| pipeline::apply(book, env, &held.proposal, changes, choices))?;
     session.proposals().remove(id);
     if let Some(Err(e)) = applied.qif_account_map.as_ref().map(|map| qif::save_map(store, map)) {
-        applied.warnings.push(Warning { code: "qif-account-map", message: format!("the QIF account map was not saved: {e}"), index: None });
+        applied.warnings.push(Warning {
+            code: "qif-account-map",
+            message: format!("the QIF account map was not saved: {e}"),
+            index: None,
+        });
     }
     Ok(applied)
 }
 
 /// Drop a held proposal.
 pub fn discard(session: &mut Session, id: &str) -> Result<(), ServiceError> {
-    if session.proposals().remove(id) { Ok(()) } else { Err(ServiceError::ProposalNotFound { id: id.to_owned() }) }
+    if session.proposals().remove(id) {
+        Ok(())
+    } else {
+        Err(ServiceError::ProposalNotFound { id: id.to_owned() })
+    }
 }

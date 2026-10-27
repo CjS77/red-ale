@@ -14,18 +14,73 @@ use crate::wire::{AccountRef, Amount, CommodityId, Day, Id};
 /// The lots methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("lot.list", "List an account's lots as the lot viewer shows them, optionally only open or closed ones.", Effect::Read, list),
+        method(
+            "lot.list",
+            "List an account's lots as the lot viewer shows them, optionally only open or closed ones.",
+            Effect::Read,
+            list,
+        ),
         method("lot.get", "Describe one lot with its splits.", Effect::Read, get),
-        method("lot.freeSplits", "List an account's splits that are in no lot, with the gain each would realise against a lot.", Effect::Read, free_splits),
-        method("lot.create", "Make an empty lot in an account, titled `Lot <n>` unless a title is given.", Effect::Write, create),
-        method("lot.update", "Set a lot's title or notes; an empty string removes one.", Effect::Write, update),
-        method("lot.delete", "Delete a lot; its splits stay but leave the lot. A lot with splits needs releaseSplits.", Effect::Destructive, delete),
-        method("lot.assignSplit", "Put a split in a lot, cutting it if it would overfill the lot; without a lot, FIFO chooses.", Effect::Write, assign),
-        method("lot.removeSplit", "Take a split out of its lot; a lot left empty is deleted.", Effect::Write, remove),
-        method("lot.scrub", "Repair one lot: merge cut pieces, refill it and recompute its capital gains.", Effect::Write, scrub),
-        method("lot.scrubAccount", "Assign an account's splits to lots by FIFO and repair every lot, optionally for its sub-accounts too.", Effect::Write, scrub_account),
-        method("lot.computeGains", "Recompute a lot's capital gains, recording them in gains transactions.", Effect::Write, compute_gains),
-        method("stock.split", "Record a stock split, with an optional price and cash in lieu, as GnuCash's assistant does.", Effect::Write, stock_split),
+        method(
+            "lot.freeSplits",
+            "List an account's splits that are in no lot, with the gain each would realise against a lot.",
+            Effect::Read,
+            free_splits,
+        ),
+        method(
+            "lot.create",
+            "Make an empty lot in an account, titled `Lot <n>` unless a title is given.",
+            Effect::Write,
+            create,
+        ),
+        method(
+            "lot.update",
+            "Set a lot's title or notes; an empty string removes one.",
+            Effect::Write,
+            update,
+        ),
+        method(
+            "lot.delete",
+            "Delete a lot; its splits stay but leave the lot. A lot with splits needs releaseSplits.",
+            Effect::Destructive,
+            delete,
+        ),
+        method(
+            "lot.assignSplit",
+            "Put a split in a lot, cutting it if it would overfill the lot; without a lot, FIFO chooses.",
+            Effect::Write,
+            assign,
+        ),
+        method(
+            "lot.removeSplit",
+            "Take a split out of its lot; a lot left empty is deleted.",
+            Effect::Write,
+            remove,
+        ),
+        method(
+            "lot.scrub",
+            "Repair one lot: merge cut pieces, refill it and recompute its capital gains.",
+            Effect::Write,
+            scrub,
+        ),
+        method(
+            "lot.scrubAccount",
+            "Assign an account's splits to lots by FIFO and repair every lot, optionally for its sub-accounts too.",
+            Effect::Write,
+            scrub_account,
+        ),
+        method(
+            "lot.computeGains",
+            "Recompute a lot's capital gains, recording them in gains transactions.",
+            Effect::Write,
+            compute_gains,
+        ),
+        method(
+            "stock.split",
+            "Record a stock split, with an optional price and cash in lieu, as GnuCash's assistant does.",
+            Effect::Write,
+            stock_split,
+        ),
     ]
 }
 
@@ -396,7 +451,10 @@ fn list(ctx: &mut Context, p: ListParams) -> Result<Vec<LotInfo>, RpcError> {
 fn get(ctx: &mut Context, p: LotParams) -> Result<LotDetail, RpcError> {
     ctx.query(|book, env| {
         let lot = lot_info(lots::lot_summary(book, p.lot.0)?, env.zone());
-        let splits = lots::lot_splits(book, p.lot.0)?.into_iter().map(|s| split_info(s, env.zone())).collect();
+        let splits = lots::lot_splits(book, p.lot.0)?
+            .into_iter()
+            .map(|s| split_info(s, env.zone()))
+            .collect();
         Ok(LotDetail { lot, splits })
     })
 }
@@ -404,7 +462,10 @@ fn get(ctx: &mut Context, p: LotParams) -> Result<LotDetail, RpcError> {
 fn free_splits(ctx: &mut Context, p: FreeSplitsParams) -> Result<Vec<LotSplitInfo>, RpcError> {
     ctx.query(|book, env| {
         let account = p.account.resolve(book)?;
-        Ok(lots::free_splits(book, account, p.lot.map(|l| l.0))?.into_iter().map(|s| split_info(s, env.zone())).collect())
+        Ok(lots::free_splits(book, account, p.lot.map(|l| l.0))?
+            .into_iter()
+            .map(|s| split_info(s, env.zone()))
+            .collect())
     })
 }
 
@@ -423,13 +484,22 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<LotInfo, RpcError> {
 
 fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
     let released = ctx.mutate(|book, _| lots::delete_lot(book, p.lot.0, p.release_splits))?;
-    Ok(DeleteResult { released_splits: released.into_iter().map(Id).collect() })
+    Ok(DeleteResult {
+        released_splits: released.into_iter().map(Id).collect(),
+    })
 }
 
 fn assign(ctx: &mut Context, p: AssignParams) -> Result<AssignResult, RpcError> {
     let out = ctx.mutate(|book, env| lots::assign_split(book, env, p.split.0, p.lot.map(|l| l.0)))?;
     Ok(AssignResult {
-        pieces: out.pieces.into_iter().map(|(split, lot)| Piece { split: split.into(), lot: lot.into() }).collect(),
+        pieces: out
+            .pieces
+            .into_iter()
+            .map(|(split, lot)| Piece {
+                split: split.into(),
+                lot: lot.into(),
+            })
+            .collect(),
         rest: out.rest.map(Id),
         new_lots: out.new_lots.into_iter().map(Id).collect(),
     })
@@ -450,9 +520,12 @@ fn changes(book: &mut Book, env: &mut dyn Env, f: impl FnOnce(&mut Book, &mut dy
         lots_created: ids(book.lots.keys().filter(|k| !before.lots.contains_key(*k)).collect()),
         lots_deleted: ids(before.lots.keys().filter(|k| !book.lots.contains_key(*k)).collect()),
         transactions_created: ids(book.transactions.keys().filter(|k| !before.transactions.contains_key(*k)).collect()),
-        transactions_changed: ids(
-            book.transactions.iter().filter(|(k, t)| before.transactions.get(*k).is_some_and(|o| !Arc::ptr_eq(o, t))).map(|(k, _)| k).collect(),
-        ),
+        transactions_changed: ids(book
+            .transactions
+            .iter()
+            .filter(|(k, t)| before.transactions.get(*k).is_some_and(|o| !Arc::ptr_eq(o, t)))
+            .map(|(k, _)| k)
+            .collect()),
         transactions_deleted: ids(before.transactions.keys().filter(|k| !book.transactions.contains_key(*k)).collect()),
         accounts_created: ids(book.accounts.keys().filter(|k| !before.accounts.contains_key(*k)).collect()),
     })
@@ -465,7 +538,13 @@ fn scrub(ctx: &mut Context, p: LotParams) -> Result<ScrubResult, RpcError> {
 fn scrub_account(ctx: &mut Context, p: ScrubAccountParams) -> Result<ScrubResult, RpcError> {
     ctx.mutate_rpc(|book, env| {
         let account = p.account.resolve(book)?;
-        let run = |b: &mut Book, e: &mut dyn Env| if p.subaccounts { lots::scrub_tree_lots(b, e, account) } else { lots::scrub_account_lots(b, e, account) };
+        let run = |b: &mut Book, e: &mut dyn Env| {
+            if p.subaccounts {
+                lots::scrub_tree_lots(b, e, account)
+            } else {
+                lots::scrub_account_lots(b, e, account)
+            }
+        };
         Ok(changes(book, env, run)?)
     })
 }
@@ -501,5 +580,10 @@ fn stock_split(ctx: &mut Context, p: StockSplitParams) -> Result<StockSplitResul
         PriceOutcome::Duplicate => ("duplicate", None, None),
         PriceOutcome::Rejected { existing } => ("rejected", None, Some(Id(existing))),
     };
-    Ok(StockSplitResult { transaction: out.transaction.into(), price_status, price, blocking_price })
+    Ok(StockSplitResult {
+        transaction: out.transaction.into(),
+        price_status,
+        price,
+        blocking_price,
+    })
 }

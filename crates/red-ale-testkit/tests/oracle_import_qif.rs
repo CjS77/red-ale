@@ -39,10 +39,12 @@ fn gnucash_reads_books_red_ale_imported_qif_into() {
     assert_eq!(p["errors"], json!([]));
     let applied = call(&mut d, "import.apply", &json!({ "proposal": p["id"] }));
     assert_eq!(applied["commodities"], json!(["NONCURRENCY::ACM"]));
-    ["abc-all.qif", "divx.qif", "price.qif", "swipe.qif", "web.qif"].iter().for_each(|name| {
-        let p = preview(&mut d, &[(name, &fixture(name))]);
-        call(&mut d, "import.apply", &json!({ "proposal": p["id"], "skipErrors": true }));
-    });
+    ["abc-all.qif", "divx.qif", "price.qif", "swipe.qif", "web.qif"]
+        .iter()
+        .for_each(|name| {
+            let p = preview(&mut d, &[(name, &fixture(name))]);
+            call(&mut d, "import.apply", &json!({ "proposal": p["id"], "skipErrors": true }));
+        });
     // The same files again: every transaction is a duplicate, skipped by default, so applying adds nothing.
     let again = preview(&mut d, &[("checking.qif", CHECKING), ("broker.qif", BROKER)]);
     assert_eq!(again["summary"]["add"], 0);
@@ -51,15 +53,27 @@ fn gnucash_reads_books_red_ale_imported_qif_into() {
 
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
-    assert_eq!(gnucash("opened.py", &[&book.path_str()]), json!({ "unknownFeatures": null, "logged": [] }));
+    assert_eq!(
+        gnucash("opened.py", &[&book.path_str()]),
+        json!({ "unknownFeatures": null, "logged": [] })
+    );
 }
 
 #[test]
 fn gnucash_reads_a_large_import() {
     let (book, mut d) = create();
-    let p = preview(&mut d, &[("ms-money.qif", &fixture("ms-money.qif")), ("cbb-export.qif", &fixture("cbb-export.qif"))]);
+    let p = preview(
+        &mut d,
+        &[
+            ("ms-money.qif", &fixture("ms-money.qif")),
+            ("cbb-export.qif", &fixture("cbb-export.qif")),
+        ],
+    );
     call(&mut d, "import.apply", &json!({ "proposal": p["id"] }));
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
-    assert_eq!(gnucash("opened.py", &[&book.path_str()]), json!({ "unknownFeatures": null, "logged": [] }));
+    assert_eq!(
+        gnucash("opened.py", &[&book.path_str()]),
+        json!({ "unknownFeatures": null, "logged": [] })
+    );
 }

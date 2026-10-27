@@ -135,7 +135,14 @@ pub struct ImportStyleSheetsResult {
 
 impl SkippedEntry {
     fn malformed(m: Malformed) -> Self {
-        Self { line: m.line, name: None, guid: None, template: None, reason: SkipReason::Malformed, message: m.message }
+        Self {
+            line: m.line,
+            name: None,
+            guid: None,
+            template: None,
+            reason: SkipReason::Malformed,
+            message: m.message,
+        }
     }
 }
 
@@ -158,11 +165,22 @@ pub(super) fn configurations(ctx: &mut Context, p: ImportParams) -> Result<Impor
     let reports = Reports::load(ctx)?;
     let entries = import::saved_reports(&p.text);
     let mut all = reports.saved.clone();
-    let mut out = ImportConfigurationsResult { dry_run: p.dry_run, imported: Vec::new(), skipped: Vec::new() };
+    let mut out = ImportConfigurationsResult {
+        dry_run: p.dry_run,
+        imported: Vec::new(),
+        skipped: Vec::new(),
+    };
     ctx.query_any(|_, env| {
-        let on = On { book: None, now: env.now(), zone: env.zone() };
+        let on = On {
+            book: None,
+            now: env.now(),
+            zone: env.zone(),
+        };
         entries.into_iter().for_each(|entry| {
-            match entry.map_err(SkippedEntry::malformed).and_then(|e| reports.configuration_entry(e, &all, &on)) {
+            match entry
+                .map_err(SkippedEntry::malformed)
+                .and_then(|e| reports.configuration_entry(e, &all, &on))
+            {
                 Ok((saved, imported)) => {
                     all.push(saved);
                     out.imported.push(imported);
@@ -195,7 +213,10 @@ impl Reports {
             message,
         };
         let (Ok(guid), Ok(template_guid)) = (Guid::parse(&e.guid), Guid::parse(&e.template)) else {
-            return Err(skip(SkipReason::Malformed, "'report-guid and 'parent-type must be GUIDs".to_owned()));
+            return Err(skip(
+                SkipReason::Malformed,
+                "'report-guid and 'parent-type must be GUIDs".to_owned(),
+            ));
         };
         let Some(template) = self.registry.template(template_guid) else {
             let message = format!("red-ale has no translation of the report template {}", e.template);
@@ -203,19 +224,38 @@ impl Reports {
         };
         let forms = e.options.as_ref().map_err(|m| skip(SkipReason::Malformed, m.clone()))?;
         if taken.iter().any(|s| s.guid == guid) {
-            return Err(skip(SkipReason::Exists, format!("a saved configuration with GUID {} exists", e.guid)));
+            return Err(skip(
+                SkipReason::Exists,
+                format!("a saved configuration with GUID {} exists", e.guid),
+            ));
         }
         if taken.iter().any(|s| s.name == e.name) {
-            return Err(skip(SkipReason::Conflict, format!("a saved configuration is already called {:?}", e.name)));
+            return Err(skip(
+                SkipReason::Conflict,
+                format!("a saved configuration is already called {:?}", e.name),
+            ));
         }
         let mut sheets = self.sheets.names();
         sheets.extend(named_style_sheet(forms).filter(|n| !sheets.contains(n)));
-        let db = self.defaults(template, &sheets, on).map_err(|err| skip(SkipReason::InvalidOption, err.message))?;
+        let db = self
+            .defaults(template, &sheets, on)
+            .map_err(|err| skip(SkipReason::InvalidOption, err.message))?;
         let (changed, wire) = configure(db, forms, on).map_err(|err| skip(SkipReason::InvalidOption, option_message(&err)))?;
-        let saved = SavedReport { guid, name: e.name.clone(), template: template.guid.0, options: changed.clone(), other: Map::new() };
+        let saved = SavedReport {
+            guid,
+            name: e.name.clone(),
+            template: template.guid.0,
+            options: changed.clone(),
+            other: Map::new(),
+        };
         let configuration = ReportInfo::saved(&saved, Some(template));
         let options = ReportOptions(Value::Object(changed));
-        let imported = ImportedConfiguration { line: e.line, configuration, options, ignored: ignored(&wire) };
+        let imported = ImportedConfiguration {
+            line: e.line,
+            configuration,
+            options,
+            ignored: ignored(&wire),
+        };
         Ok((saved, imported))
     }
 }
@@ -239,7 +279,11 @@ fn configure(mut db: OptionDb, forms: &[OptionForm], on: &On<'_>) -> Result<(Map
 pub(super) fn style_sheets(ctx: &mut Context, p: ImportParams) -> Result<ImportStyleSheetsResult, RpcError> {
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
-    let mut out = ImportStyleSheetsResult { dry_run: p.dry_run, imported: Vec::new(), skipped: Vec::new() };
+    let mut out = ImportStyleSheetsResult {
+        dry_run: p.dry_run,
+        imported: Vec::new(),
+        skipped: Vec::new(),
+    };
     import::style_sheets(&p.text).into_iter().for_each(|entry| {
         match entry.map_err(SkippedEntry::malformed).and_then(|e| style_sheet_entry(e, &records)) {
             Ok((record, imported)) => {
@@ -265,18 +309,37 @@ fn style_sheet_entry(e: StyleSheetForm, records: &[StyleSheetRecord]) -> Result<
         reason,
         message,
     };
-    let template = StyleSheetTemplate::from_name(&e.template)
-        .ok_or_else(|| skip(SkipReason::Untranslated, format!("red-ale has no style sheet template {:?}", e.template)))?;
+    let template = StyleSheetTemplate::from_name(&e.template).ok_or_else(|| {
+        skip(
+            SkipReason::Untranslated,
+            format!("red-ale has no style sheet template {:?}", e.template),
+        )
+    })?;
     let forms = e.options.as_ref().map_err(|m| skip(SkipReason::Malformed, m.clone()))?;
     if records.iter().any(|r| r.name == e.name) {
-        return Err(skip(SkipReason::Exists, format!("the Configuration already has an entry for style sheet {:?}", e.name)));
+        return Err(skip(
+            SkipReason::Exists,
+            format!("the Configuration already has an entry for style sheet {:?}", e.name),
+        ));
     }
     let mut sheet = StyleSheet::new(e.name.clone(), template);
     let wire = import::to_wire(sheet.options(), forms, left_out).map_err(|err| skip(SkipReason::InvalidOption, option_message(&err)))?;
-    sheet.apply(&Value::Object(wire.options.clone())).map_err(|err| skip(SkipReason::InvalidOption, option_message(&err)))?;
+    sheet
+        .apply(&Value::Object(wire.options.clone()))
+        .map_err(|err| skip(SkipReason::InvalidOption, option_message(&err)))?;
     let record = record(&sheet, &wire.kept, Map::new());
     if record.options.is_empty() && PREDEFINED.contains(&(e.name.as_str(), template)) {
-        return Err(skip(SkipReason::Unchanged, "a predefined style sheet at its template's defaults".to_owned()));
+        return Err(skip(
+            SkipReason::Unchanged,
+            "a predefined style sheet at its template's defaults".to_owned(),
+        ));
     }
-    Ok((record, ImportedStyleSheet { line: e.line, style_sheet: StyleSheetInfo::of(&sheet), ignored: ignored(&wire) }))
+    Ok((
+        record,
+        ImportedStyleSheet {
+            line: e.line,
+            style_sheet: StyleSheetInfo::of(&sheet),
+            ignored: ignored(&wire),
+        },
+    ))
 }

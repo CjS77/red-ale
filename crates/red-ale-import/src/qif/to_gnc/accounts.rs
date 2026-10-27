@@ -117,7 +117,6 @@ fn variant_numbers(book: &Book) -> std::ops::RangeInclusive<usize> {
 }
 
 impl Maker<'_> {
-
     /// `qif-import:find-or-make-acct`: the import's account for the entry's full name. `qif-to-gnc.scm:62-240`.
     pub fn find_or_make_acct(&mut self, acct_info: &mut QifMapEntry, check: Check<'_>) -> DomainResult<usize> {
         let gnc_name = acct_info.gnc_name.clone().unwrap_or_default();
@@ -138,18 +137,32 @@ impl Maker<'_> {
         let parent = match last_sep {
             Some(i) => {
                 let parent_name = &gnc_name[..i];
-                let mut pinfo = QifMapEntry { qif_name: Some(parent_name.to_owned()), gnc_name: Some(parent_name.to_owned()), ..QifMapEntry::default() };
+                let mut pinfo = QifMapEntry {
+                    qif_name: Some(parent_name.to_owned()),
+                    gnc_name: Some(parent_name.to_owned()),
+                    ..QifMapEntry::default()
+                };
                 acct_info.allowed_types = vec![attrs.account_type];
                 pinfo.allowed_types = acct_info.allowed_parent_types();
                 let currency = self.default_currency.clone();
-                let node = self.find_or_make_acct(&mut pinfo, Check { types: true, commodity: &currency, commodity_matters: false })?;
+                let node = self.find_or_make_acct(
+                    &mut pinfo,
+                    Check {
+                        types: true,
+                        commodity: &currency,
+                        commodity_matters: false,
+                    },
+                )?;
                 self.tree.nodes.get(node).map(|n| n.account)
             }
             None => None,
         };
         let account = self.attach(parent.unwrap_or(self.book.root), attrs)?;
         let node = self.tree.nodes.len();
-        self.tree.nodes.push(Node { account, balance: Numeric::ZERO });
+        self.tree.nodes.push(Node {
+            account,
+            balance: Numeric::ZERO,
+        });
         self.tree.by_name.insert(gnc_name, node);
         Ok(node)
     }
@@ -193,7 +206,11 @@ impl Maker<'_> {
             return short_name.to_owned();
         }
         let free = variant_numbers(self.old)
-            .find(|count| self.old.account_by_full_name(&format!("{long_name} {count}")).is_none_or(|a| compatible(a, allowed, check)))
+            .find(|count| {
+                self.old
+                    .account_by_full_name(&format!("{long_name} {count}"))
+                    .is_none_or(|a| compatible(a, allowed, check))
+            })
             .unwrap_or(2);
         format!("{short_name} {free}")
     }
@@ -207,7 +224,10 @@ impl Maker<'_> {
         if self.book.children(parent).any(|a| a.name == attrs.name) {
             let taken = |name: &str| self.book.children(parent).any(|a| a.name == name);
             let base = attrs.name.clone();
-            attrs.name = variant_numbers(self.book).map(|n| format!("{base} {n}")).find(|n| !taken(n)).unwrap_or(base);
+            attrs.name = variant_numbers(self.book)
+                .map(|n| format!("{base} {n}"))
+                .find(|n| !taken(n))
+                .unwrap_or(base);
         }
         let edit = AccountEdit {
             name: Some(attrs.name),
@@ -226,7 +246,10 @@ impl Maker<'_> {
 /// `default-account-type`: the first allowed type that suits the commodity: a security type for a security, any
 /// other for a currency. `None` is GnuCash's `'bug` throw. `qif-to-gnc.scm:137-158`.
 pub fn default_account_type(allowed: &[AccountType], currency: bool) -> Option<AccountType> {
-    allowed.iter().copied().find(|t| matches!(t, AccountType::Stock | AccountType::Mutual) != currency)
+    allowed
+        .iter()
+        .copied()
+        .find(|t| matches!(t, AccountType::Stock | AccountType::Mutual) != currency)
 }
 
 #[cfg(test)]
@@ -240,13 +263,23 @@ mod tests {
     }
 
     fn entry(gnc_name: &str, types: &[AccountType]) -> QifMapEntry {
-        QifMapEntry { qif_name: Some(gnc_name.into()), gnc_name: Some(gnc_name.into()), allowed_types: types.to_vec(), ..QifMapEntry::default() }
+        QifMapEntry {
+            qif_name: Some(gnc_name.into()),
+            gnc_name: Some(gnc_name.into()),
+            allowed_types: types.to_vec(),
+            ..QifMapEntry::default()
+        }
     }
 
     fn book_with(env: &mut FixedEnv, accounts: &[(&str, AccountType)]) -> Book {
         let mut book = Book::new_empty(env);
         accounts.iter().for_each(|(name, t)| {
-            let edit = AccountEdit { name: Some((*name).into()), account_type: Some(*t), commodity: Some(usd()), ..AccountEdit::default() };
+            let edit = AccountEdit {
+                name: Some((*name).into()),
+                account_type: Some(*t),
+                commodity: Some(usd()),
+                ..AccountEdit::default()
+            };
             let root = book.root;
             create_account(&mut book, env, root, &edit).unwrap();
         });
@@ -268,8 +301,18 @@ mod tests {
         let old = book.clone();
         let mut tree = Tree::default();
         let currency = usd();
-        let mut maker = Maker { book: &mut book, env: &mut env, old: &old, tree: &mut tree, default_currency: &currency };
-        let check = Check { types: false, commodity: &currency, commodity_matters: true };
+        let mut maker = Maker {
+            book: &mut book,
+            env: &mut env,
+            old: &old,
+            tree: &mut tree,
+            default_currency: &currency,
+        };
+        let check = Check {
+            types: false,
+            commodity: &currency,
+            commodity_matters: true,
+        };
         let mut food = entry("Expenses:Food", &[AccountType::Expense, AccountType::Income]);
         let node = maker.find_or_make_acct(&mut food, check).unwrap();
         // The entry's types become the type made (`:227-228`).
@@ -287,10 +330,25 @@ mod tests {
         let old = book.clone();
         let mut tree = Tree::default();
         let currency = usd();
-        let mut maker = Maker { book: &mut book, env: &mut env, old: &old, tree: &mut tree, default_currency: &currency };
-        let check = Check { types: true, commodity: &currency, commodity_matters: true };
-        let node = maker.find_or_make_acct(&mut entry("Checking", &[AccountType::Bank]), check).unwrap();
+        let mut maker = Maker {
+            book: &mut book,
+            env: &mut env,
+            old: &old,
+            tree: &mut tree,
+            default_currency: &currency,
+        };
+        let check = Check {
+            types: true,
+            commodity: &currency,
+            commodity_matters: true,
+        };
+        let node = maker
+            .find_or_make_acct(&mut entry("Checking", &[AccountType::Bank]), check)
+            .unwrap();
         let made = book.account(tree.nodes[node].account).unwrap();
-        assert_eq!((made.name.as_str(), made.account_type, made.description.as_deref()), ("Checking 2", AccountType::Bank, Some(NAME_CONFLICT)));
+        assert_eq!(
+            (made.name.as_str(), made.account_type, made.description.as_deref()),
+            ("Checking 2", AccountType::Bank, Some(NAME_CONFLICT))
+        );
     }
 }

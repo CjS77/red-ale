@@ -45,14 +45,20 @@ impl Monetary {
         if self.commodity == rhs.commodity {
             Ok(())
         } else {
-            Err(NumberError::MixedCommodities { left: self.commodity.to_string(), right: rhs.commodity.to_string() })
+            Err(NumberError::MixedCommodities {
+                left: self.commodity.to_string(),
+                right: rhs.commodity.to_string(),
+            })
         }
     }
 
     /// Rounded to the commodity's SCU (`fraction`) with banker's rounding: the `round-scu` of
     /// `5.17:gnucash/report/reports/standard/account-piecharts.scm:497-500`.
     pub fn round_scu(&self, fraction: i64) -> Result<Self, NumberError> {
-        Ok(Self::new(self.commodity.clone(), self.amount.round_to(fraction, Rounding::Bankers)?))
+        Ok(Self::new(
+            self.commodity.clone(),
+            self.amount.round_to(fraction, Rounding::Bankers)?,
+        ))
     }
 
     /// `gnc:monetary->string` (`5.17:gnucash/report/report-utilities.scm:143-146`): the exact amount with the
@@ -95,7 +101,10 @@ mod tests {
         let gbp = Monetary::new(CommodityRef::currency("GBP"), Rational::one());
         assert_eq!(
             usd("1").checked_add(&gbp, cap),
-            Err(NumberError::MixedCommodities { left: "CURRENCY::USD".into(), right: "CURRENCY::GBP".into() })
+            Err(NumberError::MixedCommodities {
+                left: "CURRENCY::USD".into(),
+                right: "CURRENCY::GBP".into()
+            })
         );
         assert_eq!(-usd("2"), usd("-2"));
     }

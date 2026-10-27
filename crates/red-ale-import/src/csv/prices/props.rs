@@ -43,7 +43,14 @@ pub enum PriceColumn {
 
 impl PriceColumn {
     /// Every column type, in GnuCash's order.
-    pub const ALL: [Self; 6] = [Self::None, Self::Date, Self::Amount, Self::FromSymbol, Self::FromNamespace, Self::ToCurrency];
+    pub const ALL: [Self; 6] = [
+        Self::None,
+        Self::Date,
+        Self::Amount,
+        Self::FromSymbol,
+        Self::FromNamespace,
+        Self::ToCurrency,
+    ];
 
     /// The English name GnuCash shows and saves (`gnc_price_col_type_strs`, `gnc-imp-props-price.cpp:51-58`).
     pub fn gnucash_name(self) -> &'static str {
@@ -68,7 +75,10 @@ impl TryFrom<String> for PriceColumn {
     type Error = String;
 
     fn try_from(name: String) -> Result<Self, Self::Error> {
-        Self::ALL.into_iter().find(|t| t.gnucash_name() == name).ok_or_else(|| format!("unknown CSV price column type {name:?}"))
+        Self::ALL
+            .into_iter()
+            .find(|t| t.gnucash_name() == name)
+            .ok_or_else(|| format!("unknown CSV price column type {name:?}"))
     }
 }
 
@@ -151,7 +161,9 @@ impl PriceLine {
 
     /// Once both the symbol and the namespace are known, the From commodity, which must differ from the To currency.
     fn resolve_from(&mut self, book: &Book) -> Result<(), String> {
-        let (Some(symbol), Some(namespace)) = (&self.from_symbol, &self.from_namespace) else { return Ok(()) };
+        let (Some(symbol), Some(namespace)) = (&self.from_symbol, &self.from_namespace) else {
+            return Ok(());
+        };
         let commodity = parse_commodity(book, symbol, namespace)?;
         if self.to_currency.as_ref() == Some(&commodity) {
             return Err("'Commodity From' can not be the same as 'Currency To'.".to_owned());
@@ -213,7 +225,10 @@ mod tests {
     fn column_names() {
         let json = serde_json::to_string(&PriceColumn::ToCurrency).unwrap();
         assert_eq!(json, "\"Currency To\"");
-        assert_eq!(serde_json::from_str::<PriceColumn>("\"From Namespace\"").unwrap(), PriceColumn::FromNamespace);
+        assert_eq!(
+            serde_json::from_str::<PriceColumn>("\"From Namespace\"").unwrap(),
+            PriceColumn::FromNamespace
+        );
         assert!(serde_json::from_str::<PriceColumn>("\"Price\"").is_err());
     }
 }

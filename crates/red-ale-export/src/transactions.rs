@@ -13,13 +13,13 @@ use red_ale_core::ops::transactions::order::split_order;
 use red_ale_core::ops::transactions::other_split;
 use red_ale_core::transaction::slot_paths;
 use red_ale_core::{
-    Account, AccountType, Book, DENOM_AUTO, Date, DenomMode, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, SlotValue, Split,
-    Time64, TimeZone, Transaction,
+    Account, AccountType, Book, DENOM_AUTO, Date, DenomMode, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round,
+    SlotValue, Split, Time64, TimeZone, Transaction,
 };
 use red_ale_report::number::PrintInfo;
 
-use crate::format::{Formats, account_info, commodity_info, price_info, without_separators};
 use crate::CsvOptions;
+use crate::format::{Formats, account_info, commodity_info, price_info, without_separators};
 
 /// The Full Category Path of a split with not exactly one other split (`csv-transactions-export.cpp:135`).
 pub const SPLIT_TRANSACTION: &str = "-- Split Transaction --";
@@ -69,7 +69,11 @@ pub fn export_transactions(
     request: &TransactionsRequest,
 ) -> DomainResult<TransactionsCsv> {
     let range = check(book, zone, request)?;
-    let mut out = Out { csv: String::new(), transactions: 0, lines: 0 };
+    let mut out = Out {
+        csv: String::new(),
+        transactions: 0,
+        lines: 0,
+    };
     options.add_line(&mut out.csv, &header(request.layout, uses_split_action_for_num(book)));
     let columns = Columns { book, zone, formats };
     let mut seen = HashSet::new();
@@ -80,7 +84,11 @@ pub fn export_transactions(
             .filter(|(t, s)| seen.insert(t.guid) && exported(book, s, trading))
             .for_each(|(t, s)| out.transaction(&columns, options, request.layout, trading, t, s));
     });
-    Ok(TransactionsCsv { csv: out.csv, transactions: out.transactions, lines: out.lines })
+    Ok(TransactionsCsv {
+        csv: out.csv,
+        transactions: out.transactions,
+        lines: out.lines,
+    })
 }
 
 /// The range in local time, after checking the request.
@@ -146,7 +154,11 @@ fn account_splits(book: &Book, account: Guid, range: (Option<Time64>, Option<Tim
     let in_range = |t: Time64| range.0.is_none_or(|from| t >= from) && range.1.is_none_or(|to| t <= to);
     let mut found: Vec<(&Transaction, &Split)> = book.splits_of(account).filter(|(t, _)| in_range(t.date_posted)).collect();
     let num_action = uses_split_action_for_num(book);
-    found.sort_by(|(ta, sa), (tb, sb)| ta.date_posted.cmp(&tb.date_posted).then_with(|| split_order(ta, sa, tb, sb, num_action)));
+    found.sort_by(|(ta, sa), (tb, sb)| {
+        ta.date_posted
+            .cmp(&tb.date_posted)
+            .then_with(|| split_order(ta, sa, tb, sb, num_action))
+    });
     found
 }
 
@@ -175,7 +187,12 @@ impl Out {
             Layout::Complex => t
                 .splits
                 .iter()
-                .filter(|s| trading || s.account.and_then(|a| c.book.account(a)).is_none_or(|a| a.account_type != AccountType::Trading))
+                .filter(|s| {
+                    trading
+                        || s.account
+                            .and_then(|a| c.book.account(a))
+                            .is_none_or(|a| a.account_type != AccountType::Trading)
+                })
                 .for_each(|s| self.line(options, &c.complex(t, s))),
         }
     }
@@ -252,7 +269,11 @@ impl Columns<'_> {
 
     /// `get_reconcile_date`: only for a reconciled split (`csv-transactions-export.cpp:70-80`).
     fn reconcile_date(&self, s: &Split) -> String {
-        if s.reconcile_state == ReconcileState::Reconciled { self.date(s.reconcile_date.unwrap_or_default()) } else { String::new() }
+        if s.reconcile_state == ReconcileState::Reconciled {
+            self.date(s.reconcile_date.unwrap_or_default())
+        } else {
+            String::new()
+        }
     }
 
     /// `get_category`: the other split's account, or the split-transaction placeholder (`csv-transactions-export.cpp:130-136`).
@@ -262,8 +283,15 @@ impl Columns<'_> {
 
     /// `get_amount`: the amount, or a void transaction's former amount (`csv-transactions-export.cpp:161-170`).
     fn amount(&self, s: &Split, void: bool, symbol: bool) -> String {
-        let amount = if void { former(s, slot_paths::VOID_FORMER_AMOUNT) } else { s.amount };
-        let info = self.account(s).map_or_else(|| self.formats.default_info(self.book, symbol), |a| account_info(self.book, a, symbol));
+        let amount = if void {
+            former(s, slot_paths::VOID_FORMER_AMOUNT)
+        } else {
+            s.amount
+        };
+        let info = self.account(s).map_or_else(
+            || self.formats.default_info(self.book, symbol),
+            |a| account_info(self.book, a, symbol),
+        );
         self.formats.amount(amount, &plain_unless(symbol, info))
     }
 
@@ -287,7 +315,9 @@ impl Columns<'_> {
         let info = price_info(self.book, self.account(s));
         let price = if void {
             let how = How::new(DenomMode::SigFigs(6), Round::HalfUp);
-            former(s, slot_paths::VOID_FORMER_VALUE).div(former(s, slot_paths::VOID_FORMER_AMOUNT), DENOM_AUTO, how).ok()
+            former(s, slot_paths::VOID_FORMER_VALUE)
+                .div(former(s, slot_paths::VOID_FORMER_AMOUNT), DENOM_AUTO, how)
+                .ok()
         } else {
             Some(share_price(s))
         };

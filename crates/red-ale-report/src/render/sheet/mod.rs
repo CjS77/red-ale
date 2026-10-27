@@ -19,9 +19,9 @@ use crate::error::OptionError;
 use crate::options::{OptionDb, OptionValue, ReportOption, ValueContext};
 use crate::result::OptionValues;
 
-pub(crate) use declare::FONT_FAMILY;
 #[cfg(test)]
 use declare::DEFAULT_CSS;
+pub(crate) use declare::FONT_FAMILY;
 
 /// A style sheet template: GnuCash 5.17's `gnc:define-html-style-sheet` records.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -105,7 +105,10 @@ pub fn left_out(section: &str, name: &str) -> bool {
 pub fn check_css(css: &str) -> Result<(), String> {
     const REFUSED: [&str; 7] = ["</style", "@import", "url(", "image(", "image-set(", "src(", "\\"];
     let lower = css.to_ascii_lowercase();
-    REFUSED.iter().find(|r| lower.contains(*r)).map_or(Ok(()), |r| Err(format!("CSS may not contain {r:?}")))
+    REFUSED
+        .iter()
+        .find(|r| lower.contains(*r))
+        .map_or(Ok(()), |r| Err(format!("CSS may not contain {r:?}")))
 }
 
 /// A style sheet: a name, a template and that template's options with their values.
@@ -119,15 +122,26 @@ pub struct StyleSheet {
 impl StyleSheet {
     /// A style sheet of `template` with every option at its default.
     pub fn new(name: impl Into<String>, template: StyleSheetTemplate) -> Self {
-        Self { name: name.into(), template, options: template.options() }
+        Self {
+            name: name.into(),
+            template,
+            options: template.options(),
+        }
     }
 
     /// The style sheet a Configuration entry describes.
     pub fn from_entry(entry: &StyleSheetEntry) -> Result<Self, StyleSheetError> {
-        let template = StyleSheetTemplate::from_name(&entry.template)
-            .ok_or_else(|| StyleSheetError::UnknownTemplate { sheet: entry.name.clone(), template: entry.template.clone() })?;
+        let template = StyleSheetTemplate::from_name(&entry.template).ok_or_else(|| StyleSheetError::UnknownTemplate {
+            sheet: entry.name.clone(),
+            template: entry.template.clone(),
+        })?;
         let mut sheet = Self::new(entry.name.clone(), template);
-        sheet.apply(&Value::Object(entry.options.clone())).map_err(|error| StyleSheetError::Option { sheet: entry.name.clone(), error })?;
+        sheet
+            .apply(&Value::Object(entry.options.clone()))
+            .map_err(|error| StyleSheetError::Option {
+                sheet: entry.name.clone(),
+                error,
+            })?;
         Ok(sheet)
     }
 
@@ -156,7 +170,13 @@ impl StyleSheet {
     /// `report-option` error. Nothing changes unless every value is valid.
     pub fn apply(&mut self, changes: &Value) -> Result<(), OptionError> {
         let mut options = self.options.clone();
-        options.apply(&without_left_out(changes), &ValueContext { book: None, zone: &TimeZone::utc() })?;
+        options.apply(
+            &without_left_out(changes),
+            &ValueContext {
+                book: None,
+                zone: &TimeZone::utc(),
+            },
+        )?;
         if let Some(OptionValue::Text(css)) = options.get("General", "CSS").map(ReportOption::value) {
             check_css(css).map_err(|reason| OptionError::new("General", "CSS", reason))?;
         }
@@ -171,7 +191,11 @@ impl StyleSheet {
 
     /// The Configuration entry for this style sheet.
     pub fn to_entry(&self) -> StyleSheetEntry {
-        StyleSheetEntry { name: self.name.clone(), template: self.template.name().to_owned(), options: self.changed() }
+        StyleSheetEntry {
+            name: self.name.clone(),
+            template: self.template.name().to_owned(),
+            options: self.changed(),
+        }
     }
 }
 
@@ -181,15 +205,22 @@ fn without_left_out(changes: &Value) -> Value {
     let Some(sections) = changes.as_object() else {
         return changes.clone();
     };
-    let kept = sections.iter().filter(|(section, _)| !left_out(section, "")).map(|(section, names)| {
-        let names = match names.as_object() {
-            Some(names) => {
-                Value::Object(names.iter().filter(|(n, _)| !left_out(section, n)).map(|(n, v)| (n.clone(), v.clone())).collect())
-            }
-            None => names.clone(),
-        };
-        (section.clone(), names)
-    });
+    let kept = sections
+        .iter()
+        .filter(|(section, _)| !left_out(section, ""))
+        .map(|(section, names)| {
+            let names = match names.as_object() {
+                Some(names) => Value::Object(
+                    names
+                        .iter()
+                        .filter(|(n, _)| !left_out(section, n))
+                        .map(|(n, v)| (n.clone(), v.clone()))
+                        .collect(),
+                ),
+                None => names.clone(),
+            };
+            (section.clone(), names)
+        });
     Value::Object(kept.collect::<Map<String, Value>>())
 }
 
@@ -244,7 +275,12 @@ impl Default for StyleSheets {
 impl StyleSheets {
     /// The six predefined style sheets at their templates' defaults.
     pub fn predefined() -> Self {
-        Self { sheets: PREDEFINED.iter().map(|(name, template)| StyleSheet::new(*name, *template)).collect() }
+        Self {
+            sheets: PREDEFINED
+                .iter()
+                .map(|(name, template)| StyleSheet::new(*name, *template))
+                .collect(),
+        }
     }
 
     /// The predefined style sheets with the Configuration's entries applied in order. An entry with a predefined
@@ -273,7 +309,10 @@ impl StyleSheets {
     /// renders with no style sheet (`5.17:gnucash/report/report-core.scm:457-462`), which [`super::html`] does when
     /// given `None`.
     pub fn get(&self, name: &str) -> Option<&StyleSheet> {
-        self.sheets.binary_search_by(|s| s.name.as_str().cmp(name)).ok().and_then(|i| self.sheets.get(i))
+        self.sheets
+            .binary_search_by(|s| s.name.as_str().cmp(name))
+            .ok()
+            .and_then(|i| self.sheets.get(i))
     }
 
     /// Every style sheet, sorted by name bytewise.

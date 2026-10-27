@@ -124,24 +124,59 @@ impl Decl {
 
 /// Plain (`5.17:gnucash/report/stylesheets/plain.scm:38-72`), without "Background Pixmap".
 const PLAIN: &[Decl] = &[
-    Decl("General", "Background Color", "a", "Background color for reports.", Kind::Color("ffffff")),
+    Decl(
+        "General",
+        "Background Color",
+        "a",
+        "Background color for reports.",
+        Kind::Color("ffffff"),
+    ),
     Decl("General", "Enable Links", "c", "Enable hyperlinks in reports.", Kind::Boolean(true)),
-    Decl("Colors", "Alternate Table Cell Color", "a", "Background color for alternate lines.", Kind::Color("ffffff")),
+    Decl(
+        "Colors",
+        "Alternate Table Cell Color",
+        "a",
+        "Background color for alternate lines.",
+        Kind::Color("ffffff"),
+    ),
     Decl("Tables", "Table cell spacing", "a", "Space between table cells.", Kind::Range(0)),
-    Decl("Tables", "Table cell padding", "b", "Space between table cell edge and content.", Kind::Range(4)),
+    Decl(
+        "Tables",
+        "Table cell padding",
+        "b",
+        "Space between table cell edge and content.",
+        Kind::Range(4),
+    ),
     Decl("Tables", "Table border width", "c", "Bevel depth on tables.", Kind::Range(0)),
 ];
 
 /// CSS (`5.17:gnucash/report/stylesheets/css.scm:114-122`).
-const CSS: &[Decl] =
-    &[Decl("General", "CSS", "a", "CSS code. This field specifies the CSS code for styling reports.", Kind::Text(DEFAULT_CSS))];
+const CSS: &[Decl] = &[Decl(
+    "General",
+    "CSS",
+    "a",
+    "CSS code. This field specifies the CSS code for styling reports.",
+    Kind::Text(DEFAULT_CSS),
+)];
 
 /// Easy, Fancy and Footer share one generator (`5.17:gnucash/report/stylesheets/footer.scm:45-160`); the Images section
 /// is left out.
 const EASY_GENERAL: &[Decl] = &[
     Decl("General", "Preparer", "a", "Name of person preparing the report.", Kind::String("")),
-    Decl("General", "Prepared for", "b", "Name of organization or company prepared for.", Kind::String("")),
-    Decl("General", "Show preparer info", "c", "Name of organization or company.", Kind::Boolean(false)),
+    Decl(
+        "General",
+        "Prepared for",
+        "b",
+        "Name of organization or company prepared for.",
+        Kind::String(""),
+    ),
+    Decl(
+        "General",
+        "Show preparer info",
+        "c",
+        "Name of organization or company.",
+        Kind::Boolean(false),
+    ),
     Decl("General", "Enable Links", "d", "Enable hyperlinks in reports.", Kind::Boolean(true)),
     Decl("General", "Footer", "e", "String to be placed as a footer.", Kind::Text("")),
 ];
@@ -150,10 +185,34 @@ const EASY_GENERAL: &[Decl] = &[
 /// options with key `m`.
 const HEAD_OR_TAIL_GENERAL: &[Decl] = &[
     Decl("General", "Preparer", "a", "Name of person preparing the report.", Kind::String("")),
-    Decl("General", "Prepared for", "b", "Name of organization or company prepared for.", Kind::String("")),
-    Decl("General", "Show preparer info", "c", "Name of organization or company.", Kind::Boolean(true)),
-    Decl("General", "Show receiver info", "d", "Name of organization or company the report is prepared for.", Kind::Boolean(true)),
-    Decl("General", "Show date", "e", "The creation date for this report.", Kind::Boolean(true)),
+    Decl(
+        "General",
+        "Prepared for",
+        "b",
+        "Name of organization or company prepared for.",
+        Kind::String(""),
+    ),
+    Decl(
+        "General",
+        "Show preparer info",
+        "c",
+        "Name of organization or company.",
+        Kind::Boolean(true),
+    ),
+    Decl(
+        "General",
+        "Show receiver info",
+        "d",
+        "Name of organization or company the report is prepared for.",
+        Kind::Boolean(true),
+    ),
+    Decl(
+        "General",
+        "Show date",
+        "e",
+        "The creation date for this report.",
+        Kind::Boolean(true),
+    ),
     Decl(
         "General",
         "Show time in addition to date",
@@ -161,9 +220,21 @@ const HEAD_OR_TAIL_GENERAL: &[Decl] = &[
         "The creation time for this report can only be shown if the date is shown.",
         Kind::Boolean(true),
     ),
-    Decl("General", "Show GnuCash Version", "g", "Show the currently used GnuCash version.", Kind::Boolean(true)),
+    Decl(
+        "General",
+        "Show GnuCash Version",
+        "g",
+        "Show the currently used GnuCash version.",
+        Kind::Boolean(true),
+    ),
     Decl("General", "Enable Links", "h", "Enable hyperlinks in reports.", Kind::Boolean(true)),
-    Decl("General", "Additional Comments", "i", "String for additional report information.", Kind::Text("")),
+    Decl(
+        "General",
+        "Additional Comments",
+        "i",
+        "String for additional report information.",
+        Kind::Text(""),
+    ),
     Decl(
         "General",
         "Show preparer info at bottom",
@@ -206,21 +277,63 @@ const HEAD_OR_TAIL_GENERAL: &[Decl] = &[
 /// Head or Tail's is the misspelt `"eexe8xaa"`, kept as GnuCash has it.
 fn colors(subheading: &'static str) -> [Decl; 8] {
     [
-        Decl("Colors", "Background Color", "a", "General background color for report.", Kind::Color("ffffff")),
+        Decl(
+            "Colors",
+            "Background Color",
+            "a",
+            "General background color for report.",
+            Kind::Color("ffffff"),
+        ),
         Decl("Colors", "Text Color", "b", "Normal body text color.", Kind::Color("000000")),
         Decl("Colors", "Link Color", "c", "Link text color.", Kind::Color("b22222")),
-        Decl("Colors", "Table Cell Color", "c", "Default background for table cells.", Kind::Color("ffffff")),
-        Decl("Colors", "Alternate Table Cell Color", "d", "Default alternate background for table cells.", Kind::Color("ffffff")),
-        Decl("Colors", "Subheading/Subtotal Cell Color", "e", "Default color for subtotal rows.", Kind::Color(subheading)),
-        Decl("Colors", "Sub-subheading/total Cell Color", "f", "Color for subsubtotals.", Kind::Color("fafad2")),
-        Decl("Colors", "Grand Total Cell Color", "g", "Color for grand totals.", Kind::Color("ffff00")),
+        Decl(
+            "Colors",
+            "Table Cell Color",
+            "c",
+            "Default background for table cells.",
+            Kind::Color("ffffff"),
+        ),
+        Decl(
+            "Colors",
+            "Alternate Table Cell Color",
+            "d",
+            "Default alternate background for table cells.",
+            Kind::Color("ffffff"),
+        ),
+        Decl(
+            "Colors",
+            "Subheading/Subtotal Cell Color",
+            "e",
+            "Default color for subtotal rows.",
+            Kind::Color(subheading),
+        ),
+        Decl(
+            "Colors",
+            "Sub-subheading/total Cell Color",
+            "f",
+            "Color for subsubtotals.",
+            Kind::Color("fafad2"),
+        ),
+        Decl(
+            "Colors",
+            "Grand Total Cell Color",
+            "g",
+            "Color for grand totals.",
+            Kind::Color("ffff00"),
+        ),
     ]
 }
 
 /// The Tables section of Easy, Fancy, Footer and Head or Tail: every width 1.
 const TABLES_ONE: &[Decl] = &[
     Decl("Tables", "Table cell spacing", "a", "Space between table cells.", Kind::Range(1)),
-    Decl("Tables", "Table cell padding", "b", "Space between table cell edge and content.", Kind::Range(1)),
+    Decl(
+        "Tables",
+        "Table cell padding",
+        "b",
+        "Space between table cell edge and content.",
+        Kind::Range(1),
+    ),
     Decl("Tables", "Table border width", "c", "Bevel depth on tables.", Kind::Range(1)),
 ];
 
@@ -229,12 +342,36 @@ const FONTS: &[Decl] = &[
     Decl("Fonts", "Title", "a", "Font info for the report title.", Kind::Font("Bold 15")),
     Decl("Fonts", "Account link", "b", "Font info for account name.", Kind::Font("Italic 10")),
     Decl("Fonts", "Number cell", "c", "Font info for regular number cells.", Kind::Font("10")),
-    Decl("Fonts", "Negative Values in Red", "d", "Display negative values in red.", Kind::Boolean(true)),
+    Decl(
+        "Fonts",
+        "Negative Values in Red",
+        "d",
+        "Display negative values in red.",
+        Kind::Boolean(true),
+    ),
     Decl("Fonts", "Number header", "e", "Font info for number headers.", Kind::Font("10")),
     Decl("Fonts", "Text cell", "f", "Font info for regular text cells.", Kind::Font("10")),
-    Decl("Fonts", "Total number cell", "g", "Font info for number cells containing a total.", Kind::Font("Bold 12")),
-    Decl("Fonts", "Total label cell", "h", "Font info for cells containing total labels.", Kind::Font("Bold 12")),
-    Decl("Fonts", "Centered label cell", "i", "Font info for centered label cells.", Kind::Font("Bold 12")),
+    Decl(
+        "Fonts",
+        "Total number cell",
+        "g",
+        "Font info for number cells containing a total.",
+        Kind::Font("Bold 12"),
+    ),
+    Decl(
+        "Fonts",
+        "Total label cell",
+        "h",
+        "Font info for cells containing total labels.",
+        Kind::Font("Bold 12"),
+    ),
+    Decl(
+        "Fonts",
+        "Centered label cell",
+        "i",
+        "Font info for centered label cells.",
+        Kind::Font("Bold 12"),
+    ),
 ];
 
 /// Which declarations a template makes.
@@ -269,7 +406,12 @@ mod tests {
     fn every_set_declares_without_error() {
         let declare = |groups: &[&[Decl]]| {
             let mut db = OptionDb::new();
-            groups.iter().copied().flatten().try_for_each(|d| d.register(&mut db)).map(|()| db.options().len())
+            groups
+                .iter()
+                .copied()
+                .flatten()
+                .try_for_each(|d| d.register(&mut db))
+                .map(|()| db.options().len())
         };
         assert_eq!(declare(&[PLAIN, FONTS]), Ok(15));
         assert_eq!(declare(&[CSS]), Ok(1));

@@ -228,7 +228,8 @@ fn from_json_at<T: DeserializeOwned>(value: &Value, prefix: &str) -> Result<T, R
         let segments: Vec<String> = e.path().iter().map(ToString::to_string).collect();
         let path = join_path(prefix, &segments);
         let at = segments.iter().try_fold(value, |v, s| step(v, s));
-        at.and_then(|block| locate_in_block(block, &path)).unwrap_or_else(|| ResultError::new(path, e.into_inner().to_string()))
+        at.and_then(|block| locate_in_block(block, &path))
+            .unwrap_or_else(|| ResultError::new(path, e.into_inner().to_string()))
     })
 }
 
@@ -287,7 +288,10 @@ impl ReportResult {
     /// Check a finished result: everything [`ReportDraft::validate`] checks, with every display field present.
     pub fn validate(&self) -> Result<(), ResultError> {
         if self.version != RESULT_VERSION {
-            return Err(ResultError::new("version", format!("expected {RESULT_VERSION}, got {}", self.version)));
+            return Err(ResultError::new(
+                "version",
+                format!("expected {RESULT_VERSION}, got {}", self.version),
+            ));
         }
         validate::sections(&self.sections, validate::Stage::Finished)
     }

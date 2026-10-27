@@ -12,12 +12,32 @@ fn edited_prices_read_the_same_in_gnucash() {
     let (book, mut d) = open("synthetic/rich.gnucash");
     let acme = |d: &mut red_ale_rpc::Dispatcher| call(d, "price.list", &json!({ "commodity": "NASDAQ::ACME", "currency": "USD" }));
     let newest = acme(&mut d)[0]["guid"].clone();
-    call(&mut d, "price.update", &json!({ "price": newest, "value": "1234.5678", "type": "bid", "source": "user:price-editor" }));
+    call(
+        &mut d,
+        "price.update",
+        &json!({ "price": newest, "value": "1234.5678", "type": "bid", "source": "user:price-editor" }),
+    );
     let oldest = acme(&mut d)[1]["guid"].clone();
-    call(&mut d, "price.update", &json!({ "price": oldest, "date": "2024-06-10", "currency": "EUR" }));
-    call(&mut d, "price.add", &json!({ "commodity": "FUND::ZETA", "currency": "USD", "value": "2.031", "date": "2024-06-08", "type": "nav" }));
-    call(&mut d, "price.add", &json!({ "commodity": "USD", "currency": "EUR", "value": "91/100", "date": "2024-06-03" }));
-    call(&mut d, "price.add", &json!({ "commodity": "GBP", "currency": "USD", "value": "1.27", "time": "2024-06-01T23:59:59Z" }));
+    call(
+        &mut d,
+        "price.update",
+        &json!({ "price": oldest, "date": "2024-06-10", "currency": "EUR" }),
+    );
+    call(
+        &mut d,
+        "price.add",
+        &json!({ "commodity": "FUND::ZETA", "currency": "USD", "value": "2.031", "date": "2024-06-08", "type": "nav" }),
+    );
+    call(
+        &mut d,
+        "price.add",
+        &json!({ "commodity": "USD", "currency": "EUR", "value": "91/100", "date": "2024-06-03" }),
+    );
+    call(
+        &mut d,
+        "price.add",
+        &json!({ "commodity": "GBP", "currency": "USD", "value": "1.27", "time": "2024-06-01T23:59:59Z" }),
+    );
     let zeta = call(&mut d, "price.list", &json!({ "commodity": "FUND::ZETA" }));
     call(&mut d, "price.delete", &json!({ "price": zeta[1]["guid"] }));
     let diffs = oracle_check(&mut d, &book, &[]);
@@ -85,8 +105,12 @@ fn adding_prices_follows_gnucash() {
     let ours: Vec<bool> = adds
         .iter()
         .map(|(c, cur, t, src, n, dn)| {
-            let r = call(&mut d, "price.add", &json!({ "commodity": c, "currency": cur, "value": format!("{n}/{dn}"),
-                "time": rfc3339(*t), "source": src }));
+            let r = call(
+                &mut d,
+                "price.add",
+                &json!({ "commodity": c, "currency": cur, "value": format!("{n}/{dn}"),
+                "time": rfc3339(*t), "source": src }),
+            );
             r["outcome"] != "rejected"
         })
         .collect();
@@ -96,13 +120,22 @@ fn adding_prices_follows_gnucash() {
         .iter()
         .map(|p| {
             let t = p["time"].as_str().unwrap();
-            json!([p["commodity"], p["currency"], epoch(t), p["source"], format!("{}/{}", p["value"]["num"].as_str().unwrap(), p["value"]["denom"].as_str().unwrap())])
+            json!([
+                p["commodity"],
+                p["currency"],
+                epoch(t),
+                p["source"],
+                format!("{}/{}", p["value"]["num"].as_str().unwrap(), p["value"]["denom"].as_str().unwrap())
+            ])
         })
         .collect();
     let mut left = left;
     left.sort_by_key(ToString::to_string);
     call(&mut d, "book.close", &json!({ "discard": true }));
-    let specs: Vec<String> = adds.iter().map(|(c, cur, t, src, n, dn)| format!("CURRENCY::{c},CURRENCY::{cur},{t},{src},{n},{dn}")).collect();
+    let specs: Vec<String> = adds
+        .iter()
+        .map(|(c, cur, t, src, n, dn)| format!("CURRENCY::{c},CURRENCY::{cur},{t},{src},{n},{dn}"))
+        .collect();
     let path = book.path_str();
     let args: Vec<&str> = std::iter::once(path.as_str()).chain(specs.iter().map(String::as_str)).collect();
     let gnucash: Value = serde_json::from_str(&oracle::run_code(ADD, &args).unwrap()).unwrap();
@@ -153,7 +186,13 @@ finally:
 
 fn price_book() -> TempBook {
     let (book, mut d) = create();
-    let sources = ["Finance::Quote", "user:price", "user:price-editor", "user:xfer-dialog", "Finance::Quote"];
+    let sources = [
+        "Finance::Quote",
+        "user:price",
+        "user:price-editor",
+        "user:xfer-dialog",
+        "Finance::Quote",
+    ];
     let start = red_ale_core::Date::from_ymd(2021, 1, 3).unwrap();
     (0..90i64).for_each(|i| {
         let date = start.add_days(i * 13 + i % 3);
@@ -161,7 +200,11 @@ fn price_book() -> TempBook {
         let source = sources[usize::try_from(i).unwrap() % sources.len()];
         call(&mut d, "price.add", &json!({ "commodity": "EUR", "currency": currency, "value": format!("{}/100", 100 + i), "date": date.to_string(), "source": source }));
     });
-    call(&mut d, "price.add", &json!({ "commodity": "JPY", "currency": "USD", "value": "1/150", "date": "2021-02-01", "source": "Finance::Quote" }));
+    call(
+        &mut d,
+        "price.add",
+        &json!({ "commodity": "JPY", "currency": "USD", "value": "1/150", "date": "2021-02-01", "source": "Finance::Quote" }),
+    );
     call(&mut d, "book.close", &json!({ "save": true }));
     book
 }
@@ -170,7 +213,14 @@ fn price_book() -> TempBook {
 fn remove_old_prices_matches_gnucash() {
     let base = price_book();
     let cutoff = red_ale_core::Date::from_ymd(2024, 1, 1).unwrap();
-    let keeps = [("none", 0), ("lastOfWeek", 1), ("lastOfMonth", 2), ("lastOfQuarter", 3), ("lastOfPeriod", 4), ("scaled", 5)];
+    let keeps = [
+        ("none", 0),
+        ("lastOfWeek", 1),
+        ("lastOfMonth", 2),
+        ("lastOfQuarter", 3),
+        ("lastOfPeriod", 4),
+        ("scaled", 5),
+    ];
     let sources: [(&[&str], i32); 4] = [(&["fetched"], 1), (&["user"], 2), (&["app"], 4), (&["fetched", "user", "app"], 7)];
     let failures: Vec<String> = keeps
         .iter()
@@ -180,7 +230,11 @@ fn remove_old_prices_matches_gnucash() {
             std::fs::copy(&base.path, &book.path).unwrap();
             let mut d = red_ale_testkit::dispatcher();
             call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-            call(&mut d, "price.removeOld", &json!({ "commodities": ["EUR"], "before": cutoff.to_string(), "keep": keep, "sources": src }));
+            call(
+                &mut d,
+                "price.removeOld",
+                &json!({ "commodities": ["EUR"], "before": cutoff.to_string(), "keep": keep, "sources": src }),
+            );
             let mut ours: Vec<String> = call(&mut d, "price.list", &json!({ "commodity": "EUR" }))
                 .as_array()
                 .unwrap()
@@ -201,7 +255,13 @@ fn remove_old_prices_matches_gnucash() {
             ];
             let args: Vec<&str> = args.iter().map(String::as_str).collect();
             let gnucash: Vec<String> = serde_json::from_str(&oracle::run_code(REMOVE_OLD, &args).unwrap()).unwrap();
-            (gnucash != ours).then(|| format!("keep {keep}, sources {src:?}: GnuCash keeps {} prices, red-ale {}", gnucash.len(), ours.len()))
+            (gnucash != ours).then(|| {
+                format!(
+                    "keep {keep}, sources {src:?}: GnuCash keeps {} prices, red-ale {}",
+                    gnucash.len(),
+                    ours.len()
+                )
+            })
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));

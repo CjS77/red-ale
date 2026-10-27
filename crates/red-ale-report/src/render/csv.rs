@@ -53,11 +53,17 @@ mod tests {
             vec![text("to"), text("31/12/2010")],
             vec![text("total"), num("23500"), num("30000"), num("25/7"), None],
         ];
-        assert_eq!(csv(&rows), "\"from\",\"01/01/2010\",,,\n\"to\",\"31/12/2010\",,,\n\"total\",23500.0,30000.0,3.5714285714285716,");
+        assert_eq!(
+            csv(&rows),
+            "\"from\",\"01/01/2010\",,,\n\"to\",\"31/12/2010\",,,\n\"total\",23500.0,30000.0,3.5714285714285716,"
+        );
     }
 
     #[test]
     fn quotes_are_doubled() {
-        assert_eq!(csv(&vec![vec![text("say \"hi\", then"), num("-12.34")]]), "\"say \"\"hi\"\", then\",-12.34");
+        assert_eq!(
+            csv(&vec![vec![text("say \"hi\", then"), num("-12.34")]]),
+            "\"say \"\"hi\"\", then\",-12.34"
+        );
     }
 }

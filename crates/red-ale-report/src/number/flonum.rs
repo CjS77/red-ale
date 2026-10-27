@@ -60,7 +60,11 @@ fn nearest_double(value: &BigRational) -> Option<(BigInt, i64)> {
 fn scaled_round(value: &BigRational, exponent: i64) -> BigInt {
     let shift = |x: &BigInt, by: i64| x << usize::try_from(by).unwrap_or(0);
     let (numer, denom) = (value.numer(), value.denom());
-    let (num, den) = if exponent >= 0 { (numer.clone(), shift(denom, exponent)) } else { (shift(numer, -exponent), denom.clone()) };
+    let (num, den) = if exponent >= 0 {
+        (numer.clone(), shift(denom, exponent))
+    } else {
+        (shift(numer, -exponent), denom.clone())
+    };
     round_half_even(&num, &den)
 }
 
@@ -74,7 +78,11 @@ fn round_half_even(num: &BigInt, den: &BigInt) -> BigInt {
 fn exact(m: &BigInt, e: i64) -> BigRational {
     let two = BigInt::from(2);
     let power = two.pow(u32::try_from(e.unsigned_abs()).unwrap_or(u32::MAX));
-    if e >= 0 { BigRational::from_integer(m * power) } else { BigRational::new(m.clone(), power) }
+    if e >= 0 {
+        BigRational::from_integer(m * power)
+    } else {
+        BigRational::new(m.clone(), power)
+    }
 }
 
 /// The shortest digits that read back as the double `m × 2^e`, the nearest to it when several are as short, and the
@@ -90,18 +98,27 @@ fn shortest(m: &BigInt, e: i64) -> (String, i64) {
     };
     let (low, high) = (&v - half_below, &v + half_unit);
     let inclusive = m.is_even();
-    let inside = |c: &BigRational| if inclusive { *c >= low && *c <= high } else { *c > low && *c < high };
+    let inside = |c: &BigRational| {
+        if inclusive {
+            *c >= low && *c <= high
+        } else {
+            *c > low && *c < high
+        }
+    };
     let lead = decimal_exponent(&v);
     (1..=MAX_DIGITS)
         .find_map(|k| {
             let scale = power_of_ten(lead - i64::from(k) + 1);
             let t = &v / &scale;
             let candidates = [t.floor().to_integer(), t.ceil().to_integer()];
-            let best = candidates.into_iter().filter(|c| inside(&(BigRational::from_integer(c.clone()) * &scale))).min_by(|a, b| {
-                let da = (BigRational::from_integer(a.clone()) * &scale - &v).abs();
-                let db = (BigRational::from_integer(b.clone()) * &scale - &v).abs();
-                da.cmp(&db).then_with(|| a.is_odd().cmp(&b.is_odd()))
-            })?;
+            let best = candidates
+                .into_iter()
+                .filter(|c| inside(&(BigRational::from_integer(c.clone()) * &scale)))
+                .min_by(|a, b| {
+                    let da = (BigRational::from_integer(a.clone()) * &scale - &v).abs();
+                    let db = (BigRational::from_integer(b.clone()) * &scale - &v).abs();
+                    da.cmp(&db).then_with(|| a.is_odd().cmp(&b.is_odd()))
+                })?;
             Some(digits_of(&best, lead - i64::from(k) + 1))
         })
         .unwrap_or_else(|| (m.to_string(), 0))
@@ -128,7 +145,11 @@ fn decimal_exponent(v: &BigRational) -> i64 {
 
 fn power_of_ten(n: i64) -> BigRational {
     let p = BigInt::from(10).pow(u32::try_from(n.unsigned_abs()).unwrap_or(u32::MAX));
-    if n >= 0 { BigRational::from_integer(p) } else { BigRational::new(BigInt::one(), p) }
+    if n >= 0 {
+        BigRational::from_integer(p)
+    } else {
+        BigRational::new(BigInt::one(), p)
+    }
 }
 
 /// Guile's layout of `digits` with the first at decimal exponent `exponent`.

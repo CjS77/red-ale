@@ -13,8 +13,16 @@ use red_ale_service::Settings;
 use serde_json::{Value, json};
 
 const NOW: Time64 = Time64(1_719_835_200);
-const ACCOUNTS: [&str; 8] =
-    ["Assets:Cash", "Assets:Brokerage:ACME", "Assets:Brokerage:Zeta", "Assets:Euro Bank", "Assets:NonStd", "Liabilities:Visa", "Expenses:Food", "Income:Salary"];
+const ACCOUNTS: [&str; 8] = [
+    "Assets:Cash",
+    "Assets:Brokerage:ACME",
+    "Assets:Brokerage:Zeta",
+    "Assets:Euro Bank",
+    "Assets:NonStd",
+    "Liabilities:Visa",
+    "Expenses:Food",
+    "Income:Salary",
+];
 
 struct Book {
     dir: tempfile::TempDir,
@@ -25,20 +33,30 @@ struct Book {
 fn open(read_only: bool) -> Book {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("book.gnucash");
-    std::fs::copy(format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")), &path).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")),
+        &path,
+    )
+    .unwrap();
     let mut d = Dispatcher::new(Settings::default());
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(NOW, 0x00ed_0000_0000_0000_0000_0000_0000_0000))));
-    d.call("book.open", json!({ "path": path.display().to_string(), "readOnly": read_only })).unwrap();
+    d.call("book.open", json!({ "path": path.display().to_string(), "readOnly": read_only }))
+        .unwrap();
     Book { dir, path, d }
 }
 
 impl Book {
     fn call(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     fn err(&mut self, method: &str, params: Value) -> RpcError {
-        self.d.call(method, params.clone()).err().unwrap_or_else(|| panic!("{method} {params} should fail"))
+        self.d
+            .call(method, params.clone())
+            .err()
+            .unwrap_or_else(|| panic!("{method} {params} should fail"))
     }
 
     /// Every file beside the book, with its contents.
@@ -81,23 +99,39 @@ fn transactions_in_both_layouts() {
 fn filters_and_formats() {
     let mut b = open(false);
     let food = b.call("account.get", json!({ "account": "Expenses:Food" }))["guid"].clone();
-    let params = json!({ "accounts": [food], "from": "2024-06-02", "to": "2024-06-05", "layout": "simple", "locale": "de_DE", "separator": ";" });
+    let params =
+        json!({ "accounts": [food], "from": "2024-06-02", "to": "2024-06-05", "layout": "simple", "locale": "de_DE", "separator": ";" });
     let out = b.call("export.csvTransactions", params);
     let lines: Vec<&str> = out["csv"].as_str().unwrap().split("\r\n").collect();
     assert_eq!(out["transactions"], 1, "{out}");
     assert!(lines[1].starts_with("02.06.2024;Expenses:Food;101;"), "{}", lines[1]);
-    assert!(lines[1].ends_with(";n;12,34 $;12,34;12,34 $;12,34;1,00"), "numbers in de_DE: {}", lines[1]);
+    assert!(
+        lines[1].ends_with(";n;12,34 $;12,34;12,34 $;12,34;1,00"),
+        "numbers in de_DE: {}",
+        lines[1]
+    );
 }
 
 #[test]
 fn requests_are_checked() {
     let mut b = open(false);
     assert_eq!(b.err("export.csvTransactions", json!({ "accounts": [] })).code, codes::INVALID);
-    assert_eq!(b.err("export.csvTransactions", json!({ "accounts": ["Assets:Nowhere"] })).code, codes::NOT_FOUND);
+    assert_eq!(
+        b.err("export.csvTransactions", json!({ "accounts": ["Assets:Nowhere"] })).code,
+        codes::NOT_FOUND
+    );
     let backwards = json!({ "accounts": ["Assets:Cash"], "from": "2024-06-05", "to": "2024-06-01" });
     assert_eq!(b.err("export.csvTransactions", backwards).code, codes::INVALID);
-    assert_eq!(b.err("export.csvTransactions", json!({ "accounts": ["Assets:Cash"], "layout": "wide" })).code, codes::INVALID_PARAMS);
-    assert_eq!(b.err("export.csvTransactions", json!({ "accounts": ["Assets:Cash"], "locale": "xx_YY" })).code, codes::INVALID_PARAMS);
+    assert_eq!(
+        b.err("export.csvTransactions", json!({ "accounts": ["Assets:Cash"], "layout": "wide" }))
+            .code,
+        codes::INVALID_PARAMS
+    );
+    assert_eq!(
+        b.err("export.csvTransactions", json!({ "accounts": ["Assets:Cash"], "locale": "xx_YY" }))
+            .code,
+        codes::INVALID_PARAMS
+    );
     assert_eq!(b.err("export.csvTree", json!({ "separator": "" })).code, codes::INVALID);
 }
 
@@ -133,13 +167,20 @@ fn export_accounts_writes_a_new_file() {
     let mut b = open(false);
     let target = b.dir.path().join("chart.gnucash");
     let written = b.call("export.accounts", json!({ "path": format!("xml://{}", target.display()) }));
-    assert_eq!(written, json!({ "path": target.display().to_string(), "accounts": 21, "commodities": 5 }));
+    assert_eq!(
+        written,
+        json!({ "path": target.display().to_string(), "accounts": 21, "commodities": 5 })
+    );
     let text = std::fs::read_to_string(&target).unwrap();
     assert!(text.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n<gnc-v2"));
     assert!(text.contains("<gnc:count-data cd:type=\"account\">21</gnc:count-data>\n"));
     assert!(!text.contains("<gnc:book") && !text.contains("<gnc:transaction") && !text.contains("<act:lots>"));
     let names: Vec<String> = b.files().into_keys().collect();
-    assert_eq!(names, ["book.gnucash", "book.gnucash.LCK", "chart.gnucash"], "the open book's lock, and no other");
+    assert_eq!(
+        names,
+        ["book.gnucash", "book.gnucash.LCK", "chart.gnucash"],
+        "the open book's lock, and no other"
+    );
 }
 
 #[test]
@@ -153,10 +194,17 @@ fn export_accounts_never_overwrites() {
     assert_eq!(e.code, codes::FILE_EXISTS);
     assert_eq!(std::fs::read(&existing).unwrap(), b"keep me");
     let without_extension = b.dir.path().join("taken");
-    assert_eq!(b.err("export.accounts", json!({ "path": without_extension.display().to_string() })).code, codes::FILE_EXISTS);
+    assert_eq!(
+        b.err("export.accounts", json!({ "path": without_extension.display().to_string() }))
+            .code,
+        codes::FILE_EXISTS
+    );
     let locked = b.dir.path().join("locked.gnucash");
     std::fs::write(b.dir.path().join("locked.gnucash.LCK"), b"").unwrap();
-    assert_eq!(b.err("export.accounts", json!({ "path": locked.display().to_string() })).code, codes::BOOK_LOCKED);
+    assert_eq!(
+        b.err("export.accounts", json!({ "path": locked.display().to_string() })).code,
+        codes::BOOK_LOCKED
+    );
     assert!(!locked.exists());
 }
 
@@ -164,7 +212,11 @@ fn export_accounts_never_overwrites() {
 fn exports_need_a_book() {
     let mut d = Dispatcher::new(Settings::default());
     ["export.csvTree", "export.accounts"].iter().for_each(|m| {
-        let params = if *m == "export.accounts" { json!({ "path": "/nowhere/x.gnucash" }) } else { json!({}) };
+        let params = if *m == "export.accounts" {
+            json!({ "path": "/nowhere/x.gnucash" })
+        } else {
+            json!({})
+        };
         assert_eq!(d.call(m, params).unwrap_err().code, codes::NO_BOOK);
     });
 }

@@ -29,7 +29,11 @@ fn a_closure_made_in_a_module_is_not_found_by_the_importer() {
     let m = [("m", "fn make() { |x| x + 1 } fn apply(f, x) { f.call(x) }")];
     let err = run(&m, r#"import "m" as m; let f = m::make(); f.call(2)"#).unwrap_err();
     assert!(err.starts_with("Function not found: anon$"), "{err}");
-    assert_eq!(run(&m, r#"import "m" as m; m::apply(m::make(), 2)"#).unwrap(), "3", "called back inside its module, it works");
+    assert_eq!(
+        run(&m, r#"import "m" as m; m::apply(m::make(), 2)"#).unwrap(),
+        "3",
+        "called back inside its module, it works"
+    );
 }
 
 /// A method of module `c` that passes a closure to a native function (`index_of`) works from module `d`, until `c`

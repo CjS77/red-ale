@@ -13,8 +13,18 @@ use crate::wire::{AccountRef, Id};
 /// The import map editor's methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("importMap.list", "List Import map entries (Bayesian, desc, memo, csv-account-map) and online entries.", Effect::Read, list),
-        method("importMap.delete", "Delete Import map or online entries, one by one, by kind, or every invalid one.", Effect::Destructive, delete),
+        method(
+            "importMap.list",
+            "List Import map entries (Bayesian, desc, memo, csv-account-map) and online entries.",
+            Effect::Read,
+            list,
+        ),
+        method(
+            "importMap.delete",
+            "Delete Import map or online entries, one by one, by kind, or every invalid one.",
+            Effect::Destructive,
+            delete,
+        ),
     ]
 }
 
@@ -117,18 +127,37 @@ pub struct ListResult {
 }
 
 fn label(book: &Book, guid: Guid) -> AccountLabel {
-    AccountLabel { guid: Id(guid), full_name: book.full_name(guid).unwrap_or_default() }
+    AccountLabel {
+        guid: Id(guid),
+        full_name: book.full_name(guid).unwrap_or_default(),
+    }
 }
 
 fn entry(book: &Book, e: &MapEntry) -> ImportMapEntry {
-    let target = e.target.filter(|_| !matches!(e.kind, MapKind::OnlineId | MapKind::Hbci)).map(|t| label(book, t));
-    ImportMapEntry { account: label(book, e.account), kind: e.kind.into(), key: e.key.clone(), target, count: e.count, valid: e.valid }
+    let target = e
+        .target
+        .filter(|_| !matches!(e.kind, MapKind::OnlineId | MapKind::Hbci))
+        .map(|t| label(book, t));
+    ImportMapEntry {
+        account: label(book, e.account),
+        kind: e.kind.into(),
+        key: e.key.clone(),
+        target,
+        count: e.count,
+        valid: e.valid,
+    }
 }
 
 fn list(ctx: &mut Context, p: ListParams) -> Result<ListResult, RpcError> {
     let book = ctx.book()?;
-    let filter = ListFilter { account: p.account.map(|a| a.resolve(book)).transpose()?, kind: p.kind.map(MapKind::from), invalid_only: p.invalid_only };
-    Ok(ListResult { entries: editor::list(book, filter).iter().map(|e| entry(book, e)).collect() })
+    let filter = ListFilter {
+        account: p.account.map(|a| a.resolve(book)).transpose()?,
+        kind: p.kind.map(MapKind::from),
+        invalid_only: p.invalid_only,
+    };
+    Ok(ListResult {
+        entries: editor::list(book, filter).iter().map(|e| entry(book, e)).collect(),
+    })
 }
 
 /// One deletion.
@@ -183,7 +212,12 @@ fn request(book: &Book, e: &EntryParam) -> Result<DeleteRequest, RpcError> {
 
 fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
     let requests = match (&p.entries, p.invalid) {
-        (Some(entries), false) => Some(entries.iter().map(|e| request(ctx.book()?, e)).collect::<Result<Vec<_>, RpcError>>()?),
+        (Some(entries), false) => Some(
+            entries
+                .iter()
+                .map(|e| request(ctx.book()?, e))
+                .collect::<Result<Vec<_>, RpcError>>()?,
+        ),
         (None, true) => None,
         _ => return Err(RpcError::invalid("give entries or invalid: true, not both or neither")),
     };
@@ -192,6 +226,8 @@ fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> 
             Some(requests) => editor::delete(book, requests)?,
             None => editor::delete_invalid(book)?,
         };
-        Ok(DeleteResult { deleted: deleted.iter().map(|e| entry(book, e)).collect() })
+        Ok(DeleteResult {
+            deleted: deleted.iter().map(|e| entry(book, e)).collect(),
+        })
     })
 }

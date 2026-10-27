@@ -14,7 +14,9 @@ use crate::ops::commit::{account_scu, commodity_fraction};
 use crate::ops::commodities::canonical;
 use crate::ops::prices::convert::{PriceAt, convert_balance};
 use crate::ops::transactions::order::split_order;
-use crate::{Account, Book, CommodityRef, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, Transaction};
+use crate::{
+    Account, Book, CommodityRef, DomainError, DomainResult, Guid, How, Numeric, ReconcileState, Round, Split, Time64, Transaction,
+};
 
 /// An account's running totals, in its commodity (amounts, not values).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -31,7 +33,12 @@ pub struct Balances {
 
 impl Balances {
     /// All zero.
-    pub const ZERO: Self = Self { balance: Numeric::ZERO, cleared: Numeric::ZERO, reconciled: Numeric::ZERO, noclosing: Numeric::ZERO };
+    pub const ZERO: Self = Self {
+        balance: Numeric::ZERO,
+        cleared: Numeric::ZERO,
+        reconciled: Numeric::ZERO,
+        noclosing: Numeric::ZERO,
+    };
 
     /// One of the totals.
     pub fn get(self, total: Total) -> Numeric {
@@ -78,7 +85,11 @@ pub fn account_splits_between(
     to: Option<Time64>,
     include_descendants: bool,
 ) -> Vec<(&Transaction, &Split)> {
-    let descendants = if include_descendants { book.descendants(account).iter().map(|a| a.guid).collect() } else { Vec::new() };
+    let descendants = if include_descendants {
+        book.descendants(account).iter().map(|a| a.guid).collect()
+    } else {
+        Vec::new()
+    };
     std::iter::once(account)
         .chain(descendants)
         .flat_map(|a| account_splits(book, a))
@@ -142,7 +153,12 @@ fn walk(book: &Book, account: Guid) -> DomainResult<(Vec<RunningSplit<'_>>, Bala
         .map(|(transaction, split)| {
             let amount = scu.map_or(Ok(split.amount), |scu| split.amount.to_denom(scu, Round::HalfUp))?;
             let counted = step(&mut running, transaction, split, amount)?;
-            Ok(RunningSplit { transaction, split, amount, running: if counted { running } else { Balances::ZERO } })
+            Ok(RunningSplit {
+                transaction,
+                split,
+                amount,
+                running: if counted { running } else { Balances::ZERO },
+            })
         })
         .collect::<DomainResult<Vec<_>>>()?;
     Ok((splits, running))
@@ -160,7 +176,11 @@ pub fn balances(book: &Book, account: Guid, before: Option<Time64>) -> DomainRes
     let (splits, totals) = walk(book, account)?;
     Ok(match before {
         None => totals,
-        Some(cut) => splits.iter().rev().find(|s| s.transaction.date_posted < cut).map_or(Balances::ZERO, |s| s.running),
+        Some(cut) => splits
+            .iter()
+            .rev()
+            .find(|s| s.transaction.date_posted < cut)
+            .map_or(Balances::ZERO, |s| s.running),
     })
 }
 
@@ -185,7 +205,9 @@ pub fn balance_as_of_in_commodity(
     include_children: bool,
 ) -> DomainResult<Numeric> {
     let acc = book.account(account).ok_or_else(|| DomainError::not_found("account", &account))?;
-    let Some(target) = commodity.or(acc.commodity.as_ref()).map(canonical) else { return Ok(Numeric::ZERO) };
+    let Some(target) = commodity.or(acc.commodity.as_ref()).map(canonical) else {
+        return Ok(Numeric::ZERO);
+    };
     let own = converted_as_of(book, acc, t, total, &target)?;
     if !include_children {
         return Ok(own);
@@ -250,7 +272,13 @@ pub fn accumulate_to_dates<I, T: Clone>(
 /// (`5.17:gnucash/report/report-utilities.scm:505-512`); see [`accumulate_to_dates`] for the order of `times`.
 pub fn running_totals_at(book: &Book, account: Guid, times: &[Time64], total: Total) -> DomainResult<Vec<Option<Numeric>>> {
     let splits = running_balances(book, account)?;
-    Ok(accumulate_to_dates(&splits, |s| s.transaction.date_posted, times, None, |s| Some(s.running.get(total))))
+    Ok(accumulate_to_dates(
+        &splits,
+        |s| s.transaction.date_posted,
+        times,
+        None,
+        |s| Some(s.running.get(total)),
+    ))
 }
 
 /// An account's balance at each of `times` as `gnc:account-get-balances-at-dates` adds it
@@ -279,33 +307,38 @@ pub fn balances_with_subaccounts(
 ) -> DomainResult<(Balances, BTreeMap<CommodityRef, Balances>)> {
     let acc = book.account(guid).ok_or_else(|| DomainError::not_found("account", &guid))?;
     let own = balances(book, guid, before)?;
-    let Some(commodity) = acc.commodity.clone() else { return Ok((own, BTreeMap::new())) };
+    let Some(commodity) = acc.commodity.clone() else {
+        return Ok((own, BTreeMap::new()));
+    };
     let fraction = commodity_fraction(book, &commodity).ok_or_else(|| DomainError::not_found("commodity", &commodity))?;
     let add = |a: Numeric, b: Numeric| a.add(b, fraction, How::round(Round::HalfUp));
     let mut unconverted: BTreeMap<CommodityRef, Balances> = BTreeMap::new();
-    let total = book.descendants(guid).iter().try_fold(own, |total, sub| -> DomainResult<Balances> {
-        let b = balances(book, sub.guid, before)?;
-        let same = sub.commodity.as_ref() == Some(&commodity) || b.balance.is_zero() && b.cleared.is_zero() && b.reconciled.is_zero();
-        let counted = if same {
-            b
-        } else {
-            let other = sub.commodity.clone().unwrap_or_else(|| commodity.clone());
-            let entry = unconverted.entry(other).or_insert(Balances::ZERO);
-            *entry = Balances {
-                balance: entry.balance.add_exact(b.balance)?,
-                cleared: entry.cleared.add_exact(b.cleared)?,
-                reconciled: entry.reconciled.add_exact(b.reconciled)?,
-                noclosing: entry.noclosing.add_exact(b.noclosing)?,
+    let total = book
+        .descendants(guid)
+        .iter()
+        .try_fold(own, |total, sub| -> DomainResult<Balances> {
+            let b = balances(book, sub.guid, before)?;
+            let same = sub.commodity.as_ref() == Some(&commodity) || b.balance.is_zero() && b.cleared.is_zero() && b.reconciled.is_zero();
+            let counted = if same {
+                b
+            } else {
+                let other = sub.commodity.clone().unwrap_or_else(|| commodity.clone());
+                let entry = unconverted.entry(other).or_insert(Balances::ZERO);
+                *entry = Balances {
+                    balance: entry.balance.add_exact(b.balance)?,
+                    cleared: entry.cleared.add_exact(b.cleared)?,
+                    reconciled: entry.reconciled.add_exact(b.reconciled)?,
+                    noclosing: entry.noclosing.add_exact(b.noclosing)?,
+                };
+                Balances::ZERO
             };
-            Balances::ZERO
-        };
-        Ok(Balances {
-            balance: add(total.balance, counted.balance)?,
-            cleared: add(total.cleared, counted.cleared)?,
-            reconciled: add(total.reconciled, counted.reconciled)?,
-            noclosing: add(total.noclosing, counted.noclosing)?,
-        })
-    })?;
+            Ok(Balances {
+                balance: add(total.balance, counted.balance)?,
+                cleared: add(total.cleared, counted.cleared)?,
+                reconciled: add(total.reconciled, counted.reconciled)?,
+                noclosing: add(total.noclosing, counted.noclosing)?,
+            })
+        })?;
     Ok((total, unconverted))
 }
 
@@ -359,7 +392,10 @@ mod tests {
         fn post_in(&mut self, currency: &str, a: Guid, b: Guid, cents: i64, d: u32, num: Option<&str>) -> Guid {
             let mut t = NewTransaction::new(CommodityRef::currency(currency), Date::from_ymd(2024, 1, d).unwrap());
             t.num = num.map(Into::into);
-            t.splits = vec![NewSplit::new(a, usd(cents)).with_action(num.unwrap_or_default()), NewSplit::new(b, usd(-cents))];
+            t.splits = vec![
+                NewSplit::new(a, usd(cents)).with_action(num.unwrap_or_default()),
+                NewSplit::new(b, usd(-cents)),
+            ];
             add_transaction(&mut self.book, &mut self.env, t).unwrap()
         }
 
@@ -386,7 +422,11 @@ mod tests {
     }
 
     fn running(f: &Fx, account: Guid, total: Total) -> Vec<Numeric> {
-        running_balances(&f.book, account).unwrap().iter().map(|s| s.running.get(total)).collect()
+        running_balances(&f.book, account)
+            .unwrap()
+            .iter()
+            .map(|s| s.running.get(total))
+            .collect()
     }
 
     #[test]
@@ -398,7 +438,10 @@ mod tests {
         f.post(bank, food, 1000, 2);
         let t = f.post(bank, food, 250, 5);
         f.post(sub, food, 5, 6);
-        f.txn(t).splits.iter_mut().for_each(|s| s.reconcile_state = ReconcileState::Reconciled);
+        f.txn(t)
+            .splits
+            .iter_mut()
+            .for_each(|s| s.reconcile_state = ReconcileState::Reconciled);
         let all = balances(&f.book, bank, None).unwrap();
         assert_eq!((all.balance, all.cleared, all.reconciled), (usd(1250), usd(250), usd(250)));
         let before = balances(&f.book, bank, Some(Date::from_ymd(2024, 1, 5).unwrap().start_utc())).unwrap();
@@ -418,11 +461,22 @@ mod tests {
         let closing = f.post(income, equity, 500, 3);
         f.txn(closing).slots.set(slot_paths::BOOK_CLOSING, SlotValue::Integer(1));
         f.post(bank, income, 200, 3);
-        assert_eq!(running(&f, income, Total::Balance), [usd(-500), usd(-700), usd(-200)], "the closing transaction sorts last on its day");
+        assert_eq!(
+            running(&f, income, Total::Balance),
+            [usd(-500), usd(-700), usd(-200)],
+            "the closing transaction sorts last on its day"
+        );
         assert_eq!(running(&f, income, Total::Noclosing), [usd(-500), usd(-700), usd(-700)]);
         assert_eq!(balance_as_of(&f.book, income, day(4), Total::Noclosing).unwrap(), usd(-700));
-        assert_eq!(balance_change(&f.book, income, day(2), day(4), Total::Noclosing, false).unwrap(), usd(-700), "posted at `from` counts");
-        assert_eq!(balance_change(&f.book, income, day(3), day(4), Total::Balance, false).unwrap(), usd(300));
+        assert_eq!(
+            balance_change(&f.book, income, day(2), day(4), Total::Noclosing, false).unwrap(),
+            usd(-700),
+            "posted at `from` counts"
+        );
+        assert_eq!(
+            balance_change(&f.book, income, day(3), day(4), Total::Balance, false).unwrap(),
+            usd(300)
+        );
     }
 
     #[test]
@@ -437,7 +491,10 @@ mod tests {
         let times = [day(1), day(2), day(3), day(4), day(9)];
         let at = running_totals_at(&f.book, bank, &times, Total::Balance).unwrap();
         assert_eq!(at, [None, Some(usd(100)), Some(usd(100)), Some(usd(300)), Some(usd(300))]);
-        assert_eq!(balances_at_dates(&f.book, bank, &times).unwrap(), [Numeric::ZERO, usd(100), usd(100), usd(300), usd(300)]);
+        assert_eq!(
+            balances_at_dates(&f.book, bank, &times).unwrap(),
+            [Numeric::ZERO, usd(100), usd(100), usd(300), usd(300)]
+        );
         let unsorted = [day(4), day(2), day(9)];
         let at = running_totals_at(&f.book, bank, &unsorted, Total::Balance).unwrap();
         assert_eq!(at, [Some(usd(300)); 3], "the cursor only moves forward");
@@ -455,7 +512,11 @@ mod tests {
         f.txn(actions[0]).splits[0].action = Some("1".into());
         f.txn(actions[1]).splits[0].action = Some("9".into());
         crate::book_options::set_split_action_for_num(&mut f.book, true);
-        assert_eq!(running(&f, bank, Total::Balance), [usd(500), usd(1200)], "actions stand in for nums");
+        assert_eq!(
+            running(&f, bank, Total::Balance),
+            [usd(500), usd(1200)],
+            "actions stand in for nums"
+        );
     }
 
     #[test]
@@ -468,10 +529,18 @@ mod tests {
         let s = f.txn(split).splits.iter_mut().find(|s| s.account == Some(bank)).unwrap();
         s.slots.set("split-type", SlotValue::String("stock-split".into()));
         f.post(bank, food, 500, 4);
-        assert_eq!(running(&f, bank, Total::Balance), [usd(1000), Numeric::ZERO, usd(1500)], "it would make the balance zero");
+        assert_eq!(
+            running(&f, bank, Total::Balance),
+            [usd(1000), Numeric::ZERO, usd(1500)],
+            "it would make the balance zero"
+        );
         assert_eq!(balances(&f.book, bank, None).unwrap().balance, usd(1500));
         assert!(balance_as_of(&f.book, bank, day(4), Total::Balance).unwrap().is_zero());
-        assert_eq!(balances_at_dates(&f.book, bank, &[day(3), day(4)]).unwrap(), [Numeric::ZERO, usd(500)], "the reports' sum adds it");
+        assert_eq!(
+            balances_at_dates(&f.book, bank, &[day(3), day(4)]).unwrap(),
+            [Numeric::ZERO, usd(500)],
+            "the reports' sum adds it"
+        );
     }
 
     #[test]
@@ -490,10 +559,21 @@ mod tests {
         assert!(in_usd(day(5), false).is_zero());
         assert_eq!(in_usd(day(5), true), usd(1366), "1000 + 3.33 × 1.1 = 3.663, rounded half up");
         assert_eq!(in_usd(day(7), true), usd(1400), "3.33 × 1.2 = 3.996");
-        assert_eq!(in_usd(Time64(day(3).0 - 1), true), usd(1000), "no price before the time: nothing added");
+        assert_eq!(
+            in_usd(Time64(day(3).0 - 1), true),
+            usd(1000),
+            "no price before the time: nothing added"
+        );
         let eur = CommodityRef::currency("EUR");
-        assert_eq!(balance_as_of_in_commodity(&f.book, euro, day(7), Total::Balance, Some(&eur), false).unwrap(), usd(333));
-        assert_eq!(balance_change(&f.book, assets, day(5), day(7), Total::Balance, true).unwrap(), usd(34), "the price moved");
+        assert_eq!(
+            balance_as_of_in_commodity(&f.book, euro, day(7), Total::Balance, Some(&eur), false).unwrap(),
+            usd(333)
+        );
+        assert_eq!(
+            balance_change(&f.book, assets, day(5), day(7), Total::Balance, true).unwrap(),
+            usd(34),
+            "the price moved"
+        );
     }
 
     #[test]
@@ -506,7 +586,10 @@ mod tests {
         let b = f.post(assets, food, 200, 3);
         let c = f.post(bank, food, 300, 4);
         let found = |from, to, children| -> Vec<Guid> {
-            account_splits_between(&f.book, assets, from, to, children).iter().map(|(t, _)| t.guid).collect()
+            account_splits_between(&f.book, assets, from, to, children)
+                .iter()
+                .map(|(t, _)| t.guid)
+                .collect()
         };
         assert_eq!(found(None, None, true), [b, a, c]);
         assert_eq!(found(Some(day(3)), Some(day(4)), true), [b, c], "both ends inclusive");

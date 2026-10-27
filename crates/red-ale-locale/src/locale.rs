@@ -100,7 +100,9 @@ impl Locale {
 
     /// A supported locale by name: `fr_FR`, `fr_FR.UTF-8` or `fr_FR.utf8`; `C` and `POSIX` are the C locale.
     pub fn by_name(name: &str) -> Result<Self, LocaleError> {
-        lookup(name).map(|l| Self { parts: [l; 4] }).ok_or_else(|| LocaleError::Unsupported(name.to_owned()))
+        lookup(name)
+            .map(|l| Self { parts: [l; 4] })
+            .ok_or_else(|| LocaleError::Unsupported(name.to_owned()))
     }
 
     /// Every supported locale's name, sorted bytewise, `C` among them.
@@ -129,7 +131,11 @@ impl Locale {
         if self.parts.iter().all(|p| p.name == self.parts[0].name) {
             return self.parts[0].name.to_owned();
         }
-        Category::ALL.iter().map(|c| format!("{}={}", c.variable(), self.category(*c).name)).collect::<Vec<_>>().join(";")
+        Category::ALL
+            .iter()
+            .map(|c| format!("{}={}", c.variable(), self.category(*c).name))
+            .collect::<Vec<_>>()
+            .join(";")
     }
 
     /// The locale data of one category.

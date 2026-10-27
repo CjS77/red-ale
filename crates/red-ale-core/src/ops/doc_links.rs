@@ -28,10 +28,15 @@ pub fn set_doc_link_slot(slots: &mut Frame, link: &str) {
 /// read-only threshold), is refused, as the register refuses both (`is_trans_readonly_and_warn`,
 /// `5.17:gnucash/gnome/gnc-split-reg.c:1118-1158`, called at `:1255-1256` and `:1325-1326`).
 pub fn set_transaction_link(book: &mut Book, transaction: Guid, link: &str, today: Date) -> DomainResult<()> {
-    let t = book.transaction(transaction).ok_or_else(|| DomainError::not_found("transaction", &transaction))?;
+    let t = book
+        .transaction(transaction)
+        .ok_or_else(|| DomainError::not_found("transaction", &transaction))?;
     check_writable(t)?;
     check_not_read_only_by_date(book, t, today)?;
-    let t = book.transactions.get_mut(&transaction).ok_or_else(|| DomainError::not_found("transaction", &transaction))?;
+    let t = book
+        .transactions
+        .get_mut(&transaction)
+        .ok_or_else(|| DomainError::not_found("transaction", &transaction))?;
     set_doc_link_slot(&mut Arc::make_mut(t).slots, link);
     Ok(())
 }
@@ -39,7 +44,11 @@ pub fn set_transaction_link(book: &mut Book, transaction: Guid, link: &str, toda
 /// Set or remove a business document's link. Posted documents take links too: GnuCash's Manage Document Link is not
 /// limited to unposted documents (`5.17:gnucash/gnome/gnc-plugin-page-invoice.cpp:150-180`).
 pub fn set_invoice_link(book: &mut Book, invoice: Guid, link: &str) -> DomainResult<()> {
-    let inv = book.business.invoices.get_mut(&invoice).ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
+    let inv = book
+        .business
+        .invoices
+        .get_mut(&invoice)
+        .ok_or_else(|| DomainError::not_found("invoice", &invoice))?;
     set_doc_link_slot(&mut Arc::make_mut(inv).slots, link);
     Ok(())
 }
@@ -65,9 +74,15 @@ pub fn is_relative(link: &str) -> bool {
 /// `5.17:gnucash/gnome-utils/dialog-doclink-utils.c:165-203`). An absolute path becomes a `file://` URI; anything
 /// else is refused.
 pub fn normalise_path_head(head: &str) -> DomainResult<String> {
-    let uri = if head.starts_with('/') { format!("file://{head}") } else { head.to_owned() };
+    let uri = if head.starts_with('/') {
+        format!("file://{head}")
+    } else {
+        head.to_owned()
+    };
     if !uri.starts_with("file:///") {
-        return Err(DomainError::invalid(format!("the path head must be an absolute path or a file:// URI, not {head}")));
+        return Err(DomainError::invalid(format!(
+            "the path head must be an absolute path or a file:// URI, not {head}"
+        )));
     }
     Ok(if uri.ends_with('/') { uri } else { format!("{uri}/") })
 }
@@ -119,17 +134,29 @@ mod tests {
             })
             .collect();
         let mut new = NewTransaction::new(usd, Date::from_ymd(2024, 6, 20).unwrap());
-        new.splits = vec![NewSplit::new(accounts[0], Numeric::new(-5, 1)), NewSplit::new(accounts[1], Numeric::new(5, 1))];
+        new.splits = vec![
+            NewSplit::new(accounts[0], Numeric::new(-5, 1)),
+            NewSplit::new(accounts[1], Numeric::new(5, 1)),
+        ];
         let t = add_transaction(&mut book, &mut env, new).unwrap();
         let today = Date::from_ymd(2024, 7, 1).unwrap();
         set_transaction_link(&mut book, t, "a.pdf", today).unwrap();
         set_auto_readonly_days(&mut book, 10).unwrap();
-        assert!(matches!(set_transaction_link(&mut book, t, "", today), Err(DomainError::ReadOnlyByDate { .. })));
+        assert!(matches!(
+            set_transaction_link(&mut book, t, "", today),
+            Err(DomainError::ReadOnlyByDate { .. })
+        ));
         assert_eq!(book.transaction(t).and_then(|t| doc_link(&t.slots)), Some("a.pdf"));
         set_auto_readonly_days(&mut book, 0).unwrap();
         let tx = Arc::make_mut(book.transactions.get_mut(&t).unwrap());
-        tx.slots.set(crate::transaction::slot_paths::READ_ONLY, SlotValue::String("Generated from an invoice".into()));
-        assert!(matches!(set_transaction_link(&mut book, t, "", today), Err(DomainError::Conflict(_))));
+        tx.slots.set(
+            crate::transaction::slot_paths::READ_ONLY,
+            SlotValue::String("Generated from an invoice".into()),
+        );
+        assert!(matches!(
+            set_transaction_link(&mut book, t, "", today),
+            Err(DomainError::Conflict(_))
+        ));
     }
 
     #[test]
@@ -139,7 +166,10 @@ mod tests {
         assert_eq!(normalise_path_head("file:///srv/docs/").unwrap(), "file:///srv/docs/");
         assert!(normalise_path_head("docs").is_err());
         assert!(normalise_path_head("https://example.com/").is_err());
-        assert_eq!(resolve("receipts/42.pdf", Some(&head)).as_deref(), Some("file:///home/me/Documents/receipts/42.pdf"));
+        assert_eq!(
+            resolve("receipts/42.pdf", Some(&head)).as_deref(),
+            Some("file:///home/me/Documents/receipts/42.pdf")
+        );
         assert_eq!(resolve("receipts/42.pdf", None), None);
         assert_eq!(resolve("https://example.com/x", None).as_deref(), Some("https://example.com/x"));
         assert_eq!(resolve("file:///tmp/a.pdf", Some(&head)).as_deref(), Some("file:///tmp/a.pdf"));

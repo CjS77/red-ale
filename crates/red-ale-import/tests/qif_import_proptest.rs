@@ -7,11 +7,11 @@ use std::collections::BTreeMap;
 
 use proptest::prelude::*;
 use red_ale_core::{Book, CommodityRef, FixedEnv, ReconcileState, Time64, TimeZone};
+use red_ale_import::matcher::ImportAction;
 use red_ale_import::pipeline::{self, ApplyChoices, Change};
-use red_ale_import::qif::parse::DATE_FORMATS;
 use red_ale_import::qif::guess_map::SavedMap;
 use red_ale_import::qif::import::{QifFileInput, QifOptions, propose};
-use red_ale_import::matcher::ImportAction;
+use red_ale_import::qif::parse::DATE_FORMATS;
 
 /// 2024-07-01 12:00 UTC.
 const NOW: Time64 = Time64(1_719_835_200);
@@ -42,24 +42,79 @@ fn options() -> QifOptions {
 fn exercise(texts: &[String]) {
     let mut env = FixedEnv::new(NOW, 1 << 100);
     let mut book = Book::new_empty(&mut env);
-    let inputs: Vec<QifFileInput> =
-        texts.iter().enumerate().map(|(i, t)| QifFileInput { text: t.clone(), path: Some(format!("file-{i}.qif")), default_account: None }).collect();
+    let inputs: Vec<QifFileInput> = texts
+        .iter()
+        .enumerate()
+        .map(|(i, t)| QifFileInput {
+            text: t.clone(),
+            path: Some(format!("file-{i}.qif")),
+            default_account: None,
+        })
+        .collect();
     let zone = TimeZone::utc();
-    let Ok(first) = propose(&book, NOW, &zone, &inputs, &options(), None) else { return };
+    let Ok(first) = propose(&book, NOW, &zone, &inputs, &options(), None) else {
+        return;
+    };
     let formats = first.qif.as_ref().map(|q| q.date_formats.clone()).unwrap_or_default();
     let mut proposals = vec![first];
-    proposals.extend(formats.iter().filter_map(|f| propose(&book, NOW, &zone, &inputs, &QifOptions { date_format: Some(*f), ..options() }, None).ok()));
+    proposals.extend(formats.iter().filter_map(|f| {
+        propose(
+            &book,
+            NOW,
+            &zone,
+            &inputs,
+            &QifOptions {
+                date_format: Some(*f),
+                ..options()
+            },
+            None,
+        )
+        .ok()
+    }));
     proposals.iter().for_each(|p| {
         let _ = pipeline::review(&book, NOW, &zone, p);
-        let skip = [Change { index: 0, action: Some(ImportAction::Skip), ..Change::default() }];
+        let skip = [Change {
+            index: 0,
+            action: Some(ImportAction::Skip),
+            ..Change::default()
+        }];
         let changes = if p.transactions.is_empty() { &[][..] } else { &skip[..] };
         let mut copy = book.clone();
-        let _ = pipeline::apply(&mut copy, &mut env, p, changes, ApplyChoices { skip_errors: true, append_text: None });
+        let _ = pipeline::apply(
+            &mut copy,
+            &mut env,
+            p,
+            changes,
+            ApplyChoices {
+                skip_errors: true,
+                append_text: None,
+            },
+        );
     });
     if let Some(p) = proposals.last()
-        && pipeline::apply(&mut book, &mut env, p, &[], ApplyChoices { skip_errors: true, append_text: None }).is_ok()
+        && pipeline::apply(
+            &mut book,
+            &mut env,
+            p,
+            &[],
+            ApplyChoices {
+                skip_errors: true,
+                append_text: None,
+            },
+        )
+        .is_ok()
     {
-        let _ = propose(&book, NOW, &zone, &inputs, &QifOptions { date_format: DATE_FORMATS.first().copied(), ..options() }, None);
+        let _ = propose(
+            &book,
+            NOW,
+            &zone,
+            &inputs,
+            &QifOptions {
+                date_format: DATE_FORMATS.first().copied(),
+                ..options()
+            },
+            None,
+        );
         let _ = propose(&book, NOW, &zone, &inputs, &options(), None);
     }
 }
@@ -130,11 +185,21 @@ proptest! {
 fn the_seeds_import_whole() {
     let mut env = FixedEnv::new(NOW, 1 << 100);
     let mut book = Book::new_empty(&mut env);
-    let inputs: Vec<QifFileInput> =
-        [CHECKING, BROKER].iter().map(|t| QifFileInput { text: (*t).to_owned(), path: None, default_account: None }).collect();
+    let inputs: Vec<QifFileInput> = [CHECKING, BROKER]
+        .iter()
+        .map(|t| QifFileInput {
+            text: (*t).to_owned(),
+            path: None,
+            default_account: None,
+        })
+        .collect();
     let p = propose(&book, NOW, &TimeZone::utc(), &inputs, &options(), None).unwrap();
     assert!(p.errors.is_empty(), "{:?}", p.errors);
-    assert_eq!(p.transactions.len(), 9, "the transfer and the dividend's transfer are each imported once");
+    assert_eq!(
+        p.transactions.len(),
+        9,
+        "the transfer and the dividend's transfer are each imported once"
+    );
     let applied = pipeline::apply(&mut book, &mut env, &p, &[], ApplyChoices::default()).unwrap();
     assert_eq!(applied.added.len(), 9);
     assert!(applied.qif_account_map.is_some());

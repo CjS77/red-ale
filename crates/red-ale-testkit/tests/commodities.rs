@@ -42,8 +42,14 @@ fn get_reports_quotes_and_usage() {
     assert_eq!(jpy["defaultSymbol"], "JP¥");
     let rub = call(&mut d, "commodity.get", &json!({ "commodity": "RUR" }));
     assert_eq!(rub["id"], "CURRENCY::RUB");
-    assert_eq!(call(&mut d, "commodity.get", &json!({ "commodity": "CURRENCY::KRW" }))["fraction"], 1);
-    assert_eq!(call_err(&mut d, "commodity.get", &json!({ "commodity": "NASDAQ::NOPE" })).code, codes::NOT_FOUND);
+    assert_eq!(
+        call(&mut d, "commodity.get", &json!({ "commodity": "CURRENCY::KRW" }))["fraction"],
+        1
+    );
+    assert_eq!(
+        call_err(&mut d, "commodity.get", &json!({ "commodity": "NASDAQ::NOPE" })).code,
+        codes::NOT_FOUND
+    );
 }
 
 #[test]
@@ -68,8 +74,18 @@ fn securities_are_created_with_the_editor_checks() {
         json!({ "namespace": "NYSE", "mnemonic": "XYZ", "fullname": "x", "fraction": 0 }),
         json!({ "namespace": "NYSE", "mnemonic": "XYZ", "fullname": "x", "quoteSource": "currency" }),
     ];
-    refused.iter().for_each(|p| assert_eq!(call_err(&mut d, "commodity.create", p).code, codes::INVALID, "{p}"));
-    assert_eq!(call_err(&mut d, "commodity.create", &json!({ "namespace": "N", "mnemonic": "M", "fullname": "x", "fraction": 1.5 })).code, codes::INVALID_PARAMS);
+    refused
+        .iter()
+        .for_each(|p| assert_eq!(call_err(&mut d, "commodity.create", p).code, codes::INVALID, "{p}"));
+    assert_eq!(
+        call_err(
+            &mut d,
+            "commodity.create",
+            &json!({ "namespace": "N", "mnemonic": "M", "fullname": "x", "fraction": 1.5 })
+        )
+        .code,
+        codes::INVALID_PARAMS
+    );
 }
 
 #[test]
@@ -86,7 +102,10 @@ fn securities_are_edited_and_renamed_everywhere() {
     assert_eq!(edited["quoteSource"], "yahoo_json");
     assert_eq!(edited["userSymbol"], "A$");
     assert_eq!(edited["usage"]["prices"], 2);
-    assert_eq!(call_err(&mut d, "commodity.get", &json!({ "commodity": "NASDAQ::ACME" })).code, codes::NOT_FOUND);
+    assert_eq!(
+        call_err(&mut d, "commodity.get", &json!({ "commodity": "NASDAQ::ACME" })).code,
+        codes::NOT_FOUND
+    );
     let taken = json!({ "commodity": "NASDAQ::ACM", "namespace": "FUND", "mnemonic": "ZETA" });
     assert_eq!(call_err(&mut d, "commodity.update", &taken).code, codes::CONFLICT);
 }
@@ -96,13 +115,25 @@ fn currencies_take_only_quote_settings() {
     let (_book, mut d) = open("synthetic/rich.gnucash");
     let usd = call(&mut d, "commodity.update", &json!({ "commodity": "USD", "quoteFlag": false }));
     assert_eq!(usd["quoteFlag"], false);
-    let gbp = call(&mut d, "commodity.update", &json!({ "commodity": "GBP", "quoteFlag": true, "userSymbol": "£" }));
+    let gbp = call(
+        &mut d,
+        "commodity.update",
+        &json!({ "commodity": "GBP", "quoteFlag": true, "userSymbol": "£" }),
+    );
     assert_eq!(gbp["quoteFlag"], true);
     assert_eq!(gbp["defined"], true);
     assert_eq!(gbp["userSymbol"], serde_json::Value::Null, "the built-in symbol is not stored");
     let refused = json!({ "commodity": "USD", "fraction": 1000 });
     assert_eq!(call_err(&mut d, "commodity.update", &refused).code, codes::INVALID);
-    assert_eq!(call_err(&mut d, "commodity.update", &json!({ "commodity": "template::template", "quoteFlag": true })).code, codes::INVALID);
+    assert_eq!(
+        call_err(
+            &mut d,
+            "commodity.update",
+            &json!({ "commodity": "template::template", "quoteFlag": true })
+        )
+        .code,
+        codes::INVALID
+    );
 }
 
 #[test]
@@ -114,12 +145,28 @@ fn iso_currencies_and_euro_conversion() {
     assert_eq!(bgn["euroRate"], json!({ "num": "195583", "denom": "100000" }));
     let krw = all.as_array().unwrap().iter().find(|c| c["code"] == "KRW").unwrap();
     assert_eq!(krw["fraction"], 1);
-    let to = call(&mut d, "currency.euroConvert", &json!({ "amount": "100.00", "from": "DEM", "to": "EUR" }));
+    let to = call(
+        &mut d,
+        "currency.euroConvert",
+        &json!({ "amount": "100.00", "from": "DEM", "to": "EUR" }),
+    );
     assert_eq!(to["amount"], json!({ "num": "5113", "denom": "100" }));
-    let from = call(&mut d, "currency.euroConvert", &json!({ "amount": "1.00", "from": "EUR", "to": "ITL" }));
+    let from = call(
+        &mut d,
+        "currency.euroConvert",
+        &json!({ "amount": "1.00", "from": "EUR", "to": "ITL" }),
+    );
     assert_eq!(from["amount"], json!({ "num": "1936", "denom": "1" }));
     assert_eq!(from["rate"], json!({ "num": "193627", "denom": "100" }));
-    assert_eq!(call_err(&mut d, "currency.euroConvert", &json!({ "amount": "1", "from": "USD", "to": "EUR" })).code, codes::INVALID);
+    assert_eq!(
+        call_err(
+            &mut d,
+            "currency.euroConvert",
+            &json!({ "amount": "1", "from": "USD", "to": "EUR" })
+        )
+        .code,
+        codes::INVALID
+    );
 }
 
 #[test]
@@ -128,5 +175,9 @@ fn template_transactions_count_as_references() {
     let (_, residue) = red_ale_xml::read_book(&bytes).unwrap();
     let template = red_ale_core::CommodityRef::new("template", "template");
     assert_eq!(residue.sections_referring_to(&template), ["gnc:template-transactions"]);
-    assert!(residue.sections_referring_to(&red_ale_core::CommodityRef::new("NASDAQ", "template")).is_empty());
+    assert!(
+        residue
+            .sections_referring_to(&red_ale_core::CommodityRef::new("NASDAQ", "template"))
+            .is_empty()
+    );
 }

@@ -13,7 +13,12 @@ use red_ale_import::qif::parse::{
 };
 
 const TABLE: &str = include_str!("data/qif-parse-guile.tsv");
-const NUMBER_FORMATS: [NumberFormat; 4] = [NumberFormat::Decimal, NumberFormat::Comma, NumberFormat::Rational, NumberFormat::Integer];
+const NUMBER_FORMATS: [NumberFormat; 4] = [
+    NumberFormat::Decimal,
+    NumberFormat::Comma,
+    NumberFormat::Rational,
+    NumberFormat::Integer,
+];
 
 /// The tokens of a written Scheme list: strings (without escapes), `#t`, `#f` and bare atoms.
 fn tokens(list: &str) -> Vec<String> {
@@ -39,7 +44,11 @@ fn scheme_date(text: &str) -> Option<QifDate> {
         return None;
     }
     let n: Vec<i64> = tokens(text).iter().map(|t| t.parse().unwrap()).collect();
-    Some(QifDate { day: u32::try_from(n[0]).unwrap(), month: u32::try_from(n[1]).unwrap(), year: n[2] })
+    Some(QifDate {
+        day: u32::try_from(n[0]).unwrap(),
+        month: u32::try_from(n[1]).unwrap(),
+        year: n[2],
+    })
 }
 
 fn scheme_date_formats(text: &str) -> Option<Vec<DateFormat>> {
@@ -52,7 +61,10 @@ fn scheme_number(text: &str) -> Numeric {
 }
 
 fn scheme_number_formats(text: &str) -> Vec<NumberFormat> {
-    tokens(text).iter().map(|t| *NUMBER_FORMATS.iter().find(|f| f.symbol() == t).unwrap()).collect()
+    tokens(text)
+        .iter()
+        .map(|t| *NUMBER_FORMATS.iter().find(|f| f.symbol() == t).unwrap())
+        .collect()
 }
 
 fn scheme_string(token: &str) -> Option<String> {
@@ -72,7 +84,10 @@ fn scheme_category(text: &str) -> CategoryInfo {
 }
 
 fn rows(kind: &str) -> impl Iterator<Item = Vec<&'static str>> + use<'_> {
-    TABLE.lines().map(|l| l.split('\t').collect::<Vec<_>>()).filter(move |cols| cols[0] == kind)
+    TABLE
+        .lines()
+        .map(|l| l.split('\t').collect::<Vec<_>>())
+        .filter(move |cols| cols[0] == kind)
 }
 
 #[test]
@@ -80,9 +95,17 @@ fn dates_match_guile() {
     let checked = rows("D")
         .inspect(|cols| {
             let input = cols[1];
-            assert_eq!(check_date_format(input, &DATE_FORMATS), scheme_date_formats(cols[2]), "check-date-format {input:?}");
+            assert_eq!(
+                check_date_format(input, &DATE_FORMATS),
+                scheme_date_formats(cols[2]),
+                "check-date-format {input:?}"
+            );
             DATE_FORMATS.iter().zip(&cols[3..]).for_each(|(format, expected)| {
-                assert_eq!(parse_date_format(input, *format), scheme_date(expected), "parse-date/format {input:?} {format:?}");
+                assert_eq!(
+                    parse_date_format(input, *format),
+                    scheme_date(expected),
+                    "parse-date/format {input:?} {format:?}"
+                );
             });
         })
         .count();
@@ -94,10 +117,17 @@ fn numbers_match_guile() {
     let checked = rows("N")
         .inspect(|cols| {
             let input = cols[1];
-            assert_eq!(check_number_format(input, &NUMBER_FORMATS), scheme_number_formats(cols[2]), "check-number-format {input:?}");
+            assert_eq!(
+                check_number_format(input, &NUMBER_FORMATS),
+                scheme_number_formats(cols[2]),
+                "check-number-format {input:?}"
+            );
             NUMBER_FORMATS.iter().zip(&cols[3..]).for_each(|(format, expected)| {
                 let parsed = parse_number_format(input, *format).unwrap();
-                assert!(parsed.same_value(scheme_number(expected)), "parse-number/format {input:?} {format:?}: {parsed} vs {expected}");
+                assert!(
+                    parsed.same_value(scheme_number(expected)),
+                    "parse-number/format {input:?} {format:?}: {parsed} vs {expected}"
+                );
             });
         })
         .count();
@@ -106,7 +136,9 @@ fn numbers_match_guile() {
 
 #[test]
 fn categories_match_guile() {
-    let checked = rows("C").inspect(|cols| assert_eq!(parse_category(cols[1]).unwrap(), scheme_category(cols[2]), "{:?}", cols[1])).count();
+    let checked = rows("C")
+        .inspect(|cols| assert_eq!(parse_category(cols[1]).unwrap(), scheme_category(cols[2]), "{:?}", cols[1]))
+        .count();
     assert!(checked > 15);
 }
 

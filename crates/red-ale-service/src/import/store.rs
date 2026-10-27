@@ -36,7 +36,11 @@ impl ProposalStore {
     /// Hold a proposal made at `revision`, pushing out the oldest beyond [`KEPT`]. Returns its ID.
     pub fn insert(&mut self, revision: u64, proposal: Arc<Proposal>) -> String {
         let id = format!("imp-{}", NEXT.fetch_add(1, Ordering::Relaxed));
-        self.held.push_back(Held { id: id.clone(), revision, proposal });
+        self.held.push_back(Held {
+            id: id.clone(),
+            revision,
+            proposal,
+        });
         while self.held.len() > KEPT {
             self.held.pop_front();
         }

@@ -32,7 +32,10 @@ pub struct ZoneError {
 
 impl ZoneError {
     fn new(text: &str, reason: impl Into<String>) -> Self {
-        Self { text: text.to_owned(), reason: reason.into() }
+        Self {
+            text: text.to_owned(),
+            reason: reason.into(),
+        }
     }
 }
 
@@ -53,7 +56,13 @@ impl LocalTime {
     /// `YYYYMMDDhhmmss`, GnuCash's timestamp for backup and journal names (`GncDateTimeImpl::timestamp`,
     /// `5.17:libgnucash/engine/gnc-datetime.cpp:638-644`).
     pub fn compact(self) -> String {
-        format!("{}{:02}{:02}{:02}", self.date.to_file_string().replace('-', ""), self.hour, self.minute, self.second)
+        format!(
+            "{}{:02}{:02}{:02}",
+            self.date.to_file_string().replace('-', ""),
+            self.hour,
+            self.minute,
+            self.second
+        )
     }
 }
 
@@ -66,19 +75,28 @@ impl Default for TimeZone {
 impl TimeZone {
     /// UTC.
     pub fn utc() -> Self {
-        Self { name: "UTC".to_owned(), rules: tz::TimeZone::UTC }
+        Self {
+            name: "UTC".to_owned(),
+            rules: tz::TimeZone::UTC,
+        }
     }
 
     /// A fixed offset, in seconds east of UTC.
     pub fn fixed(seconds_east: i32) -> Result<Self, ZoneError> {
         let offset = Offset::from_seconds(seconds_east).map_err(|e| ZoneError::new(&seconds_east.to_string(), e.to_string()))?;
-        Ok(Self { name: format!("UTC{offset}"), rules: tz::TimeZone::fixed(offset) })
+        Ok(Self {
+            name: format!("UTC{offset}"),
+            rules: tz::TimeZone::fixed(offset),
+        })
     }
 
     /// A zone from the contents of a TZif file (a zoneinfo file such as `/usr/share/zoneinfo/Pacific/Kiritimati`).
     pub fn from_tzif(name: &str, data: &[u8]) -> Result<Self, ZoneError> {
         let rules = tz::TimeZone::tzif(name, data).map_err(|e| ZoneError::new(name, e.to_string()))?;
-        Ok(Self { name: name.to_owned(), rules })
+        Ok(Self {
+            name: name.to_owned(),
+            rules,
+        })
     }
 
     /// A zone from a POSIX `TZ` string, read as GnuCash reads it: through Boost's `posix_time_zone`, whose offsets
@@ -86,7 +104,10 @@ impl TimeZone {
     pub fn from_gnucash_posix(text: &str) -> Result<Self, ZoneError> {
         let posix = super::posix::to_posix(text).map_err(|reason| ZoneError::new(text, reason))?;
         let rules = tz::TimeZone::posix(&posix).map_err(|e| ZoneError::new(text, e.to_string()))?;
-        Ok(Self { name: text.to_owned(), rules })
+        Ok(Self {
+            name: text.to_owned(),
+            rules,
+        })
     }
 
     /// The zone's name: an IANA name or path, a `TZ` string, or `UTC±hh:mm`.
@@ -104,7 +125,12 @@ impl TimeZone {
         let dt = self.rules.to_datetime(timestamp(t)?);
         let date = Date::from_ymd(i32::from(dt.year()), u32::try_from(dt.month()).ok()?, u32::try_from(dt.day()).ok()?)?;
         let part = |n: i8| u32::try_from(n).ok();
-        Some(LocalTime { date, hour: part(dt.hour())?, minute: part(dt.minute())?, second: part(dt.second())? })
+        Some(LocalTime {
+            date,
+            hour: part(dt.hour())?,
+            minute: part(dt.minute())?,
+            second: part(dt.second())?,
+        })
     }
 
     /// The local date of an instant (`time64_to_gdate`, `5.17:libgnucash/engine/gnc-date.cpp:1284-1296`).
@@ -142,7 +168,11 @@ impl TimeZone {
         self.instant(date, hour, minute, second)
             .or_else(|| {
                 let dt = civil_datetime(date, hour, minute, second)?;
-                self.rules.to_ambiguous_timestamp(dt).compatible().ok().map(|ts| Time64(ts.as_second()))
+                self.rules
+                    .to_ambiguous_timestamp(dt)
+                    .compatible()
+                    .ok()
+                    .map(|ts| Time64(ts.as_second()))
             })
             .unwrap_or(fallback)
     }
@@ -198,7 +228,16 @@ fn timestamp(t: Time64) -> Option<Timestamp> {
 fn civil_datetime(date: Date, hour: u32, minute: u32, second: u32) -> Option<civil::DateTime> {
     let narrow = |n: u32| i8::try_from(n).ok();
     let day = civil::Date::new(i16::try_from(date.year()).ok()?, narrow(date.month())?, narrow(date.day())?).ok()?;
-    civil::DateTime::new(day.year(), day.month(), day.day(), narrow(hour)?, narrow(minute)?, narrow(second)?, 0).ok()
+    civil::DateTime::new(
+        day.year(),
+        day.month(),
+        day.day(),
+        narrow(hour)?,
+        narrow(minute)?,
+        narrow(second)?,
+        0,
+    )
+    .ok()
 }
 
 #[cfg(test)]
@@ -229,7 +268,11 @@ mod tests {
         assert_eq!(at(-12), "2024-06-20 12:59:00 +0000");
         assert_eq!(at(14), "2024-06-20 09:59:00 +0000", "Pacific/Kiritimati, as the oracle gives");
         let chatham_summer = TimeZone::fixed(13 * 3600 + 45 * 60).unwrap();
-        assert_eq!(file(chatham_summer.neutral_time(d)), "2024-06-20 10:59:00 +0000", "13:45 truncates to 13 hours");
+        assert_eq!(
+            file(chatham_summer.neutral_time(d)),
+            "2024-06-20 10:59:00 +0000",
+            "13:45 truncates to 13 hours"
+        );
     }
 
     #[test]

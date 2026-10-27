@@ -38,6 +38,8 @@ pub fn transaction_tokens(t: &Transaction, locale: &Locale) -> Vec<String> {
     if let Some(day) = weekday_token(t, locale) {
         tokens.insert(0, day);
     }
-    t.splits.iter().for_each(|s| tokenize_into(&mut tokens, s.memo.as_deref().unwrap_or("")));
+    t.splits
+        .iter()
+        .for_each(|s| tokenize_into(&mut tokens, s.memo.as_deref().unwrap_or("")));
     tokens
 }

@@ -46,7 +46,10 @@ impl QuoteSettings {
 
     /// Each service's minimum interval between requests.
     pub fn intervals(&self) -> BTreeMap<String, Duration> {
-        self.services.iter().map(|(name, s)| (name.clone(), Duration::from_secs(s.min_interval_seconds))).collect()
+        self.services
+            .iter()
+            .map(|(name, s)| (name.clone(), Duration::from_secs(s.min_interval_seconds)))
+            .collect()
     }
 }
 
@@ -155,26 +158,48 @@ pub struct Planner<'a> {
 
 impl fmt::Debug for Planner<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Planner").field("default_currency", &self.default_currency).field("today", &self.today).finish_non_exhaustive()
+        f.debug_struct("Planner")
+            .field("default_currency", &self.default_currency)
+            .field("today", &self.today)
+            .finish_non_exhaustive()
     }
 }
 
 impl Planner<'_> {
     /// The requests for one commodity.
     pub fn plan(&self, q: &Quotable) -> Plan {
-        let source = if q.commodity.is_currency() { CURRENCY_QUOTE_SOURCE } else { q.source.as_str() };
+        let source = if q.commodity.is_currency() {
+            CURRENCY_QUOTE_SOURCE
+        } else {
+            q.source.as_str()
+        };
         let Some(names) = self.settings.sources.get(source) else {
-            return Plan::Unsupported(format!("no Quote service answers the quote source {source:?} (quotes.sources.{source})"));
+            return Plan::Unsupported(format!(
+                "no Quote service answers the quote source {source:?} (quotes.sources.{source})"
+            ));
         };
         let mnemonic = q.commodity.mnemonic.as_str();
         let asks: Vec<(Ask, bool)> = if q.commodity.is_currency() {
-            let rate = |base: &str, quote: &str| Ask::Rate { base: base.to_owned(), quote: quote.to_owned() };
-            vec![(rate(mnemonic, self.default_currency), false), (rate(self.default_currency, mnemonic), true)]
+            let rate = |base: &str, quote: &str| Ask::Rate {
+                base: base.to_owned(),
+                quote: quote.to_owned(),
+            };
+            vec![
+                (rate(mnemonic, self.default_currency), false),
+                (rate(self.default_currency, mnemonic), true),
+            ]
         } else {
-            vec![(Ask::Security { symbol: mnemonic.to_owned() }, false)]
+            vec![(
+                Ask::Security {
+                    symbol: mnemonic.to_owned(),
+                },
+                false,
+            )]
         };
-        let attempts: Vec<Attempt> =
-            asks.iter().flat_map(|(ask, inverted)| names.iter().filter_map(move |name| self.attempt(name, ask, *inverted))).collect();
+        let attempts: Vec<Attempt> = asks
+            .iter()
+            .flat_map(|(ask, inverted)| names.iter().filter_map(move |name| self.attempt(name, ask, *inverted)))
+            .collect();
         if attempts.is_empty() {
             let kind = if q.commodity.is_currency() { "currencyUrl" } else { "securityUrl" };
             return Plan::Unsupported(format!("no service of the quote source {source:?} has a {kind}"));
@@ -187,7 +212,10 @@ impl Planner<'_> {
         let format: Format = service.format.parse().ok()?;
         let (template, values) = match ask {
             Ask::Security { symbol } => (service.security_url.as_deref()?, vec![("symbol", request_symbol(format, symbol))]),
-            Ask::Rate { base, quote } => (service.currency_url.as_deref()?, vec![("base", base.as_str()), ("quote", quote.as_str())]),
+            Ask::Rate { base, quote } => (
+                service.currency_url.as_deref()?,
+                vec![("base", base.as_str()), ("quote", quote.as_str())],
+            ),
         };
         let today = self.today.to_string();
         let values: Vec<(&str, &str)> = values.into_iter().chain([("date", today.as_str())]).collect();
@@ -212,7 +240,10 @@ impl Planner<'_> {
             return Some(key);
         }
         let var = service.key_env.as_deref()?;
-        self.on_default_hosts(name, service).then(|| (self.env)(var)).flatten().and_then(Secret::new)
+        self.on_default_hosts(name, service)
+            .then(|| (self.env)(var))
+            .flatten()
+            .and_then(Secret::new)
     }
 
     fn on_default_hosts(&self, name: &str, service: &Service) -> bool {
@@ -249,18 +280,30 @@ mod tests {
     }
 
     fn quotable(id: CommodityRef, source: &str) -> Quotable {
-        Quotable { commodity: id, source: source.into() }
+        Quotable {
+            commodity: id,
+            source: source.into(),
+        }
     }
 
     fn plan_with(s: &QuoteSettings, q: &Quotable, env: &dyn Fn(&str) -> Option<String>) -> Plan {
         let d = defaults();
-        let planner = Planner { settings: s, defaults: &d.services, default_currency: "USD", today: Date::from_ymd(2024, 5, 3).unwrap(), env };
+        let planner = Planner {
+            settings: s,
+            defaults: &d.services,
+            default_currency: "USD",
+            today: Date::from_ymd(2024, 5, 3).unwrap(),
+            env,
+        };
         planner.plan(q)
     }
 
     fn shown(plan: &Plan) -> Vec<String> {
         match plan {
-            Plan::Requests(a) => a.iter().map(|a| format!("{} {} {}", a.service, a.inverted, a.url.shown())).collect(),
+            Plan::Requests(a) => a
+                .iter()
+                .map(|a| format!("{} {} {}", a.service, a.inverted, a.url.shown()))
+                .collect(),
             Plan::Unsupported(why) => vec![why.clone()],
         }
     }
@@ -269,12 +312,15 @@ mod tests {
     fn currencies_ask_both_ways_round() {
         let env = |v: &str| (v == "ALPHAVANTAGE_API_KEY").then(|| "k".to_owned());
         let plan = plan_with(&defaults(), &quotable(CommodityRef::currency("EUR"), "currency"), &env);
-        assert_eq!(shown(&plan), [
-            "frankfurter false https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD",
-            "alphavantage false https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=EUR&to_currency=USD&apikey=***",
-            "frankfurter true https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR",
-            "alphavantage true https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=EUR&apikey=***",
-        ]);
+        assert_eq!(
+            shown(&plan),
+            [
+                "frankfurter false https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD",
+                "alphavantage false https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=EUR&to_currency=USD&apikey=***",
+                "frankfurter true https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR",
+                "alphavantage true https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=EUR&apikey=***",
+            ]
+        );
         let Plan::Requests(a) = plan else { panic!() };
         assert_eq!((a[0].rate_currency(), a[2].rate_currency()), (Some("USD"), Some("USD")));
         assert!(a.iter().all(|a| a.missing_key.is_none()));
@@ -284,7 +330,10 @@ mod tests {
     fn securities_ask_their_sources_services() {
         let plan = plan_with(&defaults(), &quotable(CommodityRef::new("NASDAQ", "AAPL"), "nasdaq"), &|_| None);
         let Plan::Requests(a) = &plan else { panic!() };
-        assert_eq!(a.iter().map(|a| a.service.as_str()).collect::<Vec<_>>(), ["alphavantage", "twelvedata"]);
+        assert_eq!(
+            a.iter().map(|a| a.service.as_str()).collect::<Vec<_>>(),
+            ["alphavantage", "twelvedata"]
+        );
         assert!(a[0].missing_key.as_deref().unwrap().contains("ALPHAVANTAGE_API_KEY"));
         let none = plan_with(&defaults(), &quotable(CommodityRef::new("FUND", "X"), "tiaacref"), &|_| None);
         assert!(matches!(none, Plan::Unsupported(why) if why.contains("tiaacref")));
@@ -314,6 +363,9 @@ mod tests {
         let plan = plan_with(&s, &quotable(CommodityRef::new("X", "ACME"), "mine"), &|_| Some("env".into()));
         assert!(!format!("{plan:?}").contains("SECRET"));
         let Plan::Requests(a) = &plan else { panic!() };
-        assert_eq!((a[0].url.url(), a[0].currency.as_deref()), ("http://127.0.0.1:9/ACME?k=SECRET", Some("EUR")));
+        assert_eq!(
+            (a[0].url.url(), a[0].currency.as_deref()),
+            ("http://127.0.0.1:9/ACME?k=SECRET", Some("EUR"))
+        );
     }
 }

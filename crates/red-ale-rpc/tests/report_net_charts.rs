@@ -13,7 +13,12 @@ const NET_WORTH_BARCHART: &str = "cbba1696c8c24744848062c7f1cf4a72";
 const INCOME_EXPENSE_CHART: &str = "80769921e87943adade887b9835a7685";
 const NET_WORTH_LINECHART: &str = "d8b63264186b11e19038001558291366";
 const INCOME_EXPENSE_LINECHART: &str = "e533c998186b11e1b2e2001558291366";
-const TEMPLATES: [&str; 4] = [NET_WORTH_BARCHART, INCOME_EXPENSE_CHART, NET_WORTH_LINECHART, INCOME_EXPENSE_LINECHART];
+const TEMPLATES: [&str; 4] = [
+    NET_WORTH_BARCHART,
+    INCOME_EXPENSE_CHART,
+    NET_WORTH_LINECHART,
+    INCOME_EXPENSE_LINECHART,
+];
 
 /// Every run of `<fixture>.expected.json`, each assertion a named check.
 fn expected_runs(fixture: &str, date_format: &str, ids: &[&str]) {
@@ -29,22 +34,38 @@ fn expected_runs(fixture: &str, date_format: &str, ids: &[&str]) {
 // test-charts.scm:116-146, book B: monthly, the closing transaction of 1970-01-03 excluded.
 #[test]
 fn test_charts_monthly_net_charts() {
-    let ids = ["net-worth-barchart 3 months", "net-worth-linechart 3 months", "income-expense-barchart 3 months",
-               "income-expense-linechart 3 months"];
+    let ids = [
+        "net-worth-barchart 3 months",
+        "net-worth-linechart 3 months",
+        "income-expense-barchart 3 months",
+        "income-expense-linechart 3 months",
+    ];
     expected_runs("charts-net", "iso", &ids);
 }
 
 // test-charts.scm:201-238, book A with its 101 daily transactions.
 #[test]
 fn test_charts_daily_net_charts() {
-    expected_runs("charts-daily", "iso", &["net-worth-barchart 2 months", "income-expense-barchart 2 years"]);
+    expected_runs(
+        "charts-daily",
+        "iso",
+        &["net-worth-barchart 2 months", "income-expense-barchart 2 years"],
+    );
 }
 
 // test-standard-net-barchart.scm:58-311 and test-standard-net-linechart.scm:55-198, day steps.
 #[test]
 fn test_standard_net_barchart_and_linechart() {
-    let ids = ["barchart single-txn-test", "barchart two-txn-test", "barchart two-txn-test-2", "barchart two-txn-test-income",
-               "barchart closing-test", "linechart single-txn-test", "linechart two-txn-test", "linechart two-txn-test-2"];
+    let ids = [
+        "barchart single-txn-test",
+        "barchart two-txn-test",
+        "barchart two-txn-test-2",
+        "barchart two-txn-test-income",
+        "barchart closing-test",
+        "linechart single-txn-test",
+        "linechart two-txn-test",
+        "linechart two-txn-test-2",
+    ];
     expected_runs("net-days", "locale", &ids);
 }
 
@@ -78,7 +99,16 @@ fn with(mut options: Value, section: &str, name: &str, value: Value) -> Value {
 fn series_values(result: &Value) -> Vec<(String, String, Vec<String>)> {
     let c = chart(result);
     let series = c["series"].as_array().unwrap();
-    series.iter().map(|s| (s["label"].as_str().unwrap().to_owned(), s["color"].as_str().unwrap().to_owned(), values(s))).collect()
+    series
+        .iter()
+        .map(|s| {
+            (
+                s["label"].as_str().unwrap().to_owned(),
+                s["color"].as_str().unwrap().to_owned(),
+                values(s),
+            )
+        })
+        .collect()
 }
 
 fn labels(result: &Value) -> Vec<String> {
@@ -106,15 +136,33 @@ fn net_worth_barchart_defaults() {
     assert_eq!(ch["type"], "bar");
     assert_eq!(ch["title"], json!(["Net Worth Barchart", "2024-01-01 to 2024-12-31"]), ":319-320");
     assert_eq!(ch["labels"].as_array().unwrap().len(), 13);
-    assert_eq!((ch["labels"][0].as_str(), ch["labels"][12].as_str()), (Some("2024-01-01"), Some("2024-12-31")));
-    assert_eq!((ch["grid"].as_bool(), ch["stacked"].as_bool()), (Some(true), Some(false)), "bars always have the grid (:196)");
-    assert_eq!(ch["yAxis"], json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" }), ":326-332");
+    assert_eq!(
+        (ch["labels"][0].as_str(), ch["labels"][12].as_str()),
+        (Some("2024-01-01"), Some("2024-12-31"))
+    );
+    assert_eq!(
+        (ch["grid"].as_bool(), ch["stacked"].as_bool()),
+        (Some(true), Some(false)),
+        "bars always have the grid (:196)"
+    );
+    assert_eq!(
+        ch["yAxis"],
+        json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" }),
+        ":326-332"
+    );
     assert_eq!(ch["tooltip"], json!({ "grouped": true, "nonZeroOnly": true }), ":321-322");
-    let assets = ["5053", "5045", "5059", "5059", "5059", "5059", "5059", "5070", "5070", "5078", "5078", "5078", "5078"];
+    let assets = [
+        "5053", "5045", "5059", "5059", "5059", "5059", "5059", "5070", "5070", "5078", "5078", "5078", "5078",
+    ];
     let liabilities = ["0", "0", "27", "27", "27", "27", "27", "27", "27", "27", "27", "27", "27"];
-    let net = ["5053", "5045", "5032", "5032", "5032", "5032", "5032", "5043", "5043", "5051", "5051", "5051", "5051"];
-    let want = vec![series("Assets", "#0074d9", &assets), series("Liabilities", "#ff4136", &liabilities),
-                    series("Net Worth", "#2ecc40", &net)];
+    let net = [
+        "5053", "5045", "5032", "5032", "5032", "5032", "5032", "5043", "5043", "5051", "5051", "5051", "5051",
+    ];
+    let want = vec![
+        series("Assets", "#0074d9", &assets),
+        series("Liabilities", "#ff4136", &liabilities),
+        series("Net Worth", "#2ecc40", &net),
+    ];
     assert_eq!(series_values(&result), want, ":336-384");
     assert_eq!(ch["series"][0]["fill"], true, "bars are filled (:342)");
     assert!(ch["series"][0].get("lineWidth").is_none(), "bars have no line width (:194)");
@@ -130,13 +178,20 @@ fn income_expense_chart_defaults() {
     let mut c = daily();
     let result = c.run("Income/Expense Chart", &json!({}));
     let ch = chart(&result);
-    assert_eq!(ch["labels"].as_array().unwrap().len(), 12, "the last date starts no interval (:308-310)");
+    assert_eq!(
+        ch["labels"].as_array().unwrap().len(),
+        12,
+        "the last date starts no interval (:308-310)"
+    );
     assert_eq!(ch["labels"][11], "2024-12-01");
     let income = ["0", "29", "0", "0", "0", "0", "0", "0", "8", "0", "0", "0"];
     let expense = ["8", "27", "15", "0", "0", "0", "-11", "0", "0", "0", "0", "0"];
     let profit = ["-8", "2", "-15", "0", "0", "0", "11", "0", "8", "0", "0", "0"];
-    let want = vec![series("Income", "#0074d9", &income), series("Expense", "#ff4136", &expense),
-                    series("Net Profit", "#2ecc40", &profit)];
+    let want = vec![
+        series("Income", "#0074d9", &income),
+        series("Expense", "#ff4136", &expense),
+        series("Net Profit", "#2ecc40", &profit),
+    ];
     assert_eq!(series_values(&result), want);
 }
 
@@ -146,7 +201,11 @@ fn show_table_keeps_the_signs_of_liabilities_and_expenses() {
     let mut c = daily();
     let net = table(&c.run("Net Worth Barchart", &half_year(&[BANK, LIABILITY])));
     assert_eq!(net.header, ["Date", "Assets", "Liabilities", "Net Worth"]);
-    assert_eq!(net.rows.len(), 7, "the end of 01-01, of each first of the month to 06-01, and of 06-30");
+    assert_eq!(
+        net.rows.len(),
+        7,
+        "the end of 01-01, of each first of the month to 06-01, and of 06-30"
+    );
     assert_eq!(net.rows[2], ["2024-03-01", "$5,059.00", "-$27.00", "$5,032.00"]);
     assert_eq!(net.rows[6], ["2024-06-30", "$5,059.00", "-$27.00", "$5,032.00"]);
     let ie = table(&c.run("Income/Expense Chart", &half_year(&[INCOME, EXPENSES])));
@@ -166,9 +225,15 @@ fn step_size_changes_the_dates() {
     let options = json!({ "General": general, "Accounts": { "Accounts": [BANK] }, "Display": { "Show table": true } });
     let t = table(&c.run("Net Worth Barchart", &options));
     let dates: Vec<&str> = t.rows.iter().map(|r| r[0].as_str()).collect();
-    assert_eq!(dates, ["2024-01-01", "2024-01-08", "2024-01-15", "2024-01-22", "2024-01-29", "2024-01-31"]);
+    assert_eq!(
+        dates,
+        ["2024-01-01", "2024-01-08", "2024-01-15", "2024-01-22", "2024-01-29", "2024-01-31"]
+    );
     let assets: Vec<&str> = t.rows.iter().map(|r| r[1].as_str()).collect();
-    assert_eq!(assets, ["$5,053.00", "$5,053.00", "$5,045.00", "$5,045.00", "$5,045.00", "$5,045.00"]);
+    assert_eq!(
+        assets,
+        ["$5,053.00", "$5,053.00", "$5,045.00", "$5,045.00", "$5,045.00", "$5,045.00"]
+    );
 }
 
 // Show Asset & Liability and Show Net Worth (:99-115) choose the series and the table's columns (:336-384,
@@ -177,7 +242,10 @@ fn step_size_changes_the_dates() {
 fn display_options_hide_series_and_columns() {
     let mut c = daily();
     let base = half_year(&[BANK, LIABILITY]);
-    let no_sep = c.run("Net Worth Barchart", &with(base.clone(), "Display", "Show Asset & Liability", json!(false)));
+    let no_sep = c.run(
+        "Net Worth Barchart",
+        &with(base.clone(), "Display", "Show Asset & Liability", json!(false)),
+    );
     assert_eq!(labels(&no_sep), ["Net Worth"]);
     assert_eq!(table(&no_sep).header, ["Date", "Net Worth"]);
     assert_eq!(table(&no_sep).rows[2], ["2024-03-01", "$5,032.00"]);
@@ -200,7 +268,10 @@ fn line_charts_take_line_width_and_grid() {
         assert_eq!(s["lineWidth"], json!({ "num": "3", "denom": "2" }));
         assert!(s.get("fill").is_none(), "lines are not filled (:342)");
     });
-    assert_eq!(values(&ch["series"][2]), strings(&["5053", "5045", "5032", "5032", "5032", "5032", "5032"]));
+    assert_eq!(
+        values(&ch["series"][2]),
+        strings(&["5053", "5045", "5032", "5032", "5032", "5032", "5032"])
+    );
     let options = with(half_year(&[INCOME, EXPENSES]), "Display", "Line Width", json!("2.5"));
     let ch = chart(&c.run("Income & Expense Linechart", &with(options, "Display", "Grid", json!(false))));
     assert_eq!(ch["grid"], false);
@@ -214,8 +285,14 @@ fn tooltip_and_plot_size_options_reach_the_chart() {
     let mut c = daily();
     let display = json!({ "Plot Width": { "pixels": 640 }, "Plot Height": { "percent": 50 },
                           "Show a grouped (indexed) tooltip": false, "Show only non-zero values in a tooltip": false });
-    let ch = chart(&c.run("Net Worth Barchart", &json!({ "Accounts": { "Accounts": [BANK] }, "Display": display })));
-    assert_eq!((ch["width"].clone(), ch["height"].clone()), (json!({ "pixels": 640 }), json!({ "percent": 50 })));
+    let ch = chart(&c.run(
+        "Net Worth Barchart",
+        &json!({ "Accounts": { "Accounts": [BANK] }, "Display": display }),
+    ));
+    assert_eq!(
+        (ch["width"].clone(), ch["height"].clone()),
+        (json!({ "pixels": 640 }), json!({ "percent": 50 }))
+    );
     assert_eq!(ch["tooltip"], json!({ "grouped": false, "nonZeroOnly": false }));
 }
 
@@ -235,18 +312,27 @@ fn series_link_to_the_category_charts() {
     assert_eq!(options["General"]["Price Source"], "weighted-average", "copied");
     assert!(options["Accounts"].get("Accounts").is_none(), "not every account is an asset");
     assert_eq!(ch["series"][1]["link"]["report"]["template"], "faf410e8f8da481fbc09e4763da40bcc");
-    assert_eq!(ch["series"][1]["link"]["report"]["options"]["General"]["Report name"], "Liability Chart");
+    assert_eq!(
+        ch["series"][1]["link"]["report"]["options"]["General"]["Report name"],
+        "Liability Chart"
+    );
     assert!(ch["series"][2].get("link").is_none(), "the net has no link (:377-384)");
     let ch = chart(&c.run("Income/Expense Chart", &half_year(&[INCOME])));
     let income = &ch["series"][0]["link"]["report"];
     assert_eq!(income["template"], "44f81bee049b4b3ea908f8dac9a9474e");
     assert_eq!(income["options"]["General"]["Report name"], "Income Chart");
     assert_eq!(income["options"]["Accounts"]["Accounts"], json!([INCOME]));
-    assert_eq!(ch["series"][1]["link"]["report"]["options"]["General"]["Report name"], "Expense Chart");
+    assert_eq!(
+        ch["series"][1]["link"]["report"]["options"]["General"]["Report name"],
+        "Expense Chart"
+    );
     let linked = c.run(income["template"].as_str().unwrap(), &income["options"]);
     let warning = blocks_of(&linked, "warning")[0]["title"].clone();
     assert_eq!(linked["report"]["name"], "Income Over Time", "the link runs");
-    assert_eq!(warning, "No data", "Income is not a top-level account here (category-barchart.scm:261-264)");
+    assert_eq!(
+        warning, "No data",
+        "Income is not a top-level account here (category-barchart.scm:261-264)"
+    );
 }
 
 // All-zero data gives the empty-data warning (:386-389, :445-448); no accounts at all the no-account warning
@@ -255,7 +341,10 @@ fn series_link_to_the_category_charts() {
 fn warnings_for_no_data_and_no_accounts() {
     let mut c = daily();
     let general = json!({ "Start Date": { "absolute": "2024-01-01" }, "End Date": { "absolute": "2024-01-31" } });
-    let result = c.run("Net Worth Barchart", &json!({ "General": general, "Accounts": { "Accounts": [LIABILITY] } }));
+    let result = c.run(
+        "Net Worth Barchart",
+        &json!({ "General": general, "Accounts": { "Accounts": [LIABILITY] } }),
+    );
     let warnings = blocks_of(&result, "warning");
     assert_eq!((warnings.len(), warnings[0]["title"].as_str()), (1, Some("No data")));
     let mut empty = Charts::new("iso");
@@ -281,20 +370,39 @@ fn report_currency_and_price_source_exchange_foreign_accounts() {
         let general = json!({ "Start Date": { "absolute": "2000-01-01" }, "End Date": { "absolute": "2000-03-31" },
                               "Price Source": source, "Report's currency": currency });
         let options = json!({ "General": general, "Accounts": { "Accounts": [bank, gbp_bank] }, "Display": { "Show table": true } });
-        table(&c.run("Net Worth Barchart", &options)).rows.iter().map(|r| r[1].clone()).collect()
+        table(&c.run("Net Worth Barchart", &options))
+            .rows
+            .iter()
+            .map(|r| r[1].clone())
+            .collect()
     };
     // Nearest: the 01-15 price for 01-01 ($1.40 a pound), the 02-15 one after ($1.50).
-    assert_eq!(assets("pricedb-nearest", "CURRENCY::USD"), ["$3,037.80", "$3,098.00", "$3,098.00", "$3,098.00"]);
+    assert_eq!(
+        assets("pricedb-nearest", "CURRENCY::USD"),
+        ["$3,037.80", "$3,098.00", "$3,098.00", "$3,098.00"]
+    );
     // Latest: $1.50 throughout.
-    assert_eq!(assets("pricedb-latest", "CURRENCY::USD"), ["$3,099.00", "$3,098.00", "$3,098.00", "$3,098.00"]);
+    assert_eq!(
+        assets("pricedb-latest", "CURRENCY::USD"),
+        ["$3,099.00", "$3,098.00", "$3,098.00", "$3,098.00"]
+    );
     // Before: no price before 01-15, so the pounds count nothing; then $1.40 until 02-15.
-    assert_eq!(assets("pricedb-before", "CURRENCY::USD"), ["$2,181.00", "$3,037.80", "$3,098.00", "$3,098.00"]);
+    assert_eq!(
+        assets("pricedb-before", "CURRENCY::USD"),
+        ["$2,181.00", "$3,037.80", "$3,098.00", "$3,098.00"]
+    );
     // Weighted average of the exchanges up to each day (5.17:gnucash/report/commodity-utilities.scm:829-876): none
     // by 01-01, $14 for £10 by 02-01, $23 for £16 after 02-15.
-    assert_eq!(assets("weighted-average", "CURRENCY::USD"), ["$2,181.00", "$3,037.80", "$3,060.00", "$3,060.00"]);
+    assert_eq!(
+        assets("weighted-average", "CURRENCY::USD"),
+        ["$2,181.00", "$3,037.80", "$3,060.00", "$3,060.00"]
+    );
     // In pounds, nearest: Bank's dollars at 10/14 for 01-01 ($2,181 is £1,557.857…, rounded to £1,557.86 before it
     // is added, :219-222), then at 6/9.
-    assert_eq!(assets("pricedb-nearest", "CURRENCY::GBP"), ["#2,169.86", "#2,065.33", "#2,065.33", "#2,065.33"]);
+    assert_eq!(
+        assets("pricedb-nearest", "CURRENCY::GBP"),
+        ["#2,169.86", "#2,065.33", "#2,065.33", "#2,065.33"]
+    );
 }
 
 // Running every template leaves the Book as it was, writes nothing, and exports the same bytes twice with no script.

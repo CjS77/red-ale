@@ -41,7 +41,9 @@ pub use super::counters::{counter_value, format_counter, next_id};
 /// GnuCash's description unless the slot already holds it (`5.17:libgnucash/engine/gnc-features.cpp:107-121`,
 /// `5.17:libgnucash/engine/qofbook.cpp:1272-1289`).
 pub fn set_feature_used(book: &mut Book, name: &str) {
-    let Some((_, description)) = GNUCASH_FEATURES.iter().find(|(n, _)| *n == name) else { return };
+    let Some((_, description)) = GNUCASH_FEATURES.iter().find(|(n, _)| *n == name) else {
+        return;
+    };
     let path = format!("{FEATURES}/{name}");
     if book.slots.get_str(&path) != Some(*description) {
         book.slots.set(&path, SlotValue::String((*description).to_owned()));
@@ -96,9 +98,18 @@ pub fn end_owner(book: &Book, owner: OwnerRef) -> Option<OwnerRef> {
 pub fn owner_currency(book: &Book, owner: OwnerRef) -> Option<CommodityRef> {
     let b = &book.business;
     match end_owner(book, owner)? {
-        OwnerRef { kind: OwnerKind::Customer, guid } => b.customers.get(&guid)?.currency.clone(),
-        OwnerRef { kind: OwnerKind::Vendor, guid } => b.vendors.get(&guid)?.currency.clone(),
-        OwnerRef { kind: OwnerKind::Employee, guid } => b.employees.get(&guid)?.currency.clone(),
+        OwnerRef {
+            kind: OwnerKind::Customer,
+            guid,
+        } => b.customers.get(&guid)?.currency.clone(),
+        OwnerRef {
+            kind: OwnerKind::Vendor,
+            guid,
+        } => b.vendors.get(&guid)?.currency.clone(),
+        OwnerRef {
+            kind: OwnerKind::Employee,
+            guid,
+        } => b.employees.get(&guid)?.currency.clone(),
         OwnerRef { kind: OwnerKind::Job, .. } => None,
     }
 }
@@ -107,8 +118,14 @@ pub fn owner_currency(book: &Book, owner: OwnerRef) -> Option<CommodityRef> {
 pub fn owner_terms(book: &Book, owner: OwnerRef) -> Option<Guid> {
     let b = &book.business;
     match end_owner(book, owner)? {
-        OwnerRef { kind: OwnerKind::Customer, guid } => b.customers.get(&guid)?.terms,
-        OwnerRef { kind: OwnerKind::Vendor, guid } => b.vendors.get(&guid)?.terms,
+        OwnerRef {
+            kind: OwnerKind::Customer,
+            guid,
+        } => b.customers.get(&guid)?.terms,
+        OwnerRef {
+            kind: OwnerKind::Vendor,
+            guid,
+        } => b.vendors.get(&guid)?.terms,
         _ => None,
     }
 }
@@ -147,13 +164,21 @@ pub fn check_currency(book: &Book, currency: Option<&CommodityRef>) -> DomainRes
 }
 
 fn check_name(what: &str, name: &str) -> DomainResult<()> {
-    if name.trim().is_empty() { Err(DomainError::invalid(format!("the {what} needs a name"))) } else { Ok(()) }
+    if name.trim().is_empty() {
+        Err(DomainError::invalid(format!("the {what} needs a name")))
+    } else {
+        Ok(())
+    }
 }
 
 /// An existing contact keeps a non-empty ID: GnuCash does not save one without (`*_should_be_saved`,
 /// `5.17:libgnucash/backend/xml/gnc-customer-xml-v2.cpp:421-432`).
 fn check_kept_id(id: &str) -> DomainResult<()> {
-    if id.is_empty() { Err(DomainError::invalid("the ID cannot be empty")) } else { Ok(()) }
+    if id.is_empty() {
+        Err(DomainError::invalid("the ID cannot be empty"))
+    } else {
+        Ok(())
+    }
 }
 
 fn assign_id(book: &mut Book, id: &mut String, counter: &str) {
@@ -163,7 +188,11 @@ fn assign_id(book: &mut Book, id: &mut String, counter: &str) {
 }
 
 fn is_new_guid(book: &Book, guid: Guid) -> DomainResult<()> {
-    if find_owner(book, guid).is_some() { Err(DomainError::conflict(format!("{guid} is already in use"))) } else { Ok(()) }
+    if find_owner(book, guid).is_some() {
+        Err(DomainError::conflict(format!("{guid} is already in use")))
+    } else {
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -199,7 +228,12 @@ pub fn add_customer(book: &mut Book, mut c: Customer) -> DomainResult<Guid> {
 
 /// Replace a customer with its new state.
 pub fn update_customer(book: &mut Book, c: Customer) -> DomainResult<()> {
-    let old = book.business.customers.get(&c.guid).cloned().ok_or_else(|| DomainError::not_found("customer", &c.guid))?;
+    let old = book
+        .business
+        .customers
+        .get(&c.guid)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("customer", &c.guid))?;
     check_kept_id(&c.id)?;
     check_customer(book, &c, Some(&old))?;
     retarget_bill_term(book, old.terms, c.terms);
@@ -235,7 +269,12 @@ pub fn add_vendor(book: &mut Book, mut v: Vendor) -> DomainResult<Guid> {
 
 /// Replace a vendor with its new state.
 pub fn update_vendor(book: &mut Book, v: Vendor) -> DomainResult<()> {
-    let old = book.business.vendors.get(&v.guid).cloned().ok_or_else(|| DomainError::not_found("vendor", &v.guid))?;
+    let old = book
+        .business
+        .vendors
+        .get(&v.guid)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("vendor", &v.guid))?;
     check_kept_id(&v.id)?;
     check_vendor(book, &v, Some(&old))?;
     retarget_bill_term(book, old.terms, v.terms);
@@ -259,7 +298,9 @@ fn check_employee(book: &Book, e: &Employee, old: Option<&Employee>) -> DomainRe
             let a = book.account(acc).ok_or_else(|| DomainError::not_found("account", &acc))?;
             if a.account_type != AccountType::Credit {
                 let kind = a.account_type.as_str();
-                return Err(DomainError::invalid(format!("the credit card account must be of type CREDIT, not {kind}")));
+                return Err(DomainError::invalid(format!(
+                    "the credit card account must be of type CREDIT, not {kind}"
+                )));
             }
             Ok(())
         }
@@ -280,7 +321,12 @@ pub fn add_employee(book: &mut Book, mut e: Employee) -> DomainResult<Guid> {
 
 /// Replace an employee with its new state.
 pub fn update_employee(book: &mut Book, e: Employee) -> DomainResult<()> {
-    let old = book.business.employees.get(&e.guid).cloned().ok_or_else(|| DomainError::not_found("employee", &e.guid))?;
+    let old = book
+        .business
+        .employees
+        .get(&e.guid)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("employee", &e.guid))?;
     check_kept_id(&e.id)?;
     check_employee(book, &e, Some(&old))?;
     note_extra_data(book, addresses_have_slots(&[&e.addr]));
@@ -332,11 +378,26 @@ pub fn add_job(book: &mut Book, mut j: Job) -> DomainResult<Guid> {
 /// Replace a job with its new state. Moving a job that has documents to another owner is refused: GnuCash allows it,
 /// but it would silently change which customer or vendor those documents, posted or not, belong to.
 pub fn update_job(book: &mut Book, j: Job) -> DomainResult<()> {
-    let old = book.business.jobs.get(&j.guid).cloned().ok_or_else(|| DomainError::not_found("job", &j.guid))?;
+    let old = book
+        .business
+        .jobs
+        .get(&j.guid)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("job", &j.guid))?;
     check_kept_id(&j.id)?;
     check_job(book, &j)?;
-    if old.owner != j.owner && owner_has_documents(book, OwnerRef { kind: OwnerKind::Job, guid: j.guid }) {
-        return Err(DomainError::conflict("the job has invoices, bills or orders, so its owner cannot change"));
+    if old.owner != j.owner
+        && owner_has_documents(
+            book,
+            OwnerRef {
+                kind: OwnerKind::Job,
+                guid: j.guid,
+            },
+        )
+    {
+        return Err(DomainError::conflict(
+            "the job has invoices, bills or orders, so its owner cannot change",
+        ));
     }
     note_extra_data(book, !j.slots.is_empty());
     book.business.jobs.insert(j.guid, Arc::new(j));
@@ -413,7 +474,10 @@ mod tests {
             id: String::new(),
             name: "Build".into(),
             reference: String::new(),
-            owner: OwnerRef { kind: OwnerKind::Employee, guid: c },
+            owner: OwnerRef {
+                kind: OwnerKind::Employee,
+                guid: c,
+            },
             active: true,
             slots: crate::Frame::new(),
         };
@@ -430,13 +494,22 @@ mod tests {
     #[test]
     fn an_employee_card_must_be_a_credit_account() {
         let mut b = book();
-        let acc = Account::new(Guid::from_bytes([5; 16]), "Bank", AccountType::Bank, Some(CommodityRef::currency("EUR")), Some(b.root));
+        let acc = Account::new(
+            Guid::from_bytes([5; 16]),
+            "Bank",
+            AccountType::Bank,
+            Some(CommodityRef::currency("EUR")),
+            Some(b.root),
+        );
         b.accounts.insert(acc.guid, Arc::new(acc));
         let e = Employee {
             guid: Guid::from_bytes([6; 16]),
             username: String::new(),
             id: String::new(),
-            addr: Address { name: "Jane".into(), ..Address::default() },
+            addr: Address {
+                name: "Jane".into(),
+                ..Address::default()
+            },
             language: String::new(),
             acl: String::new(),
             active: true,

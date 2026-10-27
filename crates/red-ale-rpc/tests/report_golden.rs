@@ -38,7 +38,9 @@ const DATE_FORMATS: [&str; 2] = ["us", "locale"];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
 fn fnv1a(bytes: &[u8]) -> u64 {
-    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
+    bytes
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
 }
 
 /// One line per export: `book date-format report <tab> outcome`, and the outcomes' HTML by key.
@@ -103,14 +105,24 @@ fn assert_as_v02(label: &str, now: &[(String, String, Option<String>)]) {
                 Some((_, o, _)) if o == outcome => None,
                 Some((_, _, html)) => {
                     std::fs::create_dir_all(&dir).unwrap();
-                    std::fs::write(dir.join(format!("{}.html", key.replace(['/', ' '], "_"))), html.as_deref().unwrap_or_default()).unwrap();
+                    std::fs::write(
+                        dir.join(format!("{}.html", key.replace(['/', ' '], "_"))),
+                        html.as_deref().unwrap_or_default(),
+                    )
+                    .unwrap();
                     Some(key.as_str())
                 }
                 None => Some(key.as_str()),
             }
         })
         .collect();
-    assert!(differ.is_empty(), "{label}: {} of {} exports differ from v0.2 (HTML in {}): {differ:#?}", differ.len(), expected.len(), dir.display());
+    assert!(
+        differ.is_empty(),
+        "{label}: {} of {} exports differ from v0.2 (HTML in {}): {differ:#?}",
+        differ.len(),
+        expected.len(),
+        dir.display()
+    );
 }
 
 #[test]
@@ -121,7 +133,10 @@ fn every_v02_report_gives_the_same_bytes_under_the_c_locale() {
     }
     let expected = golden();
     assert_eq!(expected.len(), BOOKS.len() * DATE_FORMATS.len() * 19, "19 reports in v0.2");
-    assert!(expected.iter().filter(|(_, o)| !o.starts_with("error")).count() > expected.len() / 2, "most exports succeed");
+    assert!(
+        expected.iter().filter(|(_, o)| !o.starts_with("error")).count() > expected.len() / 2,
+        "most exports succeed"
+    );
     assert_as_v02("default", &exports(None));
     assert_as_v02("c", &exports(Some("C")));
 }

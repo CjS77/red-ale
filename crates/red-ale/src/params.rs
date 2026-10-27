@@ -41,7 +41,11 @@ pub fn script_line(line: &str) -> Result<(String, Value)> {
         return Ok((method, params));
     }
     let (method, rest) = line.split_once(char::is_whitespace).unwrap_or((line, ""));
-    let params = if rest.trim().is_empty() { Value::Null } else { serde_json::from_str(rest.trim()).context("params are not valid JSON")? };
+    let params = if rest.trim().is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_str(rest.trim()).context("params are not valid JSON")?
+    };
     Ok((method.to_owned(), params))
 }
 
@@ -56,7 +60,10 @@ mod tests {
 
     #[test]
     fn pairs_and_objects() {
-        assert_eq!(parse(&strings(&["name=Checking", "placeholder:=true", "amount=12.50"])).unwrap(), json!({ "name": "Checking", "placeholder": true, "amount": "12.50" }));
+        assert_eq!(
+            parse(&strings(&["name=Checking", "placeholder:=true", "amount=12.50"])).unwrap(),
+            json!({ "name": "Checking", "placeholder": true, "amount": "12.50" })
+        );
         assert_eq!(parse(&strings(&[r#"{"a": "b"}"#])).unwrap(), json!({ "a": "b" }));
         assert_eq!(parse(&[]).unwrap(), json!({}));
         assert_eq!(parse(&strings(&["memo=a:=b"])).unwrap(), json!({ "memo": "a:=b" }));
@@ -65,8 +72,14 @@ mod tests {
 
     #[test]
     fn script_lines() {
-        assert_eq!(script_line(r#"account.create {"name": "A"}"#).unwrap(), ("account.create".into(), json!({ "name": "A" })));
+        assert_eq!(
+            script_line(r#"account.create {"name": "A"}"#).unwrap(),
+            ("account.create".into(), json!({ "name": "A" }))
+        );
         assert_eq!(script_line("book.info").unwrap(), ("book.info".into(), Value::Null));
-        assert_eq!(script_line(r#"{"method": "book.save", "params": {}}"#).unwrap(), ("book.save".into(), json!({})));
+        assert_eq!(
+            script_line(r#"{"method": "book.save", "params": {}}"#).unwrap(),
+            ("book.save".into(), json!({}))
+        );
     }
 }

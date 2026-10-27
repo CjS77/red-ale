@@ -124,7 +124,10 @@ pub struct DateContext<'a> {
 
 impl fmt::Debug for DateContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DateContext").field("today", &self.today).field("locale_date", &self.locale_date.is_some()).finish()
+        f.debug_struct("DateContext")
+            .field("today", &self.today)
+            .field("locale_date", &self.locale_date.is_some())
+            .finish()
     }
 }
 
@@ -167,7 +170,9 @@ enum Field {
 /// `GncDate(str, fmt)`: the date `text` holds in `format`.
 pub fn parse_date(text: &str, format: DateFormat, ctx: &DateContext) -> Result<Date, DateError> {
     let Some(order) = format.order() else {
-        let parse = ctx.locale_date.ok_or_else(|| DateError::Locale("No locale date parser".to_owned()))?;
+        let parse = ctx
+            .locale_date
+            .ok_or_else(|| DateError::Locale("No locale date parser".to_owned()))?;
         return parse(text).map_err(DateError::Locale);
     };
     if format.has_year()
@@ -199,7 +204,10 @@ fn two_digit_year(year: i32) -> i32 {
 
 /// `std::stoi` on a run of ASCII digits.
 fn stoi(digits: &[u8]) -> Result<i32, DateError> {
-    std::str::from_utf8(digits).ok().and_then(|s| s.parse().ok()).ok_or(DateError::TooLarge)
+    std::str::from_utf8(digits)
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .ok_or(DateError::TooLarge)
 }
 
 /// C++'s implicit `int` to `unsigned short` conversion: modulo 2^16.
@@ -248,13 +256,27 @@ fn lexical_u16(s: &str) -> Option<u16> {
 /// boost's `month_str_to_ushort`: a number when the text starts with a digit, else an English month name or its
 /// first three letters in any case; an unknown name is month 13, which then fails.
 fn month_str_to_ushort(s: &str) -> Option<u16> {
-    const NAMES: [&str; 12] =
-        ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+    const NAMES: [&str; 12] = [
+        "january",
+        "february",
+        "march",
+        "april",
+        "may",
+        "june",
+        "july",
+        "august",
+        "september",
+        "october",
+        "november",
+        "december",
+    ];
     if s.as_bytes().first().is_some_and(u8::is_ascii_digit) {
         return lexical_u16(s);
     }
     let lower = s.to_ascii_lowercase();
-    let index = NAMES.iter().position(|name| *name == lower || name.get(..3) == Some(lower.as_str()));
+    let index = NAMES
+        .iter()
+        .position(|name| *name == lower || name.get(..3) == Some(lower.as_str()));
     Some(index.and_then(|i| u16::try_from(i + 1).ok()).unwrap_or(13))
 }
 
@@ -292,7 +314,11 @@ fn packed(text: &[u8], start: usize, order: [Field; 3], with_year: bool) -> Opti
     };
     let first = fixed(start, widths[0])?;
     let second = fixed(first.end, widths[1])?;
-    let third = if with_year { Some(fixed(second.end, widths[2])?) } else { run(text, second.end, is_digit) };
+    let third = if with_year {
+        Some(fixed(second.end, widths[2])?)
+    } else {
+        run(text, second.end, is_digit)
+    };
     Some(assign(order, [Some(&text[first]), Some(&text[second]), third.map(|r| &text[r])]))
 }
 
@@ -313,7 +339,11 @@ fn is_date_sep(b: u8) -> bool {
 /// Name the captured groups by the format's field order.
 fn assign(order: [Field; 3], groups: [Option<&[u8]>; 3]) -> Found<'_> {
     let get = |field: Field| order.iter().position(|&f| f == field).and_then(|i| groups[i]);
-    Found { year: get(Field::Year), month: get(Field::Month).unwrap_or_default(), day: get(Field::Day).unwrap_or_default() }
+    Found {
+        year: get(Field::Year),
+        month: get(Field::Month).unwrap_or_default(),
+        day: get(Field::Day).unwrap_or_default(),
+    }
 }
 
 #[cfg(test)]
@@ -325,7 +355,10 @@ mod tests {
     }
 
     fn gnucash_ctx() -> DateContext<'static> {
-        DateContext { today: Date::from_ymd(2026, 10, 26).unwrap(), locale_date: None }
+        DateContext {
+            today: Date::from_ymd(2026, 10, 26).unwrap(),
+            locale_date: None,
+        }
     }
 
     /// `5.17:libgnucash/engine/test/gtest-gnc-datetime.cpp:74-242` (`test_str_format_constructor`): every case
@@ -400,7 +433,11 @@ mod tests {
             ("m-d", "0801", y, 8, 1),
         ];
         ok.iter().for_each(|&(f, s, year, month, day)| {
-            assert_eq!(parse_date(s, fmt(f), &ctx), Ok(Date::from_ymd(year, month, day).unwrap()), "{f} {s}");
+            assert_eq!(
+                parse_date(s, fmt(f), &ctx),
+                Ok(Date::from_ymd(year, month, day).unwrap()),
+                "{f} {s}"
+            );
         });
     }
 
@@ -452,26 +489,45 @@ mod tests {
             ("m-d", "080113"),
             ("m-d", "20130801"),
         ];
-        bad.iter().for_each(|&(f, s)| assert!(parse_date(s, fmt(f), &ctx).is_err(), "{f} {s} should fail"));
+        bad.iter()
+            .for_each(|&(f, s)| assert!(parse_date(s, fmt(f), &ctx).is_err(), "{f} {s} should fail"));
     }
 
     #[test]
     fn errors_and_quirks() {
-        let ctx = DateContext { today: Date::from_ymd(2026, 1, 1).unwrap(), locale_date: None };
+        let ctx = DateContext {
+            today: Date::from_ymd(2026, 1, 1).unwrap(),
+            locale_date: None,
+        };
         assert_eq!(parse_date("01-08-2013", DateFormat::Dm, &ctx), Err(DateError::YearForbidden));
         assert_eq!(parse_date("nothing", DateFormat::Ymd, &ctx), Err(DateError::NoMatch));
         assert_eq!(parse_date("31/11/2009", DateFormat::Dmy, &ctx), Err(DateError::DayOfMonth));
         assert_eq!(parse_date("2013-13-01", DateFormat::Ymd, &ctx), Err(DateError::Month));
         assert_eq!(parse_date("99999999999-1-1", DateFormat::Ymd, &ctx), Err(DateError::TooLarge));
         // Text around the date is ignored, and a time after it too.
-        assert_eq!(parse_date("on 2013-08-01T10:00", DateFormat::Ymd, &ctx), Ok(Date::from_ymd(2013, 8, 1).unwrap()));
+        assert_eq!(
+            parse_date("on 2013-08-01T10:00", DateFormat::Ymd, &ctx),
+            Ok(Date::from_ymd(2013, 8, 1).unwrap())
+        );
         // boost refuses year 99 (out of 1400..9999); the regex reads it as 1999.
-        assert_eq!(parse_date("0099-01-02", DateFormat::Ymd, &ctx), Ok(Date::from_ymd(1999, 1, 2).unwrap()));
+        assert_eq!(
+            parse_date("0099-01-02", DateFormat::Ymd, &ctx),
+            Ok(Date::from_ymd(1999, 1, 2).unwrap())
+        );
         // The month is narrowed to 16 bits.
-        assert_eq!(parse_date("2013-65537-02", DateFormat::Ymd, &ctx), Ok(Date::from_ymd(2013, 1, 2).unwrap()));
-        assert!(matches!(parse_date("1/2/2013", DateFormat::Locale, &ctx), Err(DateError::Locale(_))));
+        assert_eq!(
+            parse_date("2013-65537-02", DateFormat::Ymd, &ctx),
+            Ok(Date::from_ymd(2013, 1, 2).unwrap())
+        );
+        assert!(matches!(
+            parse_date("1/2/2013", DateFormat::Locale, &ctx),
+            Err(DateError::Locale(_))
+        ));
         let locale = |_: &str| Ok(Date::from_ymd(2000, 2, 3).unwrap());
-        let ctx = DateContext { locale_date: Some(&locale), ..ctx };
+        let ctx = DateContext {
+            locale_date: Some(&locale),
+            ..ctx
+        };
         assert_eq!(parse_date("x", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2000, 2, 3).unwrap()));
     }
 
@@ -480,16 +536,37 @@ mod tests {
         let today = Date::from_ymd(2026, 10, 26).unwrap();
         let ctx_for = |name: &str| Locale::by_name(name).unwrap();
         let fr = locale_parser(&ctx_for("fr_FR"), today);
-        let ctx = DateContext { today, locale_date: Some(&fr) };
-        assert_eq!(parse_date("5 févr. 2024", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2024, 2, 5).unwrap()));
-        assert_eq!(parse_date("5 févr. 24", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2024, 2, 5).unwrap()));
+        let ctx = DateContext {
+            today,
+            locale_date: Some(&fr),
+        };
+        assert_eq!(
+            parse_date("5 févr. 2024", DateFormat::Locale, &ctx),
+            Ok(Date::from_ymd(2024, 2, 5).unwrap())
+        );
+        assert_eq!(
+            parse_date("5 févr. 24", DateFormat::Locale, &ctx),
+            Ok(Date::from_ymd(2024, 2, 5).unwrap())
+        );
         let err = parse_date("2024-02-05", DateFormat::Locale, &ctx).unwrap_err();
-        assert_eq!(err.to_string(), "Value can't be parsed into a date using the locale's date format (d MMM y).");
+        assert_eq!(
+            err.to_string(),
+            "Value can't be parsed into a date using the locale's date format (d MMM y)."
+        );
         let c = locale_parser(&Locale::c(), today);
-        let ctx = DateContext { today, locale_date: Some(&c) };
-        assert_eq!(parse_date("Mar 1, 2024", DateFormat::Locale, &ctx), Ok(Date::from_ymd(2024, 3, 1).unwrap()));
+        let ctx = DateContext {
+            today,
+            locale_date: Some(&c),
+        };
+        assert_eq!(
+            parse_date("Mar 1, 2024", DateFormat::Locale, &ctx),
+            Ok(Date::from_ymd(2024, 3, 1).unwrap())
+        );
         let fa = locale_parser(&ctx_for("fa_IR"), today);
-        let ctx = DateContext { today, locale_date: Some(&fa) };
+        let ctx = DateContext {
+            today,
+            locale_date: Some(&fa),
+        };
         assert!(matches!(parse_date("x", DateFormat::Locale, &ctx), Err(DateError::Locale(m)) if m.contains("Persian")));
     }
 

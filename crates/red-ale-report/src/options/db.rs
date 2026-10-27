@@ -129,7 +129,12 @@ impl OptionDb {
     /// UI `both`, or `relative` when `both` is false (`5.17:libgnucash/engine/gnc-optiondb.cpp:1064-1074`).
     pub fn start_date(&mut self, c: Classifier, both: bool) -> Declared {
         let ui = if both { DateUi::Both } else { DateUi::Relative };
-        self.date(c, DateValue::Relative(RelativeDate::StartAccountingPeriod), ui, START_DATES.to_vec())
+        self.date(
+            c,
+            DateValue::Relative(RelativeDate::StartAccountingPeriod),
+            ui,
+            START_DATES.to_vec(),
+        )
     }
 
     /// `gnc-register-end-date-option`: the eight end choices, defaulting to the end of the accounting period.
@@ -180,15 +185,26 @@ impl OptionDb {
     pub fn add_general_options(&mut self, template_name: &str, style_sheets: &[&str]) -> Declared {
         let general = |name: &str, key: &str, help: &str| Classifier::new(GENERAL, name, key, help);
         if self.get(GENERAL, REPORT_NAME).is_none() {
-            self.string(general(REPORT_NAME, "0a", "Enter a descriptive name for this report."), template_name)?;
+            self.string(
+                general(REPORT_NAME, "0a", "Enter a descriptive name for this report."),
+                template_name,
+            )?;
         }
         if self.get(GENERAL, STYLESHEET).is_none() {
             let choices = style_sheets.iter().map(|s| Choice::new(*s, *s, "")).collect();
-            self.multichoice(general(STYLESHEET, "0b", "Select a stylesheet for the report."), ChoiceKey::from("Default"), choices)?;
+            self.multichoice(
+                general(STYLESHEET, "0b", "Select a stylesheet for the report."),
+                ChoiceKey::from("Default"),
+                choices,
+            )?;
         }
         if self.get(GENERAL, OPTIONS_SUMMARY).is_none() {
             let choices = vec![Choice::new("always", "Always", ""), Choice::new("never", "Never", "")];
-            self.multichoice(general(OPTIONS_SUMMARY, "0c", "Add summary of options."), ChoiceKey::from("never"), choices)?;
+            self.multichoice(
+                general(OPTIONS_SUMMARY, "0c", "Add summary of options."),
+                ChoiceKey::from("never"),
+                choices,
+            )?;
         }
         Ok(())
     }
@@ -211,12 +227,19 @@ impl OptionDb {
     /// and name with the wire form of each value; `null` returns an option to its default. Every value is checked
     /// before any is set, and the first one that fails is the error, naming its option; nothing changes then.
     pub fn apply(&mut self, changes: &Value, ctx: &ValueContext<'_>) -> Result<(), OptionError> {
-        let sections = changes.as_object().ok_or_else(|| OptionError::new("", "", "options must be an object by section and name"))?;
+        let sections = changes
+            .as_object()
+            .ok_or_else(|| OptionError::new("", "", "options must be an object by section and name"))?;
         let parsed = sections
             .iter()
             .map(|(section, names)| {
-                let names = names.as_object().ok_or_else(|| OptionError::new(section, "", "a section must be an object by option name"))?;
-                names.iter().map(|(name, json)| self.read(section, name, json, ctx)).collect::<Result<Vec<_>, _>>()
+                let names = names
+                    .as_object()
+                    .ok_or_else(|| OptionError::new(section, "", "a section must be an object by option name"))?;
+                names
+                    .iter()
+                    .map(|(name, json)| self.read(section, name, json, ctx))
+                    .collect::<Result<Vec<_>, _>>()
             })
             .collect::<Result<Vec<_>, _>>()?;
         parsed.into_iter().flatten().for_each(|(index, value)| match value {
@@ -237,7 +260,8 @@ impl OptionDb {
             return Ok((index, None));
         }
         let option = &self.options[index];
-        let value = value::read(&option.kind, option.default_value(), json, ctx).map_err(|reason| OptionError::new(section, name, reason))?;
+        let value =
+            value::read(&option.kind, option.default_value(), json, ctx).map_err(|reason| OptionError::new(section, name, reason))?;
         Ok((index, Some(value)))
     }
 
@@ -283,13 +307,21 @@ impl ReportOption {
 
 /// The first account below the root, depth first in display order, whose type is one of `types`.
 fn first_of_types(book: &Book, types: &[AccountType]) -> Option<Guid> {
-    if types.is_empty() { None } else { first_below(book, book.root, types) }
+    if types.is_empty() {
+        None
+    } else {
+        first_below(book, book.root, types)
+    }
 }
 
 fn first_below(book: &Book, parent: Guid, types: &[AccountType]) -> Option<Guid> {
-    sorted_children(book, parent)
-        .into_iter()
-        .find_map(|a| if types.contains(&a.account_type) { Some(a.guid) } else { first_below(book, a.guid, types) })
+    sorted_children(book, parent).into_iter().find_map(|a| {
+        if types.contains(&a.account_type) {
+            Some(a.guid)
+        } else {
+            first_below(book, a.guid, types)
+        }
+    })
 }
 
 /// The default a declaration ends up with, or why it is malformed.
@@ -315,20 +347,33 @@ fn checked_default(kind: &OptionKind, default: OptionValue) -> Result<OptionValu
 }
 
 fn distinct_keys(choices: &[Choice]) -> Result<(), String> {
-    let repeated = choices.iter().enumerate().find(|(i, c)| choices[..*i].iter().any(|d| d.key == c.key));
+    let repeated = choices
+        .iter()
+        .enumerate()
+        .find(|(i, c)| choices[..*i].iter().any(|d| d.key == c.key));
     repeated.map_or(Ok(()), |(_, c)| Err(format!("choice {} is declared twice", c.key)))
 }
 
 fn multichoice_default(choices: &[Choice], key: &ChoiceKey) -> Result<OptionValue, String> {
     distinct_keys(choices)?;
     let first = choices.first().ok_or("a multichoice option needs choices")?;
-    let key = if choices.iter().any(|c| c.key == *key) { key.clone() } else { first.key.clone() };
+    let key = if choices.iter().any(|c| c.key == *key) {
+        key.clone()
+    } else {
+        first.key.clone()
+    };
     Ok(OptionValue::Key(key))
 }
 
 fn list_default(choices: &[Choice], keys: &[ChoiceKey]) -> Result<(), String> {
     distinct_keys(choices)?;
-    keys.iter().try_for_each(|k| if choices.iter().any(|c| c.key == *k) { Ok(()) } else { Err(format!("default {k} is not a choice")) })
+    keys.iter().try_for_each(|k| {
+        if choices.iter().any(|c| c.key == *k) {
+            Ok(())
+        } else {
+            Err(format!("default {k} is not a choice"))
+        }
+    })
 }
 
 fn number_default(min: &Rational, max: &Rational, n: &Rational) -> Result<OptionValue, String> {
@@ -341,9 +386,14 @@ fn number_default(min: &Rational, max: &Rational, n: &Rational) -> Result<Option
 fn date_default(ui: DateUi, allowed: &[RelativeDate], d: DateValue) -> Result<(), String> {
     match d {
         DateValue::Absolute(_) if ui == DateUi::Relative => Err("a relative-only date cannot default to an absolute date".to_owned()),
-        DateValue::Absolute(t) => check_time(t).map(drop).map_err(|()| format!("{} is outside the supported range", t.0)),
+        DateValue::Absolute(t) => check_time(t)
+            .map(drop)
+            .map_err(|()| format!("{} is outside the supported range", t.0)),
         DateValue::Relative(_) if ui == DateUi::Absolute => Err("an absolute-only date cannot default to a relative date".to_owned()),
         DateValue::Relative(r) if allowed.is_empty() || allowed.contains(&r) => Ok(()),
-        DateValue::Relative(r) => Err(format!("default {} is not among the relative dates offered", super::model::relative_name(r))),
+        DateValue::Relative(r) => Err(format!(
+            "default {} is not among the relative dates offered",
+            super::model::relative_name(r)
+        )),
     }
 }

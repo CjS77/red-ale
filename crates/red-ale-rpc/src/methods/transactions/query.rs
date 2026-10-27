@@ -239,7 +239,11 @@ fn number(c: &NumberCriterion) -> NumericMatch {
         SignFilter::Debit => Sign::Debit,
         SignFilter::Credit => Sign::Credit,
     };
-    NumericMatch { compare, amount: c.amount.0, sign }
+    NumericMatch {
+        compare,
+        amount: c.amount.0,
+        sign,
+    }
 }
 
 impl FindQuery {
@@ -262,7 +266,10 @@ impl FindQuery {
             Self::Value(c) => Query::Value(number(&c)),
             Self::Amount(c) => Query::Amount(number(&c)),
             Self::SharePrice(c) => Query::SharePrice(number(&c)),
-            Self::Reconcile(c) => Query::Reconcile { states: c.states.into_iter().map(Into::into).collect(), negate: c.not },
+            Self::Reconcile(c) => Query::Reconcile {
+                states: c.states.into_iter().map(Into::into).collect(),
+                negate: c.not,
+            },
             Self::Closing(b) => Query::Closing(b),
             Self::Balanced(b) => Query::Balanced(b),
             Self::Void(b) => Query::Void(b),
@@ -313,5 +320,7 @@ pub(super) fn find_(ctx: &mut Context, p: FindParams) -> Result<FindResult, RpcE
     let book = ctx.book()?;
     let query = p.query.resolve(book)?;
     let hits = find::find(book, &query, p.limit, &zone)?;
-    Ok(FindResult { matches: super::found(book, &hits) })
+    Ok(FindResult {
+        matches: super::found(book, &hits),
+    })
 }

@@ -8,7 +8,8 @@ use red_ale_service::Settings;
 use serde_json::{Value, json};
 
 fn call(d: &mut Dispatcher, method: &str, params: &Value) -> Value {
-    d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+    d.call(method, params.clone())
+        .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
 }
 
 /// A new book with USD checking, a EUR account and a stock, as in the oracle runs of
@@ -17,8 +18,16 @@ fn book(trading: bool) -> (tempfile::TempDir, Dispatcher) {
     let dir = tempfile::tempdir().unwrap();
     let mut d = Dispatcher::new(Settings::default());
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(1_719_835_200), 1 << 100))));
-    call(&mut d, "book.create", &json!({ "path": dir.path().join("t.gnucash").display().to_string() }));
-    call(&mut d, "commodity.create", &json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1000 }));
+    call(
+        &mut d,
+        "book.create",
+        &json!({ "path": dir.path().join("t.gnucash").display().to_string() }),
+    );
+    call(
+        &mut d,
+        "commodity.create",
+        &json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1000 }),
+    );
     [
         json!({ "name": "Assets", "type": "ASSET", "commodity": "CURRENCY::USD" }),
         json!({ "name": "Checking", "type": "BANK", "parent": "Assets", "commodity": "CURRENCY::USD" }),
@@ -62,11 +71,20 @@ fn row(a: &str, v: &str, q: &str) -> (String, String, String) {
 fn the_option_is_read_and_set() {
     let (_dir, mut d) = book(false);
     assert_eq!(call(&mut d, "book.options", &json!({}))["useTradingAccounts"], false);
-    assert_eq!(call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }))["useTradingAccounts"], true);
+    assert_eq!(
+        call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }))["useTradingAccounts"],
+        true
+    );
     assert_eq!(call(&mut d, "book.options", &json!({}))["useTradingAccounts"], true);
     assert_eq!(call(&mut d, "book.info", &json!({}))["readOnly"], false);
-    assert_eq!(call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": false }))["useTradingAccounts"], false);
-    assert_eq!(d.call("book.setOptions", json!({ "useTradingAccounts": "yes" })).unwrap_err().code, codes::INVALID_PARAMS);
+    assert_eq!(
+        call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": false }))["useTradingAccounts"],
+        false
+    );
+    assert_eq!(
+        d.call("book.setOptions", json!({ "useTradingAccounts": "yes" })).unwrap_err().code,
+        codes::INVALID_PARAMS
+    );
 }
 
 #[test]
@@ -85,7 +103,11 @@ fn post_update_void_unvoid_and_reverse_keep_trading_splits() {
     assert_eq!(t["balanced"], true);
     let guid = t["guid"].clone();
     let euro_split = t["splits"][0]["guid"].clone();
-    let t = call(&mut d, "transaction.update", &json!({ "guid": guid, "changeSplits": [{ "guid": euro_split, "amount": "90.00" }] }));
+    let t = call(
+        &mut d,
+        "transaction.update",
+        &json!({ "guid": guid, "changeSplits": [{ "guid": euro_split, "amount": "90.00" }] }),
+    );
     assert!(rows(&t).contains(&row("Trading:CURRENCY:EUR", "-11000/100", "-9000/100")), "{t}");
     assert_eq!(t["balanced"], true);
     let voided = call(&mut d, "transaction.void", &json!({ "guid": guid, "reason": "typo" }));
@@ -129,7 +151,10 @@ fn a_transfer_and_a_stock_purchase_get_trading_splits() {
         ]
     );
     let tree = call(&mut d, "account.get", &json!({ "account": "Trading:NASDAQ" }));
-    assert_eq!((tree["type"].as_str(), tree["placeholder"].as_bool()), (Some("TRADING"), Some(true)));
+    assert_eq!(
+        (tree["type"].as_str(), tree["placeholder"].as_bool()),
+        (Some("TRADING"), Some(true))
+    );
 }
 
 #[test]
@@ -141,8 +166,16 @@ fn a_transaction_from_before_the_option_gets_trading_splits_when_next_changed() 
     let guid = t["guid"].clone();
     let still = call(&mut d, "transaction.get", &json!({ "guid": guid }));
     let split_count = still["splits"].as_array().unwrap().len();
-    assert_eq!((split_count, &still["balanced"]), (2, &json!(false)), "turning the option on changes nothing");
-    call(&mut d, "reconcile.setState", &json!({ "split": t["splits"][0]["guid"], "state": "c" }));
+    assert_eq!(
+        (split_count, &still["balanced"]),
+        (2, &json!(false)),
+        "turning the option on changes nothing"
+    );
+    call(
+        &mut d,
+        "reconcile.setState",
+        &json!({ "split": t["splits"][0]["guid"], "state": "c" }),
+    );
     let after = call(&mut d, "transaction.get", &json!({ "guid": guid }));
     assert_eq!(after["splits"].as_array().unwrap().len(), 4, "{after}");
     assert_eq!(after["balanced"], true);
@@ -162,5 +195,8 @@ fn unbalanced_values_are_refused_in_a_trading_book() {
         .unwrap_err();
     assert_eq!(e.code, codes::UNBALANCED);
     let accounts = call(&mut d, "account.list", &json!({}));
-    assert!(accounts["accounts"].as_array().unwrap().iter().all(|a| a["type"] != "TRADING"), "nothing is left behind");
+    assert!(
+        accounts["accounts"].as_array().unwrap().iter().all(|a| a["type"] != "TRADING"),
+        "nothing is left behind"
+    );
 }

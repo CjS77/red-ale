@@ -71,7 +71,10 @@ pub struct Method {
 impl std::fmt::Debug for Method {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("Method");
-        d.field("name", &self.name).field("effect", &self.effect).field("target", &self.target).finish_non_exhaustive()
+        d.field("name", &self.name)
+            .field("effect", &self.effect)
+            .field("target", &self.target)
+            .finish_non_exhaustive()
     }
 }
 
@@ -128,7 +131,10 @@ pub struct Context {
 
 impl std::fmt::Debug for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Context").field("session", &self.session).field("settings", &self.settings).finish_non_exhaustive()
+        f.debug_struct("Context")
+            .field("session", &self.session)
+            .field("settings", &self.settings)
+            .finish_non_exhaustive()
     }
 }
 
@@ -151,7 +157,10 @@ impl Context {
     /// Install a newly opened session, giving it the configured environment. Fails if one is open.
     pub fn install(&mut self, mut session: Session) -> Result<&mut Session, RpcError> {
         if let Some(open) = &self.session {
-            return Err(ServiceError::AlreadyOpen { path: open.path().to_owned() }.into());
+            return Err(ServiceError::AlreadyOpen {
+                path: open.path().to_owned(),
+            }
+            .into());
         }
         if let Some(factory) = &self.env_factory {
             session.set_env_boxed(factory());
@@ -163,7 +172,10 @@ impl Context {
     /// Refuse if a book is already open.
     pub fn require_no_session(&self) -> Result<(), RpcError> {
         match &self.session {
-            Some(open) => Err(ServiceError::AlreadyOpen { path: open.path().to_owned() }.into()),
+            Some(open) => Err(ServiceError::AlreadyOpen {
+                path: open.path().to_owned(),
+            }
+            .into()),
             None => Ok(()),
         }
     }
@@ -228,7 +240,10 @@ pub struct Dispatcher {
 
 impl std::fmt::Debug for Dispatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Dispatcher").field("ctx", &self.ctx).field("methods", &self.methods.keys().collect::<Vec<_>>()).finish()
+        f.debug_struct("Dispatcher")
+            .field("ctx", &self.ctx)
+            .field("methods", &self.methods.keys().collect::<Vec<_>>())
+            .finish()
     }
 }
 
@@ -291,7 +306,10 @@ impl Dispatcher {
         if name == "api.schema" {
             return Ok(self.schema());
         }
-        let method = self.methods.get(name).ok_or_else(|| RpcError::new(codes::METHOD_NOT_FOUND, format!("no method {name}")))?;
+        let method = self
+            .methods
+            .get(name)
+            .ok_or_else(|| RpcError::new(codes::METHOD_NOT_FOUND, format!("no method {name}")))?;
         (method.handler)(&mut self.ctx, params)
     }
 
@@ -314,14 +332,20 @@ impl Dispatcher {
 
     fn handle_value(&mut self, request: Value) -> Option<Value> {
         let Value::Object(mut obj) = request else {
-            return Some(error_response(Value::Null, &RpcError::new(codes::INVALID_REQUEST, "a request must be an object")));
+            return Some(error_response(
+                Value::Null,
+                &RpcError::new(codes::INVALID_REQUEST, "a request must be an object"),
+            ));
         };
         let id = obj.remove("id");
         let reply_id = id.clone().unwrap_or(Value::Null);
         let valid_id = id.as_ref().is_none_or(|v| v.is_string() || v.is_number() || v.is_null());
         let method = obj.remove("method");
         let (Some(Value::String(method)), true, Some("2.0")) = (method, valid_id, obj.get("jsonrpc").and_then(Value::as_str)) else {
-            return Some(error_response(reply_id, &RpcError::new(codes::INVALID_REQUEST, "not a JSON-RPC 2.0 request")));
+            return Some(error_response(
+                reply_id,
+                &RpcError::new(codes::INVALID_REQUEST, "not a JSON-RPC 2.0 request"),
+            ));
         };
         let result = self.call(&method, obj.remove("params").unwrap_or(Value::Null));
         id.map(|id| match result {
@@ -347,7 +371,10 @@ impl Dispatcher {
                 })
             })
             .collect();
-        let errors: Vec<Value> = codes::ALL.iter().map(|(code, name)| json!({ "code": code, "name": name })).collect();
+        let errors: Vec<Value> = codes::ALL
+            .iter()
+            .map(|(code, name)| json!({ "code": code, "name": name }))
+            .collect();
         json!({
             "redAleApi": crate::API_VERSION,
             "methods": methods,

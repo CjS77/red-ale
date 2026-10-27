@@ -33,7 +33,8 @@ fn fx() -> Fx {
     let mut book = Book::new_empty(&mut env);
     let usd = CommodityRef::currency("USD");
     let acme = CommodityRef::new("NASDAQ", "ACME");
-    book.commodities.insert(acme.clone(), Arc::new(Commodity::new(acme.clone(), Some("Acme".into()), 1000)));
+    book.commodities
+        .insert(acme.clone(), Arc::new(Commodity::new(acme.clone(), Some("Acme".into()), 1000)));
     let mut add = |book: &mut Book, name: &str, ty, c: &CommodityRef, scu, parent: Option<Guid>| {
         let mut a = Account::new(env.new_guid(), name, ty, Some(c.clone()), Some(parent.unwrap_or(book.root)));
         a.commodity_scu = Some(scu);
@@ -45,13 +46,22 @@ fn fx() -> Fx {
     let brokerage = add(&mut book, "Brokerage", AccountType::Asset, &usd, 100, None);
     let stock = add(&mut book, "ACME", AccountType::Stock, &acme, 1000, Some(brokerage));
     let income = add(&mut book, "Income", AccountType::Income, &usd, 100, None);
-    Fx { book, env, bank, stock, income }
+    Fx {
+        book,
+        env,
+        bank,
+        stock,
+        income,
+    }
 }
 
 impl Fx {
     fn trade(&mut self, d: u32, shares: &str, value: &str) -> Guid {
         let mut t = NewTransaction::new(CommodityRef::currency("USD"), day(d));
-        t.splits = vec![NewSplit::new(self.stock, n(value)).with_amount(n(shares)), NewSplit::new(self.bank, n(value).neg())];
+        t.splits = vec![
+            NewSplit::new(self.stock, n(value)).with_amount(n(shares)),
+            NewSplit::new(self.bank, n(value).neg()),
+        ];
         add_transaction(&mut self.book, &mut self.env, t).unwrap()
     }
 
@@ -81,11 +91,23 @@ impl Fx {
     }
 
     fn stock_splits_of(&self, txn: Guid) -> Vec<Split> {
-        self.book.transaction(txn).unwrap().splits.iter().filter(|s| s.account == Some(self.stock)).cloned().collect()
+        self.book
+            .transaction(txn)
+            .unwrap()
+            .splits
+            .iter()
+            .filter(|s| s.account == Some(self.stock))
+            .cloned()
+            .collect()
     }
 
     fn gains_txns(&self) -> Vec<&Transaction> {
-        self.book.transactions.values().map(AsRef::as_ref).filter(|t| t.description.as_deref() == Some(REALIZED_GAIN_LOSS)).collect()
+        self.book
+            .transactions
+            .values()
+            .map(AsRef::as_ref)
+            .filter(|t| t.description.as_deref() == Some(REALIZED_GAIN_LOSS))
+            .collect()
     }
 }
 
@@ -113,7 +135,10 @@ fn fifo_cuts_the_sale_and_records_gains() {
     assert!(is_peer_split_of(&pieces[0], pieces[1].guid) && is_peer_split_of(&pieces[1], pieces[0].guid));
     let gains = f.gains_txns();
     assert_eq!(gains.len(), 2);
-    let g = *gains.iter().find(|t| t.splits.iter().any(|s| crate::lot::gains_source(s) == Some(pieces[0].guid))).unwrap();
+    let g = *gains
+        .iter()
+        .find(|t| t.splits.iter().any(|s| crate::lot::gains_source(s) == Some(pieces[0].guid)))
+        .unwrap();
     assert_eq!(g.date_posted, day(3).neutral_time());
     assert!(g.slots.is_empty(), "no date-posted slot on a gains transaction");
     let lot_split = g.splits.iter().find(|s| s.account == Some(f.stock)).unwrap();
@@ -125,7 +150,10 @@ fn fifo_cuts_the_sale_and_records_gains() {
     assert_eq!(orphan.account_type, AccountType::Income);
     assert_eq!(orphan.notes(), Some(ORPHANED_GAINS_NOTES));
     let stock = f.book.account(f.stock).unwrap();
-    assert_eq!(stock.slots.get("lot-mgmt/gains-acct/CURRENCY::USD").and_then(SlotValue::as_guid), Some(orphan.guid));
+    assert_eq!(
+        stock.slots.get("lot-mgmt/gains-acct/CURRENCY::USD").and_then(SlotValue::as_guid),
+        Some(orphan.guid)
+    );
     assert_eq!(stock.slots.get("lot-mgmt/next-id").and_then(SlotValue::as_int), Some(2));
     assert!(f.book.transactions.values().all(|t| t.is_balanced()));
 }
@@ -193,7 +221,15 @@ fn a_changed_sale_updates_its_gains_transaction() {
     f.scrub();
     let sale_split = f.stock_splits_of(sale)[0].guid;
     edit_split(&mut f.book, sale_split, |s| s.value = n("-130.00")).unwrap();
-    let bank = f.book.transaction(sale).unwrap().splits.iter().find(|s| s.account == Some(f.bank)).unwrap().guid;
+    let bank = f
+        .book
+        .transaction(sale)
+        .unwrap()
+        .splits
+        .iter()
+        .find(|s| s.account == Some(f.bank))
+        .unwrap()
+        .guid;
     edit_split(&mut f.book, bank, |s| {
         s.value = n("130.00");
         s.amount = n("130.00");
@@ -218,7 +254,11 @@ fn merged_pieces_drop_their_gains_and_refill() {
     f.scrub();
     let lots = f.lots();
     assert_eq!(lots.iter().map(|l| l.gains).collect::<Vec<_>>(), [n("50.00"), n("15.00")]);
-    assert_eq!(f.gains_txns().len(), 2, "the merged piece's gains transaction is gone, a new one replaces it");
+    assert_eq!(
+        f.gains_txns().len(),
+        2,
+        "the merged piece's gains transaction is gone, a new one replaces it"
+    );
     assert!(f.book.transactions.values().all(|t| t.is_balanced()));
 }
 
@@ -268,7 +308,10 @@ fn an_explicit_lot_takes_what_fits_and_closed_lots_refuse() {
     let rest = out.rest.unwrap();
     assert_eq!(out.pieces, [(sale_split, lot)]);
     assert!(lot_summary(&f.book, lot).unwrap().closed);
-    assert!(matches!(assign_split(&mut f.book, &mut f.env, rest, Some(lot)), Err(DomainError::Conflict(_))));
+    assert!(matches!(
+        assign_split(&mut f.book, &mut f.env, rest, Some(lot)),
+        Err(DomainError::Conflict(_))
+    ));
     let fifo = assign_split(&mut f.book, &mut f.env, rest, None).unwrap();
     assert_eq!(fifo.new_lots.len(), 1, "no open lot takes a sale, so FIFO opens one");
     assert!(!remove_split(&mut f.book, sale_split).unwrap());
@@ -283,7 +326,10 @@ fn the_viewer_lists_splits_gains_and_free_split_gains() {
     f.scrub();
     let lot = f.lots()[0].guid;
     let splits = lot_splits(&f.book, lot).unwrap();
-    assert_eq!(splits.iter().map(|s| s.kind).collect::<Vec<_>>(), [SplitKind::Normal, SplitKind::Normal, SplitKind::Gains]);
+    assert_eq!(
+        splits.iter().map(|s| s.kind).collect::<Vec<_>>(),
+        [SplitKind::Normal, SplitKind::Normal, SplitKind::Gains]
+    );
     assert_eq!(splits[1].gain, Some(n("20.00")));
     let later = f.trade(3, "-2", "-40.00");
     let free = free_splits(&f.book, f.stock, Some(lot)).unwrap();
@@ -321,11 +367,20 @@ fn the_stock_split_assistant_writes_what_gnucash_writes() {
     assert_eq!(s1.slots.get_str(split_slots::SPLIT_TYPE), Some("stock-split"));
     assert_eq!(t.splits[1].memo.as_deref(), Some("Cash in lieu"));
     assert_eq!((t.splits[1].account, t.splits[2].account), (Some(f.bank), Some(f.income)));
-    let PriceOutcome::Added(p) = out.price else { panic!("price {:?}", out.price) };
+    let PriceOutcome::Added(p) = out.price else {
+        panic!("price {:?}", out.price)
+    };
     let p = f.book.prices.get(&p).unwrap();
-    assert_eq!((p.source.as_deref(), p.price_type.as_deref(), p.time), (Some("user:stock-split"), Some("unknown"), day(5).neutral_time()));
+    assert_eq!(
+        (p.source.as_deref(), p.price_type.as_deref(), p.time),
+        (Some("user:stock-split"), Some("unknown"), day(5).neutral_time())
+    );
     // A same-day price from the price editor blocks the next one; the transaction is still recorded.
-    let editor = Price { guid: f.env.new_guid(), source: Some("user:price-editor".into()), ..(**p).clone() };
+    let editor = Price {
+        guid: f.env.new_guid(),
+        source: Some("user:price-editor".into()),
+        ..(**p).clone()
+    };
     f.book.prices.clear();
     f.book.prices.insert(editor.guid, Arc::new(editor.clone()));
     req.cash = None;
@@ -376,4 +431,3 @@ proptest! {
         prop_assert_eq!(&f.book, &once);
     }
 }
-

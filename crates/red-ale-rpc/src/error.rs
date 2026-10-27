@@ -127,7 +127,11 @@ pub struct RpcError {
 impl RpcError {
     /// An error with a code and message.
     pub fn new(code: i32, message: impl Into<String>) -> Self {
-        Self { code, message: message.into(), data: None }
+        Self {
+            code,
+            message: message.into(),
+            data: None,
+        }
     }
 
     /// The same error with structured detail.
@@ -169,7 +173,9 @@ impl From<DomainError> for RpcError {
             }
             DomainError::Conflict(_) => Self::new(codes::CONFLICT, message),
             DomainError::Numeric(_) => Self::new(codes::ARITHMETIC, message),
-            DomainError::ReadOnlyByDate { date, threshold } => Self::new(codes::CONFLICT, message).with_data(auto_read_only(date, threshold)),
+            DomainError::ReadOnlyByDate { date, threshold } => {
+                Self::new(codes::CONFLICT, message).with_data(auto_read_only(date, threshold))
+            }
             DomainError::BeforeReadOnlyThreshold { date, threshold } => {
                 Self::new(codes::INVALID, message).with_data(auto_read_only(date, threshold))
             }
@@ -182,7 +188,11 @@ impl From<DomainError> for RpcError {
 impl From<ReportError> for RpcError {
     fn from(e: ReportError) -> Self {
         let error = Self::new(e.kind().code(), e.to_string());
-        if e.kind() == ReportErrorKind::Internal { error } else { error.with_data(e.data()) }
+        if e.kind() == ReportErrorKind::Internal {
+            error
+        } else {
+            error.with_data(e.data())
+        }
     }
 }
 
@@ -203,18 +213,29 @@ impl From<ServiceError> for RpcError {
             ServiceError::Backup { path: p, .. } => Self::new(codes::BACKUP_FAILED, message).with_data(path(&p)),
             ServiceError::SqlBook { path: p } => Self::new(codes::SQL_BOOK, message).with_data(json!({ "path": p })),
             ServiceError::UnsupportedUri { uri } => Self::new(codes::UNSUPPORTED_URI, message).with_data(json!({ "uri": uri })),
-            ServiceError::Xml { path: p, .. } | ServiceError::Journal { path: p, .. } => Self::new(codes::FILE_FORMAT, message).with_data(path(&p)),
+            ServiceError::Xml { path: p, .. } | ServiceError::Journal { path: p, .. } => {
+                Self::new(codes::FILE_FORMAT, message).with_data(path(&p))
+            }
             ServiceError::ReadOnly { reason } => Self::new(codes::READ_ONLY, message).with_data(json!({ "reason": reason })),
             ServiceError::Exists { path: p } => Self::new(codes::FILE_EXISTS, message).with_data(path(&p)),
             ServiceError::Verification { detail } => Self::new(codes::SAVE_VERIFICATION, message).with_data(json!({ "detail": detail })),
             ServiceError::CurrentJournal { path: p } => Self::new(codes::INVALID, message).with_data(path(&p)),
             ServiceError::NoSession => Self::new(codes::NO_BOOK, message),
             ServiceError::AlreadyOpen { path: p } => Self::new(codes::BOOK_ALREADY_OPEN, message).with_data(path(&p)),
-            ServiceError::ImportFile { file, line, reason, message: text } => {
-                Self::new(codes::IMPORT_FILE, message).with_data(json!({ "file": file, "line": line, "reason": reason, "message": text }))
+            ServiceError::ImportFile {
+                file,
+                line,
+                reason,
+                message: text,
+            } => Self::new(codes::IMPORT_FILE, message).with_data(json!({ "file": file, "line": line, "reason": reason, "message": text })),
+            ServiceError::ProposalNotFound { id } => {
+                Self::new(codes::NOT_FOUND, message).with_data(json!({ "kind": "importProposal", "id": id }))
             }
-            ServiceError::ProposalNotFound { id } => Self::new(codes::NOT_FOUND, message).with_data(json!({ "kind": "importProposal", "id": id })),
-            ServiceError::StaleProposal { proposal_revision, book_revision, .. } => Self::new(codes::CONFLICT, message).with_data(json!({
+            ServiceError::StaleProposal {
+                proposal_revision,
+                book_revision,
+                ..
+            } => Self::new(codes::CONFLICT, message).with_data(json!({
                 "reason": "book-revision", "proposalRevision": proposal_revision, "bookRevision": book_revision,
             })),
         }

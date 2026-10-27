@@ -80,18 +80,37 @@ pub fn review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) ->
     let mut copy = book.clone();
     let mut env = FixedEnv::new(now, REVIEW_GUID_SEED).with_zone(zone.clone());
     let append = infos.last().and_then(TransInfo::account).is_some_and(|a| append_text(book, a));
-    let opts = ApplyOptions { use_bayes: proposal.settings.use_bayes, append_text: append };
+    let opts = ApplyOptions {
+        use_bayes: proposal.settings.use_bayes,
+        append_text: append,
+    };
     let flags = |t: &ProposedTransaction| read_only_by_date(book, proposal.threshold, &t.info);
     match apply_batch(&mut copy, &mut env, &infos, opts) {
         Ok(processed) => Review {
-            transactions: proposal.transactions.iter().zip(&processed).map(|(t, p)| transaction_review(book, &copy, proposal, t, p)).collect(),
+            transactions: proposal
+                .transactions
+                .iter()
+                .zip(&processed)
+                .map(|(t, p)| transaction_review(book, &copy, proposal, t, p))
+                .collect(),
             new_accounts: new_accounts(&copy, &processed),
             warnings: Vec::new(),
         },
         Err(e) => Review {
-            transactions: proposal.transactions.iter().map(|t| TransactionReview { read_only_by_date: flags(t), ..TransactionReview::default() }).collect(),
+            transactions: proposal
+                .transactions
+                .iter()
+                .map(|t| TransactionReview {
+                    read_only_by_date: flags(t),
+                    ..TransactionReview::default()
+                })
+                .collect(),
             new_accounts: Vec::new(),
-            warnings: vec![Warning { code: "cannot-apply", message: format!("applying this proposal as it stands would fail: {e}"), index: None }],
+            warnings: vec![Warning {
+                code: "cannot-apply",
+                message: format!("applying this proposal as it stands would fail: {e}"),
+                index: None,
+            }],
         },
     }
 }
@@ -101,17 +120,37 @@ pub fn review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) ->
 fn records_review(book: &Book, now: Time64, zone: &TimeZone, proposal: &Proposal) -> Review {
     let mut copy = book.clone();
     let mut env = FixedEnv::new(now, REVIEW_GUID_SEED).with_zone(zone.clone());
-    match super::apply(&mut copy, &mut env, proposal, &[], ApplyChoices { skip_errors: true, append_text: None }) {
+    match super::apply(
+        &mut copy,
+        &mut env,
+        proposal,
+        &[],
+        ApplyChoices {
+            skip_errors: true,
+            append_text: None,
+        },
+    ) {
         Ok(applied) => Review {
             new_accounts: applied
                 .accounts_created
                 .iter()
                 .filter_map(|g| copy.account(*g))
-                .map(|a| NewAccount { name: copy.full_name(a.guid).unwrap_or_else(|| a.name.clone()), account_type: a.account_type, commodity: a.commodity.clone() })
+                .map(|a| NewAccount {
+                    name: copy.full_name(a.guid).unwrap_or_else(|| a.name.clone()),
+                    account_type: a.account_type,
+                    commodity: a.commodity.clone(),
+                })
                 .collect(),
             ..Review::default()
         },
-        Err(e) => Review { warnings: vec![Warning { code: "cannot-apply", message: format!("applying this proposal as it stands would fail: {e}"), index: None }], ..Review::default() },
+        Err(e) => Review {
+            warnings: vec![Warning {
+                code: "cannot-apply",
+                message: format!("applying this proposal as it stands would fail: {e}"),
+                index: None,
+            }],
+            ..Review::default()
+        },
     }
 }
 
@@ -121,21 +160,36 @@ fn transaction_review(book: &Book, copy: &Book, proposal: &Proposal, t: &Propose
     let read_only = read_only_by_date(book, proposal.threshold, &t.info);
     let mut warnings: Vec<Warning> = p.warnings.iter().map(|w| process_warning(index, w)).collect();
     if let Some(i) = &imbalance {
-        let message = format!("applying adds a split of {} {} in {}", i.value.to_decimal_string(), i.currency.mnemonic, i.account_name);
+        let message = format!(
+            "applying adds a split of {} {} in {}",
+            i.value.to_decimal_string(),
+            i.currency.mnemonic,
+            i.account_name
+        );
         warnings.push(Warning::about(index, "imbalance", message));
     }
     if let Some(threshold) = proposal.threshold.filter(|_| read_only) {
-        warnings.push(Warning::about(index, "read-only-by-date", format!("dated before the read-only threshold {threshold}")));
+        warnings.push(Warning::about(
+            index,
+            "read-only-by-date",
+            format!("dated before the read-only threshold {threshold}"),
+        ));
     }
-    TransactionReview { imbalance, read_only_by_date: read_only, warnings }
+    TransactionReview {
+        imbalance,
+        read_only_by_date: read_only,
+        warnings,
+    }
 }
 
 /// The warning a [`ProcessWarning`] becomes.
 pub fn process_warning(index: usize, w: &ProcessWarning) -> Warning {
     match w {
-        ProcessWarning::MissingRate => {
-            Warning::about(index, "missing-rate", "the balancing split's account is in another commodity and no amount was given: its amount is its value, a rate of 1")
-        }
+        ProcessWarning::MissingRate => Warning::about(
+            index,
+            "missing-rate",
+            "the balancing split's account is in another commodity and no amount was given: its amount is its value, a rate of 1",
+        ),
         ProcessWarning::NoMatch => Warning::about(index, "no-match", "no match is selected, so nothing was done"),
         ProcessWarning::OtherSplitNotUpdated => Warning::about(
             index,
@@ -147,19 +201,28 @@ pub fn process_warning(index: usize, w: &ProcessWarning) -> Warning {
 
 /// The Imbalance split the scrub added (or changed) when the transaction was committed.
 fn imbalance(book: &Book, copy: &Book, p: &Processed) -> Option<ImbalanceInfo> {
-    p.repairs.iter().find_map(|r| match r {
-        Repair::BalanceSplitAdded { transaction, account, value, .. } => Some((*transaction, *account, *value)),
-        Repair::BalanceSplitChanged { transaction, account, to, .. } => Some((*transaction, *account, *to)),
-        _ => None,
-    })
-    .and_then(|(transaction, account, value)| {
-        Some(ImbalanceInfo {
-            value,
-            currency: copy.transaction(transaction)?.currency.clone(),
-            account: book.account(account).map(|a| a.guid),
-            account_name: copy.full_name(account)?,
+    p.repairs
+        .iter()
+        .find_map(|r| match r {
+            Repair::BalanceSplitAdded {
+                transaction,
+                account,
+                value,
+                ..
+            } => Some((*transaction, *account, *value)),
+            Repair::BalanceSplitChanged {
+                transaction, account, to, ..
+            } => Some((*transaction, *account, *to)),
+            _ => None,
         })
-    })
+        .and_then(|(transaction, account, value)| {
+            Some(ImbalanceInfo {
+                value,
+                currency: copy.transaction(transaction)?.currency.clone(),
+                account: book.account(account).map(|a| a.guid),
+                account_name: copy.full_name(account)?,
+            })
+        })
 }
 
 /// The accounts applying created, in the order they were made (a parent before its children).
@@ -172,7 +235,11 @@ fn new_accounts(copy: &Book, processed: &[Processed]) -> Vec<NewAccount> {
             Repair::AccountCreated { account, .. } if seen.insert(*account) => copy.account(*account),
             _ => None,
         })
-        .map(|a| NewAccount { name: copy.full_name(a.guid).unwrap_or_else(|| a.name.clone()), account_type: a.account_type, commodity: a.commodity.clone() })
+        .map(|a| NewAccount {
+            name: copy.full_name(a.guid).unwrap_or_else(|| a.name.clone()),
+            account_type: a.account_type,
+            commodity: a.commodity.clone(),
+        })
         .collect()
 }
 

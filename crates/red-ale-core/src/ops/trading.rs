@@ -36,7 +36,9 @@ fn commodity_of(book: &Book, s: &Split) -> Option<CommodityRef> {
 
 /// True for a split in a TRADING account.
 pub fn is_trading_split(book: &Book, s: &Split) -> bool {
-    s.account.and_then(|a| book.account(a)).is_some_and(|a| a.account_type == AccountType::Trading)
+    s.account
+        .and_then(|a| book.account(a))
+        .is_some_and(|a| a.account_type == AccountType::Trading)
 }
 
 /// `gnc_monetary_list_add_monetary` (`5.17:libgnucash/engine/gnc-commodity.cpp:2441-2464`): add to the entry for the
@@ -55,14 +57,17 @@ fn add_to(list: &mut Vec<Imbalance>, commodity: Option<CommodityRef>, n: Numeric
 /// The order is GnuCash's: the newest commodity first, the transaction currency last.
 pub fn imbalances(book: &Book, t: &Transaction) -> DomainResult<Vec<Imbalance>> {
     let currency = Some(t.currency.clone());
-    let (list, value) = t.splits.iter().try_fold((None::<Vec<Imbalance>>, Numeric::ZERO), |(mut list, value), s| -> DomainResult<_> {
-        let commodity = commodity_of(book, s);
-        if list.is_some() || commodity != currency || !s.amount.same_value(s.value) {
-            let l = list.get_or_insert_with(|| vec![(currency.clone(), value)]);
-            add_to(l, commodity, s.amount)?;
-        }
-        Ok((list, value.add_exact(s.value)?))
-    })?;
+    let (list, value) = t
+        .splits
+        .iter()
+        .try_fold((None::<Vec<Imbalance>>, Numeric::ZERO), |(mut list, value), s| -> DomainResult<_> {
+            let commodity = commodity_of(book, s);
+            if list.is_some() || commodity != currency || !s.amount.same_value(s.value) {
+                let l = list.get_or_insert_with(|| vec![(currency.clone(), value)]);
+                add_to(l, commodity, s.amount)?;
+            }
+            Ok((list, value.add_exact(s.value)?))
+        })?;
     let mut list = list.unwrap_or_else(|| vec![(currency, value)]);
     list.retain(|(_, n)| !n.is_zero());
     Ok(list)
@@ -71,7 +76,11 @@ pub fn imbalances(book: &Book, t: &Transaction) -> DomainResult<Vec<Imbalance>> 
 /// The sums of the values of the non-trading and of the trading splits.
 fn value_sums(book: &Book, t: &Transaction) -> DomainResult<(Numeric, Numeric)> {
     t.splits.iter().try_fold((Numeric::ZERO, Numeric::ZERO), |(other, trading), s| {
-        Ok(if is_trading_split(book, s) { (other, trading.add_exact(s.value)?) } else { (other.add_exact(s.value)?, trading) })
+        Ok(if is_trading_split(book, s) {
+            (other, trading.add_exact(s.value)?)
+        } else {
+            (other.add_exact(s.value)?, trading)
+        })
     })
 }
 
@@ -80,7 +89,10 @@ fn value_sums(book: &Book, t: &Transaction) -> DomainResult<(Numeric, Numeric)> 
 /// amounts must all sum to zero.
 pub fn check(book: &Book, t: &Transaction) -> DomainResult<()> {
     let (other, trading) = value_sums(book, t)?;
-    let unbalanced = |n: Numeric, c: &str| DomainError::Unbalanced { imbalance: n.to_decimal_string(), currency: c.to_owned() };
+    let unbalanced = |n: Numeric, c: &str| DomainError::Unbalanced {
+        imbalance: n.to_decimal_string(),
+        currency: c.to_owned(),
+    };
     if !other.is_zero() {
         return Err(unbalanced(other, &t.currency.mnemonic));
     }
@@ -112,7 +124,10 @@ pub fn commit(book: &mut Book, env: &mut dyn Env, t: &mut Transaction) -> Domain
     let removed = clear(book, t);
     let imbalance = t.imbalance()?;
     if !imbalance.is_zero() {
-        return Err(DomainError::Unbalanced { imbalance: imbalance.to_decimal_string(), currency: t.currency.mnemonic.clone() });
+        return Err(DomainError::Unbalanced {
+            imbalance: imbalance.to_decimal_string(),
+            currency: t.currency.mnemonic.clone(),
+        });
     }
     let mut out = rebalance(book, env, t)?;
     out.removed = removed;
@@ -131,7 +146,9 @@ pub fn clear(book: &Book, t: &mut Transaction) -> Vec<Split> {
 /// `gnc_transaction_balance_trading_more_splits` (`:784-836`). The splits are not sorted.
 pub fn rebalance(book: &mut Book, env: &mut dyn Env, t: &mut Transaction) -> DomainResult<Rebalanced> {
     let mut out = Rebalanced::default();
-    imbalances(book, t)?.into_iter().try_for_each(|(c, n)| balance_commodity(book, env, t, c.as_ref(), n, &mut out))?;
+    imbalances(book, t)?
+        .into_iter()
+        .try_for_each(|(c, n)| balance_commodity(book, env, t, c.as_ref(), n, &mut out))?;
     if !t.imbalance()?.is_zero() {
         let before: Vec<Guid> = t.splits.iter().map(|s| s.guid).collect();
         before.into_iter().try_for_each(|g| offset_gain(book, env, t, g, &mut out))?;
@@ -151,7 +168,8 @@ fn balance_commodity(
     imbalance: Numeric,
     out: &mut Rebalanced,
 ) -> DomainResult<()> {
-    let c = c.ok_or_else(|| DomainError::invalid("a split's account has no commodity, so it cannot be balanced through trading accounts"))?;
+    let c =
+        c.ok_or_else(|| DomainError::invalid("a split's account has no commodity, so it cannot be balanced through trading accounts"))?;
     let index = trading_split(book, env, t, c, out)?;
     let currency_fraction = fraction(book, &t.currency)?;
     let split = &t.splits[index];
@@ -159,11 +177,16 @@ fn balance_commodity(
     let new_value = if *c == t.currency {
         new_amount
     } else {
-        let values =
-            t.splits.iter().filter(|s| commodity_of(book, s).as_ref() == Some(c)).try_fold(Numeric::ZERO, |acc, s| acc.add_exact(s.value))?;
+        let values = t
+            .splits
+            .iter()
+            .filter(|s| commodity_of(book, s).as_ref() == Some(c))
+            .try_fold(Numeric::ZERO, |acc, s| acc.add_exact(s.value))?;
         split.value.sub(values, currency_fraction, How::round(Round::HalfUp))?
     };
-    let account = split.account.ok_or_else(|| DomainError::invalid("a trading split has no account"))?;
+    let account = split
+        .account
+        .ok_or_else(|| DomainError::invalid("a trading split has no account"))?;
     let amount = new_amount.to_denom(account_scu(book, account)?, Round::HalfUp)?;
     let split = &mut t.splits[index];
     split.amount = amount;
@@ -174,7 +197,9 @@ fn balance_commodity(
 /// One split of `gnc_transaction_balance_trading_more_splits`: a split with a value but no amount (a realized gain)
 /// is offset in the value of its commodity's trading split; that split's amount is left alone.
 fn offset_gain(book: &mut Book, env: &mut dyn Env, t: &mut Transaction, guid: Guid, out: &mut Rebalanced) -> DomainResult<()> {
-    let Some(s) = t.split(guid).filter(|s| !s.value.is_zero() && s.amount.is_zero()) else { return Ok(()) };
+    let Some(s) = t.split(guid).filter(|s| !s.value.is_zero() && s.amount.is_zero()) else {
+        return Ok(());
+    };
     let value = s.value;
     // GnuCash logs and skips a split whose account has no commodity.
     let Some(c) = commodity_of(book, s) else { return Ok(()) };
@@ -200,7 +225,13 @@ pub(crate) fn set_value(old: Numeric, new: Numeric, fraction: i64) -> DomainResu
 /// `xaccSplitScrub` on a trading split (`5.17:libgnucash/engine/Scrub.cpp:236-347`, `:423-427`): in an account of the transaction
 /// currency, an amount that differs from the value at `min(SCU, currency fraction)` becomes the value.
 fn scrub_split(book: &Book, currency: &CommodityRef, s: &mut Split) -> DomainResult<()> {
-    let Some(account) = s.account.and_then(|a| book.account(a)).filter(|a| a.commodity.as_ref() == Some(currency)) else { return Ok(()) };
+    let Some(account) = s
+        .account
+        .and_then(|a| book.account(a))
+        .filter(|a| a.commodity.as_ref() == Some(currency))
+    else {
+        return Ok(());
+    };
     let scu = account_scu(book, account.guid)?;
     let denom = scu.min(fraction(book, currency)?);
     if s.amount.to_denom(denom, Round::HalfUp)? != s.value.to_denom(denom, Round::HalfUp)? {
@@ -217,7 +248,8 @@ fn trading_split(book: &mut Book, env: &mut dyn Env, t: &mut Transaction, c: &Co
         return Ok(index);
     }
     let scu = account_scu(book, account)?;
-    t.splits.push(Split::new(env.new_guid(), account, Numeric::ZERO, Numeric::new(0, scu)));
+    t.splits
+        .push(Split::new(env.new_guid(), account, Numeric::ZERO, Numeric::new(0, scu)));
     Ok(t.splits.len() - 1)
 }
 
@@ -225,11 +257,34 @@ fn trading_split(book: &mut Book, env: &mut dyn Env, t: &mut Transaction, c: &Co
 /// `get_trading_split` does. New accounts are appended to `created`.
 pub fn trading_account(book: &mut Book, env: &mut dyn Env, c: &CommodityRef, created: &mut Vec<Guid>) -> DomainResult<Guid> {
     let root = book.root;
-    let top_wanted = Wanted { parent: root, commodity: None, name: TRADING, placeholder: true, check_name: false };
+    let top_wanted = Wanted {
+        parent: root,
+        commodity: None,
+        name: TRADING,
+        placeholder: true,
+        check_name: false,
+    };
     let top = get_or_make(book, env, top_wanted, created)?;
-    let ns_wanted = Wanted { parent: top, commodity: None, name: &c.namespace, placeholder: true, check_name: true };
+    let ns_wanted = Wanted {
+        parent: top,
+        commodity: None,
+        name: &c.namespace,
+        placeholder: true,
+        check_name: true,
+    };
     let ns = get_or_make(book, env, ns_wanted, created)?;
-    get_or_make(book, env, Wanted { parent: ns, commodity: Some(c), name: &c.mnemonic, placeholder: false, check_name: false }, created)
+    get_or_make(
+        book,
+        env,
+        Wanted {
+            parent: ns,
+            commodity: Some(c),
+            name: &c.mnemonic,
+            placeholder: false,
+            check_name: false,
+        },
+        created,
+    )
 }
 
 /// What `xaccScrubUtilityGetOrMakeAccount` is asked for, always with type TRADING.
@@ -247,10 +302,18 @@ fn get_or_make(book: &mut Book, env: &mut dyn Env, w: Wanted<'_>, created: &mut 
     let found = lookup(book, w.parent, w.check_name.then_some(w.name), AccountType::Trading, w.commodity);
     let root_currency = root_currency(book);
     let pick = || {
-        let in_root_currency =
-            || found.iter().find(|g| w.commodity.is_none() && book.account(**g).is_some_and(|a| a.commodity == root_currency));
+        let in_root_currency = || {
+            found
+                .iter()
+                .find(|g| w.commodity.is_none() && book.account(**g).is_some_and(|a| a.commodity == root_currency))
+        };
         let named = || found.iter().find(|g| book.account(**g).is_some_and(|a| a.name == w.name));
-        if found.len() > 1 { in_root_currency().or_else(named).or(found.first()) } else { found.first() }.copied()
+        if found.len() > 1 {
+            in_root_currency().or_else(named).or(found.first())
+        } else {
+            found.first()
+        }
+        .copied()
     };
     if let Some(g) = pick() {
         return Ok(g);
@@ -269,7 +332,9 @@ fn get_or_make(book: &mut Book, env: &mut dyn Env, w: Wanted<'_>, created: &mut 
 /// first top-level INCOME account that has one.
 pub fn root_currency(book: &Book) -> Option<CommodityRef> {
     book.account(book.root).and_then(|r| r.commodity.clone()).or_else(|| {
-        book.children(book.root).filter(|a| a.account_type == AccountType::Income).find_map(|a| a.commodity.clone())
+        book.children(book.root)
+            .filter(|a| a.account_type == AccountType::Income)
+            .find_map(|a| a.commodity.clone())
     })
 }
 
@@ -286,7 +351,11 @@ pub fn lookup(book: &Book, parent: Guid, name: Option<&str>, account_type: Accou
         return direct;
     }
     let children: Vec<Guid> = book.children(parent).map(|a| a.guid).collect();
-    children.into_iter().rev().flat_map(|c| lookup(book, c, name, account_type, commodity)).collect()
+    children
+        .into_iter()
+        .rev()
+        .flat_map(|c| lookup(book, c, name, account_type, commodity))
+        .collect()
 }
 
 #[cfg(test)]

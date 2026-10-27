@@ -23,7 +23,8 @@ fn open(name: &str) -> (tempfile::TempDir, Dispatcher) {
 
 fn call(d: &mut Dispatcher, method: &str, params: Value) -> Value {
     let shown = params.to_string();
-    d.call(method, params).unwrap_or_else(|e| panic!("{method} {shown}: {e} {:?}", e.data))
+    d.call(method, params)
+        .unwrap_or_else(|e| panic!("{method} {shown}: {e} {:?}", e.data))
 }
 
 fn post(d: &mut Dispatcher, link: &str) -> Value {
@@ -41,16 +42,26 @@ fn transactions_take_change_and_drop_links() {
     let plain = post(&mut d, "");
     assert_eq!(plain["docLink"], Value::Null, "an empty link stores nothing");
 
-    let changed = call(&mut d, "transaction.update", json!({ "guid": guid, "docLink": "https://example.com/r/1" }));
+    let changed = call(
+        &mut d,
+        "transaction.update",
+        json!({ "guid": guid, "docLink": "https://example.com/r/1" }),
+    );
     assert_eq!(changed["docLink"], "https://example.com/r/1");
     let kept = call(&mut d, "transaction.update", json!({ "guid": guid, "description": "Receipt 1" }));
     assert_eq!(kept["docLink"], "https://example.com/r/1", "absent leaves it");
     let dropped = call(&mut d, "transaction.update", json!({ "guid": guid, "docLink": "" }));
     assert_eq!(dropped["docLink"], Value::Null);
 
-    call(&mut d, "transaction.update", json!({ "guid": guid, "docLink": "receipts/june.pdf" }));
+    call(
+        &mut d,
+        "transaction.update",
+        json!({ "guid": guid, "docLink": "receipts/june.pdf" }),
+    );
     call(&mut d, "transaction.void", json!({ "guid": guid, "reason": "wrong" }));
-    let e = d.call("transaction.update", json!({ "guid": guid, "docLink": "x.pdf" })).unwrap_err();
+    let e = d
+        .call("transaction.update", json!({ "guid": guid, "docLink": "x.pdf" }))
+        .unwrap_err();
     assert_eq!(e.code, codes::CONFLICT, "a read-only transaction keeps its link");
 }
 
@@ -61,8 +72,14 @@ fn transactions_read_only_by_date_keep_their_links() {
     // Today is 2024-07-01, so ten days puts the threshold at 2024-06-21, after the 2024-06-20 transaction.
     call(&mut d, "book.setOptions", json!({ "autoReadOnlyDays": 10 }));
     let e = d.call("transaction.update", json!({ "guid": guid, "docLink": "" })).unwrap_err();
-    assert_eq!((e.code, e.data.unwrap()["reason"].as_str()), (codes::CONFLICT, Some("auto-read-only")));
-    assert_eq!(call(&mut d, "transaction.get", json!({ "guid": guid }))["docLink"], "receipts/june.pdf");
+    assert_eq!(
+        (e.code, e.data.unwrap()["reason"].as_str()),
+        (codes::CONFLICT, Some("auto-read-only"))
+    );
+    assert_eq!(
+        call(&mut d, "transaction.get", json!({ "guid": guid }))["docLink"],
+        "receipts/june.pdf"
+    );
 }
 
 #[test]
@@ -75,17 +92,39 @@ fn listings_resolve_relative_links_against_the_path_head() {
     assert_eq!(before["pathHead"], Value::Null);
     let links = before["links"].as_array().unwrap();
     assert_eq!(links.len(), 3);
-    assert_eq!((links[0]["relative"].as_bool(), &links[0]["uri"]), (Some(true), &Value::Null), "no path head: unresolved");
+    assert_eq!(
+        (links[0]["relative"].as_bool(), &links[0]["uri"]),
+        (Some(true), &Value::Null),
+        "no path head: unresolved"
+    );
 
     let head = call(&mut d, "docLink.setPathHead", json!({ "pathHead": "/srv/docs" }));
     assert_eq!(head["pathHead"], "file:///srv/docs/");
     assert_eq!(call(&mut d, "docLink.pathHead", json!({}))["pathHead"], "file:///srv/docs/");
-    assert_eq!(d.call("docLink.setPathHead", json!({ "pathHead": "docs" })).unwrap_err().code, codes::INVALID);
+    assert_eq!(
+        d.call("docLink.setPathHead", json!({ "pathHead": "docs" })).unwrap_err().code,
+        codes::INVALID
+    );
 
     let after = call(&mut d, "docLink.transactions", json!({}));
-    let uris: Vec<&str> = after["links"].as_array().unwrap().iter().map(|l| l["uri"].as_str().unwrap()).collect();
-    assert_eq!(uris, ["file:///srv/docs/receipts/june.pdf", "https://example.com/r/1", "file:///srv/docs/old/receipt.pdf"]);
-    assert_eq!(after["links"][2]["docLink"], "file:old/receipt.pdf", "the listing does not rewrite the old form");
+    let uris: Vec<&str> = after["links"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l["uri"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        uris,
+        [
+            "file:///srv/docs/receipts/june.pdf",
+            "https://example.com/r/1",
+            "file:///srv/docs/old/receipt.pdf"
+        ]
+    );
+    assert_eq!(
+        after["links"][2]["docLink"], "file:old/receipt.pdf",
+        "the listing does not rewrite the old form"
+    );
     assert_eq!(after["links"][0]["description"], "Receipt");
 
     call(&mut d, "docLink.setPathHead", json!({ "pathHead": null }));
@@ -95,17 +134,34 @@ fn listings_resolve_relative_links_against_the_path_head() {
 #[test]
 fn documents_take_links_even_when_posted() {
     let (_dir, mut d) = open("synthetic/business-editable.gnucash");
-    let posted = call(&mut d, "invoice.update", json!({ "invoice": POSTED_INVOICE, "docLink": "invoices/000001.pdf" }));
-    assert_eq!((posted["posted"].as_bool(), posted["docLink"].as_str()), (Some(true), Some("invoices/000001.pdf")));
-    let e = d.call("invoice.update", json!({ "invoice": POSTED_INVOICE, "notes": "changed" })).unwrap_err();
+    let posted = call(
+        &mut d,
+        "invoice.update",
+        json!({ "invoice": POSTED_INVOICE, "docLink": "invoices/000001.pdf" }),
+    );
+    assert_eq!(
+        (posted["posted"].as_bool(), posted["docLink"].as_str()),
+        (Some(true), Some("invoices/000001.pdf"))
+    );
+    let e = d
+        .call("invoice.update", json!({ "invoice": POSTED_INVOICE, "notes": "changed" }))
+        .unwrap_err();
     assert_eq!(e.code, codes::CONFLICT, "other fields of a posted document stay frozen");
 
     let acme = call(&mut d, "customer.list", json!({ "id": "000001" }))["customers"][0]["guid"].clone();
-    let fresh = call(&mut d, "invoice.create", json!({ "owner": acme, "docLink": "https://example.com/po/9" }));
+    let fresh = call(
+        &mut d,
+        "invoice.create",
+        json!({ "owner": acme, "docLink": "https://example.com/po/9" }),
+    );
     assert_eq!(fresh["docLink"], "https://example.com/po/9");
     let listed = call(&mut d, "docLink.documents", json!({}));
-    let ids: Vec<(&str, &str)> =
-        listed["links"].as_array().unwrap().iter().map(|l| (l["id"].as_str().unwrap(), l["type"].as_str().unwrap())).collect();
+    let ids: Vec<(&str, &str)> = listed["links"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| (l["id"].as_str().unwrap(), l["type"].as_str().unwrap()))
+        .collect();
     assert_eq!(ids.len(), 2);
     assert!(ids.contains(&("000001", "invoice")) && ids.contains(&("000003", "invoice")));
 

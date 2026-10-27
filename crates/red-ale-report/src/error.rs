@@ -101,7 +101,11 @@ pub struct OptionError {
 impl OptionError {
     /// An error about the option `section`/`name`.
     pub fn new(section: impl Into<String>, name: impl Into<String>, reason: impl Into<String>) -> Self {
-        Self { section: section.into(), name: name.into(), reason: reason.into() }
+        Self {
+            section: section.into(),
+            name: name.into(),
+            reason: reason.into(),
+        }
     }
 }
 
@@ -122,7 +126,12 @@ pub struct ResultError {
 impl ResultError {
     /// An error at `path`, with no report or log yet.
     pub fn new(path: impl Into<String>, reason: impl Into<String>) -> Self {
-        Self { report: String::new(), path: path.into(), reason: reason.into(), log: Vec::new() }
+        Self {
+            report: String::new(),
+            path: path.into(),
+            reason: reason.into(),
+            log: Vec::new(),
+        }
     }
 }
 
@@ -212,15 +221,29 @@ mod tests {
     fn kinds_carry_the_api_codes_and_data() {
         let e = ReportError::from(OptionError::new("General", "Start Date", "not one of the choices"));
         assert_eq!((e.kind().code(), e.kind().name()), (3002, "report-option"));
-        assert_eq!(e.data(), json!({ "section": "General", "name": "Start Date", "reason": "not one of the choices" }));
+        assert_eq!(
+            e.data(),
+            json!({ "section": "General", "name": "Start Date", "reason": "not one of the choices" })
+        );
         let report = "c4173ac99b2b448289bf4d11c731af13".to_owned();
-        let limit = ReportError::Limit(LimitError { report, source: None, limit: Limit::NumberSize, max: 4096, log: vec![] });
+        let limit = ReportError::Limit(LimitError {
+            report,
+            source: None,
+            limit: Limit::NumberSize,
+            max: 4096,
+            log: vec![],
+        });
         assert_eq!(limit.data()["limit"], json!("number-size"));
         assert_eq!(limit.kind().code(), 3001);
         assert_eq!(limit.to_string(), "report passed the number-size limit of 4096");
         let result = ReportError::from(ResultError::new("sections[0]", "missing field `blocks`"));
         assert_eq!(result.data()["path"], json!("sections[0]"));
-        let load = ReportError::Load(LoadError { source: "mine.rhai".into(), line: Some(3), column: None, message: "x".into() });
+        let load = ReportError::Load(LoadError {
+            source: "mine.rhai".into(),
+            line: Some(3),
+            column: None,
+            message: "x".into(),
+        });
         assert_eq!((load.kind().code(), load.data()["line"].clone()), (3004, json!(3)));
         let script = ReportError::Script(ScriptError {
             report: String::new(),

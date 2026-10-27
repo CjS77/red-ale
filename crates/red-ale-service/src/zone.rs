@@ -41,7 +41,11 @@ fn zone_file(tz: &str, tzdir: Option<&Path>, read: &dyn Fn(&Path) -> Option<Vec<
     if name.is_empty() {
         return None;
     }
-    let path = if name.starts_with('/') { PathBuf::from(name) } else { tzdir.unwrap_or(Path::new(ZONEINFO)).join(name) };
+    let path = if name.starts_with('/') {
+        PathBuf::from(name)
+    } else {
+        tzdir.unwrap_or(Path::new(ZONEINFO)).join(name)
+    };
     read(&path).and_then(|data| TimeZone::from_tzif(name, &data).ok())
 }
 
@@ -49,7 +53,11 @@ fn zone_file(tz: &str, tzdir: Option<&Path>, read: &dyn Fn(&Path) -> Option<Vec<
 fn localtime_name() -> String {
     std::fs::read_link(LOCALTIME)
         .ok()
-        .and_then(|target| target.to_str().and_then(|t| t.split_once("zoneinfo/").map(|(_, name)| name.to_owned())))
+        .and_then(|target| {
+            target
+                .to_str()
+                .and_then(|t| t.split_once("zoneinfo/").map(|(_, name)| name.to_owned()))
+        })
         .unwrap_or_else(|| LOCALTIME.to_owned())
 }
 
@@ -90,14 +98,34 @@ mod tests {
     fn gnucash_order() {
         assert_eq!(offset(Some("Pacific/Kiritimati"), None), 14 * 3600, "a zone file");
         assert_eq!(offset(Some(":Pacific/Kiritimati"), None), 14 * 3600, "a leading colon is dropped");
-        assert_eq!(offset(Some("/usr/share/zoneinfo/Pacific/Kiritimati"), None), 14 * 3600, "an absolute path");
+        assert_eq!(
+            offset(Some("/usr/share/zoneinfo/Pacific/Kiritimati"), None),
+            14 * 3600,
+            "an absolute path"
+        );
         assert_eq!(offset(Some("Local/Zone"), Some("/tz")), 3 * 3600, "TZDIR");
-        assert_eq!(offset(Some("Pacific/Kiritimati"), Some("/tz")), 3600, "TZDIR replaces the default tree");
+        assert_eq!(
+            offset(Some("Pacific/Kiritimati"), Some("/tz")),
+            3600,
+            "TZDIR replaces the default tree"
+        );
         assert_eq!(offset(Some("XYZ11"), None), 11 * 3600, "a POSIX string, with Boost's sign");
         assert_eq!(offset(Some("XYZ-13"), None), 3600, "refused by Boost: /etc/localtime");
-        assert_eq!(offset(Some("Nowhere"), None), 0, "no such file: a POSIX name with no offset is UTC, as the oracle gives");
-        assert_eq!(offset(Some("Broken"), None), 0, "not TZif (GnuCash aborts): read as a POSIX name, UTC");
-        assert_eq!(offset(Some("Nowhere/Land"), None), 3600, "neither a file nor a POSIX string: /etc/localtime");
+        assert_eq!(
+            offset(Some("Nowhere"), None),
+            0,
+            "no such file: a POSIX name with no offset is UTC, as the oracle gives"
+        );
+        assert_eq!(
+            offset(Some("Broken"), None),
+            0,
+            "not TZif (GnuCash aborts): read as a POSIX name, UTC"
+        );
+        assert_eq!(
+            offset(Some("Nowhere/Land"), None),
+            3600,
+            "neither a file nor a POSIX string: /etc/localtime"
+        );
         assert_eq!(offset(Some(""), None), 3600, "empty");
         assert_eq!(offset(None, None), 3600, "unset");
         assert_eq!(zone_from(None, None, &|_| None), TimeZone::utc(), "nothing readable: UTC");

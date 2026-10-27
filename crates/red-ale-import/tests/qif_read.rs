@@ -6,9 +6,9 @@
 
 use red_ale_core::{AccountType, Numeric};
 use red_ale_import::qif::{
-    Action, Cleared, DateFormat, Field, FieldKind, FieldProblem, Format, NumberFormat, ParseFieldsReport, QifDate, QifFile,
-    QifSplit, QifXtn, ReadError, ReadOptions, ReadResult, ReadWarningKind, RecordKind, check_from_acct, parse_fields, read_file,
-    reparse_dates, reparse_price_dates,
+    Action, Cleared, DateFormat, Field, FieldKind, FieldProblem, Format, NumberFormat, ParseFieldsReport, QifDate, QifFile, QifSplit,
+    QifXtn, ReadError, ReadOptions, ReadResult, ReadWarningKind, RecordKind, check_from_acct, parse_fields, read_file, reparse_dates,
+    reparse_price_dates,
 };
 
 fn read(text: &str) -> ReadResult {
@@ -53,7 +53,10 @@ fn bank_transaction_fields() {
     assert_eq!(value(xtn.cleared.as_ref()), Some(Cleared::Cleared));
     assert_eq!(xtn.default_split, None);
     let [split] = xtn.splits.as_slice() else { panic!("one split") };
-    assert_eq!((split.category.as_str(), split.class.as_str(), split.category_is_account), ("Food:Groceries", "Home", false));
+    assert_eq!(
+        (split.category.as_str(), split.class.as_str(), split.category_is_account),
+        ("Food:Groceries", "Home", false)
+    );
     assert_eq!(split.memo.as_deref(), Some("weekly"));
     assert_eq!(amount(split), Some(n(-246_900, 200)));
     // No account record and no opening balance: the account is unknown and GnuCash asks for one (:631-640).
@@ -77,22 +80,32 @@ fn transaction_without_date() {
     let result = read("!Type:Bank\r\nT1.00\r\n^\r\nD1/1/2001\r\n^\r\n");
     assert_eq!(result.file.xtns.len(), 1);
     assert_eq!(result.warnings.len(), 1);
-    assert_eq!((result.warnings[0].line, &result.warnings[0].kind), (3, &ReadWarningKind::DateRequired));
-    assert_eq!(result.warnings[0].to_string(), "Line 3: Date required. Discarding this transaction.");
+    assert_eq!(
+        (result.warnings[0].line, &result.warnings[0].kind),
+        (3, &ReadWarningKind::DateRequired)
+    );
+    assert_eq!(
+        result.warnings[0].to_string(),
+        "Line 3: Date required. Discarding this transaction."
+    );
 }
 
 /// A credit card file whose account record comes first: a first transaction to that same account is its opening
 /// balance, from the equity account, whatever the payee. `qif-file.scm:422-444`, `:602-629`.
 #[test]
 fn credit_card_opening_balance_to_known_account() {
-    let text = "!Account\nNVisa\nTCCard\nL5,000.00\n^\n!Type:CCard\nD1/5/2004\nT-250.00\nPStart\nL[Visa]\n^\nD1/9/2004\nT-12.00\nLDining\n^\n";
+    let text =
+        "!Account\nNVisa\nTCCard\nL5,000.00\n^\n!Type:CCard\nD1/5/2004\nT-250.00\nPStart\nL[Visa]\n^\nD1/9/2004\nT-12.00\nLDining\n^\n";
     let (file, _) = parsed(text);
     let acct = &file.accounts[0];
     assert_eq!(acct.name, "Visa");
     assert_eq!(acct.acct_type, Field::Value(vec![AccountType::Credit]));
     assert_eq!(value(acct.limit.as_ref()), Some(n(5000, 1)));
     let opening = &file.xtns[0].splits[0];
-    assert_eq!((opening.category.as_str(), opening.category_is_account), ("Equity:Retained Earnings", true));
+    assert_eq!(
+        (opening.category.as_str(), opening.category_is_account),
+        ("Equity:Retained Earnings", true)
+    );
     assert!(file.xtns.iter().all(|x| x.from_acct.as_deref() == Some("Visa")));
     assert_eq!(file.xtns[1].splits[0].category, "Dining");
 }
@@ -102,7 +115,10 @@ fn credit_card_opening_balance_to_known_account() {
 #[test]
 fn opening_balance_names_the_account() {
     let text = "!Type:Bank\nD12/03/95\nT4,706.57\nPOpening Balance \nL[New Bank]\n^\nD12/04/95\nT-5\nLFees\n^\n";
-    let options = ReadOptions { default_equity_account: "Capitaux propres:Bénéfices".to_owned(), ..ReadOptions::default() };
+    let options = ReadOptions {
+        default_equity_account: "Capitaux propres:Bénéfices".to_owned(),
+        ..ReadOptions::default()
+    };
     let file = read_file(text, &options).unwrap().file;
     assert_eq!(file.xtns[0].splits[0].category, "Capitaux propres:Bénéfices");
     assert!(file.xtns.iter().all(|x| x.from_acct.as_deref() == Some("New Bank")));
@@ -114,7 +130,8 @@ fn opening_balance_names_the_account() {
 /// `qif-objects.scm:449-475`.
 #[test]
 fn splits() {
-    let text = "!Type:Bank\nD3/13/2002\nT-100.00\nPShop\nLHousehold\nSFood\nEbread\n$40.00\nS[Savings]/Kids\n$60.00\nT-1.00\nMlate memo\n^\n";
+    let text =
+        "!Type:Bank\nD3/13/2002\nT-100.00\nPShop\nLHousehold\nSFood\nEbread\n$40.00\nS[Savings]/Kids\n$60.00\nT-1.00\nMlate memo\n^\n";
     let (file, report) = parsed(text);
     assert!(report.errors.is_empty());
     let xtn = &file.xtns[0];
@@ -123,18 +140,28 @@ fn splits() {
     // The own split's amount is never parsed (qif-objects.scm:472-474), and the late M line did not reach it.
     assert_eq!(own.amount, Some(Field::text_of("-100.00")));
     assert_eq!(own.memo, None);
-    let categories: Vec<_> = xtn.splits.iter().map(|s| (s.category.as_str(), s.category_is_account, s.class.as_str())).collect();
+    let categories: Vec<_> = xtn
+        .splits
+        .iter()
+        .map(|s| (s.category.as_str(), s.category_is_account, s.class.as_str()))
+        .collect();
     assert_eq!(categories, vec![("Savings", true, "Kids"), ("Food", false, "")]);
     assert_eq!(xtn.splits[1].memo.as_deref(), Some("bread"));
     // -100 + 40 + 60 = 0, so the splits are negated.
-    assert_eq!(xtn.splits.iter().map(amount).collect::<Vec<_>>(), vec![Some(n(-60, 1)), Some(n(-40, 1))]);
+    assert_eq!(
+        xtn.splits.iter().map(amount).collect::<Vec<_>>(),
+        vec![Some(n(-60, 1)), Some(n(-40, 1))]
+    );
 }
 
 /// Splits whose amounts do not cancel the total keep their sign (divx.qif's paycheque). `qif-objects.scm:464-475`.
 #[test]
 fn splits_keep_their_sign() {
     let (file, _) = parsed("!Type:Bank\nD3/1/2002\nT100.00\nSA\n$40.00\nSB\n$60.00\n^\n");
-    assert_eq!(file.xtns[0].splits.iter().map(amount).collect::<Vec<_>>(), vec![Some(n(60, 1)), Some(n(40, 1))]);
+    assert_eq!(
+        file.xtns[0].splits.iter().map(amount).collect::<Vec<_>>(),
+        vec![Some(n(60, 1)), Some(n(40, 1))]
+    );
 }
 
 /// Investments: the action in `N`, with its aliases; `Y`, `I`, `Q`, `O`; a missing security becomes `""`; the
@@ -144,7 +171,10 @@ fn investments() {
     let text = "!Type:Security\nNAcme Corp\nSACM\nTStock\nGGrowth\n^\n!Type:Invst\nD1/15/2003\nNKauf\nYAcme Corp\nI12.50\nQ100\nO9.95\nT1,259.95\nCR\n^\nD1/16/2003\nNIntInc\nT3.20\n^\nD1/17/2003\nNGrant\nT1\n^\n";
     let result = read(text);
     assert_eq!(result.securities.len(), 1);
-    assert_eq!((result.securities[0].name.as_str(), result.securities[0].symbol.as_str()), ("Acme Corp", "ACM"));
+    assert_eq!(
+        (result.securities[0].name.as_str(), result.securities[0].symbol.as_str()),
+        ("Acme Corp", "ACM")
+    );
     let mut file = result.file;
     let report = parse_fields(&mut file).unwrap();
     let buy = &file.xtns[0];
@@ -159,7 +189,11 @@ fn investments() {
     assert_eq!(value(file.xtns[1].action.as_ref()), Some(Action::IntInc));
     assert_eq!(value(file.xtns[2].action.as_ref()), Some(Action::Unrecognized));
     let messages: Vec<_> = report.errors.iter().map(|e| (e.field, e.line, e.problem.clone())).collect();
-    assert!(messages.contains(&(FieldKind::Action, Some(21), FieldProblem::Message("Unrecognized action 'Grant'.".to_owned()))));
+    assert!(messages.contains(&(
+        FieldKind::Action,
+        Some(21),
+        FieldProblem::Message("Unrecognized action 'Grant'.".to_owned())
+    )));
 }
 
 /// `I`, `Q` and `$` values padded with spaces read as zero in GnuCash (Scheme's `string->number` refuses the space),
@@ -170,7 +204,10 @@ fn padded_numbers_read_as_zero_and_are_reported() {
     assert_eq!(value(file.xtns[0].action.as_ref()), Some(Action::Buy));
     assert_eq!(value(file.xtns[0].share_price.as_ref()), Some(Numeric::ZERO));
     let unreadable: Vec<_> = report.errors.iter().map(|e| (e.field, e.line, e.problem.clone())).collect();
-    assert_eq!(unreadable, vec![(FieldKind::SharePrice, Some(2), FieldProblem::Unreadable("35        ".to_owned()))]);
+    assert_eq!(
+        unreadable,
+        vec![(FieldKind::SharePrice, Some(2), FieldProblem::Unreadable("35        ".to_owned()))]
+    );
 }
 
 /// A price list: every line but `^` is a price; values are read by `gnc-numeric-from-string` and kept as Scheme
@@ -182,13 +219,23 @@ fn prices() {
     assert_eq!(result.warnings.iter().map(|w| w.line).collect::<Vec<_>>(), vec![6]);
     let mut file = result.file;
     // Newest first.
-    assert_eq!(file.prices.iter().map(|p| p.share_price.text().unwrap()).collect::<Vec<_>>(), vec!["85/2", "31/16"]);
+    assert_eq!(
+        file.prices.iter().map(|p| p.share_price.text().unwrap()).collect::<Vec<_>>(),
+        vec!["85/2", "31/16"]
+    );
     let report = parse_fields(&mut file).unwrap();
     assert!(report.errors.is_empty());
-    let prices: Vec<_> = file.prices.iter().map(|p| (p.symbol.clone(), value(Some(&p.share_price)), value(Some(&p.date)))).collect();
+    let prices: Vec<_> = file
+        .prices
+        .iter()
+        .map(|p| (p.symbol.clone(), value(Some(&p.share_price)), value(Some(&p.date))))
+        .collect();
     assert_eq!(
         prices,
-        vec![("DEF".to_owned(), Some(n(85, 2)), Some(date(20, 1, 2000))), ("ABC".to_owned(), Some(n(31, 16)), Some(date(3, 1, 2019)))]
+        vec![
+            ("DEF".to_owned(), Some(n(85, 2)), Some(date(20, 1, 2000))),
+            ("ABC".to_owned(), Some(n(31, 16)), Some(date(3, 1, 2019)))
+        ]
     );
 }
 
@@ -206,19 +253,32 @@ fn memorised_transactions_are_skipped() {
 /// `qif-file.scm:395-487`.
 #[test]
 fn classes_and_categories() {
-    let text = "!Type:Class\nNHome\nDHousehold\nRtax copy\nXnot a field\n^\n!Type:Cat\nNSalary\nDPay\nT\nI\nR4592\nB1.500,00\n^\nNRent\nE\n^\n";
+    let text =
+        "!Type:Class\nNHome\nDHousehold\nRtax copy\nXnot a field\n^\n!Type:Cat\nNSalary\nDPay\nT\nI\nR4592\nB1.500,00\n^\nNRent\nE\n^\n";
     let result = read(text);
     assert_eq!(result.warnings.len(), 1);
-    assert_eq!(result.warnings[0].kind, ReadWarningKind::IgnoringClassLine("Xnot a field".to_owned()));
+    assert_eq!(
+        result.warnings[0].kind,
+        ReadWarningKind::IgnoringClassLine("Xnot a field".to_owned())
+    );
     let mut file = result.file;
     let report = parse_fields(&mut file).unwrap();
     assert!(report.errors.is_empty());
-    assert_eq!((file.classes[0].name.as_deref(), file.classes[0].description.as_deref()), (Some("Home"), Some("Household")));
+    assert_eq!(
+        (file.classes[0].name.as_deref(), file.classes[0].description.as_deref()),
+        (Some("Home"), Some("Household"))
+    );
     // Newest first.
     let rent = &file.cats[0];
-    assert_eq!((rent.name.as_deref(), rent.expense_cat, rent.income_cat), (Some("Rent"), true, false));
+    assert_eq!(
+        (rent.name.as_deref(), rent.expense_cat, rent.income_cat),
+        (Some("Rent"), true, false)
+    );
     let salary = &file.cats[1];
-    assert_eq!((salary.taxable, salary.income_cat, salary.description.as_deref()), (true, true, Some("Pay")));
+    assert_eq!(
+        (salary.taxable, salary.income_cat, salary.description.as_deref()),
+        (true, true, Some("Pay"))
+    );
     assert_eq!(value(salary.tax_class.as_ref()), Some(n(4592, 1)));
     assert_eq!(value(salary.budget_amt.as_ref()), Some(n(1500, 1)));
 }
@@ -230,7 +290,10 @@ fn classes_and_categories() {
 fn auto_switch_account_lists() {
     let text = "!Option:AutoSwitch\n!Account\nNChecking\nTBank\n^\nNSavings\nTBank\n^\n!Clear:AutoSwitch\n!Account\nNVisa\nTCCard\n^\n!Type:CCard\nD1/1/2001\nT-5\nLFees\n^\n";
     let file = read(text).file;
-    assert_eq!(file.accounts.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), vec!["Visa", "Savings", "Checking"]);
+    assert_eq!(
+        file.accounts.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(),
+        vec!["Visa", "Savings", "Checking"]
+    );
     assert_eq!(file.xtns[0].from_acct.as_deref(), Some("Visa"));
 
     let text = "!Option:AutoSwitch\n!Account\nNChecking\nTBank\n^\nNSavings\nTBank\n^\n!Type:Bank\nD1/1/2001\nT-5\nLFees\n^\n";
@@ -244,7 +307,10 @@ fn divx_fixture() {
     let (file, report) = parsed(&fixture("divx.qif"));
     assert!(report.errors.is_empty());
     let accounts: Vec<_> = file.xtns.iter().map(|x| x.from_acct.as_deref().unwrap()).collect();
-    assert_eq!(accounts, vec!["Checking", "Checking", "Checking", "G Stock", "Schwab", "Schwab", "Schwab"]);
+    assert_eq!(
+        accounts,
+        vec!["Checking", "Checking", "Checking", "G Stock", "Schwab", "Schwab", "Schwab"]
+    );
     assert_eq!(file.xtns[0].splits[0].category, "Equity:Retained Earnings");
     assert_eq!(value(file.xtns[0].date.as_ref()), Some(date(29, 3, 2000)));
     let paycheque = &file.xtns[2];
@@ -253,7 +319,10 @@ fn divx_fixture() {
     let last = &file.xtns[6];
     assert_eq!(value(last.action.as_ref()), Some(Action::MiscIncX));
     let split = &last.splits[0];
-    assert_eq!((split.category.as_str(), split.miscx_category.as_deref(), split.miscx_is_account), ("C Inc:fedtax", Some("Schwab"), true));
+    assert_eq!(
+        (split.category.as_str(), split.miscx_category.as_deref(), split.miscx_is_account),
+        ("C Inc:fedtax", Some("Schwab"), true)
+    );
 }
 
 /// Crédit Lyonnais writes `!type bank`; unknown options are warned about and the section before them continues.
@@ -269,7 +338,13 @@ fn header_variants() {
 #[test]
 fn not_qif() {
     let error = read_file("\n   \nhello\n", &ReadOptions::default()).unwrap_err();
-    assert_eq!(error, ReadError::NotQif { line: 3, text: "hello".to_owned() });
+    assert_eq!(
+        error,
+        ReadError::NotQif {
+            line: 3,
+            text: "hello".to_owned()
+        }
+    );
     assert_eq!(error.to_string(), "Line 3: File does not appear to be in QIF format: hello");
 }
 
@@ -279,7 +354,10 @@ fn not_qif() {
 fn ambiguous_dates() {
     let mut file = read("!Type:Bank\nD01/02/03\nT1\n^\nD04/05/06\nT2\n^\n").file;
     let report = parse_fields(&mut file).unwrap();
-    assert_eq!(report.date_formats(), Some(vec![DateFormat::Mdy, DateFormat::Dmy, DateFormat::Ymd, DateFormat::Ydm]));
+    assert_eq!(
+        report.date_formats(),
+        Some(vec![DateFormat::Mdy, DateFormat::Dmy, DateFormat::Ymd, DateFormat::Ydm])
+    );
     assert_eq!(file.xtns[0].date, Some(Field::text_of("01/02/03")));
     // The amounts were still parsed.
     assert_eq!(amount(&file.xtns[1].splits[0]), Some(n(2, 1)));
@@ -316,8 +394,14 @@ fn guessed_number_format() {
     assert_eq!(amount(&file.xtns[0].splits[0]), Some(n(1000, 1)));
     assert_eq!(report.guesses.len(), 1);
     let guess = &report.guesses[0];
-    assert_eq!((guess.field, guess.chosen), (FieldKind::SplitAmounts, Format::Number(NumberFormat::Decimal)));
-    assert_eq!(guess.candidates, vec![Format::Number(NumberFormat::Decimal), Format::Number(NumberFormat::Comma)]);
+    assert_eq!(
+        (guess.field, guess.chosen),
+        (FieldKind::SplitAmounts, Format::Number(NumberFormat::Decimal))
+    );
+    assert_eq!(
+        guess.candidates,
+        vec![Format::Number(NumberFormat::Decimal), Format::Number(NumberFormat::Comma)]
+    );
     // Comma amounts settle it.
     let (file, report) = parsed("!Type:Bank\nD1/1/2001\nT1,000\n^\nD1/2/2001\nT2,50\n^\n");
     assert!(report.guesses.is_empty());
@@ -330,8 +414,14 @@ fn inconsistent_number_formats() {
     let mut file = read("!Type:Bank\nD1/13/2001\nT1,000.50\n^\nD1/14/2001\nT1.000,50\n^\n").file;
     let error = parse_fields(&mut file).unwrap_err();
     let first = &error.report.errors[0];
-    assert_eq!((first.field, first.line, &first.problem), (FieldKind::SplitAmounts, Some(5), &FieldProblem::UnrecognizedFormat));
-    assert_eq!(error.to_string(), "Line 5: Transaction amount: Unrecognized or inconsistent format.");
+    assert_eq!(
+        (first.field, first.line, &first.problem),
+        (FieldKind::SplitAmounts, Some(5), &FieldProblem::UnrecognizedFormat)
+    );
+    assert_eq!(
+        error.to_string(),
+        "Line 5: Transaction amount: Unrecognized or inconsistent format."
+    );
     // The dates, parsed before the amounts, are parsed.
     assert!(file.xtns.iter().all(|x| x.date.as_ref().is_some_and(|d| d.value().is_some())));
 }
@@ -359,7 +449,10 @@ fn unknown_values_are_warnings() {
     let (file, report) = parsed("!Account\nNOdd\nTWeird\n^\n!Type:Bank\nD1/1/2001\nT1\nCq\n^\n");
     assert_eq!(file.accounts[0].acct_type, Field::Value(vec![AccountType::Bank]));
     assert_eq!(value(file.xtns[0].cleared.as_ref()), Some(Cleared::Unrecognized));
-    assert_eq!(report.errors.iter().map(|e| e.field).collect::<Vec<_>>(), vec![FieldKind::AcctType, FieldKind::Cleared]);
+    assert_eq!(
+        report.errors.iter().map(|e| e.field).collect::<Vec<_>>(),
+        vec![FieldKind::AcctType, FieldKind::Cleared]
+    );
 }
 
 fn fixture(name: &str) -> String {
@@ -392,7 +485,13 @@ fn gnucash_example_files() {
     ];
     expected.iter().for_each(|(name, xtns, accounts, cats, classes, prices)| {
         let mut file = read(&fixture(name)).file;
-        let counts = (file.xtns.len(), file.accounts.len(), file.cats.len(), file.classes.len(), file.prices.len());
+        let counts = (
+            file.xtns.len(),
+            file.accounts.len(),
+            file.cats.len(),
+            file.classes.len(),
+            file.prices.len(),
+        );
         assert_eq!(counts, (*xtns, *accounts, *cats, *classes, *prices), "{name}");
         let report = parse_fields(&mut file).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(report.date_formats(), None, "{name}");
@@ -422,7 +521,10 @@ fn money95_fixture() {
 #[test]
 fn price_fixture() {
     let result = read(&fixture("price.qif"));
-    assert_eq!(result.securities.iter().map(|s| s.symbol.as_str()).collect::<Vec<_>>(), vec!["ABC", "DEF", "GHI"]);
+    assert_eq!(
+        result.securities.iter().map(|s| s.symbol.as_str()).collect::<Vec<_>>(),
+        vec!["ABC", "DEF", "GHI"]
+    );
     assert_eq!(result.warnings.len(), 1);
     let mut file = result.file;
     parse_fields(&mut file).unwrap();

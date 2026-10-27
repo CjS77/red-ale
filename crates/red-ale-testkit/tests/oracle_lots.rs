@@ -37,7 +37,11 @@ fn trading_book() -> (TempBook, Dispatcher) {
     let (book, mut d) = open("synthetic/rich.gnucash");
     trade(&mut d, ACME, (6, 10), "10", "1100.00");
     trade(&mut d, ACME, (6, 12), "-12", "-1500.00");
-    call(&mut d, "stock.split", &json!({ "account": ACME, "date": "2024-06-15", "shares": "3" }));
+    call(
+        &mut d,
+        "stock.split",
+        &json!({ "account": ACME, "date": "2024-06-15", "shares": "3" }),
+    );
     trade(&mut d, ACME, (6, 20), "-4", "-500.00");
     (1..=3).for_each(|day| {
         trade(&mut d, ZETA, (7, day), "10", "100.00");
@@ -116,8 +120,10 @@ fn normalize(dump: &Value) -> Value {
         .as_array()
         .unwrap()
         .iter()
-        .map(|a| json!({ "name": name(&a["guid"]), "type": a["type"], "commodity": a["commodity"], "description": a["description"],
-                         "notes": a["notes"], "balance": a["balance"] }))
+        .map(|a| {
+            json!({ "name": name(&a["guid"]), "type": a["type"], "commodity": a["commodity"], "description": a["description"],
+                         "notes": a["notes"], "balance": a["balance"] })
+        })
         .collect();
     accounts.sort_by_key(ToString::to_string);
     json!({ "accounts": accounts, "transactions": txns, "lots": lots, "prices": dump["prices"] })
@@ -133,7 +139,12 @@ fn split_slot_keys(path: &Path) -> Vec<String> {
         .flat_map(|a| book.splits_of(*a))
         .map(|(t, s)| {
             let keys: Vec<&String> = s.slots.iter().map(|(k, _)| k).collect();
-            format!("{} {} {} {keys:?}", t.description.clone().unwrap_or_default(), s.amount.reduce().to_decimal_string(), s.value.reduce().to_decimal_string())
+            format!(
+                "{} {} {} {keys:?}",
+                t.description.clone().unwrap_or_default(),
+                s.amount.reduce().to_decimal_string(),
+                s.value.reduce().to_decimal_string()
+            )
         })
         .collect();
     out.sort();
@@ -159,34 +170,61 @@ fn red_ale_scrubs_lots_as_gnucash_does() {
     let ours = normalize(&oracle::dump(&book.path).unwrap());
     let lots = ours["lots"].as_array().unwrap();
     assert!(lots.iter().any(|l| l["gains"] != "0/1"), "the scenario realises gains");
-    assert!(lots.iter().any(|l| l["balance"] == "-10/1"), "GnuCash's stale adjusted amounts overfill a lot, and red-ale matches");
-    assert!(ours["accounts"].as_array().unwrap().iter().any(|a| a["name"] == "Orphaned Gains-USD"));
+    assert!(
+        lots.iter().any(|l| l["balance"] == "-10/1"),
+        "GnuCash's stale adjusted amounts overfill a lot, and red-ale matches"
+    );
+    assert!(
+        ours["accounts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|a| a["name"] == "Orphaned Gains-USD")
+    );
 }
 
 #[test]
 fn lot_methods_write_books_gnucash_reads() {
     let (book, mut d) = open("synthetic/rich.gnucash");
-    let lot = call(&mut d, "lot.create", &json!({ "account": ACME, "title": "Manual", "notes": "made by red-ale" }));
+    let lot = call(
+        &mut d,
+        "lot.create",
+        &json!({ "account": ACME, "title": "Manual", "notes": "made by red-ale" }),
+    );
     call(&mut d, "lot.create", &json!({ "account": ZETA }));
     let buy = trade(&mut d, ACME, (7, 1), "6", "720.00");
     let sell = trade(&mut d, ACME, (7, 2), "-8", "-1000.00");
     let split_of = |d: &mut Dispatcher, txn: Guid| {
         let b = d.context().book().unwrap();
         let acme = b.account_by_full_name(ACME).unwrap().guid;
-        b.transaction(txn).unwrap().splits.iter().find(|s| s.account == Some(acme)).unwrap().guid.to_string()
+        b.transaction(txn)
+            .unwrap()
+            .splits
+            .iter()
+            .find(|s| s.account == Some(acme))
+            .unwrap()
+            .guid
+            .to_string()
     };
     let (buy_split, sell_split) = (split_of(&mut d, buy), split_of(&mut d, sell));
     call(&mut d, "lot.assignSplit", &json!({ "split": buy_split, "lot": lot["guid"] }));
     let out = call(&mut d, "lot.assignSplit", &json!({ "split": sell_split, "lot": lot["guid"] }));
     call(&mut d, "lot.assignSplit", &json!({ "split": out["rest"] }));
-    call(&mut d, "lot.computeGains", &json!({ "lot": lot["guid"], "gainsAccount": "Income:Capital Gains" }));
+    call(
+        &mut d,
+        "lot.computeGains",
+        &json!({ "lot": lot["guid"], "gainsAccount": "Income:Capital Gains" }),
+    );
     let fixture_lot = call(&mut d, "lot.list", &json!({ "account": ACME, "state": "open" }))[0]["guid"].clone();
     call(&mut d, "lot.update", &json!({ "lot": fixture_lot, "title": "Renamed" }));
     let problems = oracle_check(&mut d, &book, &[]);
     assert!(problems.is_empty(), "{}", problems.join("\n"));
     let dump = oracle::dump(&book.path).unwrap();
     let gains = dump["lots"].as_array().unwrap().iter().find(|l| l["title"] == "Manual").unwrap();
-    assert_eq!(gains["gains"], "30/1", "6 sold for 750.00 that cost 720.00, against the given gains account");
+    assert_eq!(
+        gains["gains"], "30/1",
+        "6 sold for 750.00 that cost 720.00, against the given gains account"
+    );
     assert_eq!(gains["closed"], true);
 }
 
@@ -234,14 +272,16 @@ fn stock_splits_read_as_stock_splits_in_gnucash() {
     let report: Value = serde_json::from_str(&oracle::run_code(STOCK_SPLIT_CHECK, &[&book.path_str()]).unwrap()).unwrap();
     let rows = report.as_array().unwrap();
     assert_eq!(rows.len(), 3);
-    assert_eq!(rows[2], json!({ "stockSplit": true, "type": "stock-split", "action": "Split", "adjusted": "50000/10000" }));
+    assert_eq!(
+        rows[2],
+        json!({ "stockSplit": true, "type": "stock-split", "action": "Split", "adjusted": "50000/10000" })
+    );
     // GnuCash restates the earlier buy and sell in post-split units: 10 -> 20, -5 -> -10.
     assert_eq!(rows[0]["adjusted"], "200000/10000");
     assert_eq!(rows[1]["adjusted"], "-100000/10000");
     let lot = &oracle::dump(&book.path).unwrap()["lots"][0];
     assert_eq!(lot["balance"], "10/1");
 }
-
 
 /// Scrub a copy with GnuCash and the book with red-ale, then compare what GnuCash reads from each. Red-ale's session
 /// draws GUIDs from `seed`, away from those the session that wrote the book gave out.
@@ -251,11 +291,27 @@ fn compare_scrubs(book: &TempBook, seed: u128) {
     let mut d = Dispatcher::new(red_ale_service::Settings::default());
     d.set_env_factory(Box::new(move || Box::new(FixedEnv::new(TEST_NOW, seed))));
     let info = call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-    call(&mut d, "lot.scrubAccount", &json!({ "account": info["rootAccount"], "subaccounts": true }));
+    call(
+        &mut d,
+        "lot.scrubAccount",
+        &json!({ "account": info["rootAccount"], "subaccounts": true }),
+    );
     let problems = oracle_check(&mut d, book, &[]);
-    assert!(problems.is_empty(), "GnuCash reads red-ale's scrubbed book differently:\n{}", problems.join("\n"));
-    let differences = diff(&normalize(&oracle::dump(&theirs.path).unwrap()), &normalize(&oracle::dump(&book.path).unwrap()), &[]);
-    assert!(differences.is_empty(), "red-ale's scrub differs from GnuCash's:\n{}", differences.join("\n"));
+    assert!(
+        problems.is_empty(),
+        "GnuCash reads red-ale's scrubbed book differently:\n{}",
+        problems.join("\n")
+    );
+    let differences = diff(
+        &normalize(&oracle::dump(&theirs.path).unwrap()),
+        &normalize(&oracle::dump(&book.path).unwrap()),
+        &[],
+    );
+    assert!(
+        differences.is_empty(),
+        "red-ale's scrub differs from GnuCash's:\n{}",
+        differences.join("\n")
+    );
     assert_eq!(split_slot_keys(&theirs.path), split_slot_keys(&book.path));
 }
 
@@ -269,7 +325,11 @@ fn rescrubbing_an_edited_sale_matches_gnucash() {
         .mutate(|b, _| {
             let zeta = b.account_by_full_name(ZETA).unwrap().guid;
             let cash = b.account_by_full_name(CASH).unwrap().guid;
-            let (txn, piece) = b.splits_of(zeta).find(|(_, s)| s.value == Numeric::new(-15000, 100)).map(|(t, s)| (t.guid, s.guid)).unwrap();
+            let (txn, piece) = b
+                .splits_of(zeta)
+                .find(|(_, s)| s.value == Numeric::new(-15000, 100))
+                .map(|(t, s)| (t.guid, s.guid))
+                .unwrap();
             let t = std::sync::Arc::make_mut(b.transactions.get_mut(&txn).unwrap());
             t.splits.iter_mut().for_each(|s| {
                 if s.guid == piece {
@@ -285,7 +345,6 @@ fn rescrubbing_an_edited_sale_matches_gnucash() {
     save_and_close(&mut d);
     compare_scrubs(&book, 0x00ef_0000_0000_0000_0000_0000_0000_0000);
 }
-
 
 /// `gnc_stock_split_assistant_finish` (5.17:gnucash/gnome/assistant-stock-split.c:339-473) replayed through the
 /// bindings, with the user's default currency USD: 5 shares, price 60, cash in lieu 2.50.
@@ -348,7 +407,15 @@ fn stock_split_matches_the_assistant() {
                  "incomeAccount": "Income:Capital Gains", "assetAccount": CASH }),
     );
     save_and_close(&mut d);
-    let differences = diff(&normalize(&oracle::dump(&theirs.path).unwrap()), &normalize(&oracle::dump(&book.path).unwrap()), &[]);
-    assert!(differences.is_empty(), "red-ale's stock split differs from the assistant's:\n{}", differences.join("\n"));
+    let differences = diff(
+        &normalize(&oracle::dump(&theirs.path).unwrap()),
+        &normalize(&oracle::dump(&book.path).unwrap()),
+        &[],
+    );
+    assert!(
+        differences.is_empty(),
+        "red-ale's stock split differs from the assistant's:\n{}",
+        differences.join("\n")
+    );
     assert_eq!(split_slot_keys(&theirs.path), split_slot_keys(&book.path));
 }

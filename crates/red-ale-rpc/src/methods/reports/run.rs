@@ -2,8 +2,8 @@
 
 use red_ale_core::{Book, Env};
 use red_ale_locale::Locale;
-use red_ale_report::error::OptionError;
 use red_ale_report::engine::{EXPORT_CSV, RunContext};
+use red_ale_report::error::OptionError;
 use red_ale_report::options::{GENERAL, OptionInfo, STYLESHEET};
 use red_ale_report::render::{self, DEFAULT_STYLE_SHEET, RenderContext, StyleSheet};
 use red_ale_report::{ReportError, ReportResult};
@@ -43,7 +43,10 @@ pub struct ListResult {
 pub(super) fn list(ctx: &mut Context, _: NoParams) -> Result<ListResult, RpcError> {
     let reports = Reports::load(ctx)?;
     let templates = reports.registry.templates().into_iter().map(Found::Template);
-    let mut all: Vec<ReportInfo> = templates.chain(reports.saved.iter().map(Found::Saved)).map(|f| reports.info(f)).collect();
+    let mut all: Vec<ReportInfo> = templates
+        .chain(reports.saved.iter().map(Found::Saved))
+        .map(|f| reports.info(f))
+        .collect();
     all.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.guid.cmp(&b.guid)));
     let unread = reports.unread.iter().map(|p| LoadProblem {
         source: if p.path == "." { p.path.clone() } else { format!("./{}", p.path) },
@@ -66,7 +69,12 @@ fn problem(e: &ReportError) -> LoadProblem {
         ReportError::Load(l) => l.message.clone(),
         other => other.to_string(),
     };
-    LoadProblem { source, code: e.kind().name().to_owned(), message, line }
+    LoadProblem {
+        source,
+        code: e.kind().name().to_owned(),
+        message,
+        line,
+    }
 }
 
 /// Params of `report.options`.
@@ -95,8 +103,21 @@ pub(super) fn options(ctx: &mut Context, p: OptionsParams) -> Result<OptionsResu
         let found = reports.find(&p.report.0)?;
         let (template, saved) = reports.resolve(found)?;
         let now = env.now();
-        let db = reports.configured(template, saved, None, &On { book, now, zone: env.zone() })?;
-        Ok(OptionsResult { report: reports.info(found), options: db.describe(), params_schema: db.params_schema() })
+        let db = reports.configured(
+            template,
+            saved,
+            None,
+            &On {
+                book,
+                now,
+                zone: env.zone(),
+            },
+        )?;
+        Ok(OptionsResult {
+            report: reports.info(found),
+            options: db.describe(),
+            params_schema: db.params_schema(),
+        })
     })
 }
 
@@ -121,7 +142,19 @@ pub struct RunParams {
 pub(super) fn run(ctx: &mut Context, p: RunParams) -> Result<ReportResult, RpcError> {
     let reports = Reports::load(ctx)?;
     let locale = reports.locale(p.locale.as_deref())?;
-    ctx.query(|book, env| reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale, export: None }, book, env))
+    ctx.query(|book, env| {
+        reports.run(
+            &p.report,
+            p.options.as_ref(),
+            &RunAt {
+                now: p.now,
+                locale,
+                export: None,
+            },
+            book,
+            env,
+        )
+    })
 }
 
 /// Params of `report.export`.
@@ -168,12 +201,26 @@ pub(super) fn export(ctx: &mut Context, p: ExportParams) -> Result<ExportResult,
     let reports = Reports::load(ctx)?;
     let locale = reports.locale(p.locale.as_deref())?;
     ctx.query(|book, env| {
-        let mut result = reports.run(&p.report, p.options.as_ref(), &RunAt { now: p.now, locale, export: None }, book, env)?;
+        let mut result = reports.run(
+            &p.report,
+            p.options.as_ref(),
+            &RunAt {
+                now: p.now,
+                locale,
+                export: None,
+            },
+            book,
+            env,
+        )?;
         let (name, sheet) = reports.style_sheet(&result, p.style_sheet.as_deref())?;
         if sheet.is_none() {
             result.log.push(render::missing_style_sheet(&name));
         }
-        let page = RenderContext { zone: env.zone(), date_format: reports.settings.date_format, locale };
+        let page = RenderContext {
+            zone: env.zone(),
+            date_format: reports.settings.date_format,
+            locale,
+        };
         let html = render::html(&result, sheet, &page);
         Ok(ExportResult { title: result.title, html })
     })
@@ -210,13 +257,20 @@ pub(super) fn export_csv(ctx: &mut Context, p: ExportCsvParams) -> Result<Export
     let reports = Reports::load(ctx)?;
     let locale = reports.locale(None)?;
     ctx.query(|book, env| {
-        let at = RunAt { now: p.now, locale, export: Some(EXPORT_CSV) };
+        let at = RunAt {
+            now: p.now,
+            locale,
+            export: Some(EXPORT_CSV),
+        };
         let result = reports.run(&p.report, p.options.as_ref(), &at, book, env)?;
         let rows = result.export.as_ref().ok_or_else(|| {
             RpcError::invalid("No exportable data: the report has no accounts or no figures to export")
                 .with_data(json!({ "reason": "no-exportable-data" }))
         })?;
-        Ok(ExportCsvResult { title: result.title.clone(), csv: render::csv(rows) })
+        Ok(ExportCsvResult {
+            title: result.title.clone(),
+            csv: render::csv(rows),
+        })
     })
 }
 
@@ -236,10 +290,16 @@ impl Reports {
         let saved_options = saved.map(|s| Value::Object(s.options.clone()));
         let changes: Vec<&Value> = saved_options.iter().chain(options.map(|o| &o.0)).collect();
         if let Some(export) = at.export.filter(|e| !template.export_types.iter().any(|t| t == e)) {
-            let message = format!("{} has no {export} export; only the net and category charts have one", template.name);
+            let message = format!(
+                "{} has no {export} export; only the net and category charts have one",
+                template.name
+            );
             return Err(RpcError::invalid(message).with_data(json!({ "reason": "no-export", "exportType": export })));
         }
-        let run = RunContext { export: at.export, ..self.run_context(book, now, env.zone(), &names, at.locale) };
+        let run = RunContext {
+            export: at.export,
+            ..self.run_context(book, now, env.zone(), &names, at.locale)
+        };
         Ok(self.registry.run(template, &changes, saved.map(|s| s.guid), &run)?)
     }
 
@@ -248,9 +308,18 @@ impl Reports {
     fn style_sheet(&self, result: &ReportResult, chosen: Option<&str>) -> Result<(String, Option<&StyleSheet>), RpcError> {
         if let Some(name) = chosen {
             let missing = || ReportError::from(OptionError::new(GENERAL, STYLESHEET, format!("no style sheet is called {name:?}")));
-            return self.sheets.get(name).map(|s| (name.to_owned(), Some(s))).ok_or_else(|| missing().into());
+            return self
+                .sheets
+                .get(name)
+                .map(|s| (name.to_owned(), Some(s)))
+                .ok_or_else(|| missing().into());
         }
-        let named = result.options.get(GENERAL).and_then(|g| g.get(STYLESHEET)).and_then(Value::as_str).unwrap_or(DEFAULT_STYLE_SHEET);
+        let named = result
+            .options
+            .get(GENERAL)
+            .and_then(|g| g.get(STYLESHEET))
+            .and_then(Value::as_str)
+            .unwrap_or(DEFAULT_STYLE_SHEET);
         Ok((named.to_owned(), self.sheets.get(named)))
     }
 }

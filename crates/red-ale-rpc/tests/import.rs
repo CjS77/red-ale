@@ -23,23 +23,38 @@ impl Book {
         let dir = tempfile::tempdir().unwrap();
         let mut d = Dispatcher::new(Settings::default());
         d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(NOW), 1 << 100))));
-        d.call("book.create", json!({ "path": dir.path().join("book.gnucash").display().to_string() })).unwrap();
+        d.call(
+            "book.create",
+            json!({ "path": dir.path().join("book.gnucash").display().to_string() }),
+        )
+        .unwrap();
         let mut b = Self { dir, d };
-        [("Assets", "ASSET", None), ("Checking", "BANK", Some("Assets")), ("Expenses", "EXPENSE", None), ("Groceries", "EXPENSE", Some("Expenses"))]
-            .into_iter()
-            .chain([("Rent", "EXPENSE", Some("Expenses")), ("Income", "INCOME", None), ("Salary", "INCOME", Some("Income"))])
-            .for_each(|(name, ty, parent)| {
-                let mut p = json!({ "name": name, "type": ty, "commodity": "USD" });
-                if let Some(parent) = parent {
-                    p["parent"] = json!(parent);
-                }
-                b.ok("account.create", p);
-            });
+        [
+            ("Assets", "ASSET", None),
+            ("Checking", "BANK", Some("Assets")),
+            ("Expenses", "EXPENSE", None),
+            ("Groceries", "EXPENSE", Some("Expenses")),
+        ]
+        .into_iter()
+        .chain([
+            ("Rent", "EXPENSE", Some("Expenses")),
+            ("Income", "INCOME", None),
+            ("Salary", "INCOME", Some("Income")),
+        ])
+        .for_each(|(name, ty, parent)| {
+            let mut p = json!({ "name": name, "type": ty, "commodity": "USD" });
+            if let Some(parent) = parent {
+                p["parent"] = json!(parent);
+            }
+            b.ok("account.create", p);
+        });
         b
     }
 
     fn ok(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     fn err(&mut self, method: &str, params: Value) -> RpcError {
@@ -47,7 +62,10 @@ impl Book {
     }
 
     fn preview(&mut self, text: &str, layout: Value) -> Value {
-        self.ok("import.preview", json!({ "format": "csvTransactions", "files": [{ "name": "statement.csv", "text": text }], "layout": layout }))
+        self.ok(
+            "import.preview",
+            json!({ "format": "csvTransactions", "files": [{ "name": "statement.csv", "text": text }], "layout": layout }),
+        )
     }
 
     fn transactions(&mut self) -> Vec<Value> {
@@ -55,7 +73,10 @@ impl Book {
     }
 
     fn guid(&mut self, account: &str) -> String {
-        self.ok("account.get", json!({ "account": account }))["guid"].as_str().unwrap().to_owned()
+        self.ok("account.get", json!({ "account": account }))["guid"]
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
 }
 
@@ -64,10 +85,16 @@ fn bank_layout() -> Value {
     json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Amount"], "baseAccount": "Assets:Checking" })
 }
 
-const MARCH: &str = "Date,Description,Amount\n2024-03-01,Corner Grocer,-45.10\n2024-03-02,Rent March,-950.00\n2024-03-05,Salary ACME,2000.00\n";
+const MARCH: &str =
+    "Date,Description,Amount\n2024-03-01,Corner Grocer,-45.10\n2024-03-02,Rent March,-950.00\n2024-03-05,Salary ACME,2000.00\n";
 
 fn actions(p: &Value) -> Vec<&str> {
-    p["transactions"].as_array().unwrap().iter().map(|t| t["action"].as_str().unwrap()).collect()
+    p["transactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["action"].as_str().unwrap())
+        .collect()
 }
 
 fn usd(cents: &str) -> Value {
@@ -81,15 +108,24 @@ fn a_statement_is_proposed_applied_and_learned_then_imports_again_as_nothing_new
     assert_eq!(p["format"], "csvTransactions");
     assert_eq!(actions(&p), ["add", "add", "add"]);
     assert_eq!(p["summary"]["add"], 3);
-    assert_eq!(p["summary"]["imbalanced"], 3, "no destination is known yet, so each would be balanced into Imbalance-USD");
-    assert_eq!(p["newAccounts"], json!([{ "name": "Imbalance-USD", "type": "BANK", "commodity": "CURRENCY::USD" }]));
+    assert_eq!(
+        p["summary"]["imbalanced"], 3,
+        "no destination is known yet, so each would be balanced into Imbalance-USD"
+    );
+    assert_eq!(
+        p["newAccounts"],
+        json!([{ "name": "Imbalance-USD", "type": "BANK", "commodity": "CURRENCY::USD" }])
+    );
     assert_eq!(p["ignoredLines"], json!([{ "file": 0, "line": 1, "reason": "skipStartLines" }]));
     let t0 = &p["transactions"][0];
     assert_eq!(t0["source"], json!({ "file": 0, "lines": [2, 2] }));
     assert_eq!(t0["datePosted"], "2024-03-01");
     assert_eq!(t0["splits"][0]["accountName"], "Assets:Checking");
     assert_eq!(t0["splits"][0]["value"], usd("-4510"));
-    assert_eq!(t0["other"], json!({ "account": null, "accountName": null, "from": null, "value": usd("4510"), "amount": { "num": "0", "denom": "1" } }));
+    assert_eq!(
+        t0["other"],
+        json!({ "account": null, "accountName": null, "from": null, "value": usd("4510"), "amount": { "num": "0", "denom": "1" } })
+    );
     assert_eq!(t0["imbalance"]["value"], usd("4510"));
     assert_eq!(t0["imbalance"]["account"], Value::Null);
     assert_eq!(t0["warnings"][0]["code"], "imbalance");
@@ -102,22 +138,47 @@ fn a_statement_is_proposed_applied_and_learned_then_imports_again_as_nothing_new
     assert_eq!(imbalance[0]["index"], 2);
     assert_eq!(imbalance[0]["value"], usd("-200000"));
     let salary = b.ok("transaction.get", json!({ "guid": imbalance[0]["transaction"] }));
-    let split = salary["splits"].as_array().unwrap().iter().find(|s| s["guid"] == imbalance[0]["split"]).unwrap();
-    assert_eq!((&split["account"], &split["accountName"], &split["value"]), (&imbalance[0]["account"], &json!("Imbalance-USD"), &usd("-200000")));
-    assert!(applied["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "imbalance" && w["index"] == 2));
+    let split = salary["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["guid"] == imbalance[0]["split"])
+        .unwrap();
+    assert_eq!(
+        (&split["account"], &split["accountName"], &split["value"]),
+        (&imbalance[0]["account"], &json!("Imbalance-USD"), &usd("-200000"))
+    );
+    assert!(
+        applied["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|w| w["code"] == "imbalance" && w["index"] == 2)
+    );
     assert_eq!(applied["accounts"]["created"].as_array().unwrap().len(), 1);
     let bayes = applied["learned"]["bayes"].as_array().unwrap();
     assert_eq!(bayes.len(), 2, "the two destinations chosen are learned");
-    assert_eq!(bayes[0]["tokens"], json!(["Friday", "Grocer", "Corner"]), "GnuCash's token order: each new one in front");
+    assert_eq!(
+        bayes[0]["tokens"],
+        json!(["Friday", "Grocer", "Corner"]),
+        "GnuCash's token order: each new one in front"
+    );
     assert_eq!(b.transactions().len(), 3);
     let features = b.ok("book.info", json!({}))["features"].clone();
     let names: Vec<&str> = features.as_array().unwrap().iter().map(|f| f["name"].as_str().unwrap()).collect();
-    assert_eq!(names, ["Account GUID based bayesian with flat KVP"], "the only feature, as GnuCash sets it");
+    assert_eq!(
+        names,
+        ["Account GUID based bayesian with flat KVP"],
+        "the only feature, as GnuCash sets it"
+    );
 
     let again = b.preview(MARCH, bank_layout());
     assert_eq!(actions(&again), ["clear", "clear", "clear"], "the matcher finds every transaction");
     assert_eq!(again["summary"]["add"], 0);
-    assert_eq!(again["transactions"][0]["matches"][0]["score"], 8, "amount 3, same day 3, description 2");
+    assert_eq!(
+        again["transactions"][0]["matches"][0]["score"], 8,
+        "amount 3, same day 3, description 2"
+    );
     let cleared = b.ok("import.apply", json!({ "proposal": again["id"] }));
     assert_eq!(cleared["cleared"].as_array().unwrap().len(), 3);
     assert_eq!(b.transactions().len(), 3, "nothing added");
@@ -133,13 +194,21 @@ fn a_later_statement_finds_its_destinations_in_the_learned_map() {
     // Salary's Tuesday would tie with Rent at certainty, and GnuCash takes the account first seen in token order.
     let april = "Date,Description,Amount\n2024-04-01,Corner Grocer,-51.20\n2024-04-06,Rent April,-950.00\n2024-04-08,Bookshop,-12.00\n";
     let p = b.preview(april, bank_layout());
-    let other = |i: usize| (p["transactions"][i]["other"]["accountName"].clone(), p["transactions"][i]["other"]["from"].clone());
+    let other = |i: usize| {
+        (
+            p["transactions"][i]["other"]["accountName"].clone(),
+            p["transactions"][i]["other"]["from"].clone(),
+        )
+    };
     assert_eq!(other(0), (json!("Expenses:Groceries"), json!("bayes")));
     assert_eq!(other(1), (json!("Expenses:Rent"), json!("bayes")));
     assert_eq!(other(2), (Value::Null, Value::Null), "nothing was learned about a bookshop");
     assert_eq!(p["summary"]["imbalanced"], 1);
     let applied = b.ok("import.apply", json!({ "proposal": p["id"] }));
-    assert!(applied["learned"]["bayes"].as_array().unwrap().is_empty(), "an account the map found is not learned again");
+    assert!(
+        applied["learned"]["bayes"].as_array().unwrap().is_empty(),
+        "an account the map found is not learned again"
+    );
     assert_eq!(applied["imbalanceSplits"].as_array().unwrap().len(), 1);
 }
 
@@ -168,26 +237,70 @@ fn every_action_and_the_callers_changes() {
     assert_eq!(t[0]["matches"][0]["transaction"], exact.as_str());
     assert_eq!(t[0]["matches"][0]["updateProposed"], false);
     assert_eq!(t[1]["matches"][0]["transaction"], fee.as_str());
-    assert_eq!(t[1]["matches"][0]["updateProposed"], true, "1.50 apart: within the ATM fee threshold");
+    assert_eq!(
+        t[1]["matches"][0]["updateProposed"], true,
+        "1.50 apart: within the ATM fee threshold"
+    );
     assert_eq!(t[2]["matches"][0]["score"], 5, "same amount, 2 days apart, different description");
     assert_eq!(t[1]["imbalance"], Value::Null, "update moves the other split with it");
 
-    assert_eq!(b.err("import.apply", json!({ "proposal": p["id"], "changes": [{ "index": 3, "action": "clear" }] })).code, codes::INVALID);
-    assert_eq!(b.err("import.apply", json!({ "proposal": p["id"], "changes": [{ "index": 9, "action": "skip" }] })).code, codes::INVALID);
+    assert_eq!(
+        b.err(
+            "import.apply",
+            json!({ "proposal": p["id"], "changes": [{ "index": 3, "action": "clear" }] })
+        )
+        .code,
+        codes::INVALID
+    );
+    assert_eq!(
+        b.err(
+            "import.apply",
+            json!({ "proposal": p["id"], "changes": [{ "index": 9, "action": "skip" }] })
+        )
+        .code,
+        codes::INVALID
+    );
     let bogus = "0123456789abcdef0123456789abcdef";
-    assert_eq!(b.err("import.apply", json!({ "proposal": p["id"], "changes": [{ "index": 0, "match": bogus }] })).code, codes::INVALID);
+    assert_eq!(
+        b.err(
+            "import.apply",
+            json!({ "proposal": p["id"], "changes": [{ "index": 0, "match": bogus }] })
+        )
+        .code,
+        codes::INVALID
+    );
     b.ok("account.update", json!({ "account": "Expenses", "placeholder": true }));
     let p = b.preview(file, bank_layout());
-    assert_eq!(b.err("import.apply", json!({ "proposal": p["id"], "changes": [{ "index": 3, "account": "Expenses" }] })).code, codes::INVALID);
+    assert_eq!(
+        b.err(
+            "import.apply",
+            json!({ "proposal": p["id"], "changes": [{ "index": 3, "account": "Expenses" }] })
+        )
+        .code,
+        codes::INVALID
+    );
 
     let changes = json!([{ "index": 2, "action": "add", "account": "Expenses:Groceries" }, { "index": 3, "action": "skip" }]);
     let applied = b.ok("import.apply", json!({ "proposal": p["id"], "changes": changes }));
-    let index = |list: &str| applied[list].as_array().unwrap().iter().map(|x| x["index"].as_u64().unwrap()).collect::<Vec<_>>();
+    let index = |list: &str| {
+        applied[list]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x["index"].as_u64().unwrap())
+            .collect::<Vec<_>>()
+    };
     assert_eq!((index("cleared"), index("updated"), index("added")), (vec![0], vec![1], vec![2]));
     assert_eq!(applied["skipped"], json!([3]));
     let updated = b.ok("transaction.get", json!({ "guid": fee }));
     let checking = b.guid("Assets:Checking");
-    let split = updated["splits"].as_array().unwrap().iter().find(|s| s["account"] == checking.as_str()).unwrap().clone();
+    let split = updated["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["account"] == checking.as_str())
+        .unwrap()
+        .clone();
     assert_eq!(split["value"], usd("-10150"));
     assert_eq!(split["reconcileState"], "c");
     assert_eq!(b.transactions().len(), 4);
@@ -200,18 +313,31 @@ fn a_stale_proposal_is_a_conflict_and_a_discarded_one_is_gone() {
     let q = b.preview(MARCH, bank_layout());
     assert_ne!(p["id"], q["id"]);
     let revision = p["bookRevision"].as_u64().unwrap();
-    b.ok("account.create", json!({ "name": "Cash", "type": "CASH", "commodity": "USD", "parent": "Assets" }));
+    b.ok(
+        "account.create",
+        json!({ "name": "Cash", "type": "CASH", "commodity": "USD", "parent": "Assets" }),
+    );
     let e = b.err("import.apply", json!({ "proposal": p["id"] }));
     assert_eq!(e.code, codes::CONFLICT);
-    assert_eq!(e.data.unwrap(), json!({ "reason": "book-revision", "proposalRevision": revision, "bookRevision": revision + 1 }));
+    assert_eq!(
+        e.data.unwrap(),
+        json!({ "reason": "book-revision", "proposalRevision": revision, "bookRevision": revision + 1 })
+    );
     assert_eq!(b.ok("import.discard", json!({ "proposal": q["id"] })), json!({ "discarded": true }));
     let e = b.err("import.apply", json!({ "proposal": q["id"] }));
-    assert_eq!((e.code, e.data.unwrap()["kind"].clone()), (codes::NOT_FOUND, json!("importProposal")));
+    assert_eq!(
+        (e.code, e.data.unwrap()["kind"].clone()),
+        (codes::NOT_FOUND, json!("importProposal"))
+    );
     assert_eq!(b.err("import.discard", json!({ "proposal": q["id"] })).code, codes::NOT_FOUND);
 
     let fresh = b.preview(MARCH, bank_layout());
     b.ok("import.apply", json!({ "proposal": fresh["id"] }));
-    assert_eq!(b.err("import.apply", json!({ "proposal": fresh["id"] })).code, codes::NOT_FOUND, "an applied proposal is no longer held");
+    assert_eq!(
+        b.err("import.apply", json!({ "proposal": fresh["id"] })).code,
+        codes::NOT_FOUND,
+        "an applied proposal is no longer held"
+    );
 }
 
 #[test]
@@ -227,8 +353,14 @@ fn seventeen_previews_push_out_the_first() {
 #[test]
 fn apply_is_one_mutation_all_or_nothing() {
     let mut b = Book::new();
-    b.ok("commodity.create", json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1 }));
-    b.ok("account.create", json!({ "name": "Acme", "type": "STOCK", "commodity": "NASDAQ::ACME", "parent": "Assets" }));
+    b.ok(
+        "commodity.create",
+        json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1 }),
+    );
+    b.ok(
+        "account.create",
+        json!({ "name": "Acme", "type": "STOCK", "commodity": "NASDAQ::ACME", "parent": "Assets" }),
+    );
     let before = b.ok("book.info", json!({}));
     let p = b.preview(MARCH, bank_layout());
     // Index 0 is applied last (GnuCash's rows are in reverse order of arrival): its amount rounds to nothing at the
@@ -244,7 +376,14 @@ fn apply_is_one_mutation_all_or_nothing() {
     assert_eq!(b.ok("book.info", json!({}))["features"], before["features"], "nothing was learned");
     assert!(b.ok("importMap.list", json!({}))["entries"].as_array().unwrap().is_empty());
     let retry = json!([{ "index": 0, "account": "Expenses:Groceries" }]);
-    assert_eq!(b.ok("import.apply", json!({ "proposal": p["id"], "changes": retry }))["added"].as_array().unwrap().len(), 3, "the proposal stays held");
+    assert_eq!(
+        b.ok("import.apply", json!({ "proposal": p["id"], "changes": retry }))["added"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3,
+        "the proposal stays held"
+    );
 }
 
 /// The day-of-week token is formatted with `%A` in the locale (`5.17:gnucash/import-export/import-backend.cpp:479`), so
@@ -254,11 +393,17 @@ fn the_day_token_is_learned_in_the_locales_language() {
     let mut b = Book::new();
     b.ok("config.set", json!({ "changes": { "locale": "fr_FR" } }));
     let p = b.preview(MARCH, bank_layout());
-    let applied = b.ok("import.apply", json!({ "proposal": p["id"], "changes": [{ "index": 0, "account": "Expenses:Groceries" }] }));
+    let applied = b.ok(
+        "import.apply",
+        json!({ "proposal": p["id"], "changes": [{ "index": 0, "account": "Expenses:Groceries" }] }),
+    );
     assert_eq!(applied["learned"]["bayes"][0]["tokens"], json!(["vendredi", "Grocer", "Corner"]));
     let april = "Date,Description,Amount\n2024-04-05,Corner Grocer,-12.00\n";
     let again = b.preview(april, bank_layout());
-    assert_eq!(again["transactions"][0]["other"]["accountName"], "Expenses:Groceries", "matched through the learned tokens");
+    assert_eq!(
+        again["transactions"][0]["other"]["accountName"], "Expenses:Groceries",
+        "matched through the learned tokens"
+    );
 }
 
 #[test]
@@ -267,13 +412,30 @@ fn read_only_by_date_is_flagged_and_still_applied() {
     b.ok("book.setOptions", json!({ "autoReadOnlyDays": 120 }));
     let p = b.preview(MARCH, bank_layout());
     assert_eq!(p["thresholdDate"], "2024-03-03");
-    let flags: Vec<bool> = p["transactions"].as_array().unwrap().iter().map(|t| t["readOnlyByDate"].as_bool().unwrap()).collect();
+    let flags: Vec<bool> = p["transactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["readOnlyByDate"].as_bool().unwrap())
+        .collect();
     assert_eq!(flags, [true, true, false]);
     assert_eq!(p["summary"]["readOnlyByDate"], 2);
-    assert!(p["transactions"][0]["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "read-only-by-date"));
+    assert!(
+        p["transactions"][0]["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|w| w["code"] == "read-only-by-date")
+    );
     let applied = b.ok("import.apply", json!({ "proposal": p["id"] }));
     assert_eq!(applied["added"].as_array().unwrap().len(), 3);
-    let warned: Vec<u64> = applied["warnings"].as_array().unwrap().iter().filter(|w| w["code"] == "read-only-by-date").map(|w| w["index"].as_u64().unwrap()).collect();
+    let warned: Vec<u64> = applied["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|w| w["code"] == "read-only-by-date")
+        .map(|w| w["index"].as_u64().unwrap())
+        .collect();
     assert_eq!(warned, [0, 1]);
 }
 
@@ -282,13 +444,27 @@ fn error_rows_need_skip_errors_and_account_names_are_matched_and_learned() {
     let mut b = Book::new();
     let layout = json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Account", "Amount"] });
     let file = "Date,Description,Account,Amount\n2024-03-01,Grocer,Assets:Checking,-5.00\n2024-03-02,Pay,Current,10.00\n2024-03-33,Bad,Assets:Checking,1.00\n";
-    let p = b.ok("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": file }], "layout": layout.clone() }));
+    let p = b.ok(
+        "import.preview",
+        json!({ "format": "csvTransactions", "files": [{ "text": file }], "layout": layout.clone() }),
+    );
     assert_eq!(p["transactions"].as_array().unwrap().len(), 1);
-    let errors: Vec<(u64, Value)> = p["errors"].as_array().unwrap().iter().map(|e| (e["line"].as_u64().unwrap(), e["column"].clone())).collect();
+    let errors: Vec<(u64, Value)> = p["errors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| (e["line"].as_u64().unwrap(), e["column"].clone()))
+        .collect();
     assert_eq!(errors, [(3, json!(3)), (4, json!(1))]);
-    assert_eq!(p["errors"][0]["message"], "Account: Account value can't be mapped back to an account.");
+    assert_eq!(
+        p["errors"][0]["message"],
+        "Account: Account value can't be mapped back to an account."
+    );
     let names = &p["csv"]["accountNames"];
-    assert_eq!(names[1], json!({ "name": "Current", "account": null, "accountName": null, "from": null }));
+    assert_eq!(
+        names[1],
+        json!({ "name": "Current", "account": null, "accountName": null, "from": null })
+    );
     assert_eq!(names[0]["from"], "fullName");
     assert_eq!(b.err("import.apply", json!({ "proposal": p["id"] })).code, codes::INVALID);
 
@@ -298,12 +474,21 @@ fn error_rows_need_skip_errors_and_account_names_are_matched_and_learned() {
     assert_eq!(p["csv"]["accountNames"][1]["from"], "param");
     let applied = b.ok("import.apply", json!({ "proposal": p["id"], "skipErrors": true }));
     let checking = b.guid("Assets:Checking");
-    assert_eq!(applied["learned"]["csvAccountMap"], json!([{ "name": "Current", "account": checking }]));
-    let p = b.ok("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": file }], "layout": layout }));
+    assert_eq!(
+        applied["learned"]["csvAccountMap"],
+        json!([{ "name": "Current", "account": checking }])
+    );
+    let p = b.ok(
+        "import.preview",
+        json!({ "format": "csvTransactions", "files": [{ "text": file }], "layout": layout }),
+    );
     assert_eq!(p["csv"]["accountNames"][1]["from"], "map", "the name is now in the csv-account-map");
     let entries = b.ok("importMap.list", json!({ "kind": "csvAccountMap" }))["entries"].clone();
-    assert_eq!(entries, json!([{ "account": { "guid": checking, "fullName": "Assets:Checking" }, "kind": "csvAccountMap", "key": "Current",
-        "target": { "guid": checking, "fullName": "Assets:Checking" }, "count": null, "valid": true }]));
+    assert_eq!(
+        entries,
+        json!([{ "account": { "guid": checking, "fullName": "Assets:Checking" }, "kind": "csvAccountMap", "key": "Current",
+        "target": { "guid": checking, "fullName": "Assets:Checking" }, "count": null, "valid": true }])
+    );
 }
 
 #[test]
@@ -311,22 +496,53 @@ fn files_in_other_encodings_and_unreadable_files() {
     let mut b = Book::new();
     let latin1: Vec<u8> = b"Date,Description,Amount\n2024-03-01,Caf\xe9 Ol\xe9,-4.50\n".to_vec();
     let encode = |bytes: &[u8]| base64::engine::general_purpose::STANDARD.encode(bytes);
-    let preview = |b: &mut Book, file: Value| b.d.call("import.preview", json!({ "format": "csvTransactions", "files": [file], "layout": bank_layout() }));
+    let preview = |b: &mut Book, file: Value| {
+        b.d.call(
+            "import.preview",
+            json!({ "format": "csvTransactions", "files": [file], "layout": bank_layout() }),
+        )
+    };
     let p = preview(&mut b, json!({ "base64": encode(&latin1), "encoding": "iso-8859-1" })).unwrap();
     assert_eq!(p["transactions"][0]["description"], "Café Olé");
-    let utf16: Vec<u8> = [0xff, 0xfe].into_iter().chain("Date,Description,Amount\n2024-03-01,Thé,-2.00\n".encode_utf16().flat_map(u16::to_le_bytes)).collect();
+    let utf16: Vec<u8> = [0xff, 0xfe]
+        .into_iter()
+        .chain(
+            "Date,Description,Amount\n2024-03-01,Thé,-2.00\n"
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes),
+        )
+        .collect();
     let p = preview(&mut b, json!({ "base64": encode(&utf16), "encoding": "utf-16" })).unwrap();
     assert_eq!(p["transactions"][0]["description"], "Thé");
 
     let e = preview(&mut b, json!({ "base64": encode(&latin1) })).unwrap_err();
     assert_eq!(e.code, codes::IMPORT_FILE);
-    assert_eq!(e.data.unwrap(), json!({ "file": 0, "line": 2, "reason": "encoding", "message": "bytes not valid in UTF-8 at line 2; is the file in another encoding?" }));
-    assert_eq!(preview(&mut b, json!({ "text": "a", "base64": "YQ==" })).unwrap_err().code, codes::INVALID_PARAMS);
-    assert_eq!(preview(&mut b, json!({ "text": "a", "encoding": "utf-8" })).unwrap_err().code, codes::INVALID_PARAMS);
+    assert_eq!(
+        e.data.unwrap(),
+        json!({ "file": 0, "line": 2, "reason": "encoding", "message": "bytes not valid in UTF-8 at line 2; is the file in another encoding?" })
+    );
+    assert_eq!(
+        preview(&mut b, json!({ "text": "a", "base64": "YQ==" })).unwrap_err().code,
+        codes::INVALID_PARAMS
+    );
+    assert_eq!(
+        preview(&mut b, json!({ "text": "a", "encoding": "utf-8" })).unwrap_err().code,
+        codes::INVALID_PARAMS
+    );
     let e = b.err("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": { "columns": ["Date", "Amount"], "baseAccount": "Assets:Checking" } }));
     assert_eq!((e.code, e.data.unwrap()["reason"].clone()), (codes::IMPORT_FILE, json!("columns")));
-    assert_eq!(b.err("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": "No Such Layout" })).code, codes::INVALID);
-    let e = b.err("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": { "columns": ["Date"], "baseAccount": "Nowhere" } }));
+    assert_eq!(
+        b.err(
+            "import.preview",
+            json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": "No Such Layout" })
+        )
+        .code,
+        codes::INVALID
+    );
+    let e = b.err(
+        "import.preview",
+        json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": { "columns": ["Date"], "baseAccount": "Nowhere" } }),
+    );
     assert_eq!(e.code, codes::NOT_FOUND);
 }
 
@@ -336,9 +552,15 @@ fn layouts_by_name_from_the_configuration() {
     b.ok("config.set", json!({ "changes": { "import.csvLayouts.MyBank": bank_layout() } }));
     let p = b.preview(MARCH, json!("MyBank"));
     assert_eq!(p["transactions"].as_array().unwrap().len(), 3);
-    let e = b.err("config.set", json!({ "changes": { "import.csvLayouts.Bad": { "dateFormat": "y/m/d" } } }));
+    let e = b.err(
+        "config.set",
+        json!({ "changes": { "import.csvLayouts.Bad": { "dateFormat": "y/m/d" } } }),
+    );
     assert_eq!(e.code, codes::INVALID_PARAMS);
-    let e = b.err("config.set", json!({ "changes": { "import.csvLayouts.Bad": { "columns": ["Bogus"] } } }));
+    let e = b.err(
+        "config.set",
+        json!({ "changes": { "import.csvLayouts.Bad": { "columns": ["Bogus"] } } }),
+    );
     assert_eq!(e.code, codes::INVALID_PARAMS);
 }
 
@@ -346,13 +568,22 @@ fn layouts_by_name_from_the_configuration() {
 #[test]
 fn gnucash_sample1() {
     let mut b = Book::new();
-    b.ok("account.create", json!({ "name": "Miscellaneous", "type": "EXPENSE", "commodity": "USD" }));
+    b.ok(
+        "account.create",
+        json!({ "name": "Miscellaneous", "type": "EXPENSE", "commodity": "USD" }),
+    );
     let text = std::fs::read_to_string(format!("{}/../../fixtures/csv/sample1.csv", env!("CARGO_MANIFEST_DIR"))).unwrap();
     let layout = json!({ "skipStartLines": 1, "dateFormat": "m-d-y", "currencyFormat": "period",
         "columns": ["Date", "Number", "Description", "Notes", "Account", "Deposit", "Withdrawal", "None"] });
-    let p = b.ok("import.preview", json!({ "format": "csvTransactions", "files": [{ "name": "sample1.csv", "text": text }], "layout": layout }));
+    let p = b.ok(
+        "import.preview",
+        json!({ "format": "csvTransactions", "files": [{ "name": "sample1.csv", "text": text }], "layout": layout }),
+    );
     let t = &p["transactions"][0];
-    assert_eq!((t["datePosted"].clone(), t["num"].clone(), t["description"].clone()), (json!("2015-05-01"), json!("45"), json!("Acme Inc.")));
+    assert_eq!(
+        (t["datePosted"].clone(), t["num"].clone(), t["description"].clone()),
+        (json!("2015-05-01"), json!("45"), json!("Acme Inc."))
+    );
     assert_eq!(t["splits"][0]["accountName"], "Miscellaneous");
     assert_eq!(t["splits"][0]["amount"], usd("-110000"));
 }
@@ -390,24 +621,63 @@ fn the_import_map_editor_lists_and_deletes() {
     let changes = json!([{ "index": 0, "account": "Expenses:Groceries" }, { "index": 1, "account": "Expenses:Rent" }]);
     b.ok("import.apply", json!({ "proposal": p["id"], "changes": changes }));
     let entries = b.ok("importMap.list", json!({ "account": "Assets:Checking", "kind": "bayes" }))["entries"].clone();
-    let keys: Vec<(&str, &str)> =
-        entries.as_array().unwrap().iter().map(|e| (e["key"].as_str().unwrap(), e["target"]["fullName"].as_str().unwrap())).collect();
-    assert_eq!(keys, [("Corner", "Expenses:Groceries"), ("Friday", "Expenses:Groceries"), ("Grocer", "Expenses:Groceries"), ("March", "Expenses:Rent"), ("Rent", "Expenses:Rent"), ("Saturday", "Expenses:Rent")]);
+    let keys: Vec<(&str, &str)> = entries
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| (e["key"].as_str().unwrap(), e["target"]["fullName"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            ("Corner", "Expenses:Groceries"),
+            ("Friday", "Expenses:Groceries"),
+            ("Grocer", "Expenses:Groceries"),
+            ("March", "Expenses:Rent"),
+            ("Rent", "Expenses:Rent"),
+            ("Saturday", "Expenses:Rent")
+        ]
+    );
     assert!(entries.as_array().unwrap().iter().all(|e| e["count"] == 1 && e["valid"] == true));
 
-    let deleted = b.ok("importMap.delete", json!({ "entries": [{ "account": "Assets:Checking", "kind": "bayes", "key": "Friday" }] }));
+    let deleted = b.ok(
+        "importMap.delete",
+        json!({ "entries": [{ "account": "Assets:Checking", "kind": "bayes", "key": "Friday" }] }),
+    );
     assert_eq!(deleted["deleted"].as_array().unwrap().len(), 1);
-    let e = b.err("importMap.delete", json!({ "entries": [{ "account": "Assets:Checking", "kind": "bayes", "key": "Friday" }] }));
+    let e = b.err(
+        "importMap.delete",
+        json!({ "entries": [{ "account": "Assets:Checking", "kind": "bayes", "key": "Friday" }] }),
+    );
     assert_eq!(e.code, codes::NOT_FOUND);
     assert_eq!(b.err("importMap.delete", json!({})).code, codes::INVALID);
-    assert_eq!(b.err("importMap.delete", json!({ "entries": [], "invalid": true })).code, codes::INVALID);
+    assert_eq!(
+        b.err("importMap.delete", json!({ "entries": [], "invalid": true })).code,
+        codes::INVALID
+    );
 
     b.ok("account.delete", json!({ "account": "Expenses:Rent", "transactions": "delete" }));
     let invalid = b.ok("importMap.list", json!({ "invalidOnly": true }))["entries"].clone();
     assert_eq!(invalid.as_array().unwrap().len(), 3, "the entries for the deleted Rent account");
-    assert!(invalid.as_array().unwrap().iter().all(|e| e["target"].is_null() && e["valid"] == false));
-    assert_eq!(b.ok("importMap.delete", json!({ "invalid": true }))["deleted"].as_array().unwrap().len(), 3);
-    let left = b.ok("importMap.delete", json!({ "entries": [{ "account": "Assets:Checking", "kind": "bayes" }] }))["deleted"].clone();
+    assert!(
+        invalid
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|e| e["target"].is_null() && e["valid"] == false)
+    );
+    assert_eq!(
+        b.ok("importMap.delete", json!({ "invalid": true }))["deleted"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+    let left = b.ok(
+        "importMap.delete",
+        json!({ "entries": [{ "account": "Assets:Checking", "kind": "bayes" }] }),
+    )["deleted"]
+        .clone();
     assert_eq!(left.as_array().unwrap().len(), 2);
     assert!(b.ok("importMap.list", json!({}))["entries"].as_array().unwrap().is_empty());
 }
@@ -424,14 +694,25 @@ fn a_read_only_book_previews_but_does_not_apply() {
     let mut d = Dispatcher::new(Settings::default());
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(NOW), 1 << 100))));
     d.call("book.open", json!({ "path": path, "readOnly": true })).unwrap();
-    let p = d.call("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": bank_layout() })).unwrap();
-    assert_eq!(d.call("import.apply", json!({ "proposal": p["id"] })).unwrap_err().code, codes::READ_ONLY);
+    let p = d
+        .call(
+            "import.preview",
+            json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": bank_layout() }),
+        )
+        .unwrap();
+    assert_eq!(
+        d.call("import.apply", json!({ "proposal": p["id"] })).unwrap_err().code,
+        codes::READ_ONLY
+    );
 }
 
 /// What a transaction is, for comparing two books: date, number, description and each split's account, value and
 /// memo, in account order.
 fn shape(b: &mut Book) -> Vec<Value> {
-    let names: Vec<(String, String)> = ["Assets:Checking", "Expenses:Groceries", "Expenses:Rent", "Income:Salary"].iter().map(|n| (b.guid(n), (*n).to_owned())).collect();
+    let names: Vec<(String, String)> = ["Assets:Checking", "Expenses:Groceries", "Expenses:Rent", "Income:Salary"]
+        .iter()
+        .map(|n| (b.guid(n), (*n).to_owned()))
+        .collect();
     let mut out: Vec<Value> = b
         .transactions()
         .iter()
@@ -460,13 +741,37 @@ fn shape(b: &mut Book) -> Vec<Value> {
 fn a_csv_export_imports_back_to_the_same_transactions() {
     let mut a = Book::new();
     let post = |b: &mut Book, date: &str, num: &str, desc: &str, splits: Value| {
-        b.ok("transaction.post", json!({ "datePosted": date, "num": num, "description": desc, "splits": splits }));
+        b.ok(
+            "transaction.post",
+            json!({ "datePosted": date, "num": num, "description": desc, "splits": splits }),
+        );
     };
-    post(&mut a, "2024-03-01", "", "Corner, Grocer", json!([{ "account": "Assets:Checking", "value": "-45.10" }, { "account": "Expenses:Groceries", "value": "45.10", "memo": "fruit \"fresh\"" }]));
-    post(&mut a, "2024-03-02", "7", "Rent", json!([{ "account": "Assets:Checking", "value": "-950.00" }, { "account": "Expenses:Rent", "value": "950.00" }]));
-    post(&mut a, "2024-03-05", "", "Salary and shop", json!([
-        { "account": "Assets:Checking", "value": "1980.00" }, { "account": "Income:Salary", "value": "-2000.00" }, { "account": "Expenses:Groceries", "value": "20.00" }]));
-    let csv = a.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"].as_str().unwrap().to_owned();
+    post(
+        &mut a,
+        "2024-03-01",
+        "",
+        "Corner, Grocer",
+        json!([{ "account": "Assets:Checking", "value": "-45.10" }, { "account": "Expenses:Groceries", "value": "45.10", "memo": "fruit \"fresh\"" }]),
+    );
+    post(
+        &mut a,
+        "2024-03-02",
+        "7",
+        "Rent",
+        json!([{ "account": "Assets:Checking", "value": "-950.00" }, { "account": "Expenses:Rent", "value": "950.00" }]),
+    );
+    post(
+        &mut a,
+        "2024-03-05",
+        "",
+        "Salary and shop",
+        json!([
+        { "account": "Assets:Checking", "value": "1980.00" }, { "account": "Income:Salary", "value": "-2000.00" }, { "account": "Expenses:Groceries", "value": "20.00" }]),
+    );
+    let csv = a.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let mut layout = serde_json::to_value(red_ale_import::csv::TxLayout::gnucash_export()).unwrap();
     layout["dateFormat"] = json!("m-d-y");
     let mut b = Book::new();
@@ -476,7 +781,10 @@ fn a_csv_export_imports_back_to_the_same_transactions() {
     b.ok("import.apply", json!({ "proposal": p["id"] }));
     let expected = shape(&mut a);
     let text = serde_json::to_string(&expected).unwrap();
-    assert!(text.contains("fruit \\\"fresh\\\"") && text.contains("\"num\":\"7\"") && text.contains("2024-03-05"), "{text}");
+    assert!(
+        text.contains("fruit \\\"fresh\\\"") && text.contains("\"num\":\"7\"") && text.contains("2024-03-05"),
+        "{text}"
+    );
     assert_eq!(shape(&mut b), expected);
 }
 
@@ -491,7 +799,13 @@ fn generated() -> impl proptest::strategy::Strategy<Value = Generated> {
     let text = "[A-Za-z0-9é]([A-Za-z0-9 ,;:\"'\\-é]{0,10}[A-Za-z0-9é])?"
         .prop_filter("a quote beside a comma", |t: &String| !t.contains(",\"") && !t.contains("\","));
     let cents = prop_oneof![1_i64..100_000, -100_000_i64..-1];
-    (1_u32..29, "[0-9]{0,3}", text.clone(), (cents.clone(), text.clone()), prop::option::of((cents, text)))
+    (
+        1_u32..29,
+        "[0-9]{0,3}",
+        text.clone(),
+        (cents.clone(), text.clone()),
+        prop::option::of((cents, text)),
+    )
 }
 
 fn post_generated(b: &mut Book, (day, num, desc, (groceries, memo), salary): &Generated) {
@@ -504,7 +818,10 @@ fn post_generated(b: &mut Book, (day, num, desc, (groceries, memo), salary): &Ge
     if let Some((cents, memo)) = salary {
         splits.push(json!({ "account": "Income:Salary", "value": amount(*cents), "memo": memo }));
     }
-    b.ok("transaction.post", json!({ "datePosted": format!("2024-03-{day:02}"), "num": num, "description": desc, "splits": splits }));
+    b.ok(
+        "transaction.post",
+        json!({ "datePosted": format!("2024-03-{day:02}"), "num": num, "description": desc, "splits": splits }),
+    );
 }
 
 proptest::proptest! {
@@ -537,17 +854,28 @@ proptest::proptest! {
 fn a_memo_of_one_quote_comes_back_as_two_as_in_gnucash() {
     let mut a = Book::new();
     post_generated(&mut a, &(1, String::new(), "Quote".into(), (1, "\"".into()), None));
-    let csv = a.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"].as_str().unwrap().to_owned();
+    let csv = a.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(csv.contains(",\"\"\"\","), "{csv}");
     let mut layout = serde_json::to_value(red_ale_import::csv::TxLayout::gnucash_export()).unwrap();
     layout["dateFormat"] = json!("m-d-y");
     let mut b = Book::new();
     let p = b.preview(&csv, layout);
-    let memos: Vec<&Value> = p["transactions"][0]["splits"].as_array().unwrap().iter().map(|s| &s["memo"]).collect();
+    let memos: Vec<&Value> = p["transactions"][0]["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| &s["memo"])
+        .collect();
     assert!(memos.contains(&&json!("\"\"")), "{memos:?}");
     let mut c = Book::new();
     post_generated(&mut c, &(1, String::new(), "a,\",0".into(), (1, "a".into()), None));
-    let csv = c.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"].as_str().unwrap().to_owned();
+    let csv = c.ok("export.csvTransactions", json!({ "accounts": ["Assets:Checking"] }))["csv"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let mut layout = serde_json::to_value(red_ale_import::csv::TxLayout::gnucash_export()).unwrap();
     layout["dateFormat"] = json!("m-d-y");
     let p = Book::new().preview(&csv, layout);
@@ -564,11 +892,20 @@ fn transfer_accounts_and_the_multi_currency_checks() {
     let p = b.preview(file, layout.clone());
     let t = &p["transactions"][0];
     assert_eq!(t["splits"].as_array().unwrap().len(), 2);
-    assert_eq!((t["splits"][1]["accountName"].clone(), t["splits"][1]["value"].clone()), (json!("Expenses:Groceries"), usd("1200")));
-    assert_eq!((t["splits"][0]["memo"].clone(), t["splits"][1]["memo"].clone()), (json!("card"), json!("basket")));
+    assert_eq!(
+        (t["splits"][1]["accountName"].clone(), t["splits"][1]["value"].clone()),
+        (json!("Expenses:Groceries"), usd("1200"))
+    );
+    assert_eq!(
+        (t["splits"][0]["memo"].clone(), t["splits"][1]["memo"].clone()),
+        (json!("card"), json!("basket"))
+    );
     assert!(t["other"].is_null() && t["imbalance"].is_null());
 
-    b.ok("account.create", json!({ "name": "Euro", "type": "BANK", "commodity": "EUR", "parent": "Assets" }));
+    b.ok(
+        "account.create",
+        json!({ "name": "Euro", "type": "BANK", "commodity": "EUR", "parent": "Assets" }),
+    );
     // GnuCash counts only the Account column's currencies, so this is not multi-currency to it: the transfer split
     // has no amount, goes to the matcher, and is added at a rate of 1 with a warning.
     let euro = "h\n2024-03-01,Shop,Assets:Euro,-12.00,Expenses:Groceries,,\n";
@@ -577,13 +914,20 @@ fn transfer_accounts_and_the_multi_currency_checks() {
     assert_eq!(p["transactions"][0]["warnings"][0]["code"], "missing-rate");
     let multi = json!({ "skipStartLines": 1, "multiSplit": true, "columns": ["Date", "Description", "Account", "Amount"] });
     let file = "h\n2024-03-01,Shop,Assets:Euro,-12.00\n,,Expenses:Groceries,13.00\n";
-    let e = b.err("import.preview", json!({ "format": "csvTransactions", "files": [{ "text": file }], "layout": multi }));
+    let e = b.err(
+        "import.preview",
+        json!({ "format": "csvTransactions", "files": [{ "text": file }], "layout": multi }),
+    );
     assert_eq!((e.code, e.data.unwrap()["reason"].clone()), (codes::IMPORT_FILE, json!("columns")));
-    let layout = json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Account", "Amount", "Transfer Account", "Transfer Amount"] });
+    let layout =
+        json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Account", "Amount", "Transfer Account", "Transfer Amount"] });
     let p = b.preview("h\n2024-03-01,Shop,Assets:Euro,-10.00,Expenses:Groceries,11.00\n", layout);
     let t = &p["transactions"][0];
     assert_eq!(t["currency"], "CURRENCY::EUR");
-    assert_eq!((t["splits"][1]["value"].clone(), t["splits"][1]["amount"].clone()), (usd("1000"), usd("1100")));
+    assert_eq!(
+        (t["splits"][1]["value"].clone(), t["splits"][1]["amount"].clone()),
+        (usd("1000"), usd("1100"))
+    );
 }
 
 /// The `locale` date format reads ICU's default date pattern for the configured locale, as GnuCash does.
@@ -594,14 +938,24 @@ fn locale_dates_follow_the_configured_locale() {
                          "dateFormat": "locale", "separators": ";" });
     let file = "Date;Description;Amount\nMar 1, 2024;Corner Grocer;-45.10\n2024-03-02;Rent March;-950.00\n";
     let p = b.preview(file, layout.clone());
-    assert_eq!(p["transactions"][0]["datePosted"], "2024-03-01", "under C, ICU reads en_US_POSIX's MMM d, y");
-    assert_eq!(p["errors"], json!([{ "file": 0, "line": 3, "column": 1,
-        "message": "Date: Value can't be parsed into a date using the locale's date format (MMM d, y)." }]));
+    assert_eq!(
+        p["transactions"][0]["datePosted"], "2024-03-01",
+        "under C, ICU reads en_US_POSIX's MMM d, y"
+    );
+    assert_eq!(
+        p["errors"],
+        json!([{ "file": 0, "line": 3, "column": 1,
+        "message": "Date: Value can't be parsed into a date using the locale's date format (MMM d, y)." }])
+    );
     b.ok("config.set", json!({ "changes": { "locale": "fr_FR" } }));
     let file = "Date;Description;Amount\n1 mars 2024;Corner Grocer;-45.10\n2 févr. 24;Rent;-950.00\n";
     let p = b.preview(file, layout.clone());
     let dates: Vec<&Value> = p["transactions"].as_array().unwrap().iter().map(|t| &t["datePosted"]).collect();
-    assert_eq!(dates, [&json!("2024-02-02"), &json!("2024-03-01")], "in date order, as GnuCash hands them to the matcher");
+    assert_eq!(
+        dates,
+        [&json!("2024-02-02"), &json!("2024-03-01")],
+        "in date order, as GnuCash hands them to the matcher"
+    );
     b.ok("config.set", json!({ "changes": { "locale": "de_DE" } }));
     let p = b.preview("Date;Description;Amount\n05.03.2024;Corner Grocer;-45.10\n", layout);
     assert_eq!(p["transactions"][0]["datePosted"], "2024-03-05");

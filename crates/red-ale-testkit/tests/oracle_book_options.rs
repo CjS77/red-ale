@@ -43,7 +43,9 @@ fn noon_today() -> Time64 {
 
 fn today_dispatcher() -> Dispatcher {
     let mut d = Dispatcher::new(Settings::default());
-    d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(noon_today(), 0x00ed_0000_0000_0000_0000_0000_0000_0000))));
+    d.set_env_factory(Box::new(|| {
+        Box::new(FixedEnv::new(noon_today(), 0x00ed_0000_0000_0000_0000_0000_0000_0000))
+    }));
     d
 }
 
@@ -75,7 +77,12 @@ fn refused_by_date(d: &mut Dispatcher, txns: &[Value]) -> BTreeMap<String, bool>
 fn numbers(txns: &[Value]) -> BTreeMap<String, BTreeMap<String, Value>> {
     txns.iter()
         .map(|t| {
-            let splits = t["splits"].as_array().unwrap().iter().map(|s| (s["guid"].as_str().unwrap().to_owned(), s["number"].clone())).collect();
+            let splits = t["splits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|s| (s["guid"].as_str().unwrap().to_owned(), s["number"].clone()))
+                .collect();
             (t["guid"].as_str().unwrap().to_owned(), splits)
         })
         .collect()
@@ -98,12 +105,27 @@ fn gnucash_agrees_with_red_ales_numbers_and_threshold() {
             }),
         );
     });
-    let options = call(&mut d, "book.setOptions", &json!({ "splitActionForNum": true, "autoReadOnlyDays": 10 }));
+    let options = call(
+        &mut d,
+        "book.setOptions",
+        &json!({ "splitActionForNum": true, "autoReadOnlyDays": 10 }),
+    );
     assert_eq!(options["readOnlyThreshold"], days_ago(10));
-    let txns = call(&mut d, "transaction.list", &json!({}))["transactions"].as_array().unwrap().clone();
+    let txns = call(&mut d, "transaction.list", &json!({}))["transactions"]
+        .as_array()
+        .unwrap()
+        .clone();
     let refused = refused_by_date(&mut d, &txns);
-    assert!(!refused[txns.iter().find(|t| t["description"] == "10 days ago").unwrap()["guid"].as_str().unwrap()]);
-    assert!(refused[txns.iter().find(|t| t["description"] == "11 days ago").unwrap()["guid"].as_str().unwrap()]);
+    assert!(
+        !refused[txns.iter().find(|t| t["description"] == "10 days ago").unwrap()["guid"]
+            .as_str()
+            .unwrap()]
+    );
+    assert!(
+        refused[txns.iter().find(|t| t["description"] == "11 days ago").unwrap()["guid"]
+            .as_str()
+            .unwrap()]
+    );
     let ours = numbers(&txns);
 
     let diffs = oracle_check(&mut d, &book, &[]);
@@ -112,12 +134,20 @@ fn gnucash_agrees_with_red_ales_numbers_and_threshold() {
     assert_eq!(gnucash["splitActionForNum"], true);
     assert_eq!(gnucash["autoReadonlyDays"], 10);
     assert_eq!(gnucash["threshold"], options["readOnlyThreshold"]);
-    assert_eq!(gnucash["unknownFeatures"], Value::Null, "GnuCash would warn about the book's features");
+    assert_eq!(
+        gnucash["unknownFeatures"],
+        Value::Null,
+        "GnuCash would warn about the book's features"
+    );
     let theirs = gnucash["transactions"].as_object().unwrap();
     assert_eq!(theirs.len(), refused.len());
-    refused.iter().for_each(|(g, r)| assert_eq!(theirs[g]["readOnlyByDate"], *r, "read-only by date: {g}"));
+    refused
+        .iter()
+        .for_each(|(g, r)| assert_eq!(theirs[g]["readOnlyByDate"], *r, "read-only by date: {g}"));
     ours.iter().for_each(|(g, splits)| {
-        splits.iter().for_each(|(s, n)| assert_eq!(&theirs[g]["numbers"][s], n, "the Number of split {s}"));
+        splits
+            .iter()
+            .for_each(|(s, n)| assert_eq!(&theirs[g]["numbers"][s], n, "the Number of split {s}"));
     });
 }
 
@@ -126,11 +156,18 @@ fn red_ale_sets_the_options_as_gnucash_does() {
     let (gnucash, ours) = (TempBook::copy(RICH), TempBook::copy(RICH));
     script(&["set", &gnucash.path_str(), "true", "30"]);
     let mut d = open_today(&ours);
-    call(&mut d, "book.setOptions", &json!({ "splitActionForNum": true, "autoReadOnlyDays": 30 }));
+    call(
+        &mut d,
+        "book.setOptions",
+        &json!({ "splitActionForNum": true, "autoReadOnlyDays": 30 }),
+    );
     call(&mut d, "book.close", &json!({ "save": true }));
     let slots = |b: &TempBook| -> Value { serde_json::from_str(&script(&["slots", &b.path_str()])).unwrap() };
     let expected = slots(&gnucash);
-    assert_eq!(expected["options"]["Accounts"]["Use Split Action Field for Number"], json!(["string", "t"]));
+    assert_eq!(
+        expected["options"]["Accounts"]["Use Split Action Field for Number"],
+        json!(["string", "t"])
+    );
     assert_eq!(slots(&ours), expected);
 }
 
@@ -139,12 +176,21 @@ fn a_threshold_of_zero_makes_nothing_read_only_in_either() {
     let book = TempBook::copy(RICH);
     let mut d = open_today(&book);
     call(&mut d, "book.setOptions", &json!({ "autoReadOnlyDays": 0 }));
-    let txns = call(&mut d, "transaction.list", &json!({}))["transactions"].as_array().unwrap().clone();
+    let txns = call(&mut d, "transaction.list", &json!({}))["transactions"]
+        .as_array()
+        .unwrap()
+        .clone();
     assert!(refused_by_date(&mut d, &txns).values().all(|r| !r));
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     let gnucash: Value = serde_json::from_str(&script(&["inspect", &book.path_str()])).unwrap();
-    assert!(gnucash["transactions"].as_object().unwrap().values().all(|t| t["readOnlyByDate"] == false));
+    assert!(
+        gnucash["transactions"]
+            .as_object()
+            .unwrap()
+            .values()
+            .all(|t| t["readOnlyByDate"] == false)
+    );
     assert_eq!(gnucash["threshold"], Value::Null);
 }
 
@@ -162,15 +208,23 @@ fn the_threshold_counts_from_the_local_today_at_both_extremes() {
             d.set_env_factory(Box::new(move || Box::new(env())));
             call(&mut d, "book.open", &json!({ "path": book.path_str() }));
             let options = call(&mut d, "book.setOptions", &json!({ "autoReadOnlyDays": 10 }));
-            let txns = call(&mut d, "transaction.list", &json!({}))["transactions"].as_array().unwrap().clone();
+            let txns = call(&mut d, "transaction.list", &json!({}))["transactions"]
+                .as_array()
+                .unwrap()
+                .clone();
             let refused = refused_by_date(&mut d, &txns);
             call(&mut d, "book.close", &json!({ "save": true }));
             let gnucash: Value = serde_json::from_str(&script_in(&["inspect", &book.path_str()], tz)).unwrap();
             assert_eq!(gnucash["threshold"], options["readOnlyThreshold"], "{tz}");
             let theirs = gnucash["transactions"].as_object().unwrap();
-            refused.iter().for_each(|(g, r)| assert_eq!(theirs[g]["readOnlyByDate"], *r, "{tz}: read-only by date: {g}"));
+            refused
+                .iter()
+                .for_each(|(g, r)| assert_eq!(theirs[g]["readOnlyByDate"], *r, "{tz}: read-only by date: {g}"));
             Date::parse(options["readOnlyThreshold"].as_str().unwrap()).unwrap()
         })
         .collect();
-    assert!(thresholds[0] < thresholds[1], "Kiritimati's today is always after Pago Pago's: {thresholds:?}");
+    assert!(
+        thresholds[0] < thresholds[1],
+        "Kiritimati's today is always after Pago Pago's: {thresholds:?}"
+    );
 }

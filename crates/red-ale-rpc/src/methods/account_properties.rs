@@ -27,7 +27,12 @@ pub fn methods() -> Vec<Method> {
             Effect::Read,
             opening_balance_account,
         ),
-        method("account.cascade", "Set colour, placeholder or hidden on an account and all its sub-accounts.", Effect::Write, cascade),
+        method(
+            "account.cascade",
+            "Set colour, placeholder or hidden on an account and all its sub-accounts.",
+            Effect::Write,
+            cascade,
+        ),
     ]
 }
 
@@ -113,7 +118,14 @@ fn check_balance_limit(ctx: &mut Context, p: CheckParams) -> Result<CheckResult,
             lower_limit: c.lower.map(Amount),
             includes_subaccounts: c.includes_subaccounts,
             state: c.state.map(Into::into),
-            unconverted: c.unconverted.into_iter().map(|(cm, b)| Unconverted { commodity: CommodityId(cm), balance: b.into() }).collect(),
+            unconverted: c
+                .unconverted
+                .into_iter()
+                .map(|(cm, b)| Unconverted {
+                    commodity: CommodityId(cm),
+                    balance: b.into(),
+                })
+                .collect(),
         })
     })
 }
@@ -201,9 +213,16 @@ pub struct CascadeResult {
 }
 
 fn cascade(ctx: &mut Context, p: CascadeParams) -> Result<CascadeResult, RpcError> {
-    let c = Cascade { color: p.color, replace_colors: p.replace_colors, placeholder: p.placeholder, hidden: p.hidden };
+    let c = Cascade {
+        color: p.color,
+        replace_colors: p.replace_colors,
+        placeholder: p.placeholder,
+        hidden: p.hidden,
+    };
     ctx.mutate_rpc(|book, _| {
         let guid = p.account.resolve(book)?;
-        Ok(CascadeResult { changed: ops::cascade(book, guid, &c)?.into_iter().map(Id).collect() })
+        Ok(CascadeResult {
+            changed: ops::cascade(book, guid, &c)?.into_iter().map(Id).collect(),
+        })
     })
 }

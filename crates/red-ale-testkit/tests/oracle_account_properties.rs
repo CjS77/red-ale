@@ -21,22 +21,54 @@ fn gnucash(script: &str, path: &str, args: &[&str]) -> Value {
 
 fn post(d: &mut red_ale_rpc::Dispatcher, debit: &str, credit: &str, amount: &str, date: &str) {
     let splits = json!([{ "account": debit, "value": amount }, { "account": credit, "value": format!("-{amount}") }]);
-    call(d, "transaction.post", &json!({ "description": "x", "datePosted": date, "splits": splits }));
+    call(
+        d,
+        "transaction.post",
+        &json!({ "description": "x", "datePosted": date, "splits": splits }),
+    );
 }
 
 #[test]
 fn every_property_reads_the_same_in_gnucash() {
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
-    call(&mut d, "account.create", &json!({ "name": "Coloured", "type": "BANK", "parent": "Assets", "color": "#c0ffee" }));
-    call(&mut d, "account.update", &json!({ "account": "Assets", "color": "rgb(1, 2, 3)", "includeSubaccountBalances": true,
-        "higherBalanceLimit": "12345.67", "lowerBalanceLimit": "-100" }));
-    call(&mut d, "account.update", &json!({ "account": "Assets:Coloured", "higherBalanceLimit": "0", "lowerBalanceLimit": "0" }));
-    call(&mut d, "account.create", &json!({ "name": "Opening", "type": "EQUITY", "commodity": "EUR", "openingBalance": true }));
-    call(&mut d, "account.update", &json!({ "account": "Assets:Coloured", "associatedAccounts": {
-        "stock-dividends": "Income", "stock-capgains": "Opening", "stock-broker-fees": "Expenses", "stock-cash-proceeds": "Assets" } }));
-    call(&mut d, "account.update", &json!({ "account": "Assets:Coloured", "associatedAccounts": { "stock-broker-fees": null } }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Coloured", "type": "BANK", "parent": "Assets", "color": "#c0ffee" }),
+    );
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Assets", "color": "rgb(1, 2, 3)", "includeSubaccountBalances": true,
+        "higherBalanceLimit": "12345.67", "lowerBalanceLimit": "-100" }),
+    );
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Assets:Coloured", "higherBalanceLimit": "0", "lowerBalanceLimit": "0" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Opening", "type": "EQUITY", "commodity": "EUR", "openingBalance": true }),
+    );
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Assets:Coloured", "associatedAccounts": {
+        "stock-dividends": "Income", "stock-capgains": "Opening", "stock-broker-fees": "Expenses", "stock-cash-proceeds": "Assets" } }),
+    );
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Assets:Coloured", "associatedAccounts": { "stock-broker-fees": null } }),
+    );
     call(&mut d, "commodity.update", &json!({ "commodity": "EUR", "userSymbol": "EUR€" }));
-    call(&mut d, "commodity.update", &json!({ "commodity": "NASDAQ::ACME", "userSymbol": "Ⓐ" }));
+    call(
+        &mut d,
+        "commodity.update",
+        &json!({ "commodity": "NASDAQ::ACME", "userSymbol": "Ⓐ" }),
+    );
     assert_same(&mut d, &book);
 }
 
@@ -87,7 +119,11 @@ fn opening_balances(d: &mut red_ale_rpc::Dispatcher, codes: &[&str]) -> Value {
         .iter()
         .map(|code| {
             let r = call(d, "account.openingBalanceAccount", &json!({ "currency": code }));
-            let found = if r["account"].is_null() { Value::Null } else { json!([r["account"]["guid"], r["foundBy"]]) };
+            let found = if r["account"].is_null() {
+                Value::Null
+            } else {
+                json!([r["account"]["guid"], r["foundBy"]])
+            };
             ((*code).to_owned(), found)
         })
         .collect::<serde_json::Map<_, _>>()
@@ -97,19 +133,51 @@ fn opening_balances(d: &mut red_ale_rpc::Dispatcher, codes: &[&str]) -> Value {
 #[test]
 fn gnucash_finds_the_same_opening_balance_account() {
     let (book, mut d) = red_ale_testkit::create();
-    call(&mut d, "account.create", &json!({ "name": "Equity", "type": "EQUITY", "commodity": "USD" }));
-    call(&mut d, "account.create", &json!({ "name": "Deep", "type": "EQUITY", "parent": "Equity", "commodity": "USD" }));
-    call(&mut d, "account.create", &json!({ "name": "Opening Balances", "type": "EQUITY", "parent": "Equity:Deep", "commodity": "USD" }));
-    call(&mut d, "account.create", &json!({ "name": "Opening Balances", "type": "EQUITY", "parent": "Equity", "commodity": "EUR" }));
-    call(&mut d, "account.create", &json!({ "name": "Opening Balances - EUR", "type": "EQUITY", "commodity": "EUR" }));
-    call(&mut d, "account.create", &json!({ "name": "Opening Balances - GBP", "type": "INCOME", "commodity": "GBP" }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Equity", "type": "EQUITY", "commodity": "USD" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Deep", "type": "EQUITY", "parent": "Equity", "commodity": "USD" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Opening Balances", "type": "EQUITY", "parent": "Equity:Deep", "commodity": "USD" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Opening Balances", "type": "EQUITY", "parent": "Equity", "commodity": "EUR" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Opening Balances - EUR", "type": "EQUITY", "commodity": "EUR" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Opening Balances - GBP", "type": "INCOME", "commodity": "GBP" }),
+    );
     let codes = ["USD", "EUR", "GBP", "JPY"];
     let ours = opening_balances(&mut d, &codes);
     call(&mut d, "book.save", &json!({}));
     let theirs = gnucash(OPENING, &book.path_str(), &[&["false"], &codes[..]].concat());
     assert_eq!(theirs, ours, "by name");
-    call(&mut d, "account.create", &json!({ "name": "OB", "type": "EQUITY", "parent": "Equity:Deep", "commodity": "USD", "openingBalance": true }));
-    call(&mut d, "account.create", &json!({ "name": "OB", "type": "EQUITY", "commodity": "JPY", "openingBalance": true }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "OB", "type": "EQUITY", "parent": "Equity:Deep", "commodity": "USD", "openingBalance": true }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "OB", "type": "EQUITY", "commodity": "JPY", "openingBalance": true }),
+    );
     let ours = opening_balances(&mut d, &codes);
     assert_eq!(ours["USD"][1], "equityType");
     assert_same(&mut d, &book);
@@ -118,7 +186,10 @@ fn gnucash_finds_the_same_opening_balance_account() {
     let (saved, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
     let feature = red_ale_core::ops::account_properties::OPENING_BALANCE_FEATURE;
     let described = format!("{feature} (requires at least Gnucash 4.3)");
-    assert!(red_ale_core::book_options::features(&saved).contains(&(feature.to_owned(), described)), "GnuCash's name and description");
+    assert!(
+        red_ale_core::book_options::features(&saved).contains(&(feature.to_owned(), described)),
+        "GnuCash's name and description"
+    );
 }
 
 const LIMITS: &str = r#"
@@ -222,24 +293,47 @@ fn balance_limit_verdicts_match_gnucash() {
 fn balance_limits_convert_sub_accounts_at_the_latest_price_as_gnucash_does() {
     let (book, mut d) = red_ale_testkit::create();
     let mk = |d: &mut red_ale_rpc::Dispatcher, name: &str, ty: &str, commodity: &str, parent: Option<&str>| {
-        call(d, "account.create", &json!({ "name": name, "type": ty, "commodity": commodity, "parent": parent }))["guid"].clone()
+        call(
+            d,
+            "account.create",
+            &json!({ "name": name, "type": ty, "commodity": commodity, "parent": parent }),
+        )["guid"]
+            .clone()
     };
     let bank = mk(&mut d, "Bank", "BANK", "USD", None);
     mk(&mut d, "Income", "INCOME", "USD", None);
     post(&mut d, "Bank", "Income", "75.00", "2024-06-01");
-    [("Euro", "EUR", "100.00"), ("Pound", "GBP", "20.00"), ("Yen", "JPY", "1000")].iter().for_each(|(name, c, amount)| {
-        mk(&mut d, name, "BANK", c, Some("Bank"));
-        mk(&mut d, &format!("Income{c}"), "INCOME", c, None);
-        let (debit, credit) = (format!("Bank:{name}"), format!("Income{c}"));
-        let splits = json!([{ "account": debit, "value": amount }, { "account": credit, "value": format!("-{amount}") }]);
-        call(&mut d, "transaction.post", &json!({ "description": "x", "datePosted": "2024-06-01", "currency": c, "splits": splits }));
-    });
+    [("Euro", "EUR", "100.00"), ("Pound", "GBP", "20.00"), ("Yen", "JPY", "1000")]
+        .iter()
+        .for_each(|(name, c, amount)| {
+            mk(&mut d, name, "BANK", c, Some("Bank"));
+            mk(&mut d, &format!("Income{c}"), "INCOME", c, None);
+            let (debit, credit) = (format!("Bank:{name}"), format!("Income{c}"));
+            let splits = json!([{ "account": debit, "value": amount }, { "account": credit, "value": format!("-{amount}") }]);
+            call(
+                &mut d,
+                "transaction.post",
+                &json!({ "description": "x", "datePosted": "2024-06-01", "currency": c, "splits": splits }),
+            );
+        });
     // EUR has a direct price to USD, the newer winning; GBP goes through EUR to USD; JPY has none.
-    let prices = [("EUR", "USD", "2", "2024-05-01"), ("EUR", "USD", "1.1", "2024-06-20"), ("GBP", "EUR", "1.2", "2024-06-15")];
+    let prices = [
+        ("EUR", "USD", "2", "2024-05-01"),
+        ("EUR", "USD", "1.1", "2024-06-20"),
+        ("GBP", "EUR", "1.2", "2024-06-15"),
+    ];
     prices.iter().for_each(|(c, cur, value, date)| {
-        call(&mut d, "price.add", &json!({ "commodity": c, "currency": cur, "value": value, "date": date }));
+        call(
+            &mut d,
+            "price.add",
+            &json!({ "commodity": c, "currency": cur, "value": value, "date": date }),
+        );
     });
-    call(&mut d, "account.update", &json!({ "account": "Bank", "higherBalanceLimit": "200", "includeSubaccountBalances": true }));
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Bank", "higherBalanceLimit": "200", "includeSubaccountBalances": true }),
+    );
     let ours = limit_checks(&mut d);
     // 75 + 100 EUR at 1.1 + 20 GBP at 1.2 * 1.1 = 211.40, with nothing for the yen.
     assert_eq!(ours[bank.as_str().unwrap()], json!(["above", "1057/5"]));
@@ -252,7 +346,11 @@ fn limit_checks(d: &mut red_ale_rpc::Dispatcher) -> serde_json::Map<String, Valu
     accounts
         .iter()
         .map(|a| {
-            let r = call(d, "account.checkBalanceLimit", &json!({ "account": a["guid"], "asOf": "2024-07-01" }));
+            let r = call(
+                d,
+                "account.checkBalanceLimit",
+                &json!({ "account": a["guid"], "asOf": "2024-07-01" }),
+            );
             let part = |k: &str| r["balance"][k].as_str().unwrap().parse::<i64>().unwrap();
             let balance = red_ale_testkit::model::frac(red_ale_core::Numeric::new(part("num"), part("denom")));
             (a["guid"].as_str().unwrap().to_owned(), json!([r["state"], balance]))
@@ -302,10 +400,26 @@ print("{}")
 #[test]
 fn cascading_matches_gnucash_replaying_the_dialog() {
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
-    call(&mut d, "account.create", &json!({ "name": "Top", "type": "ASSET", "commodity": "USD", "color": "#010203" }));
-    call(&mut d, "account.create", &json!({ "name": "Mid", "type": "ASSET", "parent": "Top", "color": "#ff0000", "hidden": true }));
-    call(&mut d, "account.create", &json!({ "name": "Leaf", "type": "BANK", "parent": "Top:Mid" }));
-    call(&mut d, "account.create", &json!({ "name": "Twig", "type": "BANK", "parent": "Top", "placeholder": true }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Top", "type": "ASSET", "commodity": "USD", "color": "#010203" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Mid", "type": "ASSET", "parent": "Top", "color": "#ff0000", "hidden": true }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Leaf", "type": "BANK", "parent": "Top:Mid" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Twig", "type": "BANK", "parent": "Top", "placeholder": true }),
+    );
     call(&mut d, "book.save", &json!({}));
     let cases = [
         ("#00ff00", false, Some(true), None),
@@ -322,9 +436,15 @@ fn cascading_matches_gnucash_replaying_the_dialog() {
         call(&mut d, "account.cascade", &p);
         call(&mut d, "book.save", &json!({}));
         let flag = |v: &Option<bool>| v.map_or("-", |b| if b { "true" } else { "false" });
-        let color = red_ale_core::ops::account_properties::parse_color(color).unwrap().unwrap_or_default();
+        let color = red_ale_core::ops::account_properties::parse_color(color)
+            .unwrap()
+            .unwrap_or_default();
         let replace = if *replace { "true" } else { "false" };
-        gnucash(CASCADE, &theirs.path_str(), &["Top", &color, replace, flag(placeholder), flag(hidden)]);
+        gnucash(
+            CASCADE,
+            &theirs.path_str(),
+            &["Top", &color, replace, flag(placeholder), flag(hidden)],
+        );
         let (ours, gnc) = (oracle::dump(&book.path).unwrap(), oracle::dump(&theirs.path).unwrap());
         assert_eq!(diff(&gnc["accounts"], &ours["accounts"], &[]), Vec::<String>::new(), "cascade {p}");
     });

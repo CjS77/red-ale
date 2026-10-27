@@ -13,16 +13,40 @@ use crate::wire::{AccountRef, Amount, CommodityId, Day, Done, Id, Timestamp};
 /// The business posting methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("invoice.totals", "A document's subtotal, tax and total, per tax account and per entry, as GnuCash computes them.", Effect::Read, totals),
-        method("invoice.dueDate", "When a document posted on a date falls due under its (or a given) billing term.", Effect::Read, due_date),
-        method("invoice.post", "Post a document to an A/R or A/P account: its transaction, lot, frozen tax tables and terms.", Effect::Write, post),
-        method("invoice.unpost", "Unpost a document: delete its posted transaction and lot links; payments stay as pre-payments.", Effect::Destructive, unpost),
+        method(
+            "invoice.totals",
+            "A document's subtotal, tax and total, per tax account and per entry, as GnuCash computes them.",
+            Effect::Read,
+            totals,
+        ),
+        method(
+            "invoice.dueDate",
+            "When a document posted on a date falls due under its (or a given) billing term.",
+            Effect::Read,
+            due_date,
+        ),
+        method(
+            "invoice.post",
+            "Post a document to an A/R or A/P account: its transaction, lot, frozen tax tables and terms.",
+            Effect::Write,
+            post,
+        ),
+        method(
+            "invoice.unpost",
+            "Unpost a document: delete its posted transaction and lot links; payments stay as pre-payments.",
+            Effect::Destructive,
+            unpost,
+        ),
     ]
 }
 
 /// The invoice, bill or voucher with this GUID.
 pub fn invoice(book: &Book, id: Id) -> Result<&Invoice, RpcError> {
-    book.business.invoices.get(&id.0).map(AsRef::as_ref).ok_or_else(|| RpcError::not_found("invoice", id.0))
+    book.business
+        .invoices
+        .get(&id.0)
+        .map(AsRef::as_ref)
+        .ok_or_else(|| RpcError::not_found("invoice", id.0))
 }
 
 /// Params naming one document.
@@ -80,7 +104,11 @@ pub struct TotalsResult {
 pub fn account_amounts(book: &Book, values: &calc::AccountValues) -> Vec<AccountAmount> {
     values
         .iter()
-        .map(|(a, v)| AccountAmount { account: Id(*a), account_name: book.full_name(*a).unwrap_or_default(), amount: Amount(*v) })
+        .map(|(a, v)| AccountAmount {
+            account: Id(*a),
+            account_name: book.full_name(*a).unwrap_or_default(),
+            amount: Amount(*v),
+        })
         .collect()
 }
 
@@ -90,9 +118,20 @@ fn totals(ctx: &mut Context, p: InvoiceParams) -> Result<TotalsResult, RpcError>
     let t = calc::document_totals(book, inv)?;
     let entries = calc::document_lines(book, inv)?
         .into_iter()
-        .map(|l| EntryTotals { entry: Id(l.entry), value: Amount(l.value), discount: Amount(l.discount), tax: Amount(l.tax) })
+        .map(|l| EntryTotals {
+            entry: Id(l.entry),
+            value: Amount(l.value),
+            discount: Amount(l.discount),
+            tax: Amount(l.tax),
+        })
         .collect();
-    Ok(TotalsResult { subtotal: Amount(t.subtotal), tax: Amount(t.tax), total: Amount(t.total), taxes: account_amounts(book, &t.taxes), entries })
+    Ok(TotalsResult {
+        subtotal: Amount(t.subtotal),
+        tax: Amount(t.tax),
+        total: Amount(t.total),
+        taxes: account_amounts(book, &t.taxes),
+        entries,
+    })
 }
 
 /// Params of `invoice.dueDate`.
@@ -123,7 +162,12 @@ pub struct DueDateResult {
 fn term_of(book: &Book, invoice_id: Option<Id>, term: Option<Id>) -> Result<Option<Guid>, RpcError> {
     match (invoice_id, term) {
         (Some(i), None) => Ok(invoice(book, i)?.terms),
-        (None, Some(t)) => book.business.bill_terms.contains_key(&t.0).then_some(Some(t.0)).ok_or_else(|| RpcError::not_found("billing term", t.0)),
+        (None, Some(t)) => book
+            .business
+            .bill_terms
+            .contains_key(&t.0)
+            .then_some(Some(t.0))
+            .ok_or_else(|| RpcError::not_found("billing term", t.0)),
         _ => Err(RpcError::invalid_params("give exactly one of invoice and term")),
     }
 }
@@ -131,14 +175,20 @@ fn term_of(book: &Book, invoice_id: Option<Id>, term: Option<Id>) -> Result<Opti
 fn due_date(ctx: &mut Context, p: DueDateParams) -> Result<DueDateResult, RpcError> {
     let zone = ctx.zone();
     let book = ctx.book()?;
-    let term = term_of(book, p.invoice, p.term)?.and_then(|g| book.business.bill_terms.get(&g)).map(AsRef::as_ref);
+    let term = term_of(book, p.invoice, p.term)?
+        .and_then(|g| book.business.bill_terms.get(&g))
+        .map(AsRef::as_ref);
     let due = calc::due_date(term, zone.neutral_time(p.post_date.0), &zone)?;
-    Ok(DueDateResult { due_date: Day(local_day(due, &zone)?), due: Timestamp(due) })
+    Ok(DueDateResult {
+        due_date: Day(local_day(due, &zone)?),
+        due: Timestamp(due),
+    })
 }
 
 /// The local calendar date of an instant.
 pub fn local_day(t: Time64, zone: &TimeZone) -> Result<red_ale_core::Date, RpcError> {
-    zone.local_date(t).ok_or_else(|| RpcError::invalid(format!("time {} is out of range", t.0)))
+    zone.local_date(t)
+        .ok_or_else(|| RpcError::invalid(format!("time {} is out of range", t.0)))
 }
 
 /// The price of one unit of a commodity in the document currency.
@@ -206,7 +256,11 @@ fn post(ctx: &mut Context, p: PostParams) -> Result<PostResult, RpcError> {
         };
         Ok(posting::post(book, env, &req)?)
     })?;
-    Ok(PostResult { transaction: Id(posted.transaction), lot: Id(posted.lot), due: Timestamp(posted.due) })
+    Ok(PostResult {
+        transaction: Id(posted.transaction),
+        lot: Id(posted.lot),
+        due: Timestamp(posted.due),
+    })
 }
 
 /// Params of `invoice.unpost`.

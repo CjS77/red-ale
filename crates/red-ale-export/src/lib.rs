@@ -63,7 +63,10 @@ impl CsvOptions {
 impl Default for CsvOptions {
     /// A comma and no forced quotes: the assistant's defaults.
     fn default() -> Self {
-        Self { separator: ",".to_owned(), quotes: false }
+        Self {
+            separator: ",".to_owned(),
+            quotes: false,
+        }
     }
 }
 

@@ -278,7 +278,11 @@ fn text2bool(text: &str) -> bool {
 /// `text2disc_type` (`dialog-bi-import-helper.c:69-83`): empty or `%` is a percentage.
 fn text2disc_type(text: &str) -> AmountType {
     let t = reader::strip(text);
-    if t.is_empty() || t == "%" { AmountType::Percent } else { AmountType::Value }
+    if t.is_empty() || t == "%" {
+        AmountType::Percent
+    } else {
+        AmountType::Value
+    }
 }
 
 /// `text2disc_how` (`dialog-bi-import-helper.c:86-102`).
@@ -311,7 +315,12 @@ struct Checker<'a, 'c> {
 impl Checker<'_, '_> {
     fn error(&mut self, row: &Row, n: usize, column: usize, message: &str) {
         let message = format!("invoice {}/{n}: {message}", self.id);
-        self.errors.push(RowError { file: self.ctx.file, line: row.line, column: Some(column + 1), message });
+        self.errors.push(RowError {
+            file: self.ctx.file,
+            line: row.line,
+            column: Some(column + 1),
+            message,
+        });
     }
 
     fn fixed(&mut self, n: usize, message: &str) {
@@ -331,10 +340,22 @@ impl Checker<'_, '_> {
         let b = &self.ctx.book.business;
         if self.opts.kind == DocumentKind::Invoice {
             let customer = b.customers.values().find(|c| c.id == owner_id)?;
-            Some((OwnerRef { kind: OwnerKind::Customer, guid: customer.guid }, customer.currency.clone()))
+            Some((
+                OwnerRef {
+                    kind: OwnerKind::Customer,
+                    guid: customer.guid,
+                },
+                customer.currency.clone(),
+            ))
         } else {
             let vendor = b.vendors.values().find(|v| v.id == owner_id)?;
-            Some((OwnerRef { kind: OwnerKind::Vendor, guid: vendor.guid }, vendor.currency.clone()))
+            Some((
+                OwnerRef {
+                    kind: OwnerKind::Vendor,
+                    guid: vendor.guid,
+                },
+                vendor.currency.clone(),
+            ))
         }
     }
 
@@ -343,7 +364,12 @@ impl Checker<'_, '_> {
         let f = &row.fields;
         if self.id.is_empty() {
             let message = "no invoice ID in first row of import file.".into();
-            self.errors.push(RowError { file: self.ctx.file, line: row.line, column: Some(ID + 1), message });
+            self.errors.push(RowError {
+                file: self.ctx.file,
+                line: row.line,
+                column: Some(ID + 1),
+                message,
+            });
         }
         let owner = self.header_owner(row);
         let post = if f[DATE_POSTED].is_empty() { None } else { self.posting(row) };
@@ -352,7 +378,12 @@ impl Checker<'_, '_> {
             self.ctx.today
         });
         let (owner, currency) = owner?;
-        Some(Header { owner, currency, opened, post: if f[DATE_POSTED].is_empty() { None } else { Some(post?) } })
+        Some(Header {
+            owner,
+            currency,
+            opened,
+            post: if f[DATE_POSTED].is_empty() { None } else { Some(post?) },
+        })
     }
 
     fn header_owner(&mut self, row: &Row) -> Option<(OwnerRef, CommodityRef)> {
@@ -361,7 +392,11 @@ impl Checker<'_, '_> {
             self.error(row, 1, OWNER_ID, "owner not set.");
             return None;
         }
-        let word = if self.opts.kind == DocumentKind::Invoice { "customer" } else { "vendor" };
+        let word = if self.opts.kind == DocumentKind::Invoice {
+            "customer"
+        } else {
+            "vendor"
+        };
         match self.owner(&owner_id) {
             Some((owner, Some(currency))) => Some((owner, currency)),
             Some((_, None)) => {
@@ -451,7 +486,11 @@ impl Checker<'_, '_> {
             self.number(row, n, QUANTITY)
         };
         let invoice = self.opts.kind == DocumentKind::Invoice;
-        let discount = if invoice && !f[DISCOUNT].is_empty() { self.number(row, n, DISCOUNT) } else { Some(Numeric::ZERO) };
+        let discount = if invoice && !f[DISCOUNT].is_empty() {
+            self.number(row, n, DISCOUNT)
+        } else {
+            Some(Numeric::ZERO)
+        };
         let tax_table = self.tax_table(row, n);
         let date = self.date(&f[DATE]).unwrap_or_else(|| {
             self.fixed(n, &format!("{:?} is not a valid date; the opening date is used.", f[DATE]));
@@ -467,8 +506,16 @@ impl Checker<'_, '_> {
             quantity: quantity?,
             price: price?,
             discount: discount?,
-            discount_type: if invoice { text2disc_type(&f[DISC_TYPE]) } else { AmountType::Percent },
-            discount_how: if invoice { text2disc_how(&f[DISC_HOW]) } else { DiscountHow::PreTax },
+            discount_type: if invoice {
+                text2disc_type(&f[DISC_TYPE])
+            } else {
+                AmountType::Percent
+            },
+            discount_how: if invoice {
+                text2disc_how(&f[DISC_HOW])
+            } else {
+                DiscountHow::PreTax
+            },
             taxable: text2bool(&f[TAXABLE]),
             tax_included: text2bool(&f[TAXINCLUDED]),
             tax_table: tax_table.ok()?,
@@ -504,17 +551,33 @@ struct Checked {
 /// Check one group: everything it holds, or every error, as GnuCash drops the whole document.
 fn check(ctx: &Context<'_>, opts: DocumentOptions, id: &str, rows: &[&Row]) -> Result<Checked, Vec<RowError>> {
     let dates = DateContext::new(opts.date_format, ctx.locale, ctx.today);
-    let mut c = Checker { ctx, opts: &opts, dates, id: id.to_owned(), errors: Vec::new(), fixes: Vec::new() };
+    let mut c = Checker {
+        ctx,
+        opts: &opts,
+        dates,
+        id: id.to_owned(),
+        errors: Vec::new(),
+        fixes: Vec::new(),
+    };
     let first = rows.first().copied();
     let header = first.and_then(|r| c.header(r));
     let opened = header.as_ref().map_or(ctx.today, |h| h.opened);
     let entries: Vec<Option<ProposedEntry>> = rows.iter().enumerate().map(|(i, r)| c.entry(r, i + 1, opened)).collect();
     let (Some(header), Some(first), true) = (header, first, c.errors.is_empty()) else {
         let mut errors = c.errors;
-        let what = if id.is_empty() { "invoice without id".to_owned() } else { format!("invoice {id}") };
+        let what = if id.is_empty() {
+            "invoice without id".to_owned()
+        } else {
+            format!("invoice {id}")
+        };
         let line = first.map_or(0, |r| r.line);
         let message = format!("Error(s) in {what}, all rows of this invoice ignored.");
-        errors.push(RowError { file: ctx.file, line, column: None, message });
+        errors.push(RowError {
+            file: ctx.file,
+            line,
+            column: None,
+            message,
+        });
         return Err(errors);
     };
     Ok(Checked {
@@ -547,15 +610,27 @@ fn find_document<'b>(book: &'b Book, kind: DocumentKind, id: &str, credit_note: 
 /// or a posting account not in the document's currency.
 fn cannot_post(book: &Book, doc: &ProposedDocument, target: Guid) -> DomainResult<Option<String>> {
     let Some(plan) = &doc.post else { return Ok(None) };
-    let inv = book.business.invoices.get(&target).ok_or_else(|| DomainError::not_found("invoice", &target))?;
+    let inv = book
+        .business
+        .invoices
+        .get(&target)
+        .ok_or_else(|| DomainError::not_found("invoice", &target))?;
     let customer = doc.kind == DocumentKind::Invoice;
     let currency = Some(&doc.currency);
-    let entry_accounts: Vec<Guid> =
-        entries_of(book, target).into_iter().filter_map(|e| if customer { e.i_account } else { e.b_account }).collect();
+    let entry_accounts: Vec<Guid> = entries_of(book, target)
+        .into_iter()
+        .filter_map(|e| if customer { e.i_account } else { e.b_account })
+        .collect();
     let tax_accounts = document_totals(book, inv)?.taxes.into_iter().map(|(a, _)| a);
-    let foreign = entry_accounts.into_iter().chain(tax_accounts).any(|a| book.account(a).is_some_and(|a| a.commodity.as_ref() != currency));
+    let foreign = entry_accounts
+        .into_iter()
+        .chain(tax_accounts)
+        .any(|a| book.account(a).is_some_and(|a| a.commodity.as_ref() != currency));
     if foreign {
-        return Ok(Some(format!("Invoice {} NOT posted because it requires currency conversion.", doc.id)));
+        return Ok(Some(format!(
+            "Invoice {} NOT posted because it requires currency conversion.",
+            doc.id
+        )));
     }
     if book.account(plan.account).and_then(|a| a.commodity.as_ref()) != currency {
         return Ok(Some(format!("Invoice {} NOT posted because currencies don't match.", doc.id)));
@@ -717,9 +792,21 @@ impl Planner<'_> {
     fn action(&self, c: &Checked) -> Found {
         let kind = self.opts.kind;
         let Some(found) = find_document(&self.copy, kind, &c.id, false) else {
-            let note = find_document(&self.copy, kind, &c.id, true)
-                .map(|_| ("duplicate-id", format!("a credit note already has the ID {}; GnuCash creates a second document with it", c.id)));
-            return Found { action: ImportAction::Add, existing: None, same_as: None, notes: note.into_iter().collect() };
+            let note = find_document(&self.copy, kind, &c.id, true).map(|_| {
+                (
+                    "duplicate-id",
+                    format!(
+                        "a credit note already has the ID {}; GnuCash creates a second document with it",
+                        c.id
+                    ),
+                )
+            });
+            return Found {
+                action: ImportAction::Add,
+                existing: None,
+                same_as: None,
+                notes: note.into_iter().collect(),
+            };
         };
         let (existing, same_as) = match self.by_guid.get(&found.guid) {
             Some(i) => (None, Some(*i)),
@@ -727,21 +814,45 @@ impl Planner<'_> {
         };
         if !self.opts.update_existing {
             let message = format!("Invoice {} not updated because it already exists.", c.id);
-            return Found { action: ImportAction::Skip, existing, same_as, notes: vec![("exists", message)] };
+            return Found {
+                action: ImportAction::Skip,
+                existing,
+                same_as,
+                notes: vec![("exists", message)],
+            };
         }
         if found.is_posted() {
             let message = format!("Invoice {} not updated because it is already posted.", c.id);
-            return Found { action: ImportAction::Skip, existing, same_as, notes: vec![("posted", message)] };
+            return Found {
+                action: ImportAction::Skip,
+                existing,
+                same_as,
+                notes: vec![("posted", message)],
+            };
         }
-        Found { action: ImportAction::Update, existing, same_as, notes: Vec::new() }
+        Found {
+            action: ImportAction::Update,
+            existing,
+            same_as,
+            notes: Vec::new(),
+        }
     }
 
     fn document(&self, c: Checked, index: usize) -> ProposedDocument {
-        let Found { action, existing, same_as, notes } = self.action(&c);
+        let Found {
+            action,
+            existing,
+            same_as,
+            notes,
+        } = self.action(&c);
         let mut warnings: Vec<Warning> = c.fixes.iter().map(|m| Warning::about(index, "fixed", m.clone())).collect();
         warnings.extend(notes.into_iter().map(|(code, m)| Warning::about(index, code, m)));
         let (first_line, last_line) = (c.lines.first().copied().unwrap_or(0), c.lines.last().copied().unwrap_or(0));
-        let source = Source { file: self.ctx.file, first_line, last_line };
+        let source = Source {
+            file: self.ctx.file,
+            first_line,
+            last_line,
+        };
         ProposedDocument {
             index,
             source,
@@ -785,9 +896,17 @@ impl Planner<'_> {
         if let Some(plan) = doc.post.as_mut() {
             plan.not_posted = not_posted;
         }
-        let inv = trial.business.invoices.get(&target).ok_or_else(|| DomainError::not_found("invoice", &target))?;
+        let inv = trial
+            .business
+            .invoices
+            .get(&target)
+            .ok_or_else(|| DomainError::not_found("invoice", &target))?;
         let t = document_totals(&trial, inv)?;
-        doc.totals = Some(Totals { subtotal: t.subtotal, tax: t.tax, total: t.total });
+        doc.totals = Some(Totals {
+            subtotal: t.subtotal,
+            tax: t.tax,
+            total: t.total,
+        });
         self.copy = trial;
         self.env = env;
         Ok(Some(target))
@@ -796,24 +915,39 @@ impl Planner<'_> {
     /// Warnings that follow from the trial: not posted, read-only by date, entries the document already has.
     fn review(&self, doc: &mut ProposedDocument, before: &Book) {
         let index = doc.index;
-        if let Some(reason) = doc.post.as_ref().and_then(|p| p.not_posted.clone()).filter(|_| doc.action != ImportAction::Skip) {
+        if let Some(reason) = doc
+            .post
+            .as_ref()
+            .and_then(|p| p.not_posted.clone())
+            .filter(|_| doc.action != ImportAction::Skip)
+        {
             doc.warnings.push(Warning::about(index, "not-posted", reason));
         }
         let posting = doc.post.as_ref().filter(|_| doc.will_post() && doc.action != ImportAction::Skip);
         if let (Some(t), Some(plan)) = (self.ctx.threshold, posting) {
             doc.read_only_by_date = plan.date < t;
             if doc.read_only_by_date {
-                doc.warnings.push(Warning::about(index, "read-only-by-date", format!("posted before the read-only threshold {t}")));
+                doc.warnings.push(Warning::about(
+                    index,
+                    "read-only-by-date",
+                    format!("posted before the read-only threshold {t}"),
+                ));
             }
         }
         if let Some(target) = doc.existing.filter(|_| doc.action == ImportAction::Update) {
             let had = entries_of(before, target);
             let customer = doc.kind == DocumentKind::Invoice;
             let zone = self.ctx.zone;
-            doc.entries.iter().filter(|p| had.iter().any(|e| same_entry(e, p, customer, zone.noon(p.date)))).for_each(|p| {
-                let message = format!("line {}: the document already has this entry; it is added again, as GnuCash does", p.line);
-                doc.warnings.push(Warning::about(index, "duplicate-entry", message));
-            });
+            doc.entries
+                .iter()
+                .filter(|p| had.iter().any(|e| same_entry(e, p, customer, zone.noon(p.date))))
+                .for_each(|p| {
+                    let message = format!(
+                        "line {}: the document already has this entry; it is added again, as GnuCash does",
+                        p.line
+                    );
+                    doc.warnings.push(Warning::about(index, "duplicate-entry", message));
+                });
         }
     }
 
@@ -833,9 +967,19 @@ impl Planner<'_> {
             Err(f) => {
                 let line = f.line.unwrap_or(doc.source.first_line);
                 let message = format!("invoice {}: {}", doc.id, f.error);
-                self.out.errors.push(RowError { file: self.ctx.file, line, column: None, message });
+                self.out.errors.push(RowError {
+                    file: self.ctx.file,
+                    line,
+                    column: None,
+                    message,
+                });
                 let summary = format!("Error(s) in invoice {}, all rows of this invoice ignored.", doc.id);
-                self.out.errors.push(RowError { file: self.ctx.file, line: doc.source.first_line, column: None, message: summary });
+                self.out.errors.push(RowError {
+                    file: self.ctx.file,
+                    line: doc.source.first_line,
+                    column: None,
+                    message: summary,
+                });
             }
         }
     }
@@ -843,7 +987,11 @@ impl Planner<'_> {
 
 /// An existing entry with the same date, description, account, quantity and price.
 fn same_entry(e: &Entry, p: &ProposedEntry, customer: bool, date: Time64) -> bool {
-    let (account, price) = if customer { (e.i_account, e.i_price) } else { (e.b_account, e.b_price) };
+    let (account, price) = if customer {
+        (e.i_account, e.i_price)
+    } else {
+        (e.b_account, e.b_price)
+    };
     e.date == date
         && e.description == p.description
         && account == Some(p.account)
@@ -857,13 +1005,23 @@ pub fn propose(text: &str, ctx: &Context<'_>, opts: &DocumentOptions) -> Result<
     let read = reader::read(text, ctx.file, &FIELDS, &pattern, opts.separator);
     let env = FixedEnv::new(ctx.now, PREVIEW_GUID_SEED).with_zone(ctx.zone.clone());
     let copy = ctx.book.clone();
-    let mut planner = Planner { ctx, opts, copy, env, created: Created::new(), by_guid: BTreeMap::new(), out: Proposed::default() };
+    let mut planner = Planner {
+        ctx,
+        opts,
+        copy,
+        env,
+        created: Created::new(),
+        by_guid: BTreeMap::new(),
+        out: Proposed::default(),
+    };
     planner.out.ignored = read.ignored;
     planner.out.warnings = stripped_warnings(&read.stripped);
-    group(&read.rows).into_iter().for_each(|(id, rows)| match check(ctx, *opts, &id, &rows) {
-        Ok(c) => planner.plan(c),
-        Err(errors) => planner.out.errors.extend(errors),
-    });
+    group(&read.rows)
+        .into_iter()
+        .for_each(|(id, rows)| match check(ctx, *opts, &id, &rows) {
+            Ok(c) => planner.plan(c),
+            Err(errors) => planner.out.errors.extend(errors),
+        });
     Ok(planner.out)
 }
 
@@ -873,7 +1031,11 @@ pub(super) fn stripped_warnings(lines: &[usize]) -> Vec<Warning> {
         .iter()
         .map(|l| {
             let message = format!("line {l}: control characters were removed, as GnuCash removes them");
-            Warning { code: "stripped-characters", message, index: None }
+            Warning {
+                code: "stripped-characters",
+                message,
+                index: None,
+            }
         })
         .collect()
 }

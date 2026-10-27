@@ -56,7 +56,10 @@ impl Limit {
     }
 
     fn row(self) -> (&'static str, u64) {
-        LIMITS.iter().find(|(l, _, _)| *l == self).map_or(("operations", 0), |(_, n, d)| (*n, *d))
+        LIMITS
+            .iter()
+            .find(|(l, _, _)| *l == self)
+            .map_or(("operations", 0), |(_, n, d)| (*n, *d))
     }
 
     /// The name in `data.limit`.
@@ -80,7 +83,11 @@ impl FromStr for Limit {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        LIMITS.iter().find(|(_, n, _)| *n == s).map(|(l, _, _)| *l).ok_or_else(|| format!("unknown limit {s:?}"))
+        LIMITS
+            .iter()
+            .find(|(_, n, _)| *n == s)
+            .map(|(l, _, _)| *l)
+            .ok_or_else(|| format!("unknown limit {s:?}"))
     }
 }
 
@@ -92,7 +99,9 @@ pub struct Limits {
 
 impl Default for Limits {
     fn default() -> Self {
-        Self { max: LIMITS.map(|(_, _, d)| d) }
+        Self {
+            max: LIMITS.map(|(_, _, d)| d),
+        }
     }
 }
 
@@ -128,7 +137,9 @@ mod tests {
         let limits = Limits::default().with(Limit::Operations, 5);
         assert_eq!(limits.get(Limit::Operations), 5);
         assert_eq!(limits.get(Limit::Functions), 1_000);
-        Limit::all().filter(|l| *l != Limit::Operations).for_each(|l| assert_eq!(limits.get(l), l.default_max()));
+        Limit::all()
+            .filter(|l| *l != Limit::Operations)
+            .for_each(|l| assert_eq!(limits.get(l), l.default_max()));
     }
 
     #[test]

@@ -51,7 +51,10 @@ fn gnucash_ranks_fetched_prices_as_finance_quote_quotes() {
     ]);
     let (book, mut d) = create();
     let url = server.url();
-    call(&mut d, "config.set", &json!({ "changes": {
+    call(
+        &mut d,
+        "config.set",
+        &json!({ "changes": {
         "quotes.network": true,
         "quotes.services.local-av": {
             "format": "alphavantage",
@@ -61,9 +64,14 @@ fn gnucash_ranks_fetched_prices_as_finance_quote_quotes() {
         },
         "quotes.sources.alphavantage": ["local-av"],
         "quotes.sources.currency": ["local-av"],
-    } }));
-    call(&mut d, "commodity.create", &json!({ "namespace": "NYSE", "mnemonic": "IBM", "fullname": "IBM", "fraction": 10000,
-        "quoteFlag": true, "quoteSource": "alphavantage" }));
+    } }),
+    );
+    call(
+        &mut d,
+        "commodity.create",
+        &json!({ "namespace": "NYSE", "mnemonic": "IBM", "fullname": "IBM", "fraction": 10000,
+        "quoteFlag": true, "quoteSource": "alphavantage" }),
+    );
     call(&mut d, "commodity.update", &json!({ "commodity": "EUR", "quoteFlag": true }));
     call(&mut d, "price.fetchQuotes", &json!({}));
     d.wait_for_quotes();
@@ -71,17 +79,31 @@ fn gnucash_ranks_fetched_prices_as_finance_quote_quotes() {
     let ours: Vec<Value> = ["NYSE::IBM", "CURRENCY::EUR"]
         .iter()
         .flat_map(|c| call(&mut d, "price.list", &json!({ "commodity": c })).as_array().unwrap().clone())
-        .map(|p| json!([p["commodity"], p["source"], p["type"], format!("{}/{}", p["value"]["num"].as_str().unwrap(), p["value"]["denom"].as_str().unwrap())]))
+        .map(|p| {
+            json!([
+                p["commodity"],
+                p["source"],
+                p["type"],
+                format!("{}/{}", p["value"]["num"].as_str().unwrap(), p["value"]["denom"].as_str().unwrap())
+            ])
+        })
         .collect();
     call(&mut d, "book.close", &json!({ "save": true }));
     let path = book.path_str();
     let gnucash: Value = serde_json::from_str(&oracle::run_code(READ, &[&path, "NYSE::IBM", "CURRENCY::EUR"]).unwrap()).unwrap();
-    let theirs: Vec<Value> =
-        gnucash["prices"].as_array().unwrap().iter().map(|p| json!([p["commodity"], p["source"], p["type"], p["value"]])).collect();
+    let theirs: Vec<Value> = gnucash["prices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| json!([p["commodity"], p["source"], p["type"], p["value"]]))
+        .collect();
     assert_eq!(theirs, ours);
     assert_eq!(ours[0], json!(["NYSE::IBM", "Finance::Quote", "last", "1872700/10000"]));
     assert!(gnucash["prices"].as_array().unwrap().iter().all(|p| p["fetched"] == true));
     // 2024-05-03 at 10:59 UTC, the quote's date at its neutral time.
     assert_eq!(gnucash["prices"][0]["time"], 1_714_733_940);
-    assert_eq!((gnucash["xferAdded"].clone(), gnucash["editorAdded"].clone()), (json!(false), json!(true)));
+    assert_eq!(
+        (gnucash["xferAdded"].clone(), gnucash["editorAdded"].clone()),
+        (json!(false), json!(true))
+    );
 }

@@ -41,13 +41,23 @@ pub struct QifParams {
 }
 
 /// Read the files and build the proposal.
-pub(super) fn propose(book: &Book, env: &mut dyn Env, config: &Config, files: &[ImportFile], p: &QifParams) -> Result<Proposal, ServiceError> {
+pub(super) fn propose(
+    book: &Book,
+    env: &mut dyn Env,
+    config: &Config,
+    files: &[ImportFile],
+    p: &QifParams,
+) -> Result<Proposal, ServiceError> {
     let inputs = files
         .iter()
         .enumerate()
         .map(|(i, f)| {
             let default_account = p.default_accounts.get(i).cloned().flatten();
-            Ok(QifFileInput { text: decode(i, f, "utf-8")?, path: f.name.clone(), default_account })
+            Ok(QifFileInput {
+                text: decode(i, f, "utf-8")?,
+                path: f.name.clone(),
+                default_account,
+            })
         })
         .collect::<Result<Vec<_>, ServiceError>>()?;
     let opts = QifOptions {
@@ -63,7 +73,17 @@ pub(super) fn propose(book: &Book, env: &mut dyn Env, config: &Config, files: &[
     let today = env.today().ok_or_else(|| invalid("the session's clock is outside the calendar"))?;
     let now = env.now();
     qif_propose(book, now, env.zone(), &inputs, &opts, review::threshold(book, Some(today))).map_err(|e| match e {
-        QifError::File { file, line, reason, message } => ServiceError::ImportFile { file, line, reason, message },
+        QifError::File {
+            file,
+            line,
+            reason,
+            message,
+        } => ServiceError::ImportFile {
+            file,
+            line,
+            reason,
+            message,
+        },
         QifError::Domain(e) => ServiceError::Domain(e),
     })
 }
@@ -90,6 +110,8 @@ pub fn save_map(store: &ConfigStore, used: &SavedMap) -> Result<(), ServiceError
     let mut saved = saved_map(&config)?;
     saved.extend(used.clone());
     let value = serde_json::to_value(&saved).map_err(|e| invalid(format!("the QIF account map: {e}")))?;
-    config.apply(&[(MAP_SETTING.to_owned(), value)]).map_err(|e| invalid(e.to_string()))?;
+    config
+        .apply(&[(MAP_SETTING.to_owned(), value)])
+        .map_err(|e| invalid(e.to_string()))?;
     store.save(&config)
 }

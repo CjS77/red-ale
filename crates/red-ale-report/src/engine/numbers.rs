@@ -34,7 +34,9 @@ pub(crate) fn register(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap, c
 
 fn rational(engine: &mut Engine, cap: SizeCap) {
     engine.register_type_with_name::<Rational>("Rational");
-    engine.register_fn("rational", move |v: Dynamic| -> Fallible<Rational> { rational_arg(&v).and_then(|r| capped(r, cap)) });
+    engine.register_fn("rational", move |v: Dynamic| -> Fallible<Rational> {
+        rational_arg(&v).and_then(|r| capped(r, cap))
+    });
     engine.register_fn("rational", move |n: Dynamic, d: Dynamic| -> Fallible<Rational> {
         rational_arg(&n)?.checked_div(&rational_arg(&d)?, cap).map_err(arithmetic)
     });
@@ -53,7 +55,9 @@ fn rational(engine: &mut Engine, cap: SizeCap) {
         let mode: Rounding = mode.parse().map_err(|e: NumberError| script_error(e.to_string()))?;
         r.round_to(denom, mode).map_err(arithmetic)
     });
-    engine.register_fn("to_decimal", |r: Rational, places: INT| -> Fallible<String> { Ok(r.to_decimal(small_count(places, "places")?)) });
+    engine.register_fn("to_decimal", |r: Rational, places: INT| -> Fallible<String> {
+        Ok(r.to_decimal(small_count(places, "places")?))
+    });
     engine.register_fn("fixed", |r: Dynamic, width: Dynamic, places: INT| -> Fallible<String> {
         let width = if width.is_unit() {
             None
@@ -80,12 +84,20 @@ type Op = fn(&Rational, &Rational, SizeCap) -> Result<Rational, NumberError>;
 
 /// `+ - * /` and the comparisons, for every mix of Rational and integer.
 fn rational_operators(engine: &mut Engine, cap: SizeCap) {
-    let ops: [(&str, Op); 4] =
-        [("+", Rational::checked_add), ("-", Rational::checked_sub), ("*", Rational::checked_mul), ("/", Rational::checked_div)];
+    let ops: [(&str, Op); 4] = [
+        ("+", Rational::checked_add),
+        ("-", Rational::checked_sub),
+        ("*", Rational::checked_mul),
+        ("/", Rational::checked_div),
+    ];
     ops.into_iter().for_each(|(name, op)| {
         engine.register_fn(name, move |a: Rational, b: Rational| op(&a, &b, cap).map_err(arithmetic));
-        engine.register_fn(name, move |a: Rational, b: INT| op(&a, &Rational::from_int(b), cap).map_err(arithmetic));
-        engine.register_fn(name, move |a: INT, b: Rational| op(&Rational::from_int(a), &b, cap).map_err(arithmetic));
+        engine.register_fn(name, move |a: Rational, b: INT| {
+            op(&a, &Rational::from_int(b), cap).map_err(arithmetic)
+        });
+        engine.register_fn(name, move |a: INT, b: Rational| {
+            op(&Rational::from_int(a), &b, cap).map_err(arithmetic)
+        });
     });
     engine.register_fn("-", |a: Rational| -a);
     engine.register_fn("+", |a: Rational| a);
@@ -128,5 +140,7 @@ fn monetary(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap, conv: Conven
         let format = CommodityFormat::from_book(s.book(), &m.commodity).ok_or_else(|| unknown(m))?;
         Ok(m.to_display_string(&format, &conv))
     });
-    engine.register_fn("to_debug", |m: &mut Monetary| format!("monetary(\"{}\", \"{}\")", m.commodity, m.amount));
+    engine.register_fn("to_debug", |m: &mut Monetary| {
+        format!("monetary(\"{}\", \"{}\")", m.commodity, m.amount)
+    });
 }

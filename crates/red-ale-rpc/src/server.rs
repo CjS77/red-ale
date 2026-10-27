@@ -32,7 +32,9 @@ fn to_error_object(e: RpcError) -> ErrorObjectOwned {
 }
 
 fn params_value(params: &Params<'_>) -> Result<Value, RpcError> {
-    params.as_str().map_or(Ok(Value::Null), |text| serde_json::from_str(text).map_err(|e| RpcError::new(codes::PARSE_ERROR, e.to_string())))
+    params.as_str().map_or(Ok(Value::Null), |text| {
+        serde_json::from_str(text).map_err(|e| RpcError::new(codes::PARSE_ERROR, e.to_string()))
+    })
 }
 
 fn call(dispatcher: &Mutex<Dispatcher>, name: &str, params: &Params<'_>) -> Result<Value, ErrorObjectOwned> {
@@ -52,7 +54,12 @@ pub async fn serve(
     limits: (u32, u32),
 ) -> Result<(SocketAddr, ServerHandle), ServerError> {
     crate::quote_fetches::settle_when_fetched(&dispatcher);
-    let mut names: Vec<&'static str> = dispatcher.lock().unwrap_or_else(std::sync::PoisonError::into_inner).methods().map(|m| m.name).collect();
+    let mut names: Vec<&'static str> = dispatcher
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .methods()
+        .map(|m| m.name)
+        .collect();
     names.push("api.schema");
     let mut module = RpcModule::new(dispatcher);
     names.into_iter().try_for_each(|name| {
@@ -61,7 +68,10 @@ pub async fn serve(
             .map(|_| ())
             .map_err(|e| ServerError::Register(format!("{name}: {e}")))
     })?;
-    let config = ServerConfig::builder().max_request_body_size(limits.0).max_response_body_size(limits.1).build();
+    let config = ServerConfig::builder()
+        .max_request_body_size(limits.0)
+        .max_response_body_size(limits.1)
+        .build();
     let builder = Server::builder().set_config(config);
     let server = builder.build(addr).await.map_err(|source| ServerError::Bind { addr, source })?;
     let local = server.local_addr().map_err(|source| ServerError::Bind { addr, source })?;

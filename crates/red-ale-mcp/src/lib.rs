@@ -18,5 +18,8 @@ pub use server::{McpServer, ServeError};
 /// `max_request_bytes`. Nothing else may write to standard output while this runs.
 pub async fn serve_stdio(dispatcher: Arc<Mutex<Dispatcher>>, max_request_bytes: usize) -> Result<(), ServeError> {
     let (input, output) = rmcp::transport::stdio();
-    McpServer::new(dispatcher).with_max_request_bytes(max_request_bytes).serve(input, output).await
+    McpServer::new(dispatcher)
+        .with_max_request_bytes(max_request_bytes)
+        .serve(input, output)
+        .await
 }

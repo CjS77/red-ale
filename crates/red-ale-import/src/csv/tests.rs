@@ -9,7 +9,11 @@ use super::*;
 const SAMPLE1: &str = include_str!("../../../../fixtures/csv/sample1.csv");
 
 fn csv_layout(separators: &str, escape: bool) -> CsvLayout {
-    CsvLayout { separators: separators.to_owned(), escape, ..CsvLayout::default() }
+    CsvLayout {
+        separators: separators.to_owned(),
+        escape,
+        ..CsvLayout::default()
+    }
 }
 
 fn one_line(line: &str, separators: &str, escape: bool) -> Row {
@@ -38,26 +42,76 @@ fn gnucash_tokenize_from_csv_file() {
 #[test]
 fn gnucash_tokenize_comma_sep() {
     let cases: &[(bool, &str, &[&str])] = &[
-        (true, "Date,Num,Description,Notes,Account,Deposit,Withdrawal,Balance", &["Date", "Num", "Description", "Notes", "Account", "Deposit", "Withdrawal", "Balance"]),
-        (false, "Date,Num,Description,Notes,Account,Deposit,Withdrawal,Balance", &["Date", "Num", "Description", "Notes", "Account", "Deposit", "Withdrawal", "Balance"]),
+        (
+            true,
+            "Date,Num,Description,Notes,Account,Deposit,Withdrawal,Balance",
+            &["Date", "Num", "Description", "Notes", "Account", "Deposit", "Withdrawal", "Balance"],
+        ),
+        (
+            false,
+            "Date,Num,Description,Notes,Account,Deposit,Withdrawal,Balance",
+            &["Date", "Num", "Description", "Notes", "Account", "Deposit", "Withdrawal", "Balance"],
+        ),
         (
             true,
             "05/01/15,45,Typical csv import line - including quoted empty field,,Miscellaneous,\"\",\"1,100.00\",",
-            &["05/01/15", "45", "Typical csv import line - including quoted empty field", "", "Miscellaneous", "", "1,100.00", ""],
+            &[
+                "05/01/15",
+                "45",
+                "Typical csv import line - including quoted empty field",
+                "",
+                "Miscellaneous",
+                "",
+                "1,100.00",
+                "",
+            ],
         ),
         (
             false,
             "05/01/15,45,Typical csv import line - including quoted empty field,,Miscellaneous,\"\",\"1,100.00\",",
-            &["05/01/15", "45", "Typical csv import line - including quoted empty field", "", "Miscellaneous", "", "1,100.00", ""],
+            &[
+                "05/01/15",
+                "45",
+                "Typical csv import line - including quoted empty field",
+                "",
+                "Miscellaneous",
+                "",
+                "1,100.00",
+                "",
+            ],
         ),
-        (true, "05/01/15,45,Acme Inc.,,Miscellaneous,", &["05/01/15", "45", "Acme Inc.", "", "Miscellaneous", ""]),
-        (false, "05/01/15,45,Acme Inc.,,Miscellaneous,", &["05/01/15", "45", "Acme Inc.", "", "Miscellaneous", ""]),
+        (
+            true,
+            "05/01/15,45,Acme Inc.,,Miscellaneous,",
+            &["05/01/15", "45", "Acme Inc.", "", "Miscellaneous", ""],
+        ),
+        (
+            false,
+            "05/01/15,45,Acme Inc.,,Miscellaneous,",
+            &["05/01/15", "45", "Acme Inc.", "", "Miscellaneous", ""],
+        ),
         (true, "Test\\ with backslash,nextfield", &["Test\\ with backslash", "nextfield"]),
         (false, "Test\\ with backslash,nextfield", &["Test\\ with backslash", "nextfield"]),
-        (true, "Test with \\\" escaped quote,nextfield", &["Test with \" escaped quote", "nextfield"]),
-        (true, "Test with \"\" escaped quote,nextfield", &["Test with \" escaped quote", "nextfield"]),
-        (false, "Test with \"\" escaped quote,nextfield", &["Test with \" escaped quote", "nextfield"]),
-        (true, "\"Test (quoted) with \"\" escaped quote\",\"nextfield\"", &["Test (quoted) with \" escaped quote", "nextfield"]),
+        (
+            true,
+            "Test with \\\" escaped quote,nextfield",
+            &["Test with \" escaped quote", "nextfield"],
+        ),
+        (
+            true,
+            "Test with \"\" escaped quote,nextfield",
+            &["Test with \" escaped quote", "nextfield"],
+        ),
+        (
+            false,
+            "Test with \"\" escaped quote,nextfield",
+            &["Test with \" escaped quote", "nextfield"],
+        ),
+        (
+            true,
+            "\"Test (quoted) with \"\" escaped quote\",\"nextfield\"",
+            &["Test (quoted) with \" escaped quote", "nextfield"],
+        ),
         (true, "\"Unescaped quote test\",nextfield", &["Unescaped quote test", "nextfield"]),
         (false, "\"Unescaped quote test\",nextfield", &["Unescaped quote test", "nextfield"]),
         (
@@ -66,29 +120,56 @@ fn gnucash_tokenize_comma_sep() {
             &["Unescaped quote test with trailing backslash and escape off\\", "nextfield"],
         ),
     ];
-    cases.iter().for_each(|&(escape, line, fields)| assert_eq!(one_line(line, ",", escape), fields, "{line} (escape {escape})"));
+    cases
+        .iter()
+        .for_each(|&(escape, line, fields)| assert_eq!(one_line(line, ",", escape), fields, "{line} (escape {escape})"));
 }
 
 /// `test-tokenizer.cpp:208-217` (`tokenize_semicolon_sep`).
 #[test]
 fn gnucash_tokenize_semicolon_sep() {
     let cases: &[(&str, &[&str])] = &[
-        ("Date;Num;Description;Notes;Account;Deposit;Withdrawal;Balance", &["Date", "Num", "Description", "Notes", "Account", "Deposit", "Withdrawal", "Balance"]),
+        (
+            "Date;Num;Description;Notes;Account;Deposit;Withdrawal;Balance",
+            &["Date", "Num", "Description", "Notes", "Account", "Deposit", "Withdrawal", "Balance"],
+        ),
         (
             "05/01/15;45;Typical csv import line - including quoted empty field;;Miscellaneous;\"\";\"1,100.00\";",
-            &["05/01/15", "45", "Typical csv import line - including quoted empty field", "", "Miscellaneous", "", "1,100.00", ""],
+            &[
+                "05/01/15",
+                "45",
+                "Typical csv import line - including quoted empty field",
+                "",
+                "Miscellaneous",
+                "",
+                "1,100.00",
+                "",
+            ],
         ),
-        ("05/01/15;45;Acme Inc.;;Miscellaneous;", &["05/01/15", "45", "Acme Inc.", "", "Miscellaneous", ""]),
+        (
+            "05/01/15;45;Acme Inc.;;Miscellaneous;",
+            &["05/01/15", "45", "Acme Inc.", "", "Miscellaneous", ""],
+        ),
     ];
-    cases.iter().for_each(|&(line, fields)| assert_eq!(one_line(line, ";", true), fields, "{line}"));
+    cases
+        .iter()
+        .for_each(|&(line, fields)| assert_eq!(one_line(line, ";", true), fields, "{line}"));
 }
 
 /// `test-tokenizer.cpp:250-268` (`tokenize_fw`).
 #[test]
 fn gnucash_tokenize_fw() {
     let cases: &[(&str, &[u32], &[&str])] = &[
-        ("Date    NumDescriptionAccountDeposit", &[8, 3, 11, 7, 7], &["Date", "Num", "Description", "Account", "Deposit"]),
-        ("05/01/1545Acme Inc.Miscellaneous1,100.00", &[8, 2, 9, 13, 8], &["05/01/15", "45", "Acme Inc.", "Miscellaneous", "1,100.00"]),
+        (
+            "Date    NumDescriptionAccountDeposit",
+            &[8, 3, 11, 7, 7],
+            &["Date", "Num", "Description", "Account", "Deposit"],
+        ),
+        (
+            "05/01/1545Acme Inc.Miscellaneous1,100.00",
+            &[8, 2, 9, 13, 8],
+            &["05/01/15", "45", "Acme Inc.", "Miscellaneous", "1,100.00"],
+        ),
         (
             "05/01/15  45  Acme Inc.Miscellaneous        1,100.00",
             &[10, 4, 9, 13, 8, 8],
@@ -96,7 +177,11 @@ fn gnucash_tokenize_fw() {
         ),
     ];
     cases.iter().for_each(|&(line, widths, fields)| {
-        let layout = CsvLayout { format: FileFormat::FixedWidth, column_widths: widths.to_vec(), ..CsvLayout::default() };
+        let layout = CsvLayout {
+            format: FileFormat::FixedWidth,
+            column_widths: widths.to_vec(),
+            ..CsvLayout::default()
+        };
         assert_eq!(tokenize(line, &layout).unwrap().remove(0), fields, "{line}");
     });
 }
@@ -118,7 +203,10 @@ fn d(y: i32, m: u32, day: u32) -> Date {
 #[test]
 fn sample1_drafts() {
     use ColumnType::{Account, Amount, AmountNeg, Date as D, Description, None as N, Notes, Num};
-    let mut layout = TxLayout { columns: vec![D, Num, Description, Notes, Account, Amount, AmountNeg, N], ..TxLayout::default() };
+    let mut layout = TxLayout {
+        columns: vec![D, Num, Description, Notes, Account, Amount, AmountNeg, N],
+        ..TxLayout::default()
+    };
     layout.csv.skip_start_lines = 1;
     layout.csv.date_format = DateFormat::Mdy;
     layout.csv.currency_format = CurrencyFormat::Period;
@@ -128,7 +216,10 @@ fn sample1_drafts() {
     let drafts = imp.create_drafts(false).unwrap();
     assert_eq!(drafts.len(), 1);
     let t = &drafts[0];
-    assert_eq!((t.date, t.num.as_deref(), t.description.as_deref(), t.notes.as_deref()), (d(2015, 5, 1), Some("45"), Some("Acme Inc."), None));
+    assert_eq!(
+        (t.date, t.num.as_deref(), t.description.as_deref(), t.notes.as_deref()),
+        (d(2015, 5, 1), Some("45"), Some("Acme Inc."), None)
+    );
     assert_eq!(t.splits.len(), 1);
     let s = &t.splits[0];
     assert_eq!(s.account, SplitAccount::Named("Miscellaneous".to_owned()));
@@ -137,7 +228,13 @@ fn sample1_drafts() {
 }
 
 fn export_layout() -> TxLayout {
-    TxLayout { csv: CsvLayout { currency_format: CurrencyFormat::Period, ..TxLayout::gnucash_export().csv }, ..TxLayout::gnucash_export() }
+    TxLayout {
+        csv: CsvLayout {
+            currency_format: CurrencyFormat::Period,
+            ..TxLayout::gnucash_export().csv
+        },
+        ..TxLayout::gnucash_export()
+    }
 }
 
 const EXPORT: &str = "\
@@ -156,10 +253,19 @@ fn multi_split_groups_lines() {
     assert_eq!(imp.verify(true, false), Vec::<String>::new());
     let drafts = imp.create_drafts(false).unwrap();
     assert_eq!(drafts.len(), 2);
-    assert_eq!((drafts[0].unique_id.as_deref(), drafts[0].date, drafts[0].splits.len()), (Some("bb"), d(2024, 1, 3), 2));
-    assert_eq!((drafts[1].unique_id.as_deref(), drafts[1].date, drafts[1].splits.len()), (Some("aa"), d(2024, 1, 5), 2));
+    assert_eq!(
+        (drafts[0].unique_id.as_deref(), drafts[0].date, drafts[0].splits.len()),
+        (Some("bb"), d(2024, 1, 3), 2)
+    );
+    assert_eq!(
+        (drafts[1].unique_id.as_deref(), drafts[1].date, drafts[1].splits.len()),
+        (Some("aa"), d(2024, 1, 5), 2)
+    );
     let pay = &drafts[0].splits[0];
-    assert_eq!((pay.reconcile, pay.reconcile_date, pay.memo.as_deref()), (Some(ReconcileState::Reconciled), Some(d(2024, 1, 31)), Some("note")));
+    assert_eq!(
+        (pay.reconcile, pay.reconcile_date, pay.memo.as_deref()),
+        (Some(ReconcileState::Reconciled), Some(d(2024, 1, 31)), Some("note"))
+    );
     assert!(pay.value.unwrap().same_repr(Numeric::new(10_000, 100)));
     assert_eq!(drafts[1].splits[1].reconcile, Some(ReconcileState::Cleared));
     assert_eq!(drafts[1].splits[0].reconcile, None);
@@ -185,7 +291,11 @@ fn continuation_line_hides_its_own_date_error() {
 #[test]
 fn every_void_reason_is_kept() {
     use ColumnType::{Account, Amount, Date as D, Description, VoidReason};
-    let layout = TxLayout { multi_split: true, columns: vec![D, Description, VoidReason, Account, Amount], ..TxLayout::default() };
+    let layout = TxLayout {
+        multi_split: true,
+        columns: vec![D, Description, VoidReason, Account, Amount],
+        ..TxLayout::default()
+    };
     let imp = import("2024-01-01,a,oops,X,1\n2024-01-02,b,,X,2\n2024-01-03,c,again,X,3\n", &layout);
     let drafts = imp.create_drafts(false).unwrap();
     let reasons: Vec<_> = drafts.iter().map(|t| t.void_reason.as_deref()).collect();
@@ -197,10 +307,16 @@ fn every_void_reason_is_kept() {
 #[test]
 fn reconciled_without_date_is_an_error_row() {
     use ColumnType::{Account, Amount, Date as D, Description, RecDate, RecState};
-    let layout = TxLayout { columns: vec![D, Description, Account, Amount, RecState, RecDate], ..TxLayout::default() };
+    let layout = TxLayout {
+        columns: vec![D, Description, Account, Amount, RecState, RecDate],
+        ..TxLayout::default()
+    };
     let imp = import("2024-01-01,a,X,1,y,\n2024-01-02,b,X,2,y,2024-01-31\n", &layout);
     let states = imp.line_states(false);
-    assert_eq!(states[0].errors[&ColumnType::RecDate], "Reconcile Date: Split is reconciled but reconcile date column is missing or invalid.");
+    assert_eq!(
+        states[0].errors[&ColumnType::RecDate],
+        "Reconcile Date: Split is reconciled but reconcile date column is missing or invalid."
+    );
     assert!(states[1].errors.is_empty());
     assert!(matches!(imp.create_drafts(false), Err(CreateError::Verify(_))));
     let drafts = imp.create_drafts(true).unwrap();
@@ -214,7 +330,10 @@ fn reconciled_without_date_is_an_error_row() {
 fn two_split_with_base_account_and_transfer() {
     use ColumnType::{Account, AmountNeg, Date as D, Description, TransferAccount, TransferAmount};
     let layout = TxLayout {
-        base_account: Some(BaseAccount { guid: None, full_name: Some("Assets:Bank".to_owned()) }),
+        base_account: Some(BaseAccount {
+            guid: None,
+            full_name: Some("Assets:Bank".to_owned()),
+        }),
         columns: vec![D, Description, Account, AmountNeg, TransferAccount, TransferAmount],
         ..TxLayout::default()
     };
@@ -229,13 +348,22 @@ fn two_split_with_base_account_and_transfer() {
     assert!(split.transfer.amount.unwrap().same_repr(Numeric::new(35, 10)));
     let value = split.split_value(false, || None).unwrap();
     assert!(value.same_repr(Numeric::new(-35, 10)));
-    assert!(split.transfer_amount(value, true, || None).unwrap().unwrap().same_repr(Numeric::new(35, 10)));
+    assert!(
+        split
+            .transfer_amount(value, true, || None)
+            .unwrap()
+            .unwrap()
+            .same_repr(Numeric::new(35, 10))
+    );
 }
 
 #[test]
 fn values_from_price_and_price_db() {
     use ColumnType::{Account, Amount, Date as D, Description, Price};
-    let layout = TxLayout { columns: vec![D, Description, Account, Amount, Price], ..TxLayout::default() };
+    let layout = TxLayout {
+        columns: vec![D, Description, Account, Amount, Price],
+        ..TxLayout::default()
+    };
     let imp = import("2024-02-01,Buy,Assets:Shares,10,12.5\n2024-02-02,Buy,Assets:Shares,4,\n", &layout);
     let drafts = imp.create_drafts(false).unwrap();
     let priced = &drafts[0].splits[0];
@@ -243,8 +371,14 @@ fn values_from_price_and_price_db() {
     // An empty price cell is zero, so GnuCash multiplies by it.
     let zero_price = &drafts[1].splits[0];
     assert!(zero_price.split_value(false, || None).unwrap().is_zero());
-    let unpriced = DraftSplit { price: None, ..zero_price.clone() };
-    let quote = NearestPrice { value: Numeric::new(2, 1), in_transaction_currency: false };
+    let unpriced = DraftSplit {
+        price: None,
+        ..zero_price.clone()
+    };
+    let quote = NearestPrice {
+        value: Numeric::new(2, 1),
+        in_transaction_currency: false,
+    };
     // Quoted in the account's commodity, so inverted: 4 × 1/2, unreduced as GncNumeric's product is.
     assert!(unpriced.split_value(false, || Some(quote)).unwrap().same_repr(Numeric::new(4, 2)));
     assert!(unpriced.split_value(false, || None).unwrap().is_zero());
@@ -254,33 +388,51 @@ fn values_from_price_and_price_db() {
 #[test]
 fn verify_messages() {
     let imp = import("a,b\n", &TxLayout::default());
-    assert_eq!(imp.verify(true, false), [
-        "Please select a date column.",
-        "Please select an account column or set a base account in the Account field.",
-        "Please select a description column.",
-        "Please select a (negated) amount column.",
-    ]);
+    assert_eq!(
+        imp.verify(true, false),
+        [
+            "Please select a date column.",
+            "Please select an account column or set a base account in the Account field.",
+            "Please select a description column.",
+            "Please select a (negated) amount column.",
+        ]
+    );
     let empty = import("\n\n", &TxLayout::default());
     assert_eq!(empty.verify(true, false).len(), 1);
     let mut layout = TxLayout::default();
     layout.csv.skip_start_lines = 1;
-    assert_eq!(import("a\n", &layout).verify(true, false), ["No lines are selected for importing. Please reduce the number of lines to skip."]);
-    assert!(matches!(import("a,b\n", &TxLayout::default()).create_drafts(false), Err(CreateError::Verify(_))));
+    assert_eq!(
+        import("a\n", &layout).verify(true, false),
+        ["No lines are selected for importing. Please reduce the number of lines to skip."]
+    );
+    assert!(matches!(
+        import("a,b\n", &TxLayout::default()).create_drafts(false),
+        Err(CreateError::Verify(_))
+    ));
 }
 
 #[test]
 fn line_errors_block_unless_skipped() {
     use ColumnType::{Account, Amount, Date as D, Description};
-    let layout = TxLayout { columns: vec![D, Description, Account, Amount], ..TxLayout::default() };
+    let layout = TxLayout {
+        columns: vec![D, Description, Account, Amount],
+        ..TxLayout::default()
+    };
     let mut imp = import("2024-01-01,a,X,1\nbad,b,X,2\n2024-01-03,c,,3\n", &layout);
     let not_parsed = "Not all fields could be parsed. Please correct the issues reported for each line or adjust the lines to skip.";
     assert_eq!(imp.verify(true, false), [not_parsed]);
-    assert_eq!(imp.line_states(false)[2].errors[&ColumnType::Account], "Account: Account value can't be empty.");
+    assert_eq!(
+        imp.line_states(false)[2].errors[&ColumnType::Account],
+        "Account: Account value can't be empty."
+    );
     // Account errors are allowed before accounts are matched.
     imp.line_mut(1).unwrap().pre_trans = imp.lines()[0].pre_trans.clone();
     assert!(imp.verify(false, false).is_empty());
     assert_eq!(imp.verify(true, false), [not_parsed]);
-    imp.line_mut(0).unwrap().pre_split.add_error(ColumnType::Account, "Account value can't be mapped back to an account.");
+    imp.line_mut(0)
+        .unwrap()
+        .pre_split
+        .add_error(ColumnType::Account, "Account value can't be mapped back to an account.");
     let drafts = imp.create_drafts(true).unwrap();
     assert_eq!(drafts.len(), 1);
     assert_eq!(drafts[0].description.as_deref(), Some("a"));
@@ -304,9 +456,15 @@ fn skip_lines() {
 #[test]
 fn columns_dedupe_and_fit() {
     use ColumnType::{Amount, Date as D, Description};
-    let layout = TxLayout { columns: vec![D, D, Amount, Amount, Description, Description, Description], ..TxLayout::default() };
+    let layout = TxLayout {
+        columns: vec![D, D, Amount, Amount, Description, Description, Description],
+        ..TxLayout::default()
+    };
     let imp = import("2024-01-01,x,1,2,d,e\n", &layout);
-    assert_eq!(imp.layout().columns, [D, ColumnType::None, Amount, Amount, Description, ColumnType::None]);
+    assert_eq!(
+        imp.layout().columns,
+        [D, ColumnType::None, Amount, Amount, Description, ColumnType::None]
+    );
     assert!(imp.lines()[0].pre_split.amount.unwrap().same_repr(Numeric::new(3, 1)));
 }
 

@@ -5,10 +5,10 @@
 use red_ale_core::business::OwnerKind;
 use red_ale_core::ops::business::documents::DocumentKind;
 use red_ale_core::{Book, Guid};
+use red_ale_import::business::owners::AddressFields;
 use red_ale_import::business::{
     AccountNames, DateFormat, PostPlan, ProposedDocument, ProposedEntry, ProposedOwner, RecordsApplied, Separator, Totals,
 };
-use red_ale_import::business::owners::AddressFields;
 use red_ale_service::import::{DocumentsParams, OwnersParams};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -175,7 +175,10 @@ impl OwnersPreviewParam {
             OwnerImportKind::Customer => OwnerKind::Customer,
             OwnerImportKind::Vendor => OwnerKind::Vendor,
         };
-        OwnersParams { kind, separator: self.separator.into() }
+        OwnersParams {
+            kind,
+            separator: self.separator.into(),
+        }
     }
 }
 
@@ -322,7 +325,16 @@ pub struct AddressWire {
 impl From<&AddressFields> for AddressWire {
     fn from(a: &AddressFields) -> Self {
         let [addr1, addr2, addr3, addr4] = a.lines.clone();
-        Self { name: a.name.clone(), addr1, addr2, addr3, addr4, phone: a.phone.clone(), fax: a.fax.clone(), email: a.email.clone() }
+        Self {
+            name: a.name.clone(),
+            addr1,
+            addr2,
+            addr3,
+            addr4,
+            phone: a.phone.clone(),
+            fax: a.fax.clone(),
+            email: a.email.clone(),
+        }
     }
 }
 
@@ -408,7 +420,11 @@ fn post_wire(book: &Book, p: &PostPlan) -> PostWire {
 }
 
 fn totals_wire(t: &Totals) -> TotalsWire {
-    TotalsWire { subtotal: t.subtotal.into(), tax: t.tax.into(), total: t.total.into() }
+    TotalsWire {
+        subtotal: t.subtotal.into(),
+        tax: t.tax.into(),
+        total: t.total.into(),
+    }
 }
 
 /// A document as the proposal shows it.
@@ -493,6 +509,11 @@ fn indexed(list: Vec<(usize, Guid)>) -> Vec<IndexedRecord> {
 
 impl From<RecordsApplied> for RecordsChanged {
     fn from(r: RecordsApplied) -> Self {
-        Self { created: indexed(r.created), updated: indexed(r.updated), posted: indexed(r.posted), skipped: r.skipped }
+        Self {
+            created: indexed(r.created),
+            updated: indexed(r.updated),
+            posted: indexed(r.posted),
+            skipped: r.skipped,
+        }
     }
 }

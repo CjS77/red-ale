@@ -13,7 +13,7 @@ use red_ale_core::{Book, CommodityRef, Date, DomainError, DomainResult, Env, Fix
 
 use super::super::dialog_utils::{SECURITY_FRACTION, SecurityChoice};
 use super::super::merge_groups::{Candidate, find_duplicates};
-use super::super::to_gnc::{ConvertedXtn, Converted, Maps, Options, qif_to_gnc};
+use super::super::to_gnc::{Converted, ConvertedXtn, Maps, Options, qif_to_gnc};
 use super::{NewCommodity, QifError, QifState};
 use crate::matcher::{ImportAction, MatchInfo, TransInfo};
 use crate::pipeline::review::read_only_by_date;
@@ -41,15 +41,33 @@ pub(super) struct Run {
 /// before.
 pub(super) fn run(book: &mut Book, env: &mut dyn Env, old: &Book, state: &QifState) -> DomainResult<Run> {
     let (stock_map, created) = commodity_update(book, &state.security_hash)?;
-    let currency = state.currency.clone().ok_or_else(|| DomainError::invalid("the QIF proposal has no currency"))?;
+    let currency = state
+        .currency
+        .clone()
+        .ok_or_else(|| DomainError::invalid("the QIF proposal has no currency"))?;
     let mut files = state.files.clone();
     let mut maps = state.maps.clone();
-    let opts = Options { stock_map: &stock_map, default_currency: &currency, status_pref: state.status_pref };
+    let opts = Options {
+        stock_map: &stock_map,
+        default_currency: &currency,
+        status_pref: state.status_pref,
+    };
     let converted = qif_to_gnc(book, env, &mut files, &mut maps, opts)?;
     let added: Vec<Guid> = converted.transactions.iter().map(|c| c.transaction).collect();
-    let left_out: BTreeSet<Guid> = converted.transactions.iter().flat_map(|c| &c.repairs).filter_map(made_split).collect();
+    let left_out: BTreeSet<Guid> = converted
+        .transactions
+        .iter()
+        .flat_map(|c| &c.repairs)
+        .filter_map(made_split)
+        .collect();
     let duplicates = find_duplicates(old, book, &added, &left_out);
-    Ok(Run { created, stock_map, maps, converted, duplicates })
+    Ok(Run {
+        created,
+        stock_map,
+        maps,
+        converted,
+        duplicates,
+    })
 }
 
 /// A split committing made, which is no part of the import's account tree.
@@ -62,7 +80,10 @@ fn made_split(r: &Repair) -> Option<Guid> {
 
 /// `gnc_ui_qif_import_commodity_update`: each new security is created unless the Book has its namespace and
 /// mnemonic by now, and the hash then names the Book's commodity.
-fn commodity_update(book: &mut Book, hash: &BTreeMap<String, SecurityChoice>) -> DomainResult<(BTreeMap<String, CommodityRef>, Vec<NewCommodity>)> {
+fn commodity_update(
+    book: &mut Book,
+    hash: &BTreeMap<String, SecurityChoice>,
+) -> DomainResult<(BTreeMap<String, CommodityRef>, Vec<NewCommodity>)> {
     let mut created = Vec::new();
     let map = hash
         .iter()
@@ -81,7 +102,11 @@ fn commodity_update(book: &mut Book, hash: &BTreeMap<String, SecurityChoice>) ->
                 ..NewSecurity::default()
             };
             let id = create_security(book, &new)?;
-            created.push(NewCommodity { id: id.clone(), fullname: fullname.clone(), fraction: SECURITY_FRACTION });
+            created.push(NewCommodity {
+                id: id.clone(),
+                fullname: fullname.clone(),
+                fraction: SECURITY_FRACTION,
+            });
             Ok((name.clone(), id))
         })
         .collect::<DomainResult<_>>()?;
@@ -110,14 +135,27 @@ pub(super) fn preview(book: &Book, now: Time64, zone: &TimeZone, state: &QifStat
         .map(|(index, c)| proposed(&copy, state, &run, index, c))
         .collect::<Option<_>>()
         .ok_or_else(|| DomainError::invalid("a converted QIF transaction is missing from the copy"))?;
-    let new_account_names =
-        copy.accounts.keys().filter(|g| !book.accounts.contains_key(*g)).filter_map(|g| copy.full_name(*g).map(|n| (*g, n))).collect();
+    let new_account_names = copy
+        .accounts
+        .keys()
+        .filter(|g| !book.accounts.contains_key(*g))
+        .filter_map(|g| copy.full_name(*g).map(|n| (*g, n)))
+        .collect();
     let review = Review {
-        transactions: transactions.iter().zip(&run.converted.transactions).map(|(p, c)| transaction_review(book, &copy, threshold, p, c)).collect(),
+        transactions: transactions
+            .iter()
+            .zip(&run.converted.transactions)
+            .map(|(p, c)| transaction_review(book, &copy, threshold, p, c))
+            .collect(),
         new_accounts: new_accounts(book, &copy),
         warnings: run_warnings(state, &run.converted),
     };
-    Ok(Preview { transactions, new_commodities: run.created, new_account_names, review })
+    Ok(Preview {
+        transactions,
+        new_commodities: run.created,
+        new_account_names,
+        review,
+    })
 }
 
 /// The converted transaction as the proposal shows it: without the Imbalance split committing added (the review
@@ -134,7 +172,12 @@ fn proposed(copy: &Book, state: &QifState, run: &Run, index: usize, c: &Converte
         .get(&c.transaction)
         .into_iter()
         .flatten()
-        .map(|m| MatchInfo { split: m.split, transaction: m.transaction, probability: 0, update_proposed: false })
+        .map(|m| MatchInfo {
+            split: m.split,
+            transaction: m.transaction,
+            probability: 0,
+            update_proposed: false,
+        })
         .collect();
     let duplicate = !matches.is_empty();
     let info = TransInfo {
@@ -153,20 +196,34 @@ fn proposed(copy: &Book, state: &QifState, run: &Run, index: usize, c: &Converte
         dest_amount_selected_manually: false,
         price: None,
     };
-    Some(ProposedTransaction { info, source: source(state, c.file, c.xtn) })
+    Some(ProposedTransaction {
+        info,
+        source: source(state, c.file, c.xtn),
+    })
 }
 
 /// The lines of a QIF transaction.
 pub(super) fn source(state: &QifState, file: usize, xtn: usize) -> Source {
     let x = state.files.get(file).and_then(|f| f.xtns.get(xtn));
-    Source { file, first_line: x.map_or(0, |x| x.line), last_line: x.map_or(0, |x| x.last_line) }
+    Source {
+        file,
+        first_line: x.map_or(0, |x| x.line),
+        last_line: x.map_or(0, |x| x.last_line),
+    }
 }
 
 /// The Imbalance split committing added or changed.
 pub(super) fn imbalance(book: &Book, copy: &Book, repairs: &[Repair]) -> Option<ImbalanceInfo> {
     let (transaction, account, value) = repairs.iter().find_map(|r| match r {
-        Repair::BalanceSplitAdded { transaction, account, value, .. } => Some((*transaction, *account, *value)),
-        Repair::BalanceSplitChanged { transaction, account, to, .. } => Some((*transaction, *account, *to)),
+        Repair::BalanceSplitAdded {
+            transaction,
+            account,
+            value,
+            ..
+        } => Some((*transaction, *account, *value)),
+        Repair::BalanceSplitChanged {
+            transaction, account, to, ..
+        } => Some((*transaction, *account, *to)),
         _ => None,
     })?;
     Some(ImbalanceInfo {
@@ -183,17 +240,30 @@ fn transaction_review(book: &Book, copy: &Book, threshold: Option<Date>, p: &Pro
     let read_only = read_only_by_date(book, threshold, &p.info);
     let mut warnings = Vec::new();
     if let Some(i) = &imbalance {
-        let message = format!("applying adds a split of {} {} in {}", i.value.to_decimal_string(), i.currency.mnemonic, i.account_name);
+        let message = format!(
+            "applying adds a split of {} {} in {}",
+            i.value.to_decimal_string(),
+            i.currency.mnemonic,
+            i.account_name
+        );
         warnings.push(Warning::about(index, "imbalance", message));
     }
     if let Some(threshold) = threshold.filter(|_| read_only) {
-        warnings.push(Warning::about(index, "read-only-by-date", format!("dated before the read-only threshold {threshold}")));
+        warnings.push(Warning::about(
+            index,
+            "read-only-by-date",
+            format!("dated before the read-only threshold {threshold}"),
+        ));
     }
     if !p.info.matches.is_empty() {
         let message = "may repeat an existing transaction (see matches), so it is skipped: choose add to import it anyway";
         warnings.push(Warning::about(index, "possible-duplicate", message));
     }
-    TransactionReview { imbalance, read_only_by_date: read_only, warnings }
+    TransactionReview {
+        imbalance,
+        read_only_by_date: read_only,
+        warnings,
+    }
 }
 
 /// The accounts the copy has that the Book has not, in the order made.
@@ -201,7 +271,11 @@ fn new_accounts(book: &Book, copy: &Book) -> Vec<NewAccount> {
     copy.accounts
         .values()
         .filter(|a| !book.accounts.contains_key(&a.guid))
-        .map(|a| NewAccount { name: copy.full_name(a.guid).unwrap_or_else(|| a.name.clone()), account_type: a.account_type, commodity: a.commodity.clone() })
+        .map(|a| NewAccount {
+            name: copy.full_name(a.guid).unwrap_or_else(|| a.name.clone()),
+            account_type: a.account_type,
+            commodity: a.commodity.clone(),
+        })
         .collect()
 }
 
@@ -209,8 +283,16 @@ fn new_accounts(book: &Book, copy: &Book) -> Vec<NewAccount> {
 pub(super) fn run_warnings(state: &QifState, converted: &Converted) -> Vec<Warning> {
     let dropped = converted.dropped.iter().map(|(file, xtn)| {
         let line = source(state, *file, *xtn).first_line;
-        Warning { code: "no-split", message: format!("file {file}, line {line}: the transaction makes no split, so it is not imported"), index: None }
+        Warning {
+            code: "no-split",
+            message: format!("file {file}, line {line}: the transaction makes no split, so it is not imported"),
+            index: None,
+        }
     });
-    let log = converted.log.iter().map(|m| Warning { code: "qif-log", message: m.clone(), index: None });
+    let log = converted.log.iter().map(|m| Warning {
+        code: "qif-log",
+        message: m.clone(),
+        index: None,
+    });
     dropped.chain(log).collect()
 }

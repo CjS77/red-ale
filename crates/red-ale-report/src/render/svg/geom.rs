@@ -15,7 +15,11 @@ pub(super) const UNIT: Hu = 100;
 pub(super) fn fmt(v: Hu) -> String {
     let sign = if v < 0 { "-" } else { "" };
     let (whole, frac) = (v.unsigned_abs() / 100, v.unsigned_abs() % 100);
-    if frac == 0 { format!("{sign}{whole}") } else { format!("{sign}{whole}.{frac:02}") }
+    if frac == 0 {
+        format!("{sign}{whole}")
+    } else {
+        format!("{sign}{whole}.{frac:02}")
+    }
 }
 
 /// `n / d` rounded half to even, for `d > 0`.
@@ -101,7 +105,11 @@ impl Scale {
     fn nice(min: &Rational, max: &Rational) -> Self {
         let raw = div(&(max - min), &Rational::from_int(TARGET_TICKS)).unwrap_or_else(Rational::one);
         let decade = pow10(decade_of(&raw));
-        let step = [1, 2, 5, 10].iter().map(|m| &decade * &Rational::from_int(*m)).find(|s| *s >= raw).unwrap_or(decade);
+        let step = [1, 2, 5, 10]
+            .iter()
+            .map(|m| &decade * &Rational::from_int(*m))
+            .find(|s| *s >= raw)
+            .unwrap_or(decade);
         let whole = |v: &Rational, mode| div(v, &step).map(|q| &q.round_to(1, mode).unwrap_or(q) * &step);
         let lo = whole(min, Rounding::Floor).unwrap_or_else(|| min.clone());
         let hi = whole(max, Rounding::Ceiling).unwrap_or_else(|| max.clone());
@@ -110,7 +118,10 @@ impl Scale {
 
     /// The tick values, `lo` to `hi` by `step`.
     pub fn ticks(&self) -> Vec<Rational> {
-        std::iter::successors(Some(self.lo.clone()), |t| Some(t + &self.step)).take_while(|t| *t <= self.hi).take(64).collect()
+        std::iter::successors(Some(self.lo.clone()), |t| Some(t + &self.step))
+            .take_while(|t| *t <= self.hi)
+            .take(64)
+            .collect()
     }
 
     /// Where `v` falls between `from` (at `lo`) and `to` (at `hi`), rounded half to even and kept within them.
@@ -159,8 +170,20 @@ mod tests {
 
     #[test]
     fn coordinates_print_as_integers_or_hundredths() {
-        assert_eq!([fmt(0), fmt(12_300), fmt(12_345), fmt(-5), fmt(-100)], ["0", "123", "123.45", "-0.05", "-1"]);
-        assert_eq!([div_round(5, 2), div_round(7, 2), div_round(-5, 2), div_round(-7, 2), div_round(10, 3)], [2, 4, -2, -4, 3]);
+        assert_eq!(
+            [fmt(0), fmt(12_300), fmt(12_345), fmt(-5), fmt(-100)],
+            ["0", "123", "123.45", "-0.05", "-1"]
+        );
+        assert_eq!(
+            [
+                div_round(5, 2),
+                div_round(7, 2),
+                div_round(-5, 2),
+                div_round(-7, 2),
+                div_round(10, 3)
+            ],
+            [2, 4, -2, -4, 3]
+        );
         assert_eq!(part(1000, 1, 3), 333);
         assert_eq!(fit("Assets:Current Assets:Checking", 1200, 100), "Assets:Current Asse…");
         assert_eq!(fit("Bank", 1200, 100), "Bank");

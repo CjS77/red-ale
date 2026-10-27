@@ -87,7 +87,10 @@ impl Context<'_> {
     fn numbers(&self) -> NumberFormat {
         let m = self.locale.monetary();
         let first = |s: &str, default: char| s.chars().next().unwrap_or(default);
-        NumberFormat { decimal_point: first(m.mon_decimal_point, '.'), group_separator: first(m.mon_thousands_sep, ',') }
+        NumberFormat {
+            decimal_point: first(m.mon_decimal_point, '.'),
+            group_separator: first(m.mon_thousands_sep, ','),
+        }
     }
 }
 
@@ -138,9 +141,14 @@ pub struct RecordsApplied {
 fn chosen_actions(actions: &[(ImportAction, Option<ImportAction>)], changes: &[Change]) -> DomainResult<Vec<ImportAction>> {
     let mut out: Vec<ImportAction> = actions.iter().map(|(a, _)| *a).collect();
     changes.iter().try_for_each(|c| {
-        let (_, alternative) = actions.get(c.index).ok_or_else(|| DomainError::invalid(format!("no record {} in the proposal", c.index)))?;
+        let (_, alternative) = actions
+            .get(c.index)
+            .ok_or_else(|| DomainError::invalid(format!("no record {} in the proposal", c.index)))?;
         if c.match_split.is_some() || c.account.is_some() || c.amount.is_some() {
-            return Err(DomainError::invalid(format!("record {}: business imports take only an action", c.index)));
+            return Err(DomainError::invalid(format!(
+                "record {}: business imports take only an action",
+                c.index
+            )));
         }
         match c.action {
             None => Ok(()),
@@ -152,7 +160,11 @@ fn chosen_actions(actions: &[(ImportAction, Option<ImportAction>)], changes: &[C
                 out[c.index] = a;
                 Ok(())
             }
-            Some(a) => Err(DomainError::invalid(format!("record {} can only be skipped, not changed to {}", c.index, a.as_str()))),
+            Some(a) => Err(DomainError::invalid(format!(
+                "record {} can only be skipped, not changed to {}",
+                c.index,
+                a.as_str()
+            ))),
         }
     })?;
     Ok(out)
@@ -161,9 +173,9 @@ fn chosen_actions(actions: &[(ImportAction, Option<ImportAction>)], changes: &[C
 /// A record that updates what an earlier record creates can't stay when that one is skipped.
 fn check_dependencies(same_as: &[Option<usize>], actions: &[ImportAction]) -> DomainResult<()> {
     same_as.iter().enumerate().try_for_each(|(i, dep)| match dep {
-        Some(d) if actions[i] != ImportAction::Skip && actions.get(*d) == Some(&ImportAction::Skip) => {
-            Err(DomainError::invalid(format!("record {i} updates what record {d} creates; skip both or neither")))
-        }
+        Some(d) if actions[i] != ImportAction::Skip && actions.get(*d) == Some(&ImportAction::Skip) => Err(DomainError::invalid(format!(
+            "record {i} updates what record {d} creates; skip both or neither"
+        ))),
         _ => Ok(()),
     })
 }

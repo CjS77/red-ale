@@ -76,13 +76,21 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 impl Shared {
     /// A shared state for a fetch starting with `status`.
     pub fn new(status: FetchStatus) -> Arc<Self> {
-        Arc::new(Self { state: Mutex::new(Progress { status: Some(status), outcomes: None }), done: Condvar::new() })
+        Arc::new(Self {
+            state: Mutex::new(Progress {
+                status: Some(status),
+                outcomes: None,
+            }),
+            done: Condvar::new(),
+        })
     }
 
     /// One item's requests ended: its entry becomes `fetched`, or `failed` with the reason.
     pub fn item_done(&self, entry: usize, outcome: &Outcome) {
         let mut progress = lock(&self.state);
-        let Some(item) = progress.status.as_mut().and_then(|s| s.commodities.get_mut(entry)) else { return };
+        let Some(item) = progress.status.as_mut().and_then(|s| s.commodities.get_mut(entry)) else {
+            return;
+        };
         match outcome {
             Outcome::Quote { service, .. } => {
                 item.state = ItemState::Fetched;
@@ -116,7 +124,11 @@ pub struct Delivery {
 impl Delivery {
     /// A delivery into `shared`, calling `notifier` once delivered.
     pub fn new(shared: Arc<Shared>, notifier: Option<Notifier>) -> Self {
-        Self { shared, notifier, delivered: false }
+        Self {
+            shared,
+            notifier,
+            delivered: false,
+        }
     }
 
     /// Deliver the outcomes.
@@ -151,7 +163,11 @@ impl QuoteFetches {
 
     /// Record a started fetch.
     pub fn start(&mut self, shared: Arc<Shared>, items: Vec<usize>, handle: FetchHandle) {
-        self.running = Some(Running { shared, items, _handle: handle });
+        self.running = Some(Running {
+            shared,
+            items,
+            _handle: handle,
+        });
     }
 
     /// Forget every fetch, cancelling one still running, as closing the book does. IDs are not reused.
@@ -192,7 +208,12 @@ impl QuoteFetches {
         let Some(running) = &self.running else { return };
         let shared = &running.shared;
         let progress = lock(&shared.state);
-        drop(shared.done.wait_while(progress, |p| p.outcomes.is_none()).unwrap_or_else(PoisonError::into_inner));
+        drop(
+            shared
+                .done
+                .wait_while(progress, |p| p.outcomes.is_none())
+                .unwrap_or_else(PoisonError::into_inner),
+        );
     }
 }
 
@@ -200,7 +221,9 @@ impl Context {
     /// Store a finished fetch's prices, if its requests are done: one Mutation, each price through `price.add`'s
     /// same-day rules, in commodity order.
     pub(crate) fn settle_quotes(&mut self) {
-        let Some((running, mut status, outcomes)) = self.quote_fetches.take_outcomes() else { return };
+        let Some((running, mut status, outcomes)) = self.quote_fetches.take_outcomes() else {
+            return;
+        };
         // A fetch that stopped early delivers fewer outcomes than items; the rest are reported as stopped.
         let outcomes = outcomes.into_iter().map(Some).chain(std::iter::repeat(None));
         let fetched: Vec<Fetched> = running
@@ -209,7 +232,11 @@ impl Context {
             .zip(outcomes)
             .filter_map(|(&entry, outcome)| {
                 let item = status.commodities.get_mut(entry)?;
-                item.fetched(outcome).map(|record| Fetched { entry, commodity: item.commodity.0.clone(), record })
+                item.fetched(outcome).map(|record| Fetched {
+                    entry,
+                    commodity: item.commodity.0.clone(),
+                    record,
+                })
             })
             .collect();
         let finished = self.store(&mut status, &fetched);
@@ -228,7 +255,14 @@ impl Context {
             let now = env.now();
             let stored: Vec<_> = fetched
                 .iter()
-                .map(|f| (f.entry, f.record.as_ref().map_or_else(|| Err(stopped()), |r| store_one(book, env, &f.commodity, r, now, &zone))))
+                .map(|f| {
+                    (
+                        f.entry,
+                        f.record
+                            .as_ref()
+                            .map_or_else(|| Err(stopped()), |r| store_one(book, env, &f.commodity, r, now, &zone)),
+                    )
+                })
                 .collect();
             Ok::<_, RpcError>((now, stored))
         });
@@ -243,7 +277,12 @@ impl Context {
             }
             Err(e) => {
                 let entries: Vec<usize> = fetched.iter().map(|f| f.entry).collect();
-                status.commodities.iter_mut().enumerate().filter(|(i, _)| entries.contains(i)).for_each(|(_, c)| c.fail("quote-failed", Some(e.message.clone())));
+                status
+                    .commodities
+                    .iter_mut()
+                    .enumerate()
+                    .filter(|(i, _)| entries.contains(i))
+                    .for_each(|(_, c)| c.fail("quote-failed", Some(e.message.clone())));
                 self.session().map_or(Time64(0), red_ale_service::Session::now)
             }
         }
@@ -264,7 +303,10 @@ struct Fetched {
 }
 
 fn stopped() -> (&'static str, Option<String>) {
-    ("service-error", Some("the fetch stopped before this commodity's requests ended".to_owned()))
+    (
+        "service-error",
+        Some("the fetch stopped before this commodity's requests ended".to_owned()),
+    )
 }
 
 /// What storing one commodity's price did.
@@ -292,7 +334,11 @@ fn store_one(
     let price = build_price(book, id, Some(record), now, zone, env.new_guid()).map_err(|f| (f.code(), f.message()))?;
     let same_day = nearest(book, &price.commodity, &price.currency, price.time, Nearest::SameDay, zone).cloned();
     let added = add_price(book, price, zone).map_err(|e| ("quote-failed", Some(e.to_string())))?;
-    let kept = added.rejected_by.or(added.duplicate_of).and_then(|g| book.prices.get(&g)).map(|p| (**p).clone());
+    let kept = added
+        .rejected_by
+        .or(added.duplicate_of)
+        .and_then(|g| book.prices.get(&g))
+        .map(|p| (**p).clone());
     Ok(Stored {
         outcome: outcome_name(&added),
         price: added.added.and_then(|g| book.prices.get(&g)).map(|p| (**p).clone()),

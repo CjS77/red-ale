@@ -17,7 +17,12 @@ const SET: &str = "Change one or more settings by path, validated against the sc
 /// The Configuration methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("config.schema", "The Configuration's JSON Schema: every setting, its type, default and description.", Effect::Read, schema),
+        method(
+            "config.schema",
+            "The Configuration's JSON Schema: every setting, its type, default and description.",
+            Effect::Read,
+            schema,
+        ),
         method("config.get", GET, Effect::Read, get),
         method("config.set", SET, Effect::Write, set).on_configuration(),
     ]
@@ -39,7 +44,10 @@ pub struct ProblemInfo {
 
 impl From<Problem> for ProblemInfo {
     fn from(p: Problem) -> Self {
-        Self { path: p.path, message: p.message }
+        Self {
+            path: p.path,
+            message: p.message,
+        }
     }
 }
 
@@ -85,7 +93,11 @@ pub struct GetResult {
 
 /// True when `found` is `at` or lies below it.
 fn below(found: &str, at: Option<&str>) -> bool {
-    at.is_none_or(|at| found.strip_prefix(at).is_some_and(|rest| rest.is_empty() || rest.starts_with('.') || rest.starts_with('[')))
+    at.is_none_or(|at| {
+        found
+            .strip_prefix(at)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('.') || rest.starts_with('['))
+    })
 }
 
 fn get(ctx: &mut Context, p: GetParams) -> Result<GetResult, RpcError> {
@@ -95,7 +107,12 @@ fn get(ctx: &mut Context, p: GetParams) -> Result<GetResult, RpcError> {
     let shown = p.path.as_deref();
     Ok(GetResult {
         unknown: config.unknown_keys().into_iter().filter(|k| below(k, shown)).collect(),
-        problems: config.problems().into_iter().filter(|q| below(&q.path, shown)).map(ProblemInfo::from).collect(),
+        problems: config
+            .problems()
+            .into_iter()
+            .filter(|q| below(&q.path, shown))
+            .map(ProblemInfo::from)
+            .collect(),
         path: p.path,
         value,
         config_file: config_file(ctx),
@@ -129,14 +146,23 @@ fn set(ctx: &mut Context, p: SetParams) -> Result<SetResult, RpcError> {
     if ctx.origin() == Origin::Mcp && !applied.refused_over_mcp.is_empty() {
         return Err(refused_over_mcp(applied.refused_over_mcp));
     }
-    let values = changes.iter().map(|(text, _)| Ok((text.clone(), config.view(Some(&path(text)?)).map_err(setting_error)?)));
+    let values = changes
+        .iter()
+        .map(|(text, _)| Ok((text.clone(), config.view(Some(&path(text)?)).map_err(setting_error)?)));
     let values = values.collect::<Result<Map<String, Value>, RpcError>>()?;
     ctx.settings.config.save(&config)?;
-    Ok(SetResult { values, cleared_keys: applied.cleared_keys, config_file: config_file(ctx) })
+    Ok(SetResult {
+        values,
+        cleared_keys: applied.cleared_keys,
+        config_file: config_file(ctx),
+    })
 }
 
 /// Keys and the network switch are a person's to change: through MCP they are refused, and nothing is written.
 fn refused_over_mcp(paths: Vec<String>) -> RpcError {
-    let message = format!("{} can be changed only through the CLI, JSON-RPC or the Configuration file, not through MCP", paths.join(", "));
+    let message = format!(
+        "{} can be changed only through the CLI, JSON-RPC or the Configuration file, not through MCP",
+        paths.join(", ")
+    );
     RpcError::new(codes::CONFLICT, message).with_data(json!({ "reason": "refused-over-mcp", "paths": paths }))
 }

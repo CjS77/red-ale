@@ -15,7 +15,11 @@ fn gnucash(script: &str, args: &[&str]) -> Value {
 }
 
 fn acme(d: &mut red_ale_rpc::Dispatcher) {
-    call(d, "commodity.create", &json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme Corp", "fraction": 1000 }));
+    call(
+        d,
+        "commodity.create",
+        &json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme Corp", "fraction": 1000 }),
+    );
 }
 
 fn accounts(d: &mut red_ale_rpc::Dispatcher, csv: &str) -> Value {
@@ -51,11 +55,18 @@ fn gnucash_reads_an_account_tree_red_ale_imported() {
     assert_eq!(applied["accounts"]["updated"].as_array().unwrap().len(), 1, "{applied}");
     let food = call(&mut d, "account.get", &json!({ "account": "Expenses:Food; Drink" }));
     let fields = (&food["code"], &food["description"], &food["color"], &food["notes"]);
-    assert_eq!(fields, (&json!("5200"), &json!("Eating"), &json!("rgb(10,20,30)"), &json!("Weekly")), "{food}");
+    assert_eq!(
+        fields,
+        (&json!("5200"), &json!("Eating"), &json!("rgb(10,20,30)"), &json!("Weekly")),
+        "{food}"
+    );
 
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
-    assert_eq!(gnucash("opened.py", &[&book.path_str()]), json!({ "unknownFeatures": null, "logged": [] }));
+    assert_eq!(
+        gnucash("opened.py", &[&book.path_str()]),
+        json!({ "unknownFeatures": null, "logged": [] })
+    );
 }
 
 /// Every price with its source string, whether GnuCash ranks it as `PRICE_SOURCE_USER_PRICE`, its type and value.
@@ -83,30 +94,86 @@ finally:
 fn gnucash_ranks_imported_prices_as_its_own_price_import() {
     let (book, mut d) = create();
     acme(&mut d);
-    call(&mut d, "price.add", &json!({ "commodity": "NASDAQ::ACME", "currency": "USD", "date": "2024-03-01", "value": "10", "source": "Finance::Quote" }));
-    call(&mut d, "price.add", &json!({ "commodity": "USD", "currency": "EUR", "date": "2024-03-04", "value": "0.9", "source": "Finance::Quote" }));
+    call(
+        &mut d,
+        "price.add",
+        &json!({ "commodity": "NASDAQ::ACME", "currency": "USD", "date": "2024-03-01", "value": "10", "source": "Finance::Quote" }),
+    );
+    call(
+        &mut d,
+        "price.add",
+        &json!({ "commodity": "USD", "currency": "EUR", "date": "2024-03-04", "value": "0.9", "source": "Finance::Quote" }),
+    );
     let layout = json!({ "skipStartLines": 1, "columns": ["Date", "From Symbol", "From Namespace", "Currency To", "Amount"] });
     let text = "Date,Symbol,Namespace,Currency,Price\n2024-03-01,ACME,NASDAQ,USD,10.5\n2024-03-05,ACME,NASDAQ,USD,$10.123456789\n\
                 2024-03-04,EUR,CURRENCY,USD,1.0857\n2024-03-06,EUR,CURRENCY,USD,1.09\n";
-    let p = call(&mut d, "import.preview", &json!({ "format": "csvPrices", "files": [{ "text": text }], "layout": layout, "overwrite": true }));
-    let actions: Vec<&str> = p["prices"].as_array().unwrap().iter().map(|r| r["action"].as_str().unwrap()).collect();
-    assert_eq!(actions, ["update", "add", "update", "add"], "both same-day prices, the second the inverse pair, are replaced");
+    let p = call(
+        &mut d,
+        "import.preview",
+        &json!({ "format": "csvPrices", "files": [{ "text": text }], "layout": layout, "overwrite": true }),
+    );
+    let actions: Vec<&str> = p["prices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["action"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        actions,
+        ["update", "add", "update", "add"],
+        "both same-day prices, the second the inverse pair, are replaced"
+    );
     let applied = call(&mut d, "import.apply", &json!({ "proposal": p["id"] }));
     assert_eq!(applied["prices"]["replaced"].as_array().unwrap().len(), 2);
 
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
-    assert_eq!(gnucash("opened.py", &[&book.path_str()]), json!({ "unknownFeatures": null, "logged": [] }));
+    assert_eq!(
+        gnucash("opened.py", &[&book.path_str()]),
+        json!({ "unknownFeatures": null, "logged": [] })
+    );
     oracle::check_version().unwrap();
     let out = oracle::run_code(SOURCES, &[&book.path_str()]).unwrap_or_else(|e| panic!("{e}"));
     let prices: Value = serde_json::from_str(&out).unwrap_or_else(|e| panic!("{e}: {out}"));
     assert_eq!(
         prices,
         json!([
-            ["CURRENCY::EUR", "CURRENCY::USD", "2024-03-04T10:59:00", "user:price", true, "last", "1085700/1000000"],
-            ["CURRENCY::EUR", "CURRENCY::USD", "2024-03-06T10:59:00", "user:price", true, "last", "1090000/1000000"],
-            ["NASDAQ::ACME", "CURRENCY::USD", "2024-03-01T10:59:00", "user:price", true, "last", "10500000/1000000"],
-            ["NASDAQ::ACME", "CURRENCY::USD", "2024-03-05T10:59:00", "user:price", true, "last", "10123457/1000000"],
+            [
+                "CURRENCY::EUR",
+                "CURRENCY::USD",
+                "2024-03-04T10:59:00",
+                "user:price",
+                true,
+                "last",
+                "1085700/1000000"
+            ],
+            [
+                "CURRENCY::EUR",
+                "CURRENCY::USD",
+                "2024-03-06T10:59:00",
+                "user:price",
+                true,
+                "last",
+                "1090000/1000000"
+            ],
+            [
+                "NASDAQ::ACME",
+                "CURRENCY::USD",
+                "2024-03-01T10:59:00",
+                "user:price",
+                true,
+                "last",
+                "10500000/1000000"
+            ],
+            [
+                "NASDAQ::ACME",
+                "CURRENCY::USD",
+                "2024-03-05T10:59:00",
+                "user:price",
+                true,
+                "last",
+                "10123457/1000000"
+            ],
         ]),
         "values at the currency's fraction × 10000, as GnuCash's price import stores them"
     );

@@ -8,8 +8,8 @@
 use crate::business::OwnerRef;
 use crate::ops::business::calc::{self, InvoiceType};
 use crate::ops::business::payments::{
-    self, LotWork, Payment, PaymentResult, auto_apply_with_lots, create_payment_lot, lot_end_owner_invoice_first, lot_end_owner_slots_first,
-    lot_invoice, open_lots,
+    self, LotWork, Payment, PaymentResult, auto_apply_with_lots, create_payment_lot, lot_end_owner_invoice_first,
+    lot_end_owner_slots_first, lot_invoice, open_lots,
 };
 use crate::ops::business::posting::DATE_DUE;
 use crate::{AccountType, Book, DomainError, DomainResult, Guid, Numeric, SlotValue, Time64, Transaction};
@@ -31,7 +31,9 @@ pub struct OpenItem {
 
 /// The document number GnuCash's list shows, for its display order; none for a pre-payment.
 fn item_id<'a>(book: &'a Book, item: &OpenItem) -> Option<&'a str> {
-    item.document.and_then(|(g, _)| book.business.invoices.get(&g)).map(|i| i.id.as_str())
+    item.document
+        .and_then(|(g, _)| book.business.invoices.get(&g))
+        .map(|i| i.id.as_str())
 }
 
 /// One lot as the dialog lists it, or none when GnuCash would skip it (a pre-payment with no splits).
@@ -39,14 +41,28 @@ fn open_item(book: &Book, work: &mut LotWork, lot: Guid, balance: Numeric) -> Do
     let item = match lot_invoice(book, lot) {
         Some(inv) => {
             let txn = inv.post_txn.and_then(|g| book.transaction(g));
-            let due = txn.map_or(Time64(i64::MAX), |t| t.slots.get(DATE_DUE).and_then(SlotValue::as_time).unwrap_or(t.date_posted));
+            let due = txn.map_or(Time64(i64::MAX), |t| {
+                t.slots.get(DATE_DUE).and_then(SlotValue::as_time).unwrap_or(t.date_posted)
+            });
             let date = inv.posted.unwrap_or(Time64(i64::MAX));
-            OpenItem { lot, document: Some((inv.guid, calc::invoice_type(book, inv)?)), date, sort_date: due, balance }
+            OpenItem {
+                lot,
+                document: Some((inv.guid, calc::invoice_type(book, inv)?)),
+                date,
+                sort_date: due,
+                balance,
+            }
         }
         None if work.count(book, lot) == 0 => return Ok(None),
         None => {
             let date = work.latest_split_date(book, lot);
-            OpenItem { lot, document: None, date, sort_date: work.earliest_split_date(book, lot), balance }
+            OpenItem {
+                lot,
+                document: None,
+                date,
+                sort_date: work.earliest_split_date(book, lot),
+                balance,
+            }
         }
     };
     Ok(Some(item))
@@ -75,7 +91,13 @@ pub fn open_items(book: &Book, owner: OwnerRef, account: Guid) -> DomainResult<V
 /// The dialog's list. `compensate` holds the lots of a transaction being turned into a payment, each with its split's
 /// value there: such a lot is listed with that value taken off, closed ones included, and left out when nothing
 /// remains (`5.17:gnucash/gnome/dialog-payment.c:474-497`, `:555-575`).
-fn list_items(book: &Book, work: &mut LotWork, owner: OwnerRef, account: Guid, compensate: &[(Guid, Numeric)]) -> DomainResult<Vec<OpenItem>> {
+fn list_items(
+    book: &Book,
+    work: &mut LotWork,
+    owner: OwnerRef,
+    account: Guid,
+    compensate: &[(Guid, Numeric)],
+) -> DomainResult<Vec<OpenItem>> {
     let mut lots = open_lots(book, work, account, |_, l| Ok(lot_end_owner_invoice_first(book, l) == Some(owner)))?;
     for (lot, _) in compensate.iter().rev() {
         let closed = book.lot(*lot).is_some_and(|l| l.account == account) && work.balance(book, *lot)?.is_zero();
@@ -89,7 +111,11 @@ fn list_items(book: &Book, work: &mut LotWork, owner: OwnerRef, account: Guid, c
             if let Some((_, value)) = compensate.iter().find(|(l, _)| *l == lot) {
                 balance = balance.sub_fixed(*value)?;
             }
-            if balance.is_zero() { Ok(None) } else { open_item(book, work, lot, balance) }
+            if balance.is_zero() {
+                Ok(None)
+            } else {
+                open_item(book, work, lot, balance)
+            }
         })
         .filter_map(Result::transpose)
         .collect()
@@ -128,7 +154,8 @@ pub struct FromTransaction {
 /// `gncBusinessIsPaymentAcctType`: asset, liability and equity types but A/R and A/P
 /// (`5.17:libgnucash/engine/gncBusiness.c:92-99`, `5.17:libgnucash/engine/Account.cpp:4469-4480`).
 pub fn is_payment_account_type(t: AccountType) -> bool {
-    !t.is_ap_ar() && (t.compatible_with_parent(AccountType::Asset) || t.compatible_with_parent(AccountType::Liability) || t == AccountType::Equity)
+    !t.is_ap_ar()
+        && (t.compatible_with_parent(AccountType::Asset) || t.compatible_with_parent(AccountType::Liability) || t == AccountType::Equity)
 }
 
 fn account_type(book: &Book, account: Option<Guid>) -> Option<AccountType> {
@@ -140,13 +167,16 @@ fn account_type(book: &Book, account: Option<Guid>) -> Option<AccountType> {
 /// which may be a job.
 pub fn transaction_owner(book: &Book, t: &Transaction) -> Option<OwnerRef> {
     t.txn_type()?;
-    t.splits.iter().filter(|s| account_type(book, s.account).is_some_and(AccountType::is_ap_ar)).find_map(|s| {
-        let lot = s.lot?;
-        match lot_invoice(book, lot) {
-            Some(inv) => Some(inv.owner),
-            None => payments::lot_slot_owner(book, lot),
-        }
-    })
+    t.splits
+        .iter()
+        .filter(|s| account_type(book, s.account).is_some_and(AccountType::is_ap_ar))
+        .find_map(|s| {
+            let lot = s.lot?;
+            match lot_invoice(book, lot) {
+                Some(inv) => Some(inv.owner),
+                None => payments::lot_slot_owner(book, lot),
+            }
+        })
 }
 
 /// What qualifies, as `gnc_business_assign_payment`, the business menu and `gnc_ui_payment_new_with_txn` check
@@ -157,24 +187,52 @@ fn check_transaction(book: &Book, t: &Transaction, transfer: Option<Guid>) -> Do
         return Err(DomainError::invalid("a payment needs a transaction with at least two splits"));
     }
     if t.txn_type() == Some('I') {
-        return Err(DomainError::invalid("a posted document's transaction cannot become a payment; unpost the document"));
+        return Err(DomainError::invalid(
+            "a posted document's transaction cannot become a payment; unpost the document",
+        ));
     }
     if t.is_void() || t.read_only_reason().is_some() {
         return Err(DomainError::invalid("a void or read-only transaction cannot become a payment"));
     }
-    let mut apar: Vec<Guid> = t.splits.iter().filter_map(|s| s.account.filter(|a| account_type(book, Some(*a)).is_some_and(AccountType::is_ap_ar))).collect();
+    let mut apar: Vec<Guid> = t
+        .splits
+        .iter()
+        .filter_map(|s| {
+            s.account
+                .filter(|a| account_type(book, Some(*a)).is_some_and(AccountType::is_ap_ar))
+        })
+        .collect();
     apar.sort_unstable();
     apar.dedup();
     if apar.len() > 1 {
-        return Err(DomainError::invalid("the transaction has splits in more than one A/R or A/P account"));
+        return Err(DomainError::invalid(
+            "the transaction has splits in more than one A/R or A/P account",
+        ));
     }
-    let candidates: Vec<Guid> = t.splits.iter().filter(|s| account_type(book, s.account).is_some_and(is_payment_account_type)).map(|s| s.guid).collect();
+    let candidates: Vec<Guid> = t
+        .splits
+        .iter()
+        .filter(|s| account_type(book, s.account).is_some_and(is_payment_account_type))
+        .map(|s| s.guid)
+        .collect();
     let split = match (transfer, candidates.as_slice()) {
         (Some(g), _) if candidates.contains(&g) => g,
-        (Some(g), _) => return Err(DomainError::invalid(format!("split {g} is not a split of this transaction in a payment account"))),
+        (Some(g), _) => {
+            return Err(DomainError::invalid(format!(
+                "split {g} is not a split of this transaction in a payment account"
+            )));
+        }
         (None, [only]) => *only,
-        (None, []) => return Err(DomainError::invalid("the transaction has no split in a bank, cash, asset, liability or equity account")),
-        (None, _) => return Err(DomainError::invalid("the transaction has several splits that could be the payment: give transferSplit")),
+        (None, []) => {
+            return Err(DomainError::invalid(
+                "the transaction has no split in a bank, cash, asset, liability or equity account",
+            ));
+        }
+        (None, _) => {
+            return Err(DomainError::invalid(
+                "the transaction has several splits that could be the payment: give transferSplit",
+            ));
+        }
     };
     Ok((split, apar.first().copied()))
 }
@@ -191,22 +249,33 @@ fn transaction_lots(book: &Book, t: &Transaction) -> Vec<(Guid, Numeric)> {
 /// The payment the dialog would make from `t`, with the request's overrides.
 fn payment_of(book: &Book, t: &Transaction, req: &FromTransaction, account: Guid, transfer: Guid) -> DomainResult<Payment> {
     let split = t.split(transfer).ok_or_else(|| DomainError::not_found("split", &transfer))?;
-    let xfer = split.account.ok_or_else(|| DomainError::invalid("the transfer split has no account"))?;
+    let xfer = split
+        .account
+        .ok_or_else(|| DomainError::invalid("the transfer split has no account"))?;
     let commodity = |a: Guid| book.account(a).and_then(|a| a.commodity.clone());
     let amount = match req.amount {
         Some(a) => a,
         None if commodity(xfer) == commodity(account) => split.amount,
-        None => return Err(DomainError::invalid("the transfer and A/R or A/P commodities differ: give the amount")),
+        None => {
+            return Err(DomainError::invalid(
+                "the transfer and A/R or A/P commodities differ: give the amount",
+            ));
+        }
     };
     if amount.is_zero() {
         return Err(DomainError::invalid("a payment from a transaction needs an amount"));
     }
     let date = match req.date {
         Some(d) => d,
-        None => crate::ops::transactions::posted_date(t).map(crate::Date::neutral_time).ok_or_else(|| DomainError::invalid("the posted date is out of range"))?,
+        None => crate::ops::transactions::posted_date(t)
+            .map(crate::Date::neutral_time)
+            .ok_or_else(|| DomainError::invalid("the posted date is out of range"))?,
     };
     // gnc_get_num_action(txn, payment_split) (5.17:gnucash/gnome/dialog-payment.c:1836).
-    let num = req.num.clone().unwrap_or_else(|| crate::book_options::number(book, t, split).unwrap_or_default().to_owned());
+    let num = req
+        .num
+        .clone()
+        .unwrap_or_else(|| crate::book_options::number(book, t, split).unwrap_or_default().to_owned());
     Ok(Payment {
         owner: req.owner,
         posted_account: account,
@@ -221,21 +290,39 @@ fn payment_of(book: &Book, t: &Transaction, req: &FromTransaction, account: Guid
 
 /// Turn a transaction into a payment, or re-match an existing payment: the payment dialog opened on it, then OK.
 pub fn payment_from_transaction(book: &mut Book, env: &mut dyn crate::Env, req: &FromTransaction) -> DomainResult<PaymentResult> {
-    let t = book.transaction(req.transaction).cloned().ok_or_else(|| DomainError::not_found("transaction", &req.transaction))?;
+    let t = book
+        .transaction(req.transaction)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("transaction", &req.transaction))?;
     let (transfer, own_account) = check_transaction(book, &t, req.transfer_split)?;
-    let account = req.account.or(own_account).ok_or_else(|| DomainError::invalid("the transaction has no A/R or A/P split: give the account"))?;
+    let account = req
+        .account
+        .or(own_account)
+        .ok_or_else(|| DomainError::invalid("the transaction has no A/R or A/P split: give the account"))?;
     let pay = payment_of(book, &t, req, account, transfer)?;
     payments::check_owner_and_account(book, &pay)?;
     let mut work = LotWork::default();
     // The dialog lists the owner's items, sorting pre-payment lots' splits by date as it reads them.
-    let own_lots = if Some(account) == own_account { transaction_lots(book, &t) } else { Vec::new() };
+    let own_lots = if Some(account) == own_account {
+        transaction_lots(book, &t)
+    } else {
+        Vec::new()
+    };
     let listed = list_items(book, &mut work, req.owner, account, &own_lots)?;
     let chosen: Vec<OpenItem> = match &req.apply_to {
-        Some(lots) => lots.iter().map(|l| item_for(book, &mut work, &listed, *l)).collect::<DomainResult<_>>()?,
+        Some(lots) => lots
+            .iter()
+            .map(|l| item_for(book, &mut work, &listed, *l))
+            .collect::<DomainResult<_>>()?,
         None => listed.into_iter().filter(|i| own_lots.iter().any(|(l, _)| *l == i.lot)).collect(),
     };
     let mut selected: Vec<Option<Guid>> = if chosen.is_empty() && req.auto_pay {
-        open_lots(book, &mut work, account, |_, l| Ok(lot_end_owner_invoice_first(book, l) == Some(req.owner)))?.into_iter().map(Some).collect()
+        open_lots(book, &mut work, account, |_, l| {
+            Ok(lot_end_owner_invoice_first(book, l) == Some(req.owner))
+        })?
+        .into_iter()
+        .map(Some)
+        .collect()
     } else {
         dialog_order(book, chosen).into_iter().map(|i| Some(i.lot)).collect()
     };
@@ -244,7 +331,10 @@ pub fn payment_from_transaction(book: &mut Book, env: &mut dyn crate::Env, req: 
     auto_apply_with_lots(book, env, &mut work, req.owner, &mut selected)?;
     let payment_lot = Some(lot).filter(|l| work.count(book, *l) > 0);
     work.drop_empty_lots(book);
-    Ok(PaymentResult { transaction: Some(txn), payment_lot })
+    Ok(PaymentResult {
+        transaction: Some(txn),
+        payment_lot,
+    })
 }
 
 /// A chosen lot as an item, from the list when it is there.
@@ -261,7 +351,13 @@ mod tests {
     use super::*;
 
     fn item(n: u8, date: i64, sort_date: i64) -> OpenItem {
-        OpenItem { lot: Guid::from_bytes([n; 16]), document: None, date: Time64(date), sort_date: Time64(sort_date), balance: Numeric::ONE }
+        OpenItem {
+            lot: Guid::from_bytes([n; 16]),
+            document: None,
+            date: Time64(date),
+            sort_date: Time64(sort_date),
+            balance: Numeric::ONE,
+        }
     }
 
     #[test]
@@ -277,8 +373,22 @@ mod tests {
     #[test]
     fn payment_accounts_are_asset_liability_and_equity_types() {
         use AccountType as T;
-        let payment = [T::Bank, T::Cash, T::Asset, T::Credit, T::Liability, T::Stock, T::Mutual, T::Currency, T::Equity];
+        let payment = [
+            T::Bank,
+            T::Cash,
+            T::Asset,
+            T::Credit,
+            T::Liability,
+            T::Stock,
+            T::Mutual,
+            T::Currency,
+            T::Equity,
+        ];
         assert!(payment.iter().all(|t| is_payment_account_type(*t)));
-        assert!([T::Receivable, T::Payable, T::Income, T::Expense, T::Trading, T::Root].iter().all(|t| !is_payment_account_type(*t)));
+        assert!(
+            [T::Receivable, T::Payable, T::Income, T::Expense, T::Trading, T::Root]
+                .iter()
+                .all(|t| !is_payment_account_type(*t))
+        );
     }
 }

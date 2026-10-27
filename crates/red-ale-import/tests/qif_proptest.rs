@@ -11,7 +11,12 @@ use red_ale_import::qif::parse::{
 };
 use red_ale_import::qif::{ReadOptions, check_from_acct, parse_fields, read_file, reparse_dates, reparse_price_dates};
 
-const NUMBER_FORMATS: [NumberFormat; 4] = [NumberFormat::Decimal, NumberFormat::Comma, NumberFormat::Rational, NumberFormat::Integer];
+const NUMBER_FORMATS: [NumberFormat; 4] = [
+    NumberFormat::Decimal,
+    NumberFormat::Comma,
+    NumberFormat::Rational,
+    NumberFormat::Integer,
+];
 
 /// A valid file touching every section, to mutate.
 const SEED: &str = "!Option:AutoSwitch\n!Account\nNChecking\nTBank\nL1,000.00\n^\n!Clear:AutoSwitch\n!Type:Class\nNHome\nDHouse\n^\n\
@@ -21,7 +26,9 @@ L[Checking]|[Savings]/Cls\n^\n!Type:Memorized\nKC\nT1\n^\n!Type:Prices\n\"ACM\",
 
 /// Run every step a caller runs, with every date format; only panics matter.
 fn exercise(text: &str) {
-    let Ok(result) = read_file(text, &ReadOptions::default()) else { return };
+    let Ok(result) = read_file(text, &ReadOptions::default()) else {
+        return;
+    };
     let mut file = result.file;
     let _ = check_from_acct(&file);
     let _ = file.path_to_accountname();

@@ -21,12 +21,19 @@ fn gnucash(script: &str, book: &TempBook, args: &[&str]) -> Value {
 }
 
 fn reduced(v: &Value) -> String {
-    let n = Numeric::new(v["num"].as_str().unwrap().parse().unwrap(), v["denom"].as_str().unwrap().parse().unwrap()).reduce();
+    let n = Numeric::new(
+        v["num"].as_str().unwrap().parse().unwrap(),
+        v["denom"].as_str().unwrap().parse().unwrap(),
+    )
+    .reduce();
     format!("{}/{}", n.num(), n.denom())
 }
 
 fn guid_of(d: &mut red_ale_rpc::Dispatcher, account: &str) -> String {
-    call(d, "account.get", &json!({ "account": account }))["guid"].as_str().unwrap().to_owned()
+    call(d, "account.get", &json!({ "account": account }))["guid"]
+        .as_str()
+        .unwrap()
+        .to_owned()
 }
 
 const TREE: &str = r#"
@@ -55,18 +62,39 @@ print(json.dumps(out))
 "#;
 
 fn full_names(d: &mut red_ale_rpc::Dispatcher) -> Vec<Value> {
-    call(d, "account.list", &json!({}))["accounts"].as_array().unwrap().iter().map(|a| a["fullName"].clone()).collect()
+    call(d, "account.list", &json!({}))["accounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["fullName"].clone())
+        .collect()
 }
 
 #[test]
 fn hierarchy_new_and_moved_accounts_keep_gnucash_order() {
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
-    call(&mut d, "account.create", &json!({ "name": "Projects", "type": "ASSET", "parent": "Assets", "placeholder": true }));
-    call(&mut d, "account.create", &json!({ "name": "Alpha", "type": "BANK", "parent": "Assets:Projects", "commodity": "EUR" }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Projects", "type": "ASSET", "parent": "Assets", "placeholder": true }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Alpha", "type": "BANK", "parent": "Assets:Projects", "commodity": "EUR" }),
+    );
     // Liabilities comes after Assets:Cash in the file: GnuCash refuses a child written before its parent.
-    call(&mut d, "account.move", &json!({ "account": "Assets:Cash", "parent": "Liabilities" }));
+    call(
+        &mut d,
+        "account.move",
+        &json!({ "account": "Assets:Cash", "parent": "Liabilities" }),
+    );
     call(&mut d, "account.move", &json!({ "account": "Expenses:Fees", "parent": "Income" }));
-    call(&mut d, "account.move", &json!({ "account": "Assets:Projects", "parent": "Liabilities:Cash" }));
+    call(
+        &mut d,
+        "account.move",
+        &json!({ "account": "Assets:Projects", "parent": "Liabilities:Cash" }),
+    );
     let ours = full_names(&mut d);
     assert_same(&mut d, &book);
     let theirs = gnucash(TREE, &book, &[]);
@@ -78,15 +106,32 @@ fn hierarchy_new_and_moved_accounts_keep_gnucash_order() {
 fn every_choosable_type_and_receivable_payable() {
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
     let types = call(&mut d, "account.types", &json!({}));
-    let choosable: Vec<String> =
-        types.as_array().unwrap().iter().filter(|t| t["choosable"] == true).map(|t| t["name"].as_str().unwrap().to_owned()).collect();
+    let choosable: Vec<String> = types
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|t| t["choosable"] == true)
+        .map(|t| t["name"].as_str().unwrap().to_owned())
+        .collect();
     assert_eq!(choosable.len(), 13);
     choosable.iter().for_each(|t| {
         let commodity = if t == "STOCK" || t == "MUTUAL" { "NASDAQ::ACME" } else { "USD" };
-        call(&mut d, "account.create", &json!({ "name": format!("Type {t}"), "type": t, "commodity": commodity }));
+        call(
+            &mut d,
+            "account.create",
+            &json!({ "name": format!("Type {t}"), "type": t, "commodity": commodity }),
+        );
     });
-    call(&mut d, "account.create", &json!({ "name": "Customers", "type": "RECEIVABLE", "parent": "Assets" }));
-    call(&mut d, "account.create", &json!({ "name": "Suppliers", "type": "PAYABLE", "parent": "Liabilities", "code": "2100" }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Customers", "type": "RECEIVABLE", "parent": "Assets" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Suppliers", "type": "PAYABLE", "parent": "Liabilities", "code": "2100" }),
+    );
     assert_same(&mut d, &book);
 }
 
@@ -97,8 +142,16 @@ fn flags_codes_notes_scu_and_tax_settings() {
     let tax: Vec<&Value> = accounts.iter().filter(|a| a["taxRelated"] == true).collect();
     let plain: Vec<&Value> = accounts.iter().filter(|a| a["taxRelated"] == false && a["children"] == 0).collect();
     assert!(tax.len() >= 2 && plain.len() >= 2, "the fixture has tax-related and plain accounts");
-    call(&mut d, "account.update", &json!({ "account": tax[0]["guid"], "taxRelated": false, "taxUsCode": "" }));
-    call(&mut d, "account.update", &json!({ "account": tax[1]["guid"], "taxUsCode": "N521", "taxUsPayerNameSource": "parent", "taxUsCopyNumber": 3 }));
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": tax[0]["guid"], "taxRelated": false, "taxUsCode": "" }),
+    );
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": tax[1]["guid"], "taxUsCode": "N521", "taxUsPayerNameSource": "parent", "taxUsCopyNumber": 3 }),
+    );
     call(
         &mut d,
         "account.update",
@@ -107,7 +160,11 @@ fn flags_codes_notes_scu_and_tax_settings() {
             "hidden": true, "taxRelated": true, "taxUsCode": "N286",
         }),
     );
-    call(&mut d, "account.update", &json!({ "account": plain[1]["guid"], "scu": 1000, "name": "Renamed é" }));
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": plain[1]["guid"], "scu": 1000, "name": "Renamed é" }),
+    );
     let parent = accounts.iter().find(|a| a["children"].as_u64() > Some(0)).unwrap()["guid"].clone();
     call(&mut d, "account.update", &json!({ "account": parent, "hidden": true }));
     let ours: Vec<(String, bool)> = call(&mut d, "account.list", &json!({}))["accounts"]
@@ -118,17 +175,34 @@ fn flags_codes_notes_scu_and_tax_settings() {
         .collect();
     assert_same(&mut d, &book);
     let theirs = gnucash(TREE, &book, &[]);
-    ours.iter().for_each(|(g, hidden)| assert_eq!(theirs["hidden"][g].as_bool(), Some(*hidden), "xaccAccountIsHidden for {g}"));
+    ours.iter()
+        .for_each(|(g, hidden)| assert_eq!(theirs["hidden"][g].as_bool(), Some(*hidden), "xaccAccountIsHidden for {g}"));
 }
 
 #[test]
 fn commodity_change_without_splits_resets_the_scu() {
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
-    call(&mut d, "account.create", &json!({ "name": "Spare", "type": "BANK", "parent": "Assets", "scu": 1000 }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Spare", "type": "BANK", "parent": "Assets", "scu": 1000 }),
+    );
     let changed = call(&mut d, "account.update", &json!({ "account": "Assets:Spare", "commodity": "EUR" }));
-    assert_eq!((changed["scu"].as_i64(), changed["nonStandardScu"].as_bool()), (Some(1000), Some(true)), "the dialog keeps the chosen fraction");
-    call(&mut d, "account.create", &json!({ "name": "Fund", "type": "MUTUAL", "parent": "Assets", "commodity": "FUND::ZETA" }));
-    call(&mut d, "account.update", &json!({ "account": "Assets:Fund", "type": "STOCK", "commodity": "NASDAQ::ACME", "scu": "commodity" }));
+    assert_eq!(
+        (changed["scu"].as_i64(), changed["nonStandardScu"].as_bool()),
+        (Some(1000), Some(true)),
+        "the dialog keeps the chosen fraction"
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Fund", "type": "MUTUAL", "parent": "Assets", "commodity": "FUND::ZETA" }),
+    );
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Assets:Fund", "type": "STOCK", "commodity": "NASDAQ::ACME", "scu": "commodity" }),
+    );
     assert_same(&mut d, &book);
 }
 
@@ -140,11 +214,20 @@ fn renumber_and_display_order_match_gnucash() {
     let mut stack = vec![tree];
     while let Some(node) = stack.pop() {
         let names: Vec<Value> = node["children"].as_array().unwrap().iter().map(|c| c["name"].clone()).collect();
-        assert_eq!(theirs["sorted"][node["guid"].as_str().unwrap()].as_array().unwrap(), &names, "children of {}", node["fullName"]);
+        assert_eq!(
+            theirs["sorted"][node["guid"].as_str().unwrap()].as_array().unwrap(),
+            &names,
+            "children of {}",
+            node["fullName"]
+        );
         stack.extend(node["children"].as_array().unwrap().iter().cloned());
     }
     let assets = call(&mut d, "account.renumber", &json!({ "account": "Assets" }));
-    let expenses = call(&mut d, "account.renumber", &json!({ "account": "Expenses", "prefix": "E", "interval": 250, "digits": 1 }));
+    let expenses = call(
+        &mut d,
+        "account.renumber",
+        &json!({ "account": "Expenses", "prefix": "E", "interval": 250, "digits": 1 }),
+    );
     assert_eq!(expenses[1]["code"], "E-500", "two children: 500 needs three digits");
     assert_same(&mut d, &book);
     let theirs = gnucash(TREE, &book, &[]);
@@ -183,23 +266,45 @@ fn delete_with_move_matches_gnucash() {
     let theirs = TempBook::copy("synthetic/rich.gnucash");
     gnucash(GNUCASH_DELETE, &theirs, &["Expenses:Food", "Expenses:Fees"]);
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
-    let r = call(&mut d, "account.delete", &json!({ "account": "Expenses:Food", "transactions": { "moveTo": "Expenses:Fees" } }));
+    let r = call(
+        &mut d,
+        "account.delete",
+        &json!({ "account": "Expenses:Food", "transactions": { "moveTo": "Expenses:Fees" } }),
+    );
     assert!(!r["movedSplits"].as_array().unwrap().is_empty());
-    assert_eq!(call_err(&mut d, "account.delete", &json!({ "account": "Assets:Brokerage" })).code, red_ale_rpc::codes::CONFLICT, "two sub-accounts");
+    assert_eq!(
+        call_err(&mut d, "account.delete", &json!({ "account": "Assets:Brokerage" })).code,
+        red_ale_rpc::codes::CONFLICT,
+        "two sub-accounts"
+    );
     assert_same(&mut d, &book);
     let (a, b) = (oracle::dump(&theirs.path).unwrap(), oracle::dump(&book.path).unwrap());
-    let differences: Vec<String> = ["accounts", "transactions", "lots"].iter().flat_map(|k| diff(&a[*k], &b[*k], &[])).collect();
+    let differences: Vec<String> = ["accounts", "transactions", "lots"]
+        .iter()
+        .flat_map(|k| diff(&a[*k], &b[*k], &[]))
+        .collect();
     assert!(differences.is_empty(), "{}", differences.join("\n"));
 }
 
 #[test]
 fn delete_reparenting_the_sub_account_under_a_later_account() {
     let (book, mut d) = red_ale_testkit::open("synthetic/rich.gnucash");
-    call(&mut d, "account.create", &json!({ "name": "Owners", "type": "EQUITY", "commodity": "USD" }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Owners", "type": "EQUITY", "commodity": "USD" }),
+    );
     let opening = guid_of(&mut d, "Equity:Opening Balances");
-    let r = call(&mut d, "account.delete", &json!({ "account": "Equity", "subaccount": { "moveTo": "Owners" } }));
+    let r = call(
+        &mut d,
+        "account.delete",
+        &json!({ "account": "Equity", "subaccount": { "moveTo": "Owners" } }),
+    );
     assert_eq!(r["reparented"], json!(opening));
-    assert_eq!(call(&mut d, "account.get", &json!({ "account": opening }))["fullName"], "Owners:Opening Balances");
+    assert_eq!(
+        call(&mut d, "account.get", &json!({ "account": opening }))["fullName"],
+        "Owners:Opening Balances"
+    );
     assert_same(&mut d, &book);
 }
 
@@ -232,9 +337,14 @@ print(json.dumps(out))
 
 fn compare_balances(fixture: &str) {
     let (book, mut d) = red_ale_testkit::open(fixture);
-    let days: Vec<String> = ["2005-12-31", "2014-03-02", "2019-06-30", "2024-01-31"].iter().map(|s| (*s).to_owned()).collect();
-    let cuts: Vec<String> =
-        days.iter().map(|day| red_ale_core::Date::parse(day).unwrap().end_utc().seconds().to_string()).collect();
+    let days: Vec<String> = ["2005-12-31", "2014-03-02", "2019-06-30", "2024-01-31"]
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect();
+    let cuts: Vec<String> = days
+        .iter()
+        .map(|day| red_ale_core::Date::parse(day).unwrap().end_utc().seconds().to_string())
+        .collect();
     let cut_refs: Vec<&str> = cuts.iter().map(String::as_str).collect();
     let theirs = gnucash(BALANCES, &book, &cut_refs);
     let accounts = call(&mut d, "account.list", &json!({}))["accounts"].as_array().unwrap().clone();
@@ -247,16 +357,28 @@ fn compare_balances(fixture: &str) {
             let mut ours = vec![
                 ("balance", reduced(&now["balances"]["balance"]), expected["balance"].clone()),
                 ("cleared", reduced(&now["balances"]["cleared"]), expected["cleared"].clone()),
-                ("reconciled", reduced(&now["balances"]["reconciled"]), expected["reconciled"].clone()),
+                (
+                    "reconciled",
+                    reduced(&now["balances"]["reconciled"]),
+                    expected["reconciled"].clone(),
+                ),
             ];
             days.iter().enumerate().for_each(|(i, day)| {
                 let at = call(&mut d, "account.balance", &json!({ "account": g, "asOf": day }));
                 ours.push(("asOf", reduced(&at["balances"]["balance"]), expected["asOf"][i].clone()));
-                ours.push(("reconciledAsOf", reduced(&at["balances"]["reconciled"]), expected["reconciledAsOf"][i].clone()));
+                ours.push((
+                    "reconciledAsOf",
+                    reduced(&at["balances"]["reconciled"]),
+                    expected["reconciledAsOf"][i].clone(),
+                ));
             });
             let sub = call(&mut d, "account.balance", &json!({ "account": g, "includeSubaccounts": true }));
             if sub["unconverted"].as_array().unwrap().is_empty() {
-                ours.push(("withSubaccounts", reduced(&sub["balances"]["balance"]), expected["withSubaccounts"].clone()));
+                ours.push((
+                    "withSubaccounts",
+                    reduced(&sub["balances"]["balance"]),
+                    expected["withSubaccounts"].clone(),
+                ));
             }
             ours.into_iter()
                 .filter(|(_, mine, theirs)| theirs.as_str() != Some(mine.as_str()))
@@ -270,9 +392,15 @@ fn compare_balances(fixture: &str) {
 
 #[test]
 fn balances_match_gnucash() {
-    ["synthetic/rich.gnucash", "gnucash/taxreport.gnucash", "gnucash/sample1.gnucash", "piecash/all_account_types.gnucash", "synthetic/business-editable.gnucash"]
-        .iter()
-        .for_each(|f| compare_balances(f));
+    [
+        "synthetic/rich.gnucash",
+        "gnucash/taxreport.gnucash",
+        "gnucash/sample1.gnucash",
+        "piecash/all_account_types.gnucash",
+        "synthetic/business-editable.gnucash",
+    ]
+    .iter()
+    .for_each(|f| compare_balances(f));
 }
 
 /// GnuCash's own period computation, reached through ctypes because the bindings do not wrap it.
@@ -310,7 +438,16 @@ print(json.dumps(out))
 fn accounting_period_dates_match_gnucash() {
     let book = TempBook::copy("synthetic/rich.gnucash");
     let fys = ["06-30", "12-31", "03-31", "02-28", "01-01"];
-    let days = ["2024-02-29", "2024-03-31", "2023-12-31", "2024-01-01", "2024-06-30", "2024-07-01", "2025-02-28", "2024-11-30"];
+    let days = [
+        "2024-02-29",
+        "2024-03-31",
+        "2023-12-31",
+        "2024-01-01",
+        "2024-06-30",
+        "2024-07-01",
+        "2025-02-28",
+        "2024-11-30",
+    ];
     let theirs = gnucash(PERIODS, &book, &[&fys.join(","), &days.join(",")]);
     let mut d = red_ale_testkit::dispatcher();
     let choices = call(&mut d, "period.get", &json!({}))["choices"].as_array().unwrap().clone();
@@ -319,7 +456,11 @@ fn accounting_period_dates_match_gnucash() {
         .flat_map(|fy| days.iter().map(move |day| (fy, day)))
         .flat_map(|(fy, day)| choices.iter().enumerate().map(move |(i, c)| (fy, day, i, c.clone())))
         .filter_map(|(fy, day, i, choice)| {
-            let ours = call(&mut d, "period.dates", &json!({ "date": day, "start": choice, "end": choice, "fiscalYearEnd": fy }));
+            let ours = call(
+                &mut d,
+                "period.dates",
+                &json!({ "date": day, "start": choice, "end": choice, "fiscalYearEnd": fy }),
+            );
             let expected = &theirs[format!("{fy} {day} {i}")];
             let mine = json!([ours["start"], ours["end"]]);
             (&mine != expected).then(|| format!("{choice} on {day}, fiscal year ending {fy}: GnuCash {expected} != red-ale {mine}"))

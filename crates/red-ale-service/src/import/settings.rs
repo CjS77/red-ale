@@ -32,10 +32,20 @@ impl Config {
     pub fn import_settings(&self) -> Result<ImportSettings, ServiceError> {
         let v = self.checked("import.settings")?;
         let int = |key: &str| -> Result<i32, ServiceError> {
-            v.get(key).and_then(Value::as_i64).and_then(|n| i32::try_from(n).ok()).ok_or_else(|| invalid(format!("import.settings.{key} must be an integer")))
+            v.get(key)
+                .and_then(Value::as_i64)
+                .and_then(|n| i32::try_from(n).ok())
+                .ok_or_else(|| invalid(format!("import.settings.{key} must be an integer")))
         };
-        let flag = |key: &str| v.get(key).and_then(Value::as_bool).ok_or_else(|| invalid(format!("import.settings.{key} must be a boolean")));
-        let fee = v.get("atmFeeThreshold").and_then(Value::as_str).and_then(|s| Numeric::parse_any(s).ok());
+        let flag = |key: &str| {
+            v.get(key)
+                .and_then(Value::as_bool)
+                .ok_or_else(|| invalid(format!("import.settings.{key} must be a boolean")))
+        };
+        let fee = v
+            .get("atmFeeThreshold")
+            .and_then(Value::as_str)
+            .and_then(|s| Numeric::parse_any(s).ok());
         Ok(ImportSettings {
             enable_skip: flag("enableSkip")?,
             enable_update: flag("enableUpdate")?,
@@ -61,7 +71,9 @@ impl Config {
             return Ok(preset);
         }
         let layouts = self.checked("import.csvLayouts")?;
-        let stored = layouts.get(name).ok_or_else(|| invalid(format!("no CSV import layout {name:?}: not built in, nor in import.csvLayouts")))?;
+        let stored = layouts
+            .get(name)
+            .ok_or_else(|| invalid(format!("no CSV import layout {name:?}: not built in, nor in import.csvLayouts")))?;
         serde_json::from_value::<TxLayout>(stored.clone())
             .map(TxLayout::sanitized)
             .map_err(|e| invalid(format!("the Configuration's import.csvLayouts.{name}: {e}")))
@@ -78,7 +90,11 @@ impl Config {
             return Ok(preset);
         }
         let layouts = self.checked("import.csvPriceLayouts")?;
-        let stored = layouts.get(name).ok_or_else(|| invalid(format!("no CSV price import layout {name:?}: not built in, nor in import.csvPriceLayouts")))?;
+        let stored = layouts.get(name).ok_or_else(|| {
+            invalid(format!(
+                "no CSV price import layout {name:?}: not built in, nor in import.csvPriceLayouts"
+            ))
+        })?;
         serde_json::from_value::<PriceLayout>(stored.clone())
             .map(PriceLayout::sanitized)
             .map_err(|e| invalid(format!("the Configuration's import.csvPriceLayouts.{name}: {e}")))
@@ -99,21 +115,36 @@ mod tests {
         )
         .unwrap();
         let s = config.import_settings().unwrap();
-        assert_eq!((s.match_threshold, s.auto_clear_threshold, s.atm_fee_threshold), (2, 6, Numeric::new(350, 100)));
+        assert_eq!(
+            (s.match_threshold, s.auto_clear_threshold, s.atm_fee_threshold),
+            (2, 6, Numeric::new(350, 100))
+        );
         let bank = config.csv_layout(&LayoutChoice::Named("Bank".to_owned())).unwrap();
         assert_eq!(bank.columns, [ColumnType::Date, ColumnType::Description, ColumnType::Amount]);
         assert_eq!(bank.csv.skip_start_lines, 1);
-        assert!(config.csv_layout(&LayoutChoice::Named("GnuCash Export Format".to_owned())).unwrap().multi_split);
+        assert!(
+            config
+                .csv_layout(&LayoutChoice::Named("GnuCash Export Format".to_owned()))
+                .unwrap()
+                .multi_split
+        );
         assert!(config.csv_layout(&LayoutChoice::Named("Nope".to_owned())).is_err());
         assert_eq!(Config::default().import_settings().unwrap(), ImportSettings::default());
     }
 
     #[test]
     fn price_layouts_come_from_the_configuration() {
-        let config = Config::parse(r#"{"import": {"csvPriceLayouts": {"Quotes": {"columns": ["Date", "Amount"], "toCurrency": "CURRENCY::EUR"}}}}"#).unwrap();
+        let config =
+            Config::parse(r#"{"import": {"csvPriceLayouts": {"Quotes": {"columns": ["Date", "Amount"], "toCurrency": "CURRENCY::EUR"}}}}"#)
+                .unwrap();
         let quotes = config.csv_price_layout(&PriceLayoutChoice::Named("Quotes".to_owned())).unwrap();
         assert_eq!(quotes.to_currency.as_deref(), Some("CURRENCY::EUR"));
-        assert_eq!(config.csv_price_layout(&PriceLayoutChoice::Named("No Settings".to_owned())).unwrap(), PriceLayout::default());
+        assert_eq!(
+            config
+                .csv_price_layout(&PriceLayoutChoice::Named("No Settings".to_owned()))
+                .unwrap(),
+            PriceLayout::default()
+        );
         assert!(config.csv_price_layout(&PriceLayoutChoice::Named("Nope".to_owned())).is_err());
     }
 }

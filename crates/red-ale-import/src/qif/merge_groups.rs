@@ -48,13 +48,28 @@ pub fn find_duplicates(old: &Book, new: &Book, added: &[Guid], left_out: &BTreeS
     }
     let new_splits = sorted(
         new,
-        added.iter().filter_map(|g| new.transaction(*g)).flat_map(|t| t.splits.iter().filter(|s| !left_out.contains(&s.guid)).map(move |s| (t, s))).collect(),
+        added
+            .iter()
+            .filter_map(|g| new.transaction(*g))
+            .flat_map(|t| t.splits.iter().filter(|s| !left_out.contains(&s.guid)).map(move |s| (t, s)))
+            .collect(),
     );
-    let (Some(min), Some(max)) = (new_splits.iter().map(|(t, _)| t.date_posted).min(), new_splits.iter().map(|(t, _)| t.date_posted).max()) else {
+    let (Some(min), Some(max)) = (
+        new_splits.iter().map(|(t, _)| t.date_posted).min(),
+        new_splits.iter().map(|(t, _)| t.date_posted).max(),
+    ) else {
         return BTreeMap::new();
     };
-    let in_range = |t: &Transaction| t.date_posted.0 >= min.0.saturating_sub(WEEK_SECS) && t.date_posted.0 <= max.0.saturating_add(WEEK_SECS);
-    let old_splits = sorted(old, old.transactions.values().filter(|t| in_range(t)).flat_map(|t| t.splits.iter().map(move |s| (&**t, s))).collect());
+    let in_range =
+        |t: &Transaction| t.date_posted.0 >= min.0.saturating_sub(WEEK_SECS) && t.date_posted.0 <= max.0.saturating_add(WEEK_SECS);
+    let old_splits = sorted(
+        old,
+        old.transactions
+            .values()
+            .filter(|t| in_range(t))
+            .flat_map(|t| t.splits.iter().map(move |s| (&**t, s)))
+            .collect(),
+    );
     let full_name = |book: &Book, s: &Split| s.account.and_then(|a| book.full_name(a));
     let mut matches: BTreeMap<Guid, Vec<Candidate>> = BTreeMap::new();
     new_splits.iter().for_each(|(nt, ns)| {
@@ -70,7 +85,10 @@ pub fn find_duplicates(old: &Book, new: &Book, added: &[Guid], left_out: &BTreeS
                     && full_name(old, os) == name
                     && (ot.date_posted.0 - nt.date_posted.0).abs() <= WEEK_SECS
             })
-            .map(|(ot, os)| Candidate { split: os.guid, transaction: ot.guid })
+            .map(|(ot, os)| Candidate {
+                split: os.guid,
+                transaction: ot.guid,
+            })
             .collect();
         if !candidates.is_empty() {
             matches.insert(nt.guid, candidates);
@@ -87,7 +105,10 @@ pub fn find_duplicates(old: &Book, new: &Book, added: &[Guid], left_out: &BTreeS
 /// made by this import a moment before, so nothing else refers to them.
 pub fn prune_matching_transactions(book: &mut Book, ticked: &[Guid]) -> DomainResult<()> {
     ticked.iter().try_for_each(|g| {
-        book.transactions.shift_remove(g).map(|_| ()).ok_or_else(|| red_ale_core::DomainError::not_found("transaction", g))
+        book.transactions
+            .shift_remove(g)
+            .map(|_| ())
+            .ok_or_else(|| red_ale_core::DomainError::not_found("transaction", g))
     })
 }
 
@@ -187,7 +208,11 @@ mod tests {
         let matches = find_duplicates(&old, &new, &added, &BTreeSet::new());
         assert_eq!(matches.len(), 2, "2 txns matched");
         assert_eq!(matches[&txn1].len(), 1, "1st txn matches 1");
-        assert_eq!(matches[&txn2].len(), 2, "2nd txn matches 2: the multisplit's bank split and old-txn2");
+        assert_eq!(
+            matches[&txn2].len(),
+            2,
+            "2nd txn matches 2: the multisplit's bank split and old-txn2"
+        );
         assert!(!matches.contains_key(&txn3), "3rd txn matches none: more than a week from both");
 
         prune_matching_transactions(&mut new, &[txn2]).unwrap();
@@ -204,13 +229,19 @@ mod tests {
         let root = new.root;
         let bank = account(&mut new, &mut env, root, "Bank", AccountType::Bank);
         let t = post(&mut new, &mut env, (1, 1, 2000), &[(bank, 5)]);
-        assert!(find_duplicates(&old, &new, &[t], &BTreeSet::new()).is_empty(), "the old book has no transactions");
+        assert!(
+            find_duplicates(&old, &new, &[t], &BTreeSet::new()).is_empty(),
+            "the old book has no transactions"
+        );
 
         let old_bank = account(&mut old, &mut env, root, "Bank", AccountType::Bank);
         let other = account(&mut old, &mut env, root, "Other", AccountType::Bank);
         transfer(&mut old, &mut env, (2, 1, 2000), other, old_bank, 5);
         let split = new.transaction(t).unwrap().splits[0].guid;
         assert_eq!(find_duplicates(&old, &new, &[t], &BTreeSet::new()).len(), 1);
-        assert!(find_duplicates(&old, &new, &[t], &BTreeSet::from([split])).is_empty(), "an Imbalance split is no part of the import");
+        assert!(
+            find_duplicates(&old, &new, &[t], &BTreeSet::from([split])).is_empty(),
+            "an Imbalance split is no part of the import"
+        );
     }
 }

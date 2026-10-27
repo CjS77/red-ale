@@ -14,10 +14,14 @@ use crate::{Book, DomainError, DomainResult, Env, Frame, Guid, How, Numeric, Rec
 /// transaction currency is not the account's commodity. Gains splits are not counted.
 pub fn has_trades(book: &Book, account: Guid) -> bool {
     let Some(acc) = book.account(account) else { return false };
-    if matches!(acc.account_type, crate::AccountType::Stock | crate::AccountType::Mutual | crate::AccountType::Currency) {
+    if matches!(
+        acc.account_type,
+        crate::AccountType::Stock | crate::AccountType::Mutual | crate::AccountType::Currency
+    ) {
         return true;
     }
-    book.splits_of(account).any(|(t, s)| gains_source(s).is_none() && acc.commodity.as_ref() != Some(&t.currency))
+    book.splits_of(account)
+        .any(|(t, s)| gains_source(s).is_none() && acc.commodity.as_ref() != Some(&t.currency))
 }
 
 /// What happened to a split given to a lot.
@@ -44,7 +48,10 @@ fn assign_to_lot_in(book: &mut Book, env: &mut dyn Env, touched: &mut Touched, s
     if s.lot.is_some() || s.amount.is_zero() {
         return Ok(Placed::Skipped);
     }
-    let account = book.lot(lot).map(|l| l.account).ok_or_else(|| DomainError::not_found("lot", &lot))?;
+    let account = book
+        .lot(lot)
+        .map(|l| l.account)
+        .ok_or_else(|| DomainError::not_found("lot", &lot))?;
     let ledger = Ledger::build_touched(book, account, touched)?;
     if ledger.lot_is_closed(lot)? {
         return Ok(Placed::LotClosed);
@@ -68,7 +75,10 @@ fn cut(book: &mut Book, env: &mut dyn Env, split: Guid, lot: Guid, baln: Numeric
     let (txn, s) = locate(book, split).ok_or_else(|| DomainError::not_found("split", &split))?;
     let s = s.clone();
     let account = s.account.ok_or_else(|| DomainError::invalid("split has no account"))?;
-    let currency = book.transaction(txn).map(|t| t.currency.clone()).ok_or_else(|| DomainError::not_found("transaction", &txn))?;
+    let currency = book
+        .transaction(txn)
+        .map(|t| t.currency.clone())
+        .ok_or_else(|| DomainError::not_found("transaction", &txn))?;
     // Restate the lot balance in the split's own units when a later stock split adjusts it.
     let baln = if s.amount == adjusted {
         baln
@@ -121,20 +131,26 @@ fn peer_frame(peer: Guid, now: crate::Time64) -> SlotValue {
 pub fn fifo_lot(book: &Book, ledger: &Ledger, split: &Entry) -> DomainResult<Option<Guid>> {
     let want_negative_opening = split.adjusted.is_positive();
     let mut best: Option<(Guid, crate::Time64)> = None;
-    account_lots(book, ledger.account).into_iter().try_for_each(|lot| -> DomainResult<()> {
-        if ledger.lot_is_closed(lot)? {
-            return Ok(());
-        }
-        let Some(e) = ledger.earliest(lot) else { return Ok(()) };
-        let opposite = if want_negative_opening { e.amount.is_negative() } else { e.amount.is_positive() };
-        if !opposite || e.amount.is_positive() != ledger.lot_balance(lot)?.is_positive() || e.currency != split.currency {
-            return Ok(());
-        }
-        if best.is_none_or(|(_, t)| t > e.posted) {
-            best = Some((lot, e.posted));
-        }
-        Ok(())
-    })?;
+    account_lots(book, ledger.account)
+        .into_iter()
+        .try_for_each(|lot| -> DomainResult<()> {
+            if ledger.lot_is_closed(lot)? {
+                return Ok(());
+            }
+            let Some(e) = ledger.earliest(lot) else { return Ok(()) };
+            let opposite = if want_negative_opening {
+                e.amount.is_negative()
+            } else {
+                e.amount.is_positive()
+            };
+            if !opposite || e.amount.is_positive() != ledger.lot_balance(lot)?.is_positive() || e.currency != split.currency {
+                return Ok(());
+            }
+            if best.is_none_or(|(_, t)| t > e.posted) {
+                best = Some((lot, e.posted));
+            }
+            Ok(())
+        })?;
     Ok(best.map(|(lot, _)| lot))
 }
 
@@ -146,12 +162,18 @@ fn fifo_split(ledger: &Ledger, lot: Guid) -> DomainResult<Option<Guid>> {
         return Ok(None);
     }
     let want_positive = ledger.lot_balance(lot)?.is_negative();
-    let (Some(first), Some(latest)) = (ledger.earliest(lot), ledger.latest(lot)) else { return Ok(None) };
+    let (Some(first), Some(latest)) = (ledger.earliest(lot), ledger.latest(lot)) else {
+        return Ok(None);
+    };
     Ok(ledger
         .entries
         .iter()
         .find(|e| {
-            e.lot.is_none() && e.posted >= latest.posted && e.currency == first.currency && !e.amount.is_zero() && e.amount.is_positive() == want_positive
+            e.lot.is_none()
+                && e.posted >= latest.posted
+                && e.currency == first.currency
+                && !e.amount.is_zero()
+                && e.amount.is_positive() == want_positive
         })
         .map(|e| e.split))
 }
@@ -172,7 +194,10 @@ fn split_assign_in(book: &mut Book, env: &mut dyn Env, touched: &mut Touched, sp
     let mut current = Some(split);
     while let Some(piece) = current {
         let ledger = Ledger::build_touched(book, account, touched)?;
-        let entry = ledger.entry(piece).cloned().ok_or_else(|| DomainError::not_found("split", &piece))?;
+        let entry = ledger
+            .entry(piece)
+            .cloned()
+            .ok_or_else(|| DomainError::not_found("split", &piece))?;
         let lot = match fifo_lot(book, &ledger, &entry)? {
             Some(lot) => lot,
             None => make_default_lot(book, env, account)?,
@@ -262,7 +287,11 @@ fn merge_sub_splits(book: &mut Book, touched: &mut Touched, split: Guid, lot: Gu
         return Ok(false);
     }
     let Some(t) = book.transaction(txn) else { return Ok(false) };
-    let peer = t.splits.iter().find(|o| o.guid != split && o.lot == Some(lot) && is_peer_split(s, o.guid)).map(|o| o.guid);
+    let peer = t
+        .splits
+        .iter()
+        .find(|o| o.guid != split && o.lot == Some(lot) && is_peer_split(s, o.guid))
+        .map(|o| o.guid);
     let Some(peer) = peer else { return Ok(false) };
     merge_splits(book, txn, split, peer)?;
     touched.add(split);
@@ -280,7 +309,10 @@ fn merge_splits(book: &mut Book, txn: crate::Guid, sa: Guid, sb: Guid) -> Domain
     let account = a.account.ok_or_else(|| DomainError::invalid("split has no account"))?;
     let amount = round_amount(book, account, a.amount.add_fixed(b.amount)?)?;
     let value = round_value(book, &t.currency, a.value.add_fixed(b.value)?)?;
-    let gains_txn = gains_split(&b).and_then(|g| locate(book, g)).filter(|(_, g)| gains_source(g).is_some()).map(|(t, _)| t);
+    let gains_txn = gains_split(&b)
+        .and_then(|g| locate(book, g))
+        .filter(|(_, g)| gains_source(g).is_some())
+        .map(|(t, _)| t);
     edit_txn(book, txn, |t| {
         let b_lot_split = t.split(sb).and_then(|s| s.slots.get_key(split_slots::LOT_SPLIT).cloned());
         if let Some(s) = t.split_mut(sa) {
@@ -308,7 +340,10 @@ fn merge_splits(book: &mut Book, txn: crate::Guid, sa: Guid, sb: Guid) -> Domain
 
 /// True when a `lot-split` value names `peer` as a single frame.
 fn matches_peer(v: &SlotValue, peer: Guid) -> bool {
-    v.as_frame().and_then(|f| f.get_key(split_slots::PEER_GUID)).and_then(SlotValue::as_guid) == Some(peer)
+    v.as_frame()
+        .and_then(|f| f.get_key(split_slots::PEER_GUID))
+        .and_then(SlotValue::as_guid)
+        == Some(peer)
 }
 
 /// Repair one lot (`xaccScrubLot`, `5.17:libgnucash/engine/Scrub3.cpp:84-154`): merge cut pieces; if the balance is
@@ -319,7 +354,10 @@ pub fn scrub_lot(book: &mut Book, env: &mut dyn Env, lot: Guid) -> DomainResult<
 }
 
 fn scrub_lot_in(book: &mut Book, env: &mut dyn Env, touched: &mut Touched, lot: Guid) -> DomainResult<()> {
-    let account = book.lot(lot).map(|l| l.account).ok_or_else(|| DomainError::not_found("lot", &lot))?;
+    let account = book
+        .lot(lot)
+        .map(|l| l.account)
+        .ok_or_else(|| DomainError::not_found("lot", &lot))?;
     merge_lot_sub_splits(book, touched, account, lot)?;
     let ledger = Ledger::build_touched(book, account, touched)?;
     let balance = ledger.lot_balance(lot)?;
@@ -356,14 +394,23 @@ pub fn scrub_account_lots(book: &mut Book, env: &mut dyn Env, account: Guid) -> 
     }
     let mut touched = Touched::default();
     assign_lots_in(book, env, &mut touched, account)?;
-    account_lots(book, account)
-        .into_iter()
-        .try_for_each(|lot| if book.lots.contains_key(&lot) { scrub_lot_in(book, env, &mut touched, lot) } else { Ok(()) })
+    account_lots(book, account).into_iter().try_for_each(|lot| {
+        if book.lots.contains_key(&lot) {
+            scrub_lot_in(book, env, &mut touched, lot)
+        } else {
+            Ok(())
+        }
+    })
 }
 
 /// Scrub the lots of every account under `account`, then of `account` itself (`xaccAccountTreeScrubLots`,
 /// `5.17:libgnucash/engine/Scrub3.cpp:190-196`).
 pub fn scrub_tree_lots(book: &mut Book, env: &mut dyn Env, account: Guid) -> DomainResult<()> {
-    let accounts: Vec<Guid> = book.descendants(account).iter().map(|a| a.guid).chain(std::iter::once(account)).collect();
+    let accounts: Vec<Guid> = book
+        .descendants(account)
+        .iter()
+        .map(|a| a.guid)
+        .chain(std::iter::once(account))
+        .collect();
     accounts.into_iter().try_for_each(|a| scrub_account_lots(book, env, a))
 }

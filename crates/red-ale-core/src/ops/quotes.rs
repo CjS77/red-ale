@@ -41,12 +41,22 @@ pub struct QuoteRecord {
 impl QuoteRecord {
     /// A successful record with a `last` value.
     pub fn last(value: impl Into<String>, currency: Option<String>, date: Option<String>) -> Self {
-        Self { success: true, last: Some(value.into()), currency, date, ..Self::default() }
+        Self {
+            success: true,
+            last: Some(value.into()),
+            currency,
+            date,
+            ..Self::default()
+        }
     }
 
     /// A failed record with Finance::Quote's error message.
     pub fn failed(message: impl Into<String>) -> Self {
-        Self { success: false, errormsg: Some(message.into()), ..Self::default() }
+        Self {
+            success: false,
+            errormsg: Some(message.into()),
+            ..Self::default()
+        }
     }
 }
 
@@ -139,8 +149,15 @@ pub fn named_quotable(book: &Book, id: &CommodityRef, default_currency: &Commodi
 }
 
 fn quotable_as(id: &CommodityRef, source: String) -> Quotable {
-    let source = if id.is_currency() { CURRENCY_QUOTE_SOURCE.to_owned() } else { source };
-    Quotable { commodity: id.clone(), source }
+    let source = if id.is_currency() {
+        CURRENCY_QUOTE_SOURCE.to_owned()
+    } else {
+        source
+    };
+    Quotable {
+        commodity: id.clone(),
+        source,
+    }
 }
 
 /// Build the Price for `commodity` from its answer, as `parse_one_quote` does (`gnc-quotes.cpp:680-754`): `record`
@@ -186,13 +203,20 @@ fn price_and_type(record: &QuoteRecord) -> Option<(&'static str, &str)> {
 fn currency(book: &Book, record: &QuoteRecord) -> Result<CommodityRef, QuoteFailure> {
     let code = record.currency.as_deref().ok_or(QuoteFailure::NoCurrency)?;
     let id = CommodityRef::currency(code.to_uppercase());
-    lookup(book, &id).map(|c| c.id.clone()).ok_or_else(|| QuoteFailure::UnknownCurrency(code.to_owned()))
+    lookup(book, &id)
+        .map(|c| c.id.clone())
+        .ok_or_else(|| QuoteFailure::UnknownCurrency(code.to_owned()))
 }
 
 /// `calc_price_time` (`gnc-quotes.cpp:599-630`): the date at its day-neutral time, else now. Finance::Quote's
 /// `time` is made up, so it is never read.
 fn price_time(record: &QuoteRecord, now: Time64, zone: &TimeZone) -> Time64 {
-    record.date.as_deref().filter(|d| !d.is_empty()).and_then(parse_mdy).map_or(now, |d| zone.neutral_time(d))
+    record
+        .date
+        .as_deref()
+        .filter(|d| !d.is_empty())
+        .and_then(parse_mdy)
+        .map_or(now, |d| zone.neutral_time(d))
 }
 
 /// `GncDate(text, "m-d-y")`'s regular expression (`5.17:libgnucash/engine/gnc-datetime.cpp:122-135`, `:728-754`):
@@ -202,7 +226,9 @@ fn price_time(record: &QuoteRecord, now: Time64, zone: &TimeZone) -> Time64 {
 pub fn parse_mdy(text: &str) -> Option<Date> {
     static SEPARATED: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new("([0-9]+)[-/.' ]+([0-9]+)[-/.' ]+([0-9]+)").ok());
     static COMPACT: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new("([0-9]{2})([0-9]{2})([0-9]{4})").ok());
-    let caps = [&SEPARATED, &COMPACT].into_iter().find_map(|re| re.as_ref().and_then(|re| re.captures(text)))?;
+    let caps = [&SEPARATED, &COMPACT]
+        .into_iter()
+        .find_map(|re| re.as_ref().and_then(|re| re.captures(text)))?;
     let number = |i: usize| caps.get(i).and_then(|m| m.as_str().parse::<u32>().ok());
     let year = i32::try_from(number(3)?).ok()?;
     let year = match year {
@@ -279,15 +305,28 @@ mod tests {
         let p = build(&QuoteRecord::last("1.0004", Some("usd".into()), None)).unwrap();
         assert!(p.value.same_repr(Numeric::new(10004, 10000)));
         assert_eq!(p.time, NOW);
-        let inverted = QuoteRecord { inverted: true, ..QuoteRecord::last("1.0832", Some("USD".into()), None) };
+        let inverted = QuoteRecord {
+            inverted: true,
+            ..QuoteRecord::last("1.0832", Some("USD".into()), None)
+        };
         assert!(build(&inverted).unwrap().value.same_repr(Numeric::new(10000, 10832)));
     }
 
     #[test]
     fn types_follow_the_field_found() {
-        let nav = QuoteRecord { success: true, nav: Some("2.031".into()), currency: Some("USD".into()), ..QuoteRecord::default() };
+        let nav = QuoteRecord {
+            success: true,
+            nav: Some("2.031".into()),
+            currency: Some("USD".into()),
+            ..QuoteRecord::default()
+        };
         assert_eq!(build(&nav).unwrap().price_type.as_deref(), Some("nav"));
-        let price = QuoteRecord { success: true, price: Some("2".into()), currency: Some("USD".into()), ..QuoteRecord::default() };
+        let price = QuoteRecord {
+            success: true,
+            price: Some("2".into()),
+            currency: Some("USD".into()),
+            ..QuoteRecord::default()
+        };
         assert_eq!(build(&price).unwrap().price_type.as_deref(), Some("unknown"));
     }
 
@@ -295,14 +334,35 @@ mod tests {
     fn each_failure() {
         // gtest-gnc-quotes.cpp:315-375.
         let b = book();
-        assert_eq!(build_price(&b, &hpe(), None, NOW, &TimeZone::utc(), Guid::from_bytes([1; 16])), Err(QuoteFailure::NoResult));
-        assert_eq!(build(&QuoteRecord::failed("no listing")), Err(QuoteFailure::QuoteFailed(Some("no listing".into()))));
+        assert_eq!(
+            build_price(&b, &hpe(), None, NOW, &TimeZone::utc(), Guid::from_bytes([1; 16])),
+            Err(QuoteFailure::NoResult)
+        );
+        assert_eq!(
+            build(&QuoteRecord::failed("no listing")),
+            Err(QuoteFailure::QuoteFailed(Some("no listing".into())))
+        );
         assert_eq!(build(&QuoteRecord::last("13.37", None, None)), Err(QuoteFailure::NoCurrency));
-        assert_eq!(build(&QuoteRecord::last("13.37", Some("BTC".into()), None)), Err(QuoteFailure::UnknownCurrency("BTC".into())));
-        let empty = QuoteRecord { success: true, currency: Some("USD".into()), ..QuoteRecord::default() };
+        assert_eq!(
+            build(&QuoteRecord::last("13.37", Some("BTC".into()), None)),
+            Err(QuoteFailure::UnknownCurrency("BTC".into()))
+        );
+        let empty = QuoteRecord {
+            success: true,
+            currency: Some("USD".into()),
+            ..QuoteRecord::default()
+        };
         assert_eq!(build(&empty), Err(QuoteFailure::NoPrice));
-        assert_eq!(build(&QuoteRecord::last("lots", Some("USD".into()), None)), Err(QuoteFailure::PriceParseFailure("lots".into())));
-        assert_eq!(build(&QuoteRecord::last("99999999999999999999", Some("USD".into()), None)).unwrap_err().code(), "price-parse-failure");
+        assert_eq!(
+            build(&QuoteRecord::last("lots", Some("USD".into()), None)),
+            Err(QuoteFailure::PriceParseFailure("lots".into()))
+        );
+        assert_eq!(
+            build(&QuoteRecord::last("99999999999999999999", Some("USD".into()), None))
+                .unwrap_err()
+                .code(),
+            "price-parse-failure"
+        );
     }
 
     #[test]
@@ -325,12 +385,17 @@ mod tests {
     fn quotable_commodities_in_id_order() {
         let mut b = book();
         let mut eur = b.commodity(&CommodityRef::currency("EUR")).cloned().unwrap_or_else(|| {
-            crate::currencies::iso_currency("EUR").map(crate::currencies::IsoCurrency::to_commodity).unwrap()
+            crate::currencies::iso_currency("EUR")
+                .map(crate::currencies::IsoCurrency::to_commodity)
+                .unwrap()
         });
         eur.quote_flag = true;
         b.commodities.insert(eur.id.clone(), std::sync::Arc::new(eur));
         let ids = |q: Vec<Quotable>| q.into_iter().map(|q| format!("{} {}", q.commodity, q.source)).collect::<Vec<_>>();
-        assert_eq!(ids(quotable(&b, &usd(), None)), ["CURRENCY::EUR currency", "NASDAQ::AAPL alphavantage", "NYSE::HPE alphavantage"]);
+        assert_eq!(
+            ids(quotable(&b, &usd(), None)),
+            ["CURRENCY::EUR currency", "NASDAQ::AAPL alphavantage", "NYSE::HPE alphavantage"]
+        );
         let ny = regex::RegexBuilder::new("^ny").case_insensitive(true).build().unwrap();
         assert_eq!(ids(quotable(&b, &usd(), Some(&ny))), ["NYSE::HPE alphavantage"]);
         assert_eq!(ids(quotable(&b, &CommodityRef::currency("EUR"), None)).len(), 2);
@@ -339,12 +404,30 @@ mod tests {
     #[test]
     fn named_commodities_need_a_source() {
         let b = book();
-        assert_eq!(named_quotable(&b, &CommodityRef::new("NASDAQ", "AAPL"), &usd()).unwrap().unwrap().source, "alphavantage");
+        assert_eq!(
+            named_quotable(&b, &CommodityRef::new("NASDAQ", "AAPL"), &usd())
+                .unwrap()
+                .unwrap()
+                .source,
+            "alphavantage"
+        );
         // A security keeps its source only with quotes on, as GnuCash writes it.
-        assert!(matches!(named_quotable(&b, &CommodityRef::new("NASDAQ", "IDLE"), &usd()), Err(DomainError::Invalid(_))));
-        assert_eq!(named_quotable(&b, &CommodityRef::currency("GBP"), &usd()).unwrap().unwrap().source, "currency");
+        assert!(matches!(
+            named_quotable(&b, &CommodityRef::new("NASDAQ", "IDLE"), &usd()),
+            Err(DomainError::Invalid(_))
+        ));
+        assert_eq!(
+            named_quotable(&b, &CommodityRef::currency("GBP"), &usd()).unwrap().unwrap().source,
+            "currency"
+        );
         assert_eq!(named_quotable(&b, &usd(), &usd()).unwrap(), None);
-        assert!(matches!(named_quotable(&b, &CommodityRef::new("FUND", "ZETA"), &usd()), Err(DomainError::Invalid(_))));
-        assert!(matches!(named_quotable(&b, &CommodityRef::new("FUND", "NONE"), &usd()), Err(DomainError::NotFound { .. })));
+        assert!(matches!(
+            named_quotable(&b, &CommodityRef::new("FUND", "ZETA"), &usd()),
+            Err(DomainError::Invalid(_))
+        ));
+        assert!(matches!(
+            named_quotable(&b, &CommodityRef::new("FUND", "NONE"), &usd()),
+            Err(DomainError::NotFound { .. })
+        ));
     }
 }

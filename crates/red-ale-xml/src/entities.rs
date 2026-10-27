@@ -9,8 +9,8 @@ use red_ale_core::{Account, AccountType, Commodity, CommodityRef, Guid, Lot, Pri
 use crate::XmlError;
 use crate::dom::Element;
 use crate::values::{
-    Notices, commodity_ref_el, guid_el, int_el, malformed, numeric_el, parse_commodity_ref, parse_guid, parse_int, parse_numeric, parse_slots,
-    parse_time, slots_el, text_el, time_el, unknown_children,
+    Notices, commodity_ref_el, guid_el, int_el, malformed, numeric_el, parse_commodity_ref, parse_guid, parse_int, parse_numeric,
+    parse_slots, parse_time, slots_el, text_el, time_el, unknown_children,
 };
 
 const VERSION: &str = "2.0.0";
@@ -84,13 +84,23 @@ pub fn commodity_el(c: &Commodity) -> Option<Element> {
     if c.quote_flag {
         el.push(Element::new("cmdty:get_quotes"));
         let source = c.quote_source.as_deref().or(c.is_currency().then_some("currency"));
-        el = el.child_opt(source.map(|s| text_el("cmdty:quote_source", s))).child_opt(c.quote_tz.as_deref().map(|tz| text_el("cmdty:quote_tz", tz)));
+        el = el
+            .child_opt(source.map(|s| text_el("cmdty:quote_source", s)))
+            .child_opt(c.quote_tz.as_deref().map(|tz| text_el("cmdty:quote_tz", tz)));
     }
     Some(el.child_opt(slots_el("cmdty:slots", &c.slots)))
 }
 
 /// Child elements of `price` that the mapping reads.
-pub const PRICE_FIELDS: [&str; 7] = ["price:id", "price:commodity", "price:currency", "price:time", "price:source", "price:type", "price:value"];
+pub const PRICE_FIELDS: [&str; 7] = [
+    "price:id",
+    "price:commodity",
+    "price:currency",
+    "price:time",
+    "price:source",
+    "price:type",
+    "price:value",
+];
 
 /// Read a `price` element of the price database.
 pub fn parse_price(el: &Element, notices: &mut Notices) -> Result<Price, XmlError> {
@@ -139,7 +149,9 @@ pub fn parse_account(el: &Element, notices: &mut Notices) -> Result<(Account, Ve
     let req = |name: &str| el.find(name).ok_or_else(|| malformed(&el.name, format!("missing {name}")));
     report_unknown(el, &ACCOUNT_FIELDS, notices);
     let type_text = req("act:type")?.text_content();
-    let account_type: AccountType = type_text.parse().map_err(|_| malformed("act:type", format!("unknown account type {type_text:?}")))?;
+    let account_type: AccountType = type_text
+        .parse()
+        .map_err(|_| malformed("act:type", format!("unknown account type {type_text:?}")))?;
     let guid = parse_guid(req("act:id")?)?;
     let account = Account {
         guid,
@@ -150,7 +162,11 @@ pub fn parse_account(el: &Element, notices: &mut Notices) -> Result<(Account, Ve
         non_standard_scu: el.find("act:non-standard-scu").is_some(),
         code: el.find("act:code").map(Element::text_content),
         description: el.find("act:description").map(Element::text_content),
-        slots: el.find("act:slots").map(|s| parse_slots(s, notices)).transpose()?.unwrap_or_default(),
+        slots: el
+            .find("act:slots")
+            .map(|s| parse_slots(s, notices))
+            .transpose()?
+            .unwrap_or_default(),
         parent: el.find("act:parent").map(parse_guid).transpose()?,
     };
     let lots = el
@@ -167,12 +183,23 @@ fn parse_lot(el: &Element, account: Guid, notices: &mut Notices) -> Result<Lot, 
     }
     report_unknown(el, &["lot:id", "lot:slots"], notices);
     let id = el.find("lot:id").ok_or_else(|| malformed("gnc:lot", "missing lot:id"))?;
-    Ok(Lot { guid: parse_guid(id)?, account, slots: el.find("lot:slots").map(|s| parse_slots(s, notices)).transpose()?.unwrap_or_default() })
+    Ok(Lot {
+        guid: parse_guid(id)?,
+        account,
+        slots: el
+            .find("lot:slots")
+            .map(|s| parse_slots(s, notices))
+            .transpose()?
+            .unwrap_or_default(),
+    })
 }
 
 /// `gnc_lot_dom_tree_create`.
 pub fn lot_el(lot: &Lot) -> Element {
-    Element::new("gnc:lot").attr("version", VERSION).child(guid_el("lot:id", lot.guid)).child_opt(slots_el("lot:slots", &lot.slots))
+    Element::new("gnc:lot")
+        .attr("version", VERSION)
+        .child(guid_el("lot:id", lot.guid))
+        .child_opt(slots_el("lot:slots", &lot.slots))
 }
 
 /// `gnc_account_dom_tree_create`. `lots` must be this account's lots; they are written sorted by GUID.
@@ -183,14 +210,21 @@ pub fn account_el(a: &Account, lots: &[&Lot]) -> Element {
         .child(guid_el("act:id", a.guid))
         .child(text_el("act:type", a.account_type.as_str()));
     if let Some(c) = &a.commodity {
-        el = el.child(commodity_ref_el("act:commodity", c)).child(int_el("act:commodity-scu", a.commodity_scu.unwrap_or(0)));
+        el = el
+            .child(commodity_ref_el("act:commodity", c))
+            .child(int_el("act:commodity-scu", a.commodity_scu.unwrap_or(0)));
         if a.non_standard_scu {
             el.push(Element::new("act:non-standard-scu"));
         }
     }
     el = el
         .child_opt(a.code.as_deref().filter(|s| !s.is_empty()).map(|s| text_el("act:code", s)))
-        .child_opt(a.description.as_deref().filter(|s| !s.is_empty()).map(|s| text_el("act:description", s)))
+        .child_opt(
+            a.description
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .map(|s| text_el("act:description", s)),
+        )
         .child_opt(slots_el("act:slots", &a.slots))
         .child_opt(a.parent.map(|p| guid_el("act:parent", p)));
     if !lots.is_empty() {
@@ -204,8 +238,16 @@ pub fn account_el(a: &Account, lots: &[&Lot]) -> Element {
 }
 
 /// Child elements of `gnc:transaction` that the mapping reads.
-pub const TRANSACTION_FIELDS: [&str; 8] =
-    ["trn:id", "trn:currency", "trn:num", "trn:date-posted", "trn:date-entered", "trn:description", "trn:slots", "trn:splits"];
+pub const TRANSACTION_FIELDS: [&str; 8] = [
+    "trn:id",
+    "trn:currency",
+    "trn:num",
+    "trn:date-posted",
+    "trn:date-entered",
+    "trn:description",
+    "trn:slots",
+    "trn:splits",
+];
 
 const SPLIT_FIELDS: [&str; 10] = [
     "split:id",
@@ -236,7 +278,11 @@ pub fn parse_transaction(el: &Element, notices: &mut Notices) -> Result<Transact
         date_posted: el.find("trn:date-posted").map(parse_time).transpose()?.unwrap_or_default(),
         date_entered: el.find("trn:date-entered").map(parse_time).transpose()?.unwrap_or_default(),
         description: el.find("trn:description").map(Element::text_content),
-        slots: el.find("trn:slots").map(|s| parse_slots(s, notices)).transpose()?.unwrap_or_default(),
+        slots: el
+            .find("trn:slots")
+            .map(|s| parse_slots(s, notices))
+            .transpose()?
+            .unwrap_or_default(),
         splits,
     })
 }
@@ -265,7 +311,11 @@ fn parse_split(el: &Element, notices: &mut Notices) -> Result<Split, XmlError> {
         // (5.17:libgnucash/backend/xml/gnc-transaction-xml-v2.cpp:114-117, :274-292).
         account: el.find("split:account").map(parse_guid).transpose()?.filter(|g| !g.is_null()),
         lot: el.find("split:lot").map(parse_guid).transpose()?,
-        slots: el.find("split:slots").map(|s| parse_slots(s, notices)).transpose()?.unwrap_or_default(),
+        slots: el
+            .find("split:slots")
+            .map(|s| parse_slots(s, notices))
+            .transpose()?
+            .unwrap_or_default(),
     })
 }
 
@@ -278,8 +328,15 @@ fn split_el(s: &Split) -> Element {
         .child(guid_el("split:id", s.guid))
         .child_opt(text_child_nonempty("split:memo", s.memo.as_deref()))
         .child_opt(text_child_nonempty("split:action", s.action.as_deref()))
-        .child(Element::text_child("split:reconciled-state", s.reconcile_state.as_char().to_string()))
-        .child_opt(s.reconcile_date.filter(|t| *t != Time64(0)).map(|t| time_el("split:reconcile-date", t)))
+        .child(Element::text_child(
+            "split:reconciled-state",
+            s.reconcile_state.as_char().to_string(),
+        ))
+        .child_opt(
+            s.reconcile_date
+                .filter(|t| *t != Time64(0))
+                .map(|t| time_el("split:reconcile-date", t)),
+        )
         .child(numeric_el("split:value", s.value))
         .child(numeric_el("split:quantity", s.amount))
         .child(guid_el("split:account", s.account.unwrap_or(Guid::NULL)))
@@ -304,5 +361,7 @@ pub fn transaction_el(t: &Transaction) -> Element {
 }
 
 fn report_unknown(el: &Element, known: &[&str], notices: &mut Notices) {
-    unknown_children(el, known).iter().for_each(|(_, c)| notices.unrecognised.push(format!("unknown element {} in {}", c.name, el.name)));
+    unknown_children(el, known)
+        .iter()
+        .for_each(|(_, c)| notices.unrecognised.push(format!("unknown element {} in {}", c.name, el.name)));
 }

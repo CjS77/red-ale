@@ -90,12 +90,21 @@ impl LocaleDateParser {
     /// The parser for an ICU locale tag (`fr-FR`).
     pub(crate) fn new(tag: &str) -> Result<Self, LocaleDateError> {
         let (pattern, calendar) = icu::medium_date_pattern(tag).ok_or_else(|| LocaleDateError::NoPattern(tag.to_owned()))?;
-        if !matches!(calendar, icu_calendar::AnyCalendarKind::Gregorian | icu_calendar::AnyCalendarKind::Iso) {
-            return Err(LocaleDateError::Calendar { calendar: format!("{calendar:?}") });
+        if !matches!(
+            calendar,
+            icu_calendar::AnyCalendarKind::Gregorian | icu_calendar::AnyCalendarKind::Iso
+        ) {
+            return Err(LocaleDateError::Calendar {
+                calendar: format!("{calendar:?}"),
+            });
         }
         let items = items(&pattern)?;
         let names = icu::month_names(tag).ok_or_else(|| LocaleDateError::NoPattern(tag.to_owned()))?;
-        Ok(Self { pattern, items, months: month_table(&names) })
+        Ok(Self {
+            pattern,
+            items,
+            months: month_table(&names),
+        })
     }
 
     /// The pattern, in UTS 35 syntax.
@@ -106,20 +115,31 @@ impl LocaleDateParser {
     /// The date `text` holds. `today` places a two-digit year.
     pub fn parse(&self, text: &str, today: CivilDate) -> Result<CivilDate, LocaleDateError> {
         let input: Vec<char> = text.trim().chars().filter(|c| !is_ignorable(*c)).collect();
-        let no_match = || LocaleDateError::NoMatch { pattern: self.pattern.clone() };
+        let no_match = || LocaleDateError::NoMatch {
+            pattern: self.pattern.clone(),
+        };
         let mut cursor = Cursor { input: &input, pos: 0 };
         let mut fields = Fields::default();
-        self.items.iter().try_for_each(|item| cursor.item(item, &self.months, &mut fields)).ok_or_else(no_match)?;
+        self.items
+            .iter()
+            .try_for_each(|item| cursor.item(item, &self.months, &mut fields))
+            .ok_or_else(no_match)?;
         if cursor.pos != input.len() {
             return Err(no_match());
         }
         let (Some((year, digits, width)), Some(month), Some(day)) = (fields.year, fields.month, fields.day) else {
             return Err(no_match());
         };
-        let month = u8::try_from(month).map_err(|_| LocaleDateError::NoMatch { pattern: self.pattern.clone() })?;
+        let month = u8::try_from(month).map_err(|_| LocaleDateError::NoMatch {
+            pattern: self.pattern.clone(),
+        })?;
         let day = u8::try_from(day).map_err(|_| LocaleDateError::Day)?;
         let year = i32::try_from(year).map_err(|_| LocaleDateError::Year)?;
-        let year = if width <= 2 && digits == 2 { two_digit_year(year, month, day, today) } else { year };
+        let year = if width <= 2 && digits == 2 {
+            two_digit_year(year, month, day, today)
+        } else {
+            year
+        };
         if !(1..=12).contains(&month) {
             return Err(no_match());
         }
@@ -193,7 +213,9 @@ impl Cursor<'_> {
 
     /// The longest month name the text starts with.
     fn month_name(&mut self, months: &[(Vec<char>, u8)]) -> Option<u8> {
-        let (end, month) = months.iter().find_map(|(name, month)| self.name_end(name).map(|end| (end, *month)))?;
+        let (end, month) = months
+            .iter()
+            .find_map(|(name, month)| self.name_end(name).map(|end| (end, *month)))?;
         self.pos = end;
         Some(month)
     }
@@ -225,14 +247,17 @@ fn is_ignorable(c: char) -> bool {
 /// Arabic-Indic (Persian), N'Ko, Devanagari, Bengali, Gurmukhi, Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam,
 /// Sinhala, Thai, Lao, Tibetan, Myanmar, Khmer, Mongolian, Javanese, Meetei Mayek and full-width.
 const DIGIT_ZEROS: [u32; 23] = [
-    0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xde6, 0xe50, 0xed0, 0xf20, 0x1040, 0x17e0, 0x1810,
-    0xa9d0, 0xabf0, 0xff10,
+    0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xde6, 0xe50, 0xed0, 0xf20, 0x1040, 0x17e0,
+    0x1810, 0xa9d0, 0xabf0, 0xff10,
 ];
 
 /// A decimal digit's value, in any of the scripts above.
 fn digit_value(c: char) -> Option<u32> {
     let code = u32::from(c);
-    DIGIT_ZEROS.iter().find(|zero| (**zero..*zero + 10).contains(&code)).map(|zero| code - zero)
+    DIGIT_ZEROS
+        .iter()
+        .find(|zero| (**zero..*zero + 10).contains(&code))
+        .map(|zero| code - zero)
 }
 
 /// ICU's two-digit year: in the century starting 80 years before today, a year equal to the start's two digits
@@ -242,7 +267,11 @@ fn two_digit_year(two: i32, month: u8, day: u8, today: CivilDate) -> i32 {
     let ambiguous = start.rem_euclid(100);
     let year = start.div_euclid(100) * 100 + two + if two < ambiguous { 100 } else { 0 };
     let before_start = (month, day) < (today.month(), today.day());
-    if two == ambiguous && year == start && before_start { year + 100 } else { year }
+    if two == ambiguous && year == start && before_start {
+        year + 100
+    } else {
+        year
+    }
 }
 
 /// The month names as matched: lower case without ignorable marks, longest first so that `juil.` is tried before a
@@ -250,7 +279,14 @@ fn two_digit_year(two: i32, month: u8, day: u8, today: CivilDate) -> i32 {
 fn month_table(names: &[Vec<String>; 12]) -> Vec<(Vec<char>, u8)> {
     let mut table: Vec<(Vec<char>, u8)> = (1..=12u8)
         .zip(names.iter())
-        .flat_map(|(month, list)| list.iter().map(move |n| (n.chars().filter(|c| !is_ignorable(*c)).flat_map(char::to_lowercase).collect(), month)))
+        .flat_map(|(month, list)| {
+            list.iter().map(move |n| {
+                (
+                    n.chars().filter(|c| !is_ignorable(*c)).flat_map(char::to_lowercase).collect(),
+                    month,
+                )
+            })
+        })
         .filter(|(name, _): &(Vec<char>, u8)| !name.is_empty())
         .collect();
     table.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then(a.1.cmp(&b.1)));
@@ -292,10 +328,18 @@ fn items(pattern: &str) -> Result<Vec<Item>, LocaleDateError> {
         items.push(Item::Literal(literal));
     }
     let count = |f: fn(&Item) -> bool| items.iter().filter(|i| f(i)).count();
-    let complete = count(|i| matches!(i, Item::Year(_))) == 1 && count(|i| matches!(i, Item::Month { .. })) == 1 && count(|i| *i == Item::Day) == 1;
+    let complete =
+        count(|i| matches!(i, Item::Year(_))) == 1 && count(|i| matches!(i, Item::Month { .. })) == 1 && count(|i| *i == Item::Day) == 1;
     if !unknown.is_empty() || !complete {
-        let fields = if unknown.is_empty() { "not one each of year, month and day".to_owned() } else { unknown.join(", ") };
-        return Err(LocaleDateError::Fields { pattern: pattern.to_owned(), fields });
+        let fields = if unknown.is_empty() {
+            "not one each of year, month and day".to_owned()
+        } else {
+            unknown.join(", ")
+        };
+        return Err(LocaleDateError::Fields {
+            pattern: pattern.to_owned(),
+            fields,
+        });
     }
     Ok(items)
 }
@@ -352,7 +396,10 @@ mod tests {
         let pt = items("d 'de' MMM 'de' y").unwrap();
         assert_eq!(pt[1], Item::Literal(" de ".chars().collect()));
         assert_eq!(items("y MMM d'(a)'").unwrap().last(), Some(&Item::Literal("(a)".chars().collect())));
-        assert_eq!(items("h:mm 'o''clock' y M d").unwrap_err().to_string(), "the locale's date format \"h:mm 'o''clock' y M d\" has fields red-ale can't read: h, mm");
+        assert_eq!(
+            items("h:mm 'o''clock' y M d").unwrap_err().to_string(),
+            "the locale's date format \"h:mm 'o''clock' y M d\" has fields red-ale can't read: h, mm"
+        );
         assert!(items("d MMM").is_err(), "no year");
         assert_eq!(quoted(&"''x".chars().collect::<Vec<_>>(), 0), (vec!['\''], 2));
         assert_eq!(quoted(&"'it''s'".chars().collect::<Vec<_>>(), 0), ("it's".chars().collect(), 7));

@@ -34,8 +34,12 @@ fn configure(d: &mut Dispatcher, server: &QuoteServer, more: &Value) {
 }
 
 fn security(d: &mut Dispatcher, namespace: &str, mnemonic: &str, source: &str) {
-    call(d, "commodity.create", &json!({ "namespace": namespace, "mnemonic": mnemonic, "fullname": mnemonic, "fraction": 10000,
-        "quoteFlag": true, "quoteSource": source }));
+    call(
+        d,
+        "commodity.create",
+        &json!({ "namespace": namespace, "mnemonic": mnemonic, "fullname": mnemonic, "fraction": 10000,
+        "quoteFlag": true, "quoteSource": source }),
+    );
 }
 
 /// Start a fetch, wait for it, and return its final status.
@@ -46,12 +50,20 @@ fn fetch(d: &mut Dispatcher, params: &Value) -> Value {
 }
 
 fn entry<'a>(status: &'a Value, commodity: &str) -> &'a Value {
-    status["commodities"].as_array().unwrap().iter().find(|c| c["commodity"] == commodity).unwrap_or_else(|| panic!("{commodity} in {status}"))
+    status["commodities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["commodity"] == commodity)
+        .unwrap_or_else(|| panic!("{commodity} in {status}"))
 }
 
 #[test]
 fn prices_are_built_as_gnucash_builds_them() {
-    let server = QuoteServer::start(vec![("/quote/HPE", Answer::ok(HPE)), ("/fx/EUR/USD", Answer::recorded("frankfurter-latest.json"))]);
+    let server = QuoteServer::start(vec![
+        ("/quote/HPE", Answer::ok(HPE)),
+        ("/fx/EUR/USD", Answer::recorded("frankfurter-latest.json")),
+    ]);
     let (_book, mut d) = create();
     configure(&mut d, &server, &json!({}));
     security(&mut d, "NYSE", "HPE", "alphavantage");
@@ -60,16 +72,28 @@ fn prices_are_built_as_gnucash_builds_them() {
     assert_eq!(started["commodities"], json!(["CURRENCY::EUR", "NYSE::HPE"]));
     d.wait_for_quotes();
     let status = call(&mut d, "price.fetchStatus", &json!({}));
-    assert_eq!((status["state"].as_str(), status["stored"].as_u64(), status["failed"].as_u64()), (Some("finished"), Some(2), Some(0)));
+    assert_eq!(
+        (status["state"].as_str(), status["stored"].as_u64(), status["failed"].as_u64()),
+        (Some("finished"), Some(2), Some(0))
+    );
     let hpe = entry(&status, "NYSE::HPE");
-    assert_eq!((hpe["state"].as_str(), hpe["outcome"].as_str(), hpe["service"].as_str()), (Some("stored"), Some("added"), Some("local")));
+    assert_eq!(
+        (hpe["state"].as_str(), hpe["outcome"].as_str(), hpe["service"].as_str()),
+        (Some("stored"), Some("added"), Some("local"))
+    );
     // gtest-gnc-quotes.cpp:250-283: the date at 10:59 UTC, the value exact, source Finance::Quote, type last.
     assert_eq!(hpe["price"]["value"], json!({ "num": "1337", "denom": "100" }));
     assert_eq!(hpe["price"]["time"], "2022-09-01T10:59:00Z");
-    assert_eq!((hpe["price"]["source"].as_str(), hpe["price"]["type"].as_str()), (Some("Finance::Quote"), Some("last")));
+    assert_eq!(
+        (hpe["price"]["source"].as_str(), hpe["price"]["type"].as_str()),
+        (Some("Finance::Quote"), Some("last"))
+    );
     // A currency rate is undated, so stamped now, in the default currency (USD under the C locale).
     let eur = &entry(&status, "CURRENCY::EUR")["price"];
-    assert_eq!((eur["value"].clone(), eur["currency"].as_str()), (json!({ "num": "10795", "denom": "10000" }), Some("CURRENCY::USD")));
+    assert_eq!(
+        (eur["value"].clone(), eur["currency"].as_str()),
+        (json!({ "num": "10795", "denom": "10000" }), Some("CURRENCY::USD"))
+    );
     assert_eq!(eur["time"], json!(red_ale_rpc::wire::Timestamp(TEST_NOW)));
     let stored = call(&mut d, "price.list", &json!({ "commodity": "NYSE::HPE" }));
     assert_eq!(stored.as_array().unwrap().len(), 1);
@@ -83,11 +107,18 @@ fn same_day_rules_apply_to_fetched_prices() {
     configure(&mut d, &server, &json!({}));
     security(&mut d, "NYSE", "HPE", "alphavantage");
     security(&mut d, "NYSE", "ACME", "alphavantage");
-    let editor = call(&mut d, "price.add", &json!({ "commodity": "NYSE::ACME", "currency": "USD", "value": "12", "date": "2022-09-01" }));
+    let editor = call(
+        &mut d,
+        "price.add",
+        &json!({ "commodity": "NYSE::ACME", "currency": "USD", "value": "12", "date": "2022-09-01" }),
+    );
     let first = fetch(&mut d, &json!({}));
     let acme = entry(&first, "NYSE::ACME");
     // The price editor's price outranks a fetched one (gnc-pricedb.cpp's source ranks).
-    assert_eq!((acme["outcome"].as_str(), acme["existing"]["guid"].clone()), (Some("rejected"), editor["price"]["guid"].clone()));
+    assert_eq!(
+        (acme["outcome"].as_str(), acme["existing"]["guid"].clone()),
+        (Some("rejected"), editor["price"]["guid"].clone())
+    );
     assert_eq!(acme["price"], Value::Null);
     // A fetched price replaces a same-day one of equal rank (gnc_pricedb_add_price).
     let second = fetch(&mut d, &json!({ "commodities": ["NYSE::HPE"] }));
@@ -102,19 +133,29 @@ fn services_are_tried_in_order_and_rates_both_ways_round() {
         ("/broken/HPE", Answer::status(500, "{\"error\": \"down\"}")),
         ("/quote/HPE", Answer::ok(HPE)),
         ("/fx/EUR/USD", Answer::status(404, "{\"message\":\"not found\"}")),
-        ("/fx/USD/EUR", Answer::ok(r#"{"amount":1.0,"base":"USD","date":"2024-05-03","rates":{"EUR":0.9264}}"#)),
+        (
+            "/fx/USD/EUR",
+            Answer::ok(r#"{"amount":1.0,"base":"USD","date":"2024-05-03","rates":{"EUR":0.9264}}"#),
+        ),
     ]);
     let (_book, mut d) = create();
-    configure(&mut d, &server, &json!({
-        "quotes.services.broken": { "format": "json", "securityUrl": format!("{}/broken/{{symbol}}", server.url()), "pointers": { "price": "/p" } },
-        "quotes.sources.alphavantage": ["broken", "local"],
-    }));
+    configure(
+        &mut d,
+        &server,
+        &json!({
+            "quotes.services.broken": { "format": "json", "securityUrl": format!("{}/broken/{{symbol}}", server.url()), "pointers": { "price": "/p" } },
+            "quotes.sources.alphavantage": ["broken", "local"],
+        }),
+    );
     security(&mut d, "NYSE", "HPE", "alphavantage");
     let status = fetch(&mut d, &json!({ "commodities": ["NYSE::HPE", "EUR"] }));
     assert_eq!(entry(&status, "NYSE::HPE")["service"], "local");
     // finance-quote-wrapper.in:151-180: no EUR->USD rate, so USD->EUR inverted exactly.
     let eur = &entry(&status, "CURRENCY::EUR")["price"];
-    assert_eq!((eur["value"].clone(), eur["currency"].as_str()), (json!({ "num": "10000", "denom": "9264" }), Some("CURRENCY::USD")));
+    assert_eq!(
+        (eur["value"].clone(), eur["currency"].as_str()),
+        (json!({ "num": "10000", "denom": "9264" }), Some("CURRENCY::USD"))
+    );
     let targets: Vec<String> = server.hits().into_iter().map(|h| h.target).collect();
     assert_eq!(targets.iter().filter(|t| t.starts_with("/fx/")).count(), 2);
 }
@@ -131,7 +172,9 @@ fn each_failure_has_its_reason() {
     ]);
     let (_book, mut d) = create();
     configure(&mut d, &server, &json!({ "quotes.timeoutSeconds": 1 }));
-    ["SLOW", "DOWN", "GONE", "COIN", "JUNK"].iter().for_each(|m| security(&mut d, "NYSE", m, "alphavantage"));
+    ["SLOW", "DOWN", "GONE", "COIN", "JUNK"]
+        .iter()
+        .for_each(|m| security(&mut d, "NYSE", m, "alphavantage"));
     security(&mut d, "FUND", "TIAA", "tiaacref");
     let status = fetch(&mut d, &json!({}));
     let reason = |c: &str| entry(&status, c)["reason"].as_str().unwrap().to_owned();
@@ -156,7 +199,10 @@ fn with_the_network_off_nothing_connects() {
     assert_eq!(e.code, codes::NETWORK_DISABLED);
     std::thread::sleep(Duration::from_millis(200));
     assert_eq!((server.connections(), server.hits().len()), (0, 0));
-    assert_eq!(call_err(&mut d, "price.fetchStatus", &json!({})).data.unwrap()["kind"], "quoteFetch");
+    assert_eq!(
+        call_err(&mut d, "price.fetchStatus", &json!({})).data.unwrap()["kind"],
+        "quoteFetch"
+    );
 }
 
 #[test]
@@ -173,7 +219,10 @@ fn a_slow_fetch_holds_up_nothing_and_closing_the_book_cancels_it() {
     assert!(begun.elapsed() < Duration::from_secs(1), "price.fetchQuotes returns at once");
     call(&mut d, "account.list", &json!({}));
     let status = call(&mut d, "price.fetchStatus", &json!({}));
-    assert_eq!((status["state"].as_str(), entry(&status, "NYSE::HPE")["state"].as_str()), (Some("running"), Some("pending")));
+    assert_eq!(
+        (status["state"].as_str(), entry(&status, "NYSE::HPE")["state"].as_str()),
+        (Some("running"), Some("pending"))
+    );
     assert_eq!(status["finished"], Value::Null);
     let e = call_err(&mut d, "price.fetchQuotes", &json!({}));
     assert_eq!(e.code, codes::CONFLICT);
@@ -182,7 +231,10 @@ fn a_slow_fetch_holds_up_nothing_and_closing_the_book_cancels_it() {
     std::thread::sleep(Duration::from_secs(4));
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
     assert_eq!(call(&mut d, "price.list", &json!({})), json!([]));
-    assert_eq!(call_err(&mut d, "price.fetchStatus", &json!({ "fetch": started["fetch"] })).code, codes::NOT_FOUND);
+    assert_eq!(
+        call_err(&mut d, "price.fetchStatus", &json!({ "fetch": started["fetch"] })).code,
+        codes::NOT_FOUND
+    );
 }
 
 #[test]
@@ -207,13 +259,17 @@ fn each_service_keeps_its_interval_and_services_run_in_parallel() {
         ("/other/CCC", Answer::ok(HPE)),
     ]);
     let (_book, mut d) = create();
-    configure(&mut d, &server, &json!({
-        "quotes.services.local": { "format": "json", "securityUrl": format!("{}/quote/{{symbol}}", server.url()), "minIntervalSeconds": 1,
-            "pointers": { "price": "/data/price", "currency": "/data/ccy" } },
-        "quotes.services.other": { "format": "json", "securityUrl": format!("{}/other/{{symbol}}", server.url()),
-            "pointers": { "price": "/data/price", "currency": "/data/ccy" } },
-        "quotes.sources.twelvedata": ["other"],
-    }));
+    configure(
+        &mut d,
+        &server,
+        &json!({
+            "quotes.services.local": { "format": "json", "securityUrl": format!("{}/quote/{{symbol}}", server.url()), "minIntervalSeconds": 1,
+                "pointers": { "price": "/data/price", "currency": "/data/ccy" } },
+            "quotes.services.other": { "format": "json", "securityUrl": format!("{}/other/{{symbol}}", server.url()),
+                "pointers": { "price": "/data/price", "currency": "/data/ccy" } },
+            "quotes.sources.twelvedata": ["other"],
+        }),
+    );
     security(&mut d, "NYSE", "AAA", "alphavantage");
     security(&mut d, "NYSE", "BBB", "alphavantage");
     security(&mut d, "NYSE", "CCC", "twelvedata");
@@ -229,22 +285,33 @@ fn each_service_keeps_its_interval_and_services_run_in_parallel() {
 #[test]
 fn keys_never_leave_their_service() {
     const KEY: &str = "k3y-SECRET";
-    let server = QuoteServer::start(vec![("/keyed/HPE", Answer::status(401, format!("{{\"error\": \"bad key {KEY}\"}}")))]);
+    let server = QuoteServer::start(vec![(
+        "/keyed/HPE",
+        Answer::status(401, format!("{{\"error\": \"bad key {KEY}\"}}")),
+    )]);
     let book = TempBook::new_path();
     let mut d = red_ale_testkit::dispatcher();
     call(&mut d, "book.create", &json!({ "path": book.path_str() }));
-    configure(&mut d, &server, &json!({
-        "quotes.services.keyed": { "format": "json", "securityUrl": format!("{}/keyed/{{symbol}}?apikey={{key}}", server.url()),
-            "key": KEY, "pointers": { "price": "/p" } },
-        "quotes.sources.alphavantage": ["keyed"],
-    }));
+    configure(
+        &mut d,
+        &server,
+        &json!({
+            "quotes.services.keyed": { "format": "json", "securityUrl": format!("{}/keyed/{{symbol}}?apikey={{key}}", server.url()),
+                "key": KEY, "pointers": { "price": "/p" } },
+            "quotes.sources.alphavantage": ["keyed"],
+        }),
+    );
     security(&mut d, "NYSE", "HPE", "alphavantage");
     let status = fetch(&mut d, &json!({}));
     let message = entry(&status, "NYSE::HPE")["message"].as_str().unwrap().to_owned();
     assert!(message.contains("apikey=***") && message.contains("bad key ***"), "{message}");
     // The key went to its own service, and nowhere else.
     assert_eq!(server.hits()[0].target, format!("/keyed/HPE?apikey={KEY}"));
-    let shown = [status.to_string(), call(&mut d, "config.get", &json!({})).to_string(), call(&mut d, "api.schema", &json!({})).to_string()];
+    let shown = [
+        status.to_string(),
+        call(&mut d, "config.get", &json!({})).to_string(),
+        call(&mut d, "api.schema", &json!({})).to_string(),
+    ];
     shown.iter().for_each(|text| assert!(!text.contains(KEY)));
     call(&mut d, "book.close", &json!({ "save": true }));
     std::fs::read_dir(book.dir.path()).unwrap().flatten().for_each(|f| {
@@ -264,28 +331,64 @@ fn a_keyed_fetch_journals_its_price_and_not_its_key() {
     let mut d = red_ale_testkit::dispatcher();
     call(&mut d, "book.create", &json!({ "path": book.path_str() }));
     security(&mut d, "NYSE", "HPE", "alphavantage");
-    configure(&mut d, &server, &json!({
-        "quotes.services.keyed": { "format": "json", "securityUrl": format!("{}/keyed/{{symbol}}?apikey={{key}}", server.url()),
-            "pointers": { "price": "/p", "currency": "/c", "date": "/d" } },
-        "quotes.sources.alphavantage": ["keyed"],
-    }));
+    configure(
+        &mut d,
+        &server,
+        &json!({
+            "quotes.services.keyed": { "format": "json", "securityUrl": format!("{}/keyed/{{symbol}}?apikey={{key}}", server.url()),
+                "pointers": { "price": "/p", "currency": "/c", "date": "/d" } },
+            "quotes.sources.alphavantage": ["keyed"],
+        }),
+    );
     let set = call(&mut d, "config.set", &json!({ "changes": { "quotes.services.keyed.key": KEY } }));
     let status = fetch(&mut d, &json!({}));
     assert_eq!(status["stored"], 1, "{status}");
     assert_eq!(server.hits()[0].target, format!("/keyed/HPE?apikey={KEY}"));
-    call(&mut d, "account.create", &json!({ "name": "Cash", "type": "CASH", "commodity": "USD" }));
-    call(&mut d, "account.create", &json!({ "name": "Food", "type": "EXPENSE", "commodity": "USD" }));
-    call(&mut d, "transaction.post", &json!({ "description": "Keyed fetch day", "datePosted": "2022-09-01",
-        "splits": [{ "account": "Cash", "value": "-5" }, { "account": "Food", "value": "5" }] }));
-    let files = || std::fs::read_dir(book.dir.path()).unwrap().flatten().map(|f| f.path()).collect::<Vec<_>>();
-    let journal = files().into_iter().find(|p| p.extension().is_some_and(|e| e == "log")).unwrap_or_else(|| panic!("a journal in {:?}", files()));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Cash", "type": "CASH", "commodity": "USD" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Food", "type": "EXPENSE", "commodity": "USD" }),
+    );
+    call(
+        &mut d,
+        "transaction.post",
+        &json!({ "description": "Keyed fetch day", "datePosted": "2022-09-01",
+        "splits": [{ "account": "Cash", "value": "-5" }, { "account": "Food", "value": "5" }] }),
+    );
+    let files = || {
+        std::fs::read_dir(book.dir.path())
+            .unwrap()
+            .flatten()
+            .map(|f| f.path())
+            .collect::<Vec<_>>()
+    };
+    let journal = files()
+        .into_iter()
+        .find(|p| p.extension().is_some_and(|e| e == "log"))
+        .unwrap_or_else(|| panic!("a journal in {:?}", files()));
     let journaled = std::fs::read_to_string(&journal).unwrap();
     assert!(journaled.contains("Keyed fetch day"), "{journaled}");
     assert!(!journaled.contains(KEY));
-    let shown = [set.to_string(), status.to_string(), call(&mut d, "config.get", &json!({})).to_string(), call(&mut d, "price.list", &json!({})).to_string()];
+    let shown = [
+        set.to_string(),
+        status.to_string(),
+        call(&mut d, "config.get", &json!({})).to_string(),
+        call(&mut d, "price.list", &json!({})).to_string(),
+    ];
     shown.iter().for_each(|text| assert!(!text.contains(KEY), "{text}"));
     call(&mut d, "book.close", &json!({ "save": true }));
-    files().iter().for_each(|f| assert!(!String::from_utf8_lossy(&std::fs::read(f).unwrap()).contains(KEY), "{}", f.display()));
+    files().iter().for_each(|f| {
+        assert!(
+            !String::from_utf8_lossy(&std::fs::read(f).unwrap()).contains(KEY),
+            "{}",
+            f.display()
+        )
+    });
 }
 
 #[test]
@@ -300,10 +403,23 @@ fn what_a_fetch_covers() {
     d.wait_for_quotes();
     let e = call_err(&mut d, "price.fetchQuotes", &json!({ "namespace": "(" }));
     assert_eq!(e.code, codes::INVALID);
-    assert_eq!(call_err(&mut d, "price.fetchQuotes", &json!({ "namespace": "^FUND" })).code, codes::INVALID);
-    assert_eq!(call_err(&mut d, "price.fetchQuotes", &json!({ "commodities": ["NYSE::NONE"] })).code, codes::NOT_FOUND);
-    assert_eq!(call_err(&mut d, "price.fetchQuotes", &json!({ "commodities": ["USD"] })).code, codes::INVALID, "the default currency only");
-    assert_eq!(call_err(&mut d, "price.fetchQuotes", &json!({ "commodities": ["USD"], "namespace": "x" })).code, codes::INVALID_PARAMS);
+    assert_eq!(
+        call_err(&mut d, "price.fetchQuotes", &json!({ "namespace": "^FUND" })).code,
+        codes::INVALID
+    );
+    assert_eq!(
+        call_err(&mut d, "price.fetchQuotes", &json!({ "commodities": ["NYSE::NONE"] })).code,
+        codes::NOT_FOUND
+    );
+    assert_eq!(
+        call_err(&mut d, "price.fetchQuotes", &json!({ "commodities": ["USD"] })).code,
+        codes::INVALID,
+        "the default currency only"
+    );
+    assert_eq!(
+        call_err(&mut d, "price.fetchQuotes", &json!({ "commodities": ["USD"], "namespace": "x" })).code,
+        codes::INVALID_PARAMS
+    );
 }
 
 #[test]
@@ -328,8 +444,17 @@ fn the_json_rpc_server_stores_prices_when_the_requests_are_done() {
     security(&mut d, "NYSE", "HPE", "alphavantage");
     let dispatcher = Arc::new(Mutex::new(d));
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let (addr, handle) = runtime.block_on(red_ale_rpc::server::serve(Arc::clone(&dispatcher), "127.0.0.1:0".parse().unwrap(), (1 << 20, 1 << 20))).unwrap();
-    let started = post(addr, &json!({ "jsonrpc": "2.0", "id": 1, "method": "price.fetchQuotes", "params": {} }));
+    let (addr, handle) = runtime
+        .block_on(red_ale_rpc::server::serve(
+            Arc::clone(&dispatcher),
+            "127.0.0.1:0".parse().unwrap(),
+            (1 << 20, 1 << 20),
+        ))
+        .unwrap();
+    let started = post(
+        addr,
+        &json!({ "jsonrpc": "2.0", "id": 1, "method": "price.fetchQuotes", "params": {} }),
+    );
     assert!(started["result"]["fetch"].is_string(), "{started}");
     let info = post(addr, &json!({ "jsonrpc": "2.0", "id": 2, "method": "book.info", "params": {} }));
     assert!(info["result"].is_object());
@@ -348,7 +473,10 @@ fn post(addr: std::net::SocketAddr, body: &Value) -> Value {
     use std::io::{Read, Write};
     let body = body.to_string();
     let mut stream = std::net::TcpStream::connect(addr).unwrap();
-    let head = format!("POST / HTTP/1.1\r\nHost: {addr}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+    let head = format!(
+        "POST / HTTP/1.1\r\nHost: {addr}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
     stream.write_all(head.as_bytes()).unwrap();
     stream.write_all(body.as_bytes()).unwrap();
     let mut answer = String::new();

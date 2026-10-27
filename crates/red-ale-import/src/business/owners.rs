@@ -90,7 +90,13 @@ impl AddressFields {
     fn from_row(f: &[String], name: usize, at: usize) -> Self {
         let get = |i: usize| f.get(i).cloned().unwrap_or_default();
         let lines = [get(at), get(at + 1), get(at + 2), get(at + 3)];
-        Self { name: get(name), lines, phone: get(at + 4), fax: get(at + 5), email: get(at + 6) }
+        Self {
+            name: get(name),
+            lines,
+            phone: get(at + 4),
+            fax: get(at + 5),
+            email: get(at + 6),
+        }
     }
 
     /// Set every field of `a`, empty ones included (`dialog-customer-import.c:371-388`); the names of those that change.
@@ -177,7 +183,11 @@ pub struct Proposed {
 }
 
 fn counter_name(kind: OwnerKind) -> &'static str {
-    if kind == OwnerKind::Customer { COUNTER_CUSTOMER } else { COUNTER_VENDOR }
+    if kind == OwnerKind::Customer {
+        COUNTER_CUSTOMER
+    } else {
+        COUNTER_VENDOR
+    }
 }
 
 /// The Owner with this ID (`gnc_search_customer_on_id`, `gnc_search_vendor_on_id`,
@@ -275,7 +285,11 @@ fn target(o: &ProposedOwner, created: &Created) -> DomainResult<Guid> {
 
 /// Create or update one Owner; returns it. A Counter number the ID took is used up, as `gnc<Owner>NextID` uses it.
 fn apply_one(book: &mut Book, env: &mut dyn Env, o: &ProposedOwner, action: ImportAction, created: &Created) -> DomainResult<Guid> {
-    let currency = || o.currency.as_ref().ok_or_else(|| DomainError::invalid(format!("owner {} has no currency", o.id)));
+    let currency = || {
+        o.currency
+            .as_ref()
+            .ok_or_else(|| DomainError::invalid(format!("owner {} has no currency", o.id)))
+    };
     let guid = match (o.kind, action) {
         (OwnerKind::Customer, ImportAction::Add) => {
             let mut c = new_customer(env.new_guid(), currency()?);
@@ -284,7 +298,12 @@ fn apply_one(book: &mut Book, env: &mut dyn Env, o: &ProposedOwner, action: Impo
         }
         (OwnerKind::Customer, _) => {
             let guid = target(o, created)?;
-            let mut c = book.business.customers.get(&guid).map(|c| (**c).clone()).ok_or_else(|| DomainError::not_found("customer", &guid))?;
+            let mut c = book
+                .business
+                .customers
+                .get(&guid)
+                .map(|c| (**c).clone())
+                .ok_or_else(|| DomainError::not_found("customer", &guid))?;
             set_customer(&mut c, o);
             update_customer(book, c)?;
             guid
@@ -296,7 +315,12 @@ fn apply_one(book: &mut Book, env: &mut dyn Env, o: &ProposedOwner, action: Impo
         }
         _ => {
             let guid = target(o, created)?;
-            let mut v = book.business.vendors.get(&guid).map(|v| (**v).clone()).ok_or_else(|| DomainError::not_found("vendor", &guid))?;
+            let mut v = book
+                .business
+                .vendors
+                .get(&guid)
+                .map(|v| (**v).clone())
+                .ok_or_else(|| DomainError::not_found("vendor", &guid))?;
             set_vendor(&mut v, o);
             update_vendor(book, v)?;
             guid
@@ -351,8 +375,20 @@ fn fields(row: &Row, kind: OwnerKind) -> Option<(OwnerFields, bool)> {
     if company.is_empty() {
         return None;
     }
-    let shipping = if kind == OwnerKind::Customer { AddressFields::from_row(f, SHIP, SHIP + 1) } else { AddressFields::default() };
-    Some((OwnerFields { company, address: AddressFields::from_row(f, NAME, NAME + 1), notes: f[NOTES].clone(), shipping }, fixed))
+    let shipping = if kind == OwnerKind::Customer {
+        AddressFields::from_row(f, SHIP, SHIP + 1)
+    } else {
+        AddressFields::default()
+    };
+    Some((
+        OwnerFields {
+            company,
+            address: AddressFields::from_row(f, NAME, NAME + 1),
+            notes: f[NOTES].clone(),
+            shipping,
+        },
+        fixed,
+    ))
 }
 
 /// Works each row out on a copy of the Book, in file order.
@@ -402,15 +438,31 @@ impl Planner<'_> {
     fn changes(&self, o: &ProposedOwner) -> Vec<String> {
         let Ok(guid) = target(o, &self.created) else { return Vec::new() };
         match o.kind {
-            OwnerKind::Customer => self.copy.business.customers.get(&guid).map(|c| set_customer(&mut (**c).clone(), o)).unwrap_or_default(),
-            _ => self.copy.business.vendors.get(&guid).map(|v| set_vendor(&mut (**v).clone(), o)).unwrap_or_default(),
+            OwnerKind::Customer => self
+                .copy
+                .business
+                .customers
+                .get(&guid)
+                .map(|c| set_customer(&mut (**c).clone(), o))
+                .unwrap_or_default(),
+            _ => self
+                .copy
+                .business
+                .vendors
+                .get(&guid)
+                .map(|v| set_vendor(&mut (**v).clone(), o))
+                .unwrap_or_default(),
         }
     }
 
     fn warnings(&self, row: &Row, o: &mut ProposedOwner, fixed: bool, header: bool) {
         let i = o.index;
         if fixed {
-            o.warnings.push(Warning::about(i, "fixed", format!("line {}: no company; the name {} is used", row.line, o.fields.company)));
+            o.warnings.push(Warning::about(
+                i,
+                "fixed",
+                format!("line {}: no company; the name {} is used", row.line, o.fields.company),
+            ));
         }
         if self.opts.kind != OwnerKind::Customer && !AddressFields::from_row(&row.fields, SHIP, SHIP + 1).is_empty() {
             let message = format!("line {}: vendors have no shipping address; its columns are ignored", row.line);
@@ -422,17 +474,27 @@ impl Planner<'_> {
         }
         if header {
             let (line, company) = (row.line, &o.fields.company);
-            let message = format!("line {line}: this looks like a header row; it is skipped (GnuCash imports it as an Owner named {company:?})");
+            let message =
+                format!("line {line}: this looks like a header row; it is skipped (GnuCash imports it as an Owner named {company:?})");
             o.warnings.push(Warning::about(i, "header-row", message));
         } else if o.action == ImportAction::Skip {
-            o.warnings.push(Warning::about(i, "unchanged", format!("line {}: {} {} would not change", row.line, o.kind.type_name(), o.id)));
+            o.warnings.push(Warning::about(
+                i,
+                "unchanged",
+                format!("line {}: {} {} would not change", row.line, o.kind.type_name(), o.id),
+            ));
         }
     }
 
     fn plan(&mut self, row: &Row, header: bool) {
         let Some((fields, fixed)) = fields(row, self.opts.kind) else {
             let message = "Neither company nor name is set; GnuCash drops this row.".to_owned();
-            self.out.errors.push(RowError { file: self.ctx.file, line: row.line, column: Some(COMPANY + 1), message });
+            self.out.errors.push(RowError {
+                file: self.ctx.file,
+                line: row.line,
+                column: Some(COMPANY + 1),
+                message,
+            });
             return;
         };
         let index = self.out.owners.len();
@@ -469,7 +531,12 @@ impl Planner<'_> {
             }
             Err(e) => {
                 let message = format!("{} {}: {e}", o.kind.type_name(), o.id);
-                self.out.errors.push(RowError { file: self.ctx.file, line: row.line, column: None, message });
+                self.out.errors.push(RowError {
+                    file: self.ctx.file,
+                    line: row.line,
+                    column: None,
+                    message,
+                });
                 false
             }
         }
@@ -481,9 +548,19 @@ pub fn propose(text: &str, ctx: &Context<'_>, opts: &OwnerOptions) -> Result<Pro
     let pattern = reader::line_pattern(&FIELDS, &[], opts.separator)?;
     let read = reader::read(text, ctx.file, &FIELDS, &pattern, opts.separator);
     let env = FixedEnv::new(ctx.now, PREVIEW_GUID_SEED).with_zone(ctx.zone.clone());
-    let mut planner = Planner { ctx, opts, copy: ctx.book.clone(), env, created: Created::new(), out: Proposed::default() };
+    let mut planner = Planner {
+        ctx,
+        opts,
+        copy: ctx.book.clone(),
+        env,
+        created: Created::new(),
+        out: Proposed::default(),
+    };
     planner.out.ignored = read.ignored;
     planner.out.warnings = stripped_warnings(&read.stripped);
-    read.rows.iter().enumerate().for_each(|(i, row)| planner.plan(row, i == 0 && is_header(row)));
+    read.rows
+        .iter()
+        .enumerate()
+        .for_each(|(i, row)| planner.plan(row, i == 0 && is_header(row)));
     Ok(planner.out)
 }

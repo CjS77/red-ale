@@ -23,18 +23,63 @@ use crate::wire::{AccountRef, Amount, CommodityId, Id};
 /// The business contacts methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("customer.create", "Create a customer; its ID comes from the book's counter unless given.", Effect::Write, customer_create),
+        method(
+            "customer.create",
+            "Create a customer; its ID comes from the book's counter unless given.",
+            Effect::Write,
+            customer_create,
+        ),
         method("customer.get", "A customer.", Effect::Read, customer_get),
-        method("customer.list", "Customers, optionally filtered by name, ID or active state.", Effect::Read, customer_list),
-        method("customer.update", "Change a customer; `active: false` deactivates it.", Effect::Write, customer_update),
-        method("vendor.create", "Create a vendor; its ID comes from the book's counter unless given.", Effect::Write, vendor_create),
+        method(
+            "customer.list",
+            "Customers, optionally filtered by name, ID or active state.",
+            Effect::Read,
+            customer_list,
+        ),
+        method(
+            "customer.update",
+            "Change a customer; `active: false` deactivates it.",
+            Effect::Write,
+            customer_update,
+        ),
+        method(
+            "vendor.create",
+            "Create a vendor; its ID comes from the book's counter unless given.",
+            Effect::Write,
+            vendor_create,
+        ),
         method("vendor.get", "A vendor.", Effect::Read, vendor_get),
-        method("vendor.list", "Vendors, optionally filtered by name, ID or active state.", Effect::Read, vendor_list),
-        method("vendor.update", "Change a vendor; `active: false` deactivates it.", Effect::Write, vendor_update),
-        method("employee.create", "Create an employee; its ID comes from the book's counter unless given.", Effect::Write, employee_create),
+        method(
+            "vendor.list",
+            "Vendors, optionally filtered by name, ID or active state.",
+            Effect::Read,
+            vendor_list,
+        ),
+        method(
+            "vendor.update",
+            "Change a vendor; `active: false` deactivates it.",
+            Effect::Write,
+            vendor_update,
+        ),
+        method(
+            "employee.create",
+            "Create an employee; its ID comes from the book's counter unless given.",
+            Effect::Write,
+            employee_create,
+        ),
         method("employee.get", "An employee.", Effect::Read, employee_get),
-        method("employee.list", "Employees, optionally filtered by name, ID or active state.", Effect::Read, employee_list),
-        method("employee.update", "Change an employee; `active: false` deactivates it.", Effect::Write, employee_update),
+        method(
+            "employee.list",
+            "Employees, optionally filtered by name, ID or active state.",
+            Effect::Read,
+            employee_list,
+        ),
+        method(
+            "employee.update",
+            "Change an employee; `active: false` deactivates it.",
+            Effect::Write,
+            employee_update,
+        ),
         method(
             "job.create",
             "Create a job for a customer or vendor; its ID comes from the book's counter unless given.",
@@ -42,8 +87,18 @@ pub fn methods() -> Vec<Method> {
             job_create,
         ),
         method("job.get", "A job.", Effect::Read, job_get),
-        method("job.list", "Jobs, optionally filtered by owner, name, ID or active state.", Effect::Read, job_list),
-        method("job.update", "Change a job; `active: false` deactivates it.", Effect::Write, job_update),
+        method(
+            "job.list",
+            "Jobs, optionally filtered by owner, name, ID or active state.",
+            Effect::Read,
+            job_list,
+        ),
+        method(
+            "job.update",
+            "Change a job; `active: false` deactivates it.",
+            Effect::Write,
+            job_update,
+        ),
     ]
 }
 
@@ -138,7 +193,10 @@ pub struct OwnerInfo {
 
 impl From<OwnerRef> for OwnerInfo {
     fn from(o: OwnerRef) -> Self {
-        Self { kind: o.kind.into(), guid: o.guid.into() }
+        Self {
+            kind: o.kind.into(),
+            guid: o.guid.into(),
+        }
     }
 }
 
@@ -451,7 +509,11 @@ fn new_customer(guid: Guid) -> Customer {
 }
 
 fn get_customer(book: &Book, guid: Guid) -> Result<CustomerInfo, RpcError> {
-    book.business.customers.get(&guid).map(|c| c.as_ref().into()).ok_or_else(|| RpcError::not_found("customer", guid))
+    book.business
+        .customers
+        .get(&guid)
+        .map(|c| c.as_ref().into())
+        .ok_or_else(|| RpcError::not_found("customer", guid))
 }
 
 fn customer_create(ctx: &mut Context, p: CustomerFields) -> Result<CustomerInfo, RpcError> {
@@ -469,14 +531,25 @@ fn customer_get(ctx: &mut Context, p: CustomerKey) -> Result<CustomerInfo, RpcEr
 
 fn customer_list(ctx: &mut Context, p: ListParams) -> Result<CustomerList, RpcError> {
     let book = ctx.book()?;
-    let customers = book.business.customers.values().filter(|c| p.matches(&c.name, &c.id, c.active)).map(|c| c.as_ref().into()).collect();
+    let customers = book
+        .business
+        .customers
+        .values()
+        .filter(|c| p.matches(&c.name, &c.id, c.active))
+        .map(|c| c.as_ref().into())
+        .collect();
     Ok(CustomerList { customers })
 }
 
 fn customer_update(ctx: &mut Context, p: CustomerUpdate) -> Result<CustomerInfo, RpcError> {
     let (key, fields) = p.split();
     ctx.mutate_rpc(|book, _| {
-        let mut c = book.business.customers.get(&key.0).map(|c| (**c).clone()).ok_or_else(|| RpcError::not_found("customer", key.0))?;
+        let mut c = book
+            .business
+            .customers
+            .get(&key.0)
+            .map(|c| (**c).clone())
+            .ok_or_else(|| RpcError::not_found("customer", key.0))?;
         fields.apply(book, &mut c)?;
         update_customer(book, c)?;
         get_customer(book, key.0)
@@ -609,7 +682,11 @@ fn new_vendor(guid: Guid) -> Vendor {
 }
 
 fn get_vendor(book: &Book, guid: Guid) -> Result<VendorInfo, RpcError> {
-    book.business.vendors.get(&guid).map(|v| v.as_ref().into()).ok_or_else(|| RpcError::not_found("vendor", guid))
+    book.business
+        .vendors
+        .get(&guid)
+        .map(|v| v.as_ref().into())
+        .ok_or_else(|| RpcError::not_found("vendor", guid))
 }
 
 fn vendor_create(ctx: &mut Context, p: VendorFields) -> Result<VendorInfo, RpcError> {
@@ -627,14 +704,25 @@ fn vendor_get(ctx: &mut Context, p: VendorKey) -> Result<VendorInfo, RpcError> {
 
 fn vendor_list(ctx: &mut Context, p: ListParams) -> Result<VendorList, RpcError> {
     let book = ctx.book()?;
-    let vendors = book.business.vendors.values().filter(|v| p.matches(&v.name, &v.id, v.active)).map(|v| v.as_ref().into()).collect();
+    let vendors = book
+        .business
+        .vendors
+        .values()
+        .filter(|v| p.matches(&v.name, &v.id, v.active))
+        .map(|v| v.as_ref().into())
+        .collect();
     Ok(VendorList { vendors })
 }
 
 fn vendor_update(ctx: &mut Context, p: VendorUpdate) -> Result<VendorInfo, RpcError> {
     let (key, fields) = p.split();
     ctx.mutate_rpc(|book, _| {
-        let mut v = book.business.vendors.get(&key.0).map(|v| (**v).clone()).ok_or_else(|| RpcError::not_found("vendor", key.0))?;
+        let mut v = book
+            .business
+            .vendors
+            .get(&key.0)
+            .map(|v| (**v).clone())
+            .ok_or_else(|| RpcError::not_found("vendor", key.0))?;
         fields.apply(book, &mut v)?;
         update_vendor(book, v)?;
         get_vendor(book, key.0)
@@ -774,7 +862,11 @@ fn new_employee(guid: Guid) -> Employee {
 }
 
 fn get_employee(book: &Book, guid: Guid) -> Result<EmployeeInfo, RpcError> {
-    book.business.employees.get(&guid).map(|e| e.as_ref().into()).ok_or_else(|| RpcError::not_found("employee", guid))
+    book.business
+        .employees
+        .get(&guid)
+        .map(|e| e.as_ref().into())
+        .ok_or_else(|| RpcError::not_found("employee", guid))
 }
 
 fn employee_create(ctx: &mut Context, p: EmployeeFields) -> Result<EmployeeInfo, RpcError> {
@@ -792,15 +884,25 @@ fn employee_get(ctx: &mut Context, p: EmployeeKey) -> Result<EmployeeInfo, RpcEr
 
 fn employee_list(ctx: &mut Context, p: ListParams) -> Result<EmployeeList, RpcError> {
     let book = ctx.book()?;
-    let employees =
-        book.business.employees.values().filter(|e| p.matches(&e.addr.name, &e.id, e.active)).map(|e| e.as_ref().into()).collect();
+    let employees = book
+        .business
+        .employees
+        .values()
+        .filter(|e| p.matches(&e.addr.name, &e.id, e.active))
+        .map(|e| e.as_ref().into())
+        .collect();
     Ok(EmployeeList { employees })
 }
 
 fn employee_update(ctx: &mut Context, p: EmployeeUpdate) -> Result<EmployeeInfo, RpcError> {
     let (key, fields) = p.split();
     ctx.mutate_rpc(|book, _| {
-        let mut e = book.business.employees.get(&key.0).map(|e| (**e).clone()).ok_or_else(|| RpcError::not_found("employee", key.0))?;
+        let mut e = book
+            .business
+            .employees
+            .get(&key.0)
+            .map(|e| (**e).clone())
+            .ok_or_else(|| RpcError::not_found("employee", key.0))?;
         fields.apply(book, &mut e)?;
         update_employee(book, e)?;
         get_employee(book, key.0)
@@ -911,7 +1013,11 @@ impl JobFields {
 }
 
 fn get_job(book: &Book, guid: Guid) -> Result<JobInfo, RpcError> {
-    book.business.jobs.get(&guid).map(|j| j.as_ref().into()).ok_or_else(|| RpcError::not_found("job", guid))
+    book.business
+        .jobs
+        .get(&guid)
+        .map(|j| j.as_ref().into())
+        .ok_or_else(|| RpcError::not_found("job", guid))
 }
 
 fn job_create(ctx: &mut Context, p: JobFields) -> Result<JobInfo, RpcError> {
@@ -940,7 +1046,11 @@ fn job_get(ctx: &mut Context, p: JobKey) -> Result<JobInfo, RpcError> {
 
 fn job_list(ctx: &mut Context, p: JobListParams) -> Result<JobList, RpcError> {
     let book = ctx.book()?;
-    let filter = ListParams { active_only: p.active_only, name: p.name, id: p.id };
+    let filter = ListParams {
+        active_only: p.active_only,
+        name: p.name,
+        id: p.id,
+    };
     let jobs = book
         .business
         .jobs
@@ -954,7 +1064,12 @@ fn job_list(ctx: &mut Context, p: JobListParams) -> Result<JobList, RpcError> {
 fn job_update(ctx: &mut Context, p: JobUpdate) -> Result<JobInfo, RpcError> {
     let (key, fields) = p.split();
     ctx.mutate_rpc(|book, _| {
-        let mut j = book.business.jobs.get(&key.0).map(|j| (**j).clone()).ok_or_else(|| RpcError::not_found("job", key.0))?;
+        let mut j = book
+            .business
+            .jobs
+            .get(&key.0)
+            .map(|j| (**j).clone())
+            .ok_or_else(|| RpcError::not_found("job", key.0))?;
         fields.apply(book, &mut j)?;
         update_job(book, j)?;
         get_job(book, key.0)

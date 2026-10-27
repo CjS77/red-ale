@@ -9,7 +9,12 @@ use std::io::Write;
 use proptest::prelude::*;
 use red_ale_xml::{read_back, read_book, read_book_from};
 
-const BOOKS: [&str; 4] = ["synthetic/rich.gnucash", "synthetic/business.gnucash", "gnucash/sample1.gnucash", "piecash/invoices.gnucash"];
+const BOOKS: [&str; 4] = [
+    "synthetic/rich.gnucash",
+    "synthetic/business.gnucash",
+    "gnucash/sample1.gnucash",
+    "piecash/invoices.gnucash",
+];
 
 fn fixture(name: &str) -> Vec<u8> {
     std::fs::read(format!("{}/../../fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()

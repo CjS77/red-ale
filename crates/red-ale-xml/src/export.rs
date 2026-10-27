@@ -27,12 +27,23 @@ pub struct ExportCounts {
 /// account of the tree, each equal to the Book's, and nothing else. Returns the counts, or the first difference.
 pub fn check_accounts_export<R: Read>(mut reader: R, book: &Book) -> Result<Result<ExportCounts, String>, XmlError> {
     let mut text = String::new();
-    reader.read_to_string(&mut text).map_err(|e| if e.kind() == std::io::ErrorKind::InvalidData { XmlError::Encoding } else { XmlError::Io(e) })?;
+    reader.read_to_string(&mut text).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::InvalidData {
+            XmlError::Encoding
+        } else {
+            XmlError::Io(e)
+        }
+    })?;
     let root = parse_document(&text)?;
     if root.name != "gnc-v2" {
         return Ok(Err(format!("the root element is {}, not gnc-v2", root.name)));
     }
-    let mut check = Check { book, notices: Notices::default(), counts: ExportCounts::default(), seen: HashSet::new() };
+    let mut check = Check {
+        book,
+        notices: Notices::default(),
+        counts: ExportCounts::default(),
+        seen: HashSet::new(),
+    };
     for el in root.elements() {
         if let Some(difference) = check.element(el)? {
             return Ok(Err(difference));
@@ -106,11 +117,16 @@ mod tests {
         assert!(text.ends_with("</gnc-v2>\n\n"));
         let accounts = 1 + book.descendants(book.root).len();
         assert!(text.contains(&format!("<gnc:count-data cd:type=\"account\">{accounts}</gnc:count-data>\n")));
-        assert!(!text.contains("<gnc:book") && !text.contains("act:lots") && !text.contains("gnc:transaction") && !text.contains("gnc:pricedb"));
+        assert!(
+            !text.contains("<gnc:book") && !text.contains("act:lots") && !text.contains("gnc:transaction") && !text.contains("gnc:pricedb")
+        );
         let counts = check_accounts_export(bytes.as_slice(), &book).unwrap().unwrap();
         assert_eq!(counts.accounts, accounts);
         let root_at = text.find(&format!("<act:id type=\"guid\">{}</act:id>", book.root)).unwrap();
-        assert!(text.find("<gnc:account").is_some_and(|first| first < root_at && root_at < text[first..].find("</gnc:account>").unwrap() + first));
+        assert!(
+            text.find("<gnc:account")
+                .is_some_and(|first| first < root_at && root_at < text[first..].find("</gnc:account>").unwrap() + first)
+        );
     }
 
     /// The check notices a file that does not hold the Book's tree.
@@ -122,6 +138,11 @@ mod tests {
         assert!(check_accounts_export(text.as_bytes(), &other).unwrap().is_err());
         let cut = text.rfind("<gnc:account").unwrap();
         let truncated = format!("{}</gnc-v2>\n", &text[..cut]);
-        assert!(check_accounts_export(truncated.as_bytes(), &book).unwrap().unwrap_err().contains("missing"));
+        assert!(
+            check_accounts_export(truncated.as_bytes(), &book)
+                .unwrap()
+                .unwrap_err()
+                .contains("missing")
+        );
     }
 }

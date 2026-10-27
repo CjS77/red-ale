@@ -34,7 +34,11 @@ fn token_accounts(slots: &Frame, token: &str) -> TokenAccounts {
     let prefix = format!("{IMAP_FRAME_BAYES}/{token}/");
     slots
         .iter_prefix(&prefix)
-        .filter_map(|(key, value)| key.get(prefix.len()..).filter(|s| s.len() == GUID_LENGTH).map(|s| (s.to_owned(), value.as_int().unwrap_or(0))))
+        .filter_map(|(key, value)| {
+            key.get(prefix.len()..)
+                .filter(|s| s.len() == GUID_LENGTH)
+                .map(|s| (s.to_owned(), value.as_int().unwrap_or(0)))
+        })
         .fold(TokenAccounts::default(), |mut info, (guid, count)| {
             info.total = info.total.wrapping_add(count);
             info.accounts.push((guid, count));
@@ -64,7 +68,12 @@ fn probabilities(tokens: &[TokenAccounts]) -> Vec<(String, i32)> {
     });
     first_pass
         .into_iter()
-        .map(|(guid, product, difference)| (guid, truncate_to_i32(product / (product + difference) * f64::from(PROBABILITY_FACTOR))))
+        .map(|(guid, product, difference)| {
+            (
+                guid,
+                truncate_to_i32(product / (product + difference) * f64::from(PROBABILITY_FACTOR)),
+            )
+        })
         .collect()
 }
 
@@ -72,12 +81,19 @@ fn probabilities(tokens: &[TokenAccounts]) -> Vec<(String, i32)> {
 /// undefined; red-ale gives them `i32::MIN` as x86's `cvttsd2si` does, which no account can win with.
 #[allow(clippy::cast_possible_truncation)]
 fn truncate_to_i32(x: f64) -> i32 {
-    if x.is_finite() && x > -2_147_483_649.0 && x < 2_147_483_648.0 { x as i32 } else { i32::MIN }
+    if x.is_finite() && x > -2_147_483_649.0 && x < 2_147_483_648.0 {
+        x as i32
+    } else {
+        i32::MIN
+    }
 }
 
 /// `highest_probability` (`Account.cpp:5300-5308`): the first account with the highest probability.
 fn highest(probabilities: &[(String, i32)]) -> (&str, i32) {
-    probabilities.iter().fold(("", i32::MIN), |best, (guid, p)| if *p > best.1 { (guid.as_str(), *p) } else { best })
+    probabilities.iter().fold(
+        ("", i32::MIN),
+        |best, (guid, p)| if *p > best.1 { (guid.as_str(), *p) } else { best },
+    )
 }
 
 /// Each account's probability for `tokens` in `acc`'s map, in GnuCash's order, before the threshold: what
@@ -123,7 +139,10 @@ pub fn add_account_bayes(book: &mut Book, acc: Guid, tokens: &[String], added: G
 pub fn bayes_info(book: &Book, acc: Guid) -> Vec<ImapInfo> {
     let Some(account) = book.account(acc) else { return Vec::new() };
     let slots = bayes_view(book, account);
-    slots.iter_prefix(IMAP_FRAME_BAYES).filter_map(|(key, value)| bayes_entry(book, acc, key, value)).collect()
+    slots
+        .iter_prefix(IMAP_FRAME_BAYES)
+        .filter_map(|(key, value)| bayes_entry(book, acc, key, value))
+        .collect()
 }
 
 fn bayes_entry(book: &Book, acc: Guid, key: &str, value: &SlotValue) -> Option<ImapInfo> {
@@ -131,7 +150,10 @@ fn bayes_entry(book: &Book, acc: Guid, key: &str, value: &SlotValue) -> Option<I
     let guid_start = suffix.len().checked_sub(GUID_LENGTH).filter(|start| *start >= 2)?;
     Some(ImapInfo {
         source_account: acc,
-        map_account: suffix.get(guid_start..).and_then(|g| Guid::parse(g).ok()).filter(|g| book.account(*g).is_some()),
+        map_account: suffix
+            .get(guid_start..)
+            .and_then(|g| Guid::parse(g).ok())
+            .filter(|g| book.account(*g).is_some()),
         head: key.to_owned(),
         category: None,
         match_string: suffix.get(1..guid_start - 1)?.to_owned(),

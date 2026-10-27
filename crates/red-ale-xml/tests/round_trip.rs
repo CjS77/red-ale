@@ -30,9 +30,18 @@ fn text(bytes: &[u8]) -> String {
 
 fn assert_same(name: &str, expected: &str, actual: &str) {
     if expected != actual {
-        let line = expected.lines().zip(actual.lines()).position(|(a, b)| a != b).unwrap_or_else(|| expected.lines().count().min(actual.lines().count()));
+        let line = expected
+            .lines()
+            .zip(actual.lines())
+            .position(|(a, b)| a != b)
+            .unwrap_or_else(|| expected.lines().count().min(actual.lines().count()));
         let context = |s: &str| s.lines().skip(line.saturating_sub(3)).take(6).collect::<Vec<_>>().join("\n");
-        panic!("{name} differs at line {}:\n--- expected\n{}\n--- actual\n{}", line + 1, context(expected), context(actual));
+        panic!(
+            "{name} differs at line {}:\n--- expected\n{}\n--- actual\n{}",
+            line + 1,
+            context(expected),
+            context(actual)
+        );
     }
 }
 
@@ -41,7 +50,11 @@ fn unchanged_books_round_trip_byte_for_byte() {
     for name in CANONICAL {
         let bytes = fixture(name);
         let (book, residue) = read_book(&bytes).unwrap();
-        assert!(residue.notices.unrecognised.is_empty(), "{name}: {:?}", residue.notices.unrecognised);
+        assert!(
+            residue.notices.unrecognised.is_empty(),
+            "{name}: {:?}",
+            residue.notices.unrecognised
+        );
         assert_same(name, &text(&bytes), &write_book_text(&book, &residue));
     }
 }
@@ -116,7 +129,11 @@ fn xml_fixtures() -> Vec<String> {
     let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
     let mut names: Vec<String> = ["gnucash", "piecash", "synthetic"]
         .iter()
-        .flat_map(|dir| std::fs::read_dir(format!("{root}/{dir}")).unwrap().map(move |e| format!("{dir}/{}", e.unwrap().file_name().to_string_lossy())))
+        .flat_map(|dir| {
+            std::fs::read_dir(format!("{root}/{dir}"))
+                .unwrap()
+                .map(move |e| format!("{dir}/{}", e.unwrap().file_name().to_string_lossy()))
+        })
         .filter(|n| n.ends_with(".gnucash") && !n.ends_with(".sqlite.gnucash") && n != "gnucash/currency_tree_xml.gnucash")
         .collect();
     names.sort();

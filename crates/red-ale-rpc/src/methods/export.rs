@@ -17,7 +17,12 @@ use crate::wire::{AccountRef, Day};
 /// The export methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("export.csvTree", "The account tree as CSV text, as GnuCash's CSV export writes it. Writes no file.", Effect::Read, csv_tree),
+        method(
+            "export.csvTree",
+            "The account tree as CSV text, as GnuCash's CSV export writes it. Writes no file.",
+            Effect::Read,
+            csv_tree,
+        ),
         method(
             "export.csvTransactions",
             "Transactions of some accounts and dates as CSV text, in GnuCash's simple or complex layout. Writes no file.",
@@ -133,7 +138,10 @@ pub struct AccountsResult {
 fn csv_tree(ctx: &mut Context, p: CsvTreeParams) -> Result<CsvTreeResult, RpcError> {
     let options = CsvOptions::new(p.separator, p.quotes)?;
     let tree = export_tree(ctx.book()?, &options);
-    Ok(CsvTreeResult { csv: tree.csv, rows: tree.rows })
+    Ok(CsvTreeResult {
+        csv: tree.csv,
+        rows: tree.rows,
+    })
 }
 
 fn csv_transactions(ctx: &mut Context, p: CsvTransactionsParams) -> Result<CsvTransactionsResult, RpcError> {
@@ -151,13 +159,26 @@ fn csv_transactions(ctx: &mut Context, p: CsvTransactionsParams) -> Result<CsvTr
     };
     ctx.query(|book, env| {
         let accounts = p.accounts.iter().map(|a| a.resolve(book)).collect::<Result<Vec<_>, _>>()?;
-        let request = TransactionsRequest { accounts, from: p.from.map(|d| d.0), to: p.to.map(|d| d.0), layout };
+        let request = TransactionsRequest {
+            accounts,
+            from: p.from.map(|d| d.0),
+            to: p.to.map(|d| d.0),
+            layout,
+        };
         let out = export_transactions(book, env.zone(), &formats, &options, &request)?;
-        Ok(CsvTransactionsResult { csv: out.csv, transactions: out.transactions, lines: out.lines })
+        Ok(CsvTransactionsResult {
+            csv: out.csv,
+            transactions: out.transactions,
+            lines: out.lines,
+        })
     })
 }
 
 fn accounts(ctx: &mut Context, p: AccountsParams) -> Result<AccountsResult, RpcError> {
     let written = export_accounts(ctx.session()?, &p.path)?;
-    Ok(AccountsResult { path: written.path.display().to_string(), accounts: written.counts.accounts, commodities: written.counts.commodities })
+    Ok(AccountsResult {
+        path: written.path.display().to_string(),
+        accounts: written.counts.accounts,
+        commodities: written.counts.commodities,
+    })
 }

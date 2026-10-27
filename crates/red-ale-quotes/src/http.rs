@@ -37,8 +37,14 @@ impl Client {
             .map_err(|e| HttpError(format!("cannot set up TLS: {e}")))?
             .with_root_certificates(roots)
             .with_no_client_auth();
-        let connector = HttpsConnectorBuilder::new().with_tls_config(tls).https_or_http().enable_http1().build();
-        Ok(Self { inner: HyperClient::builder(TokioExecutor::new()).build(connector) })
+        let connector = HttpsConnectorBuilder::new()
+            .with_tls_config(tls)
+            .https_or_http()
+            .enable_http1()
+            .build();
+        Ok(Self {
+            inner: HyperClient::builder(TokioExecutor::new()).build(connector),
+        })
     }
 
     /// GET `url`: the status and up to 1 MiB of the body.
@@ -51,12 +57,18 @@ impl Client {
             .map_err(|e| HttpError(e.to_string()))?;
         let response = self.inner.request(request).await.map_err(|e| HttpError(chain(&e)))?;
         let status = response.status();
-        let body = Limited::new(response.into_body(), MAX_BODY).collect().await.map_err(|e| HttpError(format!("reading the answer: {e}")))?;
+        let body = Limited::new(response.into_body(), MAX_BODY)
+            .collect()
+            .await
+            .map_err(|e| HttpError(format!("reading the answer: {e}")))?;
         Ok((status, body.to_bytes()))
     }
 }
 
 /// An error with its causes, `a: b: c`, since hyper's own message is only "client error (Connect)".
 fn chain(e: &(dyn std::error::Error + 'static)) -> String {
-    std::iter::successors(Some(e), |e| e.source()).map(ToString::to_string).collect::<Vec<_>>().join(": ")
+    std::iter::successors(Some(e), |e| e.source())
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(": ")
 }

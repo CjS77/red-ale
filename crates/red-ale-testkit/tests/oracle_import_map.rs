@@ -29,7 +29,12 @@ fn guid_of(book: &Book, name: &str) -> Guid {
 /// An imported transaction: one split in `account`, with a memo.
 fn imported(n: u8, account: Guid, day: u32, description: &str, memo: &str) -> Transaction {
     let date = Date::from_ymd(2024, 6, day).unwrap();
-    let mut split = Split::new(Guid::from_bytes([n; 16]), account, red_ale_core::Numeric::new(-1000 - i64::from(n), 100), red_ale_core::Numeric::new(-1000 - i64::from(n), 100));
+    let mut split = Split::new(
+        Guid::from_bytes([n; 16]),
+        account,
+        red_ale_core::Numeric::new(-1000 - i64::from(n), 100),
+        red_ale_core::Numeric::new(-1000 - i64::from(n), 100),
+    );
     split.memo = Some(memo.to_owned()).filter(|m| !m.is_empty());
     let mut slots = red_ale_core::Frame::new();
     slots.insert_key("date-posted", SlotValue::Date(date));
@@ -50,18 +55,32 @@ fn imported(n: u8, account: Guid, day: u32, description: &str, memo: &str) -> Tr
 fn import(session: &mut Session, rows: &[(&str, u32, &str, &str, &str)], use_bayes: bool, seed: u8) -> Vec<(Guid, Vec<String>)> {
     session
         .mutate(|book, env| {
-            let settings = ImportSettings { use_bayes, ..ImportSettings::default() };
+            let settings = ImportSettings {
+                use_bayes,
+                ..ImportSettings::default()
+            };
             let txns = rows
                 .iter()
                 .zip(seed..)
-                .map(|((acc, day, desc, memo, _), n)| ImportedTransaction { transaction: imported(n, guid_of(book, acc), *day, desc, memo), last_split: None })
+                .map(|((acc, day, desc, memo, _), n)| ImportedTransaction {
+                    transaction: imported(n, guid_of(book, acc), *day, desc, memo),
+                    last_split: None,
+                })
                 .collect();
             let mut batch = match_batch(book, &settings, txns, &Locale::c())?;
             batch.infos.iter_mut().zip(rows).for_each(|(info, row)| {
                 info.set_destination(book, Some(guid_of(book, row.4)), true);
                 info.set_action(ImportAction::Add);
             });
-            apply_batch(book, env, &batch.infos, ApplyOptions { use_bayes, append_text: false })?;
+            apply_batch(
+                book,
+                env,
+                &batch.infos,
+                ApplyOptions {
+                    use_bayes,
+                    append_text: false,
+                },
+            )?;
             Ok(batch.infos.iter().map(|i| (i.account().unwrap(), i.tokens.clone())).collect())
         })
         .unwrap()
@@ -70,7 +89,15 @@ fn import(session: &mut Session, rows: &[(&str, u32, &str, &str, &str)], use_bay
 #[test]
 fn gnucash_finds_the_accounts_red_ale_learned() {
     let (book, mut d) = create();
-    [("Bank", "BANK"), ("Card", "CREDIT"), ("Food", "EXPENSE"), ("Drink", "EXPENSE"), ("Rent", "EXPENSE")].iter().for_each(|(name, ty)| {
+    [
+        ("Bank", "BANK"),
+        ("Card", "CREDIT"),
+        ("Food", "EXPENSE"),
+        ("Drink", "EXPENSE"),
+        ("Rent", "EXPENSE"),
+    ]
+    .iter()
+    .for_each(|(name, ty)| {
         call(&mut d, "account.create", &json!({ "name": name, "type": ty, "commodity": "USD" }));
     });
     call(&mut d, "book.close", &json!({ "save": true }));
@@ -108,7 +135,10 @@ fn gnucash_finds_the_accounts_red_ale_learned() {
         (bank, tokens(&["one/two", "rent/june"])),
         (bank, tokens(&["nothing"])),
     ]);
-    let red_ale: Vec<Option<String>> = learned.iter().map(|(s, t)| find_account_bayes(&ours, *s, t).map(|g| g.to_string())).collect();
+    let red_ale: Vec<Option<String>> = learned
+        .iter()
+        .map(|(s, t)| find_account_bayes(&ours, *s, t).map(|g| g.to_string()))
+        .collect();
     let card = plain[0].0;
     let red_ale_plain = find_account(&ours, card, Some(CATEGORY_DESC), "Coffee Cart").map(|g| g.to_string());
 
@@ -132,5 +162,8 @@ fn gnucash_finds_the_accounts_red_ale_learned() {
     assert_eq!(found[n - 1], None);
     assert_eq!(name(&red_ale_plain).as_deref(), Some("Drink"));
     assert_eq!(theirs["features"], json!(["Account GUID based bayesian with flat KVP"]));
-    assert_eq!(gnucash("opened.py", &[&book.path_str()]), json!({ "unknownFeatures": null, "logged": [] }));
+    assert_eq!(
+        gnucash("opened.py", &[&book.path_str()]),
+        json!({ "unknownFeatures": null, "logged": [] })
+    );
 }

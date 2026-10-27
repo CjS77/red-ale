@@ -14,11 +14,11 @@ mod tests;
 
 use std::sync::Arc;
 
+pub(crate) use gains::lookup_by_name;
 pub use gains::{
     ORPHANED_GAINS, ORPHANED_GAINS_NOTES, REALIZED_GAIN_LOSS, balance_before, compute_lot_gains, compute_split_gains, free_split_gain,
     gains_account, recorded_gain,
 };
-pub(crate) use gains::lookup_by_name;
 pub use ledger::{Entry, Ledger, trans_order};
 pub use scrub::{Placed, assign_lots, assign_to_lot, has_trades, scrub_account_lots, scrub_lot, scrub_tree_lots, split_assign};
 pub use stock_split::{PRICE_SOURCE_STOCK_SPLIT, PriceOutcome, STOCK_SPLIT_ACTION, StockSplit, StockSplitOutcome, stock_split};
@@ -40,7 +40,10 @@ pub(crate) fn locate(book: &Book, split: Guid) -> Option<(Guid, &Split)> {
 
 /// Edit a transaction in place.
 pub(crate) fn edit_txn<T>(book: &mut Book, txn: Guid, f: impl FnOnce(&mut Transaction) -> T) -> DomainResult<T> {
-    let t = book.transactions.get_mut(&txn).ok_or_else(|| DomainError::not_found("transaction", &txn))?;
+    let t = book
+        .transactions
+        .get_mut(&txn)
+        .ok_or_else(|| DomainError::not_found("transaction", &txn))?;
     Ok(f(Arc::make_mut(t)))
 }
 
@@ -53,7 +56,10 @@ pub(crate) fn edit_split(book: &mut Book, split: Guid, f: impl FnOnce(&mut Split
 /// The posted invoice a transaction belongs to (`gncInvoiceGetInvoiceFromTxn`), if it exists.
 pub(crate) fn invoice_of_txn(book: &Book, txn: Guid) -> Option<Guid> {
     let t = book.transaction(txn)?;
-    t.slots.get(txn_slots::INVOICE).and_then(SlotValue::as_guid).filter(|g| book.business.invoices.contains_key(g))
+    t.slots
+        .get(txn_slots::INVOICE)
+        .and_then(SlotValue::as_guid)
+        .filter(|g| book.business.invoices.contains_key(g))
 }
 
 /// The invoice a lot belongs to (`gncInvoiceGetInvoiceFromLot`), if it exists.
@@ -73,7 +79,10 @@ pub fn make_default_lot(book: &mut Book, env: &mut dyn Env, account: Guid) -> Do
     if account == book.root {
         return Err(DomainError::invalid("the root account holds no lots"));
     }
-    let acc = book.accounts.get_mut(&account).ok_or_else(|| DomainError::not_found("account", &account))?;
+    let acc = book
+        .accounts
+        .get_mut(&account)
+        .ok_or_else(|| DomainError::not_found("account", &account))?;
     let path = format!("{}/{}", account_slots::LOT_MGMT, account_slots::NEXT_ID);
     let id = acc.slots.get(&path).and_then(SlotValue::as_int).unwrap_or(0);
     Arc::make_mut(acc).slots.set(&path, SlotValue::Integer(id + 1));
@@ -116,7 +125,10 @@ pub fn delete_lot(book: &mut Book, lot: Guid, release_splits: bool) -> DomainRes
     }
     let splits: Vec<Guid> = book.splits_in_lot(lot).map(|(_, s)| s.guid).collect();
     if !splits.is_empty() && !release_splits {
-        return Err(DomainError::conflict(format!("the lot holds {} splits; pass releaseSplits to take them out", splits.len())));
+        return Err(DomainError::conflict(format!(
+            "the lot holds {} splits; pass releaseSplits to take them out",
+            splits.len()
+        )));
     }
     splits.iter().try_for_each(|s| edit_split(book, *s, |s| s.lot = None))?;
     book.lots.shift_remove(&lot);
@@ -140,7 +152,9 @@ pub fn assign_split(book: &mut Book, env: &mut dyn Env, split: Guid, lot: Option
     let (_, s) = locate(book, split).ok_or_else(|| DomainError::not_found("split", &split))?;
     let account = s.account.ok_or_else(|| DomainError::invalid("the split has no account"))?;
     if let Some(current) = s.lot {
-        return Err(DomainError::conflict(format!("the split is already in lot {current}; remove it first")));
+        return Err(DomainError::conflict(format!(
+            "the split is already in lot {current}; remove it first"
+        )));
     }
     if is_stock_split(s) {
         return Err(DomainError::invalid("stock-split splits are kept out of lots, as in GnuCash 5.17"));
@@ -269,8 +283,12 @@ pub struct SplitView {
 /// `5.17:gnucash/gnome/dialog-lot-viewer.c:146-187`).
 fn realized_gains(entries: &[&Entry]) -> (Option<CommodityRef>, Numeric) {
     let zero: Vec<&&Entry> = entries.iter().filter(|e| e.amount.is_zero()).collect();
-    let Some(currency) = zero.first().map(|e| e.currency.clone()) else { return (None, Numeric::ZERO) };
-    let gains = zero.iter().filter(|e| e.currency == currency).fold(Numeric::ZERO, |acc, e| acc.add_fixed(e.value).or_else(|_| acc.add_exact(e.value)).unwrap_or(acc));
+    let Some(currency) = zero.first().map(|e| e.currency.clone()) else {
+        return (None, Numeric::ZERO);
+    };
+    let gains = zero.iter().filter(|e| e.currency == currency).fold(Numeric::ZERO, |acc, e| {
+        acc.add_fixed(e.value).or_else(|_| acc.add_exact(e.value)).unwrap_or(acc)
+    });
     (Some(currency), gains)
 }
 
@@ -345,7 +363,11 @@ fn split_view(book: &Book, e: &Entry, gain: Option<Numeric>) -> Option<SplitView
 pub fn lot_splits(book: &Book, lot: Guid) -> DomainResult<Vec<SplitView>> {
     let l = book.lot(lot).ok_or_else(|| DomainError::not_found("lot", &lot))?;
     let ledger = Ledger::build(book, l.account)?;
-    Ok(ledger.lot_entries(lot).into_iter().filter_map(|e| split_view(book, e, None)).collect())
+    Ok(ledger
+        .lot_entries(lot)
+        .into_iter()
+        .filter_map(|e| split_view(book, e, None))
+        .collect())
 }
 
 /// An account's splits in no lot, in account order; with `lot`, each with the gain it would realise against that lot

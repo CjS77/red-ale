@@ -19,16 +19,56 @@ pub use query::{FindParams, FindResult};
 /// The transactions methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("transaction.post", "Post a balanced transaction; refused if unbalanced.", Effect::Write, post),
+        method(
+            "transaction.post",
+            "Post a balanced transaction; refused if unbalanced.",
+            Effect::Write,
+            post,
+        ),
         method("transaction.get", "A transaction with its splits.", Effect::Read, get),
-        method("transaction.list", "Transactions, optionally in one account and a date range, in GnuCash's order.", Effect::Read, list),
-        method("transaction.update", "Change a transaction's fields, currency and splits; the result must balance.", Effect::Write, update),
-        method("transaction.delete", "Delete a transaction that is not read-only.", Effect::Destructive, delete),
-        method("transaction.void", "Void a transaction as GnuCash does: values kept in slots, splits zeroed and marked v.", Effect::Write, void_txn),
+        method(
+            "transaction.list",
+            "Transactions, optionally in one account and a date range, in GnuCash's order.",
+            Effect::Read,
+            list,
+        ),
+        method(
+            "transaction.update",
+            "Change a transaction's fields, currency and splits; the result must balance.",
+            Effect::Write,
+            update,
+        ),
+        method(
+            "transaction.delete",
+            "Delete a transaction that is not read-only.",
+            Effect::Destructive,
+            delete,
+        ),
+        method(
+            "transaction.void",
+            "Void a transaction as GnuCash does: values kept in slots, splits zeroed and marked v.",
+            Effect::Write,
+            void_txn,
+        ),
         method("transaction.unvoid", "Restore a voided transaction.", Effect::Write, unvoid),
-        method("transaction.reverse", "Create the reversing transaction of a transaction.", Effect::Write, reverse),
-        method("transaction.transfer", "Transfer between two accounts, at a rate when their commodities differ, recording the price.", Effect::Write, transfer_),
-        method("transaction.find", "Find splits with the criteria of GnuCash's Find Transaction dialog.", Effect::Read, query::find_),
+        method(
+            "transaction.reverse",
+            "Create the reversing transaction of a transaction.",
+            Effect::Write,
+            reverse,
+        ),
+        method(
+            "transaction.transfer",
+            "Transfer between two accounts, at a rate when their commodities differ, recording the price.",
+            Effect::Write,
+            transfer_,
+        ),
+        method(
+            "transaction.find",
+            "Find splits with the criteria of GnuCash's Find Transaction dialog.",
+            Effect::Read,
+            query::find_,
+        ),
     ]
 }
 
@@ -381,8 +421,14 @@ pub struct ListResult {
 
 fn list(ctx: &mut Context, p: ListParams) -> Result<ListResult, RpcError> {
     let book = ctx.book()?;
-    let filter = ListFilter { account: p.account.map(|a| a.resolve(book)).transpose()?, from: p.from.map(|d| d.0), to: p.to.map(|d| d.0) };
-    Ok(ListResult { transactions: ops::list(book, &filter).into_iter().map(|t| info(book, t)).collect() })
+    let filter = ListFilter {
+        account: p.account.map(|a| a.resolve(book)).transpose()?,
+        from: p.from.map(|d| d.0),
+        to: p.to.map(|d| d.0),
+    };
+    Ok(ListResult {
+        transactions: ops::list(book, &filter).into_iter().map(|t| info(book, t)).collect(),
+    })
 }
 
 /// A change to an existing split; absent fields are kept.
@@ -666,7 +712,11 @@ fn found(book: &Book, hits: &[find::Found]) -> Vec<query::Match> {
         .map(|h| query::Match {
             transaction: h.transaction.into(),
             split: h.split.into(),
-            account: book.transaction(h.transaction).and_then(|t| t.split(h.split)).and_then(|s| s.account).map(Id),
+            account: book
+                .transaction(h.transaction)
+                .and_then(|t| t.split(h.split))
+                .and_then(|s| s.account)
+                .map(Id),
         })
         .collect()
 }

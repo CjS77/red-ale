@@ -112,14 +112,22 @@ impl TxImport {
         let max_cols = rows.iter().map(Vec::len).max().unwrap_or(0);
         let (columns, has_base_account) = effective_columns(layout, max_cols);
         let layout = TxLayout { columns, ..layout.clone() };
-        let formats = Formats { date: layout.csv.date_format, currency: layout.csv.currency_format, multi_split: layout.multi_split };
+        let formats = Formats {
+            date: layout.csv.date_format,
+            currency: layout.csv.currency_format,
+            multi_split: layout.multi_split,
+        };
         let lines = rows
             .into_iter()
             .enumerate()
             .filter(|(_, cells)| !cells.is_empty())
             .map(|(row, cells)| parse_line(row, cells, &layout.columns, has_base_account, formats, ctx))
             .collect();
-        Self { layout, has_base_account, lines }
+        Self {
+            layout,
+            has_base_account,
+            lines,
+        }
     }
 
     /// The layout in effect, with the column types as parsing used them.
@@ -167,7 +175,11 @@ impl TxImport {
                     || i >= count.wrapping_sub(end)
                     || (csv.skip_alt_lines && (i - start) % 2 == 1)
                     || (skip_errors && !errors.is_empty());
-                LineState { trans_line: owner, errors, skip }
+                LineState {
+                    trans_line: owner,
+                    errors,
+                    skip,
+                }
             })
             .collect()
     }
@@ -198,13 +210,17 @@ impl TxImport {
             return messages;
         }
         let account_error = |t: &ColumnType| matches!(t, ColumnType::Account | ColumnType::TransferAccount);
-        let line_error = self
-            .line_states(skip_errors)
-            .iter()
-            .filter(|s| !s.skip)
-            .any(|s| if with_account_errors { !s.errors.is_empty() } else { s.errors.keys().any(|t| !account_error(t)) });
+        let line_error = self.line_states(skip_errors).iter().filter(|s| !s.skip).any(|s| {
+            if with_account_errors {
+                !s.errors.is_empty()
+            } else {
+                s.errors.keys().any(|t| !account_error(t))
+            }
+        });
         if line_error {
-            messages.push("Not all fields could be parsed. Please correct the issues reported for each line or adjust the lines to skip.".to_owned());
+            messages.push(
+                "Not all fields could be parsed. Please correct the issues reported for each line or adjust the lines to skip.".to_owned(),
+            );
         }
         messages
     }
@@ -224,7 +240,10 @@ impl TxImport {
 
     fn has_lines_to_import(&self) -> bool {
         let csv = &self.layout.csv;
-        let skipped = csv.skip_start_lines.wrapping_add(csv.skip_end_lines).wrapping_add(u32::from(csv.skip_alt_lines));
+        let skipped = csv
+            .skip_start_lines
+            .wrapping_add(csv.skip_end_lines)
+            .wrapping_add(u32::from(csv.skip_alt_lines));
         !self.lines.is_empty() && usize::try_from(skipped).unwrap_or(usize::MAX) < self.lines.len()
     }
 
@@ -253,12 +272,22 @@ impl TxImport {
     /// to match to accounts.
     pub fn account_names(&self, skip_errors: bool) -> BTreeSet<String> {
         let column = |t| self.layout.columns.iter().position(|&c| c == t);
-        let columns: Vec<usize> = [column(ColumnType::Account), column(ColumnType::TransferAccount)].into_iter().flatten().collect();
+        let columns: Vec<usize> = [column(ColumnType::Account), column(ColumnType::TransferAccount)]
+            .into_iter()
+            .flatten()
+            .collect();
         self.lines
             .iter()
             .zip(self.line_states(skip_errors))
             .filter(|(_, state)| !state.skip)
-            .flat_map(|(line, _)| columns.iter().filter_map(|&c| line.cells.get(c)).filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>())
+            .flat_map(|(line, _)| {
+                columns
+                    .iter()
+                    .filter_map(|&c| line.cells.get(c))
+                    .filter(|s| !s.is_empty())
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
             .collect()
     }
 
@@ -271,12 +300,19 @@ impl TxImport {
             return Err(CreateError::Verify(problems));
         }
         let states = self.line_states(skip_errors);
-        let mut builder = DraftBuilder { multi_split: self.layout.multi_split, created: vec![false; self.lines.len()], drafts: Vec::new() };
-        states
-            .iter()
-            .enumerate()
-            .filter(|(_, s)| !s.skip)
-            .try_for_each(|(i, state)| builder.add_line(i, state.trans_line, &self.lines[state.trans_line].pre_trans, &self.lines[i].pre_split))?;
+        let mut builder = DraftBuilder {
+            multi_split: self.layout.multi_split,
+            created: vec![false; self.lines.len()],
+            drafts: Vec::new(),
+        };
+        states.iter().enumerate().filter(|(_, s)| !s.skip).try_for_each(|(i, state)| {
+            builder.add_line(
+                i,
+                state.trans_line,
+                &self.lines[state.trans_line].pre_trans,
+                &self.lines[i].pre_split,
+            )
+        })?;
         let mut drafts = builder.drafts;
         drafts.sort_by_key(|d| d.date);
         Ok(drafts)
@@ -292,11 +328,14 @@ fn effective_columns(layout: &TxLayout, max_cols: usize) -> (Vec<ColumnType>, bo
         *first = ColumnType::None;
     }
     let mut seen = BTreeSet::new();
-    types.iter_mut().filter(|t| !t.is_multi_col() && **t != ColumnType::None).for_each(|t| {
-        if !seen.insert(*t) {
-            *t = ColumnType::None;
-        }
-    });
+    types
+        .iter_mut()
+        .filter(|t| !t.is_multi_col() && **t != ColumnType::None)
+        .for_each(|t| {
+            if !seen.insert(*t) {
+                *t = ColumnType::None;
+            }
+        });
     has_base &= !types.contains(&ColumnType::Account);
     (types, has_base)
 }
@@ -307,16 +346,33 @@ fn parse_line(row: usize, cells: Row, types: &[ColumnType], base: bool, formats:
     let mut pre_trans = PreTrans::default();
     let mut pre_split = PreSplit::default();
     let cell = |i: usize| cells.get(i).map_or("", String::as_str);
-    types.iter().enumerate().filter(|(_, t)| t.is_trans_prop()).for_each(|(i, &t)| pre_trans.set(t, cell(i), formats, ctx));
-    types.iter().enumerate().filter(|(_, t)| t.is_split_prop() && !t.is_multi_col()).for_each(|(i, &t)| pre_split.set(t, cell(i), formats, ctx));
+    types
+        .iter()
+        .enumerate()
+        .filter(|(_, t)| t.is_trans_prop())
+        .for_each(|(i, &t)| pre_trans.set(t, cell(i), formats, ctx));
+    types
+        .iter()
+        .enumerate()
+        .filter(|(_, t)| t.is_split_prop() && !t.is_multi_col())
+        .for_each(|(i, &t)| pre_split.set(t, cell(i), formats, ctx));
     let sums: BTreeSet<ColumnType> = types.iter().copied().filter(|t| t.is_multi_col()).collect();
     sums.iter().for_each(|&t| pre_split.reset(t, formats, ctx));
-    types.iter().enumerate().filter(|(_, t)| t.is_multi_col()).for_each(|(i, &t)| pre_split.add(t, cell(i), formats, ctx));
+    types
+        .iter()
+        .enumerate()
+        .filter(|(_, t)| t.is_multi_col())
+        .for_each(|(i, &t)| pre_split.add(t, cell(i), formats, ctx));
     if base {
         pre_split.account = Some(SplitAccount::Base);
     }
     pre_split.flag_missing_reconcile_dates();
-    ParsedLine { row, cells, pre_trans, pre_split }
+    ParsedLine {
+        row,
+        cells,
+        pre_trans,
+        pre_split,
+    }
 }
 
 /// The state `create_transactions` keeps between lines: the drafts so far (the last is GnuCash's
@@ -334,7 +390,11 @@ impl DraftBuilder {
         if pre_split.account.is_none() {
             return Err(CreateError::NoAccount { line });
         }
-        let new_draft = if self.created[owner] { None } else { DraftTransaction::new(line, pre_trans) };
+        let new_draft = if self.created[owner] {
+            None
+        } else {
+            DraftTransaction::new(line, pre_trans)
+        };
         if let Some(draft) = new_draft {
             self.created[owner] = true;
             self.drafts.push(draft);
@@ -350,7 +410,9 @@ impl DraftBuilder {
         if let Some(reason) = pre_split.missing_essentials().first() {
             return Err(CreateError::Split { line, reason });
         }
-        draft.splits.push(DraftSplit::new(line, pre_split).map_err(|source| CreateError::Numeric { line, source })?);
+        draft
+            .splits
+            .push(DraftSplit::new(line, pre_split).map_err(|source| CreateError::Numeric { line, source })?);
         Ok(())
     }
 }
@@ -462,7 +524,8 @@ impl DraftSplit {
             let total = plus.map_or(Ok(Numeric::ZERO), |p| gnc_add(Numeric::ZERO, p))?;
             minus.map_or(Ok(total), |m| gnc_sub(total, m))
         };
-        let either = |plus: Option<Numeric>, minus: Option<Numeric>| (plus.is_some() || minus.is_some()).then(|| net(plus, minus)).transpose();
+        let either =
+            |plus: Option<Numeric>, minus: Option<Numeric>| (plus.is_some() || minus.is_some()).then(|| net(plus, minus)).transpose();
         let reconcile = pre.rec_state.filter(|&s| s != ReconcileState::New);
         Ok(Self {
             line,
@@ -490,7 +553,11 @@ impl DraftSplit {
     /// currency; the negated transfer amount; amount times the file's price; amount times the nearest price from
     /// the price database (inverted when quoted the other way). With none of these the value is zero, and GnuCash
     /// still adds the split.
-    pub fn split_value(&self, account_in_transaction_currency: bool, nearest_price: impl FnOnce() -> Option<NearestPrice>) -> Result<Numeric, NumericError> {
+    pub fn split_value(
+        &self,
+        account_in_transaction_currency: bool,
+        nearest_price: impl FnOnce() -> Option<NearestPrice>,
+    ) -> Result<Numeric, NumericError> {
         if let Some(value) = self.value {
             return Ok(value);
         }

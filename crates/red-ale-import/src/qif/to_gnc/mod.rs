@@ -23,10 +23,10 @@ use std::sync::Arc;
 
 use red_ale_core::book_options::uses_split_action_for_num;
 use red_ale_core::ops::commit::{account_scu, sort_splits};
+use red_ale_core::ops::prices::SPLIT_IMPORT_SOURCE;
 use red_ale_core::ops::prices::{Nearest, USER_PRICE_SOURCE, nearest};
 use red_ale_core::ops::scrub::{Repair, Scope, scrub_imbalance};
 use red_ale_core::ops::transactions::transfer::{PriceChange, record_prices};
-use red_ale_core::ops::prices::SPLIT_IMPORT_SOURCE;
 use red_ale_core::{
     AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, How, Numeric, Price, ReconcileState, Round, Time64, TimeZone,
 };
@@ -115,8 +115,12 @@ impl Maps {
                 .map(|(k, e)| (kind, k.clone(), substring_count(e.gnc_name.as_deref().unwrap_or_default(), SEP)))
                 .collect()
         };
-        let mut list: Vec<(Kind, String, usize)> =
-            [shown(Kind::Payee, &self.payees), shown(Kind::Category, &self.categories), shown(Kind::Account, &self.accounts)].concat();
+        let mut list: Vec<(Kind, String, usize)> = [
+            shown(Kind::Payee, &self.payees),
+            shown(Kind::Category, &self.categories),
+            shown(Kind::Account, &self.accounts),
+        ]
+        .concat();
         list.sort_by_key(|(_, _, depth)| *depth);
         list.into_iter().map(|(kind, key, _)| (kind, key)).collect()
     }
@@ -124,12 +128,21 @@ impl Maps {
 
 /// `qif-import:qif-to-gnc`: convert the files into the Book. `files` keep the transfer marks it sets, and `maps`
 /// the types of the nested accounts it made. `qif-to-gnc.scm:257-548`.
-pub fn qif_to_gnc(book: &mut Book, env: &mut dyn Env, files: &mut [QifFile], maps: &mut Maps, opts: Options<'_>) -> DomainResult<Converted> {
+pub fn qif_to_gnc(
+    book: &mut Book,
+    env: &mut dyn Env,
+    files: &mut [QifFile],
+    maps: &mut Maps,
+    opts: Options<'_>,
+) -> DomainResult<Converted> {
     let old = book.clone();
     let mut tree = Tree::default();
     let markable = markable_xtns(files);
     make_accounts(book, env, &old, &mut tree, maps, opts)?;
-    let mut out = Converted { log: mark_transfers(files, &markable), ..Converted::default() };
+    let mut out = Converted {
+        log: mark_transfers(files, &markable),
+        ..Converted::default()
+    };
     let mut order: Vec<usize> = (0..files.len()).collect();
     order.sort_by_key(|f| std::cmp::Reverse(files.get(*f).map_or(0, |file| file.xtns.len())));
     let num_action = uses_split_action_for_num(book);
@@ -143,9 +156,17 @@ pub fn qif_to_gnc(book: &mut Book, env: &mut dyn Env, files: &mut [QifFile], map
 
 /// Make every shown entry's account, in the commodity its security or the default currency. `qif-to-gnc.scm:373-402`.
 fn make_accounts(book: &mut Book, env: &mut dyn Env, old: &Book, tree: &mut Tree, maps: &mut Maps, opts: Options<'_>) -> DomainResult<()> {
-    let mut maker = Maker { book, env, old, tree, default_currency: opts.default_currency };
+    let mut maker = Maker {
+        book,
+        env,
+        old,
+        tree,
+        default_currency: opts.default_currency,
+    };
     maps.sorted_accounts().into_iter().try_for_each(|(kind, key)| {
-        let Some(entry) = maps.map_mut(kind).get_mut(&key) else { return Ok(()) };
+        let Some(entry) = maps.map_mut(kind).get_mut(&key) else {
+            return Ok(());
+        };
         let security = opts.stock_map.get(get_account_name(entry.qif_name.as_deref().unwrap_or_default()));
         let types = &entry.allowed_types;
         let equity = types.contains(&AccountType::Equity);
@@ -154,7 +175,16 @@ fn make_accounts(book: &mut Book, env: &mut dyn Env, old: &Book, tree: &mut Tree
             Some(s) if equity || stock || s.is_currency() => s,
             _ => opts.default_currency,
         };
-        maker.find_or_make_acct(entry, Check { types: false, commodity, commodity_matters: true }).map(|_| ())
+        maker
+            .find_or_make_acct(
+                entry,
+                Check {
+                    types: false,
+                    commodity,
+                    commodity_matters: true,
+                },
+            )
+            .map(|_| ())
     })
 }
 
@@ -195,7 +225,13 @@ fn convert_xtn(
     let repairs = commit(book, env, guid)?;
     let prices = record_prices(book, env, guid, SPLIT_IMPORT_SOURCE)?;
     add_balances(book, tree, guid, &built.nodes)?;
-    out.transactions.push(ConvertedXtn { file: at.0, xtn: at.1, transaction: guid, repairs, prices });
+    out.transactions.push(ConvertedXtn {
+        file: at.0,
+        xtn: at.1,
+        transaction: guid,
+        repairs,
+        prices,
+    });
     Ok(())
 }
 
@@ -207,9 +243,19 @@ fn commit(book: &mut Book, env: &mut dyn Env, guid: Guid) -> DomainResult<Vec<Re
     let repairs = scrub_imbalance(book, env, Scope::Transaction(guid))?;
     let amounts: Vec<Numeric> = {
         let t = book.transaction(guid).ok_or_else(|| DomainError::not_found("transaction", &guid))?;
-        t.splits.iter().map(|s| s.account.map_or(Ok(s.amount), |a| Ok(s.amount.to_denom(account_scu(book, a)?, Round::HalfUp)?))).collect::<DomainResult<_>>()?
+        t.splits
+            .iter()
+            .map(|s| {
+                s.account
+                    .map_or(Ok(s.amount), |a| Ok(s.amount.to_denom(account_scu(book, a)?, Round::HalfUp)?))
+            })
+            .collect::<DomainResult<_>>()?
     };
-    let t = Arc::make_mut(book.transactions.get_mut(&guid).ok_or_else(|| DomainError::not_found("transaction", &guid))?);
+    let t = Arc::make_mut(
+        book.transactions
+            .get_mut(&guid)
+            .ok_or_else(|| DomainError::not_found("transaction", &guid))?,
+    );
     t.splits.iter_mut().zip(amounts).for_each(|(s, a)| s.amount = a);
     sort_splits(t);
     Ok(repairs)
@@ -219,7 +265,9 @@ fn commit(book: &mut Book, env: &mut dyn Env, guid: Guid) -> DomainResult<Vec<Re
 fn add_balances(book: &Book, tree: &mut Tree, guid: Guid, nodes: &[(Guid, usize)]) -> DomainResult<()> {
     let t = book.transaction(guid).ok_or_else(|| DomainError::not_found("transaction", &guid))?;
     nodes.iter().try_for_each(|(split, node)| {
-        let (Some(s), Some(n)) = (t.split(*split), tree.nodes.get_mut(*node)) else { return Ok(()) };
+        let (Some(s), Some(n)) = (t.split(*split), tree.nodes.get_mut(*node)) else {
+            return Ok(());
+        };
         n.balance = n.balance.add(s.amount, 0, How::LCD_NEVER)?;
         Ok(())
     })
@@ -276,17 +324,22 @@ fn add_prices(book: &mut Book, env: &mut dyn Env, files: &[QifFile], opts: Optio
                 }
                 return None;
             };
-            let duplicate = qif_date_to_time64(p, &zone).is_some_and(|t| duplicate_price(book, &commodity, opts.default_currency, t, &zone));
+            let duplicate =
+                qif_date_to_time64(p, &zone).is_some_and(|t| duplicate_price(book, &commodity, opts.default_currency, t, &zone));
             skipped += usize::from(duplicate);
             (!duplicate).then_some(p)
         })
         .collect();
-    out.log.extend(missing.iter().map(|s| format!("Warning: cannot find commodity for symbol {s}.")));
+    out.log
+        .extend(missing.iter().map(|s| format!("Warning: cannot find commodity for symbol {s}.")));
     if skipped > 0 {
-        out.log.push(format!("Warning: skipped {skipped} prices on days that already had prices."));
+        out.log
+            .push(format!("Warning: skipped {skipped} prices on days that already had prices."));
     }
     by_symbol(&pruned, &symbols).into_iter().for_each(|(p, commodity)| {
-        let (Some(commodity), Some(time), Some(value)) = (commodity, qif_date_to_time64(p, &zone), p.share_price.value().copied()) else { return };
+        let (Some(commodity), Some(time), Some(value)) = (commodity, qif_date_to_time64(p, &zone), p.share_price.value().copied()) else {
+            return;
+        };
         let price = Price {
             guid: env.new_guid(),
             commodity,

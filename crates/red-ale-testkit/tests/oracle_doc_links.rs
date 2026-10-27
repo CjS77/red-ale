@@ -5,7 +5,7 @@
 #![cfg(feature = "oracle")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use red_ale_testkit::{call, oracle, oracle_check, open};
+use red_ale_testkit::{call, open, oracle, oracle_check};
 use serde_json::{Value, json};
 
 const CHECKING: &str = "c080059e1aec4c0b9ad4671e80965686";
@@ -28,7 +28,15 @@ fn transaction_links_read_back_in_gnucash() {
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     let dump = oracle::dump(&book.path).unwrap();
-    let link = |desc: &str| dump["transactions"].as_array().unwrap().iter().find(|t| t["description"] == desc).unwrap()["docLink"].clone();
+    let link = |desc: &str| {
+        dump["transactions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["description"] == desc)
+            .unwrap()["docLink"]
+            .clone()
+    };
     assert_eq!(link("relative"), "receipts/june 2024.pdf");
     assert_eq!(link("url"), "https://example.com/r/1?x=1&y=2");
     assert_eq!(link("removed"), Value::Null);
@@ -37,9 +45,17 @@ fn transaction_links_read_back_in_gnucash() {
 #[test]
 fn document_links_read_back_in_gnucash() {
     let (book, mut d) = open("synthetic/business-editable.gnucash");
-    call(&mut d, "invoice.update", &json!({ "invoice": POSTED_INVOICE, "docLink": "invoices/000001.pdf" }));
+    call(
+        &mut d,
+        "invoice.update",
+        &json!({ "invoice": POSTED_INVOICE, "docLink": "invoices/000001.pdf" }),
+    );
     let paper = call(&mut d, "vendor.list", &json!({ "id": "000001" }))["vendors"][0]["guid"].clone();
-    let bill = call(&mut d, "invoice.create", &json!({ "owner": paper, "docLink": "https://example.com/bill/9" }));
+    let bill = call(
+        &mut d,
+        "invoice.create",
+        &json!({ "owner": paper, "docLink": "https://example.com/bill/9" }),
+    );
     let gone = call(&mut d, "invoice.create", &json!({ "owner": paper, "docLink": "x.pdf" }));
     call(&mut d, "invoice.update", &json!({ "invoice": gone["guid"], "docLink": "" }));
     let diffs = oracle_check(&mut d, &book, &[]);

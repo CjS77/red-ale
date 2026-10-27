@@ -75,7 +75,13 @@ impl Ledger {
             .transactions
             .values()
             .enumerate()
-            .flat_map(|(i, t)| t.splits.iter().enumerate().filter(|(_, s)| s.account == Some(account)).map(move |(j, s)| (t.as_ref(), s, (i, j))))
+            .flat_map(|(i, t)| {
+                t.splits
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, s)| s.account == Some(account))
+                    .map(move |(j, s)| (t.as_ref(), s, (i, j)))
+            })
             .collect();
         rows.sort_by(|a, b| split_order(a.0, a.1, b.0, b.1, num_action));
         let mut entries: Vec<Entry> = rows
@@ -102,7 +108,11 @@ impl Ledger {
     /// adjusted amount.
     pub fn build_touched(book: &Book, account: Guid, touched: &Touched) -> DomainResult<Self> {
         let mut ledger = Self::build(book, account)?;
-        ledger.entries.iter_mut().filter(|e| touched.0.contains(&e.split)).for_each(|e| e.adjusted = e.amount);
+        ledger
+            .entries
+            .iter_mut()
+            .filter(|e| touched.0.contains(&e.split))
+            .for_each(|e| e.adjusted = e.amount);
         Ok(ledger)
     }
 
@@ -173,7 +183,10 @@ fn adjust_for_stock_splits(entries: &mut [Entry], scu: i64) -> DomainResult<()> 
 /// True when the transaction closes the books (`xaccTransGetIsClosingTxn`, slot `book_closing`,
 /// `5.17:libgnucash/engine/Transaction.cpp:2228-2236`).
 fn is_closing(t: &Transaction) -> bool {
-    t.slots.get_key("book_closing").and_then(crate::SlotValue::as_int).is_some_and(|v| v != 0)
+    t.slots
+        .get_key("book_closing")
+        .and_then(crate::SlotValue::as_int)
+        .is_some_and(|v| v != 0)
 }
 
 /// The leading unsigned integer of a string, as `strtoull` reads it; 0 when there is none.
@@ -210,7 +223,12 @@ pub fn trans_order(ta: &Transaction, num_a: Option<&str>, tb: &Transaction, num_
         .then_with(|| is_closing(ta).cmp(&is_closing(tb)))
         .then_with(|| order_num(&num(ta, num_a), &num(tb, num_b)))
         .then_with(|| ta.date_entered.cmp(&tb.date_entered))
-        .then_with(|| ta.description.as_deref().unwrap_or_default().cmp(tb.description.as_deref().unwrap_or_default()))
+        .then_with(|| {
+            ta.description
+                .as_deref()
+                .unwrap_or_default()
+                .cmp(tb.description.as_deref().unwrap_or_default())
+        })
         .then_with(|| ta.guid.cmp(&tb.guid))
 }
 
@@ -220,13 +238,23 @@ fn split_order(ta: &Transaction, sa: &Split, tb: &Transaction, sb: &Split, num_a
         return Ordering::Equal;
     }
     let by_txn = if num_action {
-        trans_order(ta, Some(sa.action.as_deref().unwrap_or_default()), tb, Some(sb.action.as_deref().unwrap_or_default()))
+        trans_order(
+            ta,
+            Some(sa.action.as_deref().unwrap_or_default()),
+            tb,
+            Some(sb.action.as_deref().unwrap_or_default()),
+        )
     } else {
         trans_order(ta, None, tb, None)
     };
     by_txn
         .then_with(|| sa.memo.as_deref().unwrap_or_default().cmp(sb.memo.as_deref().unwrap_or_default()))
-        .then_with(|| sa.action.as_deref().unwrap_or_default().cmp(sb.action.as_deref().unwrap_or_default()))
+        .then_with(|| {
+            sa.action
+                .as_deref()
+                .unwrap_or_default()
+                .cmp(sb.action.as_deref().unwrap_or_default())
+        })
         .then_with(|| sa.reconcile_state.as_char().cmp(&sb.reconcile_state.as_char()))
         .then_with(|| sa.amount.cmp_value(sb.amount))
         .then_with(|| sa.value.cmp_value(sb.value))

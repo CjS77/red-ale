@@ -21,12 +21,18 @@ impl Book {
         let dir = tempfile::tempdir().unwrap();
         let mut d = Dispatcher::new(Settings::default());
         d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(NOW), 1 << 100))));
-        d.call("book.create", json!({ "path": dir.path().join("book.gnucash").display().to_string() })).unwrap();
+        d.call(
+            "book.create",
+            json!({ "path": dir.path().join("book.gnucash").display().to_string() }),
+        )
+        .unwrap();
         Self { _dir: dir, d }
     }
 
     fn ok(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method}: {e} {:?}", e.data))
     }
 
     fn err(&mut self, method: &str, params: Value) -> RpcError {
@@ -35,7 +41,8 @@ impl Book {
 
     /// Preview the files, `(name, text)`, with more params.
     fn preview(&mut self, files: &[(&str, &str)], more: Value) -> Value {
-        let mut params = json!({ "format": "qif", "files": files.iter().map(|(n, t)| json!({ "name": n, "text": t })).collect::<Vec<_>>() });
+        let mut params =
+            json!({ "format": "qif", "files": files.iter().map(|(n, t)| json!({ "name": n, "text": t })).collect::<Vec<_>>() });
         more.as_object().into_iter().flatten().for_each(|(k, v)| params[k] = v.clone());
         self.ok("import.preview", params)
     }
@@ -55,7 +62,10 @@ impl Book {
     }
 
     fn account_type(&mut self, account: &str) -> String {
-        self.ok("account.get", json!({ "account": account }))["type"].as_str().unwrap().to_owned()
+        self.ok("account.get", json!({ "account": account }))["type"]
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
 }
 
@@ -75,7 +85,11 @@ fn assert_amount(v: &Value, d: &str) {
 }
 
 fn names(list: &Value) -> Vec<String> {
-    list.as_array().unwrap().iter().map(|a| a["name"].as_str().unwrap().to_owned()).collect()
+    list.as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["name"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 fn fixture(name: &str) -> String {
@@ -95,8 +109,17 @@ fn a_bank_file_makes_its_accounts_and_transactions() {
     assert_eq!(p["format"], "qif");
     assert_eq!(p["summary"]["add"], 3);
     assert_eq!(p["errors"], json!([]));
-    assert_eq!(names(&p["newAccounts"]), ["Dining", "Groceries", "Salary", "Checking"], "payees, then categories, then accounts");
-    let types: Vec<&str> = p["newAccounts"].as_array().unwrap().iter().map(|a| a["type"].as_str().unwrap()).collect();
+    assert_eq!(
+        names(&p["newAccounts"]),
+        ["Dining", "Groceries", "Salary", "Checking"],
+        "payees, then categories, then accounts"
+    );
+    let types: Vec<&str> = p["newAccounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["type"].as_str().unwrap())
+        .collect();
     assert_eq!(types, ["EXPENSE", "EXPENSE", "INCOME", "BANK"]);
     let rows = &p["qif"]["accounts"];
     assert_eq!(rows[0]["qifName"], "Checking");
@@ -108,13 +131,23 @@ fn a_bank_file_makes_its_accounts_and_transactions() {
     assert_eq!(salary["datePosted"], "2024-03-15");
     assert_eq!(salary["description"], "ACME");
     assert_eq!(salary["source"], json!({ "file": 0, "lines": [11, 16] }));
-    let near = salary["splits"].as_array().unwrap().iter().find(|s| s["accountName"] == "Checking").unwrap();
+    let near = salary["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["accountName"] == "Checking")
+        .unwrap();
     assert_eq!(near["reconcileState"], "c", "C* is cleared");
     assert_eq!(near["account"], Value::Null, "Checking is still to be created");
 
     let dinner = &p["transactions"][2];
     assert_eq!(dinner["notes"], "with friends");
-    let mut memos: Vec<&str> = dinner["splits"].as_array().unwrap().iter().filter_map(|s| s["memo"].as_str()).collect();
+    let mut memos: Vec<&str> = dinner["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["memo"].as_str())
+        .collect();
     memos.sort_unstable();
     assert_eq!(memos, ["meal", "wine"], "each S line's E memo is its split's");
 
@@ -134,15 +167,37 @@ fn importing_the_same_file_again_finds_every_transaction_and_adds_nothing() {
     let p = b.preview(&[("checking.qif", CHECKING)], json!({}));
     b.apply(&p, json!({}));
     let again = b.preview(&[("checking.qif", CHECKING)], json!({}));
-    assert_eq!(again["newAccounts"], json!([]), "the saved map sends every name to the accounts made the first time");
-    assert!(again["qif"]["accounts"].as_array().unwrap().iter().all(|r| r["guessed"] == false && r["new"] == false));
+    assert_eq!(
+        again["newAccounts"],
+        json!([]),
+        "the saved map sends every name to the accounts made the first time"
+    );
+    assert!(
+        again["qif"]["accounts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r["guessed"] == false && r["new"] == false)
+    );
     assert_eq!(again["summary"]["skip"], 3);
     assert_eq!(again["summary"]["add"], 0);
     let transactions = again["transactions"].as_array().unwrap();
-    assert!(transactions.iter().all(|t| !t["matches"].as_array().unwrap().is_empty()), "QIF's finder finds every transaction");
+    assert!(
+        transactions.iter().all(|t| !t["matches"].as_array().unwrap().is_empty()),
+        "QIF's finder finds every transaction"
+    );
     assert!(transactions.iter().all(|t| t["matches"][0]["score"].is_null()), "unscored");
-    assert!(transactions.iter().all(|t| t["action"] == "skip" && t["selectedMatch"] == t["matches"][0]["split"]), "skipped, first match selected");
-    assert!(transactions.iter().all(|t| t["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "possible-duplicate")));
+    assert!(
+        transactions
+            .iter()
+            .all(|t| t["action"] == "skip" && t["selectedMatch"] == t["matches"][0]["split"]),
+        "skipped, first match selected"
+    );
+    assert!(
+        transactions
+            .iter()
+            .all(|t| t["warnings"].as_array().unwrap().iter().any(|w| w["code"] == "possible-duplicate"))
+    );
     let applied = b.apply(&again, json!({}));
     assert_eq!(applied["added"], json!([]));
     assert_eq!(applied["skipped"], json!([0, 1, 2]));
@@ -168,25 +223,55 @@ fn imbalanced_and_read_only_transactions_are_flagged_and_reported() {
                 D03/20/2024\nT-5.00\nPGrocer\nLGroceries\n^\n";
     let p = b.preview(&[("checking.qif", file)], json!({}));
     assert_eq!(p["thresholdDate"], "2024-03-03");
-    assert_eq!((&p["summary"]["imbalanced"], &p["summary"]["readOnlyByDate"]), (&json!(1), &json!(1)));
+    assert_eq!(
+        (&p["summary"]["imbalanced"], &p["summary"]["readOnlyByDate"]),
+        (&json!(1), &json!(1))
+    );
     let rounding = &p["transactions"][0];
     assert_eq!(rounding["imbalance"]["value"], json!({ "num": "-1", "denom": "100" }));
     assert_eq!(rounding["imbalance"]["accountName"], "Imbalance-USD");
     assert_eq!(rounding["readOnlyByDate"], true);
-    let codes: Vec<&str> = rounding["warnings"].as_array().unwrap().iter().map(|w| w["code"].as_str().unwrap()).collect();
+    let codes: Vec<&str> = rounding["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|w| w["code"].as_str().unwrap())
+        .collect();
     assert!(codes.contains(&"imbalance") && codes.contains(&"read-only-by-date"), "{codes:?}");
-    assert_eq!((&p["transactions"][1]["imbalance"], &p["transactions"][1]["readOnlyByDate"]), (&Value::Null, &json!(false)));
+    assert_eq!(
+        (&p["transactions"][1]["imbalance"], &p["transactions"][1]["readOnlyByDate"]),
+        (&Value::Null, &json!(false))
+    );
 
     let applied = b.apply(&p, json!({}));
-    assert_eq!(applied["added"].as_array().unwrap().len(), 2, "a transaction read-only by date is still added");
+    assert_eq!(
+        applied["added"].as_array().unwrap().len(),
+        2,
+        "a transaction read-only by date is still added"
+    );
     let imbalance = applied["imbalanceSplits"].as_array().unwrap();
     assert_eq!(imbalance.len(), 1);
-    assert_eq!((&imbalance[0]["index"], &imbalance[0]["value"]), (&json!(0), &json!({ "num": "-1", "denom": "100" })));
+    assert_eq!(
+        (&imbalance[0]["index"], &imbalance[0]["value"]),
+        (&json!(0), &json!({ "num": "-1", "denom": "100" }))
+    );
     let t = b.ok("transaction.get", json!({ "guid": imbalance[0]["transaction"] }));
-    let split = t["splits"].as_array().unwrap().iter().find(|s| s["guid"] == imbalance[0]["split"]).unwrap();
-    assert_eq!((&split["account"], &split["accountName"]), (&imbalance[0]["account"], &json!("Imbalance-USD")));
-    let warned: Vec<(&str, u64)> =
-        applied["warnings"].as_array().unwrap().iter().map(|w| (w["code"].as_str().unwrap(), w["index"].as_u64().unwrap())).collect();
+    let split = t["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["guid"] == imbalance[0]["split"])
+        .unwrap();
+    assert_eq!(
+        (&split["account"], &split["accountName"]),
+        (&imbalance[0]["account"], &json!("Imbalance-USD"))
+    );
+    let warned: Vec<(&str, u64)> = applied["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|w| (w["code"].as_str().unwrap(), w["index"].as_u64().unwrap()))
+        .collect();
     assert_eq!(warned, [("imbalance", 0), ("read-only-by-date", 0)]);
 }
 
@@ -194,9 +279,18 @@ fn imbalanced_and_read_only_transactions_are_flagged_and_reported() {
 fn the_account_map_is_learned_and_reused() {
     let mut b = Book::new();
     b.ok("account.create", json!({ "name": "Assets", "type": "ASSET", "commodity": "USD" }));
-    b.ok("account.create", json!({ "name": "My Bank", "type": "BANK", "commodity": "USD", "parent": "Assets" }));
-    b.ok("account.create", json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "USD" }));
-    b.ok("account.create", json!({ "name": "Food", "type": "EXPENSE", "commodity": "USD", "parent": "Expenses" }));
+    b.ok(
+        "account.create",
+        json!({ "name": "My Bank", "type": "BANK", "commodity": "USD", "parent": "Assets" }),
+    );
+    b.ok(
+        "account.create",
+        json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "USD" }),
+    );
+    b.ok(
+        "account.create",
+        json!({ "name": "Food", "type": "EXPENSE", "commodity": "USD", "parent": "Expenses" }),
+    );
     let p = b.preview(
         &[("checking.qif", CHECKING)],
         json!({ "accounts": { "Checking": "Assets:My Bank" }, "categories": { "Groceries": "Expenses:Food" } }),
@@ -207,14 +301,25 @@ fn the_account_map_is_learned_and_reused() {
     assert_eq!(checking["guessed"], false);
     assert!(checking["id"].is_string());
     let applied = b.apply(&p, json!({}));
-    assert_eq!(applied["warnings"].as_array().unwrap().iter().filter(|w| w["code"] == "qif-account-map").count(), 0);
+    assert_eq!(
+        applied["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|w| w["code"] == "qif-account-map")
+            .count(),
+        0
+    );
     let got = b.ok("config.get", json!({ "path": "import.qifAccountMap" }));
     assert_eq!(got["problems"], json!([]));
     let map = &got["value"];
     assert_eq!(map["accounts"]["Checking"]["account"], "Assets:My Bank");
     assert_eq!(map["accounts"]["Checking"]["types"], json!(["BANK"]));
     assert_eq!(map["categories"]["Groceries"]["account"], "Expenses:Food");
-    assert_eq!(map["categories"]["Salary"]["account"], "Salary", "guesses are saved too, as GnuCash saves its whole map");
+    assert_eq!(
+        map["categories"]["Salary"]["account"], "Salary",
+        "guesses are saved too, as GnuCash saves its whole map"
+    );
 
     let april = "!Account\nNChecking\nTBank\n^\n!Type:Bank\nD04/14/2024\nT-12.00\nPMarket\nLGroceries\n^\n";
     let again = b.preview(&[("april.qif", april)], json!({}));
@@ -245,7 +350,11 @@ fn a_credit_card_account_is_a_credit_account() {
     let mut b = Book::new();
     let card = "!Account\nNVisa\nTCCard\n^\n!Type:CCard\nD03/14/2024\nT-30.00\nPBook shop\nLBooks\n^\n";
     let p = b.preview(&[("visa.qif", card)], json!({}));
-    assert_eq!(p["qif"]["accounts"][0]["type"], json!(["CREDIT"]), "qif-parse:parse-acct-type: CCard is CREDIT");
+    assert_eq!(
+        p["qif"]["accounts"][0]["type"],
+        json!(["CREDIT"]),
+        "qif-parse:parse-acct-type: CCard is CREDIT"
+    );
     b.apply(&p, json!({}));
     assert_eq!(b.account_type("Visa"), "CREDIT");
     assert_amount(&b.balance("Visa"), "-30");
@@ -260,9 +369,15 @@ fn a_file_without_an_account_takes_its_name_or_the_caller_s() {
     let card = "!Type:CCard\nD03/14/2024\nT-30.00\nPBook shop\nLBooks\n^\n";
     let p = b.preview(&[("visa-card.qif", card)], json!({}));
     let account = &p["qif"]["accounts"][0];
-    assert_eq!(account["qifName"], "visa card", "the file name, with - and _ as spaces (qif-file:path-to-accountname)");
+    assert_eq!(
+        account["qifName"], "visa card",
+        "the file name, with - and _ as spaces (qif-file:path-to-accountname)"
+    );
     assert_eq!(account["type"][0], "BANK");
-    let p = b.ok("import.preview", json!({ "format": "qif", "files": [{ "name": "visa-card.qif", "text": card, "defaultAccount": "Liabilities:Visa" }] }));
+    let p = b.ok(
+        "import.preview",
+        json!({ "format": "qif", "files": [{ "name": "visa-card.qif", "text": card, "defaultAccount": "Liabilities:Visa" }] }),
+    );
     assert_eq!(p["qif"]["accounts"][0]["qifName"], "Liabilities:Visa");
     b.apply(&p, json!({}));
     assert_amount(&b.balance("Liabilities:Visa"), "-30");
@@ -273,7 +388,12 @@ fn an_opening_balance_comes_from_retained_earnings() {
     let mut b = Book::new();
     let qif = "!Type:Bank\nD01/14/2024\nT1,000.00\nPOpening Balance\nL[Checking]\n^\nD01/15/2024\nT-10.00\nPFee\nLBank Charges\n^\n";
     let p = b.preview(&[("statement.qif", qif)], json!({}));
-    let rows: Vec<&str> = p["qif"]["accounts"].as_array().unwrap().iter().map(|r| r["qifName"].as_str().unwrap()).collect();
+    let rows: Vec<&str> = p["qif"]["accounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["qifName"].as_str().unwrap())
+        .collect();
     assert_eq!(rows, ["Checking", "Equity:Retained Earnings"]);
     b.apply(&p, json!({}));
     assert_amount(&b.balance("Checking"), "990");
@@ -293,14 +413,23 @@ fn investments_make_their_security_splits_and_prices() {
     let mut b = Book::new();
     let p = b.preview(&[("broker.qif", BROKER)], json!({}));
     assert_eq!(p["errors"], json!([]));
-    assert_eq!(p["newCommodities"], json!([{ "id": "NONCURRENCY::ACME", "fullname": "Acme Corp", "fraction": 100_000 }]));
-    assert_eq!(p["qif"]["securities"], json!([{ "name": "Acme Corp", "id": "NONCURRENCY::ACME", "fullname": "Acme Corp", "new": true }]));
+    assert_eq!(
+        p["newCommodities"],
+        json!([{ "id": "NONCURRENCY::ACME", "fullname": "Acme Corp", "fraction": 100_000 }])
+    );
+    assert_eq!(
+        p["qif"]["securities"],
+        json!([{ "name": "Acme Corp", "id": "NONCURRENCY::ACME", "fullname": "Acme Corp", "new": true }])
+    );
     let securities = json!({ "Acme Corp": { "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme Corporation" } });
     let p = b.preview(&[("broker.qif", BROKER)], json!({ "securities": securities }));
     assert_eq!(p["newCommodities"][0]["id"], "NASDAQ::ACME");
     let applied = b.apply(&p, json!({}));
     assert_eq!(applied["commodities"], json!(["NASDAQ::ACME"]));
-    assert_eq!(b.ok("commodity.get", json!({ "commodity": "NASDAQ::ACME" }))["fullname"], "Acme Corporation");
+    assert_eq!(
+        b.ok("commodity.get", json!({ "commodity": "NASDAQ::ACME" }))["fullname"],
+        "Acme Corporation"
+    );
 
     assert_eq!(b.account_type("Broker:Acme Corp"), "STOCK");
     assert_amount(&b.balance("Broker:Acme Corp"), "60");
@@ -310,14 +439,22 @@ fn investments_make_their_security_splits_and_prices() {
     assert_amount(&b.balance("Income:Dividends:Broker:Acme Corp"), "-25");
 
     let prices = b.ok("price.list", json!({ "commodity": "NASDAQ::ACME" }));
-    let mut found: Vec<(String, String)> =
-        prices.as_array().unwrap().iter().map(|p| (p["date"].as_str().unwrap().to_owned(), p["source"].as_str().unwrap().to_owned())).collect();
+    let mut found: Vec<(String, String)> = prices
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| (p["date"].as_str().unwrap().to_owned(), p["source"].as_str().unwrap().to_owned()))
+        .collect();
     found.sort();
-    let expected: Vec<(String, String)> =
-        [("2024-01-15", "user:split-import"), ("2024-01-31", "user:price"), ("2024-02-29", "user:price"), ("2024-03-15", "user:split-import")]
-            .iter()
-            .map(|(d, s)| ((*d).to_owned(), (*s).to_owned()))
-            .collect();
+    let expected: Vec<(String, String)> = [
+        ("2024-01-15", "user:split-import"),
+        ("2024-01-31", "user:price"),
+        ("2024-02-29", "user:price"),
+        ("2024-03-15", "user:split-import"),
+    ]
+    .iter()
+    .map(|(d, s)| ((*d).to_owned(), (*s).to_owned()))
+    .collect();
     assert_eq!(found, expected);
     let feb = prices.as_array().unwrap().iter().find(|p| p["date"] == "2024-02-29").unwrap();
     assert_amount(&feb["value"], "11.75");
@@ -335,14 +472,21 @@ fn a_stock_split_and_shares_given_away_and_a_transfer_from_the_bank() {
                   D03/17/2024\nNShrsOut\nYAcme\nQ10\n^\nD03/18/2024\nNDivX\nYAcme\nT5.00\nL[Checking]\n^\n";
     let p = b.preview(&[("checking.qif", checking), ("broker.qif", broker)], json!({}));
     assert_eq!(p["errors"], json!([]));
-    assert_eq!(p["summary"]["add"], 5, "the transfer once, then buy, split, shares out and the dividend");
+    assert_eq!(
+        p["summary"]["add"], 5,
+        "the transfer once, then buy, split, shares out and the dividend"
+    );
     b.apply(&p, json!({}));
     // `qif-to-gnc.scm:868-876`: the split adds balance × Q/10 and takes the balance away, at no value.
     assert_amount(&b.balance("Broker:Acme"), "70");
     assert_amount(&b.balance("Broker"), "100");
     assert_amount(&b.balance("Checking"), "-495");
     assert_amount(&b.balance("Income:Dividends:Broker:Acme"), "-5");
-    assert_eq!(b.account_type("Equity:Retained Earnings"), "EQUITY", "shares given away go to equity");
+    assert_eq!(
+        b.account_type("Equity:Retained Earnings"),
+        "EQUITY",
+        "shares given away go to equity"
+    );
 }
 
 #[test]
@@ -355,7 +499,10 @@ fn ambiguous_dates_wait_for_a_date_format() {
     assert_eq!(p["warnings"][0]["code"], "date-format");
     let e = b.err("import.apply", json!({ "proposal": p["id"] }));
     assert_eq!(e.code, codes::INVALID, "{e}");
-    let e = b.err("import.preview", json!({ "format": "qif", "files": [{ "text": qif }], "dateFormat": "y-m-d" }));
+    let e = b.err(
+        "import.preview",
+        json!({ "format": "qif", "files": [{ "text": qif }], "dateFormat": "y-m-d" }),
+    );
     assert_eq!(e.data.as_ref().unwrap()["reason"], "date-format", "{e}");
     let p = b.preview(&[("dates.qif", qif)], json!({ "dateFormat": "d-m-y" }));
     assert_eq!(p["transactions"][0]["datePosted"], "2024-01-03");
@@ -370,10 +517,21 @@ fn records_gnucash_would_import_wrongly_are_error_rows() {
     let qif = "!Type:Bank\nD03/14/2024\nT-45.10   \nPPadded\n^\nD02/30/2024\nT-1.00\nPNo such day\n^\nD03/15/2024\nT-2.00\nPGood\n^\n\
                !Type:Invst\nD03/16/2024\nNBuyIt\nYAcme\nT10.00\n^\n";
     let p = b.preview(&[("bad.qif", qif)], json!({}));
-    let errors: Vec<(u64, &str)> = p["errors"].as_array().unwrap().iter().map(|e| (e["line"].as_u64().unwrap(), e["message"].as_str().unwrap())).collect();
+    let errors: Vec<(u64, &str)> = p["errors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| (e["line"].as_u64().unwrap(), e["message"].as_str().unwrap()))
+        .collect();
     assert_eq!(errors.len(), 3, "{errors:?}");
-    assert!(errors.iter().any(|(line, m)| *line == 2 && m.contains("Not a number")), "{errors:?}");
-    assert!(errors.iter().any(|(line, m)| *line == 6 && m.contains("no day 2024-02-30")), "{errors:?}");
+    assert!(
+        errors.iter().any(|(line, m)| *line == 2 && m.contains("Not a number")),
+        "{errors:?}"
+    );
+    assert!(
+        errors.iter().any(|(line, m)| *line == 6 && m.contains("no day 2024-02-30")),
+        "{errors:?}"
+    );
     assert!(errors.iter().any(|(line, m)| *line == 15 && m.contains("BuyIt")), "{errors:?}");
     assert_eq!(p["summary"]["add"], 1);
     let e = b.err("import.apply", json!({ "proposal": p["id"] }));
@@ -402,14 +560,23 @@ fn qif_transactions_are_only_added_or_skipped() {
 #[test]
 fn files_that_are_not_qif_and_names_the_files_do_not_use_are_refused() {
     let mut b = Book::new();
-    let e = b.err("import.preview", json!({ "format": "qif", "files": [{ "name": "x.csv", "text": "Date,Amount\n" }] }));
+    let e = b.err(
+        "import.preview",
+        json!({ "format": "qif", "files": [{ "name": "x.csv", "text": "Date,Amount\n" }] }),
+    );
     assert_eq!(e.data.as_ref().unwrap()["reason"], "qif", "{e}");
     assert_eq!(e.data.as_ref().unwrap()["line"], 1);
-    let e = b.err("import.preview", json!({ "format": "qif", "files": [{ "text": CHECKING }], "accounts": { "Savings": "Assets:Savings" } }));
+    let e = b.err(
+        "import.preview",
+        json!({ "format": "qif", "files": [{ "text": CHECKING }], "accounts": { "Savings": "Assets:Savings" } }),
+    );
     assert_eq!(e.code, codes::INVALID, "{e}");
     let e = b.err("import.preview", json!({ "format": "qif", "files": [] }));
     assert_eq!(e.code, codes::INVALID, "{e}");
-    let e = b.err("import.preview", json!({ "format": "qif", "files": [{ "text": CHECKING }], "currency": "XXX::NOPE" }));
+    let e = b.err(
+        "import.preview",
+        json!({ "format": "qif", "files": [{ "text": CHECKING }], "currency": "XXX::NOPE" }),
+    );
     assert_eq!(e.code, codes::NOT_FOUND, "{e}");
 }
 
@@ -438,7 +605,12 @@ fn gnucash_s_example_files_import() {
         assert_eq!(applied["added"].as_array().unwrap().len(), *added, "{name}");
         let again = b.preview(&[(name, &text)], json!({}));
         assert_eq!(again["newAccounts"], json!([]), "{name}: the map is reused");
-        let unmatched = again["transactions"].as_array().unwrap().iter().filter(|t| t["matches"].as_array().unwrap().is_empty()).count();
+        let unmatched = again["transactions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|t| t["matches"].as_array().unwrap().is_empty())
+            .count();
         assert_eq!(unmatched, 0, "{name}: every transaction is found again");
         assert_eq!(again["summary"]["add"], 0, "{name}: so nothing is added again");
     });

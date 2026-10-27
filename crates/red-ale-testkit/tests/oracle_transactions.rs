@@ -132,11 +132,17 @@ fn void_matches_gnucash() {
     call(&mut d, "transaction.void", &json!({ "guid": TO_EURO, "reason": "" }));
     no_diffs(&oracle_check(&mut d, &ours, &[]));
     let theirs = TempBook::copy(RICH);
-    gnucash_edit(&theirs, &format!("    txn('{GROCERIES}').Void('duplicate')\n    txn('{TO_EURO}').Void('')"));
+    gnucash_edit(
+        &theirs,
+        &format!("    txn('{GROCERIES}').Void('duplicate')\n    txn('{TO_EURO}').Void('')"),
+    );
     let (a, b) = (read(&ours.path), read(&theirs.path));
     [GROCERIES, TO_EURO].iter().for_each(|g| {
         let (ours, theirs) = (a.transaction(guid(g)).unwrap().clone(), b.transaction(guid(g)).unwrap().clone());
-        assert!(ours.is_void() && theirs.is_void(), "GnuCash 5.17 counts an empty-reason void as void");
+        assert!(
+            ours.is_void() && theirs.is_void(),
+            "GnuCash 5.17 counts an empty-reason void as void"
+        );
         assert_eq!(without_void_time(ours), without_void_time(theirs), "{g}");
     });
 }
@@ -183,7 +189,11 @@ fn reverse_matches_gnucash() {
     [GROCERIES, buy].iter().for_each(|g| {
         let (oa, ob) = (a.transaction(guid(g)).unwrap(), b.transaction(guid(g)).unwrap());
         let (ra, rb) = (oa.reversed_by().unwrap(), ob.reversed_by().unwrap());
-        assert_eq!(anonymous(a.transaction(ra).unwrap().clone()), anonymous(b.transaction(rb).unwrap().clone()), "{g}");
+        assert_eq!(
+            anonymous(a.transaction(ra).unwrap().clone()),
+            anonymous(b.transaction(rb).unwrap().clone()),
+            "{g}"
+        );
         let mut oa = oa.clone();
         oa.slots.set(slot_paths::REVERSED_BY, SlotValue::Guid(rb));
         assert_eq!(&oa, ob, "the original only gains reversed-by");
@@ -196,7 +206,10 @@ fn currency_change_matches_gnucash_when_gnucash_balances() {
     call(&mut d, "transaction.update", &json!({ "guid": TO_EURO, "currency": "EUR" }));
     no_diffs(&oracle_check(&mut d, &ours, &[]));
     let theirs = TempBook::copy(RICH);
-    gnucash_edit(&theirs, &format!("    eur = book.get_table().lookup('CURRENCY', 'EUR')\n    txn('{TO_EURO}').SetCurrency(eur)"));
+    gnucash_edit(
+        &theirs,
+        &format!("    eur = book.get_table().lookup('CURRENCY', 'EUR')\n    txn('{TO_EURO}').SetCurrency(eur)"),
+    );
     let (a, b) = (read(&ours.path), read(&theirs.path));
     assert_eq!(a.transaction(guid(TO_EURO)), b.transaction(guid(TO_EURO)));
 }
@@ -232,7 +245,10 @@ fn recorded_prices_match_xacc_trans_record_price() {
     // A directory of its own, so GnuCash's backup cannot clash with the one red-ale made this second.
     let theirs = TempBook::new_path();
     std::fs::copy(&posted.path, &theirs.path).unwrap();
-    gnucash_edit(&theirs, &format!("    txn('{first}').RecordPrice(c.PRICE_SOURCE_SPLIT_REG)\n    txn('{second}').RecordPrice(c.PRICE_SOURCE_SPLIT_REG)"));
+    gnucash_edit(
+        &theirs,
+        &format!("    txn('{first}').RecordPrice(c.PRICE_SOURCE_SPLIT_REG)\n    txn('{second}').RecordPrice(c.PRICE_SOURCE_SPLIT_REG)"),
+    );
     let (a, b) = (oracle::dump(&ours.path).unwrap(), oracle::dump(&theirs.path).unwrap());
     assert_eq!(a["prices"], b["prices"]);
 }
@@ -250,7 +266,11 @@ fn transfers_read_the_same_and_use_gnucash_arithmetic() {
         "transaction.transfer",
         &json!({ "from": CHECKING, "to": "Assets:Brokerage:ACME", "amount": "1000.00", "toAmount": "0.75", "date": "2024-06-26" }),
     );
-    call(&mut d, "transaction.transfer", &json!({ "from": CHECKING, "to": "Assets:Euro Bank", "amount": "50", "date": "2024-06-03" }));
+    call(
+        &mut d,
+        "transaction.transfer",
+        &json!({ "from": CHECKING, "to": "Assets:Euro Bank", "amount": "50", "date": "2024-06-03" }),
+    );
     no_diffs(&oracle_check(&mut d, &book, &[]));
     // GnuCash's own arithmetic: to amount = gnc_numeric_mul(amount, rate, SCU, ROUND_HALF_UP), and the transaction
     // create_transaction builds with xaccSplitSetBaseValue.
@@ -266,7 +286,13 @@ print(n.num(), n.denom(), r.num(), r.denom())
     .unwrap();
     let to = &by_rate["toAmount"];
     let rate = &by_amount["rate"];
-    let ours = format!("{} {} {} {}", to["num"].as_str().unwrap(), to["denom"].as_str().unwrap(), rate["num"].as_str().unwrap(), rate["denom"].as_str().unwrap());
+    let ours = format!(
+        "{} {} {} {}",
+        to["num"].as_str().unwrap(),
+        to["denom"].as_str().unwrap(),
+        rate["num"].as_str().unwrap(),
+        rate["denom"].as_str().unwrap()
+    );
     assert_eq!(out.trim(), ours);
     let price: Value = by_amount["price"].clone();
     assert_eq!(price["action"], "created");
@@ -340,11 +366,19 @@ fn find_matches_gnucash_queries() {
         .iter()
         .map(|q| {
             let found = call(&mut d, "transaction.find", &json!({ "query": q }));
-            found["matches"].as_array().unwrap().iter().map(|m| m["split"].as_str().unwrap().to_owned()).collect()
+            found["matches"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|m| m["split"].as_str().unwrap().to_owned())
+                .collect()
         })
         .collect();
     call(&mut d, "book.close", &json!({ "save": true }));
     let theirs: Vec<Vec<String>> = serde_json::from_str(&oracle::run_code(QUERIES, &[&book.path_str()]).unwrap()).unwrap();
-    ours.iter().zip(&theirs).enumerate().for_each(|(i, (o, t))| assert_eq!(o, t, "query {i}: {}", queries[i]));
+    ours.iter()
+        .zip(&theirs)
+        .enumerate()
+        .for_each(|(i, (o, t))| assert_eq!(o, t, "query {i}: {}", queries[i]));
     assert!(theirs.iter().all(|t| !t.is_empty()), "every query finds something: {theirs:?}");
 }

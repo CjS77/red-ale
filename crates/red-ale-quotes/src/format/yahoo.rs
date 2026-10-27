@@ -19,14 +19,21 @@ const HUNDREDTHS: [(&str, &str); 4] = [("GBp", "GBP"), ("GBX", "GBP"), ("ZAc", "
 pub fn parse(v: &Value, cx: &Context<'_>) -> Result<QuoteRecord, AnswerError> {
     let chart = v.get("chart").ok_or_else(|| AnswerError::unexpected(FORMAT, "no \"chart\""))?;
     if let Some(error) = chart.get("error").filter(|e| !e.is_null()) {
-        let message = text(error, "description").or_else(|| text(error, "code")).unwrap_or("Yahoo returned an error");
+        let message = text(error, "description")
+            .or_else(|| text(error, "code"))
+            .unwrap_or("Yahoo returned an error");
         return Ok(QuoteRecord::failed(message));
     }
-    let meta = chart.pointer("/result/0/meta").ok_or_else(|| AnswerError::unexpected(FORMAT, "no \"chart.result[0].meta\""))?;
+    let meta = chart
+        .pointer("/result/0/meta")
+        .ok_or_else(|| AnswerError::unexpected(FORMAT, "no \"chart.result[0].meta\""))?;
     let price = text(meta, "regularMarketPrice").ok_or_else(|| AnswerError::unexpected(FORMAT, "no \"regularMarketPrice\""))?;
     let currency = text(meta, "currency").or(cx.currency);
     let (price, currency) = match HUNDREDTHS.iter().find(|(small, _)| Some(*small) == currency) {
-        Some((_, unit)) => (hundredths(price).ok_or_else(|| AnswerError::unexpected(FORMAT, "a price that is not a number"))?, Some(*unit)),
+        Some((_, unit)) => (
+            hundredths(price).ok_or_else(|| AnswerError::unexpected(FORMAT, "a price that is not a number"))?,
+            Some(*unit),
+        ),
         None => (price.to_owned(), currency),
     };
     let date = text(meta, "regularMarketTime").and_then(|t| unix_date(t, cx.zone));

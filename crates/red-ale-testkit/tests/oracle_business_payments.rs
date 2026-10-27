@@ -36,7 +36,13 @@ fn view(path: &Path) -> Value {
 }
 
 fn invoice_guid(book: &Book, id: &str) -> String {
-    book.business.invoices.values().find(|i| i.id == id).unwrap_or_else(|| panic!("no document {id}")).guid.to_string()
+    book.business
+        .invoices
+        .values()
+        .find(|i| i.id == id)
+        .unwrap_or_else(|| panic!("no document {id}"))
+        .guid
+        .to_string()
 }
 
 fn owner(book: &Book, name: &str) -> Value {
@@ -53,7 +59,12 @@ fn owner(book: &Book, name: &str) -> Value {
 }
 
 fn txn_by_num(book: &Book, num: &str) -> String {
-    book.transactions.values().find(|t| t.num.as_deref() == Some(num)).unwrap_or_else(|| panic!("no transaction {num}")).guid.to_string()
+    book.transactions
+        .values()
+        .find(|t| t.num.as_deref() == Some(num))
+        .unwrap_or_else(|| panic!("no transaction {num}"))
+        .guid
+        .to_string()
 }
 
 /// One operation of the shared op language, through red-ale's API.
@@ -62,7 +73,9 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
     let inv = |key: &str| invoice_guid(&book, op[key].as_str().unwrap());
     let opt = |key: &str| op.get(key).cloned().unwrap_or(Value::Null);
     let docs = |key: &str| -> Option<Vec<String>> {
-        op.get(key).and_then(Value::as_array).map(|a| a.iter().map(|i| invoice_guid(&book, i.as_str().unwrap())).collect())
+        op.get(key)
+            .and_then(Value::as_array)
+            .map(|a| a.iter().map(|i| invoice_guid(&book, i.as_str().unwrap())).collect())
     };
     match op["op"].as_str().unwrap() {
         "post" => {
@@ -73,7 +86,11 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
             call(d, "invoice.post", &params);
         }
         "unpost" => {
-            call(d, "invoice.unpost", &json!({ "invoice": inv("invoice"), "resetTaxTables": op.get("reset").cloned().unwrap_or(json!(false)) }));
+            call(
+                d,
+                "invoice.unpost",
+                &json!({ "invoice": inv("invoice"), "resetTaxTables": op.get("reset").cloned().unwrap_or(json!(false)) }),
+            );
         }
         "pay" => {
             let params = json!({
@@ -108,7 +125,14 @@ fn red_ale_op(d: &mut Dispatcher, op: &Value) {
             if let Some(apply) = docs("applyTo") {
                 p.insert("applyTo".into(), json!(apply));
             }
-            for (from, to) in [("amount", "amount"), ("date", "date"), ("memo", "memo"), ("num", "num"), ("autoPay", "autoPay"), ("account", "account")] {
+            for (from, to) in [
+                ("amount", "amount"),
+                ("date", "date"),
+                ("memo", "memo"),
+                ("num", "num"),
+                ("autoPay", "autoPay"),
+                ("account", "account"),
+            ] {
                 if let Some(v) = op.get(from) {
                     p.insert(to.into(), v.clone());
                 }
@@ -128,7 +152,11 @@ fn assert_scrub_clean(book: &Path) {
     std::fs::copy(book, &copy.path).unwrap();
     run(&["scrub", &copy.path_str()]);
     let differences = diff(&view(book), &view(&copy.path), &[]);
-    assert!(differences.is_empty(), "GnuCash's business scrub changed red-ale's book:\n{}", differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "GnuCash's business scrub changed red-ale's book:\n{}",
+        differences.join("\n")
+    );
 }
 
 /// Run `ops` with GnuCash on one copy and red-ale on the other; both must look the same.
@@ -141,9 +169,17 @@ fn compare(ops: &Value) {
     call(&mut d, "book.open", &json!({ "path": ours.path_str() }));
     ops.as_array().unwrap().iter().for_each(|op| red_ale_op(&mut d, op));
     let fidelity = oracle_check(&mut d, &ours, &[]);
-    assert!(fidelity.is_empty(), "GnuCash reads red-ale's book differently:\n{}", fidelity.join("\n"));
+    assert!(
+        fidelity.is_empty(),
+        "GnuCash reads red-ale's book differently:\n{}",
+        fidelity.join("\n")
+    );
     let differences = diff(&view(&gnucash.path), &view(&ours.path), &[]);
-    assert!(differences.is_empty(), "red-ale's result differs from GnuCash's:\n{}", differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "red-ale's result differs from GnuCash's:\n{}",
+        differences.join("\n")
+    );
     assert_scrub_clean(&ours.path);
 }
 
@@ -170,7 +206,10 @@ fn credit_note_totals_match_gnucash() {
         let ours = json!({ "subtotal": reduce(&t["subtotal"]), "tax": reduce(&t["tax"]), "total": reduce(&t["total"]) });
         let theirs = json!({ "subtotal": expected[id]["subtotal"], "tax": expected[id]["tax"], "total": expected[id]["total"] });
         assert_eq!(ours, theirs, "{id}");
-        assert!(!t["total"]["num"].as_str().unwrap().starts_with('-'), "{id} totals are printed positive");
+        assert!(
+            !t["total"]["num"].as_str().unwrap().starts_with('-'),
+            "{id} totals are printed positive"
+        );
     }
 }
 
@@ -262,7 +301,11 @@ fn open_items_come_in_the_dialogs_order() {
     call(&mut d, "book.open", &json!({ "path": ours.path_str() }));
     ops.as_array().unwrap().iter().for_each(|op| red_ale_op(&mut d, op));
     let book = d.context().book().unwrap().clone();
-    let items = call(&mut d, "payment.openItems", &json!({ "owner": owner(&book, "Acme Ltd"), "account": AR }));
+    let items = call(
+        &mut d,
+        "payment.openItems",
+        &json!({ "owner": owner(&book, "Acme Ltd"), "account": AR }),
+    );
     let reduce = |v: &Value| {
         let n: i64 = v["num"].as_str().unwrap().parse().unwrap();
         red_ale_testkit::model::frac(red_ale_core::Numeric::new(n, v["denom"].as_str().unwrap().parse().unwrap()))

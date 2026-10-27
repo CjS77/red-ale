@@ -55,16 +55,35 @@ fn edited_commodities_read_the_same_in_gnucash() {
         &json!({ "namespace": "NYSE", "mnemonic": "IBM", "fullname": "Intl Business Machines", "cusip": "US4592001014", "fraction": 100,
                  "quoteFlag": true, "quoteSource": "my_private_src", "quoteTz": "Mars/Olympus", "userSymbol": "IBM$" }),
     );
-    call(&mut d, "commodity.update", &json!({ "commodity": "NASDAQ::ACME", "mnemonic": "ACM", "fraction": 100, "quoteSource": "alphavantage" }));
+    call(
+        &mut d,
+        "commodity.update",
+        &json!({ "commodity": "NASDAQ::ACME", "mnemonic": "ACM", "fraction": 100, "quoteSource": "alphavantage" }),
+    );
     call(&mut d, "commodity.update", &json!({ "commodity": "USD", "quoteFlag": false }));
-    call(&mut d, "commodity.update", &json!({ "commodity": "GBP", "quoteFlag": true, "quoteTz": "Europe/London", "userSymbol": "GB£" }));
+    call(
+        &mut d,
+        "commodity.update",
+        &json!({ "commodity": "GBP", "quoteFlag": true, "quoteTz": "Europe/London", "userSymbol": "GB£" }),
+    );
     call(&mut d, "commodity.update", &json!({ "commodity": "EUR", "userSymbol": "€uro" }));
-    call(&mut d, "commodity.create", &json!({ "namespace": "X", "mnemonic": "Y", "fullname": "y" }));
+    call(
+        &mut d,
+        "commodity.create",
+        &json!({ "namespace": "X", "mnemonic": "Y", "fullname": "y" }),
+    );
     call(&mut d, "commodity.delete", &json!({ "commodity": "X::Y" }));
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
 
-    let ids = ["NYSE::IBM", "NASDAQ::ACM", "CURRENCY::USD", "CURRENCY::GBP", "CURRENCY::EUR", "FUND::ZETA"];
+    let ids = [
+        "NYSE::IBM",
+        "NASDAQ::ACM",
+        "CURRENCY::USD",
+        "CURRENCY::GBP",
+        "CURRENCY::EUR",
+        "FUND::ZETA",
+    ];
     let path = book.path_str();
     let args: Vec<&str> = std::iter::once(path.as_str()).chain(ids).collect();
     let gnucash: Value = serde_json::from_str(&oracle::run_code(QUOTES, &args).unwrap()).unwrap();
@@ -135,8 +154,12 @@ fn a_new_book_lists_what_gnucash_lists() {
     let book = TempBook::new_path();
     let mut d = red_ale_testkit::dispatcher();
     call(&mut d, "book.create", &json!({ "path": book.path_str() }));
-    let ours: Vec<String> =
-        call(&mut d, "commodity.list", &json!({})).as_array().unwrap().iter().map(|c| format!("{} {}", c["id"].as_str().unwrap(), c["fraction"])).collect();
+    let ours: Vec<String> = call(&mut d, "commodity.list", &json!({}))
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| format!("{} {}", c["id"].as_str().unwrap(), c["fraction"]))
+        .collect();
     call(&mut d, "book.close", &json!({}));
     let code = r#"
 import sys
@@ -149,7 +172,11 @@ try:
 finally:
     s.end()
 "#;
-    let mut gnucash: Vec<String> = oracle::run_code(code, &[&book.path_str()]).unwrap().lines().map(str::to_owned).collect();
+    let mut gnucash: Vec<String> = oracle::run_code(code, &[&book.path_str()])
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
     gnucash.sort();
     let mut sorted = ours.clone();
     sorted.sort();

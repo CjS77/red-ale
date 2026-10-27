@@ -17,7 +17,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use red_ale_core::ops::commodities::lookup;
 use red_ale_core::{AccountType, Book, CommodityRef, Date, DomainError, ReconcileState, Time64, TimeZone};
 
-use super::dialog_utils::{SecurityChoice, get_account_name, make_account_display, make_category_display, make_memo_display, update_security_hash};
+use super::dialog_utils::{
+    SecurityChoice, get_account_name, make_account_display, make_category_display, make_memo_display, update_security_hash,
+};
 use super::guess_map::{GncAcctInfo, LoadedMaps, MapHash, SavedMap, account_info};
 use super::objects::QifFile;
 use super::parse::DateFormat;
@@ -183,8 +185,15 @@ pub fn propose(
     if !loaded.date_formats.is_empty() {
         let names: Vec<&str> = loaded.date_formats.iter().map(|f| f.symbol()).collect();
         let message = format!("the dates are ambiguous: preview again with dateFormat one of {}", names.join(", "));
-        proposal.warnings.push(crate::pipeline::Warning { code: "date-format", message, index: None });
-        proposal.qif = Some(Box::new(QifState { date_formats: loaded.date_formats, ..QifState::default() }));
+        proposal.warnings.push(crate::pipeline::Warning {
+            code: "date-format",
+            message,
+            index: None,
+        });
+        proposal.qif = Some(Box::new(QifState {
+            date_formats: loaded.date_formats,
+            ..QifState::default()
+        }));
         return Ok(proposal);
     }
     let mut state = choose(book, loaded.files, &loaded.ticker_map, opts)?;
@@ -201,14 +210,20 @@ pub fn propose(
 fn choose(book: &Book, files: Vec<QifFile>, ticker_map: &super::objects::TickerMap, opts: &QifOptions) -> Result<QifState, QifError> {
     let loaded = opts.saved.load(book);
     let info = account_info(book);
-    let mut maps = Maps { accounts: loaded.accounts.clone(), categories: loaded.categories.clone(), payees: loaded.payees.clone() };
+    let mut maps = Maps {
+        accounts: loaded.accounts.clone(),
+        categories: loaded.categories.clone(),
+        payees: loaded.payees.clone(),
+    };
     let shown = display(&files, &mut maps, &info);
     override_map(&mut maps.accounts, &shown[0], &opts.accounts, "account")?;
     override_map(&mut maps.categories, &shown[1], &opts.categories, "category")?;
     override_map(&mut maps.payees, &shown[2], &opts.payees, "payee")?;
     let shown = display(&files, &mut maps, &info);
     let rows = |map: &MapHash, keys: &[String], saved: &MapHash, chosen: &BTreeMap<String, String>| -> Vec<MapRow> {
-        keys.iter().filter_map(|k| map.get(k).map(|e| map_row(k, e, saved.contains_key(k) || chosen.contains_key(k)))).collect()
+        keys.iter()
+            .filter_map(|k| map.get(k).map(|e| map_row(k, e, saved.contains_key(k) || chosen.contains_key(k))))
+            .collect()
     };
     let (security_hash, securities) = securities(book, &maps, ticker_map, &loaded, opts)?;
     Ok(QifState {
@@ -268,7 +283,11 @@ fn securities(
     loaded: &LoadedMaps,
     opts: &QifOptions,
 ) -> Result<(BTreeMap<String, SecurityChoice>, Vec<SecurityRow>), QifError> {
-    let mut hash: BTreeMap<String, SecurityChoice> = loaded.securities.iter().map(|(n, c)| (n.clone(), SecurityChoice::Existing(c.clone()))).collect();
+    let mut hash: BTreeMap<String, SecurityChoice> = loaded
+        .securities
+        .iter()
+        .map(|(n, c)| (n.clone(), SecurityChoice::Existing(c.clone())))
+        .collect();
     let existing = |full_name: &str| book.account_by_full_name(full_name).map(|a| (a.account_type, a.commodity.clone()));
     let new_names = update_security_hash(&mut hash, ticker_map, &maps.accounts, &loaded.security_prefs, existing);
     opts.securities.iter().try_for_each(|(name, s)| {
@@ -276,14 +295,26 @@ fn securities(
             return Err(DomainError::invalid(format!("{name:?} is not a new security of this import")));
         }
         if [&s.namespace, &s.mnemonic, &s.fullname].iter().any(|t| t.trim().is_empty()) {
-            return Err(DomainError::invalid(format!("security {name:?} needs a namespace, a mnemonic and a full name")));
+            return Err(DomainError::invalid(format!(
+                "security {name:?} needs a namespace, a mnemonic and a full name"
+            )));
         }
         let id = CommodityRef::new(s.namespace.trim(), s.mnemonic.trim());
-        hash.insert(name.clone(), SecurityChoice::New { id, fullname: s.fullname.clone() });
+        hash.insert(
+            name.clone(),
+            SecurityChoice::New {
+                id,
+                fullname: s.fullname.clone(),
+            },
+        );
         Ok(())
     })?;
     let used = used_securities(&maps.accounts);
-    let rows = hash.iter().filter(|(name, _)| used.contains(name.as_str())).map(|(name, choice)| security_row(book, name, choice)).collect();
+    let rows = hash
+        .iter()
+        .filter(|(name, _)| used.contains(name.as_str()))
+        .map(|(name, choice)| security_row(book, name, choice))
+        .collect();
     Ok((hash, rows))
 }
 
@@ -291,7 +322,12 @@ fn securities(
 fn used_securities(accounts: &MapHash) -> BTreeSet<&str> {
     accounts
         .iter()
-        .filter(|(_, e)| e.display && e.allowed_types.iter().any(|t| matches!(t, AccountType::Stock | AccountType::Mutual)))
+        .filter(|(_, e)| {
+            e.display
+                && e.allowed_types
+                    .iter()
+                    .any(|t| matches!(t, AccountType::Stock | AccountType::Mutual))
+        })
         .map(|(k, _)| get_account_name(k))
         .collect()
 }
@@ -302,5 +338,10 @@ fn security_row(book: &Book, name: &str, choice: &SecurityChoice) -> SecurityRow
         SecurityChoice::Existing(_) => None,
     };
     let new = fullname.is_some() && lookup(book, choice.id()).is_none();
-    SecurityRow { name: name.to_owned(), id: choice.id().clone(), fullname: fullname.filter(|_| new), new }
+    SecurityRow {
+        name: name.to_owned(),
+        id: choice.id().clone(),
+        fullname: fullname.filter(|_| new),
+        new,
+    }
 }

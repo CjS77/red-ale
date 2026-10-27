@@ -106,7 +106,14 @@ pub fn start(
 }
 
 fn fail_all(count: usize, message: &str) -> Vec<Outcome> {
-    vec![Outcome::Failed { service: None, reason: Reason::ServiceError, message: message.to_owned() }; count]
+    vec![
+        Outcome::Failed {
+            service: None,
+            reason: Reason::ServiceError,
+            message: message.to_owned()
+        };
+        count
+    ]
 }
 
 /// A request waiting for its service's turn.
@@ -122,7 +129,12 @@ async fn run(fetch: Fetch, on_item: &(dyn Fn(usize, &Outcome) + Send + Sync)) ->
         Ok(client) => client,
         Err(e) => return fail_all(fetch.items.len(), &e.to_string()),
     };
-    let Fetch { items, intervals, timeout, zone } = fetch;
+    let Fetch {
+        items,
+        intervals,
+        timeout,
+        zone,
+    } = fetch;
     let mut workers = JoinSet::new();
     let queues: Queues = Arc::new(
         intervals
@@ -151,7 +163,11 @@ async fn run(fetch: Fetch, on_item: &(dyn Fn(usize, &Outcome) + Send + Sync)) ->
 }
 
 fn no_request() -> Outcome {
-    Outcome::Failed { service: None, reason: Reason::ServiceError, message: "no request was made".to_owned() }
+    Outcome::Failed {
+        service: None,
+        reason: Reason::ServiceError,
+        message: "no request was made".to_owned(),
+    }
 }
 
 /// A request queued, or one that ended before it was sent.
@@ -161,13 +177,24 @@ enum Pending {
 }
 
 fn submit(queues: &Queues, attempt: &Attempt) -> Pending {
-    let failed = |message: String| Pending::Done(Outcome::Failed { service: Some(attempt.service.clone()), reason: Reason::ServiceError, message });
+    let failed = |message: String| {
+        Pending::Done(Outcome::Failed {
+            service: Some(attempt.service.clone()),
+            reason: Reason::ServiceError,
+            message,
+        })
+    };
     if let Some(why) = &attempt.missing_key {
         return failed(why.clone());
     }
-    let Some(queue) = queues.get(&attempt.service) else { return failed(format!("there is no Quote service {}", attempt.service)) };
+    let Some(queue) = queues.get(&attempt.service) else {
+        return failed(format!("there is no Quote service {}", attempt.service));
+    };
     let (reply, answer) = oneshot::channel();
-    match queue.send(Job { attempt: attempt.clone(), reply }) {
+    match queue.send(Job {
+        attempt: attempt.clone(),
+        reply,
+    }) {
         Ok(()) => Pending::Waiting(attempt.service.clone(), answer),
         Err(_) => failed(format!("the Quote service {} stopped", attempt.service)),
     }
@@ -211,7 +238,11 @@ async fn worker(mut jobs: mpsc::UnboundedReceiver<Job>, interval: Duration, time
 /// Send one request and read its answer.
 async fn ask(client: &Client, a: &Attempt, timeout: Duration, zone: &TimeZone) -> Outcome {
     let shown = a.url.shown();
-    let failed = |reason, message: String| Outcome::Failed { service: Some(a.service.clone()), reason, message: a.url.redact(&message) };
+    let failed = |reason, message: String| Outcome::Failed {
+        service: Some(a.service.clone()),
+        reason,
+        message: a.url.redact(&message),
+    };
     let (status, body) = match tokio::time::timeout(timeout, client.get(a.url.url())).await {
         Err(_) => return failed(Reason::Timeout, format!("{shown} did not answer within {} s", timeout.as_secs())),
         Ok(Err(e)) => return failed(Reason::ServiceError, format!("{shown}: {e}")),
@@ -220,9 +251,17 @@ async fn ask(client: &Client, a: &Attempt, timeout: Duration, zone: &TimeZone) -
     if !status.is_success() {
         return failed(Reason::ServiceError, format!("{shown} answered HTTP {status}{}", excerpt(&body)));
     }
-    let cx = Context { ask: &a.ask, currency: a.currency.as_deref(), pointers: &a.pointers, zone };
+    let cx = Context {
+        ask: &a.ask,
+        currency: a.currency.as_deref(),
+        pointers: &a.pointers,
+        zone,
+    };
     match format::parse(a.format, &body, &cx) {
-        Ok(record) => Outcome::Quote { service: a.service.clone(), record: as_asked(record, a) },
+        Ok(record) => Outcome::Quote {
+            service: a.service.clone(),
+            record: as_asked(record, a),
+        },
         Err(e) => failed(Reason::ServiceError, format!("{shown}: {e}")),
     }
 }

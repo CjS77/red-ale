@@ -24,7 +24,11 @@ pub(crate) struct Resolver {
 
 impl Resolver {
     pub(crate) fn new(sources: Arc<Sources>) -> Self {
-        Self { sources, cache: RefCell::new(BTreeMap::new()), loading: RefCell::new(BTreeSet::new()) }
+        Self {
+            sources,
+            cache: RefCell::new(BTreeMap::new()),
+            loading: RefCell::new(BTreeSet::new()),
+        }
     }
 
     /// The source name `path` names when imported from `importer`, if it names a script there is.
@@ -35,7 +39,9 @@ impl Resolver {
             let dir = importer.rsplit_once('/').map_or(".", |(dir, _)| dir);
             plain_components(rest).then(|| format!("{dir}/{rest}.rhai"))?
         } else {
-            let builtin = BUILTIN_DIRS.iter().any(|d| path.strip_prefix(d).is_some_and(|rest| rest.starts_with('/')));
+            let builtin = BUILTIN_DIRS
+                .iter()
+                .any(|d| path.strip_prefix(d).is_some_and(|rest| rest.starts_with('/')));
             (builtin && plain_components(path)).then(|| format!("{path}.rhai"))?
         };
         self.sources.contains_key(&name).then_some(name)
@@ -67,7 +73,9 @@ fn plain_components(path: &str) -> bool {
 
 impl ModuleResolver for Resolver {
     fn resolve(&self, engine: &Engine, source: Option<&str>, path: &str, pos: Position) -> Result<Shared<Module>, Box<EvalAltResult>> {
-        let name = self.locate(source, path).ok_or_else(|| EvalAltResult::ErrorModuleNotFound(path.to_owned(), pos))?;
+        let name = self
+            .locate(source, path)
+            .ok_or_else(|| EvalAltResult::ErrorModuleNotFound(path.to_owned(), pos))?;
         let cached = self.cache.borrow().get(&name).map(Shared::clone);
         match cached {
             Some(module) => Ok(module),
@@ -82,8 +90,25 @@ mod tests {
     use crate::engine::registry::Script;
 
     fn resolver() -> Resolver {
-        let names = ["lib/collectors.rhai", "standard/balance-sheet.rhai", "./mine/report.rhai", "./mine/util/helpers.rhai", "./top.rhai"];
-        let sources = names.iter().map(|n| (n.to_string(), Script { text: Arc::from(""), builtin: !n.starts_with("./") })).collect();
+        let names = [
+            "lib/collectors.rhai",
+            "standard/balance-sheet.rhai",
+            "./mine/report.rhai",
+            "./mine/util/helpers.rhai",
+            "./top.rhai",
+        ];
+        let sources = names
+            .iter()
+            .map(|n| {
+                (
+                    n.to_string(),
+                    Script {
+                        text: Arc::from(""),
+                        builtin: !n.starts_with("./"),
+                    },
+                )
+            })
+            .collect();
         Resolver::new(Arc::new(sources))
     }
 
@@ -93,13 +118,30 @@ mod tests {
         let user = Some("./mine/report.rhai");
         assert_eq!(r.locate(None, "lib/collectors").as_deref(), Some("lib/collectors.rhai"));
         assert_eq!(r.locate(user, "lib/collectors.rhai").as_deref(), Some("lib/collectors.rhai"));
-        assert_eq!(r.locate(user, "standard/balance-sheet").as_deref(), Some("standard/balance-sheet.rhai"));
+        assert_eq!(
+            r.locate(user, "standard/balance-sheet").as_deref(),
+            Some("standard/balance-sheet.rhai")
+        );
         assert_eq!(r.locate(user, "./util/helpers").as_deref(), Some("./mine/util/helpers.rhai"));
         assert_eq!(r.locate(Some("./top.rhai"), "./mine/report").as_deref(), Some("./mine/report.rhai"));
-        let refused =
-            ["../top", "./../top", "./util/../report", "/etc/passwd", "lib/../top", "mine/report", "lib/missing", "", "./", "lib"];
+        let refused = [
+            "../top",
+            "./../top",
+            "./util/../report",
+            "/etc/passwd",
+            "lib/../top",
+            "mine/report",
+            "lib/missing",
+            "",
+            "./",
+            "lib",
+        ];
         refused.iter().for_each(|p| assert_eq!(r.locate(user, p), None, "{p}"));
-        assert_eq!(r.locate(Some("lib/collectors.rhai"), "./mine/report"), None, "no ./ from a built-in script");
+        assert_eq!(
+            r.locate(Some("lib/collectors.rhai"), "./mine/report"),
+            None,
+            "no ./ from a built-in script"
+        );
         assert_eq!(r.locate(None, "./top"), None);
     }
 }

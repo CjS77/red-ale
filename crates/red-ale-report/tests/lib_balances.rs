@@ -50,16 +50,19 @@ fn balances_and_accumulations_at_dates() {
               `${strs.call(balances::account_accumulate_at_dates(expenses, at_1977))}`);
         try { balances::account_accumulate_at_dates(bank, dates, #{ split_to_date: |s| 0 }); } catch (e) { print(`${e}`); }
     "#);
-    check(&got, &[
-        "balances=[\"$0.00\", \"$29.00\", \"$1.00\", \"-$99.00\", \"-$99.00\"]",
-        "split-to-amount=$0.00 $111.00",
-        "accumulate=[\"()\", \"29\", \"1\", \"-99\", \"-99\"]",
-        "nosplit=[\"0\", \"29\", \"1\", \"-99\", \"-99\"]",
-        // desc-2 and desc-3 share a date; split order puts trn3 last.
-        "description=[(), \"desc-3\", \"desc-7\", \"$100bank -> $80expenses + $20wallet\", \"$100bank -> $80expenses + $20wallet\"]",
-        "noclosing=[\"111\"] [\"0\"]",
-        "account_accumulate_at_dates: split_to_date is not supported",
-    ]);
+    check(
+        &got,
+        &[
+            "balances=[\"$0.00\", \"$29.00\", \"$1.00\", \"-$99.00\", \"-$99.00\"]",
+            "split-to-amount=$0.00 $111.00",
+            "accumulate=[\"()\", \"29\", \"1\", \"-99\", \"-99\"]",
+            "nosplit=[\"0\", \"29\", \"1\", \"-99\", \"-99\"]",
+            // desc-2 and desc-3 share a date; split order puts trn3 last.
+            "description=[(), \"desc-3\", \"desc-7\", \"$100bank -> $80expenses + $20wallet\", \"$100bank -> $80expenses + $20wallet\"]",
+            "noclosing=[\"111\"] [\"0\"]",
+            "account_accumulate_at_dates: split_to_date is not supported",
+        ],
+    );
 }
 
 /// Balances strictly before a date (xaccAccountGetBalanceAsOfDate) and values by transaction currency (RU:516-553).
@@ -76,14 +79,17 @@ fn comm_balances_and_values() {
         print(`value-at=${show.call(balances::account_get_comm_value_at_date(bank, end_of.call(2000, 12, 31), false))}`);
         print(`value-tree=${show.call(balances::account_get_comm_value_at_date(asset, end_of.call(1971, 12, 31), true))}`);
     "#);
-    check(&got, &[
-        // Asset's own $0, then Bank's $2,195 and GBP Bank's 602 GBP; Wallet's $20.
-        "balance=[\"GBP:602\", \"USD:2215\"] alone=[\"USD:0\"]",
-        "value-2000=[\"USD:-9\", \"GBP:10\"]",
-        "value-at=[\"GBP:10\", \"USD:2172\"]",
-        // Bank's −$99 and Wallet's $20.
-        "value-tree=[\"USD:-79\"]",
-    ]);
+    check(
+        &got,
+        &[
+            // Asset's own $0, then Bank's $2,195 and GBP Bank's 602 GBP; Wallet's $20.
+            "balance=[\"GBP:602\", \"USD:2215\"] alone=[\"USD:0\"]",
+            "value-2000=[\"USD:-9\", \"GBP:10\"]",
+            "value-at=[\"GBP:10\", \"USD:2172\"]",
+            // Bank's −$99 and Wallet's $20.
+            "value-tree=[\"USD:-79\"]",
+        ],
+    );
 }
 
 /// gnc:accounts-get-balance-helper (RU:560-570) and gnc:accounts-get-comm-total-assets (RU:577-583), and the
@@ -105,18 +111,21 @@ fn balance_helpers() {
         print(`count=${balances::accounts_count_splits([bank])} ${balances::accounts_count_splits([bank, expenses])} ` +
               `${balances::accounts_count_splits([])}`);
     "#);
-    check(&got, &[
-        // Income's −$2,573 and Income-GBP's −612 GBP reversed, Expenses' $264 merged.
-        "helper=[\"GBP:612\", \"USD:2837\"]",
-        // Every account but income and expense: Bank $2,186, Wallet $20, Liabilities −$3, Equity $111; GBP Bank.
-        "total-assets=[\"GBP:608\", \"USD:2314\"]",
-        "assoc=[\"Income=[\\\"USD:-2573\\\"]\", \"Income-GBP=[\\\"GBP:-612\\\"]\", \"Expenses=[\\\"USD:264\\\"]\"]",
-        "select=[\"USD:264\"] missing=[]",
-        // gnc:collector+ merges each in turn.
-        "total=[\"GBP:-612\", \"USD:-2309\"]",
-        // Bank: 6 in 1969-1971, 36 in 1978, 2 in 2000; Expenses: 5, the closing, 12.
-        "count=44 62 0",
-    ]);
+    check(
+        &got,
+        &[
+            // Income's −$2,573 and Income-GBP's −612 GBP reversed, Expenses' $264 merged.
+            "helper=[\"GBP:612\", \"USD:2837\"]",
+            // Every account but income and expense: Bank $2,186, Wallet $20, Liabilities −$3, Equity $111; GBP Bank.
+            "total-assets=[\"GBP:608\", \"USD:2314\"]",
+            "assoc=[\"Income=[\\\"USD:-2573\\\"]\", \"Income-GBP=[\\\"GBP:-612\\\"]\", \"Expenses=[\\\"USD:264\\\"]\"]",
+            "select=[\"USD:264\"] missing=[]",
+            // gnc:collector+ merges each in turn.
+            "total=[\"GBP:-612\", \"USD:-2309\"]",
+            // Bank: 6 in 1969-1971, 36 in 1978, 2 in 2000; Expenses: 5, the closing, 12.
+            "count=44 62 0",
+        ],
+    );
 }
 
 /// The balance over an interval leaves closing transactions out unless asked (RU:588-613, :656-683).
@@ -138,15 +147,18 @@ fn balances_over_intervals_and_closing_entries() {
         let closing = #{ str: "Closing", cased: false, regexp: false, closing: true };
         print(`closing-type=${show.call(balances::account_get_trans_type_balance_interval(book, [expenses], closing, (), ()))}`);
     "#);
-    check(&got, &[
-        "interval=[\"USD:264\"] number=264",
-        "list=[\"USD:264\"] with-closing=[\"USD:153\"]",
-        "at-date=[\"USD:111\"] with-closing=[\"USD:0\"]",
-        // Every split under Root: the transactions in one commodity net to zero, the two exchanges of 2000 leave
-        // +$14 − $9 and −10 + 6 GBP.
-        "children=[\"GBP:-4\", \"USD:5\"]",
-        "closing-type=[\"USD:-111\"]",
-    ]);
+    check(
+        &got,
+        &[
+            "interval=[\"USD:264\"] number=264",
+            "list=[\"USD:264\"] with-closing=[\"USD:153\"]",
+            "at-date=[\"USD:111\"] with-closing=[\"USD:0\"]",
+            // Every split under Root: the transactions in one commodity net to zero, the two exchanges of 2000 leave
+            // +$14 − $9 and −10 + 6 GBP.
+            "children=[\"GBP:-4\", \"USD:5\"]",
+            "closing-type=[\"USD:-111\"]",
+        ],
+    );
 }
 
 /// gnc:account-get-trans-type-splits-interval (RU:692-725): the description matches as a substring, with case
@@ -168,13 +180,16 @@ fn trans_type_splits() {
         print(`not-closing=${all_time.call([expenses], #{ closing: false }).len()} empty=${all_time.call([], #{ closing: true })}`);
         print(`voided=${balances::split_voided(bank.splits()[0])} ${balances::split_voided(bank.splits()[1])}`);
     "#);
-    check(&got, &[
-        "income=24 upper=24 cased=0 regexp=24 plain=0 truthy=0 none=36",
-        // desc-2 is void.
-        "desc=[\"desc-3\", \"desc-1\", \"desc-4\", \"desc-7\"]",
-        "closing=[\"Closing\"] or=[\"desc-1\", \"Closing\"]",
-        // A false closing flag is no condition at all; desc-5 is void.
-        "not-closing=17 empty=[]",
-        "voided=true false",
-    ]);
+    check(
+        &got,
+        &[
+            "income=24 upper=24 cased=0 regexp=24 plain=0 truthy=0 none=36",
+            // desc-2 is void.
+            "desc=[\"desc-3\", \"desc-1\", \"desc-4\", \"desc-7\"]",
+            "closing=[\"Closing\"] or=[\"desc-1\", \"Closing\"]",
+            // A false closing flag is no condition at all; desc-5 is void.
+            "not-closing=17 empty=[]",
+            "voided=true false",
+        ],
+    );
 }

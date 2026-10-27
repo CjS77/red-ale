@@ -83,7 +83,10 @@ pub fn counter_names(book: &Book) -> Vec<String> {
 /// GnuCash would number with.
 pub fn set_counter(book: &mut Book, name: &str, last: Option<i64>, format: Option<Option<&str>>) -> DomainResult<()> {
     if !COUNTERS.contains(&name) {
-        return Err(DomainError::invalid(format!("unknown counter {name}; the counters are {}", COUNTERS.join(", "))));
+        return Err(DomainError::invalid(format!(
+            "unknown counter {name}; the counters are {}",
+            COUNTERS.join(", ")
+        )));
     }
     if let Some(n) = last.filter(|n| !(0..=MAX_COUNTER).contains(n)) {
         return Err(DomainError::invalid(format!("a counter must be from 0 to {MAX_COUNTER}, not {n}")));
@@ -103,9 +106,11 @@ pub fn set_counter(book: &mut Book, name: &str, last: Option<i64>, format: Optio
 /// Refuse a format GnuCash would not number with, with its message, and one `printf` itself would not accept.
 pub fn check_counter_format(format: &str) -> DomainResult<()> {
     normalize_counter_format(format).map_err(|e| DomainError::invalid(format!("invalid counter format {format:?}: {e}")))?;
-    CounterFormat::parse(format)
-        .map(|_| ())
-        .ok_or_else(|| DomainError::invalid(format!("invalid counter format {format:?}: the width and precision have more than one dot")))
+    CounterFormat::parse(format).map(|_| ()).ok_or_else(|| {
+        DomainError::invalid(format!(
+            "invalid counter format {format:?}: the width and precision have more than one dot"
+        ))
+    })
 }
 
 /// `qof_book_normalize_counter_format`: the format with its conversion rewritten as `li` (`PRIi64`), or GnuCash's
@@ -135,18 +140,32 @@ struct FormatParts<'a> {
 fn split_format<'a>(format: &'a str, spec: &str) -> Result<FormatParts<'a>, String> {
     let start = find_conversion(format).ok_or("Format string ended without any conversion specification")?;
     let rest = &format[start + 1..];
-    let at = rest.find(spec).ok_or_else(|| format!("Format string doesn't contain requested format specifier: {spec}"))?;
+    let at = rest
+        .find(spec)
+        .ok_or_else(|| format!("Format string doesn't contain requested format specifier: {spec}"))?;
     let modifiers = &rest[..at];
     let flags_end = modifiers.find(|c: char| !FLAGS.contains(c)).unwrap_or(modifiers.len());
-    let digits_end = modifiers[flags_end..].find(|c: char| !(c.is_ascii_digit() || c == '.')).map_or(modifiers.len(), |i| flags_end + i);
+    let digits_end = modifiers[flags_end..]
+        .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+        .map_or(modifiers.len(), |i| flags_end + i);
     if digits_end < modifiers.len() {
-        return Err(format!("Garbage before length modifier and/or conversion specifier: '{}'", &modifiers[digits_end..]));
+        return Err(format!(
+            "Garbage before length modifier and/or conversion specifier: '{}'",
+            &modifiers[digits_end..]
+        ));
     }
     let suffix = &rest[at + spec.len()..];
     if let Some(i) = find_conversion(suffix) {
-        return Err(format!("Format string contains unescaped % signs (or multiple conversion specifications) at '{}'", &suffix[i..]));
+        return Err(format!(
+            "Format string contains unescaped % signs (or multiple conversion specifications) at '{}'",
+            &suffix[i..]
+        ));
     }
-    Ok(FormatParts { prefix: &format[..=start], modifiers, suffix })
+    Ok(FormatParts {
+        prefix: &format[..=start],
+        modifiers,
+        suffix,
+    })
 }
 
 /// Format a counter value with a user format, falling back to GnuCash's default `"%.6" PRIi64` when the format is
@@ -171,8 +190,16 @@ struct CounterFormat<'a> {
 }
 
 impl<'a> CounterFormat<'a> {
-    const DEFAULT: CounterFormat<'static> =
-        CounterFormat { prefix: "", suffix: "", left: false, zero: false, plus: false, space: false, width: 0, precision: Some(6) };
+    const DEFAULT: CounterFormat<'static> = CounterFormat {
+        prefix: "",
+        suffix: "",
+        left: false,
+        zero: false,
+        plus: false,
+        space: false,
+        width: 0,
+        precision: Some(6),
+    };
 
     /// A format GnuCash accepts, as `printf` reads it. A width/precision run `printf` itself would not accept (two
     /// dots) is treated as invalid.
@@ -205,7 +232,11 @@ impl<'a> CounterFormat<'a> {
     fn format(&self, n: i64) -> String {
         let mut digits = n.unsigned_abs().to_string();
         if let Some(p) = self.precision {
-            digits = if p == 0 && n == 0 { String::new() } else { format!("{digits:0>p$}") };
+            digits = if p == 0 && n == 0 {
+                String::new()
+            } else {
+                format!("{digits:0>p$}")
+            };
         }
         let sign = if n < 0 {
             "-"
@@ -304,15 +335,28 @@ mod tests {
 
     #[test]
     fn normalisation_reports_gnucash_messages() {
-        assert_eq!(normalize_counter_format("plain"), Err("Format string ended without any conversion specification".to_owned()));
-        assert_eq!(normalize_counter_format("%d"), Err("Format string doesn't contain requested format specifier: li".to_owned()));
-        assert_eq!(normalize_counter_format("%5xli"), Err("Garbage before length modifier and/or conversion specifier: 'x'".to_owned()));
+        assert_eq!(
+            normalize_counter_format("plain"),
+            Err("Format string ended without any conversion specification".to_owned())
+        );
+        assert_eq!(
+            normalize_counter_format("%d"),
+            Err("Format string doesn't contain requested format specifier: li".to_owned())
+        );
+        assert_eq!(
+            normalize_counter_format("%5xli"),
+            Err("Garbage before length modifier and/or conversion specifier: 'x'".to_owned())
+        );
         assert_eq!(
             normalize_counter_format("%li-%li"),
             Err("Format string contains unescaped % signs (or multiple conversion specifications) at '%li'".to_owned())
         );
         assert_eq!(normalize_counter_format("%%%lli%%").as_deref(), Ok("%%%li%%"));
-        assert_eq!(normalize_counter_format("%1.2.3li").as_deref(), Ok("%1.2.3li"), "GnuCash accepts two dots");
+        assert_eq!(
+            normalize_counter_format("%1.2.3li").as_deref(),
+            Ok("%1.2.3li"),
+            "GnuCash accepts two dots"
+        );
     }
 
     #[test]
@@ -322,7 +366,11 @@ mod tests {
         assert_eq!(peek_next_id(&b, COUNTER_INVOICE), "INV-0042");
         assert_eq!(counter_format(&b, COUNTER_INVOICE), Some("INV-%04li"));
         set_counter(&mut b, COUNTER_INVOICE, None, Some(None)).unwrap();
-        assert_eq!(peek_next_id(&b, COUNTER_INVOICE), "000042", "the format is removed, the number kept");
+        assert_eq!(
+            peek_next_id(&b, COUNTER_INVOICE),
+            "000042",
+            "the format is removed, the number kept"
+        );
         set_counter(&mut b, COUNTER_BILL, Some(0), Some(Some(""))).unwrap();
         assert_eq!(b.slots.get("counters/gncBill"), Some(&SlotValue::Integer(0)));
         let refused = [

@@ -265,7 +265,11 @@ impl QifXtn {
     /// `qif-xtn:split-amounts`: the unparsed amounts of the own split (if the transaction has `S` splits) and then
     /// of each split, `None` where a split has no amount. `qif-objects.scm:449-455`.
     pub fn split_amounts(&self) -> Vec<Option<&str>> {
-        self.default_split.iter().chain(&self.splits).map(|s| field_text(s.amount.as_ref())).collect()
+        self.default_split
+            .iter()
+            .chain(&self.splits)
+            .map(|s| field_text(s.amount.as_ref()))
+            .collect()
     }
 
     /// `qif-xtn:set-split-amounts!`: set the parsed amounts from [`QifXtn::split_amounts`] onto the splits. With
@@ -487,7 +491,13 @@ mod tests {
 
     #[test]
     fn path_to_accountname() {
-        let named = |p: &str| QifFile { path: Some(p.to_owned()), ..QifFile::default() }.path_to_accountname();
+        let named = |p: &str| {
+            QifFile {
+                path: Some(p.to_owned()),
+                ..QifFile::default()
+            }
+            .path_to_accountname()
+        };
         assert_eq!(named("/home/me/my-bank_account.qif"), "my bank account");
         assert_eq!(named("plain"), "plain");
         assert_eq!(named("dir.v2/file"), "");
@@ -497,7 +507,11 @@ mod tests {
     #[test]
     fn ticker_lookups_take_the_first_added() {
         let mut map = TickerMap::default();
-        let stock = |name: &str, symbol: &str| QifStockSymbol { name: name.into(), symbol: symbol.into(), security_type: String::new() };
+        let stock = |name: &str, symbol: &str| QifStockSymbol {
+            name: name.into(),
+            symbol: symbol.into(),
+            security_type: String::new(),
+        };
         map.add_ticker(stock("Acme", "ACM"));
         map.add_ticker(stock("Acme", "ACX"));
         map.add_ticker(stock("Blank", ""));
@@ -508,9 +522,18 @@ mod tests {
 
     #[test]
     fn allowed_parent_types() {
-        let entry = QifMapEntry { allowed_types: vec![AccountType::Expense, AccountType::Equity], ..QifMapEntry::default() };
-        assert_eq!(entry.allowed_parent_types(), vec![AccountType::Expense, AccountType::Equity, AccountType::Income]);
-        let bank = QifMapEntry { allowed_types: vec![AccountType::Cash], ..QifMapEntry::default() };
+        let entry = QifMapEntry {
+            allowed_types: vec![AccountType::Expense, AccountType::Equity],
+            ..QifMapEntry::default()
+        };
+        assert_eq!(
+            entry.allowed_parent_types(),
+            vec![AccountType::Expense, AccountType::Equity, AccountType::Income]
+        );
+        let bank = QifMapEntry {
+            allowed_types: vec![AccountType::Cash],
+            ..QifMapEntry::default()
+        };
         assert_eq!(bank.allowed_parent_types()[..2], [AccountType::Cash, AccountType::Bank]);
         assert_eq!(bank.allowed_parent_types().len(), 9);
     }

@@ -50,12 +50,22 @@ impl ImportFileParam {
                     .decode(b64.trim())
                     .map_err(|e| RpcError::invalid_params(format!("files[{index}].base64 is not base64: {e}")))?,
             ),
-            _ => return Err(RpcError::invalid_params(format!("files[{index}] needs exactly one of text and base64"))),
+            _ => {
+                return Err(RpcError::invalid_params(format!(
+                    "files[{index}] needs exactly one of text and base64"
+                )));
+            }
         };
         if matches!(content, FileContent::Text(_)) && self.encoding.is_some() {
-            return Err(RpcError::invalid_params(format!("files[{index}].encoding is for base64; text is already Unicode")));
+            return Err(RpcError::invalid_params(format!(
+                "files[{index}].encoding is for base64; text is already Unicode"
+            )));
         }
-        Ok(ImportFile { name: self.name, content, encoding: self.encoding })
+        Ok(ImportFile {
+            name: self.name,
+            content,
+            encoding: self.encoding,
+        })
     }
 }
 
@@ -318,11 +328,30 @@ pub struct QifPreviewParam {
 impl QifPreviewParam {
     fn resolve(self) -> Result<(Vec<ImportFile>, PreviewParams), RpcError> {
         let default_accounts = self.files.iter().map(|f| f.default_account.clone()).collect();
-        let files = files(self.files.into_iter().map(|f| ImportFileParam { name: f.name, text: f.text, base64: f.base64, encoding: f.encoding }).collect())?;
+        let files = files(
+            self.files
+                .into_iter()
+                .map(|f| ImportFileParam {
+                    name: f.name,
+                    text: f.text,
+                    base64: f.base64,
+                    encoding: f.encoding,
+                })
+                .collect(),
+        )?;
         let securities = self
             .securities
             .into_iter()
-            .map(|(name, s)| (name, SecurityOverride { namespace: s.namespace, mnemonic: s.mnemonic, fullname: s.fullname }))
+            .map(|(name, s)| {
+                (
+                    name,
+                    SecurityOverride {
+                        namespace: s.namespace,
+                        mnemonic: s.mnemonic,
+                        fullname: s.fullname,
+                    },
+                )
+            })
             .collect();
         let params = QifParams {
             default_accounts,
@@ -349,8 +378,19 @@ impl PreviewParam {
                     LayoutParam::Layout(layout) => LayoutChoice::Inline(layout),
                 };
                 let base_account = p.base_account.map(|a| a.resolve(book)).transpose()?;
-                let account_names = p.account_names.into_iter().map(|(name, a)| Ok((name, a.resolve(book)?))).collect::<Result<_, RpcError>>()?;
-                Ok((files, PreviewParams::CsvTransactions(CsvParams { layout, base_account, account_names })))
+                let account_names = p
+                    .account_names
+                    .into_iter()
+                    .map(|(name, a)| Ok((name, a.resolve(book)?)))
+                    .collect::<Result<_, RpcError>>()?;
+                Ok((
+                    files,
+                    PreviewParams::CsvTransactions(CsvParams {
+                        layout,
+                        base_account,
+                        account_names,
+                    }),
+                ))
             }
             Self::CsvDocuments(p) => {
                 let params = p.params();
@@ -361,7 +401,10 @@ impl PreviewParam {
                 Ok((files(p.files)?, PreviewParams::CsvOwners(params)))
             }
             Self::CsvAccounts(p) => {
-                let params = AccountsParams { separator: p.separator.into(), header_rows: p.header_rows };
+                let params = AccountsParams {
+                    separator: p.separator.into(),
+                    header_rows: p.header_rows,
+                };
                 Ok((files(p.files)?, PreviewParams::CsvAccounts(params)))
             }
             Self::CsvPrices(p) => {
@@ -369,7 +412,13 @@ impl PreviewParam {
                     PriceLayoutParam::Name(name) => PriceLayoutChoice::Named(name),
                     PriceLayoutParam::Layout(layout) => PriceLayoutChoice::Inline(layout),
                 };
-                Ok((files(p.files)?, PreviewParams::CsvPrices(PricesParams { layout, overwrite: p.overwrite })))
+                Ok((
+                    files(p.files)?,
+                    PreviewParams::CsvPrices(PricesParams {
+                        layout,
+                        overwrite: p.overwrite,
+                    }),
+                ))
             }
             Self::Qif(p) => p.resolve(),
         }
@@ -471,7 +520,13 @@ impl ApplyParams {
                 })
             })
             .collect::<Result<Vec<_>, RpcError>>()?;
-        Ok((changes, ApplyChoices { skip_errors: self.skip_errors, append_text: self.append_text }))
+        Ok((
+            changes,
+            ApplyChoices {
+                skip_errors: self.skip_errors,
+                append_text: self.append_text,
+            },
+        ))
     }
 }
 

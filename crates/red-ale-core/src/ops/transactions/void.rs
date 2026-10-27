@@ -28,8 +28,15 @@ fn check_voidable(t: &Transaction) -> DomainResult<()> {
     if t.splits.iter().any(|s| s.reconcile_state == ReconcileState::Voided) {
         return Err(DomainError::conflict(format!("transaction {} is already void", t.guid)));
     }
-    if t.splits.iter().any(|s| matches!(s.reconcile_state, ReconcileState::Cleared | ReconcileState::Reconciled | ReconcileState::Frozen)) {
-        return Err(DomainError::conflict("you cannot void a transaction with reconciled or cleared splits"));
+    if t.splits.iter().any(|s| {
+        matches!(
+            s.reconcile_state,
+            ReconcileState::Cleared | ReconcileState::Reconciled | ReconcileState::Frozen
+        )
+    }) {
+        return Err(DomainError::conflict(
+            "you cannot void a transaction with reconciled or cleared splits",
+        ));
     }
     check_writable(t)
 }
@@ -96,7 +103,14 @@ pub fn unvoid(book: &mut Book, env: &mut dyn Env, guid: Guid) -> DomainResult<()
     }
     let former = t.slots.get_str(slot_paths::VOID_FORMER_NOTES).map(str::to_owned);
     t.slots.set_opt_str(slot_paths::NOTES, former.as_deref());
-    [slot_paths::VOID_FORMER_NOTES, slot_paths::VOID_REASON, slot_paths::VOID_TIME, slot_paths::READ_ONLY].iter().for_each(|p| {
+    [
+        slot_paths::VOID_FORMER_NOTES,
+        slot_paths::VOID_REASON,
+        slot_paths::VOID_TIME,
+        slot_paths::READ_ONLY,
+    ]
+    .iter()
+    .for_each(|p| {
         t.slots.remove(p);
     });
     t.splits.iter_mut().for_each(unvoid_split);
@@ -127,10 +141,14 @@ fn reversed_split(env: &mut dyn Env, s: &Split) -> Split {
 pub fn reverse(book: &mut Book, env: &mut dyn Env, guid: Guid, date: Date) -> DomainResult<Guid> {
     let orig = get(book, guid)?;
     if let Some(by) = orig.reversed_by().filter(|g| book.transaction(*g).is_some()) {
-        return Err(DomainError::conflict(format!("a reversing entry has already been created for this transaction: {by}")));
+        return Err(DomainError::conflict(format!(
+            "a reversing entry has already been created for this transaction: {by}"
+        )));
     }
     if orig.is_void() {
-        return Err(DomainError::conflict(format!("transaction {guid} is void; unvoid it before reversing")));
+        return Err(DomainError::conflict(format!(
+            "transaction {guid} is void; unvoid it before reversing"
+        )));
     }
     let mut orig = orig.clone();
     if trading::commit(book, env, &mut orig)?.is_some() {
@@ -206,8 +224,14 @@ mod tests {
         assert_eq!(t.date_entered, Time64(1_800_000_000));
         assert_eq!(t.date_posted.to_file_string(), "2024-07-02 10:59:00 +0000");
         assert!(t.splits.iter().all(|s| s.reconcile_state == ReconcileState::New));
-        assert!(t.splits[0].value.same_repr(usd(700)) && t.splits[0].memo.is_none(), "the bank split is now the debit");
+        assert!(
+            t.splits[0].value.same_repr(usd(700)) && t.splits[0].memo.is_none(),
+            "the bank split is now the debit"
+        );
         assert_eq!(t.splits[1].memo.as_deref(), Some("lunch"));
-        assert!(matches!(reverse(&mut f.book, &mut f.env, g, Date::from_ymd(2024, 7, 2).unwrap()), Err(DomainError::Conflict(_))));
+        assert!(matches!(
+            reverse(&mut f.book, &mut f.env, g, Date::from_ymd(2024, 7, 2).unwrap()),
+            Err(DomainError::Conflict(_))
+        ));
     }
 }

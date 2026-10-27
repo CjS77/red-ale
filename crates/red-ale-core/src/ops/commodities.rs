@@ -32,7 +32,11 @@ pub mod slot_paths {
 /// The reference GnuCash's table resolves `id` to: `ISO4217` is already `CURRENCY`, and renamed ISO codes map to
 /// their replacements (`5.17:libgnucash/engine/gnc-commodity.cpp:131-145`, applied at `:1650`).
 pub fn canonical(id: &CommodityRef) -> CommodityRef {
-    if id.is_currency() { CommodityRef::currency(canonical_code(&id.mnemonic)) } else { id.clone() }
+    if id.is_currency() {
+        CommodityRef::currency(canonical_code(&id.mnemonic))
+    } else {
+        id.clone()
+    }
 }
 
 /// The commodity `id` names: the book's own definition, else a built-in currency.
@@ -47,7 +51,9 @@ pub fn lookup<'a>(book: &'a Book, id: &CommodityRef) -> Option<Cow<'a, Commodity
 
 /// The commodity `id` names, or `NotFound`. Returns the canonical reference.
 pub fn require(book: &Book, id: &CommodityRef) -> DomainResult<CommodityRef> {
-    lookup(book, id).map(|c| c.id.clone()).ok_or_else(|| DomainError::not_found("commodity", id))
+    lookup(book, id)
+        .map(|c| c.id.clone())
+        .ok_or_else(|| DomainError::not_found("commodity", id))
 }
 
 /// The Display symbol GnuCash prints amounts with (`gnc_commodity_get_nice_symbol`,
@@ -57,8 +63,15 @@ pub fn require(book: &Book, id: &CommodityRef) -> DomainResult<CommodityRef> {
 /// commodity.
 pub fn display_symbol(book: &Book, id: &CommodityRef) -> Option<String> {
     let c = lookup(book, id)?;
-    let default = c.id.is_currency().then(|| iso_currency(&c.id.mnemonic).map(|iso| iso.symbol)).flatten();
-    let symbol = c.slots.get_str(slot_paths::USER_SYMBOL).filter(|s| !s.is_empty()).or(default.filter(|s| !s.is_empty()));
+    let default =
+        c.id.is_currency()
+            .then(|| iso_currency(&c.id.mnemonic).map(|iso| iso.symbol))
+            .flatten();
+    let symbol = c
+        .slots
+        .get_str(slot_paths::USER_SYMBOL)
+        .filter(|s| !s.is_empty())
+        .or(default.filter(|s| !s.is_empty()));
     Some(symbol.unwrap_or(&c.id.mnemonic).to_owned())
 }
 
@@ -73,7 +86,12 @@ pub fn table(book: &Book) -> Vec<Cow<'_, Commodity>> {
         .map(|iso| CommodityRef::currency(iso.code))
         .filter(|id| book.commodity(id).is_none())
         .filter_map(|id| lookup(book, &id));
-    let mut all: Vec<Cow<'_, Commodity>> = book.commodities.values().map(|c| Cow::Borrowed(c.as_ref())).chain(builtin).collect();
+    let mut all: Vec<Cow<'_, Commodity>> = book
+        .commodities
+        .values()
+        .map(|c| Cow::Borrowed(c.as_ref()))
+        .chain(builtin)
+        .collect();
     all.sort_by(|a, b| a.id.cmp(&b.id));
     all
 }
@@ -102,7 +120,10 @@ impl Usage {
 pub fn usage_table(book: &Book) -> BTreeMap<CommodityRef, Usage> {
     let mut table: BTreeMap<CommodityRef, Usage> = BTreeMap::new();
     let mut bump = |id: &CommodityRef, field: fn(&mut Usage) -> &mut usize| *field(table.entry(canonical(id)).or_default()) += 1;
-    book.accounts.values().filter_map(|a| a.commodity.as_ref()).for_each(|c| bump(c, |u| &mut u.accounts));
+    book.accounts
+        .values()
+        .filter_map(|a| a.commodity.as_ref())
+        .for_each(|c| bump(c, |u| &mut u.accounts));
     book.transactions.values().for_each(|t| bump(&t.currency, |u| &mut u.transactions));
     book.prices.values().for_each(|p| {
         bump(&p.commodity, |u| &mut u.prices);
@@ -129,7 +150,10 @@ fn business_currencies(book: &Book) -> impl Iterator<Item = &CommodityRef> {
 }
 
 fn accounts_using(book: &Book, id: &CommodityRef) -> usize {
-    book.accounts.values().filter(|a| a.commodity.as_ref().is_some_and(|c| canonical(c) == *id)).count()
+    book.accounts
+        .values()
+        .filter(|a| a.commodity.as_ref().is_some_and(|c| canonical(c) == *id))
+        .count()
 }
 
 /// `gnc_commodity_get_auto_quote_control_flag`: true unless the slot holds `"false"`
@@ -157,7 +181,10 @@ pub fn effective_quote(c: &Commodity, account_users: usize) -> QuoteSettings {
         let source = c.quote_source.clone().or_else(|| iso.then(|| CURRENCY_QUOTE_SOURCE.to_owned()));
         QuoteSettings { flag: true, source }
     } else if iso && account_users > 0 && auto_quote_control(c) {
-        QuoteSettings { flag: true, source: Some(CURRENCY_QUOTE_SOURCE.to_owned()) }
+        QuoteSettings {
+            flag: true,
+            source: Some(CURRENCY_QUOTE_SOURCE.to_owned()),
+        }
     } else {
         let source = c.quote_source.clone().or_else(|| iso.then(|| CURRENCY_QUOTE_SOURCE.to_owned()));
         QuoteSettings { flag: false, source }
@@ -310,13 +337,17 @@ fn check_security_id(id: &CommodityRef) -> DomainResult<()> {
         return Err(DomainError::invalid(format!("{TEMPLATE_NAMESPACE} is a reserved namespace")));
     }
     if id.namespace == LEGACY_CURRENCIES_NAMESPACE {
-        return Err(DomainError::invalid(format!("{LEGACY_CURRENCIES_NAMESPACE} is a reserved namespace")));
+        return Err(DomainError::invalid(format!(
+            "{LEGACY_CURRENCIES_NAMESPACE} is a reserved namespace"
+        )));
     }
     if id.namespace.is_empty() || id.mnemonic.is_empty() {
         return Err(DomainError::invalid("a security needs a namespace and a mnemonic"));
     }
     if id.namespace.contains("::") {
-        return Err(DomainError::invalid("a namespace may not contain \"::\", which separates it from the mnemonic"));
+        return Err(DomainError::invalid(
+            "a namespace may not contain \"::\", which separates it from the mnemonic",
+        ));
     }
     Ok(())
 }
@@ -327,7 +358,10 @@ fn check_security(c: &Commodity) -> DomainResult<()> {
         return Err(DomainError::invalid("a security needs a full name"));
     }
     if !(1..=MAX_FRACTION).contains(&c.fraction) {
-        return Err(DomainError::invalid(format!("the fraction must be from 1 to {MAX_FRACTION}, got {}", c.fraction)));
+        return Err(DomainError::invalid(format!(
+            "the fraction must be from 1 to {MAX_FRACTION}, got {}",
+            c.fraction
+        )));
     }
     match c.quote_source.as_deref() {
         Some("") => Err(DomainError::invalid("the quote source may not be empty")),
@@ -339,7 +373,10 @@ fn check_security(c: &Commodity) -> DomainResult<()> {
 /// `gnc_commodity_set_user_symbol` without the locale rule: empty, or equal to a currency's built-in symbol,
 /// removes the slot (`5.17:libgnucash/engine/gnc-commodity.cpp:1355-1380`).
 fn set_user_symbol(c: &mut Commodity, symbol: Option<&str>) {
-    let default = c.id.is_currency().then(|| iso_currency(&c.id.mnemonic).map(|iso| iso.symbol)).flatten();
+    let default =
+        c.id.is_currency()
+            .then(|| iso_currency(&c.id.mnemonic).map(|iso| iso.symbol))
+            .flatten();
     match symbol {
         Some(s) if !s.is_empty() && Some(s) != default => c.slots.set(slot_paths::USER_SYMBOL, SlotValue::String(s.to_owned())),
         _ => {
@@ -353,11 +390,19 @@ fn set_user_symbol(c: &mut Commodity, symbol: Option<&str>) {
 /// namespace and mnemonic, in which case every account, transaction and price that refers to it is changed too.
 /// Returns the commodity's (possibly new) reference.
 pub fn update_commodity(book: &mut Book, id: &CommodityRef, changes: &CommodityChanges) -> DomainResult<CommodityRef> {
-    let current = lookup(book, id).ok_or_else(|| DomainError::not_found("commodity", id))?.into_owned();
+    let current = lookup(book, id)
+        .ok_or_else(|| DomainError::not_found("commodity", id))?
+        .into_owned();
     if current.id.namespace == TEMPLATE_NAMESPACE {
-        return Err(DomainError::invalid("the template commodity is reserved for scheduled transactions"));
+        return Err(DomainError::invalid(
+            "the template commodity is reserved for scheduled transactions",
+        ));
     }
-    if current.is_currency() { update_currency(book, current, changes) } else { update_security(book, current, changes) }
+    if current.is_currency() {
+        update_currency(book, current, changes)
+    } else {
+        update_security(book, current, changes)
+    }
 }
 
 fn update_currency(book: &mut Book, mut c: Commodity, changes: &CommodityChanges) -> DomainResult<CommodityRef> {
@@ -368,7 +413,9 @@ fn update_currency(book: &mut Book, mut c: Commodity, changes: &CommodityChanges
         || changes.fraction.is_some()
         || changes.quote_source.is_some();
     if security_only {
-        return Err(DomainError::invalid("only the quote flag, quote time zone and user symbol of a currency can be changed"));
+        return Err(DomainError::invalid(
+            "only the quote flag, quote time zone and user symbol of a currency can be changed",
+        ));
     }
     if let Some(flag) = changes.quote_flag {
         let users = accounts_using(book, &c.id);
@@ -416,7 +463,9 @@ fn update_security(book: &mut Book, current: Commodity, changes: &CommodityChang
             return Err(DomainError::conflict(format!("commodity {new_id} already exists")));
         }
         if usage(book, &old_id).business > 0 {
-            return Err(DomainError::conflict(format!("{old_id} is the currency of business objects; it cannot be renamed")));
+            return Err(DomainError::conflict(format!(
+                "{old_id} is the currency of business objects; it cannot be renamed"
+            )));
         }
     }
     c.id = new_id.clone();
@@ -474,17 +523,26 @@ fn follow_fraction(book: &mut Book, id: &CommodityRef, fraction: i64) {
 /// GnuCash's entities hold the commodity object itself, so renaming it renames it everywhere; red-ale's hold its
 /// name, so each reference is rewritten.
 fn rename_references(book: &mut Book, old: &CommodityRef, new: &CommodityRef) {
-    book.accounts.values_mut().filter(|a| a.commodity.as_ref() == Some(old)).for_each(|a| Arc::make_mut(a).commodity = Some(new.clone()));
-    book.transactions.values_mut().filter(|t| t.currency == *old).for_each(|t| Arc::make_mut(t).currency = new.clone());
-    book.prices.values_mut().filter(|p| p.commodity == *old || p.currency == *old).for_each(|p| {
-        let p = Arc::make_mut(p);
-        if p.commodity == *old {
-            p.commodity = new.clone();
-        }
-        if p.currency == *old {
-            p.currency = new.clone();
-        }
-    });
+    book.accounts
+        .values_mut()
+        .filter(|a| a.commodity.as_ref() == Some(old))
+        .for_each(|a| Arc::make_mut(a).commodity = Some(new.clone()));
+    book.transactions
+        .values_mut()
+        .filter(|t| t.currency == *old)
+        .for_each(|t| Arc::make_mut(t).currency = new.clone());
+    book.prices
+        .values_mut()
+        .filter(|p| p.commodity == *old || p.currency == *old)
+        .for_each(|p| {
+            let p = Arc::make_mut(p);
+            if p.commodity == *old {
+                p.commodity = new.clone();
+            }
+            if p.currency == *old {
+                p.currency = new.clone();
+            }
+        });
 }
 
 /// Delete a security. Refused for currencies and the template commodity (`5.17:gnucash/gnome/dialog-commodities.cpp:345`)
@@ -497,7 +555,9 @@ pub fn delete_commodity(book: &mut Book, id: &CommodityRef, delete_prices: bool)
         return Err(DomainError::invalid("a currency cannot be deleted"));
     }
     if id.namespace == TEMPLATE_NAMESPACE {
-        return Err(DomainError::invalid("the template commodity is reserved for scheduled transactions"));
+        return Err(DomainError::invalid(
+            "the template commodity is reserved for scheduled transactions",
+        ));
     }
     if book.commodity(&id).is_none() {
         return Err(DomainError::not_found("commodity", &id));
@@ -510,9 +570,17 @@ pub fn delete_commodity(book: &mut Book, id: &CommodityRef, delete_prices: bool)
         )));
     }
     if used.prices > 0 && !delete_prices {
-        return Err(DomainError::conflict(format!("{id} has {} prices; pass deletePrices to delete them with it", used.prices)));
+        return Err(DomainError::conflict(format!(
+            "{id} has {} prices; pass deletePrices to delete them with it",
+            used.prices
+        )));
     }
-    let prices: Vec<Guid> = book.prices.values().filter(|p| p.commodity == id || p.currency == id).map(|p| p.guid).collect();
+    let prices: Vec<Guid> = book
+        .prices
+        .values()
+        .filter(|p| p.commodity == id || p.currency == id)
+        .map(|p| p.guid)
+        .collect();
     prices.iter().for_each(|g| {
         book.prices.shift_remove(g);
     });
@@ -523,7 +591,9 @@ pub fn delete_commodity(book: &mut Book, id: &CommodityRef, delete_prices: bool)
 /// Namespaces of the table with their commodity counts, sorted. `CURRENCY` is always present.
 pub fn namespaces(book: &Book) -> Vec<(String, usize)> {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-    table(book).iter().for_each(|c| *counts.entry(c.id.namespace.clone()).or_default() += 1);
+    table(book)
+        .iter()
+        .for_each(|c| *counts.entry(c.id.namespace.clone()).or_default() += 1);
     counts.into_iter().collect()
 }
 
@@ -536,7 +606,11 @@ pub fn euro_convert(from: &CommodityRef, to: &CommodityRef, amount: crate::Numer
     let (from, to) = (canonical(from), canonical(to));
     let euro = CommodityRef::currency("EUR");
     let legacy = |c: &CommodityRef| {
-        if is_euro_currency(c) { Ok(()) } else { Err(DomainError::invalid(format!("{c} has no fixed euro rate"))) }
+        if is_euro_currency(c) {
+            Ok(())
+        } else {
+            Err(DomainError::invalid(format!("{c} has no fixed euro rate")))
+        }
     };
     if to == euro {
         legacy(&from)?;
@@ -574,8 +648,15 @@ mod tests {
         let id = create_security(&mut b, &acme()).unwrap();
         assert_eq!(display_symbol(&b, &id).as_deref(), Some("ACME"));
         assert_eq!(display_symbol(&b, &CommodityRef::currency("USD")).as_deref(), Some("$"));
-        assert_eq!(display_symbol(&b, &CommodityRef::currency("AFN")).as_deref(), Some("AFN"), "an empty default symbol");
-        let changes = CommodityChanges { user_symbol: Some(Some("US$".into())), ..CommodityChanges::default() };
+        assert_eq!(
+            display_symbol(&b, &CommodityRef::currency("AFN")).as_deref(),
+            Some("AFN"),
+            "an empty default symbol"
+        );
+        let changes = CommodityChanges {
+            user_symbol: Some(Some("US$".into())),
+            ..CommodityChanges::default()
+        };
         update_commodity(&mut b, &CommodityRef::currency("USD"), &changes).unwrap();
         assert_eq!(display_symbol(&b, &CommodityRef::currency("USD")).as_deref(), Some("US$"));
         assert_eq!(display_symbol(&b, &CommodityRef::new("NASDAQ", "NONE")), None);
@@ -585,7 +666,10 @@ mod tests {
     fn the_table_holds_the_iso_currencies_and_the_template() {
         let b = book();
         assert_eq!(table(&b).len(), 228);
-        assert_eq!(lookup(&b, &CommodityRef::currency("RUR")).unwrap().id, CommodityRef::currency("RUB"));
+        assert_eq!(
+            lookup(&b, &CommodityRef::currency("RUR")).unwrap().id,
+            CommodityRef::currency("RUB")
+        );
         assert_eq!(namespaces(&b), vec![("CURRENCY".to_owned(), 227), ("template".to_owned(), 1)]);
     }
 
@@ -616,9 +700,19 @@ mod tests {
     fn renaming_a_security_rewrites_its_references() {
         let mut b = book();
         let id = create_security(&mut b, &acme()).unwrap();
-        let acct = Account::new(Guid::from_bytes([9; 16]), "Acme", AccountType::Stock, Some(id.clone()), Some(b.root));
+        let acct = Account::new(
+            Guid::from_bytes([9; 16]),
+            "Acme",
+            AccountType::Stock,
+            Some(id.clone()),
+            Some(b.root),
+        );
         b.accounts.insert(acct.guid, Arc::new(acct));
-        let changes = CommodityChanges { namespace: Some("NYSE".into()), fraction: Some(1000), ..CommodityChanges::default() };
+        let changes = CommodityChanges {
+            namespace: Some("NYSE".into()),
+            fraction: Some(1000),
+            ..CommodityChanges::default()
+        };
         let new = update_commodity(&mut b, &id, &changes).unwrap();
         assert_eq!(new, CommodityRef::new("NYSE", "ACME"));
         assert!(b.commodity(&id).is_none());
@@ -630,9 +724,16 @@ mod tests {
     fn currencies_change_only_quote_settings_and_record_overrides() {
         let mut b = book();
         let usd = CommodityRef::currency("USD");
-        let renamed = CommodityChanges { fullname: Some("Dollar".into()), ..CommodityChanges::default() };
+        let renamed = CommodityChanges {
+            fullname: Some("Dollar".into()),
+            ..CommodityChanges::default()
+        };
         assert!(update_commodity(&mut b, &usd, &renamed).is_err());
-        let on = CommodityChanges { quote_flag: Some(true), user_symbol: Some(Some("$".into())), ..CommodityChanges::default() };
+        let on = CommodityChanges {
+            quote_flag: Some(true),
+            user_symbol: Some(Some("$".into())),
+            ..CommodityChanges::default()
+        };
         update_commodity(&mut b, &usd, &on).unwrap();
         let c = b.commodity(&usd).unwrap();
         assert!(c.quote_flag);
@@ -644,7 +745,13 @@ mod tests {
     fn account_use_turns_currency_quotes_on_and_off() {
         let mut b = book();
         let eur = CommodityRef::currency("EUR");
-        let acct = Account::new(Guid::from_bytes([7; 16]), "Bank", AccountType::Bank, Some(eur.clone()), Some(b.root));
+        let acct = Account::new(
+            Guid::from_bytes([7; 16]),
+            "Bank",
+            AccountType::Bank,
+            Some(eur.clone()),
+            Some(b.root),
+        );
         b.accounts.insert(acct.guid, Arc::new(acct));
         account_commodity_changed(&mut b, None, Some(&eur));
         let c = b.commodity(&eur).unwrap();
@@ -659,9 +766,17 @@ mod tests {
     #[test]
     fn euro_conversion_uses_the_fixed_rates() {
         let (dem, eur) = (CommodityRef::currency("DEM"), CommodityRef::currency("EUR"));
-        assert!(euro_convert(&dem, &eur, crate::Numeric::new(10_000, 100)).unwrap().same_repr(crate::Numeric::new(5113, 100)));
+        assert!(
+            euro_convert(&dem, &eur, crate::Numeric::new(10_000, 100))
+                .unwrap()
+                .same_repr(crate::Numeric::new(5113, 100))
+        );
         let bgn = CommodityRef::currency("BGN");
-        assert!(euro_convert(&eur, &bgn, crate::Numeric::new(100, 100)).unwrap().same_repr(crate::Numeric::new(196, 100)));
+        assert!(
+            euro_convert(&eur, &bgn, crate::Numeric::new(100, 100))
+                .unwrap()
+                .same_repr(crate::Numeric::new(196, 100))
+        );
         assert!(euro_convert(&CommodityRef::currency("USD"), &eur, crate::Numeric::ONE).is_err());
         assert!(euro_convert(&dem, &bgn, crate::Numeric::ONE).is_err());
     }

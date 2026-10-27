@@ -48,7 +48,13 @@ pub(super) fn slices(values: &[Option<Rational>], centre: (Hu, Hu), r: Hu) -> Ve
         .map(|(index, from, to, _)| {
             let span = &to - &from;
             let (start, end) = (on_circle(&from, centre, r), on_circle(&to, centre, r));
-            Slice { index, start, end, large: span > half, whole: span == Rational::one() }
+            Slice {
+                index,
+                start,
+                end,
+                large: span > half,
+                whole: span == Rational::one(),
+            }
         })
         .collect()
 }
@@ -95,7 +101,12 @@ pub(super) fn draw(chart: &Chart, frame: &Frame) -> String {
 
 /// An empty circle for a pie with nothing to show.
 fn outline((cx, cy): (Hu, Hu), r: Hu) -> String {
-    format!("<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"none\" stroke=\"#c8c8c8\"/>", fmt(cx), fmt(cy), fmt(r))
+    format!(
+        "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"none\" stroke=\"#c8c8c8\"/>",
+        fmt(cx),
+        fmt(cy),
+        fmt(r)
+    )
 }
 
 #[cfg(test)]
@@ -114,11 +125,14 @@ mod tests {
     #[test]
     fn slices_start_at_twelve_o_clock_and_go_clockwise() {
         let s = slices(&values(&[1, 1, 2]), CENTRE, R);
-        assert_eq!(s.iter().map(|s| (s.start, s.end)).collect::<Vec<_>>(), [
-            ((50_000, 10_000), (70_000, 30_000)),
-            ((70_000, 30_000), (50_000, 50_000)),
-            ((50_000, 50_000), (50_000, 10_000))
-        ]);
+        assert_eq!(
+            s.iter().map(|s| (s.start, s.end)).collect::<Vec<_>>(),
+            [
+                ((50_000, 10_000), (70_000, 30_000)),
+                ((70_000, 30_000), (50_000, 50_000)),
+                ((50_000, 50_000), (50_000, 10_000))
+            ]
+        );
         assert!(s.iter().all(|s| !s.large && !s.whole));
         let one = slices(&[None, Some(Rational::from_int(-3)), Some(Rational::zero())], CENTRE, R);
         assert_eq!((one.len(), one[0].index, one[0].whole), (1, 1, true));

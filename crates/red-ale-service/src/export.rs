@@ -62,19 +62,31 @@ fn same_file(a: &Path, b: &Path) -> bool {
 }
 
 fn refuse_existing(path: &Path) -> Result<(), ServiceError> {
-    if path.symlink_metadata().is_ok() { Err(ServiceError::Exists { path: path.to_owned() }) } else { Ok(()) }
+    if path.symlink_metadata().is_ok() {
+        Err(ServiceError::Exists { path: path.to_owned() })
+    } else {
+        Ok(())
+    }
 }
 
 /// Write through a temporary file, read it back against the Book, and rename it into place.
 fn write(session: &Session, path: &Path) -> Result<ExportCounts, ServiceError> {
-    let xml = |source| ServiceError::Xml { path: path.to_owned(), source };
+    let xml = |source| ServiceError::Xml {
+        path: path.to_owned(),
+        source,
+    };
     let write = |file: &mut File| {
         let out = write_accounts_to(session.book(), session.residue(), BufWriter::new(file)).map_err(xml)?;
         out.into_inner().map(drop).map_err(|e| xml(e.into_error().into()))
     };
     let check = |tmp: &Path| {
-        let file = File::open(tmp).map_err(|source| ServiceError::Io { path: tmp.to_owned(), source })?;
-        check_accounts_export(BufReader::new(file), session.book()).map_err(xml)?.map_err(|detail| ServiceError::Verification { detail })
+        let file = File::open(tmp).map_err(|source| ServiceError::Io {
+            path: tmp.to_owned(),
+            source,
+        })?;
+        check_accounts_export(BufReader::new(file), session.book())
+            .map_err(xml)?
+            .map_err(|detail| ServiceError::Verification { detail })
     };
     replace_book_file(path, write, check).map(|(_, counts)| counts)
 }
@@ -87,6 +99,9 @@ mod tests {
     fn the_extension_is_added_when_missing() {
         assert_eq!(with_extension(PathBuf::from("/x/chart")), PathBuf::from("/x/chart.gnucash"));
         assert_eq!(with_extension(PathBuf::from("/x/chart.gnucash")), PathBuf::from("/x/chart.gnucash"));
-        assert_eq!(with_extension(PathBuf::from("/x/chart.GNUCASH")), PathBuf::from("/x/chart.GNUCASH.gnucash"));
+        assert_eq!(
+            with_extension(PathBuf::from("/x/chart.GNUCASH")),
+            PathBuf::from("/x/chart.GNUCASH.gnucash")
+        );
     }
 }

@@ -119,20 +119,46 @@ impl Registry {
     /// definition wins, built-in scripts first, then user scripts by path (`design/reports.md` §11).
     pub fn load(library: &Library, user: &[ScriptSource], limits: Limits) -> Result<Self, ReportError> {
         let mut problems = Vec::new();
-        let builtin = |(path, text): (&str, &str)| (path.to_owned(), Script { text: Arc::from(text), builtin: true });
+        let builtin = |(path, text): (&str, &str)| {
+            (
+                path.to_owned(),
+                Script {
+                    text: Arc::from(text),
+                    builtin: true,
+                },
+            )
+        };
         let mut sources: Sources = library.scripts().map(builtin).collect();
         let mut user: Vec<&ScriptSource> = user.iter().collect();
         user.sort_by(|a, b| a.path.cmp(&b.path));
         user.into_iter().for_each(|s| match user_name(&s.path) {
             Some(name) if !sources.contains_key(&name) => {
-                sources.insert(name, Script { text: Arc::from(s.text.as_str()), builtin: false });
+                sources.insert(
+                    name,
+                    Script {
+                        text: Arc::from(s.text.as_str()),
+                        builtin: false,
+                    },
+                );
             }
             Some(name) => problems.push(load_error(&name, "a script with this path is already loaded")),
-            None => problems.push(load_error(&s.path, "a report script's path is relative, ends in .rhai and has no . or .. parts")),
+            None => problems.push(load_error(
+                &s.path,
+                "a report script's path is relative, ends in .rhai and has no . or .. parts",
+            )),
         });
         let sources = Arc::new(sources);
-        let mut registry = Self { sources: Arc::clone(&sources), templates: Vec::new(), problems, limits };
-        let names = sources.iter().filter(|(_, s)| s.builtin).chain(sources.iter().filter(|(_, s)| !s.builtin)).map(|(n, _)| n);
+        let mut registry = Self {
+            sources: Arc::clone(&sources),
+            templates: Vec::new(),
+            problems,
+            limits,
+        };
+        let names = sources
+            .iter()
+            .filter(|(_, s)| s.builtin)
+            .chain(sources.iter().filter(|(_, s)| !s.builtin))
+            .map(|(n, _)| n);
         names.for_each(|name| registry.declare(name));
         match registry.problems.iter().position(|p| matches!(p, ReportError::Internal(_))) {
             Some(i) => Err(registry.problems.swap_remove(i)),
@@ -153,11 +179,17 @@ impl Registry {
         match self.templates.iter().find(|o| o.guid == t.guid) {
             None => self.templates.push(t),
             Some(first) if builtin => {
-                let message = format!("built-in template {} ({}) repeats the GUID of {} in {}", t.name, t.guid.0, first.name, first.script);
+                let message = format!(
+                    "built-in template {} ({}) repeats the GUID of {} in {}",
+                    t.name, t.guid.0, first.name, first.script
+                );
                 self.problems.push(ReportError::Internal(message));
             }
             Some(first) => {
-                let message = format!("template {:?} repeats the GUID {} of {:?} in {}", t.name, t.guid.0, first.name, first.script);
+                let message = format!(
+                    "template {:?} repeats the GUID {} of {:?} in {}",
+                    t.name, t.guid.0, first.name, first.script
+                );
                 self.problems.push(load_error(&t.script, &message));
             }
         }
@@ -168,10 +200,23 @@ impl Registry {
         let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0));
         let log = Log::new(self.limits.get_usize(Limit::StringSize));
         let conventions = red_ale_locale::Locale::c().conventions();
-        let setup = Setup { snap: Rc::clone(&snap), sources: Arc::clone(&self.sources), limits: self.limits, log: log.clone(), conventions };
+        let setup = Setup {
+            snap: Rc::clone(&snap),
+            sources: Arc::clone(&self.sources),
+            limits: self.limits,
+            log: log.clone(),
+            conventions,
+        };
         let engine = engine(&setup);
-        let failure = |log: &Log| Failure { report: "", source: name, limits: &self.limits, log: log.entries() };
-        let ast = self.compile(&engine, name).map_err(|e| self.internal_if_builtin(name, from_parse(&e, name, &failure(&log))))?;
+        let failure = |log: &Log| Failure {
+            report: "",
+            source: name,
+            limits: &self.limits,
+            log: log.entries(),
+        };
+        let ast = self
+            .compile(&engine, name)
+            .map_err(|e| self.internal_if_builtin(name, from_parse(&e, name, &failure(&log))))?;
         if !has_fn(&ast, "templates", 0) {
             return Ok(Vec::new());
         }
@@ -180,11 +225,17 @@ impl Registry {
             let missing = || malformed(format!("a script with templates() needs fn {f}() with {n} parameters"));
             if has_fn(&ast, f, n) { Ok(()) } else { Err(missing()) }
         })?;
-        let declared = call(&engine, &ast, "templates", ())
-            .map_err(|e| self.internal_if_builtin(name, as_load(from_eval(&e, failure(&log)))))?;
-        let records = declared.into_array().map_err(|t| malformed(format!("templates() returns an array of maps, not {t}")))?;
+        let declared =
+            call(&engine, &ast, "templates", ()).map_err(|e| self.internal_if_builtin(name, as_load(from_eval(&e, failure(&log)))))?;
+        let records = declared
+            .into_array()
+            .map_err(|t| malformed(format!("templates() returns an array of maps, not {t}")))?;
         let builtin = self.is_builtin(name);
-        records.iter().enumerate().map(|(i, r)| record(r, name, builtin).map_err(|e| malformed(format!("templates()[{i}]: {e}")))).collect()
+        records
+            .iter()
+            .enumerate()
+            .map(|(i, r)| record(r, name, builtin).map_err(|e| malformed(format!("templates()[{i}]: {e}"))))
+            .collect()
     }
 
     pub(crate) fn compile(&self, engine: &Engine, name: &str) -> Result<AST, rhai::ParseError> {
@@ -259,13 +310,23 @@ impl Registry {
 /// A script that fails while declaring its templates does not load: `report-load`, located where it failed.
 fn as_load(e: ReportError) -> ReportError {
     match e {
-        ReportError::Script(s) => ReportError::Load(LoadError { source: s.source, line: s.line, column: s.column, message: s.message }),
+        ReportError::Script(s) => ReportError::Load(LoadError {
+            source: s.source,
+            line: s.line,
+            column: s.column,
+            message: s.message,
+        }),
         other => other,
     }
 }
 
 fn load_error(source: &str, message: &str) -> ReportError {
-    ReportError::Load(LoadError { source: source.to_owned(), line: None, column: None, message: message.to_owned() })
+    ReportError::Load(LoadError {
+        source: source.to_owned(),
+        line: None,
+        column: None,
+        message: message.to_owned(),
+    })
 }
 
 /// The source name of a user script at `path`, if the path is a plain relative `.rhai` path.
@@ -287,7 +348,9 @@ pub(crate) fn call(engine: &Engine, ast: &AST, name: &str, args: impl rhai::Func
 /// One record of `templates()`: `guid`, `name`, and optionally `menuPath`, `menuName`, `menuTip`, `inMenu` and
 /// `params`.
 fn record(r: &Dynamic, script: &str, builtin: bool) -> Result<TemplateInfo, String> {
-    let map = r.read_lock::<Map>().ok_or_else(|| format!("a template is a map, not {}", r.type_name()))?;
+    let map = r
+        .read_lock::<Map>()
+        .ok_or_else(|| format!("a template is a map, not {}", r.type_name()))?;
     let known = ["guid", "name", "menuPath", "menuName", "menuTip", "inMenu", "params", "exportTypes"];
     if let Some(key) = map.keys().find(|k| !known.contains(&k.as_str())) {
         return Err(format!("unknown field {key:?}"));
@@ -306,18 +369,34 @@ fn record(r: &Dynamic, script: &str, builtin: bool) -> Result<TemplateInfo, Stri
     let strings = |key: &str| -> Result<Vec<String>, String> {
         let Some(v) = map.get(key) else { return Ok(Vec::new()) };
         let items = v.read_lock::<Array>().ok_or_else(|| format!("{key} must be an array of strings"))?;
-        items.iter().map(|p| p.clone().into_string().map_err(|t| format!("{key} holds strings, not {t}"))).collect()
+        items
+            .iter()
+            .map(|p| p.clone().into_string().map_err(|t| format!("{key} holds strings, not {t}")))
+            .collect()
     };
     let menu_path = strings("menuPath")?;
     let export_types = strings("exportTypes")?;
     if let Some(t) = export_types.iter().find(|t| *t != EXPORT_CSV) {
         return Err(format!("exportTypes may hold only \"{EXPORT_CSV}\", not {t:?}"));
     }
-    let in_menu = map.get("inMenu").map_or(Ok(true), |v| v.as_bool().map_err(|t| format!("inMenu must be true or false, not {t}")))?;
+    let in_menu = map.get("inMenu").map_or(Ok(true), |v| {
+        v.as_bool().map_err(|t| format!("inMenu must be true or false, not {t}"))
+    })?;
     let json = |p: &Dynamic| to_json(p).map_err(|e| format!("params: {}", e.reason));
     let params = map.get("params").map_or(Ok(Value::Object(serde_json::Map::new())), json)?;
     let kind = if builtin { TemplateKind::Builtin } else { TemplateKind::User };
     let (menu_name, menu_tip) = (text("menuName")?, text("menuTip")?);
     let script = script.to_owned();
-    Ok(TemplateInfo { guid: Id(guid), name, kind, script, menu_path, menu_name, menu_tip, in_menu, export_types, params })
+    Ok(TemplateInfo {
+        guid: Id(guid),
+        name,
+        kind,
+        script,
+        menu_path,
+        menu_name,
+        menu_tip,
+        in_menu,
+        export_types,
+        params,
+    })
 }

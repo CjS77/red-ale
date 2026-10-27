@@ -82,7 +82,8 @@ fn add(book: &mut Book, t: Transaction) {
 #[allow(clippy::too_many_lines)]
 fn book() -> Book {
     let mut book = Book::new(guid(0xf0), Account::new(guid(ROOT), "Root Account", AccountType::Root, None, None));
-    book.commodities.insert(acme(), Arc::new(Commodity::new(acme(), Some("Acme Corp".into()), 10_000)));
+    book.commodities
+        .insert(acme(), Arc::new(Commodity::new(acme(), Some("Acme Corp".into()), 10_000)));
     add_account(&mut book, ASSETS, "Assets", AccountType::Asset, usd(), ROOT, |a| {
         a.code = Some("1000".into());
         a.set_placeholder(true);
@@ -104,7 +105,15 @@ fn book() -> Book {
     add_account(&mut book, TRADING, "Trading", AccountType::Trading, usd(), ROOT, |_| {});
     add_account(&mut book, TRADING_ACME, "ACME", AccountType::Trading, acme(), TRADING, |_| {});
 
-    let mut rent = transaction(20, at(2024, 1, 15), "Rent, January", vec![split(21, CHECKING, n(-123_456, 100), n(-123_456, 100)), split(22, RENT, n(123_456, 100), n(123_456, 100))]);
+    let mut rent = transaction(
+        20,
+        at(2024, 1, 15),
+        "Rent, January",
+        vec![
+            split(21, CHECKING, n(-123_456, 100), n(-123_456, 100)),
+            split(22, RENT, n(123_456, 100), n(123_456, 100)),
+        ],
+    );
     rent.num = Some("101".into());
     rent.slots.set(slot_paths::NOTES, SlotValue::String("paid \"late\"".into()));
     rent.splits[0].reconcile_state = ReconcileState::Reconciled;
@@ -113,25 +122,41 @@ fn book() -> Book {
     rent.splits[1].reconcile_state = ReconcileState::Cleared;
     add(&mut book, rent);
 
-    let mut pay = transaction(30, at(2024, 2, 1), "Pay", vec![
-        split(31, SALARY, n(-350_000, 100), n(-350_000, 100)),
-        split(32, CHECKING, n(300_000, 100), n(300_000, 100)),
-        split(33, FOOD, n(50_000, 100), n(50_000, 100)),
-    ]);
+    let mut pay = transaction(
+        30,
+        at(2024, 2, 1),
+        "Pay",
+        vec![
+            split(31, SALARY, n(-350_000, 100), n(-350_000, 100)),
+            split(32, CHECKING, n(300_000, 100), n(300_000, 100)),
+            split(33, FOOD, n(50_000, 100), n(50_000, 100)),
+        ],
+    );
     pay.splits[1].action = Some("Deposit".into());
     add(&mut book, pay);
 
-    let buy = transaction(40, at(2024, 3, 10), "Buy ACME", vec![
-        split(41, BROKER, n(100_000, 100), n(30_000, 10_000)),
-        split(42, CHECKING, n(-100_000, 100), n(-100_000, 100)),
-        split(43, TRADING_ACME, n(-100_000, 100), n(-30_000, 10_000)),
-        split(44, TRADING, n(100_000, 100), n(100_000, 100)),
-    ]);
+    let buy = transaction(
+        40,
+        at(2024, 3, 10),
+        "Buy ACME",
+        vec![
+            split(41, BROKER, n(100_000, 100), n(30_000, 10_000)),
+            split(42, CHECKING, n(-100_000, 100), n(-100_000, 100)),
+            split(43, TRADING_ACME, n(-100_000, 100), n(-30_000, 10_000)),
+            split(44, TRADING, n(100_000, 100), n(100_000, 100)),
+        ],
+    );
     add(&mut book, buy);
 
-    let mut void = transaction(50, at(2024, 4, 1), "Lunch", vec![split(51, CHECKING, n(0, 100), n(0, 100)), split(52, FOOD, n(0, 100), n(0, 100))]);
+    let mut void = transaction(
+        50,
+        at(2024, 4, 1),
+        "Lunch",
+        vec![split(51, CHECKING, n(0, 100), n(0, 100)), split(52, FOOD, n(0, 100), n(0, 100))],
+    );
     void.slots.set(slot_paths::VOID_REASON, SlotValue::String("typo".into()));
-    void.slots.set(slot_paths::VOID_TIME, SlotValue::String("2024-04-02 10:00:00 +0000".into()));
+    void.slots
+        .set(slot_paths::VOID_TIME, SlotValue::String("2024-04-02 10:00:00 +0000".into()));
     [(0, -1250), (1, 1250)].into_iter().for_each(|(i, cents)| {
         let s = &mut void.splits[i];
         s.reconcile_state = ReconcileState::Voided;
@@ -143,7 +168,12 @@ fn book() -> Book {
 }
 
 fn request(accounts: &[u8], layout: Layout) -> TransactionsRequest {
-    TransactionsRequest { accounts: accounts.iter().map(|a| guid(*a)).collect(), from: None, to: None, layout }
+    TransactionsRequest {
+        accounts: accounts.iter().map(|a| guid(*a)).collect(),
+        from: None,
+        to: None,
+        layout,
+    }
 }
 
 fn export(book: &Book, r: &TransactionsRequest, options: &CsvOptions) -> red_ale_export::TransactionsCsv {
@@ -180,7 +210,10 @@ fn account_tree_with_quotes_and_a_custom_separator() {
     let options = CsvOptions::new(" | ", true).unwrap();
     let tree = export_tree(&book(), &options);
     let second = tree.csv.split("\r\n").nth(1).unwrap();
-    assert_eq!(second, "\"INCOME\" | \"Income\" | \"Income\" | \"\" | \"\" | \"\" | \"\" | \"USD\" | \"CURRENCY\" | \"F\" | \"F\" | \"F\"");
+    assert_eq!(
+        second,
+        "\"INCOME\" | \"Income\" | \"Income\" | \"\" | \"\" | \"\" | \"\" | \"USD\" | \"CURRENCY\" | \"F\" | \"F\" | \"F\""
+    );
 }
 
 /// The simple layout of Checking (`csv-exp/csv-transactions-export.cpp:210-227`): one line per transaction; Account Name
@@ -224,7 +257,12 @@ fn complex_layout_leaves_out_trading_splits() {
 fn a_trading_account_keeps_trading_splits() {
     let out = export(&book(), &request(&[TRADING], Layout::Complex), &CsvOptions::default());
     assert_eq!(out.lines, 4, "{}", out.csv);
-    assert!(out.csv.contains(",Trading:ACME,ACME,-3. ACME,-3.,\"-$1,000.00\",-1000.00,n,,333 + 1/3\r\n"), "{}", out.csv);
+    assert!(
+        out.csv
+            .contains(",Trading:ACME,ACME,-3. ACME,-3.,\"-$1,000.00\",-1000.00,n,,333 + 1/3\r\n"),
+        "{}",
+        out.csv
+    );
 }
 
 /// Complex lines carry notes, action, memo (newlines raw inside quotes), the reconcile date of a reconciled split only,
@@ -242,8 +280,14 @@ fn complex_layout_of_checking() {
         lines[2],
         "01/15/24,a0000000000000000000000000000014,101,\"Rent, January\",\"paid \"\"late\"\"\",CURRENCY::USD,,,,Expenses:Rent,Rent,\"$1,234.56\",1234.56,\"$1,234.56\",1234.56,c,,1.00"
     );
-    assert_eq!(lines[4], "02/01/24,a000000000000000000000000000001e,,Pay,,CURRENCY::USD,,Deposit,,Assets:Checking,Checking,\"$3,000.00\",3000.00,\"$3,000.00\",3000.00,n,,1.00");
-    assert_eq!(lines[8], "04/01/24,a0000000000000000000000000000032,,Lunch,,CURRENCY::USD,typo,,,Assets:Checking,Checking,-$12.50,-12.50,-$12.50,-12.50,v,,1.00");
+    assert_eq!(
+        lines[4],
+        "02/01/24,a000000000000000000000000000001e,,Pay,,CURRENCY::USD,,Deposit,,Assets:Checking,Checking,\"$3,000.00\",3000.00,\"$3,000.00\",3000.00,n,,1.00"
+    );
+    assert_eq!(
+        lines[8],
+        "04/01/24,a0000000000000000000000000000032,,Lunch,,CURRENCY::USD,typo,,,Assets:Checking,Checking,-$12.50,-12.50,-$12.50,-12.50,v,,1.00"
+    );
     assert_eq!((out.transactions, out.lines), (4, 9));
 }
 
@@ -251,9 +295,21 @@ fn complex_layout_of_checking() {
 /// (`csv-exp/csv-transactions-export.cpp:276-278`, `:400-401`); sub-accounts are not included.
 #[test]
 fn each_transaction_once_under_the_first_account() {
-    let out = export(&book(), &request(&[FOOD, CHECKING, EXPENSES], Layout::Simple), &CsvOptions::default());
+    let out = export(
+        &book(),
+        &request(&[FOOD, CHECKING, EXPENSES], Layout::Simple),
+        &CsvOptions::default(),
+    );
     let accounts: Vec<&str> = out.csv.lines().skip(1).map(|l| l.split(',').nth(1).unwrap()).collect();
-    assert_eq!(accounts, ["\"Expenses:Food \"\"Fine\"\"\"", "\"Expenses:Food \"\"Fine\"\"\"", "Assets:Checking", "Assets:Checking"]);
+    assert_eq!(
+        accounts,
+        [
+            "\"Expenses:Food \"\"Fine\"\"\"",
+            "\"Expenses:Food \"\"Fine\"\"\"",
+            "Assets:Checking",
+            "Assets:Checking"
+        ]
+    );
     assert_eq!(out.transactions, 4);
 }
 
@@ -281,26 +337,48 @@ fn num_field_source_renames_headers() {
     assert!(simple.csv.starts_with("Date,Account Name,Transaction Number,Description,"));
     assert!(simple.csv.contains(",101,"));
     let complex = export(&b, &request(&[CHECKING], Layout::Complex), &CsvOptions::default());
-    assert!(complex.csv.starts_with("Date,Transaction ID,Transaction Number,Description,Notes,Commodity/Currency,Void Reason,Number/Action,Memo,"));
+    assert!(
+        complex
+            .csv
+            .starts_with("Date,Transaction ID,Transaction Number,Description,Notes,Commodity/Currency,Void Reason,Number/Action,Memo,")
+    );
 }
 
 /// Dates follow the date format and the Locale's `D_FMT`; numbers the Locale's separators.
 #[test]
 fn formats_follow_the_locale() {
     let formats = Formats::new(DateFormat::Locale, Locale::by_name("de_DE").unwrap());
-    let out = export_transactions(&book(), &TimeZone::utc(), &formats, &CsvOptions::new(";", false).unwrap(), &request(&[RENT], Layout::Simple)).unwrap();
+    let out = export_transactions(
+        &book(),
+        &TimeZone::utc(),
+        &formats,
+        &CsvOptions::new(";", false).unwrap(),
+        &request(&[RENT], Layout::Simple),
+    )
+    .unwrap();
     let line = out.csv.lines().nth(1).unwrap();
-    assert!(line.starts_with("15.01.2024;Expenses:Rent;101;Rent, January;Assets:Checking;c;"), "{line}");
+    assert!(
+        line.starts_with("15.01.2024;Expenses:Rent;101;Rent, January;Assets:Checking;c;"),
+        "{line}"
+    );
     assert!(line.contains(";1234,56;"), "{line}");
     let iso = Formats::new(DateFormat::Iso, Locale::c());
-    let out = export_transactions(&book(), &TimeZone::utc(), &iso, &CsvOptions::default(), &request(&[RENT], Layout::Simple)).unwrap();
+    let out = export_transactions(
+        &book(),
+        &TimeZone::utc(),
+        &iso,
+        &CsvOptions::default(),
+        &request(&[RENT], Layout::Simple),
+    )
+    .unwrap();
     assert!(out.csv.lines().nth(1).unwrap().starts_with("2024-01-15,"));
 }
 
 #[test]
 fn requests_are_checked() {
     let b = book();
-    let refused = |r: &TransactionsRequest| export_transactions(&b, &TimeZone::utc(), &Formats::default(), &CsvOptions::default(), r).unwrap_err();
+    let refused =
+        |r: &TransactionsRequest| export_transactions(&b, &TimeZone::utc(), &Formats::default(), &CsvOptions::default(), r).unwrap_err();
     assert!(matches!(refused(&request(&[], Layout::Simple)), DomainError::Invalid(_)));
     assert!(matches!(refused(&request(&[99], Layout::Simple)), DomainError::NotFound { .. }));
     let mut r = request(&[CHECKING], Layout::Simple);

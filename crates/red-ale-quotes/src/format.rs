@@ -121,7 +121,10 @@ pub enum AnswerError {
 
 impl AnswerError {
     fn unexpected(format: &'static str, detail: impl Into<String>) -> Self {
-        Self::Unexpected { format, detail: detail.into() }
+        Self::Unexpected {
+            format,
+            detail: detail.into(),
+        }
     }
 }
 
@@ -191,7 +194,16 @@ pub(crate) mod fixtures {
     pub fn read(format: Format, name: &str, ask: &Ask, currency: Option<&str>) -> Result<QuoteRecord, AnswerError> {
         let pointers = Pointers::default();
         let zone = TimeZone::utc();
-        parse(format, &fixture(name), &Context { ask, currency, pointers: &pointers, zone: &zone })
+        parse(
+            format,
+            &fixture(name),
+            &Context {
+                ask,
+                currency,
+                pointers: &pointers,
+                zone: &zone,
+            },
+        )
     }
 
     pub fn security(symbol: &str) -> Ask {
@@ -199,7 +211,10 @@ pub(crate) mod fixtures {
     }
 
     pub fn rate(base: &str, quote: &str) -> Ask {
-        Ask::Rate { base: base.into(), quote: quote.into() }
+        Ask::Rate {
+            base: base.into(),
+            quote: quote.into(),
+        }
     }
 
     pub fn quote(last: &str, currency: Option<&str>, date: Option<&str>) -> QuoteRecord {
@@ -226,7 +241,10 @@ mod tests {
         assert_eq!(iso_date("2024-05-03T23:30:00-04:00").as_deref(), Some("05/03/2024"));
         assert_eq!(iso_date("May 3"), None);
         assert_eq!(unix_date("1714766401", &TimeZone::utc()).as_deref(), Some("05/03/2024"));
-        assert_eq!(unix_date("1714766401", &TimeZone::fixed(10 * 3600).unwrap()).as_deref(), Some("05/04/2024"));
+        assert_eq!(
+            unix_date("1714766401", &TimeZone::fixed(10 * 3600).unwrap()).as_deref(),
+            Some("05/04/2024")
+        );
     }
 
     #[test]

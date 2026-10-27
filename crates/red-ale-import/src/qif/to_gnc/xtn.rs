@@ -7,7 +7,10 @@
 
 use red_ale_core::ops::commit::{currency_fraction, set_date_posted, set_notes};
 use red_ale_core::ops::transactions::void::void_detached;
-use red_ale_core::{Book, CommodityRef, Date, DomainError, DomainResult, Frame, Guid, How, Numeric, ReconcileState, Round, Split, Time64, TimeZone, Transaction};
+use red_ale_core::{
+    Book, CommodityRef, Date, DomainError, DomainResult, Frame, Guid, How, Numeric, ReconcileState, Round, Split, Time64, TimeZone,
+    Transaction,
+};
 
 use super::super::dialog_utils::{action, default_unspec_acct, split_amount};
 use super::super::objects::{Field, QifMapEntry, QifSplit, QifXtn};
@@ -84,7 +87,14 @@ struct Draft {
 
 impl Draft {
     fn new() -> Self {
-        Self { value: Numeric::ZERO, amount: Numeric::ZERO, node: None, memo: None, action: None, state: ReconcileState::New }
+        Self {
+            value: Numeric::ZERO,
+            amount: Numeric::ZERO,
+            node: None,
+            memo: None,
+            action: None,
+            state: ReconcileState::New,
+        }
     }
 
     fn both(mut self, n: Numeric) -> Self {
@@ -114,7 +124,11 @@ impl XtnContext<'_> {
 
     /// `qif-import:qif-xtn-to-gnc-xtn`. `qif-to-gnc.scm:565-920`.
     pub fn convert(&self, book: &Book, x: &QifXtn, new_guid: &mut dyn FnMut() -> Guid) -> DomainResult<Built> {
-        let date = x.date.as_ref().and_then(Field::value).ok_or_else(|| DomainError::invalid("Missing transaction date."))?;
+        let date = x
+            .date
+            .as_ref()
+            .and_then(Field::value)
+            .ok_or_else(|| DomainError::invalid("Missing transaction date."))?;
         let date = qif_date(date).ok_or_else(|| DomainError::invalid(format!("line {}: no such day", x.line)))?;
         let mut t = Transaction {
             guid: new_guid(),
@@ -130,7 +144,11 @@ impl XtnContext<'_> {
         let mut near = Draft::new();
         if let Some(number) = &x.number {
             // `gnc-set-num-action` with no action (`5.17:gnucash/gnome-utils/gnc-ui-util.cpp`).
-            if self.num_action { near.action = Some(number.clone()) } else { t.num = Some(number.clone()) }
+            if self.num_action {
+                near.action = Some(number.clone())
+            } else {
+                t.num = Some(number.clone())
+            }
         }
         let memo = x.default_split.as_ref().or(x.splits.first()).and_then(|s| s.memo.clone());
         if let Some(memo) = memo.as_deref() {
@@ -145,7 +163,11 @@ impl XtnContext<'_> {
             Some(Cleared::Reconciled) => ReconcileState::Reconciled,
             _ => self.status_pref,
         };
-        let drafts = if x.security_name.is_none() { self.bank(x, near, memo.as_deref())? } else { self.stock(x, near)? };
+        let drafts = if x.security_name.is_none() {
+            self.bank(x, near, memo.as_deref())?
+        } else {
+            self.stock(x, near)?
+        };
         let mut nodes = Vec::new();
         t.splits = drafts
             .into_iter()
@@ -189,7 +211,9 @@ impl XtnContext<'_> {
         } else {
             payee(split.memo.as_deref().filter(|_| x.default_split.is_some()))
         };
-        let name = info.and_then(|e| e.gnc_name.clone()).unwrap_or_else(|| default_unspec_acct().to_owned());
+        let name = info
+            .and_then(|e| e.gnc_name.clone())
+            .unwrap_or_else(|| default_unspec_acct().to_owned());
         self.node(&name)
     }
 
@@ -223,7 +247,9 @@ impl XtnContext<'_> {
 
     /// A stock transaction: the near and far splits by action, and a commission split. `qif-to-gnc.scm:725-912`.
     fn stock(&self, x: &QifXtn, mut near: Draft) -> DomainResult<Vec<Draft>> {
-        let Some(action) = action(x) else { return Err(DomainError::invalid("Missing QIF investment action.")) };
+        let Some(action) = action(x) else {
+            return Err(DomainError::invalid("Missing QIF investment action."));
+        };
         let value = |f: Option<&Field<Numeric>>| f.and_then(Field::value).copied();
         let num_shares = value(x.num_shares.as_ref()).unwrap_or(Numeric::ZERO);
         let xtn_amt = x.splits.first().map(split_amount);
@@ -242,7 +268,12 @@ impl XtnContext<'_> {
         if let Some((near_name, far_name)) = ends {
             near.node = self.entry_node(self.acct_or_cat(near_name));
             let payees = &self.maps.payees;
-            let by_memo = || x.payee.as_deref().and_then(|p| payees.get(p)).or_else(|| first.memo.as_deref().and_then(|m| payees.get(m)));
+            let by_memo = || {
+                x.payee
+                    .as_deref()
+                    .and_then(|p| payees.get(p))
+                    .or_else(|| first.memo.as_deref().and_then(|m| payees.get(m)))
+            };
             let far_info = if far_name.is_empty() { by_memo() } else { None };
             far.node = self.entry_node(far_info.or_else(|| self.acct_or_cat(far_name)));
         }
@@ -264,7 +295,15 @@ impl XtnContext<'_> {
     }
 
     /// The amounts and signs of a stock transaction's two splits, by action. `qif-to-gnc.scm:817-876`.
-    fn amounts(&self, action: Action, near: &mut Draft, far: &mut Draft, shares: Numeric, split_amt: Numeric, xtn_amt: Numeric) -> DomainResult<()> {
+    fn amounts(
+        &self,
+        action: Action,
+        near: &mut Draft,
+        far: &mut Draft,
+        shares: Numeric,
+        split_amt: Numeric,
+        xtn_amt: Numeric,
+    ) -> DomainResult<()> {
         use Action as A;
         match action {
             A::Buy | A::BuyX | A::ReinvInt | A::ReinvDiv | A::ReinvSg | A::ReinvSh | A::ReinvMd | A::ReinvLg | A::ShrsIn => {
@@ -275,8 +314,21 @@ impl XtnContext<'_> {
                 (near.amount, near.value) = (shares.neg(), split_amt.neg());
                 (far.value, far.amount) = (xtn_amt, xtn_amt);
             }
-            A::CgShort | A::CgShortX | A::CgMid | A::CgMidX | A::CgLong | A::CgLongX | A::IntInc | A::IntIncX | A::Div | A::DivX | A::MiscInc
-            | A::MiscIncX | A::XIn | A::RtrnCap | A::RtrnCapX => {
+            A::CgShort
+            | A::CgShortX
+            | A::CgMid
+            | A::CgMidX
+            | A::CgLong
+            | A::CgLongX
+            | A::IntInc
+            | A::IntIncX
+            | A::Div
+            | A::DivX
+            | A::MiscInc
+            | A::MiscIncX
+            | A::XIn
+            | A::RtrnCap
+            | A::RtrnCapX => {
                 (near.value, near.amount) = (xtn_amt, xtn_amt);
                 (far.value, far.amount) = (xtn_amt.neg(), xtn_amt.neg());
             }

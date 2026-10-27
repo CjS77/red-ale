@@ -29,7 +29,11 @@ try:
 finally:
     s.end()
 "#;
-    oracle::run_code(code, &[copy.to_str().unwrap()]).unwrap().lines().map(str::to_owned).collect()
+    oracle::run_code(code, &[copy.to_str().unwrap()])
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect()
 }
 
 #[test]
@@ -47,10 +51,26 @@ fn contacts_read_back_in_gnucash() {
     );
     call(&mut d, "customer.update", &json!({ "customer": c["guid"], "active": false }));
     let acme = first_guid(&mut d, "customer.list", "customers");
-    call(&mut d, "customer.update", &json!({ "customer": acme, "terms": null, "taxTable": null }));
-    let v = call(&mut d, "vendor.create", &json!({ "name": "Ink Ltd", "currency": "USD", "terms": "Net30", "addr": { "name": "Ink AP" } }));
-    call(&mut d, "employee.create", &json!({ "name": "Sam Lee", "username": "sam", "currency": "EUR", "creditCardAccount": "Liabilities:Card", "workday": "7.5", "rate": "45.50", "language": "fr", "acl": "x" }));
-    call(&mut d, "job.create", &json!({ "name": "Catalogue", "owner": v["guid"], "rate": "75", "reference": "PO-1" }));
+    call(
+        &mut d,
+        "customer.update",
+        &json!({ "customer": acme, "terms": null, "taxTable": null }),
+    );
+    let v = call(
+        &mut d,
+        "vendor.create",
+        &json!({ "name": "Ink Ltd", "currency": "USD", "terms": "Net30", "addr": { "name": "Ink AP" } }),
+    );
+    call(
+        &mut d,
+        "employee.create",
+        &json!({ "name": "Sam Lee", "username": "sam", "currency": "EUR", "creditCardAccount": "Liabilities:Card", "workday": "7.5", "rate": "45.50", "language": "fr", "acl": "x" }),
+    );
+    call(
+        &mut d,
+        "job.create",
+        &json!({ "name": "Catalogue", "owner": v["guid"], "rate": "75", "reference": "PO-1" }),
+    );
     call(&mut d, "job.create", &json!({ "name": "Rebuild", "owner": c["guid"], "id": "J-9" }));
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
@@ -163,14 +183,42 @@ fn tax_tables_and_terms_read_back_and_gnucash_taxes_with_them() {
             { "account": "Liabilities:Levy", "amount": "1.50", "type": "value" }
         ]}),
     );
-    call(&mut d, "taxTable.create", &json!({ "name": "Gone", "entries": [{ "account": "Liabilities:Tax", "amount": "1", "type": "percent" }] }));
+    call(
+        &mut d,
+        "taxTable.create",
+        &json!({ "name": "Gone", "entries": [{ "account": "Liabilities:Tax", "amount": "1", "type": "percent" }] }),
+    );
     call(&mut d, "taxTable.delete", &json!({ "taxTable": "Gone" }));
-    call(&mut d, "taxTable.update", &json!({ "taxTable": "GST+Levy", "entries": [{ "account": "Liabilities:Tax", "amount": "12.5", "type": "percent" }] }));
-    let p = call(&mut d, "billTerm.create", &json!({ "name": "EOM", "description": "end of month", "type": "proximo", "dueDays": 31, "discountDays": 5, "discount": "1", "cutoff": -3 }));
-    call(&mut d, "billTerm.create", &json!({ "name": "Net60", "type": "days", "dueDays": 60 }));
-    call(&mut d, "billTerm.update", &json!({ "billTerm": "Net60", "dueDays": 45, "discountDays": 10, "discount": "2" }));
-    let v = call(&mut d, "vendor.create", &json!({ "name": "Ink", "currency": "EUR", "terms": p["guid"], "taxTable": "VAT" }));
-    call(&mut d, "customer.create", &json!({ "name": "Net60 user", "currency": "EUR", "terms": "Net60", "taxTable": "VAT" }));
+    call(
+        &mut d,
+        "taxTable.update",
+        &json!({ "taxTable": "GST+Levy", "entries": [{ "account": "Liabilities:Tax", "amount": "12.5", "type": "percent" }] }),
+    );
+    let p = call(
+        &mut d,
+        "billTerm.create",
+        &json!({ "name": "EOM", "description": "end of month", "type": "proximo", "dueDays": 31, "discountDays": 5, "discount": "1", "cutoff": -3 }),
+    );
+    call(
+        &mut d,
+        "billTerm.create",
+        &json!({ "name": "Net60", "type": "days", "dueDays": 60 }),
+    );
+    call(
+        &mut d,
+        "billTerm.update",
+        &json!({ "billTerm": "Net60", "dueDays": 45, "discountDays": 10, "discount": "2" }),
+    );
+    let v = call(
+        &mut d,
+        "vendor.create",
+        &json!({ "name": "Ink", "currency": "EUR", "terms": p["guid"], "taxTable": "VAT" }),
+    );
+    call(
+        &mut d,
+        "customer.create",
+        &json!({ "name": "Net60 user", "currency": "EUR", "terms": "Net60", "taxTable": "VAT" }),
+    );
     call(&mut d, "vendor.update", &json!({ "vendor": v["guid"], "taxTable": null }));
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
@@ -197,11 +245,17 @@ finally:
     s.end()
 "#;
     let out = oracle::run_code(code, &[book.path.to_str().unwrap()]).unwrap();
-    let taxes: Vec<(String, String)> = out.lines().map(|l| l.rsplit_once(' ').map(|(a, b)| (a.to_owned(), b.to_owned())).unwrap()).collect();
+    let taxes: Vec<(String, String)> = out
+        .lines()
+        .map(|l| l.rsplit_once(' ').map(|(a, b)| (a.to_owned(), b.to_owned())).unwrap())
+        .collect();
     let reduce = |f: &str| {
         let (n, dn) = f.split_once('/').unwrap();
         let (n, dn): (i64, i64) = (n.parse().unwrap(), dn.parse().unwrap());
         n * 1000 / dn
     };
-    assert_eq!(taxes.iter().map(|(n, v)| (n.as_str(), reduce(v))).collect::<Vec<_>>(), [("VAT", 21_500), ("GST+Levy", 12_500)]);
+    assert_eq!(
+        taxes.iter().map(|(n, v)| (n.as_str(), reduce(v))).collect::<Vec<_>>(),
+        [("VAT", 21_500), ("GST+Levy", 12_500)]
+    );
 }

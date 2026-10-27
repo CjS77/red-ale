@@ -28,9 +28,18 @@ pub const GNUCASH_FEATURES: [(&str, &str); 10] = [
         "Number Field Source",
         "User specifies source of 'num' field'; either transaction number or split action (requires at least GnuCash 2.5.0)",
     ),
-    ("Extra data in addresses, jobs or invoice entries", "Extra data for addresses, jobs or invoice entries (requires at least GnuCash 2.6.4)"),
-    ("Account GUID based Bayesian data", "Use account GUID as key for Bayesian data (requires at least GnuCash 2.6.12)"),
-    ("Account GUID based bayesian with flat KVP", "Use account GUID as key for bayesian data and store KVP flat (requires at least Gnucash 2.6.19)"),
+    (
+        "Extra data in addresses, jobs or invoice entries",
+        "Extra data for addresses, jobs or invoice entries (requires at least GnuCash 2.6.4)",
+    ),
+    (
+        "Account GUID based Bayesian data",
+        "Use account GUID as key for Bayesian data (requires at least GnuCash 2.6.12)",
+    ),
+    (
+        "Account GUID based bayesian with flat KVP",
+        "Use account GUID as key for bayesian data and store KVP flat (requires at least Gnucash 2.6.19)",
+    ),
     (
         "ISO-8601 formatted date strings in SQLite3 databases.",
         "Use ISO formatted date-time strings in SQLite3 databases (requires at least GnuCash 2.6.20)",
@@ -39,8 +48,14 @@ pub const GNUCASH_FEATURES: [(&str, &str); 10] = [
         "Register sort and filter settings stored in .gcm file",
         "Store the register sort and filter settings in .gcm metadata file (requires at least GnuCash 3.3)",
     ),
-    ("Use natural signs in budget amounts", "Store budget amounts unreversed (i.e. natural) signs (requires at least Gnucash 3.8)"),
-    ("Show extra account columns in the Budget View", "Show extra account columns in the Budget View (requires at least Gnucash 3.8)"),
+    (
+        "Use natural signs in budget amounts",
+        "Store budget amounts unreversed (i.e. natural) signs (requires at least Gnucash 3.8)",
+    ),
+    (
+        "Show extra account columns in the Budget View",
+        "Show extra account columns in the Budget View (requires at least Gnucash 3.8)",
+    ),
     (
         "Use a dedicated opening balance account identified by an 'equity-type' slot",
         "Use a dedicated opening balance account identified by an 'equity-type' slot (requires at least Gnucash 4.3)",
@@ -55,7 +70,11 @@ pub fn features(book: &Book) -> Vec<(String, String)> {
     book.slots
         .get(FEATURES)
         .and_then(SlotValue::as_frame)
-        .map(|f| f.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or_default().to_owned())).collect())
+        .map(|f| {
+            f.iter()
+                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or_default().to_owned()))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -73,7 +92,8 @@ pub fn uses_trading_accounts(book: &Book) -> bool {
 /// (`qof_book_set_option`, `5.17:libgnucash/engine/qofbook.cpp:1379-1389`).
 pub fn set_trading_accounts(book: &mut Book, on: bool) {
     if uses_trading_accounts(book) != on {
-        book.slots.set(OPT_TRADING_ACCOUNTS, SlotValue::String(if on { "t" } else { "f" }.to_owned()));
+        book.slots
+            .set(OPT_TRADING_ACCOUNTS, SlotValue::String(if on { "t" } else { "f" }.to_owned()));
     }
 }
 
@@ -110,7 +130,8 @@ pub fn set_split_action_for_num(book: &mut Book, on: bool) {
     if uses_split_action_for_num(book) == on {
         return;
     }
-    book.slots.set(OPT_NUM_SOURCE, SlotValue::String(if on { "t" } else { "f" }.to_owned()));
+    book.slots
+        .set(OPT_NUM_SOURCE, SlotValue::String(if on { "t" } else { "f" }.to_owned()));
     if on {
         set_feature_used(book, NUM_FIELD_SOURCE_FEATURE);
     }
@@ -121,7 +142,9 @@ pub fn set_split_action_for_num(book: &mut Book, on: bool) {
 /// it changes.
 pub fn set_auto_readonly_days(book: &mut Book, days: i64) -> DomainResult<()> {
     if !(0..=MAX_AUTO_READONLY_DAYS).contains(&days) {
-        return Err(DomainError::invalid(format!("the read-only threshold must be 0 to {MAX_AUTO_READONLY_DAYS} days, not {days}")));
+        return Err(DomainError::invalid(format!(
+            "the read-only threshold must be 0 to {MAX_AUTO_READONLY_DAYS} days, not {days}"
+        )));
     }
     if auto_readonly_days(book) != days {
         book.slots.set(OPT_AUTO_READONLY_DAYS, SlotValue::Double(days.to_string()));
@@ -139,7 +162,9 @@ pub fn auto_readonly_threshold(book: &Book, today: Date) -> Option<Date> {
 /// Refuse a change to a transaction posted strictly before the threshold date (`xaccTransIsReadonlyByPostedDate`,
 /// `5.17:libgnucash/engine/Transaction.cpp:2373-2409`), as GnuCash's register does.
 pub fn check_not_read_only_by_date(book: &Book, txn: &Transaction, today: Date) -> DomainResult<()> {
-    let Some(threshold) = auto_readonly_threshold(book, today) else { return Ok(()) };
+    let Some(threshold) = auto_readonly_threshold(book, today) else {
+        return Ok(());
+    };
     match posted_date(txn) {
         Some(date) if date < threshold => Err(DomainError::ReadOnlyByDate { date, threshold }),
         _ => Ok(()),
@@ -158,14 +183,22 @@ pub fn check_date_not_before_threshold(book: &Book, date: Date, today: Date) -> 
 /// A split's Number: its action when the book uses the split action for num, otherwise its transaction's num
 /// (`gnc_get_num_action(trans, split)`, `5.17:libgnucash/engine/engine-helpers.c:56-76`).
 pub fn number<'a>(book: &Book, txn: &'a Transaction, split: &'a Split) -> Option<&'a str> {
-    if uses_split_action_for_num(book) { split.action.as_deref() } else { txn.num.as_deref() }
+    if uses_split_action_for_num(book) {
+        split.action.as_deref()
+    } else {
+        txn.num.as_deref()
+    }
 }
 
 /// Where `gnc_set_num_action(trans, split, num, action)` puts a number and an action given together: the value for
 /// the transaction's num, then the value for the split's action. With the num field source on they swap
 /// (`5.17:libgnucash/engine/engine-helpers.c:134-148`).
 pub fn num_action_targets<'a>(book: &Book, num: &'a str, action: &'a str) -> (&'a str, &'a str) {
-    if uses_split_action_for_num(book) { (action, num) } else { (num, action) }
+    if uses_split_action_for_num(book) {
+        (action, num)
+    } else {
+        (num, action)
+    }
 }
 
 /// The integer part of a decimal text such as `30` or `30.000000000000000` or `1e2`; exponents are honoured for
@@ -192,7 +225,12 @@ mod tests {
     }
 
     fn txn(date: Date, num: Option<&str>, action: Option<&str>) -> Transaction {
-        let mut split = Split::new(Guid::from_bytes([4; 16]), Guid::from_bytes([5; 16]), Numeric::new(0, 1), Numeric::new(0, 1));
+        let mut split = Split::new(
+            Guid::from_bytes([4; 16]),
+            Guid::from_bytes([5; 16]),
+            Numeric::new(0, 1),
+            Numeric::new(0, 1),
+        );
         split.action = action.map(str::to_owned);
         Transaction {
             guid: Guid::from_bytes([3; 16]),
@@ -217,7 +255,11 @@ mod tests {
         assert_eq!(b.slots.get(OPT_NUM_SOURCE), None, "an unchanged option writes nothing");
         set_split_action_for_num(&mut b, true);
         assert_eq!(b.slots.get_str(OPT_NUM_SOURCE), Some("t"));
-        assert!(features(&b).iter().any(|(n, d)| n == NUM_FIELD_SOURCE_FEATURE && d.contains("requires at least GnuCash 2.5.0")));
+        assert!(
+            features(&b)
+                .iter()
+                .any(|(n, d)| n == NUM_FIELD_SOURCE_FEATURE && d.contains("requires at least GnuCash 2.5.0"))
+        );
         set_split_action_for_num(&mut b, false);
         assert_eq!(b.slots.get_str(OPT_NUM_SOURCE), Some("f"));
         assert!(!uses_split_action_for_num(&b));
@@ -247,9 +289,18 @@ mod tests {
         assert_eq!(auto_readonly_threshold(&b, today), Some(day("2024-06-21")));
         assert!(check_not_read_only_by_date(&b, &txn(day("2024-06-21"), None, None), today).is_ok());
         let err = check_not_read_only_by_date(&b, &txn(day("2024-06-20"), None, None), today).unwrap_err();
-        assert_eq!(err, DomainError::ReadOnlyByDate { date: day("2024-06-20"), threshold: day("2024-06-21") });
+        assert_eq!(
+            err,
+            DomainError::ReadOnlyByDate {
+                date: day("2024-06-20"),
+                threshold: day("2024-06-21")
+            }
+        );
         assert!(check_date_not_before_threshold(&b, day("2024-06-21"), today).is_ok());
-        assert!(matches!(check_date_not_before_threshold(&b, day("2024-06-20"), today), Err(DomainError::BeforeReadOnlyThreshold { .. })));
+        assert!(matches!(
+            check_date_not_before_threshold(&b, day("2024-06-20"), today),
+            Err(DomainError::BeforeReadOnlyThreshold { .. })
+        ));
         b.slots.set(OPT_AUTO_READONLY_DAYS, SlotValue::Double("-5".into()));
         assert_eq!(auto_readonly_threshold(&b, today), None, "a negative count is off");
     }

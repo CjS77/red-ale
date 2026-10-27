@@ -16,7 +16,8 @@ use serde::Serialize;
 pub use business::{DocumentsPreviewParam, OwnersPreviewParam};
 pub use params::{
     AccountsPreviewParam, ActionWire, ApplyParams, ChangeParam, CsvPreviewParam, DiscardParams, ImportFileParam, LayoutParam, PreviewParam,
-    PriceLayoutParam, PricesPreviewParam, QifDateFormatWire, QifFileParam, QifPreviewParam, QifReconcileWire, QifSecurityParam, SeparatorWire,
+    PriceLayoutParam, PricesPreviewParam, QifDateFormatWire, QifFileParam, QifPreviewParam, QifReconcileWire, QifSecurityParam,
+    SeparatorWire,
 };
 pub use proposal::ProposalResult;
 pub use records::{AccountFieldsWire, AccountRecordWire, ExistingWire, FieldChangeWire, PriceRecordWire};
@@ -28,8 +29,18 @@ use crate::wire::{Amount, Id};
 /// The import methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("import.preview", "Read a file and propose what importing it would do: the Import proposal, held by ID. Changes nothing.", Effect::Read, preview),
-        method("import.apply", "Apply a held Import proposal with the caller's changes, as one Mutation.", Effect::Destructive, apply),
+        method(
+            "import.preview",
+            "Read a file and propose what importing it would do: the Import proposal, held by ID. Changes nothing.",
+            Effect::Read,
+            preview,
+        ),
+        method(
+            "import.apply",
+            "Apply a held Import proposal with the caller's changes, as one Mutation.",
+            Effect::Destructive,
+            apply,
+        ),
         method("import.discard", "Drop a held Import proposal.", Effect::Read, discard),
     ]
 }
@@ -185,7 +196,9 @@ pub struct ApplyResult {
 }
 
 fn indexed(list: Vec<(usize, red_ale_core::Guid)>) -> Vec<IndexedTransaction> {
-    list.into_iter().map(|(index, t)| IndexedTransaction { index, transaction: Id(t) }).collect()
+    list.into_iter()
+        .map(|(index, t)| IndexedTransaction { index, transaction: Id(t) })
+        .collect()
 }
 
 fn ids(list: Vec<red_ale_core::Guid>) -> Vec<Id> {
@@ -200,23 +213,58 @@ impl From<Applied> for ApplyResult {
             cleared: indexed(a.cleared),
             updated: indexed(a.updated),
             skipped: a.skipped,
-            accounts: AccountsChanged { created: ids(a.accounts_created), updated: ids(a.accounts_updated) },
+            accounts: AccountsChanged {
+                created: ids(a.accounts_created),
+                updated: ids(a.accounts_updated),
+            },
             commodities: a.commodities_created.iter().map(ToString::to_string).collect(),
-            prices: PricesChanged { added: ids(added), replaced: ids(replaced), duplicate: ids(duplicate) },
+            prices: PricesChanged {
+                added: ids(added),
+                replaced: ids(replaced),
+                duplicate: ids(duplicate),
+            },
             imbalance_splits: a
                 .imbalance_splits
                 .into_iter()
-                .map(|s| ImbalanceSplitWire { index: s.index, transaction: Id(s.transaction), split: Id(s.split), account: Id(s.account), value: s.value.into() })
+                .map(|s| ImbalanceSplitWire {
+                    index: s.index,
+                    transaction: Id(s.transaction),
+                    split: Id(s.split),
+                    account: Id(s.account),
+                    value: s.value.into(),
+                })
                 .collect(),
             learned: LearnedWire {
-                bayes: a.learned.bayes.into_iter().map(|(account, target, tokens)| LearnedBayes { account: Id(account), target: Id(target), tokens }).collect(),
+                bayes: a
+                    .learned
+                    .bayes
+                    .into_iter()
+                    .map(|(account, target, tokens)| LearnedBayes {
+                        account: Id(account),
+                        target: Id(target),
+                        tokens,
+                    })
+                    .collect(),
                 plain: a
                     .learned
                     .plain
                     .into_iter()
-                    .map(|(account, target, category, key)| LearnedPlain { account: Id(account), target: Id(target), category: category.to_owned(), key })
+                    .map(|(account, target, category, key)| LearnedPlain {
+                        account: Id(account),
+                        target: Id(target),
+                        category: category.to_owned(),
+                        key,
+                    })
                     .collect(),
-                csv_account_map: a.learned.csv_account_map.into_iter().map(|(name, account)| LearnedName { name, account: Id(account) }).collect(),
+                csv_account_map: a
+                    .learned
+                    .csv_account_map
+                    .into_iter()
+                    .map(|(name, account)| LearnedName {
+                        name,
+                        account: Id(account),
+                    })
+                    .collect(),
             },
             warnings: a.warnings.iter().map(proposal::WarningWire::from).collect(),
             documents: a.documents.map(Into::into),

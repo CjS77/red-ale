@@ -24,8 +24,15 @@ impl CommodityRef {
     /// A reference from namespace and mnemonic. The legacy `ISO4217` namespace is read as `CURRENCY`.
     pub fn new(namespace: impl Into<String>, mnemonic: impl Into<String>) -> Self {
         let namespace = namespace.into();
-        let namespace = if namespace == LEGACY_CURRENCY_NAMESPACE { CURRENCY_NAMESPACE.to_owned() } else { namespace };
-        Self { namespace, mnemonic: mnemonic.into() }
+        let namespace = if namespace == LEGACY_CURRENCY_NAMESPACE {
+            CURRENCY_NAMESPACE.to_owned()
+        } else {
+            namespace
+        };
+        Self {
+            namespace,
+            mnemonic: mnemonic.into(),
+        }
     }
 
     /// A currency by ISO code.
@@ -69,7 +76,16 @@ pub struct Commodity {
 impl Commodity {
     /// A security with a fraction and no quote settings.
     pub fn new(id: CommodityRef, fullname: Option<String>, fraction: i64) -> Self {
-        Self { id, fullname, cusip: None, fraction, quote_flag: false, quote_source: None, quote_tz: None, slots: Frame::new() }
+        Self {
+            id,
+            fullname,
+            cusip: None,
+            fraction,
+            quote_flag: false,
+            quote_source: None,
+            quote_tz: None,
+            slots: Frame::new(),
+        }
     }
 
     /// True for a commodity in the `CURRENCY` namespace.

@@ -4,7 +4,7 @@
 #![cfg(feature = "oracle")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use red_ale_testkit::{TempBook, call, oracle, oracle_check, open};
+use red_ale_testkit::{TempBook, call, open, oracle, oracle_check};
 use serde_json::{Value, json};
 
 const CHECKING: &str = "c080059e1aec4c0b9ad4671e80965686";
@@ -39,7 +39,11 @@ fn gcd(a: u64, b: u64) -> u64 {
 #[test]
 fn start_balances_match_gnucash() {
     let (book, mut d) = open("synthetic/rich.gnucash");
-    let view = call(&mut d, "reconcile.start", &json!({ "account": CHECKING, "statementDate": "2024-06-30" }));
+    let view = call(
+        &mut d,
+        "reconcile.start",
+        &json!({ "account": CHECKING, "statementDate": "2024-06-30" }),
+    );
     let theirs = gnucash(&book, JUNE_30_END);
     assert_eq!(frac(&view["endingBalance"]), theirs["balanceAsOf"], "default ending balance");
     assert_eq!(frac(&view["startingBalance"]), theirs["reconciledBalance"]);
@@ -64,7 +68,10 @@ fn finish_reads_back_in_gnucash() {
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     let theirs = gnucash(&book, JUNE_30_END);
     assert_eq!(theirs["lastDate"], JUNE_30_END);
-    assert_eq!(theirs["lastInterval"], json!([done["lastInterval"]["months"], done["lastInterval"]["days"]]));
+    assert_eq!(
+        theirs["lastInterval"],
+        json!([done["lastInterval"]["months"], done["lastInterval"]["days"]])
+    );
     assert_eq!((&theirs["postponeDate"], &theirs["postponeBalance"]), (&Value::Null, &Value::Null));
     assert_eq!(theirs["includeChildren"], false);
     assert_eq!(theirs["reconciledBalance"], "446771/100");
@@ -87,7 +94,11 @@ fn postpone_reads_back_in_gnucash() {
 #[test]
 fn split_states_and_info_read_back_in_gnucash() {
     let (book, mut d) = open("synthetic/rich.gnucash");
-    call(&mut d, "reconcile.setState", &json!({ "split": GROCERIES, "state": "y", "date": "2024-06-15T23:59:59Z" }));
+    call(
+        &mut d,
+        "reconcile.setState",
+        &json!({ "split": GROCERIES, "state": "y", "date": "2024-06-15T23:59:59Z" }),
+    );
     call(&mut d, "reconcile.setState", &json!({ "split": EURO, "state": "f" }));
     call(&mut d, "reconcile.setState", &json!({ "split": ACME_BUY, "state": "c" }));
     let info = json!({

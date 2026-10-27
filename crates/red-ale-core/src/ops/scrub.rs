@@ -171,7 +171,10 @@ struct Scrubber<'a> {
 }
 
 fn txn_mut(book: &mut Book, guid: Guid) -> DomainResult<&mut Transaction> {
-    book.transactions.get_mut(&guid).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("transaction", &guid))
+    book.transactions
+        .get_mut(&guid)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("transaction", &guid))
 }
 
 fn txn(book: &Book, guid: Guid) -> DomainResult<&Transaction> {
@@ -183,7 +186,10 @@ fn fraction(book: &Book, commodity: &CommodityRef) -> DomainResult<i64> {
 }
 
 fn scu(book: &Book, account: &Account) -> DomainResult<i64> {
-    let commodity = account.commodity.as_ref().ok_or_else(|| DomainError::invalid(format!("account {} has no commodity", account.name)))?;
+    let commodity = account
+        .commodity
+        .as_ref()
+        .ok_or_else(|| DomainError::invalid(format!("account {} has no commodity", account.name)))?;
     Ok(account.scu(fraction(book, commodity)?))
 }
 
@@ -197,11 +203,21 @@ impl Scrubber<'_> {
         if let Some(found) = lookup(self.book, self.book.root, Some(&name), AccountType::Bank, Some(currency)).first() {
             return Ok(*found);
         }
-        let mut account = Account::new(self.env.new_guid(), name.clone(), AccountType::Bank, Some(currency.clone()), Some(self.book.root));
+        let mut account = Account::new(
+            self.env.new_guid(),
+            name.clone(),
+            AccountType::Bank,
+            Some(currency.clone()),
+            Some(self.book.root),
+        );
         account.commodity_scu = Some(fraction(self.book, currency)?);
         let guid = account.guid;
         self.book.accounts.insert(guid, Arc::new(account));
-        self.repairs.push(Repair::AccountCreated { account: guid, name, commodity: currency.clone() });
+        self.repairs.push(Repair::AccountCreated {
+            account: guid,
+            name,
+            commodity: currency.clone(),
+        });
         Ok(guid)
     }
 
@@ -219,8 +235,15 @@ impl Scrubber<'_> {
         let currency = t.currency.clone();
         let account = self.get_or_make(ORPHAN, &currency)?;
         let t = txn_mut(self.book, guid)?;
-        t.splits.iter_mut().filter(|s| orphans.contains(&s.guid)).for_each(|s| s.account = Some(account));
-        self.repairs.extend(orphans.into_iter().map(|split| Repair::OrphanAssigned { transaction: guid, split, account }));
+        t.splits
+            .iter_mut()
+            .filter(|s| orphans.contains(&s.guid))
+            .for_each(|s| s.account = Some(account));
+        self.repairs.extend(orphans.into_iter().map(|split| Repair::OrphanAssigned {
+            transaction: guid,
+            split,
+            account,
+        }));
         Ok(true)
     }
 
@@ -233,7 +256,11 @@ impl Scrubber<'_> {
         let t = txn(self.book, guid)?;
         let currency = t.currency.clone();
         let currency_fraction = fraction(self.book, &currency)?;
-        let fixes = t.splits.iter().map(|s| self.split_fixes(s, &currency, currency_fraction)).collect::<DomainResult<Vec<_>>>()?;
+        let fixes = t
+            .splits
+            .iter()
+            .map(|s| self.split_fixes(s, &currency, currency_fraction))
+            .collect::<DomainResult<Vec<_>>>()?;
         let t = txn_mut(self.book, guid)?;
         let repairs: Vec<Repair> = t.splits.iter_mut().zip(fixes).flat_map(|(s, fix)| fix.apply(guid, s)).collect();
         self.repairs.extend(repairs);
@@ -241,10 +268,20 @@ impl Scrubber<'_> {
     }
 
     fn split_fixes(&self, s: &Split, currency: &CommodityRef, currency_fraction: i64) -> DomainResult<SplitFix> {
-        let Some(account) = s.account.and_then(|a| self.book.account(a)) else { return Ok(SplitFix::default()) };
+        let Some(account) = s.account.and_then(|a| self.book.account(a)) else {
+            return Ok(SplitFix::default());
+        };
         let account_scu = account.commodity.as_ref().map(|_| scu(self.book, account)).transpose()?;
-        let value = if s.value.is_valid() { None } else { Some(Numeric::new(0, currency_fraction)) };
-        let amount = if s.amount.is_valid() { None } else { Some(Numeric::new(0, account_scu.unwrap_or(1))) };
+        let value = if s.value.is_valid() {
+            None
+        } else {
+            Some(Numeric::new(0, currency_fraction))
+        };
+        let amount = if s.amount.is_valid() {
+            None
+        } else {
+            Some(Numeric::new(0, account_scu.unwrap_or(1)))
+        };
         let (v, a) = (value.unwrap_or(s.value), amount.unwrap_or(s.amount));
         let to_value = match account_scu {
             Some(scu) if account.commodity.as_ref() == Some(currency) && !same(a, v, scu.min(currency_fraction)) => {
@@ -267,7 +304,12 @@ impl Scrubber<'_> {
             self.set_currency(guid, &found)?;
             return self.amounts_to_values(guid, &found);
         }
-        let first = t.splits.iter().find_map(|s| s.account).and_then(|a| self.book.account(a)).and_then(|a| a.commodity.clone());
+        let first = t
+            .splits
+            .iter()
+            .find_map(|s| s.account)
+            .and_then(|a| self.book.account(a))
+            .and_then(|a| a.commodity.clone());
         match first {
             Some(c) => self.set_currency(guid, &c),
             None => Ok(()),
@@ -281,7 +323,12 @@ impl Scrubber<'_> {
             .splits
             .iter()
             .filter(|s| s.amount != s.value)
-            .filter_map(|s| s.account.and_then(|a| book.account(a)).filter(|a| a.commodity.as_ref() == Some(currency)).map(|a| (s, a)))
+            .filter_map(|s| {
+                s.account
+                    .and_then(|a| book.account(a))
+                    .filter(|a| a.commodity.as_ref() == Some(currency))
+                    .map(|a| (s, a))
+            })
             .map(|(s, a)| Ok((s.guid, s.amount, s.value.to_denom(scu(book, a)?, Round::HalfUp)?)))
             .collect::<DomainResult<Vec<_>>>()?;
         let t = txn_mut(self.book, guid)?;
@@ -290,7 +337,13 @@ impl Scrubber<'_> {
                 s.amount = *to;
             }
         });
-        self.repairs.extend(changes.into_iter().map(|(split, from, to)| Repair::AmountSetToValue { transaction: guid, split, from, to }));
+        self.repairs
+            .extend(changes.into_iter().map(|(split, from, to)| Repair::AmountSetToValue {
+                transaction: guid,
+                split,
+                from,
+                to,
+            }));
         Ok(())
     }
 
@@ -318,7 +371,11 @@ impl Scrubber<'_> {
             .collect::<DomainResult<Vec<_>>>()?;
         let t = txn_mut(self.book, guid)?;
         t.currency = currency.clone();
-        self.repairs.push(Repair::CurrencySet { transaction: guid, from: old, to: currency.clone() });
+        self.repairs.push(Repair::CurrencySet {
+            transaction: guid,
+            from: old,
+            to: currency.clone(),
+        });
         let changed: Vec<Repair> = values
             .into_iter()
             .filter_map(|(split, from, to)| to.filter(|v| !v.same_repr(from)).map(|to| (split, from, to)))
@@ -326,7 +383,12 @@ impl Scrubber<'_> {
                 if let Some(s) = t.split_mut(split) {
                     s.value = to;
                 }
-                Repair::ValueChanged { transaction: guid, split, from, to }
+                Repair::ValueChanged {
+                    transaction: guid,
+                    split,
+                    from,
+                    to,
+                }
             })
             .collect();
         self.repairs.extend(changed);
@@ -376,15 +438,23 @@ impl Scrubber<'_> {
         let book: &Book = self.book;
         let created = rebalanced.accounts_created.iter().filter_map(|g| book.account(*g)).filter_map(|a| {
             // A trading parent made in a Book with no root currency has no commodity, and no repair to describe it.
-            a.commodity.clone().map(|commodity| Repair::AccountCreated { account: a.guid, name: a.name.clone(), commodity })
+            a.commodity.clone().map(|commodity| Repair::AccountCreated {
+                account: a.guid,
+                name: a.name.clone(),
+                commodity,
+            })
         });
-        let added = rebalanced.added.iter().filter_map(|g| t.split(*g)).map(|s| Repair::TradingSplitAdded {
-            transaction: guid,
-            split: s.guid,
-            account: s.account.unwrap_or_default(),
-            value: s.value,
-            amount: s.amount,
-        });
+        let added = rebalanced
+            .added
+            .iter()
+            .filter_map(|g| t.split(*g))
+            .map(|s| Repair::TradingSplitAdded {
+                transaction: guid,
+                split: s.guid,
+                account: s.account.unwrap_or_default(),
+                value: s.value,
+                amount: s.amount,
+            });
         let repairs: Vec<Repair> = created.chain(added).collect();
         self.repairs.extend(repairs);
         *txn_mut(self.book, guid)? = t;
@@ -400,7 +470,12 @@ impl Scrubber<'_> {
             _ => self.get_or_make(IMBALANCE, &currency)?,
         };
         let currency_fraction = fraction(self.book, &currency)?;
-        let account_scu = self.book.account(account).map(|a| scu(self.book, a)).transpose()?.unwrap_or(currency_fraction);
+        let account_scu = self
+            .book
+            .account(account)
+            .map(|a| scu(self.book, a))
+            .transpose()?
+            .unwrap_or(currency_fraction);
         let new_guid = self.env.new_guid();
         let t = txn_mut(self.book, guid)?;
         let existing = t.splits.iter().position(|s| s.account == Some(account));
@@ -415,7 +490,12 @@ impl Scrubber<'_> {
         if new.is_zero() && blank(&split.memo) && blank(&split.action) {
             t.splits.remove(index);
             if existing.is_some() {
-                self.repairs.push(Repair::BalanceSplitRemoved { transaction: guid, split: split_guid, account, value: old });
+                self.repairs.push(Repair::BalanceSplitRemoved {
+                    transaction: guid,
+                    split: split_guid,
+                    account,
+                    value: old,
+                });
             }
             return Ok(());
         }
@@ -424,8 +504,19 @@ impl Scrubber<'_> {
         split.amount = new.to_denom(account_scu, Round::HalfUp)?;
         sort_splits(t);
         self.repairs.push(match existing {
-            Some(_) => Repair::BalanceSplitChanged { transaction: guid, split: split_guid, account, from: old, to: new },
-            None => Repair::BalanceSplitAdded { transaction: guid, split: split_guid, account, value: new },
+            Some(_) => Repair::BalanceSplitChanged {
+                transaction: guid,
+                split: split_guid,
+                account,
+                from: old,
+                to: new,
+            },
+            None => Repair::BalanceSplitAdded {
+                transaction: guid,
+                split: split_guid,
+                account,
+                value: new,
+            },
         });
         Ok(())
     }
@@ -450,14 +541,27 @@ impl SplitFix {
         let split = s.guid;
         if let Some(v) = self.value {
             s.value = v;
-            out.push(Repair::InvalidNumberZeroed { transaction, split, field: "value" });
+            out.push(Repair::InvalidNumberZeroed {
+                transaction,
+                split,
+                field: "value",
+            });
         }
         if let Some(a) = self.amount {
             s.amount = a;
-            out.push(Repair::InvalidNumberZeroed { transaction, split, field: "amount" });
+            out.push(Repair::InvalidNumberZeroed {
+                transaction,
+                split,
+                field: "amount",
+            });
         }
         if let Some(to) = self.to_value {
-            out.push(Repair::AmountSetToValue { transaction, split, from: s.amount, to });
+            out.push(Repair::AmountSetToValue {
+                transaction,
+                split,
+                from: s.amount,
+                to,
+            });
             s.amount = to;
         }
         out
@@ -481,7 +585,9 @@ fn revalued(
         None => Ok(Some(s.value)),
         Some(_) if commodity == Some(new) => Ok(Some(s.amount)),
         Some(r) if commodity == Some(old) => price_value(s.amount, r, fraction),
-        Some(r) => div(s.value, s.amount).and_then(|own| div(own, r)).map_or(Ok(None), |p| price_value(s.amount, p, fraction)),
+        Some(r) => div(s.value, s.amount)
+            .and_then(|own| div(own, r))
+            .map_or(Ok(None), |p| price_value(s.amount, p, fraction)),
     }
 }
 
@@ -537,7 +643,9 @@ fn transactions_in(book: &Book, scope: Scope) -> DomainResult<Vec<Guid>> {
         Scope::Transaction(g) => return txn(book, g).map(|t| vec![t.guid]),
         Scope::Book => return Ok(book.transactions.keys().copied().collect()),
         Scope::Account(a) => vec![checked_account(book, a)?],
-        Scope::Tree(a) => std::iter::once(checked_account(book, a)?).chain(book.descendants(a).iter().map(|d| d.guid)).collect(),
+        Scope::Tree(a) => std::iter::once(checked_account(book, a)?)
+            .chain(book.descendants(a).iter().map(|d| d.guid))
+            .collect(),
     };
     Ok(book
         .transactions
@@ -548,15 +656,23 @@ fn transactions_in(book: &Book, scope: Scope) -> DomainResult<Vec<Guid>> {
 }
 
 fn checked_account(book: &Book, account: Guid) -> DomainResult<Guid> {
-    book.account(account).map(|a| a.guid).ok_or_else(|| DomainError::not_found("account", &account))
+    book.account(account)
+        .map(|a| a.guid)
+        .ok_or_else(|| DomainError::not_found("account", &account))
 }
 
 /// The orphan scrub (`xaccTransScrubOrphans`, `xaccAccountScrubOrphans`, `xaccAccountTreeScrubOrphans`,
 /// `Scrub.cpp:138-210`). Each transaction changed is committed, which balances it as GnuCash's commit does.
 pub fn scrub_orphans(book: &mut Book, env: &mut dyn Env, scope: Scope) -> DomainResult<Vec<Repair>> {
     let transactions = transactions_in(book, scope)?;
-    let mut s = Scrubber { book, env, repairs: Vec::new() };
-    transactions.into_iter().try_for_each(|t| if s.orphans(t)? { s.commit(t) } else { Ok(()) })?;
+    let mut s = Scrubber {
+        book,
+        env,
+        repairs: Vec::new(),
+    };
+    transactions
+        .into_iter()
+        .try_for_each(|t| if s.orphans(t)? { s.commit(t) } else { Ok(()) })?;
     Ok(s.repairs)
 }
 
@@ -567,7 +683,11 @@ pub fn scrub_orphans(book: &mut Book, env: &mut dyn Env, scope: Scope) -> Domain
 pub fn scrub_imbalance(book: &mut Book, env: &mut dyn Env, scope: Scope) -> DomainResult<Vec<Repair>> {
     let transactions = transactions_in(book, scope)?;
     let by_account = !matches!(scope, Scope::Transaction(_));
-    let mut s = Scrubber { book, env, repairs: Vec::new() };
+    let mut s = Scrubber {
+        book,
+        env,
+        repairs: Vec::new(),
+    };
     transactions.into_iter().try_for_each(|t| {
         s.orphans(t)?;
         if by_account {
@@ -582,7 +702,11 @@ pub fn scrub_imbalance(book: &mut Book, env: &mut dyn Env, scope: Scope) -> Doma
 /// changes.
 pub fn scrub_currency(book: &mut Book, env: &mut dyn Env, scope: Scope) -> DomainResult<Vec<Repair>> {
     let transactions = transactions_in(book, scope)?;
-    let mut s = Scrubber { book, env, repairs: Vec::new() };
+    let mut s = Scrubber {
+        book,
+        env,
+        repairs: Vec::new(),
+    };
     transactions.into_iter().try_for_each(|t| {
         let before = s.repairs.len();
         s.currency(t)?;
@@ -645,7 +769,12 @@ mod tests {
     fn fixture() -> Fixture {
         let mut env = FixedEnv::new(Time64(1_719_835_200), 0);
         let book = Book::new_empty(&mut env);
-        let mut f = Fixture { book, env, bank: Guid::NULL, food: Guid::NULL };
+        let mut f = Fixture {
+            book,
+            env,
+            bank: Guid::NULL,
+            food: Guid::NULL,
+        };
         let root = f.book.root;
         f.bank = add_account(&mut f, "Bank", AccountType::Bank, usd(), root);
         f.food = add_account(&mut f, "Food", AccountType::Expense, usd(), root);
@@ -689,7 +818,12 @@ mod tests {
     fn imbalance_goes_to_a_new_imbalance_account_under_the_root() {
         let mut f = fixture();
         let t = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -500, -500)]);
-        let t2 = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -100, -100), (Some(f.food), 40, 40)]);
+        let t2 = raw(
+            &mut f.book,
+            &mut f.env,
+            usd(),
+            &[(Some(f.bank), -100, -100), (Some(f.food), 40, 40)],
+        );
         let repairs = scrub_imbalance(&mut f.book, &mut f.env, Scope::Book).unwrap();
         let imb = named(&f.book, "Imbalance-USD").unwrap();
         let acc = f.book.account(imb).unwrap();
@@ -709,16 +843,36 @@ mod tests {
         let mut f = fixture();
         let root = f.book.root;
         let imb = add_account(&mut f, "Imbalance-USD", AccountType::Bank, usd(), root);
-        let t = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -500, -500), (Some(f.food), 500, 500), (Some(imb), 300, 300)]);
+        let t = raw(
+            &mut f.book,
+            &mut f.env,
+            usd(),
+            &[(Some(f.bank), -500, -500), (Some(f.food), 500, 500), (Some(imb), 300, 300)],
+        );
         let repairs = scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(t)).unwrap();
         assert_eq!(values(&f.book, t).len(), 2);
         assert!(matches!(repairs.as_slice(), [Repair::BalanceSplitRemoved { .. }]));
-        let t = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -500, -500), (Some(f.food), 500, 500), (Some(imb), 300, 300)]);
+        let t = raw(
+            &mut f.book,
+            &mut f.env,
+            usd(),
+            &[(Some(f.bank), -500, -500), (Some(f.food), 500, 500), (Some(imb), 300, 300)],
+        );
         Arc::make_mut(f.book.transactions.get_mut(&t).unwrap()).splits[2].memo = Some("keep".into());
         scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(t)).unwrap();
         assert!(values(&f.book, t).contains(&(Some(imb), Numeric::new(0, 100))));
-        let balanced = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -5, -5), (Some(f.food), 5, 5), (Some(imb), 0, 0)]);
-        assert!(scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(balanced)).unwrap().is_empty(), "balanced is left alone");
+        let balanced = raw(
+            &mut f.book,
+            &mut f.env,
+            usd(),
+            &[(Some(f.bank), -5, -5), (Some(f.food), 5, 5), (Some(imb), 0, 0)],
+        );
+        assert!(
+            scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(balanced))
+                .unwrap()
+                .is_empty(),
+            "balanced is left alone"
+        );
     }
 
     #[test]
@@ -745,7 +899,10 @@ mod tests {
         let orphan = named(&f.book, "Orphan-USD").unwrap();
         let imb = named(&f.book, "Imbalance-USD").unwrap();
         assert!(values(&f.book, t).contains(&(Some(orphan), Numeric::new(400, 100))));
-        assert!(values(&f.book, t).contains(&(Some(imb), Numeric::new(100, 100))), "the commit balances it");
+        assert!(
+            values(&f.book, t).contains(&(Some(imb), Numeric::new(100, 100))),
+            "the commit balances it"
+        );
         assert!(!f.book.transaction(other).unwrap().is_balanced(), "outside the scope");
         assert!(matches!(repairs[0], Repair::AccountCreated { .. }));
         assert!(matches!(repairs[1], Repair::OrphanAssigned { .. }));
@@ -755,7 +912,12 @@ mod tests {
     fn a_split_whose_account_is_missing_is_an_orphan() {
         let mut f = fixture();
         let missing = Guid::from_bytes([7; 16]);
-        let t = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -500, -500), (Some(missing), 500, 500)]);
+        let t = raw(
+            &mut f.book,
+            &mut f.env,
+            usd(),
+            &[(Some(f.bank), -500, -500), (Some(missing), 500, 500)],
+        );
         scrub_orphans(&mut f.book, &mut f.env, Scope::Book).unwrap();
         assert!(values(&f.book, t).contains(&(named(&f.book, "Orphan-USD"), Numeric::new(500, 100))));
     }
@@ -763,7 +925,12 @@ mod tests {
     #[test]
     fn amounts_follow_values_in_the_transaction_currency() {
         let mut f = fixture();
-        let t = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -500, -400), (Some(f.food), 500, 500)]);
+        let t = raw(
+            &mut f.book,
+            &mut f.env,
+            usd(),
+            &[(Some(f.bank), -500, -400), (Some(f.food), 500, 500)],
+        );
         let repairs = scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(t)).unwrap();
         assert!(matches!(repairs.as_slice(), [Repair::AmountSetToValue { .. }]));
         assert_eq!(f.book.transaction(t).unwrap().splits[0].amount, Numeric::new(-500, 100));
@@ -771,7 +938,10 @@ mod tests {
         tiny.memo = None;
         let t2 = raw(&mut f.book, &mut f.env, usd(), &[(Some(f.bank), -500, -500)]);
         Arc::make_mut(f.book.transactions.get_mut(&t2).unwrap()).splits.push(tiny);
-        assert!(scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(t2)).unwrap().is_empty(), "equal at the SCU");
+        assert!(
+            scrub_imbalance(&mut f.book, &mut f.env, Scope::Transaction(t2)).unwrap().is_empty(),
+            "equal at the SCU"
+        );
     }
 
     #[test]
@@ -779,9 +949,16 @@ mod tests {
         let mut f = fixture();
         let acme = CommodityRef::new("NASDAQ", "ACME");
         let root = f.book.root;
-        f.book.commodities.insert(acme.clone(), Arc::new(crate::Commodity::new(acme.clone(), None, 10_000)));
+        f.book
+            .commodities
+            .insert(acme.clone(), Arc::new(crate::Commodity::new(acme.clone(), None, 10_000)));
         let stock = add_account(&mut f, "ACME", AccountType::Stock, acme.clone(), root);
-        let t = raw(&mut f.book, &mut f.env, acme.clone(), &[(Some(f.bank), -1000, -1000), (Some(stock), 1000, 200)]);
+        let t = raw(
+            &mut f.book,
+            &mut f.env,
+            acme.clone(),
+            &[(Some(f.bank), -1000, -1000), (Some(stock), 1000, 200)],
+        );
         let repairs = scrub_currency(&mut f.book, &mut f.env, Scope::Book).unwrap();
         assert_eq!(f.book.transaction(t).unwrap().currency, usd());
         assert!(matches!(&repairs[0], Repair::CurrencySet { from, .. } if *from == acme));

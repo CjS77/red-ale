@@ -49,7 +49,10 @@ pub struct NumberFormat {
 
 impl Default for NumberFormat {
     fn default() -> Self {
-        Self { decimal_point: '.', group_separator: ',' }
+        Self {
+            decimal_point: '.',
+            group_separator: ',',
+        }
     }
 }
 
@@ -76,7 +79,9 @@ fn arithmetic(e: impl std::fmt::Display) -> ExprError {
 
 /// The number at the start of `s`: digits with group separators, a decimal point, then digits.
 fn scan_number(s: &str, f: NumberFormat) -> Result<(Numeric, &str), ExprError> {
-    let end = s.find(|c: char| !(c.is_ascii_digit() || c == f.decimal_point || c == f.group_separator)).unwrap_or(s.len());
+    let end = s
+        .find(|c: char| !(c.is_ascii_digit() || c == f.decimal_point || c == f.group_separator))
+        .unwrap_or(s.len());
     let (body, rest) = s.split_at(end);
     let (integer, fraction) = body.split_once(f.decimal_point).unwrap_or((body, ""));
     if fraction.contains([f.decimal_point, f.group_separator]) {
@@ -87,16 +92,27 @@ fn scan_number(s: &str, f: NumberFormat) -> Result<(Numeric, &str), ExprError> {
         return Err(ExprError::Unexpected(s.to_owned()));
     }
     let digits = format!("{integer}{fraction}");
-    let numer: i64 =
-        if digits.is_empty() { 0 } else { digits.parse().map_err(|_| ExprError::Arithmetic(format!("{digits} does not fit")))? };
+    let numer: i64 = if digits.is_empty() {
+        0
+    } else {
+        digits
+            .parse()
+            .map_err(|_| ExprError::Arithmetic(format!("{digits} does not fit")))?
+    };
     let exp = u32::try_from(fraction.len()).map_err(|_| ExprError::Arithmetic("too many digits".into()))?;
-    let denom = 10_i64.checked_pow(exp).ok_or_else(|| ExprError::Arithmetic(format!("{} fraction digits", fraction.len())))?;
+    let denom = 10_i64
+        .checked_pow(exp)
+        .ok_or_else(|| ExprError::Arithmetic(format!("{} fraction digits", fraction.len())))?;
     Ok((Numeric::new(numer, denom), rest))
 }
 
 impl<'a> Parser<'a> {
     fn new(text: &'a str, format: NumberFormat) -> Result<Self, ExprError> {
-        let mut p = Self { rest: text, format, token: Token::End };
+        let mut p = Self {
+            rest: text,
+            format,
+            token: Token::End,
+        };
         p.next()?;
         Ok(p)
     }
@@ -125,7 +141,12 @@ impl<'a> Parser<'a> {
         while let Token::Op(op @ ('+' | '-')) = self.token {
             self.next()?;
             let right = self.product()?;
-            value = if op == '+' { value.add(right, DENOM_AUTO, EXACT) } else { value.sub(right, DENOM_AUTO, EXACT) }.map_err(arithmetic)?;
+            value = if op == '+' {
+                value.add(right, DENOM_AUTO, EXACT)
+            } else {
+                value.sub(right, DENOM_AUTO, EXACT)
+            }
+            .map_err(arithmetic)?;
         }
         Ok(value)
     }
@@ -139,7 +160,12 @@ impl<'a> Parser<'a> {
             if op == '/' && right.is_zero() {
                 return Err(ExprError::Arithmetic("division by zero".into()));
             }
-            value = if op == '*' { value.mul(right, DENOM_AUTO, EXACT) } else { value.div(right, DENOM_AUTO, EXACT) }.map_err(arithmetic)?;
+            value = if op == '*' {
+                value.mul(right, DENOM_AUTO, EXACT)
+            } else {
+                value.div(right, DENOM_AUTO, EXACT)
+            }
+            .map_err(arithmetic)?;
         }
         Ok(value)
     }
@@ -212,14 +238,32 @@ mod tests {
 
     #[test]
     fn what_gnucash_reads_as_zero_is_an_error() {
-        ["abc", "x+1", "sqrt(4)", "$10", "1.2.3", "1.234,5", "1/0", "(1+2", "1+2)", "2 3", "", "1+", "*2", "99999999999999999999"]
-            .iter()
-            .for_each(|t| assert!(eval(t).is_err(), "{t:?} gave {:?}", eval(t)));
+        [
+            "abc",
+            "x+1",
+            "sqrt(4)",
+            "$10",
+            "1.2.3",
+            "1.234,5",
+            "1/0",
+            "(1+2",
+            "1+2)",
+            "2 3",
+            "",
+            "1+",
+            "*2",
+            "99999999999999999999",
+        ]
+        .iter()
+        .for_each(|t| assert!(eval(t).is_err(), "{t:?} gave {:?}", eval(t)));
     }
 
     #[test]
     fn the_locale_separators() {
-        let f = NumberFormat { decimal_point: ',', group_separator: '.' };
+        let f = NumberFormat {
+            decimal_point: ',',
+            group_separator: '.',
+        };
         assert_eq!(parse_expression("1.234,5", f).map(|n| (n.num(), n.denom())), Ok((2469, 2)));
     }
 }

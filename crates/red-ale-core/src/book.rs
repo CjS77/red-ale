@@ -38,7 +38,11 @@ pub struct FixedEnv {
 impl FixedEnv {
     /// A fixed clock at `now` in UTC; GUIDs count up from `seed`.
     pub fn new(now: Time64, seed: u128) -> Self {
-        Self { now, next: seed, zone: TimeZone::utc() }
+        Self {
+            now,
+            next: seed,
+            zone: TimeZone::utc(),
+        }
     }
 
     /// The same, in another time zone.
@@ -149,7 +153,9 @@ impl Book {
 
     /// Every descendant of an account, depth first, children in book order.
     pub fn descendants(&self, parent: Guid) -> Vec<&Account> {
-        self.children(parent).flat_map(|child| std::iter::once(child).chain(self.descendants(child.guid))).collect()
+        self.children(parent)
+            .flat_map(|child| std::iter::once(child).chain(self.descendants(child.guid)))
+            .collect()
     }
 
     /// An account's ancestors, nearest first, excluding the root.
@@ -184,18 +190,26 @@ impl Book {
 
     /// Every split in an account, with its transaction, in book order of transactions.
     pub fn splits_of(&self, account: Guid) -> impl Iterator<Item = (&Transaction, &crate::Split)> {
-        self.transactions
-            .values()
-            .flat_map(move |t| t.splits.iter().filter(move |s| s.account == Some(account)).map(move |s| (t.as_ref(), s)))
+        self.transactions.values().flat_map(move |t| {
+            t.splits
+                .iter()
+                .filter(move |s| s.account == Some(account))
+                .map(move |s| (t.as_ref(), s))
+        })
     }
 
     /// Every split in a lot, with its transaction.
     pub fn splits_in_lot(&self, lot: Guid) -> impl Iterator<Item = (&Transaction, &crate::Split)> {
-        self.transactions.values().flat_map(move |t| t.splits.iter().filter(move |s| s.lot == Some(lot)).map(move |s| (t.as_ref(), s)))
+        self.transactions
+            .values()
+            .flat_map(move |t| t.splits.iter().filter(move |s| s.lot == Some(lot)).map(move |s| (t.as_ref(), s)))
     }
 
     /// The transaction holding a split.
     pub fn transaction_of_split(&self, split: Guid) -> Option<&Transaction> {
-        self.transactions.values().map(AsRef::as_ref).find(|t| t.splits.iter().any(|s| s.guid == split))
+        self.transactions
+            .values()
+            .map(AsRef::as_ref)
+            .find(|t| t.splits.iter().any(|s| s.guid == split))
     }
 }

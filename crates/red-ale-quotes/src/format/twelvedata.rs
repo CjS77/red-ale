@@ -12,7 +12,11 @@ const FORMAT: &str = "twelvedata";
 pub fn parse(v: &Value, cx: &Context<'_>) -> Result<QuoteRecord, AnswerError> {
     if text(v, "status") == Some("error") {
         let message = text(v, "message").unwrap_or("Twelve Data returned an error").to_owned();
-        return if text(v, "code") == Some("429") { Err(AnswerError::RateLimited(message)) } else { Ok(QuoteRecord::failed(message)) };
+        return if text(v, "code") == Some("429") {
+            Err(AnswerError::RateLimited(message))
+        } else {
+            Ok(QuoteRecord::failed(message))
+        };
     }
     match cx.ask {
         Ask::Security { .. } => {

@@ -22,8 +22,7 @@ use red_ale_locale::Locale;
 
 pub use csv::csv;
 pub use sheet::{
-    DEFAULT_STYLE_SHEET, PREDEFINED, StyleSheet, StyleSheetEntry, StyleSheetError, StyleSheetTemplate, StyleSheets, check_css,
-    left_out,
+    DEFAULT_STYLE_SHEET, PREDEFINED, StyleSheet, StyleSheetEntry, StyleSheetError, StyleSheetTemplate, StyleSheets, check_css, left_out,
 };
 
 use look::{Line, Look};
@@ -47,7 +46,10 @@ pub struct RenderContext<'a> {
 /// The report as one HTML document, through `sheet`; `None` renders with the base look and no style-sheet options,
 /// as GnuCash renders a report whose style sheet no longer exists (`design/reports.md` §8).
 pub fn html(result: &ReportResult, sheet: Option<&StyleSheet>, ctx: &RenderContext<'_>) -> String {
-    let look = Look { numbers: ctx.locale.conventions(), ..Look::of(sheet) };
+    let look = Look {
+        numbers: ctx.locale.conventions(),
+        ..Look::of(sheet)
+    };
     let heading = result.headline.as_deref().unwrap_or(&result.title);
     let template = look.template.map_or("none", |t| match t {
         StyleSheetTemplate::Plain => "plain",
@@ -69,7 +71,13 @@ pub fn html(result: &ReportResult, sheet: Option<&StyleSheet>, ctx: &RenderConte
         format!("<body class=\"sheet-{template}\">"),
         "<div class=\"report\">".to_owned(),
         masthead(heading, &look.header, result, ctx),
-        result.sections.iter().enumerate().map(|(i, s)| section(s, i, &look)).collect::<Vec<_>>().join("\n"),
+        result
+            .sections
+            .iter()
+            .enumerate()
+            .map(|(i, s)| section(s, i, &look))
+            .collect::<Vec<_>>()
+            .join("\n"),
         colophon(&look.footer, result, ctx),
         "</div>".to_owned(),
         "</body>".to_owned(),
@@ -94,7 +102,11 @@ fn masthead(heading: &str, lines: &[Line], result: &ReportResult, ctx: &RenderCo
     let title = (!heading.is_empty()).then(|| format!("<h1 class=\"report-title\">{}</h1>", escape(heading)));
     let lines = lines.iter().map(|l| line(l, result, ctx));
     let body: Vec<String> = title.into_iter().chain(lines).collect();
-    if body.is_empty() { String::new() } else { format!("<header class=\"masthead\">\n{}\n</header>", body.join("\n")) }
+    if body.is_empty() {
+        String::new()
+    } else {
+        format!("<header class=\"masthead\">\n{}\n</header>", body.join("\n"))
+    }
 }
 
 fn colophon(lines: &[Line], result: &ReportResult, ctx: &RenderContext<'_>) -> String {
@@ -131,7 +143,14 @@ fn run_date(result: &ReportResult, ctx: &RenderContext<'_>, time: bool) -> Strin
     let offset = ctx.zone.offset_at(t);
     let sign = if offset < 0 { '-' } else { '+' };
     let minutes = offset.unsigned_abs() / 60;
-    format!("{date} {:02}:{:02}:{:02} {sign}{:02}{:02}", local.hour, local.minute, local.second, minutes / 60, minutes % 60)
+    format!(
+        "{date} {:02}:{:02}:{:02} {sign}{:02}{:02}",
+        local.hour,
+        local.minute,
+        local.second,
+        minutes / 60,
+        minutes % 60
+    )
 }
 
 fn section(s: &Section, index: usize, look: &Look) -> String {
@@ -146,13 +165,24 @@ fn block(b: &Block, path: &str, look: &Look) -> String {
     match b {
         Block::Text(t) => text_block(t),
         Block::Warning(w) => {
-            format!("<div class=\"warning\" role=\"note\"><h3>{}</h3><p>{}</p></div>", escape(&w.title), escape_lines(&w.text))
+            format!(
+                "<div class=\"warning\" role=\"note\"><h3>{}</h3><p>{}</p></div>",
+                escape(&w.title),
+                escape_lines(&w.text)
+            )
         }
         Block::Table(t) => format!("<div class=\"table-wrap\">\n{}\n</div>", table::table(t, look)),
-        Block::Chart(c) => format!("<figure class=\"chart\">\n{}\n</figure>", svg::chart(c, &format!("chart-{path}"), look.numbers)),
+        Block::Chart(c) => format!(
+            "<figure class=\"chart\">\n{}\n</figure>",
+            svg::chart(c, &format!("chart-{path}"), look.numbers)
+        ),
         Block::Group(g) => {
-            let inner: Vec<String> =
-                g.blocks.iter().enumerate().map(|(i, b)| format!("<div>\n{}\n</div>", block(b, &format!("{path}-{i}"), look))).collect();
+            let inner: Vec<String> = g
+                .blocks
+                .iter()
+                .enumerate()
+                .map(|(i, b)| format!("<div>\n{}\n</div>", block(b, &format!("{path}-{i}"), look)))
+                .collect();
             format!("<div class=\"group\">\n{}\n</div>", inner.join("\n"))
         }
         Block::OptionsSummary(o) => options_summary(o),
@@ -172,7 +202,14 @@ fn options_summary(o: &OptionsSummary) -> String {
     let rows: Vec<String> = o
         .rows
         .iter()
-        .map(|r| format!("<tr><td><b>{} / {}</b></td><td>{}</td></tr>", escape(&r.section), escape(&r.name), escape_lines(&r.value)))
+        .map(|r| {
+            format!(
+                "<tr><td><b>{} / {}</b></td><td>{}</td></tr>",
+                escape(&r.section),
+                escape(&r.name),
+                escape_lines(&r.value)
+            )
+        })
         .collect();
     format!("<table class=\"options-summary\">\n{}\n</table>", rows.join("\n"))
 }

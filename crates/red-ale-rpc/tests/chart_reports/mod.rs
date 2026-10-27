@@ -2,7 +2,14 @@
 //! `<book>.expected.json` (`fixtures/README.md`), and the first table of a report result read as GnuCash's tests
 //! read the HTML table (`5.17:gnucash/report/test/test-report-extras.scm:96-109`).
 
-#![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::missing_panics_doc, clippy::needless_pass_by_value)]
+#![allow(
+    dead_code,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::missing_panics_doc,
+    clippy::needless_pass_by_value
+)]
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -53,11 +60,16 @@ impl Charts {
     }
 
     pub fn call(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     pub fn err(&mut self, method: &str, params: Value) -> RpcError {
-        self.d.call(method, params.clone()).err().unwrap_or_else(|| panic!("{method} {params} should fail"))
+        self.d
+            .call(method, params.clone())
+            .err()
+            .unwrap_or_else(|| panic!("{method} {params} should fail"))
     }
 
     /// `report.run` of `report` with `options`.
@@ -67,7 +79,10 @@ impl Charts {
 
     /// `report.export` of `report` with `options`: the HTML.
     pub fn export(&mut self, report: &str, options: &Value) -> String {
-        self.call("report.export", json!({ "report": report, "options": options }))["html"].as_str().unwrap().to_owned()
+        self.call("report.export", json!({ "report": report, "options": options }))["html"]
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
 
     /// The open Book.
@@ -77,8 +92,10 @@ impl Charts {
 
     /// The files beside the book, to see that a report writes none.
     pub fn files(&self) -> Vec<String> {
-        let mut names: Vec<String> =
-            std::fs::read_dir(self.dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        let mut names: Vec<String> = std::fs::read_dir(self.dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
         names.sort();
         names
     }
@@ -86,7 +103,10 @@ impl Charts {
 
 /// A dispatcher keeping its Configuration in `config`, with a fixed clock and sequential GUIDs.
 fn dispatcher(config: &Path) -> Dispatcher {
-    let settings = Settings { config: ConfigStore::at(PathBuf::from(config)), ..Settings::default() };
+    let settings = Settings {
+        config: ConfigStore::at(PathBuf::from(config)),
+        ..Settings::default()
+    };
     let mut d = Dispatcher::new(settings);
     let made = AtomicU32::new(0);
     d.set_env_factory(Box::new(move || {
@@ -116,7 +136,11 @@ pub fn blocks(result: &Value) -> Vec<Value> {
         });
     }
     let mut out = Vec::new();
-    result["sections"].as_array().unwrap().iter().for_each(|s| walk(s["blocks"].as_array().unwrap(), &mut out));
+    result["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .for_each(|s| walk(s["blocks"].as_array().unwrap(), &mut out));
     out
 }
 
@@ -127,15 +151,31 @@ pub fn blocks_of(result: &Value, kind: &str) -> Vec<Value> {
 
 /// The first chart of a result.
 pub fn chart(result: &Value) -> Value {
-    blocks_of(result, "chart").into_iter().next().unwrap_or_else(|| panic!("no chart: {result}"))
+    blocks_of(result, "chart")
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("no chart: {result}"))
 }
 
 /// The first table of a result.
 pub fn table(result: &Value) -> TableView {
-    let t = blocks_of(result, "table").into_iter().next().unwrap_or_else(|| panic!("no table: {result}"));
-    let header = t["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap().to_owned()).collect();
+    let t = blocks_of(result, "table")
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("no table: {result}"));
+    let header = t["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap().to_owned())
+        .collect();
     let cell = |c: &Value| c["display"].as_str().or_else(|| c["text"].as_str()).unwrap_or("").to_owned();
-    let rows = t["rows"].as_array().unwrap().iter().map(|r| r["cells"].as_array().unwrap().iter().map(cell).collect()).collect();
+    let rows = t["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["cells"].as_array().unwrap().iter().map(cell).collect())
+        .collect();
     TableView { header, rows }
 }
 
@@ -153,7 +193,10 @@ pub fn rational(v: &Value) -> String {
 
 /// HTML-escaped text, as the renderer escapes it.
 pub fn escaped(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 /// The expected figures of a fixture, `<book>.expected.json`.
@@ -168,7 +211,12 @@ impl Expected {
 
     /// The run with `id`.
     pub fn run(&self, id: &str) -> &Value {
-        self.0["runs"].as_array().unwrap().iter().find(|r| r["id"] == id).unwrap_or_else(|| panic!("no run {id}"))
+        self.0["runs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["id"] == id)
+            .unwrap_or_else(|| panic!("no run {id}"))
     }
 
     /// The GUID of an account the file names: a key of `accounts`, or `group.role` where accounts are grouped.
@@ -178,7 +226,10 @@ impl Expected {
             return guid.to_owned();
         }
         let (group, role) = name.split_once('.').unwrap_or_else(|| panic!("no account {name}"));
-        accounts[group][role].as_str().unwrap_or_else(|| panic!("no account {name}")).to_owned()
+        accounts[group][role]
+            .as_str()
+            .unwrap_or_else(|| panic!("no account {name}"))
+            .to_owned()
     }
 
     /// The instant a date name of `dates` stands for (`"2024-03-01 00:00:00 UTC, …"`), or a day as local (UTC)
@@ -236,9 +287,15 @@ fn check(view: &TableView, html: &str, id: &str, c: &Value) {
         assert_eq!(got.len() as u64, count, "{what}: {got:?}");
         return;
     }
-    let want: Vec<String> = c["expected"].as_array().unwrap().iter().map(|e| e.as_str().unwrap().to_owned()).collect();
+    let want: Vec<String> = c["expected"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e.as_str().unwrap().to_owned())
+        .collect();
     assert_eq!(got, want, "{what}");
-    want.iter().for_each(|w| assert!(html.contains(&escaped(w)), "{what}: {w} is not in the HTML"));
+    want.iter()
+        .for_each(|w| assert!(html.contains(&escaped(w)), "{what}: {w} is not in the HTML"));
 }
 
 /// A relation check: the implied text of each column, row by row.
@@ -246,10 +303,16 @@ fn check_implied(view: &TableView, html: &str, what: &str, c: &Value) {
     let columns = c["select"]["columns"].as_array().unwrap();
     columns.iter().for_each(|col| {
         let col = usize::try_from(col.as_u64().unwrap()).unwrap();
-        let want: Vec<&str> = c["implied"][format!("column{col}")].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+        let want: Vec<&str> = c["implied"][format!("column{col}")]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
         let got: Vec<&str> = view.rows.iter().map(|r| r[col - 1].as_str()).collect();
         assert_eq!(got, want, "{what}: column {col}");
-        want.iter().for_each(|w| assert!(html.contains(&escaped(w)), "{what}: {w} is not in the HTML"));
+        want.iter()
+            .for_each(|w| assert!(html.contains(&escaped(w)), "{what}: {w} is not in the HTML"));
     });
 }
 

@@ -7,7 +7,7 @@
 #![cfg(feature = "oracle")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use red_ale_testkit::{TempBook, call, oracle, oracle_check, open};
+use red_ale_testkit::{TempBook, call, open, oracle, oracle_check};
 use serde_json::{Value, json};
 
 fn gnucash(script: &str, args: &[&str]) -> Value {
@@ -23,9 +23,17 @@ fn edited_with_every_trigger_on() -> TempBook {
     let options = json!({ "splitActionForNum": true, "autoReadOnlyDays": 30, "useTradingAccounts": true });
     call(&mut d, "book.setOptions", &options);
     let splits = json!([{ "account": "Expenses", "value": "12.34" }, { "account": "Assets:Bank", "value": "-12.34" }]);
-    call(&mut d, "transaction.post", &json!({ "description": "after the triggers", "datePosted": "2099-01-01", "splits": splits }));
+    call(
+        &mut d,
+        "transaction.post",
+        &json!({ "description": "after the triggers", "datePosted": "2099-01-01", "splits": splits }),
+    );
     let differences = oracle_check(&mut d, &book, &[]);
-    assert!(differences.is_empty(), "GnuCash reads what red-ale holds:\n{}", differences.join("\n"));
+    assert!(
+        differences.is_empty(),
+        "GnuCash reads what red-ale holds:\n{}",
+        differences.join("\n")
+    );
     book
 }
 
@@ -35,7 +43,13 @@ fn gnucash_opens_a_book_with_every_lifted_trigger_without_complaint() {
     let path = book.path_str();
     assert_eq!(gnucash("opened.py", &[&path]), json!({ "unknownFeatures": null, "logged": [] }));
     let found = gnucash("trading.py", &["check", &path]);
-    assert_eq!(found, json!({ "unbalanced": [], "changed": [], "accountsAdded": 0, "logged": [] }), "{found}");
+    assert_eq!(
+        found,
+        json!({ "unbalanced": [], "changed": [], "accountsAdded": 0, "logged": [] }),
+        "{found}"
+    );
     let features = gnucash("book_options.py", &["slots", &path])["features"].clone();
-    ["Credit Notes", "Number Field Source"].iter().for_each(|f| assert!(features.get(f).is_some(), "{f} in {features}"));
+    ["Credit Notes", "Number Field Source"]
+        .iter()
+        .for_each(|f| assert!(features.get(f).is_some(), "{f} in {features}"));
 }

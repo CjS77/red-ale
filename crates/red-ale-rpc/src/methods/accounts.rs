@@ -3,10 +3,10 @@
 use std::collections::BTreeMap;
 
 use red_ale_core::account::slot_paths;
-use red_ale_core::ops::balances;
 use red_ale_core::ops::accounts::{
     self as ops, ACCOUNT_TYPES, AccountEdit, CommodityRule, DeleteOptions, Disposal, Renumber, Scu, account_order, commodity_rule,
 };
+use red_ale_core::ops::balances;
 use red_ale_core::{Account, AccountType, Book, Guid, SlotValue};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -18,11 +18,31 @@ use crate::wire::{AccountRef, Amount, CommodityId, Day, Id, NoParams};
 /// The accounts methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("account.types", "List the account types with GnuCash's labels and rules.", Effect::Read, types),
-        method("account.list", "List accounts depth first in the book's order, and names that contain the separator.", Effect::Read, list),
+        method(
+            "account.types",
+            "List the account types with GnuCash's labels and rules.",
+            Effect::Read,
+            types,
+        ),
+        method(
+            "account.list",
+            "List accounts depth first in the book's order, and names that contain the separator.",
+            Effect::Read,
+            list,
+        ),
         method("account.get", "Describe one account.", Effect::Read, get),
-        method("account.tree", "The account tree as nested nodes, in the book's order or GnuCash's display order.", Effect::Read, tree),
-        method("account.create", "Create an account under a parent (the root by default).", Effect::Write, create),
+        method(
+            "account.tree",
+            "The account tree as nested nodes, in the book's order or GnuCash's display order.",
+            Effect::Read,
+            tree,
+        ),
+        method(
+            "account.create",
+            "Create an account under a parent (the root by default).",
+            Effect::Write,
+            create,
+        ),
         method(
             "account.update",
             "Change an account's name, type, commodity, smallest fraction, code, notes, flags, tax settings, colour, balance limits, \
@@ -30,15 +50,36 @@ pub fn methods() -> Vec<Method> {
             Effect::Write,
             update,
         ),
-        method("account.move", "Move an account, with its sub-accounts, under another parent.", Effect::Write, move_account),
-        method("account.renumber", "Renumber the codes of an account's immediate sub-accounts.", Effect::Write, renumber),
-        method("account.delete", "Delete an account, moving or deleting its transactions and sub-account.", Effect::Destructive, delete),
-        method("account.balance", "An account's balance, cleared and reconciled balances, optionally as of a date and with sub-accounts.", Effect::Read, balance),
+        method(
+            "account.move",
+            "Move an account, with its sub-accounts, under another parent.",
+            Effect::Write,
+            move_account,
+        ),
+        method(
+            "account.renumber",
+            "Renumber the codes of an account's immediate sub-accounts.",
+            Effect::Write,
+            renumber,
+        ),
+        method(
+            "account.delete",
+            "Delete an account, moving or deleting its transactions and sub-account.",
+            Effect::Destructive,
+            delete,
+        ),
+        method(
+            "account.balance",
+            "An account's balance, cleared and reconciled balances, optionally as of a date and with sub-accounts.",
+            Effect::Read,
+            balance,
+        ),
     ]
 }
 
 fn parse_type(s: &str) -> Result<AccountType, RpcError> {
-    s.parse().map_err(|_| RpcError::invalid_params(format!("unknown account type {s:?}")))
+    s.parse()
+        .map_err(|_| RpcError::invalid_params(format!("unknown account type {s:?}")))
 }
 
 fn names(types: impl Iterator<Item = AccountType>) -> Vec<String> {
@@ -81,7 +122,12 @@ fn types(_: &mut Context, _: NoParams) -> Result<Vec<TypeInfo>, RpcError> {
             }
             .to_owned(),
             parent_types: names(ACCOUNT_TYPES.iter().copied().filter(|p| t.compatible_with_parent(*p))),
-            changes_with_splits: names(ACCOUNT_TYPES.iter().copied().filter(|n| ops::is_choosable(*n) && ops::type_change_allowed_with_splits(*t, *n))),
+            changes_with_splits: names(
+                ACCOUNT_TYPES
+                    .iter()
+                    .copied()
+                    .filter(|n| ops::is_choosable(*n) && ops::type_change_allowed_with_splits(*t, *n)),
+            ),
         })
         .collect())
 }
@@ -159,7 +205,11 @@ pub struct AccountInfo {
 /// Describe an account.
 pub fn info(book: &Book, guid: Guid) -> Result<AccountInfo, RpcError> {
     let a = book.account(guid).ok_or_else(|| RpcError::not_found("account", guid))?;
-    let fraction = a.commodity.as_ref().and_then(|c| red_ale_core::ops::commit::commodity_fraction(book, c)).unwrap_or(0);
+    let fraction = a
+        .commodity
+        .as_ref()
+        .and_then(|c| red_ale_core::ops::commit::commodity_fraction(book, c))
+        .unwrap_or(0);
     let text = |s: Option<&str>| s.filter(|s| !s.is_empty()).map(ToOwned::to_owned);
     Ok(AccountInfo {
         guid: guid.into(),
@@ -180,7 +230,12 @@ pub fn info(book: &Book, guid: Guid) -> Result<AccountInfo, RpcError> {
         tax_us: TaxUs {
             code: text(a.slots.get_str(slot_paths::TAX_US_CODE)),
             payer_name_source: text(a.slots.get_str(slot_paths::TAX_US_PAYER_NAME_SOURCE)),
-            copy_number: a.slots.get(slot_paths::TAX_US_COPY_NUMBER).and_then(SlotValue::as_int).filter(|n| *n != 0).unwrap_or(1),
+            copy_number: a
+                .slots
+                .get(slot_paths::TAX_US_COPY_NUMBER)
+                .and_then(SlotValue::as_int)
+                .filter(|n| *n != 0)
+                .unwrap_or(1),
         },
         depth: if guid == book.root { 0 } else { book.ancestors(guid).len() + 1 },
         children: book.children(guid).count(),
@@ -235,7 +290,10 @@ fn list(ctx: &mut Context, p: ListParams) -> Result<ListResult, RpcError> {
         .filter(|a| !(p.exclude_hidden && ops::is_hidden_in_tree(book, a.guid)))
         .map(|a| info(book, a.guid))
         .collect::<Result<_, _>>()?;
-    Ok(ListResult { accounts, name_violations: ops::name_violations(book).into_iter().map(Id).collect() })
+    Ok(ListResult {
+        accounts,
+        name_violations: ops::name_violations(book).into_iter().map(Id).collect(),
+    })
 }
 
 /// Params naming one account.
@@ -410,7 +468,13 @@ fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(d: D) -> Result<Optio
 }
 
 impl Fields {
-    fn edit(self, book: &Book, name: Option<String>, account_type: Option<AccountType>, retype_children: bool) -> Result<AccountEdit, RpcError> {
+    fn edit(
+        self,
+        book: &Book,
+        name: Option<String>,
+        account_type: Option<AccountType>,
+        retype_children: bool,
+    ) -> Result<AccountEdit, RpcError> {
         let associated_accounts = self
             .associated_accounts
             .unwrap_or_default()
@@ -549,11 +613,22 @@ pub struct NewCode {
 
 fn renumber(ctx: &mut Context, p: RenumberParams) -> Result<Vec<NewCode>, RpcError> {
     let defaults = Renumber::default();
-    let r = Renumber { prefix: p.prefix, interval: p.interval.unwrap_or(defaults.interval), digits: p.digits.unwrap_or(defaults.digits) };
+    let r = Renumber {
+        prefix: p.prefix,
+        interval: p.interval.unwrap_or(defaults.interval),
+        digits: p.digits.unwrap_or(defaults.digits),
+    };
     ctx.mutate_rpc(|book, _| {
         let parent = p.account.resolve(book)?;
         let codes = ops::renumber_children(book, parent, &r)?;
-        Ok(codes.into_iter().map(|(g, code)| NewCode { account: g.into(), full_name: book.full_name(g).unwrap_or_default(), code }).collect())
+        Ok(codes
+            .into_iter()
+            .map(|(g, code)| NewCode {
+                account: g.into(),
+                full_name: book.full_name(g).unwrap_or_default(),
+                code,
+            })
+            .collect())
     })
 }
 
@@ -679,7 +754,12 @@ pub struct BalanceResult {
 }
 
 fn commodity_balances(c: red_ale_core::CommodityRef, b: balances::Balances) -> CommodityBalances {
-    CommodityBalances { commodity: CommodityId(c), balance: b.balance.into(), cleared: b.cleared.into(), reconciled: b.reconciled.into() }
+    CommodityBalances {
+        commodity: CommodityId(c),
+        balance: b.balance.into(),
+        cleared: b.cleared.into(),
+        reconciled: b.reconciled.into(),
+    }
 }
 
 fn balance(ctx: &mut Context, p: BalanceParams) -> Result<BalanceResult, RpcError> {

@@ -5,13 +5,17 @@
 #![cfg(feature = "oracle")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use red_ale_testkit::{TempBook, call, diff, oracle, oracle_check, open};
+use red_ale_testkit::{TempBook, call, diff, open, oracle, oracle_check};
 use serde_json::{Value, json};
 
 /// In `synthetic/business-editable.gnucash`: the posted invoice 000001 (two lines, a frozen billing term), the posted
 /// expense voucher 000001, the posted bill 000001 and the unposted job invoice 000002.
-const DOCUMENTS: [&str; 4] =
-    ["aa210b7131de44c48b8513cd27c00e95", "645f06f442be44ecaaee148b5233ffdf", "95e2e7416db94eb3a7de7433f3e7875f", "71803cac5d8e4dceabfd0d56ec5e7521"];
+const DOCUMENTS: [&str; 4] = [
+    "aa210b7131de44c48b8513cd27c00e95",
+    "645f06f442be44ecaaee148b5233ffdf",
+    "95e2e7416db94eb3a7de7433f3e7875f",
+    "71803cac5d8e4dceabfd0d56ec5e7521",
+];
 const DATE: &str = "2024-08-15";
 
 /// GnuCash's reading of a book with the new documents' and lines' GUIDs taken out, so two books that differ only in
@@ -42,8 +46,10 @@ fn duplicates_match_gnucash_field_by_field() {
     oracle::run_script(&script, &args.iter().map(String::as_str).collect::<Vec<_>>()).unwrap_or_else(|e| panic!("{e}"));
 
     let (ours, mut d) = open("synthetic/business-editable.gnucash");
-    let ids: Vec<Value> =
-        DOCUMENTS.iter().map(|g| call(&mut d, "invoice.duplicate", &json!({ "invoice": g, "date": DATE }))["id"].clone()).collect();
+    let ids: Vec<Value> = DOCUMENTS
+        .iter()
+        .map(|g| call(&mut d, "invoice.duplicate", &json!({ "invoice": g, "date": DATE }))["id"].clone())
+        .collect();
     assert_eq!(ids, [json!("000003"), json!("000002"), json!("000002"), json!("000004")]);
     let diffs = oracle_check(&mut d, &ours, &[]);
     assert!(diffs.is_empty(), "GnuCash reads red-ale's duplicates back:\n{}", diffs.join("\n"));
@@ -51,7 +57,15 @@ fn duplicates_match_gnucash_field_by_field() {
     let gnucash = without_new_guids(oracle::dump(&theirs.path).unwrap());
     let red_ale = without_new_guids(oracle::dump(&ours.path).unwrap());
     let diffs = diff(&gnucash, &red_ale, &[]);
-    assert!(diffs.is_empty(), "duplicated by GnuCash != duplicated by red-ale:\n{}", diffs.join("\n"));
+    assert!(
+        diffs.is_empty(),
+        "duplicated by GnuCash != duplicated by red-ale:\n{}",
+        diffs.join("\n")
+    );
     let invoices = red_ale["business"]["invoices"].as_array().unwrap();
-    assert_eq!(invoices.iter().filter(|i| i["dateOpened"] == 1_723_719_540).count(), 4, "2024-08-15 10:59:00 UTC");
+    assert_eq!(
+        invoices.iter().filter(|i| i["dateOpened"] == 1_723_719_540).count(),
+        4,
+        "2024-08-15 10:59:00 UTC"
+    );
 }

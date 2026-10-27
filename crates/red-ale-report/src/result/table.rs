@@ -187,12 +187,18 @@ pub enum CellContent<'a> {
 impl Cell {
     /// A text cell.
     pub fn text(text: impl Into<String>) -> Self {
-        Self { text: Some(text.into()), ..Self::default() }
+        Self {
+            text: Some(text.into()),
+            ..Self::default()
+        }
     }
 
     /// A monetary cell.
     pub fn monetary(m: Monetary) -> Self {
-        Self { monetary: Some(m), ..Self::default() }
+        Self {
+            monetary: Some(m),
+            ..Self::default()
+        }
     }
 
     /// Every content the cell holds; a valid cell holds exactly one.

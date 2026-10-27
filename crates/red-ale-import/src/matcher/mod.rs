@@ -37,11 +37,11 @@
 pub mod batch;
 pub mod process;
 pub mod score;
-pub mod trans_info;
 pub mod tokens;
+pub mod trans_info;
 
 pub use batch::{ImportedTransaction, MatchBatch, OnlineIds, match_batch};
-pub use process::{ApplyOptions, Learned, Processed, ProcessWarning, apply_batch, append_text, process_trans_item, set_append_text};
+pub use process::{ApplyOptions, Learned, ProcessWarning, Processed, append_text, apply_batch, process_trans_item, set_append_text};
 pub use score::split_find_match;
 pub use tokens::transaction_tokens;
 pub use trans_info::{DestSource, LastSplitInfo, TransInfo};

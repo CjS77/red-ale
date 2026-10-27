@@ -32,10 +32,15 @@ impl Fixture {
         });
         std::fs::write(dir.path().join("config.json"), config.to_string()).unwrap();
         let book = dir.path().join("book.gnucash");
-        std::fs::copy(format!("{}/../../fixtures/reports/{name}.gnucash", env!("CARGO_MANIFEST_DIR")), &book).unwrap();
+        std::fs::copy(
+            format!("{}/../../fixtures/reports/{name}.gnucash", env!("CARGO_MANIFEST_DIR")),
+            &book,
+        )
+        .unwrap();
         let mut d = dispatcher(&dir.path().join("config.json"));
         let params = json!({ "path": book.display().to_string(), "readOnly": read_only });
-        d.call("book.open", params).unwrap_or_else(|e| panic!("book.open: {e} {:?}", e.data));
+        d.call("book.open", params)
+            .unwrap_or_else(|e| panic!("book.open: {e} {:?}", e.data));
         Self { dir, d }
     }
 
@@ -51,13 +56,17 @@ impl Fixture {
     }
 
     pub fn call(&mut self, method: &str, params: &Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     /// The files beside the book, to see that a run wrote none.
     pub fn files(&self) -> Vec<String> {
-        let mut names: Vec<String> =
-            std::fs::read_dir(self.dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        let mut names: Vec<String> = std::fs::read_dir(self.dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
         names.sort();
         names
     }
@@ -67,14 +76,28 @@ impl Fixture {
 pub fn described_options(report: &str) -> Vec<String> {
     let dir = tempfile::tempdir().unwrap();
     let mut d = dispatcher(&dir.path().join("config.json"));
-    let described = d.call("report.options", json!({ "report": report })).unwrap_or_else(|e| panic!("report.options: {e} {:?}", e.data));
-    let line = |o: &Value| format!("{}/{} {} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["type"], o["default"]);
+    let described = d
+        .call("report.options", json!({ "report": report }))
+        .unwrap_or_else(|e| panic!("report.options: {e} {:?}", e.data));
+    let line = |o: &Value| {
+        format!(
+            "{}/{} {} {} {}",
+            o["section"].as_str().unwrap(),
+            o["name"].as_str().unwrap(),
+            o["key"],
+            o["type"],
+            o["default"]
+        )
+    };
     described["options"].as_array().unwrap().iter().map(line).collect()
 }
 
 /// A dispatcher keeping its Configuration in `config`, with a fixed clock at [`NOW`].
 fn dispatcher(config: &Path) -> Dispatcher {
-    let settings = Settings { config: ConfigStore::at(PathBuf::from(config)), ..Settings::default() };
+    let settings = Settings {
+        config: ConfigStore::at(PathBuf::from(config)),
+        ..Settings::default()
+    };
     let mut d = Dispatcher::new(settings);
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(NOW, 0x00ed_u128 << 112))));
     d
@@ -82,7 +105,12 @@ fn dispatcher(config: &Path) -> Dispatcher {
 
 /// Every block of every section of a result.
 pub fn blocks(result: &Value) -> Vec<&Value> {
-    result["sections"].as_array().unwrap().iter().flat_map(|s| s["blocks"].as_array().unwrap()).collect()
+    result["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|s| s["blocks"].as_array().unwrap())
+        .collect()
 }
 
 /// The blocks of `kind`.
@@ -100,7 +128,13 @@ pub fn only<'a>(result: &'a Value, kind: &str) -> &'a Value {
 /// The display strings of column `col` (from 0) of a table block, one per row.
 pub fn column(table: &Value, col: usize) -> Vec<String> {
     let rows = table["rows"].as_array().unwrap();
-    rows.iter().map(|r| r["cells"][col]["display"].as_str().map_or_else(|| r["cells"][col]["text"].to_string(), str::to_owned)).collect()
+    rows.iter()
+        .map(|r| {
+            r["cells"][col]["display"]
+                .as_str()
+                .map_or_else(|| r["cells"][col]["text"].to_string(), str::to_owned)
+        })
+        .collect()
 }
 
 /// The display strings of every row of a table block, cell by cell.
@@ -123,10 +157,16 @@ pub fn rational(v: &Value) -> String {
 
 /// The cell texts of each body row of the `index`th table (from 0) of an exported page, tags inside cells removed.
 pub fn html_table(html: &str, index: usize) -> Vec<Vec<String>> {
-    let table = html.split("<table").nth(index + 1).unwrap_or_else(|| panic!("no table {index} in the page"));
+    let table = html
+        .split("<table")
+        .nth(index + 1)
+        .unwrap_or_else(|| panic!("no table {index} in the page"));
     let table = &table[..table.find("</table>").unwrap()];
     let body = table.split("<tbody>").nth(1).unwrap_or("");
-    body.split("<tr").skip(1).map(|row| row.split("<td").skip(1).map(cell_text).collect()).collect()
+    body.split("<tr")
+        .skip(1)
+        .map(|row| row.split("<td").skip(1).map(cell_text).collect())
+        .collect()
 }
 
 /// The text of one `<td …>…</td>`, without the tags inside it and with the renderer's escapes undone.
@@ -141,15 +181,25 @@ fn cell_text(cell: &str) -> String {
         }
         _ => (out, true),
     });
-    text.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'").replace("&amp;", "&")
+    text.replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&amp;", "&")
 }
 
 /// Each of `wanted` appears in `html`, as the export of the same run shows it.
 pub fn in_html(html: &str, wanted: &[&str]) {
-    wanted.iter().for_each(|w| assert!(html.contains(&escape(w)), "{w:?} is not in the exported HTML"));
+    wanted
+        .iter()
+        .for_each(|w| assert!(html.contains(&escape(w)), "{w:?} is not in the exported HTML"));
 }
 
 /// The HTML escaping of the renderer, for text compared against the page.
 fn escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }

@@ -27,11 +27,23 @@ pub struct Duplicate {
 
 /// Copy a document and its lines into a new unposted document. Returns the new document's GUID.
 pub fn duplicate_invoice(book: &mut Book, env: &mut dyn Env, d: &Duplicate) -> DomainResult<Guid> {
-    let source = book.business.invoices.get(&d.source).cloned().ok_or_else(|| DomainError::not_found("invoice", &d.source))?;
+    let source = book
+        .business
+        .invoices
+        .get(&d.source)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("invoice", &d.source))?;
     let kind = document_kind(book, &source).ok_or_else(|| DomainError::invalid("the document has no valid owner"))?;
-    let lines: Vec<Entry> =
-        entries_of(book, d.source).into_iter().filter(|e| e.invoice == Some(d.source) || e.bill == Some(d.source)).cloned().collect();
-    let id = if d.id.is_empty() { next_id(book, kind.counter()) } else { d.id.clone() };
+    let lines: Vec<Entry> = entries_of(book, d.source)
+        .into_iter()
+        .filter(|e| e.invoice == Some(d.source) || e.bill == Some(d.source))
+        .cloned()
+        .collect();
+    let id = if d.id.is_empty() {
+        next_id(book, kind.counter())
+    } else {
+        d.id.clone()
+    };
     let copy = copy_invoice(&source, env.new_guid(), id, d.date);
     retarget_bill_term(book, None, copy.terms);
     let guid = copy.guid;
@@ -76,7 +88,16 @@ fn copy_invoice(from: &Invoice, guid: Guid, id: String, date: Time64) -> Invoice
 fn copy_line(from: &Entry, guid: Guid, doc: Guid, kind: DocumentKind, date: Time64) -> Entry {
     let fresh = Entry::new(guid, date, from.entered);
     let (invoice, bill) = if kind.is_customer() { (Some(doc), None) } else { (None, Some(doc)) };
-    Entry { guid, date, invoice, bill, order: None, b_payment: fresh.b_payment, slots: fresh.slots, ..from.clone() }
+    Entry {
+        guid,
+        date,
+        invoice,
+        bill,
+        order: None,
+        b_payment: fresh.b_payment,
+        slots: fresh.slots,
+        ..from.clone()
+    }
 }
 
 #[cfg(test)]
@@ -116,7 +137,10 @@ mod tests {
         let bill = Invoice {
             guid: env.new_guid(),
             id: String::new(),
-            owner: OwnerRef { kind: OwnerKind::Vendor, guid: vendor },
+            owner: OwnerRef {
+                kind: OwnerKind::Vendor,
+                guid: vendor,
+            },
             opened: Time64(1_600_000_000),
             posted: None,
             terms: None,
@@ -133,7 +157,8 @@ mod tests {
         };
         let bill = add_invoice(&mut book, bill).unwrap();
         let mut line = Entry::new(env.new_guid(), Time64(1_600_000_000), Time64(1_600_000_100));
-        (line.bill, line.b_account, line.quantity, line.b_price) = (Some(bill), Some(expense_guid), Numeric::from_int(3), Numeric::new(250, 100));
+        (line.bill, line.b_account, line.quantity, line.b_price) =
+            (Some(bill), Some(expense_guid), Numeric::from_int(3), Numeric::new(250, 100));
         line.description = "A4".into();
         line.b_payment = PaymentType::Card;
         add_entry(&mut book, line).unwrap();
@@ -143,22 +168,45 @@ mod tests {
     #[test]
     fn copies_as_gnucash_does_and_resets_the_rest() {
         let (mut book, mut env, bill) = vendor_bill();
-        let d = Duplicate { source: bill, id: String::new(), date: Time64(1_719_831_540) };
+        let d = Duplicate {
+            source: bill,
+            id: String::new(),
+            date: Time64(1_719_831_540),
+        };
         let copy = duplicate_invoice(&mut book, &mut env, &d).unwrap();
         let (old, new) = (&book.business.invoices[&bill], &book.business.invoices[&copy]);
         assert_eq!((new.id.as_str(), old.id.as_str()), ("000002", "000001"));
-        assert_eq!((new.billing_id.as_str(), new.notes.as_str(), new.active, new.opened), ("V-7", "monthly", true, Time64(1_719_831_540)));
+        assert_eq!(
+            (new.billing_id.as_str(), new.notes.as_str(), new.active, new.opened),
+            ("V-7", "monthly", true, Time64(1_719_831_540))
+        );
         assert_eq!(doc_link(&new.slots), Some("bills/7.pdf"));
         assert_eq!(new.slots.get_key(CREDIT_NOTE), Some(&SlotValue::Integer(0)));
         assert!(new.slots.get_key("other").is_none());
         let lines = entries_of(&book, copy);
         assert_eq!(lines.len(), 1);
         let line = lines[0];
-        assert_eq!((line.bill, line.invoice, line.date, line.entered), (Some(copy), None, Time64(1_719_831_540), Time64(1_600_000_100)));
-        assert_eq!((line.description.as_str(), line.quantity, line.b_payment), ("A4", Numeric::from_int(3), PaymentType::Cash));
+        assert_eq!(
+            (line.bill, line.invoice, line.date, line.entered),
+            (Some(copy), None, Time64(1_719_831_540), Time64(1_600_000_100))
+        );
+        assert_eq!(
+            (line.description.as_str(), line.quantity, line.b_payment),
+            ("A4", Numeric::from_int(3), PaymentType::Cash)
+        );
         let named = Duplicate { id: "X-1".into(), ..d };
         let again = duplicate_invoice(&mut book, &mut env, &named).unwrap();
         assert_eq!(book.business.invoices[&again].id, "X-1");
-        assert!(duplicate_invoice(&mut book, &mut env, &Duplicate { source: Guid::from_bytes([9; 16]), ..named }).is_err());
+        assert!(
+            duplicate_invoice(
+                &mut book,
+                &mut env,
+                &Duplicate {
+                    source: Guid::from_bytes([9; 16]),
+                    ..named
+                }
+            )
+            .is_err()
+        );
     }
 }

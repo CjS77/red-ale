@@ -66,19 +66,37 @@ pub fn read(text: &str, separator: Separator, header_rows: Option<usize>, file: 
     let mut out = AccountFile::default();
     if stripped > 0 {
         let message = format!("{stripped} character(s) XML can't hold were removed, as GnuCash removes them");
-        out.warnings.push(Warning { code: "invalid-characters", message, index: None });
+        out.warnings.push(Warning {
+            code: "invalid-characters",
+            message,
+            index: None,
+        });
     }
-    let records: Vec<Record> = records(&text, separator.char()).into_iter().filter(|r| !keep_empty(r, file, &mut out.ignored)).collect();
-    let detected = records.first().and_then(|r| r.fields.as_ref().ok()).is_some_and(|f| f.first().map(String::as_str) == Some("Type"));
+    let records: Vec<Record> = records(&text, separator.char())
+        .into_iter()
+        .filter(|r| !keep_empty(r, file, &mut out.ignored))
+        .collect();
+    let detected = records
+        .first()
+        .and_then(|r| r.fields.as_ref().ok())
+        .is_some_and(|f| f.first().map(String::as_str) == Some("Type"));
     let header = header_rows.unwrap_or(usize::from(detected));
     records.into_iter().enumerate().for_each(|(i, record)| {
         if i < header {
-            out.ignored.push(IgnoredLine { file, line: record.line, reason: "headerRows" });
+            out.ignored.push(IgnoredLine {
+                file,
+                line: record.line,
+                reason: "headerRows",
+            });
             return;
         }
         match record.fields {
             Ok(fields) if fields.len() == FIELDS => out.rows.push(AccountRow::from_fields(record.line, fields)),
-            Ok(fields) => out.errors.push(error(file, record.line, format!("{} field(s), not the {FIELDS} of GnuCash's account export", fields.len()))),
+            Ok(fields) => out.errors.push(error(
+                file,
+                record.line,
+                format!("{} field(s), not the {FIELDS} of GnuCash's account export", fields.len()),
+            )),
             Err(message) => out.errors.push(error(file, record.line, message)),
         }
     });
@@ -86,14 +104,23 @@ pub fn read(text: &str, separator: Separator, header_rows: Option<usize>, file: 
 }
 
 fn error(file: usize, line: usize, message: String) -> RowError {
-    RowError { file, line, column: None, message }
+    RowError {
+        file,
+        line,
+        column: None,
+        message,
+    }
 }
 
 /// Record an empty record as ignored, and say whether it was one. GnuCash's `\R*` passes over blank lines.
 fn keep_empty(record: &Record, file: usize, ignored: &mut Vec<IgnoredLine>) -> bool {
     let empty = matches!(&record.fields, Ok(f) if f.len() == 1 && f[0].is_empty());
     if empty {
-        ignored.push(IgnoredLine { file, line: record.line, reason: "empty" });
+        ignored.push(IgnoredLine {
+            file,
+            line: record.line,
+            reason: "empty",
+        });
     }
     empty
 }
@@ -126,7 +153,10 @@ fn records(text: &str, separator: char) -> Vec<Record> {
     let mut pos = 0;
     while pos < chars.len() {
         let (fields, next) = record(&chars, pos, separator);
-        out.push(Record { line: out.len() + 1, fields });
+        out.push(Record {
+            line: out.len() + 1,
+            fields,
+        });
         pos = next;
     }
     out
@@ -138,7 +168,11 @@ fn record(chars: &[char], start: usize, separator: char) -> (Result<Vec<String>,
     let mut pos = start;
     let mut problem = None;
     loop {
-        let (field, end) = if chars.get(pos) == Some(&'"') { quoted(chars, pos) } else { unquoted(chars, pos, separator) };
+        let (field, end) = if chars.get(pos) == Some(&'"') {
+            quoted(chars, pos)
+        } else {
+            unquoted(chars, pos, separator)
+        };
         match field {
             Ok(f) => fields.push(f),
             Err(e) => {
@@ -170,11 +204,18 @@ fn finish(fields: Vec<String>, problem: Option<String>) -> Result<Vec<String>, S
 /// An unquoted field: up to the separator or a line break, stripped of ASCII white space, then unquoted as
 /// `fill_model_with_match` does when it starts with a quote.
 fn unquoted(chars: &[char], start: usize, separator: char) -> (Result<String, String>, usize) {
-    let len = chars[start..].iter().take_while(|c| **c != separator && !matches!(c, '\r' | '\n')).count();
+    let len = chars[start..]
+        .iter()
+        .take_while(|c| **c != separator && !matches!(c, '\r' | '\n'))
+        .count();
     let text: String = chars[start..start + len].iter().collect();
     let stripped = text.trim_matches(|c: char| c.is_ascii_whitespace() || c == '\u{0b}');
     let field = match stripped.strip_prefix('"') {
-        Some(rest) if !rest.is_empty() => rest.chars().take(rest.chars().count() - 1).collect::<String>().replace("\"\"", "\""),
+        Some(rest) if !rest.is_empty() => rest
+            .chars()
+            .take(rest.chars().count() - 1)
+            .collect::<String>()
+            .replace("\"\"", "\""),
         _ => stripped.to_owned(),
     };
     (Ok(field), start + len)
@@ -215,10 +256,23 @@ mod tests {
 
     #[test]
     fn fields_are_cleaned_as_gnucash_cleans_them() {
-        assert_eq!(fields("a, b ,\"c, d\",\"e \"\"f\"\"\",  \"g\"\"h\"  ,\"\""), vec![Ok(strings(&["a", "b", "c, d", "e \"f\"", "g\"h", ""]))]);
-        assert_eq!(fields("\" kept \",x"), vec![Ok(strings(&[" kept ", "x"]))], "a quoted field is not stripped");
-        assert_eq!(fields("\"two\nlines\",x\r\ny\rz"), vec![Ok(strings(&["two\nlines", "x"])), Ok(strings(&["y"])), Ok(strings(&["z"]))]);
-        assert_eq!(fields("\"a\"b,c\nd"), vec![Err("text after a closing quote".to_owned()), Ok(strings(&["d"]))]);
+        assert_eq!(
+            fields("a, b ,\"c, d\",\"e \"\"f\"\"\",  \"g\"\"h\"  ,\"\""),
+            vec![Ok(strings(&["a", "b", "c, d", "e \"f\"", "g\"h", ""]))]
+        );
+        assert_eq!(
+            fields("\" kept \",x"),
+            vec![Ok(strings(&[" kept ", "x"]))],
+            "a quoted field is not stripped"
+        );
+        assert_eq!(
+            fields("\"two\nlines\",x\r\ny\rz"),
+            vec![Ok(strings(&["two\nlines", "x"])), Ok(strings(&["y"])), Ok(strings(&["z"]))]
+        );
+        assert_eq!(
+            fields("\"a\"b,c\nd"),
+            vec![Err("text after a closing quote".to_owned()), Ok(strings(&["d"]))]
+        );
         assert_eq!(fields("\"open,\nd"), vec![Err("a quote that is never closed".to_owned())]);
         assert_eq!(fields("a,\n"), vec![Ok(strings(&["a", ""]))]);
     }
@@ -226,10 +280,23 @@ mod tests {
     #[test]
     fn header_detection_empty_lines_and_field_counts() {
         let row = "BANK,Assets:Bank,Bank,,,,,USD,CURRENCY,F,F,F";
-        let file = read(&format!("Type,Full Account Name,Account Name,Account Code,Description,Account Color,Notes,Symbol,Namespace,Hidden,Tax Info,Placeholder\n\n{row}\nBANK,short\n{row}\n"), Separator::Comma, None, 0);
+        let file = read(
+            &format!(
+                "Type,Full Account Name,Account Name,Account Code,Description,Account Color,Notes,Symbol,Namespace,Hidden,Tax Info,Placeholder\n\n{row}\nBANK,short\n{row}\n"
+            ),
+            Separator::Comma,
+            None,
+            0,
+        );
         assert_eq!(file.rows.iter().map(|r| r.line).collect::<Vec<_>>(), [3, 5]);
-        assert_eq!(file.ignored.iter().map(|l| (l.line, l.reason)).collect::<Vec<_>>(), [(2, "empty"), (1, "headerRows")]);
-        assert_eq!(file.errors, vec![error(0, 4, "2 field(s), not the 12 of GnuCash's account export".to_owned())]);
+        assert_eq!(
+            file.ignored.iter().map(|l| (l.line, l.reason)).collect::<Vec<_>>(),
+            [(2, "empty"), (1, "headerRows")]
+        );
+        assert_eq!(
+            file.errors,
+            vec![error(0, 4, "2 field(s), not the 12 of GnuCash's account export".to_owned())]
+        );
         assert_eq!(read(row, Separator::Comma, None, 0).rows.len(), 1, "no header");
         assert!(read(row, Separator::Comma, Some(1), 0).rows.is_empty(), "the caller's header rows");
         let semi = read(&row.replace(',', ";"), Separator::Semicolon, None, 0);

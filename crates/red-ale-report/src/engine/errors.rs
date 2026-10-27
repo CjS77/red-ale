@@ -38,7 +38,14 @@ pub(crate) fn from_eval(err: &EvalAltResult, f: Failure<'_>) -> ReportError {
     }
     let (line, column) = line_column(inner.position());
     let (report, message) = (f.report.to_owned(), message(inner));
-    ReportError::Script(ScriptError { report, source: source.to_owned(), line, column, message, log: f.log })
+    ReportError::Script(ScriptError {
+        report,
+        source: source.to_owned(),
+        line,
+        column,
+        message,
+        log: f.log,
+    })
 }
 
 /// The error of a script that does not compile.
@@ -48,7 +55,12 @@ pub(crate) fn from_parse(err: &ParseError, source: &str, f: &Failure<'_>) -> Rep
     }
     let (line, column) = line_column(err.position());
     if source.starts_with(USER_PREFIX) {
-        ReportError::Load(LoadError { source: source.to_owned(), line, column, message: err.err_type().to_string() })
+        ReportError::Load(LoadError {
+            source: source.to_owned(),
+            line,
+            column,
+            message: err.err_type().to_string(),
+        })
     } else {
         ReportError::Internal(format!("built-in script {source} does not compile: {err}"))
     }

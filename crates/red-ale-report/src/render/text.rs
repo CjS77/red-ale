@@ -47,7 +47,10 @@ pub(crate) fn font_css(description: &str) -> String {
     let (family, weight) = take_weight(family);
     let (family, style) = take_word(&family, &[(" italic", "italic"), (" oblique", "oblique")]);
     let (family, stretch) = take_word(&family, &[(" expanded", "expanded"), (" condensed", "condensed")]);
-    let family: String = family.chars().filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.')).collect();
+    let family: String = family
+        .chars()
+        .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.'))
+        .collect();
     let family = if family.trim().is_empty() { FONT_FAMILY } else { family.trim() };
     let mut css = format!("font-family:\"{family}\",sans-serif;");
     css.extend(size.map(|s| format!("font-size:{s}pt;")));
@@ -68,7 +71,11 @@ fn take_word(family: &str, words: &[(&str, &'static str)]) -> (String, Option<&'
     let lower = family.to_ascii_lowercase();
     words
         .iter()
-        .find_map(|(word, css)| lower.find(word).map(|at| (format!("{}{}", &family[..at], &family[at + word.len()..]), Some(*css))))
+        .find_map(|(word, css)| {
+            lower
+                .find(word)
+                .map(|at| (format!("{}{}", &family[..at], &family[at + word.len()..]), Some(*css)))
+        })
         .unwrap_or_else(|| (family.to_owned(), None))
 }
 
@@ -82,7 +89,12 @@ fn take_weight(family: &str) -> (String, Option<String>) {
     let numeric = lower.find(" weight=").and_then(|at| {
         let start = at + " weight=".len();
         let digits = family[start..].chars().take_while(char::is_ascii_digit).count();
-        (digits > 0).then(|| (format!("{}{}", &family[..at], &family[start + digits..]), family[start..start + digits].to_owned()))
+        (digits > 0).then(|| {
+            (
+                format!("{}{}", &family[..at], &family[start + digits..]),
+                family[start..start + digits].to_owned(),
+            )
+        })
     });
     numeric.map_or_else(|| (family.to_owned(), None), |(rest, w)| (rest, Some(w)))
 }
@@ -94,20 +106,32 @@ mod tests {
     #[test]
     fn escapes_markup_and_controls() {
         assert_eq!(escape("plain"), "plain");
-        assert_eq!(escape("<b a=\"1\" b='2'>&</b>"), "&lt;b a=&quot;1&quot; b=&#39;2&#39;&gt;&amp;&lt;/b&gt;");
+        assert_eq!(
+            escape("<b a=\"1\" b='2'>&</b>"),
+            "&lt;b a=&quot;1&quot; b=&#39;2&#39;&gt;&amp;&lt;/b&gt;"
+        );
         assert_eq!(escape("a\u{0}b\tc"), "a\u{fffd}b\tc");
         assert_eq!(escape_lines("one <\ntwo"), "one &lt;<br>two");
     }
 
     #[test]
     fn fonts_follow_font_name_to_style_info() {
-        assert_eq!(font_css("Noto Sans Bold 15"), "font-family:\"Noto Sans\",sans-serif;font-size:15pt;font-weight:bold;");
-        assert_eq!(font_css("Noto Sans Italic 10"), "font-family:\"Noto Sans\",sans-serif;font-size:10pt;font-style:italic;");
+        assert_eq!(
+            font_css("Noto Sans Bold 15"),
+            "font-family:\"Noto Sans\",sans-serif;font-size:15pt;font-weight:bold;"
+        );
+        assert_eq!(
+            font_css("Noto Sans Italic 10"),
+            "font-family:\"Noto Sans\",sans-serif;font-size:10pt;font-style:italic;"
+        );
         assert_eq!(
             font_css("DejaVu Serif Light Oblique Condensed 9.5"),
             "font-family:\"DejaVu Serif\",sans-serif;font-size:9.5pt;font-style:oblique;font-weight:lighter;font-stretch:condensed;"
         );
-        assert_eq!(font_css("Cantarell weight=600 11"), "font-family:\"Cantarell\",sans-serif;font-size:11pt;font-weight:600;");
+        assert_eq!(
+            font_css("Cantarell weight=600 11"),
+            "font-family:\"Cantarell\",sans-serif;font-size:11pt;font-weight:600;"
+        );
         assert_eq!(font_css("Arial"), "font-family:\"Arial\",sans-serif;");
     }
 

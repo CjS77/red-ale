@@ -38,7 +38,11 @@ pub struct GncAcctInfo {
 pub fn account_info(book: &Book) -> Vec<GncAcctInfo> {
     descendants_sorted(book, book.root)
         .into_iter()
-        .map(|a| GncAcctInfo { name: a.name.clone(), full_name: book.full_name(a.guid).unwrap_or_default(), account_type: a.account_type })
+        .map(|a| GncAcctInfo {
+            name: a.name.clone(),
+            full_name: book.full_name(a.guid).unwrap_or_default(),
+            account_type: a.account_type,
+        })
         .collect()
 }
 
@@ -110,7 +114,11 @@ impl SavedMap {
             categories: read_map(&self.categories),
             payees: read_map(&self.payees),
             securities,
-            security_prefs: self.securities.iter().map(|(n, s)| (n.clone(), s.namespace.clone(), s.mnemonic.clone())).collect(),
+            security_prefs: self
+                .securities
+                .iter()
+                .map(|(n, s)| (n.clone(), s.namespace.clone(), s.mnemonic.clone()))
+                .collect(),
         }
     }
 
@@ -123,9 +131,15 @@ impl SavedMap {
         self.accounts.extend(write_map(accounts));
         self.categories.extend(write_map(categories));
         self.payees.extend(write_map(payees));
-        self.securities.extend(
-            security_hash.iter().map(|(name, id)| (name.clone(), SavedSecurity { namespace: id.namespace.clone(), mnemonic: id.mnemonic.clone() })),
-        );
+        self.securities.extend(security_hash.iter().map(|(name, id)| {
+            (
+                name.clone(),
+                SavedSecurity {
+                    namespace: id.namespace.clone(),
+                    mnemonic: id.mnemonic.clone(),
+                },
+            )
+        }));
         self
     }
 }
@@ -163,14 +177,25 @@ fn write_map(map: &MapHash) -> impl Iterator<Item = (String, SavedEntry)> + '_ {
     map.iter().filter_map(|(key, e)| {
         let account = e.gnc_name.clone()?;
         let types = e.allowed_types.iter().map(|t| t.as_str().to_owned()).collect();
-        Some((key.clone(), SavedEntry { account, types, description: e.description.clone() }))
+        Some((
+            key.clone(),
+            SavedEntry {
+                account,
+                types,
+                description: e.description.clone(),
+            },
+        ))
     })
 }
 
 /// `qif-import:guess-acct`: an existing account of an allowed type with a similar name, else a new account named
 /// after the QIF name. `qif-guess-map.scm:362-392`.
 pub fn guess_acct(acct_name: &str, allowed_types: &[AccountType], info: &[GncAcctInfo]) -> QifMapEntry {
-    let mut entry = QifMapEntry { qif_name: Some(acct_name.to_owned()), allowed_types: allowed_types.to_vec(), ..QifMapEntry::default() };
+    let mut entry = QifMapEntry {
+        qif_name: Some(acct_name.to_owned()),
+        allowed_types: allowed_types.to_vec(),
+        ..QifMapEntry::default()
+    };
     let ((name, types), new_acct) = match find_similar_acct(acct_name, allowed_types, info) {
         Some(found) => (found, false),
         None => (find_new_acct(acct_name, allowed_types, info), true),
@@ -215,7 +240,11 @@ mod tests {
     use super::*;
 
     fn info(name: &str, full: &str, t: AccountType) -> GncAcctInfo {
-        GncAcctInfo { name: name.into(), full_name: full.into(), account_type: t }
+        GncAcctInfo {
+            name: name.into(),
+            full_name: full.into(),
+            account_type: t,
+        }
     }
 
     #[test]
@@ -226,11 +255,20 @@ mod tests {
             info("ABC Bank", "Assets:ABC Bank", AccountType::Bank),
         ];
         let guess = guess_acct("abc bank", &[AccountType::Bank, AccountType::Cash], &accounts);
-        assert_eq!((guess.gnc_name.as_deref(), guess.allowed_types.as_slice(), guess.new_acct), (Some("Assets:ABC Bank"), &[AccountType::Bank][..], false));
+        assert_eq!(
+            (guess.gnc_name.as_deref(), guess.allowed_types.as_slice(), guess.new_acct),
+            (Some("Assets:ABC Bank"), &[AccountType::Bank][..], false)
+        );
         // `(string-contains "expenses:tax" "tax")`: the QIF name inside the full name.
-        assert_eq!(guess_acct("TAX", &[AccountType::Expense], &accounts).gnc_name.as_deref(), Some("Expenses:Tax"));
+        assert_eq!(
+            guess_acct("TAX", &[AccountType::Expense], &accounts).gnc_name.as_deref(),
+            Some("Expenses:Tax")
+        );
         // The first in the Book's order wins: "Expenses" contains "e" before "Expenses:Tax" does.
-        assert_eq!(guess_acct("e", &[AccountType::Expense], &accounts).gnc_name.as_deref(), Some("Expenses"));
+        assert_eq!(
+            guess_acct("e", &[AccountType::Expense], &accounts).gnc_name.as_deref(),
+            Some("Expenses")
+        );
         // A type that is not allowed never matches.
         let new = guess_acct("ABC Bank", &[AccountType::Income], &accounts);
         assert_eq!((new.gnc_name.as_deref(), new.new_acct), (Some("ABC Bank"), true));
@@ -238,10 +276,19 @@ mod tests {
 
     #[test]
     fn new_names_for_empty_and_equity() {
-        assert_eq!(find_new_acct("", &[AccountType::Expense], &[]), ("Unspecified".to_owned(), vec![AccountType::Expense]));
+        assert_eq!(
+            find_new_acct("", &[AccountType::Expense], &[]),
+            ("Unspecified".to_owned(), vec![AccountType::Expense])
+        );
         let equity = info("Retained Earnings", "Equity:Retained Earnings", AccountType::Equity);
-        assert_eq!(find_new_acct("Equity:Retained Earnings", &[AccountType::Bank], &[equity]).1, [AccountType::Equity]);
-        assert_eq!(find_new_acct("Equity:Retained Earnings", &[AccountType::Bank], &[]), ("Equity:Retained Earnings".into(), vec![AccountType::Equity]));
+        assert_eq!(
+            find_new_acct("Equity:Retained Earnings", &[AccountType::Bank], &[equity]).1,
+            [AccountType::Equity]
+        );
+        assert_eq!(
+            find_new_acct("Equity:Retained Earnings", &[AccountType::Bank], &[]),
+            ("Equity:Retained Earnings".into(), vec![AccountType::Equity])
+        );
     }
 
     #[test]
@@ -258,8 +305,14 @@ mod tests {
         let securities = BTreeMap::from([("Acme".to_owned(), CommodityRef::new("NYSE", "ACM"))]);
         let saved = SavedMap::default().merged([&accounts, &MapHash::new(), &MapHash::new()], &securities);
         let json = serde_json::to_value(&saved).unwrap();
-        assert_eq!(json["accounts"]["Checking"], serde_json::json!({ "account": "Assets:Checking", "types": ["BANK"] }));
-        assert_eq!(json["securities"]["Acme"], serde_json::json!({ "namespace": "NYSE", "mnemonic": "ACM" }));
+        assert_eq!(
+            json["accounts"]["Checking"],
+            serde_json::json!({ "account": "Assets:Checking", "types": ["BANK"] })
+        );
+        assert_eq!(
+            json["securities"]["Acme"],
+            serde_json::json!({ "namespace": "NYSE", "mnemonic": "ACM" })
+        );
         let back: SavedMap = serde_json::from_value(json).unwrap();
         let loaded = back.load(&Book::new_empty(&mut red_ale_core::FixedEnv::new(red_ale_core::Time64(0), 1)));
         assert_eq!(loaded.accounts["Checking"].gnc_name.as_deref(), Some("Assets:Checking"));

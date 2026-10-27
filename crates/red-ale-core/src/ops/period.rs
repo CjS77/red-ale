@@ -66,7 +66,11 @@ impl RelativePeriod {
 
     /// GnuCash's enum value, as stored in its `start-period` and `end-period` preferences.
     pub fn gnucash_value(self) -> i32 {
-        Self::ALL.iter().position(|p| *p == self).and_then(|i| i32::try_from(i).ok()).unwrap_or(-1)
+        Self::ALL
+            .iter()
+            .position(|p| *p == self)
+            .and_then(|i| i32::try_from(i).ok())
+            .unwrap_or(-1)
     }
 
     fn is_fiscal(self) -> bool {
@@ -78,7 +82,11 @@ impl FromStr for RelativePeriod {
     type Err = DomainError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        NAMES.iter().find(|(_, n)| *n == s).map(|(p, _)| *p).ok_or_else(|| DomainError::invalid(format!("not a period: {s:?}")))
+        NAMES
+            .iter()
+            .find(|(_, n)| *n == s)
+            .map(|(p, _)| *p)
+            .ok_or_else(|| DomainError::invalid(format!("not a period: {s:?}")))
     }
 }
 
@@ -129,7 +137,9 @@ pub struct FiscalYearEnd {
 impl FiscalYearEnd {
     /// A month (1-12) and a day valid in that month in a leap year.
     pub fn new(month: u32, day: u32) -> DomainResult<Self> {
-        Date::from_ymd(2000, month, day).map(|_| Self { month, day }).ok_or_else(|| DomainError::invalid(format!("not a day of the year: {month:02}-{day:02}")))
+        Date::from_ymd(2000, month, day)
+            .map(|_| Self { month, day })
+            .ok_or_else(|| DomainError::invalid(format!("not a day of the year: {month:02}-{day:02}")))
     }
 
     /// Month, 1 to 12.
@@ -144,7 +154,9 @@ impl FiscalYearEnd {
 
     /// This day in `year`; 29 February becomes the 28th in a common year.
     fn in_year(self, year: i32) -> DomainResult<Date> {
-        Date::from_ymd(year, self.month, self.day).or_else(|| Date::from_ymd(year, self.month, self.day - 1)).ok_or_else(out_of_range)
+        Date::from_ymd(year, self.month, self.day)
+            .or_else(|| Date::from_ymd(year, self.month, self.day - 1))
+            .ok_or_else(out_of_range)
     }
 }
 
@@ -168,7 +180,10 @@ impl fmt::Display for FiscalYearEnd {
 /// The book's fiscal year end, from its `fy_end` date slot (the QofBook `fy-end` property,
 /// `5.17:libgnucash/engine/qofbook.cpp:180-181`, `:219-220`). GnuCash 5.17 never writes it, but keeps it.
 pub fn book_fiscal_year_end(book: &Book) -> Option<FiscalYearEnd> {
-    book.slots.get("fy_end").and_then(SlotValue::as_date).and_then(|d| FiscalYearEnd::new(d.month(), d.day()).ok())
+    book.slots
+        .get("fy_end")
+        .and_then(SlotValue::as_date)
+        .and_then(|d| FiscalYearEnd::new(d.month(), d.day()).ok())
 }
 
 /// The accounting period setting.
@@ -183,7 +198,10 @@ pub struct AccountingPeriod {
 impl Default for AccountingPeriod {
     /// This calendar year, GnuCash's default (`start-period` and `end-period` 5).
     fn default() -> Self {
-        Self { start: PeriodBound::Relative(RelativePeriod::Year), end: PeriodBound::Relative(RelativePeriod::Year) }
+        Self {
+            start: PeriodBound::Relative(RelativePeriod::Year),
+            end: PeriodBound::Relative(RelativePeriod::Year),
+        }
     }
 }
 
@@ -270,12 +288,17 @@ pub fn period_dates(p: &AccountingPeriod, today: Date, fy: Option<FiscalYearEnd>
 /// 23:59:59 of its last (`gnc_accounting_period_fiscal_start` and `_end`, `gnc-accounting-period.c:60-100`).
 pub fn period_bounds(p: &AccountingPeriod, today: Date, fy: Option<FiscalYearEnd>, zone: &TimeZone) -> DomainResult<PeriodBounds> {
     let (start, end) = period_dates(p, today, fy)?;
-    Ok(PeriodBounds { start: zone.day_start(start), end: zone.day_end(end) })
+    Ok(PeriodBounds {
+        start: zone.day_start(start),
+        end: zone.day_end(end),
+    })
 }
 
 /// Check a setting can be computed: a fiscal choice needs a fiscal year end.
 pub fn check_period(p: &AccountingPeriod, fy: Option<FiscalYearEnd>) -> DomainResult<()> {
-    let fiscal = [p.start, p.end].iter().any(|b| matches!(b, PeriodBound::Relative(r) if r.is_fiscal()));
+    let fiscal = [p.start, p.end]
+        .iter()
+        .any(|b| matches!(b, PeriodBound::Relative(r) if r.is_fiscal()));
     if fiscal { need_fy(fy).map(|_| ()) } else { Ok(()) }
 }
 
@@ -288,7 +311,10 @@ mod tests {
     }
 
     fn both(p: RelativePeriod, today: &str, fy: Option<FiscalYearEnd>) -> (String, String) {
-        let period = AccountingPeriod { start: PeriodBound::Relative(p), end: PeriodBound::Relative(p) };
+        let period = AccountingPeriod {
+            start: PeriodBound::Relative(p),
+            end: PeriodBound::Relative(p),
+        };
         let (s, e) = period_dates(&period, d(today), fy).unwrap();
         (s.to_string(), e.to_string())
     }
@@ -304,31 +330,64 @@ mod tests {
             (RelativePeriod::Year, "2024-01-01", "2024-12-31"),
             (RelativePeriod::PreviousYear, "2023-01-01", "2023-12-31"),
         ];
-        cases.iter().for_each(|(p, s, e)| assert_eq!(both(*p, "2024-05-31", None), ((*s).to_owned(), (*e).to_owned()), "{p}"));
-        assert_eq!(both(RelativePeriod::PreviousMonth, "2024-03-31", None), ("2024-02-01".into(), "2024-02-29".into()));
-        assert_eq!(both(RelativePeriod::PreviousQuarter, "2024-01-15", None), ("2023-10-01".into(), "2023-12-31".into()));
+        cases
+            .iter()
+            .for_each(|(p, s, e)| assert_eq!(both(*p, "2024-05-31", None), ((*s).to_owned(), (*e).to_owned()), "{p}"));
+        assert_eq!(
+            both(RelativePeriod::PreviousMonth, "2024-03-31", None),
+            ("2024-02-01".into(), "2024-02-29".into())
+        );
+        assert_eq!(
+            both(RelativePeriod::PreviousQuarter, "2024-01-15", None),
+            ("2023-10-01".into(), "2023-12-31".into())
+        );
     }
 
     #[test]
     fn fiscal_periods() {
         let fy: FiscalYearEnd = "06-30".parse().unwrap();
-        assert_eq!(both(RelativePeriod::FiscalYear, "2024-05-31", Some(fy)), ("2023-07-01".into(), "2024-06-30".into()));
-        assert_eq!(both(RelativePeriod::FiscalYear, "2024-06-30", Some(fy)), ("2023-07-01".into(), "2024-06-30".into()));
-        assert_eq!(both(RelativePeriod::FiscalYear, "2024-07-01", Some(fy)), ("2024-07-01".into(), "2025-06-30".into()));
-        assert_eq!(both(RelativePeriod::PreviousFiscalYear, "2024-07-01", Some(fy)), ("2023-07-01".into(), "2024-06-30".into()));
-        let period = AccountingPeriod { start: PeriodBound::Relative(RelativePeriod::FiscalYear), end: PeriodBound::Absolute(d("2024-12-31")) };
+        assert_eq!(
+            both(RelativePeriod::FiscalYear, "2024-05-31", Some(fy)),
+            ("2023-07-01".into(), "2024-06-30".into())
+        );
+        assert_eq!(
+            both(RelativePeriod::FiscalYear, "2024-06-30", Some(fy)),
+            ("2023-07-01".into(), "2024-06-30".into())
+        );
+        assert_eq!(
+            both(RelativePeriod::FiscalYear, "2024-07-01", Some(fy)),
+            ("2024-07-01".into(), "2025-06-30".into())
+        );
+        assert_eq!(
+            both(RelativePeriod::PreviousFiscalYear, "2024-07-01", Some(fy)),
+            ("2023-07-01".into(), "2024-06-30".into())
+        );
+        let period = AccountingPeriod {
+            start: PeriodBound::Relative(RelativePeriod::FiscalYear),
+            end: PeriodBound::Absolute(d("2024-12-31")),
+        };
         assert!(period_dates(&period, d("2024-05-31"), None).is_err());
         assert!(check_period(&period, None).is_err() && check_period(&AccountingPeriod::default(), None).is_ok());
         assert!("02-30".parse::<FiscalYearEnd>().is_err());
         let feb: FiscalYearEnd = "02-28".parse().unwrap();
-        assert_eq!(both(RelativePeriod::FiscalYear, "2024-01-01", Some(feb)), ("2023-02-28".into(), "2024-02-28".into()), "as GnuCash");
-        assert_eq!(both(RelativePeriod::FiscalYear, "2025-02-28", Some(feb)), ("2024-03-01".into(), "2025-02-28".into()));
+        assert_eq!(
+            both(RelativePeriod::FiscalYear, "2024-01-01", Some(feb)),
+            ("2023-02-28".into(), "2024-02-28".into()),
+            "as GnuCash"
+        );
+        assert_eq!(
+            both(RelativePeriod::FiscalYear, "2025-02-28", Some(feb)),
+            ("2024-03-01".into(), "2025-02-28".into())
+        );
         assert!("02-29".parse::<FiscalYearEnd>().is_ok());
     }
 
     #[test]
     fn bounds_parse_and_print() {
-        assert_eq!("previous-quarter".parse::<PeriodBound>().unwrap(), PeriodBound::Relative(RelativePeriod::PreviousQuarter));
+        assert_eq!(
+            "previous-quarter".parse::<PeriodBound>().unwrap(),
+            PeriodBound::Relative(RelativePeriod::PreviousQuarter)
+        );
         assert_eq!("2024-01-01".parse::<PeriodBound>().unwrap().to_string(), "2024-01-01");
         assert!("someday".parse::<PeriodBound>().is_err());
         assert_eq!(RelativePeriod::Year.gnucash_value(), 5);

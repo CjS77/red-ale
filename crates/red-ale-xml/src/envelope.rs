@@ -130,7 +130,12 @@ mod tests {
             let out = passthrough(&root);
             if out != text {
                 let line = out.lines().zip(text.lines()).position(|(a, b)| a != b).unwrap_or(0);
-                panic!("{name} differs at line {}: {:?} vs {:?}", line + 1, out.lines().nth(line), text.lines().nth(line));
+                panic!(
+                    "{name} differs at line {}: {:?} vs {:?}",
+                    line + 1,
+                    out.lines().nth(line),
+                    text.lines().nth(line)
+                );
             }
         }
     }

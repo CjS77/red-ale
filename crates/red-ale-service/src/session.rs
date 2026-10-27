@@ -47,7 +47,11 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { retention: Retention::default(), compress_new_books: true, config: crate::config::ConfigStore::in_memory() }
+        Self {
+            retention: Retention::default(),
+            compress_new_books: true,
+            config: crate::config::ConfigStore::in_memory(),
+        }
     }
 }
 
@@ -89,7 +93,13 @@ pub fn read_only_triggers(book: &Book, residue: &XmlResidue) -> Vec<ReadOnlyReas
     let unsupported: Vec<String> = declared
         .iter()
         .filter(|(name, _)| name != OBSOLETE_BOOK_CURRENCY && !SUPPORTED_FEATURES.contains(&name.as_str()))
-        .map(|(name, description)| if description.is_empty() { name.clone() } else { description.clone() })
+        .map(|(name, description)| {
+            if description.is_empty() {
+                name.clone()
+            } else {
+                description.clone()
+            }
+        })
         .collect();
     let mut reasons = Vec::new();
     if !unsupported.is_empty() {
@@ -116,7 +126,11 @@ impl Env for SystemEnv {
     }
 
     fn now(&mut self) -> Time64 {
-        Time64(SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX)))
+        Time64(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX)),
+        )
     }
 
     fn new_guid(&mut self) -> Guid {
@@ -136,7 +150,10 @@ pub fn resolve_path(spec: &str) -> Result<PathBuf, ServiceError> {
     let lower = spec.to_ascii_lowercase();
     let path = if lower.starts_with("xml://") || lower.starts_with("file://") {
         &spec[spec.find("://").map_or(0, |i| i + 3)..]
-    } else if ["sqlite3://", "postgres://", "postgresql://", "mysql://"].iter().any(|s| lower.starts_with(s)) {
+    } else if ["sqlite3://", "postgres://", "postgresql://", "mysql://"]
+        .iter()
+        .any(|s| lower.starts_with(s))
+    {
         return Err(ServiceError::SqlBook { path: spec.to_owned() });
     } else if spec.contains("://") {
         return Err(ServiceError::UnsupportedUri { uri: spec.to_owned() });
@@ -147,16 +164,23 @@ pub fn resolve_path(spec: &str) -> Result<PathBuf, ServiceError> {
     if path.is_absolute() {
         Ok(path)
     } else {
-        std::env::current_dir().map(|d| d.join(&path)).map_err(|e| ServiceError::Io { path, source: e })
+        std::env::current_dir()
+            .map(|d| d.join(&path))
+            .map_err(|e| ServiceError::Io { path, source: e })
     }
 }
 
 /// True if the file starts with SQLite's header string.
 fn is_sqlite(path: &Path) -> Result<bool, ServiceError> {
     const MAGIC: &[u8] = b"SQLite format 3\0";
-    let io = |source| ServiceError::Io { path: path.to_owned(), source };
+    let io = |source| ServiceError::Io {
+        path: path.to_owned(),
+        source,
+    };
     let mut start = Vec::with_capacity(MAGIC.len());
-    File::open(path).and_then(|f| f.take(MAGIC.len() as u64).read_to_end(&mut start)).map_err(io)?;
+    File::open(path)
+        .and_then(|f| f.take(MAGIC.len() as u64).read_to_end(&mut start))
+        .map_err(io)?;
     Ok(start == MAGIC)
 }
 
@@ -200,13 +224,21 @@ impl Session {
     pub fn open(spec: &str, read_only: bool, settings: Settings) -> Result<Self, ServiceError> {
         let path = resolve_path(spec)?;
         if is_sqlite(&path)? {
-            return Err(ServiceError::SqlBook { path: path.display().to_string() });
+            return Err(ServiceError::SqlBook {
+                path: path.display().to_string(),
+            });
         }
         let lock = if read_only { None } else { Some(BookLock::acquire(&path)?) };
         // Read under the lock, so no other writer can change the file while it is read.
-        let file = File::open(&path).map_err(|e| ServiceError::Io { path: path.clone(), source: e })?;
+        let file = File::open(&path).map_err(|e| ServiceError::Io {
+            path: path.clone(),
+            source: e,
+        })?;
         let read = read_book_from(BufReader::with_capacity(IO_BUFFER, file));
-        let (book, residue) = read.map_err(|e| ServiceError::Xml { path: path.clone(), source: e })?;
+        let (book, residue) = read.map_err(|e| ServiceError::Xml {
+            path: path.clone(),
+            source: e,
+        })?;
         let mut reasons = read_only_triggers(&book, &residue);
         if read_only {
             reasons.insert(0, ReadOnlyReason::Requested);
@@ -342,20 +374,29 @@ impl Session {
     /// [`Session::mutate`] for callers with their own error type, such as one that also resolves wire references.
     pub fn try_mutate<T, E: From<ServiceError>>(&mut self, f: impl FnOnce(&mut Book, &mut dyn Env) -> Result<T, E>) -> Result<T, E> {
         if let Some(reason) = self.read_only.first() {
-            return Err(ServiceError::ReadOnly { reason: reason.to_string() }.into());
+            return Err(ServiceError::ReadOnly {
+                reason: reason.to_string(),
+            }
+            .into());
         }
         let mut next = self.book.clone();
         let out = f(&mut next, &mut *self.env)?;
         commit::commit_changed(&self.book, &mut next, &mut *self.env).map_err(ServiceError::from)?;
         let records = {
             let changes = transaction_changes(&self.book, &next);
-            changes.iter().filter_map(TxnChange::after).try_for_each(|t| check_transaction(&next, t))?;
+            changes
+                .iter()
+                .filter_map(TxnChange::after)
+                .try_for_each(|t| check_transaction(&next, t))?;
             journal_records(&self.book, &next, &changes, self.env.now())
         };
         records
             .iter()
             .try_for_each(|lines| self.journal.write_record(lines))
-            .map_err(|e| ServiceError::Io { path: self.path.clone(), source: e })?;
+            .map_err(|e| ServiceError::Io {
+                path: self.path.clone(),
+                source: e,
+            })?;
         self.book = next;
         self.dirty = true;
         self.revision += 1;
@@ -367,16 +408,24 @@ impl Session {
     /// refuses the save.
     pub fn save(&mut self, compress: Option<bool>) -> Result<SaveReport, ServiceError> {
         if let Some(reason) = self.read_only.first() {
-            return Err(ServiceError::ReadOnly { reason: reason.to_string() });
+            return Err(ServiceError::ReadOnly {
+                reason: reason.to_string(),
+            });
         }
         let compressed = compress.unwrap_or(self.residue.compressed);
-        let xml = |source| ServiceError::Xml { path: self.path.clone(), source };
+        let xml = |source| ServiceError::Xml {
+            path: self.path.clone(),
+            source,
+        };
         let write = |file: &mut File| {
             let out = write_book_to(&self.book, &self.residue, compressed, BufWriter::with_capacity(IO_BUFFER, file)).map_err(xml)?;
             out.into_inner().map(drop).map_err(|e| xml(e.into_error().into()))
         };
         let check = |tmp: &Path| {
-            let file = File::open(tmp).map_err(|source| ServiceError::Io { path: tmp.to_owned(), source })?;
+            let file = File::open(tmp).map_err(|source| ServiceError::Io {
+                path: tmp.to_owned(),
+                source,
+            })?;
             match read_back(BufReader::with_capacity(IO_BUFFER, file), &self.book).map_err(xml)? {
                 ReadBack::Same(residue) => Ok(*residue),
                 ReadBack::Differs(detail) => Err(ServiceError::Verification { detail }),
@@ -387,9 +436,16 @@ impl Session {
         residue.notices = self.residue.notices.clone();
         self.residue = residue;
         self.dirty = false;
-        self.journal.rotate().map_err(|e| ServiceError::Io { path: self.path.clone(), source: e })?;
+        self.journal.rotate().map_err(|e| ServiceError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
         let removed = remove_old_files(&self.path, self.settings.retention, self.journal.current_path());
-        Ok(SaveReport { backup, removed, compressed })
+        Ok(SaveReport {
+            backup,
+            removed,
+            compressed,
+        })
     }
 
     /// Replay a journal onto the book as one atomic Mutation (see [`crate::replay`]). The journal this session is
@@ -399,9 +455,14 @@ impl Session {
         if self.journal.current_path().is_some_and(|current| current == journal) {
             return Err(ServiceError::CurrentJournal { path: journal });
         }
-        let text = std::fs::read(&journal).map_err(|e| ServiceError::Io { path: journal.clone(), source: e })?;
-        let (records, skipped_lines) =
-            crate::journal::parse(&String::from_utf8_lossy(&text)).map_err(|source| ServiceError::Journal { path: journal.clone(), source })?;
+        let text = std::fs::read(&journal).map_err(|e| ServiceError::Io {
+            path: journal.clone(),
+            source: e,
+        })?;
+        let (records, skipped_lines) = crate::journal::parse(&String::from_utf8_lossy(&text)).map_err(|source| ServiceError::Journal {
+            path: journal.clone(),
+            source,
+        })?;
         let mut report = self.mutate(|book, env| replay(book, env, &records, skip_invalid))?;
         report.skipped_lines = skipped_lines;
         Ok(report)
@@ -412,7 +473,10 @@ impl Session {
         if save && self.dirty {
             self.save(None)?;
         }
-        self.journal.rotate().map_err(|e| ServiceError::Io { path: self.path.clone(), source: e })?;
+        self.journal.rotate().map_err(|e| ServiceError::Io {
+            path: self.path.clone(),
+            source: e,
+        })?;
         match self.lock.take() {
             Some(lock) => lock.release(),
             None => Ok(()),
@@ -442,8 +506,14 @@ fn journal_records(old: &Book, new: &Book, changes: &[TxnChange<'_>], now: Time6
         .iter()
         .flat_map(|change| match change {
             TxnChange::Added(t) => [Vec::new(), record_lines(RecordKind::Commit, t, new, now)],
-            TxnChange::Changed(o, t) => [record_lines(RecordKind::Begin, o, old, now), record_lines(RecordKind::Commit, t, new, now)],
-            TxnChange::Removed(o) => [record_lines(RecordKind::Begin, o, old, now), record_lines(RecordKind::Delete, o, old, now)],
+            TxnChange::Changed(o, t) => [
+                record_lines(RecordKind::Begin, o, old, now),
+                record_lines(RecordKind::Commit, t, new, now),
+            ],
+            TxnChange::Removed(o) => [
+                record_lines(RecordKind::Begin, o, old, now),
+                record_lines(RecordKind::Delete, o, old, now),
+            ],
         })
         .collect()
 }
@@ -454,7 +524,11 @@ fn transaction_changes<'a>(old: &'a Book, new: &'a Book) -> Vec<TxnChange<'a>> {
         Some(o) if !Arc::ptr_eq(o, t) && **o != **t => Some(TxnChange::Changed(o, t)),
         Some(_) => None,
     });
-    let removed = old.transactions.values().filter(|t| !new.transactions.contains_key(&t.guid)).map(|t| TxnChange::Removed(t));
+    let removed = old
+        .transactions
+        .values()
+        .filter(|t| !new.transactions.contains_key(&t.guid))
+        .map(|t| TxnChange::Removed(t));
     changed.chain(removed).collect()
 }
 
@@ -468,4 +542,3 @@ fn check_transaction(book: &Book, t: &Transaction) -> Result<(), ServiceError> {
     }
     commit::check_committed(book, t).map_err(ServiceError::from)
 }
-

@@ -33,7 +33,13 @@ fn displays(v: &Value) -> Vec<String> {
     match v {
         Value::Object(map) => map
             .iter()
-            .flat_map(|(k, v)| if k == "display" { v.as_str().map(str::to_owned).into_iter().collect() } else { displays(v) })
+            .flat_map(|(k, v)| {
+                if k == "display" {
+                    v.as_str().map(str::to_owned).into_iter().collect()
+                } else {
+                    displays(v)
+                }
+            })
             .collect(),
         Value::Array(items) => items.iter().flat_map(displays).collect(),
         _ => Vec::new(),
@@ -55,10 +61,22 @@ fn charts(v: &Value) -> Vec<Value> {
 fn the_locale_date_format_follows_d_fmt() {
     let mut s = fixture(&test_settings("locale"));
     assert_eq!(run(&mut s, BALANCE_SHEET, &options(), None)["title"], " Balance Sheet 12/31/26");
-    assert_eq!(run(&mut s, BALANCE_SHEET, &options(), Some("C"))["title"], " Balance Sheet 12/31/26");
-    assert_eq!(run(&mut s, BALANCE_SHEET, &options(), Some("en_US"))["title"], " Balance Sheet 12/31/2026");
-    assert_eq!(run(&mut s, BALANCE_SHEET, &options(), Some("fr_FR.UTF-8"))["title"], " Balance Sheet 31/12/2026");
-    assert_eq!(run(&mut s, BALANCE_SHEET, &options(), Some("de_DE"))["title"], " Balance Sheet 31.12.2026");
+    assert_eq!(
+        run(&mut s, BALANCE_SHEET, &options(), Some("C"))["title"],
+        " Balance Sheet 12/31/26"
+    );
+    assert_eq!(
+        run(&mut s, BALANCE_SHEET, &options(), Some("en_US"))["title"],
+        " Balance Sheet 12/31/2026"
+    );
+    assert_eq!(
+        run(&mut s, BALANCE_SHEET, &options(), Some("fr_FR.UTF-8"))["title"],
+        " Balance Sheet 31/12/2026"
+    );
+    assert_eq!(
+        run(&mut s, BALANCE_SHEET, &options(), Some("de_DE"))["title"],
+        " Balance Sheet 31.12.2026"
+    );
 }
 
 /// Under fr_FR amounts use `,` for the point and NARROW NO-BREAK SPACE between groups, with the symbol after the
@@ -97,8 +115,15 @@ fn the_setting_applies_unless_the_call_names_a_locale() {
     config["locale"] = json!("en_GB");
     let mut s = fixture(&config);
     assert_eq!(run(&mut s, BALANCE_SHEET, &options(), None)["title"], " Balance Sheet 31/12/26");
-    assert_eq!(run(&mut s, BALANCE_SHEET, &options(), Some("en_US"))["title"], " Balance Sheet 12/31/2026");
-    let html = s.call("report.export", json!({ "report": BALANCE_SHEET, "options": options(), "locale": "fr_FR" }))["html"].clone();
+    assert_eq!(
+        run(&mut s, BALANCE_SHEET, &options(), Some("en_US"))["title"],
+        " Balance Sheet 12/31/2026"
+    );
+    let html = s.call(
+        "report.export",
+        json!({ "report": BALANCE_SHEET, "options": options(), "locale": "fr_FR" }),
+    )["html"]
+        .clone();
     assert!(html.as_str().unwrap().contains("122\u{202f}743,52 $"));
 }
 
@@ -106,14 +131,18 @@ fn the_setting_applies_unless_the_call_names_a_locale() {
 #[test]
 fn fixed_date_formats_ignore_the_locale() {
     let mut s = fixture(&test_settings("iso"));
-    assert_eq!(run(&mut s, BALANCE_SHEET, &options(), Some("fr_FR"))["title"], " Balance Sheet 2026-12-31");
+    assert_eq!(
+        run(&mut s, BALANCE_SHEET, &options(), Some("fr_FR"))["title"],
+        " Balance Sheet 2026-12-31"
+    );
 }
 
 /// Under the `locale` format a date range in a chart title takes ICU's interval form, except under C.
 #[test]
 fn intervals_in_titles_take_icus_form() {
     let mut s = fixture(&test_settings("locale"));
-    let general = json!({ "Start Date": { "absolute": "1970-01-01" }, "End Date": { "absolute": "1971-12-31" }, "Report's currency": "USD" });
+    let general =
+        json!({ "Start Date": { "absolute": "1970-01-01" }, "End Date": { "absolute": "1971-12-31" }, "Report's currency": "USD" });
     let dates = json!({ "General": general });
     let title = |s: &mut Setup, locale| {
         let r = run(s, "Net Worth Barchart", &dates, locale);

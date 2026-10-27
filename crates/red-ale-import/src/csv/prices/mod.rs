@@ -103,7 +103,10 @@ impl Defaults {
     pub fn resolve(book: &Book, layout: &PriceLayout) -> DomainResult<Self> {
         let find = |name: &Option<String>| {
             name.as_deref()
-                .map(|n| parse_commodity(book, n, red_ale_core::commodity::CURRENCY_NAMESPACE).map_err(|_| DomainError::not_found("commodity", &n)))
+                .map(|n| {
+                    parse_commodity(book, n, red_ale_core::commodity::CURRENCY_NAMESPACE)
+                        .map_err(|_| DomainError::not_found("commodity", &n))
+                })
                 .transpose()
         };
         let from = find(&layout.from_commodity)?;
@@ -118,7 +121,9 @@ impl Defaults {
             ));
         }
         if to.is_some() && has(PriceColumn::ToCurrency) {
-            return Err(DomainError::invalid("toCurrency and the Currency To column exclude each other, as GnuCash clears one when the other is chosen"));
+            return Err(DomainError::invalid(
+                "toCurrency and the Currency To column exclude each other, as GnuCash clears one when the other is chosen",
+            ));
         }
         Ok(Self { from, to })
     }
@@ -137,7 +142,11 @@ impl PriceImport {
             .filter(|(_, cells)| !cells.is_empty())
             .map(|(row, cells)| (row, parse_line(book, &cells, &columns, defaults, ctx)))
             .collect();
-        Self { layout: layout.clone(), columns, lines }
+        Self {
+            layout: layout.clone(),
+            columns,
+            lines,
+        }
     }
 
     /// What GnuCash's assistant would not go on with (`GncPriceImport::verify`, `gnc-import-price.cpp:503-543`,
@@ -204,16 +213,20 @@ fn effective_columns(columns: &[PriceColumn], max_cols: usize) -> Vec<PriceColum
 /// unset, without an error (`GncImportPrice::reset`).
 fn parse_line(book: &Book, cells: &[String], columns: &[PriceColumn], defaults: &Defaults, ctx: &PriceContext) -> PriceLine {
     let mut line = PriceLine::default();
-    columns.iter().enumerate().filter(|(_, c)| **c != PriceColumn::None).for_each(|(i, &column)| {
-        let Some(cell) = cells.get(i) else { return };
-        if column == PriceColumn::ToCurrency && defaults.from.is_some() {
-            line.from_commodity.clone_from(&defaults.from);
-        }
-        if column == PriceColumn::FromSymbol && defaults.to.is_some() {
-            line.to_currency.clone_from(&defaults.to);
-        }
-        line.set(book, column, cell, ctx);
-    });
+    columns
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| **c != PriceColumn::None)
+        .for_each(|(i, &column)| {
+            let Some(cell) = cells.get(i) else { return };
+            if column == PriceColumn::ToCurrency && defaults.from.is_some() {
+                line.from_commodity.clone_from(&defaults.from);
+            }
+            if column == PriceColumn::FromSymbol && defaults.to.is_some() {
+                line.to_currency.clone_from(&defaults.to);
+            }
+            line.set(book, column, cell, ctx);
+        });
     if line.to_currency.is_none() {
         line.to_currency.clone_from(&defaults.to);
     }
@@ -242,7 +255,13 @@ struct Ready {
 
 /// The proposal's prices, error rows and skipped lines: every line run in order on a copy of `book`, with
 /// `overwrite` as GnuCash's "Allow existing prices to be over written".
-pub fn propose(book: &Book, zone: &TimeZone, import: &PriceImport, overwrite: bool, file: usize) -> (Vec<ProposedPrice>, Vec<RowError>, Vec<IgnoredLine>) {
+pub fn propose(
+    book: &Book,
+    zone: &TimeZone,
+    import: &PriceImport,
+    overwrite: bool,
+    file: usize,
+) -> (Vec<ProposedPrice>, Vec<RowError>, Vec<IgnoredLine>) {
     let mut copy = book.clone();
     let mut env = FixedEnv::new(Time64(0), PREVIEW_GUID_SEED).with_zone(zone.clone());
     let mut made: BTreeMap<Guid, usize> = BTreeMap::new();
@@ -250,7 +269,11 @@ pub fn propose(book: &Book, zone: &TimeZone, import: &PriceImport, overwrite: bo
     import.lines.iter().enumerate().for_each(|(i, (row, line))| {
         let line_no = row + 1;
         if let Some(reason) = import.skip_reason(i) {
-            ignored.push(IgnoredLine { file, line: line_no, reason });
+            ignored.push(IgnoredLine {
+                file,
+                line: line_no,
+                reason,
+            });
             return;
         }
         let ready = match ready(&copy, zone, &import.columns, line, file, line_no) {
@@ -270,10 +293,33 @@ pub fn propose(book: &Book, zone: &TimeZone, import: &PriceImport, overwrite: bo
                 new.into_iter().for_each(|g| {
                     made.insert(g, index);
                 });
-                let Ready { commodity, currency, date, time, amount, value } = ready;
-                prices.push(ProposedPrice { index, line: line_no, commodity, currency, date, time, amount, value, action, existing });
+                let Ready {
+                    commodity,
+                    currency,
+                    date,
+                    time,
+                    amount,
+                    value,
+                } = ready;
+                prices.push(ProposedPrice {
+                    index,
+                    line: line_no,
+                    commodity,
+                    currency,
+                    date,
+                    time,
+                    amount,
+                    value,
+                    action,
+                    existing,
+                });
             }
-            Err(message) => errors.push(RowError { file, line: line_no, column: None, message }),
+            Err(message) => errors.push(RowError {
+                file,
+                line: line_no,
+                column: None,
+                message,
+            }),
         }
     });
     (prices, errors, ignored)
@@ -281,27 +327,63 @@ pub fn propose(book: &Book, zone: &TimeZone, import: &PriceImport, overwrite: bo
 
 /// A line's price, or its error rows: GnuCash's line errors with their columns, then its essentials, then the value's
 /// conversion.
-fn ready(book: &Book, zone: &TimeZone, columns: &[PriceColumn], line: &PriceLine, file: usize, line_no: usize) -> Result<Ready, Vec<RowError>> {
+fn ready(
+    book: &Book,
+    zone: &TimeZone,
+    columns: &[PriceColumn],
+    line: &PriceLine,
+    file: usize,
+    line_no: usize,
+) -> Result<Ready, Vec<RowError>> {
     let column = |c: &PriceColumn| columns.iter().position(|k| k == c).map(|p| p + 1);
     if !line.errors().is_empty() {
-        return Err(line.errors().iter().map(|(c, m)| RowError { file, line: line_no, column: column(c), message: m.clone() }).collect());
+        return Err(line
+            .errors()
+            .iter()
+            .map(|(c, m)| RowError {
+                file,
+                line: line_no,
+                column: column(c),
+                message: m.clone(),
+            })
+            .collect());
     }
-    let one = |message: String| vec![RowError { file, line: line_no, column: None, message }];
+    let one = |message: String| {
+        vec![RowError {
+            file,
+            line: line_no,
+            column: None,
+            message,
+        }]
+    };
     if let Some(message) = line.missing_essentials() {
         return Err(one(message.to_owned()));
     }
-    let (Some(date), Some(amount), Some(currency), Some(commodity)) = (line.date, line.amount, line.to_currency.clone(), line.from_commodity.clone()) else {
+    let (Some(date), Some(amount), Some(currency), Some(commodity)) =
+        (line.date, line.amount, line.to_currency.clone(), line.from_commodity.clone())
+    else {
         return Err(one("No date column.".to_owned()));
     };
     let value = price_value(book, &currency, amount).map_err(one)?;
-    Ok(Ready { commodity, currency, date, time: zone.neutral_time(date), amount, value })
+    Ok(Ready {
+        commodity,
+        currency,
+        date,
+        time: zone.neutral_time(date),
+        amount,
+        value,
+    })
 }
 
 /// `amount.convert<RoundType::half_up>(scu * COMMODITY_DENOM_MULT)` (`gnc-imp-props-price.cpp:343-344`).
 pub fn price_value(book: &Book, currency: &CommodityRef, amount: Numeric) -> Result<Numeric, String> {
     let scu = commodity_fraction(book, currency).ok_or_else(|| format!("{currency} has no fraction"))?;
-    let denom = scu.checked_mul(COMMODITY_DENOM_MULT).ok_or_else(|| format!("{currency}'s fraction is too large"))?;
-    amount.to_denom(denom, Round::HalfUp).map_err(|e| format!("the price {} can't be stored at {denom}ths: {e}", amount.to_decimal_string()))
+    let denom = scu
+        .checked_mul(COMMODITY_DENOM_MULT)
+        .ok_or_else(|| format!("{currency}'s fraction is too large"))?;
+    amount
+        .to_denom(denom, Round::HalfUp)
+        .map_err(|e| format!("the price {} can't be stored at {denom}ths: {e}", amount.to_decimal_string()))
 }
 
 /// `GncImportPrice::create_price` (`gnc-imp-props-price.cpp:295-366`): the same-day price of the pair in either
@@ -327,14 +409,19 @@ fn create(book: &mut Book, env: &mut dyn Env, ready: &Ready, overwrite: bool) ->
     };
     let result = add_price(book, price, &zone).map_err(|e| e.to_string())?;
     match (result.added, result.rejected_by, result.duplicate_of) {
-        (Some(new), ..) if removed.is_some() => Ok(Created::Replaced { new, old: old.unwrap_or(new) }),
+        (Some(new), ..) if removed.is_some() => Ok(Created::Replaced {
+            new,
+            old: old.unwrap_or(new),
+        }),
         (Some(new), ..) => Ok(Created::Added(new)),
         (None, None, Some(same)) => Ok(Created::Duplicate(same)),
         (None, rejected, _) => {
             if let Some((i, g, p)) = removed {
                 book.prices.shift_insert(i, g, p);
             }
-            let by = rejected.map(|r| format!(": price {r} of that day has a source that ranks higher")).unwrap_or_default();
+            let by = rejected
+                .map(|r| format!(": price {r} of that day has a source that ranks higher"))
+                .unwrap_or_default();
             Err(format!("Failed to create price from selected columns{by}."))
         }
     }
@@ -350,8 +437,17 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
             applied.skipped.push(p.index);
             return Ok(());
         }
-        let ready = Ready { commodity: p.commodity.clone(), currency: p.currency.clone(), date: p.date, time: p.time, amount: p.amount, value: p.value };
-        match create(book, env, &ready, action == ImportAction::Update).map_err(|e| DomainError::invalid(format!("line {}: {e}", p.line)))? {
+        let ready = Ready {
+            commodity: p.commodity.clone(),
+            currency: p.currency.clone(),
+            date: p.date,
+            time: p.time,
+            amount: p.amount,
+            value: p.value,
+        };
+        match create(book, env, &ready, action == ImportAction::Update)
+            .map_err(|e| DomainError::invalid(format!("line {}: {e}", p.line)))?
+        {
             Created::Added(g) => applied.prices.0.push(g),
             Created::Replaced { new, .. } => applied.prices.1.push(new),
             Created::Duplicate(g) => applied.prices.2.push(g),
@@ -365,12 +461,17 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
 fn actions(proposal: &Proposal, changes: &[Change]) -> DomainResult<Vec<ImportAction>> {
     let mut actions: Vec<ImportAction> = proposal.prices.iter().map(|p| p.action).collect();
     changes.iter().try_for_each(|c| {
-        let slot = actions.get_mut(c.index).ok_or_else(|| DomainError::invalid(format!("no price {} in the proposal", c.index)))?;
+        let slot = actions
+            .get_mut(c.index)
+            .ok_or_else(|| DomainError::invalid(format!("no price {} in the proposal", c.index)))?;
         if c.match_split.is_some() || c.account.is_some() || c.amount.is_some() {
             return Err(DomainError::invalid(format!("price {}: only its action can change", c.index)));
         }
         match c.action {
-            Some(ImportAction::Clear) => Err(DomainError::invalid(format!("price {}: clear is for transactions; a price is add, update or skip", c.index))),
+            Some(ImportAction::Clear) => Err(DomainError::invalid(format!(
+                "price {}: clear is for transactions; a price is add, update or skip",
+                c.index
+            ))),
             Some(a) => {
                 *slot = a;
                 Ok(())

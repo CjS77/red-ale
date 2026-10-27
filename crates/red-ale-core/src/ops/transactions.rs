@@ -53,7 +53,9 @@ fn non_empty(s: Option<String>) -> Option<String> {
 fn check_new_split(book: &Book, s: &NewSplit) -> DomainResult<()> {
     check_postable(book, s.account)?;
     if s.reconcile_state == ReconcileState::Voided {
-        return Err(DomainError::invalid("a split cannot be created voided; void the transaction instead"));
+        return Err(DomainError::invalid(
+            "a split cannot be created voided; void the transaction instead",
+        ));
     }
     if let Some(lot) = s.lot {
         let l = book.lot(lot).ok_or_else(|| DomainError::not_found("lot", &lot))?;
@@ -136,7 +138,11 @@ pub fn update(book: &mut Book, env: &mut dyn Env, guid: Guid, edit: TransactionE
     remove_splits(&mut t, &edit.remove_splits)?;
     edit.change_splits.iter().try_for_each(|e| change_split(book, &mut t, e))?;
     edit.add_splits.iter().try_for_each(|s| check_new_split(book, s))?;
-    let added = edit.add_splits.into_iter().map(|s| commit::build_split(book, env, &t.currency, normalise_split(s))).collect::<DomainResult<Vec<_>>>()?;
+    let added = edit
+        .add_splits
+        .into_iter()
+        .map(|s| commit::build_split(book, env, &t.currency, normalise_split(s)))
+        .collect::<DomainResult<Vec<_>>>()?;
     t.splits.extend(added);
     if let Some(date) = edit.date_posted {
         commit::set_date_posted(&mut t, date, env.zone());
@@ -199,7 +205,10 @@ fn change_split(book: &Book, t: &mut Transaction, e: &SplitEdit) -> DomainResult
         Some(amount) => split.amount = amount,
         None if (e.value.is_some() || e.account.is_some()) && new_commodity.as_ref() == Some(&currency) => split.amount = split.value,
         None if new_commodity != old_commodity => {
-            return Err(DomainError::invalid(format!("split {} moves to another commodity and needs an amount", e.guid)));
+            return Err(DomainError::invalid(format!(
+                "split {} moves to another commodity and needs an amount",
+                e.guid
+            )));
         }
         None => {}
     }
@@ -256,7 +265,10 @@ pub fn set_currency(book: &Book, t: &mut Transaction, currency: &CommodityRef) -
         .transpose()?
         .filter(|r| !r.is_zero());
     let Some(rate) = rate else {
-        return t.splits.iter_mut().try_for_each(|s| commit::round_value(book, currency, s.value).map(|v| s.value = v));
+        return t
+            .splits
+            .iter_mut()
+            .try_for_each(|s| commit::round_value(book, currency, s.value).map(|v| s.value = v));
     };
     let fraction = commit::currency_fraction(book, currency)?;
     let half_up = How::round(Round::HalfUp);
@@ -267,7 +279,8 @@ pub fn set_currency(book: &Book, t: &mut Transaction, currency: &CommodityRef) -
             _ if s.amount.is_zero() => s.value,
             _ => {
                 let old_rate = s.value.div(s.amount, crate::DENOM_AUTO, How::REDUCE_NEVER)?;
-                s.amount.mul(old_rate.mul(rate, crate::DENOM_AUTO, How::REDUCE_NEVER)?, fraction, half_up)?
+                s.amount
+                    .mul(old_rate.mul(rate, crate::DENOM_AUTO, How::REDUCE_NEVER)?, fraction, half_up)?
             }
         };
         Ok(())
@@ -288,7 +301,10 @@ pub struct ListFilter {
 /// The posted calendar date: the `date-posted` slot when present, else the UTC date of the posted time
 /// (`xaccTransGetDatePostedGDate`, `5.17:libgnucash/engine/Transaction.cpp:2259-2289`).
 pub fn posted_date(t: &Transaction) -> Option<Date> {
-    t.slots.get(crate::transaction::slot_paths::DATE_POSTED).and_then(crate::SlotValue::as_date).or_else(|| t.date_posted.utc_date())
+    t.slots
+        .get(crate::transaction::slot_paths::DATE_POSTED)
+        .and_then(crate::SlotValue::as_date)
+        .or_else(|| t.date_posted.utc_date())
 }
 
 /// The one other split of `split` in `t`, if there is exactly one: `xaccSplitGetOtherSplit`
@@ -298,7 +314,9 @@ pub fn other_split<'a>(book: &Book, t: &'a Transaction, split: Guid) -> Option<&
     let mut others = t.splits.iter().filter(|s| {
         s.guid != split
             && s.slots.get_key(crate::lot::split_slots::LOT_SPLIT).is_none()
-            && s.account.and_then(|a| book.account(a)).is_none_or(|a| a.account_type != crate::AccountType::Trading)
+            && s.account
+                .and_then(|a| book.account(a))
+                .is_none_or(|a| a.account_type != crate::AccountType::Trading)
     });
     let first = others.next()?;
     if others.next().is_some() { None } else { Some(first) }
@@ -352,7 +370,15 @@ pub(crate) mod tests {
         let eur = add("Euro", AccountType::Bank, "EUR", false);
         let gbp = add("Pounds", AccountType::Expense, "GBP", false);
         let parent = add("Parent", AccountType::Asset, "USD", true);
-        Fixture { book, env, bank, food, eur, gbp, parent }
+        Fixture {
+            book,
+            env,
+            bank,
+            food,
+            eur,
+            gbp,
+            parent,
+        }
     }
 
     pub(crate) fn usd(n: i64) -> Numeric {
@@ -361,7 +387,10 @@ pub(crate) mod tests {
 
     pub(crate) fn simple(f: &mut Fixture, cents: i64) -> Guid {
         let mut new = NewTransaction::new(CommodityRef::currency("USD"), Date::from_ymd(2024, 6, 1).unwrap());
-        new.splits = vec![NewSplit::new(f.bank, usd(-cents)), NewSplit::new(f.food, usd(cents)).with_memo("lunch")];
+        new.splits = vec![
+            NewSplit::new(f.bank, usd(-cents)),
+            NewSplit::new(f.food, usd(cents)).with_memo("lunch"),
+        ];
         post(&mut f.book, &mut f.env, new).unwrap()
     }
 
@@ -388,7 +417,12 @@ pub(crate) mod tests {
         let edit = TransactionEdit {
             description: Some("Lunch".into()),
             notes: Some("with Bob".into()),
-            change_splits: vec![SplitEdit { guid: food_split, value: Some(usd(600)), memo: Some(String::new()), ..SplitEdit::default() }],
+            change_splits: vec![SplitEdit {
+                guid: food_split,
+                value: Some(usd(600)),
+                memo: Some(String::new()),
+                ..SplitEdit::default()
+            }],
             add_splits: vec![NewSplit::new(f.food, usd(400)).with_memo("tip")],
             ..TransactionEdit::default()
         };
@@ -396,19 +430,33 @@ pub(crate) mod tests {
         let t = f.book.transaction(g).unwrap();
         assert_eq!(t.splits.len(), 3);
         let food = t.split(food_split).unwrap();
-        assert!(food.amount.same_repr(usd(600)) && food.memo.is_none(), "amount follows value in the currency");
+        assert!(
+            food.amount.same_repr(usd(600)) && food.memo.is_none(),
+            "amount follows value in the currency"
+        );
         assert_eq!(t.notes(), Some("with Bob"));
-        let unbalanced = TransactionEdit { remove_splits: vec![bank_split], ..TransactionEdit::default() };
-        assert!(matches!(update(&mut f.book, &mut f.env, g, unbalanced), Err(DomainError::Unbalanced { .. })));
+        let unbalanced = TransactionEdit {
+            remove_splits: vec![bank_split],
+            ..TransactionEdit::default()
+        };
+        assert!(matches!(
+            update(&mut f.book, &mut f.env, g, unbalanced),
+            Err(DomainError::Unbalanced { .. })
+        ));
     }
 
     #[test]
     fn read_only_transactions_are_refused() {
         let mut f = fixture();
         let g = simple(&mut f, 100);
-        Arc::make_mut(f.book.transactions.get_mut(&g).unwrap()).slots.set("trans-read-only", SlotValue::String("Generated".into()));
+        Arc::make_mut(f.book.transactions.get_mut(&g).unwrap())
+            .slots
+            .set("trans-read-only", SlotValue::String("Generated".into()));
         assert!(matches!(delete(&mut f.book, g), Err(DomainError::Conflict(_))));
-        let edit = TransactionEdit { description: Some("x".into()), ..TransactionEdit::default() };
+        let edit = TransactionEdit {
+            description: Some("x".into()),
+            ..TransactionEdit::default()
+        };
         assert!(matches!(update(&mut f.book, &mut f.env, g, edit), Err(DomainError::Conflict(_))));
     }
 
@@ -436,7 +484,10 @@ pub(crate) mod tests {
         let g = simple(&mut f, 1234);
         let mut t = f.book.transaction(g).unwrap().clone();
         set_currency(&f.book, &mut t, &CommodityRef::currency("JPY")).unwrap();
-        assert_eq!(t.splits.iter().map(|s| (s.value.num(), s.value.denom())).collect::<Vec<_>>(), [(12, 1), (-12, 1)]);
+        assert_eq!(
+            t.splits.iter().map(|s| (s.value.num(), s.value.denom())).collect::<Vec<_>>(),
+            [(12, 1), (-12, 1)]
+        );
     }
 
     #[test]
@@ -444,11 +495,24 @@ pub(crate) mod tests {
         let mut f = fixture();
         let a = simple(&mut f, 100);
         let b = simple(&mut f, 200);
-        let filter = ListFilter { account: Some(f.food), from: Date::from_ymd(2024, 6, 1), to: Date::from_ymd(2024, 6, 1) };
+        let filter = ListFilter {
+            account: Some(f.food),
+            from: Date::from_ymd(2024, 6, 1),
+            to: Date::from_ymd(2024, 6, 1),
+        };
         let found: Vec<Guid> = list(&f.book, &filter).iter().map(|t| t.guid).collect();
         assert_eq!(found.len(), 2);
         assert!(found.contains(&a) && found.contains(&b));
-        assert!(list(&f.book, &ListFilter { from: Date::from_ymd(2024, 6, 2), ..ListFilter::default() }).is_empty());
+        assert!(
+            list(
+                &f.book,
+                &ListFilter {
+                    from: Date::from_ymd(2024, 6, 2),
+                    ..ListFilter::default()
+                }
+            )
+            .is_empty()
+        );
     }
 
     proptest::proptest! {

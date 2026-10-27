@@ -63,7 +63,10 @@ pub(crate) fn account(book: &Book, guid: Guid) -> DomainResult<&Account> {
 
 /// The account's Slots, to change, or `NotFound`.
 pub(crate) fn slots_mut(book: &mut Book, guid: Guid) -> DomainResult<&mut Frame> {
-    book.accounts.get_mut(&guid).map(|a| &mut Arc::make_mut(a).slots).ok_or_else(|| DomainError::not_found("account", &guid))
+    book.accounts
+        .get_mut(&guid)
+        .map(|a| &mut Arc::make_mut(a).slots)
+        .ok_or_else(|| DomainError::not_found("account", &guid))
 }
 
 /// `xaccAccountLookup` of a GUID value: the account it names, if it is in the Book.
@@ -85,7 +88,10 @@ pub fn find_account(book: &Book, acc: Guid, category: Option<&str>, key: &str) -
 /// (`gnc_account_imap_find_any`, `Account.cpp:5169-5192`): how the CSV importer resolves an account name through
 /// `csv-account-map`, which each target account holds about itself.
 pub fn find_any(book: &Book, category: Option<&str>, key: &str) -> Option<Guid> {
-    descendants_sorted(book, book.root).into_iter().find(|a| find_account(book, a.guid, category, key).is_some()).map(|a| a.guid)
+    descendants_sorted(book, book.root)
+        .into_iter()
+        .find(|a| find_account(book, a.guid, category, key).is_some())
+        .map(|a| a.guid)
 }
 
 /// Map `key` under `category` to `added` in `acc`'s plain map, replacing what was there
@@ -121,7 +127,9 @@ pub fn delete_account(book: &mut Book, acc: Guid, category: Option<&str>, key: &
 /// entries, as GnuCash takes only boxed values.
 pub fn plain_info(book: &Book, acc: Guid, category: Option<&str>) -> Vec<ImapInfo> {
     let path: Vec<&str> = std::iter::once(IMAP_FRAME).chain(category).collect();
-    let Some(frame) = book.account(acc).and_then(|a| a.slots.get_in(&path)).and_then(SlotValue::as_frame) else { return Vec::new() };
+    let Some(frame) = book.account(acc).and_then(|a| a.slots.get_in(&path)).and_then(SlotValue::as_frame) else {
+        return Vec::new();
+    };
     frame
         .iter()
         .filter(|(_, v)| v.as_guid().is_some())
@@ -139,7 +147,14 @@ pub fn plain_info(book: &Book, acc: Guid, category: Option<&str>) -> Vec<ImapInf
 /// Delete the slot at `head`, then `category`, then `match_string` (each optional, each a whole key) as the import
 /// map editor does (`gnc_account_delete_map_entry`, `Account.cpp:5735-5760`): with `empty`, only when it is an empty
 /// frame. Returns whether the slot was there.
-pub fn delete_map_entry(book: &mut Book, acc: Guid, head: &str, category: Option<&str>, match_string: Option<&str>, empty: bool) -> DomainResult<bool> {
+pub fn delete_map_entry(
+    book: &mut Book,
+    acc: Guid,
+    head: &str,
+    category: Option<&str>,
+    match_string: Option<&str>,
+    empty: bool,
+) -> DomainResult<bool> {
     account(book, acc)?;
     convert::check_import_map_data(book)?;
     let path: Vec<&str> = std::iter::once(head).chain(category).chain(match_string).collect();

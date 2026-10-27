@@ -42,12 +42,20 @@ struct Quote<'a> {
 
 impl<'a> Quote<'a> {
     fn new(price: &'a Price) -> Self {
-        Self { price, commodity: canonical(&price.commodity), currency: canonical(&price.currency) }
+        Self {
+            price,
+            commodity: canonical(&price.commodity),
+            currency: canonical(&price.currency),
+        }
     }
 
     /// The commodity on the far side from `target`.
     fn other(&self, target: &CommodityRef) -> &CommodityRef {
-        if self.commodity == *target { &self.currency } else { &self.commodity }
+        if self.commodity == *target {
+            &self.currency
+        } else {
+            &self.commodity
+        }
     }
 
     fn time(&self) -> Time64 {
@@ -58,7 +66,10 @@ impl<'a> Quote<'a> {
 /// The price database as GnuCash holds it: one list per (commodity, currency), newest first, ties by GUID.
 fn pair_lists(book: &Book) -> BTreeMap<(CommodityRef, CommodityRef), Vec<Quote<'_>>> {
     let mut lists: BTreeMap<(CommodityRef, CommodityRef), Vec<Quote<'_>>> = BTreeMap::new();
-    book.prices.values().map(|p| Quote::new(p)).for_each(|q| lists.entry((q.commodity.clone(), q.currency.clone())).or_default().push(q));
+    book.prices
+        .values()
+        .map(|p| Quote::new(p))
+        .for_each(|q| lists.entry((q.commodity.clone(), q.currency.clone())).or_default().push(q));
     lists.values_mut().for_each(|l| l.sort_by(|a, b| by_date(a.price, b.price)));
     lists
 }
@@ -119,7 +130,11 @@ fn nearest_to<'a>(quotes: &[Quote<'a>], target: &CommodityRef, t: Time64) -> Vec
             return;
         }
         if q.time() <= t {
-            let closer = if i128::from(held.0) - i128::from(t.0) < i128::from(t.0) - i128::from(q.time().0) { &newer[i] } else { q };
+            let closer = if i128::from(held.0) - i128::from(t.0) < i128::from(t.0) - i128::from(q.time().0) {
+                &newer[i]
+            } else {
+                q
+            };
             out.push(closer.clone());
         }
         newer[i] = q.clone();
@@ -134,14 +149,20 @@ fn nearest_to<'a>(quotes: &[Quote<'a>], target: &CommodityRef, t: Time64) -> Vec
 /// A price at exactly `t` can be listed twice, as GnuCash lists it.
 pub fn nearest_any_currency<'a>(book: &'a Book, commodity: &CommodityRef, t: Time64) -> Vec<&'a Price> {
     let target = canonical(commodity);
-    nearest_to(&scan_any_currency(book, &target, t), &target, t).into_iter().map(|q| q.price).collect()
+    nearest_to(&scan_any_currency(book, &target, t), &target, t)
+        .into_iter()
+        .map(|q| q.price)
+        .collect()
 }
 
 /// The newest price of `commodity` in each other commodity at or before `t`, newest first
 /// (`gnc_pricedb_lookup_nearest_before_any_currency_t64`, `:1982-2001`).
 pub fn latest_before_any_currency<'a>(book: &'a Book, commodity: &CommodityRef, t: Time64) -> Vec<&'a Price> {
     let target = canonical(commodity);
-    latest_before(scan_any_currency(book, &target, t), &target, t).into_iter().map(|q| q.price).collect()
+    latest_before(scan_any_currency(book, &target, t), &target, t)
+        .into_iter()
+        .map(|q| q.price)
+        .collect()
 }
 
 fn any_currency<'a>(book: &'a Book, commodity: &CommodityRef, at: PriceAt) -> Vec<Quote<'a>> {
@@ -165,7 +186,9 @@ fn common_prices<'a>(
         ((t.commodity == f.commodity || t.commodity == f.currency) && third(&t.commodity))
             || ((t.currency == f.commodity || t.currency == f.currency) && third(&t.currency))
     };
-    from_prices.iter().find_map(|f| to_prices.iter().find(|t| shares(f, t)).map(|t| (f.clone(), t.clone())))
+    from_prices
+        .iter()
+        .find_map(|f| to_prices.iter().find(|t| shares(f, t)).map(|t| (f.clone(), t.clone())))
 }
 
 /// `convert_price` (`:2375-2406`): `to` per `from` from a price of `from` and a price of `to` in a third commodity.
@@ -216,7 +239,11 @@ pub fn rate(book: &Book, from: &CommodityRef, to: &CommodityRef, at: PriceAt) ->
         return Ok(Numeric::ONE);
     }
     let direct = direct_rate(book, &from, &to, at)?;
-    let rate = if direct.is_zero() { indirect_rate(book, &from, &to, at)? } else { direct };
+    let rate = if direct.is_zero() {
+        indirect_rate(book, &from, &to, at)?
+    } else {
+        direct
+    };
     Ok(rate.reduce())
 }
 
@@ -288,12 +315,21 @@ mod tests {
     fn an_indirect_price_goes_through_a_shared_commodity_either_way_round() {
         let b = book(&[(1, "EUR", "USD", "2024-01-10", 110, 100), (2, "GBP", "USD", "2024-01-10", 125, 100)]);
         let at = PriceAt::Nearest(day("2024-01-10"));
-        assert!(rate(&b, &cur("EUR"), &cur("GBP"), at).unwrap().same_repr(r(22, 25)), "both priced in USD: 1.10 / 1.25");
+        assert!(
+            rate(&b, &cur("EUR"), &cur("GBP"), at).unwrap().same_repr(r(22, 25)),
+            "both priced in USD: 1.10 / 1.25"
+        );
         assert!(rate(&b, &cur("GBP"), &cur("EUR"), at).unwrap().same_repr(r(25, 22)));
         let mixed = book(&[(1, "USD", "EUR", "2024-01-10", 90, 100), (2, "GBP", "USD", "2024-01-10", 125, 100)]);
-        assert!(rate(&mixed, &cur("EUR"), &cur("GBP"), at).unwrap().same_repr(r(8, 9)), "1 / (0.90 × 1.25)");
+        assert!(
+            rate(&mixed, &cur("EUR"), &cur("GBP"), at).unwrap().same_repr(r(8, 9)),
+            "1 / (0.90 × 1.25)"
+        );
         assert!(rate(&mixed, &cur("GBP"), &cur("EUR"), at).unwrap().same_repr(r(9, 8)));
-        assert!(rate(&mixed, &cur("GBP"), &cur("JPY"), at).unwrap().is_zero(), "no price of JPY at all");
+        assert!(
+            rate(&mixed, &cur("GBP"), &cur("JPY"), at).unwrap().is_zero(),
+            "no price of JPY at all"
+        );
     }
 
     #[test]
@@ -308,8 +344,16 @@ mod tests {
         assert_eq!(eur_usd(PriceAt::Nearest(day("2024-01-19"))), r(6, 5));
         assert_eq!(eur_usd(PriceAt::Nearest(day("2024-01-15"))), r(11, 10), "a tie goes to the older");
         assert!(eur_usd(PriceAt::Before(day("2024-01-01"))).is_zero());
-        assert_eq!(eur_usd(PriceAt::Nearest(day("2024-01-01"))), r(11, 10), "nearest looks forward when nothing is before");
-        assert_eq!(eur_usd(PriceAt::Latest { now: day("2024-06-01") }), r(2, 1), "a direct latest price may lie in the future");
+        assert_eq!(
+            eur_usd(PriceAt::Nearest(day("2024-01-01"))),
+            r(11, 10),
+            "nearest looks forward when nothing is before"
+        );
+        assert_eq!(
+            eur_usd(PriceAt::Latest { now: day("2024-06-01") }),
+            r(2, 1),
+            "a direct latest price may lie in the future"
+        );
     }
 
     #[test]
@@ -334,8 +378,16 @@ mod tests {
             (5, "EUR", "JPY", "2024-01-18", 160, 1),
         ]);
         let ids = |ps: Vec<&Price>| ps.iter().map(|p| p.guid.to_string()[..2].to_owned()).collect::<Vec<_>>();
-        assert_eq!(ids(latest_before_any_currency(&b, &cur("EUR"), day("2024-01-19"))), ["05", "03"], "USD: the newer of both directions");
-        assert_eq!(ids(nearest_any_currency(&b, &cur("EUR"), day("2024-01-19"))), ["04", "02", "05"], "GBP only after; USD nearer after");
+        assert_eq!(
+            ids(latest_before_any_currency(&b, &cur("EUR"), day("2024-01-19"))),
+            ["05", "03"],
+            "USD: the newer of both directions"
+        );
+        assert_eq!(
+            ids(nearest_any_currency(&b, &cur("EUR"), day("2024-01-19"))),
+            ["04", "02", "05"],
+            "GBP only after; USD nearer after"
+        );
         let at_a_price = nearest_any_currency(&b, &cur("EUR"), day("2024-01-18"));
         assert_eq!(ids(at_a_price), ["04", "02", "05", "05"], "a price at the time is listed twice");
     }
@@ -348,7 +400,10 @@ mod tests {
         assert!(convert(r(100, 100)).same_repr(r(12, 100)), "0.125 rounds to even");
         assert!(convert(r(300, 100)).same_repr(r(38, 100)), "0.375 rounds to even");
         assert!(convert(r(0, 1000)).same_repr(r(0, 1000)), "zero comes back unchanged");
-        assert!(convert_balance(&b, r(1, 1), &cur("EUR"), &cur("JPY"), at).unwrap().is_zero(), "no price");
+        assert!(
+            convert_balance(&b, r(1, 1), &cur("EUR"), &cur("JPY"), at).unwrap().is_zero(),
+            "no price"
+        );
     }
 
     proptest! {

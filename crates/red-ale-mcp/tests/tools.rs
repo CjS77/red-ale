@@ -31,15 +31,24 @@ impl Client {
         let server = McpServer::new(Arc::new(Mutex::new(dispatcher)));
         tokio::spawn(server.serve(server_in, server_out));
         let (reader, writer) = tokio::io::split(ours);
-        let mut client = Self { lines: BufReader::new(reader).lines(), writer, next_id: 0 };
+        let mut client = Self {
+            lines: BufReader::new(reader).lines(),
+            writer,
+            next_id: 0,
+        };
         let init = client
-            .request("initialize", json!({ "protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": { "name": "test", "version": "0" } }))
+            .request(
+                "initialize",
+                json!({ "protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": { "name": "test", "version": "0" } }),
+            )
             .await;
         assert_eq!(init["result"]["protocolVersion"], "2025-11-25", "{init}");
         assert_eq!(init["result"]["serverInfo"]["name"], "red-ale");
         let capabilities = init["result"]["capabilities"].as_object().unwrap();
         assert_eq!(capabilities.keys().collect::<Vec<_>>(), ["tools"], "tools only");
-        client.send(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" })).await;
+        client
+            .send(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }))
+            .await;
         client
     }
 
@@ -52,7 +61,8 @@ impl Client {
     async fn request(&mut self, method: &str, params: Value) -> Value {
         self.next_id += 1;
         let id = self.next_id;
-        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params })).await;
+        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }))
+            .await;
         loop {
             let line = self.lines.next_line().await.unwrap().expect("the server closed the connection");
             let message: Value = serde_json::from_str(&line).unwrap();
@@ -76,7 +86,16 @@ fn defs(schema: &Value) -> &Map<String, Value> {
 /// Every `$ref` in `schema`.
 fn refs(schema: &Value) -> Vec<String> {
     match schema {
-        Value::Object(map) => map.iter().flat_map(|(k, v)| if k == "$ref" { vec![v.as_str().unwrap().to_owned()] } else { refs(v) }).collect(),
+        Value::Object(map) => map
+            .iter()
+            .flat_map(|(k, v)| {
+                if k == "$ref" {
+                    vec![v.as_str().unwrap().to_owned()]
+                } else {
+                    refs(v)
+                }
+            })
+            .collect(),
         Value::Array(items) => items.iter().flat_map(refs).collect(),
         _ => Vec::new(),
     }
@@ -90,9 +109,15 @@ fn assert_same_params(name: &str, tool_schema: &Value, params: &Value, document:
     let mut own = tool_schema.as_object().unwrap().clone();
     let own_defs = own.remove("$defs").unwrap_or_else(|| json!({}));
     assert_eq!(Value::Object(own), defs(document)[root], "{name}: the params definition");
-    own_defs.as_object().unwrap().iter().for_each(|(def, schema)| assert_eq!(schema, &defs(document)[def], "{name}: $defs.{def}"));
+    own_defs
+        .as_object()
+        .unwrap()
+        .iter()
+        .for_each(|(def, schema)| assert_eq!(schema, &defs(document)[def], "{name}: $defs.{def}"));
     refs(tool_schema).iter().for_each(|r| {
-        let def = r.strip_prefix("#/$defs/").unwrap_or_else(|| panic!("{name}: {r} points outside the schema"));
+        let def = r
+            .strip_prefix("#/$defs/")
+            .unwrap_or_else(|| panic!("{name}: {r} points outside the schema"));
         assert!(own_defs.get(def).is_some(), "{name}: {r} does not resolve inside the tool's schema");
     });
 }
@@ -135,11 +160,23 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     assert_eq!(tool("report.deleteStyleSheet")["annotations"], expected_hints("destructive"));
     assert_eq!(tool("report.export")["annotations"], expected_hints("read"));
     // The hints milestone 3 names for the methods v0.3 adds.
-    ["import.apply", "importMap.delete"].iter().for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("destructive"), "{name}"));
-    ["import.preview", "export.csvTree", "export.csvTransactions", "export.accounts", "config.get", "config.schema", "price.fetchStatus"]
+    ["import.apply", "importMap.delete"]
         .iter()
-        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
-    ["config.set", "price.fetchQuotes"].iter().for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("destructive"), "{name}"));
+    [
+        "import.preview",
+        "export.csvTree",
+        "export.csvTransactions",
+        "export.accounts",
+        "config.get",
+        "config.schema",
+        "price.fetchStatus",
+    ]
+    .iter()
+    .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
+    ["config.set", "price.fetchQuotes"]
+        .iter()
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
     let schema_tool = tool("api.schema");
     assert_eq!(schema_tool["annotations"], expected_hints("read"));
     assert_eq!(schema_tool["inputSchema"]["type"], "object");
@@ -159,7 +196,9 @@ async fn an_agent_creates_a_book_adds_an_account_and_saves() {
     let text: Value = serde_json::from_str(created["content"][0]["text"].as_str().unwrap()).unwrap();
     assert_eq!(text, created["structuredContent"], "the text block holds the same JSON");
 
-    let account = client.call("account.create", json!({ "name": "Assets", "type": "ASSET", "commodity": "USD" })).await;
+    let account = client
+        .call("account.create", json!({ "name": "Assets", "type": "ASSET", "commodity": "USD" }))
+        .await;
     assert_eq!(account["isError"], false, "{account}");
     assert_eq!(account["structuredContent"]["fullName"], "Assets");
 
@@ -168,10 +207,16 @@ async fn an_agent_creates_a_book_adds_an_account_and_saves() {
     let mut reader = red_ale_testkit::dispatcher();
     red_ale_testkit::call(&mut reader, "book.open", &json!({ "path": book.path_str(), "readOnly": true }));
     let accounts = red_ale_testkit::call(&mut reader, "account.list", &json!({}));
-    assert!(accounts.to_string().contains("\"fullName\":\"Assets\""), "the saved file holds the account: {accounts}");
+    assert!(
+        accounts.to_string().contains("\"fullName\":\"Assets\""),
+        "the saved file holds the account: {accounts}"
+    );
 
     let info = client.request("tools/call", json!({ "name": "book.info" })).await;
-    assert_eq!(info["result"]["structuredContent"]["dirty"], false, "absent arguments read as no params: {info}");
+    assert_eq!(
+        info["result"]["structuredContent"]["dirty"], false,
+        "absent arguments read as no params: {info}"
+    );
 }
 
 #[tokio::test]
@@ -186,10 +231,15 @@ async fn errors_are_tool_results_with_red_ales_error_object() {
     assert_eq!(text, no_book["structuredContent"]);
 
     let typo = client.call("book.create", json!({ "path": "x.gnucash", "compresed": false })).await;
-    assert_eq!(typo["isError"], true, "invalid params are shown to the model, which can correct them");
+    assert_eq!(
+        typo["isError"], true,
+        "invalid params are shown to the model, which can correct them"
+    );
     assert_eq!(typo["structuredContent"]["error"]["name"], "invalid-params");
 
-    let unknown = client.request("tools/call", json!({ "name": "no.such.tool", "arguments": {} })).await;
+    let unknown = client
+        .request("tools/call", json!({ "name": "no.such.tool", "arguments": {} }))
+        .await;
     assert_eq!(unknown["error"]["code"], -32602, "an unknown tool is a protocol error: {unknown}");
 }
 
@@ -198,7 +248,12 @@ async fn errors_are_tool_results_with_red_ales_error_object() {
 #[tokio::test]
 async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
     let mut dispatcher = red_ale_testkit::dispatcher();
-    dispatcher.call("config.set", json!({ "changes": { "quotes.services.alphavantage.key": "SECRET-AV" } })).unwrap();
+    dispatcher
+        .call(
+            "config.set",
+            json!({ "changes": { "quotes.services.alphavantage.key": "SECRET-AV" } }),
+        )
+        .unwrap();
     let mut client = Client::start_with(dispatcher).await;
     let refused = |result: &Value| {
         assert_eq!(result["isError"], true, "{result}");
@@ -207,13 +262,31 @@ async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
     };
 
     let network = client.call("config.set", json!({ "changes": { "quotes.network": true } })).await;
-    assert_eq!(refused(&network), json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"] }));
-    let key = client.call("config.set", json!({ "changes": { "quotes.services.finnhub.key": "MINE", "locale": "environment" } })).await;
+    assert_eq!(
+        refused(&network),
+        json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"] })
+    );
+    let key = client
+        .call(
+            "config.set",
+            json!({ "changes": { "quotes.services.finnhub.key": "MINE", "locale": "environment" } }),
+        )
+        .await;
     assert_eq!(refused(&key)["paths"], json!(["quotes.services.finnhub.key"]));
-    let clear = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage.key": null } })).await;
-    assert_eq!(refused(&clear)["paths"], json!(["quotes.services.alphavantage.key"]), "clearing a key is a change too");
+    let clear = client
+        .call("config.set", json!({ "changes": { "quotes.services.alphavantage.key": null } }))
+        .await;
+    assert_eq!(
+        refused(&clear)["paths"],
+        json!(["quotes.services.alphavantage.key"]),
+        "clearing a key is a change too"
+    );
     let whole = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage": { "securityUrl": "https://www.alphavantage.co/x", "format": "alphavantage" } } })).await;
-    assert_eq!(refused(&whole)["paths"], json!(["quotes.services.alphavantage.key"]), "replacing a service drops its key");
+    assert_eq!(
+        refused(&whole)["paths"],
+        json!(["quotes.services.alphavantage.key"]),
+        "replacing a service drops its key"
+    );
 
     let got = client.call("config.get", json!({})).await;
     let value = &got["structuredContent"]["value"];
@@ -222,12 +295,27 @@ async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
     assert_eq!(value["quotes"]["services"]["alphavantage"]["key"], json!({ "set": true }));
     assert!(!got.to_string().contains("SECRET-AV"), "no key in any result");
 
-    let moved = client.call("config.set", json!({ "changes": { "quotes.services.alphavantage.securityUrl": "https://evil.example/q?k={key}" } })).await;
+    let moved = client
+        .call(
+            "config.set",
+            json!({ "changes": { "quotes.services.alphavantage.securityUrl": "https://evil.example/q?k={key}" } }),
+        )
+        .await;
     assert_eq!(moved["isError"], false, "{moved}");
-    assert_eq!(moved["structuredContent"]["clearedKeys"], json!(["quotes.services.alphavantage.key"]));
-    let key = client.call("config.get", json!({ "path": "quotes.services.alphavantage.key" })).await;
+    assert_eq!(
+        moved["structuredContent"]["clearedKeys"],
+        json!(["quotes.services.alphavantage.key"])
+    );
+    let key = client
+        .call("config.get", json!({ "path": "quotes.services.alphavantage.key" }))
+        .await;
     assert_eq!(key["structuredContent"]["value"], json!({ "set": false }));
-    let ok = client.call("config.set", json!({ "changes": { "quotes.network": false, "import.settings.useBayes": false } })).await;
+    let ok = client
+        .call(
+            "config.set",
+            json!({ "changes": { "quotes.network": false, "import.settings.useBayes": false } }),
+        )
+        .await;
     assert_eq!(ok["isError"], false, "setting the switch to what it is changes nothing: {ok}");
 }
 
@@ -241,7 +329,12 @@ async fn an_agent_imports_accounts_and_prices_from_csv() {
     let accounts = "\"Type\",\"Full Account Name\",\"Account Name\",\"Account Code\",\"Description\",\"Account Color\",\"Notes\",\
                     \"Symbol\",\"Namespace\",\"Hidden\",\"Tax Info\",\"Placeholder\"\n\
                     ASSET,Assets,Assets,,,,,USD,CURRENCY,F,F,T\nBANK,Assets:Checking,Checking,100,,,,USD,CURRENCY,F,F,F\n";
-    let preview = client.call("import.preview", json!({ "format": "csvAccounts", "files": [{ "text": accounts }] })).await;
+    let preview = client
+        .call(
+            "import.preview",
+            json!({ "format": "csvAccounts", "files": [{ "text": accounts }] }),
+        )
+        .await;
     assert_eq!(preview["isError"], false, "{preview}");
     let proposal = &preview["structuredContent"];
     assert_eq!(proposal["accounts"].as_array().map(Vec::len), Some(2), "{proposal}");
@@ -252,11 +345,20 @@ async fn an_agent_imports_accounts_and_prices_from_csv() {
     assert_eq!(client.call("commodity.create", commodity).await["isError"], false);
     let layout = json!({ "fromCommodity": "NASDAQ::ACME", "toCurrency": "USD", "columns": ["Date", "Amount"] });
     let prices = "2024-03-01,10.5\n2024-03-04,10.75\n";
-    let preview = client.call("import.preview", json!({ "format": "csvPrices", "files": [{ "text": prices }], "layout": layout })).await;
+    let preview = client
+        .call(
+            "import.preview",
+            json!({ "format": "csvPrices", "files": [{ "text": prices }], "layout": layout }),
+        )
+        .await;
     assert_eq!(preview["isError"], false, "{preview}");
     let proposal = &preview["structuredContent"];
     assert_eq!(proposal["prices"].as_array().map(Vec::len), Some(2), "{proposal}");
     let applied = client.call("import.apply", json!({ "proposal": proposal["id"] })).await;
     assert_eq!(applied["isError"], false, "{applied}");
-    assert_eq!(applied["structuredContent"]["prices"]["added"].as_array().map(Vec::len), Some(2), "{applied}");
+    assert_eq!(
+        applied["structuredContent"]["prices"]["added"].as_array().map(Vec::len),
+        Some(2),
+        "{applied}"
+    );
 }

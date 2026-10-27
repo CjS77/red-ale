@@ -16,7 +16,11 @@ pub(super) fn stylesheet(look: &Look) -> String {
     let c = &look.colors;
     let f = &look.fonts;
     let neg = if look.negative_red { "color:#c0392b;" } else { "" };
-    let cell_border = if look.border == "0px" { "none".to_owned() } else { "1px solid #d0d7de".to_owned() };
+    let cell_border = if look.border == "0px" {
+        "none".to_owned()
+    } else {
+        "1px solid #d0d7de".to_owned()
+    };
     let rules = [
         Some(":root{color-scheme:light}".to_owned()),
         Some(format!(
@@ -44,14 +48,23 @@ pub(super) fn stylesheet(look: &Look) -> String {
             if look.border == "0px" { "border-style:none;" } else { "" }
         )),
         Some("table.report-table caption{text-align:left;font-weight:600;padding:0 0 6px}".to_owned()),
-        Some(format!("table.report-table td,table.report-table th{{padding:{};border:{cell_border};vertical-align:top}}", look.padding)),
-        Some(format!("th{{font-weight:600;border-bottom:1px solid #8c959f !important;{}}}", f.number_header)),
+        Some(format!(
+            "table.report-table td,table.report-table th{{padding:{};border:{cell_border};vertical-align:top}}",
+            look.padding
+        )),
+        Some(format!(
+            "th{{font-weight:600;border-bottom:1px solid #8c959f !important;{}}}",
+            f.number_header
+        )),
         Some(
             "th.column-heading-left{text-align:left}th.column-heading-center{text-align:center}\
              th.column-heading-right{text-align:right}"
                 .to_owned(),
         ),
-        Some(format!("td.text-cell{{{}}}td.label-cell{{padding-left:calc({} + var(--depth,0) * 1.25em)}}", f.text_cell, look.padding)),
+        Some(format!(
+            "td.text-cell{{{}}}td.label-cell{{padding-left:calc({} + var(--depth,0) * 1.25em)}}",
+            f.text_cell, look.padding
+        )),
         Some(format!(
             "td.number-cell,td.total-number-cell{{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}}\
              td.number-cell{{{}}}td.total-number-cell{{{}}}td.total-label-cell{{{}}}td.centered-label-cell{{text-align:center;{}}}",
@@ -63,7 +76,11 @@ pub(super) fn stylesheet(look: &Look) -> String {
                 .to_owned(),
         ),
         Some(format!(".neg{{{neg}}}")),
-        Some(format!(".link{{{}{}}}", c.link.as_deref().map(|l| format!("color:{l};")).unwrap_or_default(), f.account_link)),
+        Some(format!(
+            ".link{{{}{}}}",
+            c.link.as_deref().map(|l| format!("color:{l};")).unwrap_or_default(),
+            f.account_link
+        )),
         Some(
             "tr.role-heading td{font-weight:600}tr.role-spacer td{height:.8em}\
              tr.role-rule hr{border:0;border-top:1px solid #8c959f;margin:0}"

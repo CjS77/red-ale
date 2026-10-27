@@ -31,7 +31,9 @@ fn leading_number(s: &str) -> Option<(u64, &str)> {
     if digits == 0 {
         return None;
     }
-    let n = body[..digits].bytes().fold(0_u64, |acc, d| acc.saturating_mul(10).saturating_add(u64::from(d - b'0')));
+    let n = body[..digits]
+        .bytes()
+        .fold(0_u64, |acc, d| acc.saturating_mul(10).saturating_add(u64::from(d - b'0')));
     let n = if negative { n.wrapping_neg() } else { n };
     (n != 0).then(|| (n, &body[digits..]))
 }

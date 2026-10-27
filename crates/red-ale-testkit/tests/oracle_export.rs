@@ -20,8 +20,17 @@ fn gnucash(script: &str, args: &[&str]) -> Value {
 /// The commodities GnuCash lists for a book with no transactions or prices: every security, and the currencies its
 /// accounts use (`oracle/dump.py` lists only the currencies something uses).
 fn commodities_of_the_tree(dump: &Value) -> Vec<Value> {
-    let used: BTreeSet<&str> = dump["accounts"].as_array().unwrap().iter().filter_map(|a| a["commodity"].as_str()).collect();
-    let keep = |c: &&Value| c["id"].as_str().is_some_and(|id| !id.starts_with("CURRENCY::") || used.contains(id));
+    let used: BTreeSet<&str> = dump["accounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a["commodity"].as_str())
+        .collect();
+    let keep = |c: &&Value| {
+        c["id"]
+            .as_str()
+            .is_some_and(|id| !id.starts_with("CURRENCY::") || used.contains(id))
+    };
     dump["commodities"].as_array().unwrap().iter().filter(keep).cloned().collect()
 }
 
@@ -34,14 +43,28 @@ fn exported_tree_matches(fixture: &str) {
     assert_eq!(call(&mut d, "book.info", &json!({}))["dirty"], false);
     call(&mut d, "book.close", &json!({}));
 
-    assert_eq!(gnucash("opened.py", &[&path]), json!({ "unknownFeatures": null, "logged": [] }), "{fixture}");
+    assert_eq!(
+        gnucash("opened.py", &[&path]),
+        json!({ "unknownFeatures": null, "logged": [] }),
+        "{fixture}"
+    );
     let source = oracle::dump(&book.path).unwrap();
     let exported = oracle::dump(std::path::Path::new(&path)).unwrap();
     let differences = diff(&source["accounts"], &exported["accounts"], &["*.balance"]);
     assert!(differences.is_empty(), "{fixture}: accounts differ:\n{}", differences.join("\n"));
-    assert_eq!(commodities_of_the_tree(&source), exported["commodities"].as_array().unwrap().clone(), "{fixture}");
-    ["transactions", "prices", "lots"].iter().for_each(|k| assert_eq!(exported[*k], json!([]), "{fixture}: {k}"));
-    assert_eq!(written["accounts"].as_u64().unwrap(), 1 + source["accounts"].as_array().unwrap().len() as u64, "the root is written too");
+    assert_eq!(
+        commodities_of_the_tree(&source),
+        exported["commodities"].as_array().unwrap().clone(),
+        "{fixture}"
+    );
+    ["transactions", "prices", "lots"]
+        .iter()
+        .for_each(|k| assert_eq!(exported[*k], json!([]), "{fixture}: {k}"));
+    assert_eq!(
+        written["accounts"].as_u64().unwrap(),
+        1 + source["accounts"].as_array().unwrap().len() as u64,
+        "the root is written too"
+    );
 }
 
 #[test]

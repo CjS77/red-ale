@@ -129,7 +129,10 @@ enum BaseAccountJson {
 impl From<BaseAccountJson> for BaseAccount {
     fn from(json: BaseAccountJson) -> Self {
         match json {
-            BaseAccountJson::Name(name) => Self { guid: None, full_name: Some(name) },
+            BaseAccountJson::Name(name) => Self {
+                guid: None,
+                full_name: Some(name),
+            },
             BaseAccountJson::Full { guid, full_name } => Self { guid, full_name },
         }
     }
@@ -138,7 +141,10 @@ impl From<BaseAccountJson> for BaseAccount {
 impl From<BaseAccount> for BaseAccountJson {
     fn from(account: BaseAccount) -> Self {
         match account {
-            BaseAccount { guid: None, full_name: Some(name) } => Self::Name(name),
+            BaseAccount {
+                guid: None,
+                full_name: Some(name),
+            } => Self::Name(name),
             BaseAccount { guid, full_name } => Self::Full { guid, full_name },
         }
     }
@@ -164,7 +170,11 @@ impl TxLayout {
     /// GnuCash's built-in presets with their names, in the order the assistant lists them
     /// (`get_import_presets_trans`, `gnc-imp-settings-csv-tx.cpp:171-174`).
     pub fn presets() -> Vec<(&'static str, Self)> {
-        vec![(NO_SETTINGS, Self::default()), (GNUCASH_EXPORT, Self::gnucash_export()), (GNUCASH_EXPORT_4, Self::gnucash_export_4())]
+        vec![
+            (NO_SETTINGS, Self::default()),
+            (GNUCASH_EXPORT, Self::gnucash_export()),
+            (GNUCASH_EXPORT_4, Self::gnucash_export_4()),
+        ]
     }
 
     /// The built-in preset of this name.
@@ -176,12 +186,28 @@ impl TxLayout {
     /// As in GnuCash, the date and currency formats are left at their defaults (`:74-79`).
     pub fn gnucash_export() -> Self {
         use ColumnType::{
-            Account, Action, Amount, Commodity, Date, Description, Memo, None, Notes, Num, Price, RecDate, RecState,
-            UniqueId, Value, VoidReason,
+            Account, Action, Amount, Commodity, Date, Description, Memo, None, Notes, Num, Price, RecDate, RecState, UniqueId, Value,
+            VoidReason,
         };
         Self::export_preset(vec![
-            Date, UniqueId, Num, Description, Notes, Commodity, VoidReason, Action, Memo, Account, None, None, Amount,
-            None, Value, RecState, RecDate, Price,
+            Date,
+            UniqueId,
+            Num,
+            Description,
+            Notes,
+            Commodity,
+            VoidReason,
+            Action,
+            Memo,
+            Account,
+            None,
+            None,
+            Amount,
+            None,
+            Value,
+            RecState,
+            RecDate,
+            Price,
         ])
     }
 
@@ -189,17 +215,38 @@ impl TxLayout {
     /// `gnc-imp-settings-csv-tx.cpp:103-135`).
     pub fn gnucash_export_4() -> Self {
         use ColumnType::{
-            Account, Action, Amount, Commodity, Date, Description, Memo, None, Notes, Num, Price, RecDate, RecState,
-            UniqueId, VoidReason,
+            Account, Action, Amount, Commodity, Date, Description, Memo, None, Notes, Num, Price, RecDate, RecState, UniqueId, VoidReason,
         };
         Self::export_preset(vec![
-            Date, UniqueId, Num, Description, Notes, Commodity, VoidReason, Action, Memo, Account, None, None, Amount,
-            RecState, RecDate, Price,
+            Date,
+            UniqueId,
+            Num,
+            Description,
+            Notes,
+            Commodity,
+            VoidReason,
+            Action,
+            Memo,
+            Account,
+            None,
+            None,
+            Amount,
+            RecState,
+            RecDate,
+            Price,
         ])
     }
 
     fn export_preset(columns: Vec<ColumnType>) -> Self {
-        Self { csv: CsvLayout { skip_start_lines: 1, ..CsvLayout::default() }, multi_split: true, base_account: None, columns }
+        Self {
+            csv: CsvLayout {
+                skip_start_lines: 1,
+                ..CsvLayout::default()
+            },
+            multi_split: true,
+            base_account: None,
+            columns,
+        }
     }
 
     /// The layout as GnuCash would load it back: the shared settings sanitized, and column types not allowed in the
@@ -267,8 +314,19 @@ mod tests {
         let json = r#"{ "skipStartLines": 1, "dateFormat": "d-m-y", "toCurrency": "CURRENCY::EUR",
             "columns": ["Date", "From Symbol", "From Namespace", "Amount"] }"#;
         let layout: PriceLayout = serde_json::from_str(json).unwrap();
-        assert_eq!(layout.columns, [PriceColumn::Date, PriceColumn::FromSymbol, PriceColumn::FromNamespace, PriceColumn::Amount]);
-        assert_eq!((layout.to_currency.as_deref(), layout.from_commodity.as_deref()), (Some("CURRENCY::EUR"), None));
+        assert_eq!(
+            layout.columns,
+            [
+                PriceColumn::Date,
+                PriceColumn::FromSymbol,
+                PriceColumn::FromNamespace,
+                PriceColumn::Amount
+            ]
+        );
+        assert_eq!(
+            (layout.to_currency.as_deref(), layout.from_commodity.as_deref()),
+            (Some("CURRENCY::EUR"), None)
+        );
         assert_eq!(layout.csv.skip_start_lines, 1);
         let back: PriceLayout = serde_json::from_value(serde_json::to_value(&layout).unwrap()).unwrap();
         assert_eq!(back, layout);
@@ -309,8 +367,20 @@ mod tests {
         assert_eq!(layout.csv.date_format, DateFormat::Dmy);
         assert_eq!(layout.csv.currency_format, CurrencyFormat::Comma);
         assert_eq!(layout.csv.encoding, "windows-1252");
-        assert_eq!(layout.base_account.as_ref().and_then(|b| b.full_name.as_deref()), Some("Assets:Current Assets:Checking"));
-        assert_eq!(layout.columns, [ColumnType::Date, ColumnType::Description, ColumnType::None, ColumnType::Amount, ColumnType::AmountNeg]);
+        assert_eq!(
+            layout.base_account.as_ref().and_then(|b| b.full_name.as_deref()),
+            Some("Assets:Current Assets:Checking")
+        );
+        assert_eq!(
+            layout.columns,
+            [
+                ColumnType::Date,
+                ColumnType::Description,
+                ColumnType::None,
+                ColumnType::Amount,
+                ColumnType::AmountNeg
+            ]
+        );
         let back: TxLayout = serde_json::from_str(&serde_json::to_string(&layout).unwrap()).unwrap();
         assert_eq!(back, layout);
     }
@@ -323,7 +393,10 @@ mod tests {
         assert_eq!(layout.csv.separators, ",");
         assert_eq!(layout.csv.format, FileFormat::FixedWidth);
         assert_eq!(layout.columns, [ColumnType::Amount, ColumnType::AmountNeg, ColumnType::Num]);
-        assert_eq!(layout.base_account.as_ref().and_then(|b| b.guid.as_deref()), Some("0123456789abcdef0123456789abcdef"));
+        assert_eq!(
+            layout.base_account.as_ref().and_then(|b| b.guid.as_deref()),
+            Some("0123456789abcdef0123456789abcdef")
+        );
         let out = serde_json::to_value(&layout).unwrap();
         assert_eq!(out["columns"], serde_json::json!(["Amount", "Amount (Negated)", "Number"]));
         assert_eq!(out["baseAccount"]["fullName"], "Assets:Bank");
@@ -332,9 +405,16 @@ mod tests {
 
     #[test]
     fn sanitized_drops_blacklisted_columns() {
-        let layout = TxLayout { multi_split: true, columns: vec![ColumnType::TransferAccount], ..TxLayout::default() };
+        let layout = TxLayout {
+            multi_split: true,
+            columns: vec![ColumnType::TransferAccount],
+            ..TxLayout::default()
+        };
         assert_eq!(layout.sanitized().columns, [ColumnType::None]);
-        let layout = TxLayout { columns: vec![ColumnType::UniqueId], ..TxLayout::default() };
+        let layout = TxLayout {
+            columns: vec![ColumnType::UniqueId],
+            ..TxLayout::default()
+        };
         assert_eq!(layout.sanitized().columns, [ColumnType::None]);
     }
 }

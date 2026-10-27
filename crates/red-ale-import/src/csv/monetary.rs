@@ -137,10 +137,24 @@ fn rules(format: CurrencyFormat, locale: &MonetaryLocale) -> NumberRules<'_> {
             negative_sign: locale.negative_sign,
             decimal_point: locale.decimal_point,
             group_separator: locale.group_separator,
-            ignore: if locale.positive_sign.is_empty() { "+" } else { &locale.positive_sign },
+            ignore: if locale.positive_sign.is_empty() {
+                "+"
+            } else {
+                &locale.positive_sign
+            },
         },
-        CurrencyFormat::Period => NumberRules { negative_sign: '-', decimal_point: '.', group_separator: ',', ignore: "$+" },
-        CurrencyFormat::Comma => NumberRules { negative_sign: '-', decimal_point: ',', group_separator: '.', ignore: "$+" },
+        CurrencyFormat::Period => NumberRules {
+            negative_sign: '-',
+            decimal_point: '.',
+            group_separator: ',',
+            ignore: "$+",
+        },
+        CurrencyFormat::Comma => NumberRules {
+            negative_sign: '-',
+            decimal_point: ',',
+            group_separator: '.',
+            ignore: "$+",
+        },
     }
 }
 
@@ -237,10 +251,18 @@ impl Machine {
             State::Numer if uc == rules.decimal_point => State::Frac,
             State::Numer if uc == rules.group_separator => state,
             State::Frac if uc == rules.decimal_point => {
-                if is_glib_space(rules.decimal_point) { State::Done } else { State::NoNum }
+                if is_glib_space(rules.decimal_point) {
+                    State::Done
+                } else {
+                    State::NoNum
+                }
             }
             State::Frac if uc == rules.group_separator => {
-                if is_glib_space(rules.group_separator) { State::Done } else { state }
+                if is_glib_space(rules.group_separator) {
+                    State::Done
+                } else {
+                    state
+                }
             }
             State::Numer | State::Frac if uc == ')' && self.need_paren => {
                 self.need_paren = false;
@@ -278,7 +300,11 @@ impl Machine {
             denom = 10_i64.pow(u32::try_from(digits.len()).ok()?);
             numer = numer.checked_mul(denom)?.checked_add(fraction)?;
         }
-        Some(if self.is_negative { Numeric::new(numer, denom).neg() } else { Numeric::new(numer, denom) })
+        Some(if self.is_negative {
+            Numeric::new(numer, denom).neg()
+        } else {
+            Numeric::new(numer, denom)
+        })
     }
 }
 
@@ -288,7 +314,10 @@ struct Overflow;
 /// `sscanf(s, "%" SCNd64)` on a string of digits: the leading ASCII digits as a number, `None` when there are none.
 fn scan_digits(s: &[u8]) -> Result<Option<i64>, Overflow> {
     let digits = &s[..s.iter().take_while(|b| b.is_ascii_digit()).count()];
-    let value = digits.iter().try_fold(0_i64, |acc, &b| acc.checked_mul(10)?.checked_add(i64::from(b - b'0'))).ok_or(Overflow)?;
+    let value = digits
+        .iter()
+        .try_fold(0_i64, |acc, &b| acc.checked_mul(10)?.checked_add(i64::from(b - b'0')))
+        .ok_or(Overflow)?;
     Ok((!digits.is_empty()).then_some(value))
 }
 
@@ -361,11 +390,19 @@ mod tests {
     #[test]
     fn price_amounts() {
         let price = |text: &str, format: CurrencyFormat| parse_amount_price(text, format, &MonetaryLocale::default());
-        assert_eq!(price("", CurrencyFormat::Period), Err(MonetaryError::NoDigits), "an empty price is an error");
+        assert_eq!(
+            price("", CurrencyFormat::Period),
+            Err(MonetaryError::NoDigits),
+            "an empty price is an error"
+        );
         same(price("$1,234.5678", CurrencyFormat::Period), 12_345_678, 10_000);
         same(price("€ 12,5", CurrencyFormat::Comma), 125, 10);
         same(price("1 000", CurrencyFormat::Period), 1, 1);
-        assert_eq!(price("--5", CurrencyFormat::Period), Err(MonetaryError::Unparsable), "-- is not removed");
+        assert_eq!(
+            price("--5", CurrencyFormat::Period),
+            Err(MonetaryError::Unparsable),
+            "-- is not removed"
+        );
         same(price("-0.5", CurrencyFormat::Period), -5, 10);
         same(price("0", CurrencyFormat::Period), 0, 1);
     }

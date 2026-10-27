@@ -14,19 +14,36 @@ use crate::wire::{Day, NoParams, Timestamp};
 /// The period methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("period.get", "The configured accounting period and fiscal year end.", Effect::Read, get),
-        method("period.set", "Set the accounting period or the fiscal year end in red-ale's configuration.", Effect::Write, set)
-            .on_configuration(),
-        method("period.dates", "The first and last days of the accounting period containing today or a given date.", Effect::Read, dates),
+        method(
+            "period.get",
+            "The configured accounting period and fiscal year end.",
+            Effect::Read,
+            get,
+        ),
+        method(
+            "period.set",
+            "Set the accounting period or the fiscal year end in red-ale's configuration.",
+            Effect::Write,
+            set,
+        )
+        .on_configuration(),
+        method(
+            "period.dates",
+            "The first and last days of the accounting period containing today or a given date.",
+            Effect::Read,
+            dates,
+        ),
     ]
 }
 
 fn bound(s: &str) -> Result<PeriodBound, RpcError> {
-    s.parse().map_err(|e: red_ale_core::DomainError| RpcError::invalid_params(e.to_string()))
+    s.parse()
+        .map_err(|e: red_ale_core::DomainError| RpcError::invalid_params(e.to_string()))
 }
 
 fn fiscal(s: &str) -> Result<FiscalYearEnd, RpcError> {
-    s.parse().map_err(|e: red_ale_core::DomainError| RpcError::invalid_params(e.to_string()))
+    s.parse()
+        .map_err(|e: red_ale_core::DomainError| RpcError::invalid_params(e.to_string()))
 }
 
 /// The accounting period setting.
@@ -62,8 +79,16 @@ impl Current {
 
 fn current(ctx: &mut Context) -> Result<Current, RpcError> {
     let config = ctx.settings.config.load()?;
-    let book_fy = if ctx.has_session() { period::book_fiscal_year_end(ctx.book()?) } else { None };
-    Ok(Current { period: config.accounting_period()?, configured_fy: config.fiscal_year_end()?, book_fy })
+    let book_fy = if ctx.has_session() {
+        period::book_fiscal_year_end(ctx.book()?)
+    } else {
+        None
+    };
+    Ok(Current {
+        period: config.accounting_period()?,
+        configured_fy: config.fiscal_year_end()?,
+        book_fy,
+    })
 }
 
 fn describe(ctx: &Context, c: &Current) -> PeriodInfo {
@@ -162,7 +187,11 @@ pub struct DatesResult {
 
 /// Today in the local time zone, by the session's clock, or the server's without a book.
 fn today(ctx: &mut Context) -> Result<Date, RpcError> {
-    let today = if ctx.has_session() { ctx.query(|_, env| Ok(env.today()))? } else { SystemEnv.today() };
+    let today = if ctx.has_session() {
+        ctx.query(|_, env| Ok(env.today()))?
+    } else {
+        SystemEnv.today()
+    };
     today.ok_or_else(|| RpcError::internal("the clock is out of range"))
 }
 

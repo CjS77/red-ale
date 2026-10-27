@@ -121,7 +121,9 @@ pub enum ServiceError {
         id: String,
     },
     /// The Book has changed since the proposal was made.
-    #[error("the book has changed since import proposal {id} was made (revision {proposal_revision}, now {book_revision}); preview the file again")]
+    #[error(
+        "the book has changed since import proposal {id} was made (revision {proposal_revision}, now {book_revision}); preview the file again"
+    )]
     StaleProposal {
         /// The proposal's ID.
         id: String,

@@ -46,7 +46,11 @@ finally:
     );
     let copy = book.dir.path().join("oracle-copy.gnucash");
     std::fs::copy(&book.path, &copy).unwrap();
-    oracle::run_code(&code, &[copy.to_str().unwrap()]).unwrap().lines().map(str::to_owned).collect()
+    oracle::run_code(&code, &[copy.to_str().unwrap()])
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect()
 }
 
 /// A fraction GnuCash printed, in lowest terms.
@@ -65,9 +69,17 @@ fn documents_and_lines_read_back_in_gnucash_with_its_totals() {
     let jane = guid_of(&mut d, "employee.list", "employees", "000001");
     let job = guid_of(&mut d, "job.list", "jobs", "JOB-1");
 
-    let inv = call(&mut d, "invoice.create", &json!({ "owner": acme, "dateOpened": "2024-06-03", "billingId": "PO-12", "notes": "June" }));
+    let inv = call(
+        &mut d,
+        "invoice.create",
+        &json!({ "owner": acme, "dateOpened": "2024-06-03", "billingId": "PO-12", "notes": "June" }),
+    );
     // Owner defaults: 5 % discount before tax, the customer's GST+Levy (10 % + 2.50), tax excluded.
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": inv["guid"], "date": "2024-06-04", "description": "Design", "action": "Hours", "quantity": "4", "price": "120", "account": "Income" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": inv["guid"], "date": "2024-06-04", "description": "Design", "action": "Hours", "quantity": "4", "price": "120", "account": "Income" }),
+    );
     call(
         &mut d,
         "invoice.addEntry",
@@ -81,19 +93,42 @@ fn documents_and_lines_read_back_in_gnucash_with_its_totals() {
         &json!({ "invoice": bill["guid"], "description": "Paper", "quantity": "3", "price": "19.99", "account": "Expenses", "billable": true, "billTo": job, "taxTable": "GST+Levy" }),
     );
     let voucher = call(&mut d, "invoice.create", &json!({ "owner": jane, "chargeAmount": "5" }));
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": voucher["guid"], "description": "Taxi", "quantity": "1", "price": "25", "account": "Expenses", "payment": "card" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": voucher["guid"], "description": "Taxi", "quantity": "1", "price": "25", "account": "Expenses", "payment": "card" }),
+    );
     let job_inv = call(&mut d, "invoice.create", &json!({ "owner": job }));
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": job_inv["guid"], "description": "Build", "quantity": "2", "account": "Income" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": job_inv["guid"], "description": "Build", "quantity": "2", "account": "Income" }),
+    );
     let gone = call(&mut d, "invoice.create", &json!({ "owner": acme }));
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": gone["guid"], "description": "Gone", "account": "Income" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": gone["guid"], "description": "Gone", "account": "Income" }),
+    );
     call(&mut d, "invoice.delete", &json!({ "invoice": gone["guid"] }));
     let posted = call(&mut d, "invoice.list", &json!({ "type": "invoice", "posted": true }))["invoices"][0]["guid"].clone();
     call(&mut d, "invoice.update", &json!({ "invoice": posted, "active": false }));
     let order = call(&mut d, "order.create", &json!({ "owner": acme, "reference": "R-1" }));
-    call(&mut d, "order.addEntry", &json!({ "order": order["guid"], "description": "Ordered", "quantity": "10", "price": "3", "account": "Income" }));
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": job_inv["guid"], "order": order["guid"], "description": "Shipped", "account": "Income" }));
+    call(
+        &mut d,
+        "order.addEntry",
+        &json!({ "order": order["guid"], "description": "Ordered", "quantity": "10", "price": "3", "account": "Income" }),
+    );
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": job_inv["guid"], "order": order["guid"], "description": "Shipped", "account": "Income" }),
+    );
     call(&mut d, "order.close", &json!({ "order": order["guid"] }));
-    let ids: Vec<String> = [&inv, &bill, &voucher, &job_inv].iter().map(|x| x["id"].as_str().unwrap().to_owned()).collect();
+    let ids: Vec<String> = [&inv, &bill, &voucher, &job_inv]
+        .iter()
+        .map(|x| x["id"].as_str().unwrap().to_owned())
+        .collect();
     assert_eq!(ids, ["000003", "000002", "000002", "000004"]);
 
     let diffs = oracle_check(&mut d, &book, &[]);
@@ -121,15 +156,30 @@ fn a_new_book_holds_documents_gnucash_can_read() {
     let mickey = guid_of(&mut d, "customer.list", "customers", "123456");
     let looney = guid_of(&mut d, "vendor.list", "vendors", "000001");
     let inv = call(&mut d, "invoice.create", &json!({ "owner": mickey }));
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": inv["guid"], "description": "Hat", "quantity": "2", "price": "35.99", "account": "Income:Other Income" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": inv["guid"], "description": "Hat", "quantity": "2", "price": "35.99", "account": "Income:Other Income" }),
+    );
     let bill = call(&mut d, "invoice.create", &json!({ "owner": looney }));
     assert_eq!(bill["currency"], "CURRENCY::USD", "the vendor's currency");
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": bill["guid"], "description": "Ink", "quantity": "1", "price": "12", "account": "Expenses:Supplies" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": bill["guid"], "description": "Ink", "quantity": "1", "price": "12", "account": "Expenses:Supplies" }),
+    );
     let order = call(&mut d, "order.create", &json!({ "owner": looney }));
-    call(&mut d, "order.addEntry", &json!({ "order": order["guid"], "description": "Pens", "quantity": "5" }));
+    call(
+        &mut d,
+        "order.addEntry",
+        &json!({ "order": order["guid"], "description": "Pens", "quantity": "5" }),
+    );
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
-    let out = gnucash(&book, "    print(frac(find(book, \"gncInvoice\", Invoice, \"000002\").GetTotal()))\n");
+    let out = gnucash(
+        &book,
+        "    print(frac(find(book, \"gncInvoice\", Invoice, \"000002\").GetTotal()))\n",
+    );
     assert_eq!(value(&out[0]), (3599, 50), "71.98");
 }
 
@@ -141,14 +191,33 @@ fn credit_notes_made_by_red_ale_read_back_in_gnucash() {
     let (book, mut d) = open("piecash/invoices.gnucash");
     let mickey = guid_of(&mut d, "customer.list", "customers", "123456");
     let looney = guid_of(&mut d, "vendor.list", "vendors", "000001");
-    call(&mut d, "account.create", &json!({ "name": "Receivable", "type": "RECEIVABLE", "parent": "Assets", "commodity": "CURRENCY::EUR" }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Receivable", "type": "RECEIVABLE", "parent": "Assets", "commodity": "CURRENCY::EUR" }),
+    );
     let cn = call(&mut d, "invoice.create", &json!({ "owner": mickey, "creditNote": true }));
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": cn["guid"], "description": "Returned hat", "quantity": "1", "price": "35.99", "account": "Income:Other Income" }));
-    call(&mut d, "invoice.post", &json!({ "invoice": cn["guid"], "account": "Assets:Receivable", "postDate": "2024-03-10" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": cn["guid"], "description": "Returned hat", "quantity": "1", "price": "35.99", "account": "Income:Other Income" }),
+    );
+    call(
+        &mut d,
+        "invoice.post",
+        &json!({ "invoice": cn["guid"], "account": "Assets:Receivable", "postDate": "2024-03-10" }),
+    );
     let vcn = call(&mut d, "invoice.create", &json!({ "owner": looney, "creditNote": true }));
-    call(&mut d, "invoice.addEntry", &json!({ "invoice": vcn["guid"], "description": "Ink refund", "quantity": "1", "price": "12", "account": "Expenses:Supplies" }));
+    call(
+        &mut d,
+        "invoice.addEntry",
+        &json!({ "invoice": vcn["guid"], "description": "Ink refund", "quantity": "1", "price": "12", "account": "Expenses:Supplies" }),
+    );
     // Invoices and bills have separate counters, so a document is found by its ID and its owner's.
-    let docs = [(cn["id"].as_str().unwrap().to_owned(), "123456"), (vcn["id"].as_str().unwrap().to_owned(), "000001")];
+    let docs = [
+        (cn["id"].as_str().unwrap().to_owned(), "123456"),
+        (vcn["id"].as_str().unwrap().to_owned(), "000001"),
+    ];
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     let body = docs
@@ -164,12 +233,22 @@ fn credit_notes_made_by_red_ale_read_back_in_gnucash() {
             (f[0], f[1], value(f[2]), f[3])
         })
         .collect();
-    assert_eq!(read, [("True", "Credit Note", (3599, 100), "True"), ("True", "Credit Note", (12, 1), "False")], "{out:?}");
+    assert_eq!(
+        read,
+        [
+            ("True", "Credit Note", (3599, 100), "True"),
+            ("True", "Credit Note", (12, 1), "False")
+        ],
+        "{out:?}"
+    );
     let path = book.path_str();
     let script = |name: &str, args: &[&str]| -> Value {
         serde_json::from_str(&oracle::run_script(&oracle::scripts_dir().join(name), args).unwrap_or_else(|e| panic!("{e}"))).unwrap()
     };
     assert_eq!(script("opened.py", &[&path]), json!({ "unknownFeatures": null, "logged": [] }));
     let features = script("book_options.py", &["slots", &path])["features"].clone();
-    assert!(features.get("Credit Notes").is_some(), "the book declares the Credit Notes feature: {features}");
+    assert!(
+        features.get("Credit Notes").is_some(),
+        "the book declares the Credit Notes feature: {features}"
+    );
 }

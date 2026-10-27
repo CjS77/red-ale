@@ -143,8 +143,10 @@ fn normalize(dump: &Value) -> Value {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|s| json!({ "account": name(&s["account"]), "memo": s["memo"], "action": s["action"], "value": s["value"],
-                                 "amount": s["amount"], "reconcile": s["reconcile"] }))
+                .map(|s| {
+                    json!({ "account": name(&s["account"]), "memo": s["memo"], "action": s["action"], "value": s["value"],
+                                 "amount": s["amount"], "reconcile": s["reconcile"] })
+                })
                 .collect();
             splits.sort_by_key(ToString::to_string);
             json!({ "currency": t["currency"], "datePosted": t["datePosted"], "description": t["description"], "splits": splits })
@@ -155,8 +157,10 @@ fn normalize(dump: &Value) -> Value {
         .as_array()
         .unwrap()
         .iter()
-        .map(|a| json!({ "name": name(&a["guid"]), "type": a["type"], "commodity": a["commodity"], "scu": a["scu"],
-                         "description": a["description"], "placeholder": a["placeholder"], "balance": a["balance"] }))
+        .map(|a| {
+            json!({ "name": name(&a["guid"]), "type": a["type"], "commodity": a["commodity"], "scu": a["scu"],
+                         "description": a["description"], "placeholder": a["placeholder"], "balance": a["balance"] })
+        })
         .collect();
     accounts.sort_by_key(ToString::to_string);
     json!({ "accounts": accounts, "transactions": txns })
@@ -170,21 +174,61 @@ fn copy_to(src: &Path) -> TempBook {
 }
 
 fn post(d: &mut Dispatcher, date: &str, currency: &str, splits: &Value) {
-    call(d, "transaction.post", &json!({ "currency": currency, "datePosted": date, "description": "trade", "splits": splits }));
+    call(
+        d,
+        "transaction.post",
+        &json!({ "currency": currency, "datePosted": date, "description": "trade", "splits": splits }),
+    );
 }
 
 /// The rich fixture plus a euro income account, a placeholder income account with a balance, and income after the
 /// closing date.
 fn book_to_close() -> (TempBook, Dispatcher) {
     let (book, mut d) = open("synthetic/rich.gnucash");
-    call(&mut d, "account.create", &json!({ "name": "Euro Sales", "type": "INCOME", "parent": "Income", "commodity": "EUR" }));
-    call(&mut d, "account.create", &json!({ "name": "Grants", "type": "INCOME", "parent": "Income" }));
-    call(&mut d, "account.create", &json!({ "name": "Retained", "type": "EQUITY", "parent": "Equity" }));
-    post(&mut d, "2024-03-01", "EUR", &json!([{ "account": "Assets:Euro Bank", "value": "80.00" }, { "account": "Income:Euro Sales", "value": "-80.00" }]));
-    post(&mut d, "2024-04-01", "USD", &json!([{ "account": "Assets:Cash", "value": "12.34" }, { "account": "Income:Grants", "value": "-12.34" }]));
-    post(&mut d, "2024-06-30", "USD", &json!([{ "account": "Expenses:Fees", "value": "1.05" }, { "account": "Assets:Cash", "value": "-1.05" }]));
-    post(&mut d, "2024-07-01", "USD", &json!([{ "account": "Assets:Cash", "value": "500.00" }, { "account": "Income:Salary", "value": "-500.00" }]));
-    call(&mut d, "account.update", &json!({ "account": "Income:Grants", "placeholder": true }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Euro Sales", "type": "INCOME", "parent": "Income", "commodity": "EUR" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Grants", "type": "INCOME", "parent": "Income" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Retained", "type": "EQUITY", "parent": "Equity" }),
+    );
+    post(
+        &mut d,
+        "2024-03-01",
+        "EUR",
+        &json!([{ "account": "Assets:Euro Bank", "value": "80.00" }, { "account": "Income:Euro Sales", "value": "-80.00" }]),
+    );
+    post(
+        &mut d,
+        "2024-04-01",
+        "USD",
+        &json!([{ "account": "Assets:Cash", "value": "12.34" }, { "account": "Income:Grants", "value": "-12.34" }]),
+    );
+    post(
+        &mut d,
+        "2024-06-30",
+        "USD",
+        &json!([{ "account": "Expenses:Fees", "value": "1.05" }, { "account": "Assets:Cash", "value": "-1.05" }]),
+    );
+    post(
+        &mut d,
+        "2024-07-01",
+        "USD",
+        &json!([{ "account": "Assets:Cash", "value": "500.00" }, { "account": "Income:Salary", "value": "-500.00" }]),
+    );
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Income:Grants", "placeholder": true }),
+    );
     call(&mut d, "book.save", &json!({}));
     (book, d)
 }
@@ -193,7 +237,10 @@ fn close_both(income: &str, expense: &str) -> (TempBook, TempBook, Value) {
     let (book, mut d) = book_to_close();
     let theirs = copy_to(&book.path);
     let scripts = oracle::scripts_dir().display().to_string();
-    let code = GNUCASH_CLOSE_BOOK.replace("import gnc_engine as g", &format!("sys.path.insert(0, {scripts:?})\nimport gnc_engine as g"));
+    let code = GNUCASH_CLOSE_BOOK.replace(
+        "import gnc_engine as g",
+        &format!("sys.path.insert(0, {scripts:?})\nimport gnc_engine as g"),
+    );
     oracle::run_code(&code, &[&theirs.path.display().to_string(), DATE, income, expense, DESCRIPTION]).unwrap();
     let result = call(
         &mut d,
@@ -201,13 +248,25 @@ fn close_both(income: &str, expense: &str) -> (TempBook, TempBook, Value) {
         &json!({ "date": DATE, "incomeTotalAccount": income, "expenseTotalAccount": expense, "description": DESCRIPTION }),
     );
     let problems = oracle_check(&mut d, &book, &[]);
-    assert!(problems.is_empty(), "GnuCash reads red-ale's closed book differently:\n{}", problems.join("\n"));
+    assert!(
+        problems.is_empty(),
+        "GnuCash reads red-ale's closed book differently:\n{}",
+        problems.join("\n")
+    );
     (book, theirs, result)
 }
 
 fn compare(book: &TempBook, theirs: &TempBook) {
-    let differences = diff(&normalize(&oracle::dump(&theirs.path).unwrap()), &normalize(&oracle::dump(&book.path).unwrap()), &[]);
-    assert!(differences.is_empty(), "red-ale's closing differs from GnuCash's:\n{}", differences.join("\n"));
+    let differences = diff(
+        &normalize(&oracle::dump(&theirs.path).unwrap()),
+        &normalize(&oracle::dump(&book.path).unwrap()),
+        &[],
+    );
+    assert!(
+        differences.is_empty(),
+        "red-ale's closing differs from GnuCash's:\n{}",
+        differences.join("\n")
+    );
     let closing = |p: &Path| oracle::run_code(CLOSING_TRANSACTIONS, &[&p.display().to_string()]).unwrap();
     let ours = closing(&book.path);
     assert_eq!(ours, closing(&theirs.path));
@@ -228,6 +287,11 @@ fn closing_into_one_equity_account_matches_the_dialog() {
 fn closing_into_separate_accounts_matches_the_dialog() {
     let (book, theirs, result) = close_both("Equity:Retained", "Equity:Opening Balances");
     compare(&book, &theirs);
-    let kinds: Vec<&str> = result["transactions"].as_array().unwrap().iter().map(|t| t["kind"].as_str().unwrap()).collect();
+    let kinds: Vec<&str> = result["transactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["kind"].as_str().unwrap())
+        .collect();
     assert_eq!(kinds, ["income", "income", "expense"]);
 }

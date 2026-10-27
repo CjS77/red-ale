@@ -43,7 +43,9 @@ pub(super) fn read(kind: &OptionKind, default: &OptionValue, json: &Value, ctx: 
         OptionKind::PlotSize => plot_size(json).map(OptionValue::PlotSize),
         OptionKind::Date { ui, relative } => date(json, *ui, relative, ctx).map(OptionValue::Date),
         OptionKind::AccountList { types, multiple } => account_list(json, types, *multiple, default, ctx),
-        OptionKind::AccountSel { types } => string(json).and_then(|s| account(s, types, ctx)).map(|g| OptionValue::Account(Some(g))),
+        OptionKind::AccountSel { types } => string(json)
+            .and_then(|s| account(s, types, ctx))
+            .map(|g| OptionValue::Account(Some(g))),
         OptionKind::Currency => commodity(json, true, ctx).map(OptionValue::Commodity),
         OptionKind::Commodity => commodity(json, false, ctx).map(OptionValue::Commodity),
     }
@@ -94,7 +96,11 @@ pub(super) fn color(json: &Value) -> Read<String> {
     let text = string(json)?;
     let hex = text.strip_prefix('#').unwrap_or(text);
     let valid = matches!(hex.len(), 6 | 8) && hex.bytes().all(|b| b.is_ascii_hexdigit());
-    if valid { Ok(hex.to_ascii_lowercase()) } else { Err(format!("not a colour rrggbb or rrggbbaa: {text:?}")) }
+    if valid {
+        Ok(hex.to_ascii_lowercase())
+    } else {
+        Err(format!("not a colour rrggbb or rrggbbaa: {text:?}"))
+    }
 }
 
 fn choice_key(json: &Value) -> Read<ChoiceKey> {
@@ -117,7 +123,9 @@ fn choice(choices: &[Choice], json: &Value) -> Read<ChoiceKey> {
 
 /// An empty list reads as the default (`5.17:bindings/guile/gnc-optiondb.i:1073-1081`).
 fn list(choices: &[Choice], default: &OptionValue, json: &Value) -> Read<OptionValue> {
-    let items = json.as_array().ok_or_else(|| format!("expected an array of choice keys, got {json}"))?;
+    let items = json
+        .as_array()
+        .ok_or_else(|| format!("expected an array of choice keys, got {json}"))?;
     if items.is_empty() {
         return Ok(default.clone());
     }
@@ -134,13 +142,19 @@ fn list(choices: &[Choice], default: &OptionValue, json: &Value) -> Read<OptionV
 fn number(json: &Value, min: &Rational, max: &Rational) -> Read<Rational> {
     let n = match json {
         Value::String(s) => Rational::parse(s).map_err(|e| e.to_string())?,
-        Value::Number(n) => {
-            n.as_i64().map(Rational::from_int).ok_or_else(|| format!("{json} is not a whole number; send decimals as a string"))?
-        }
+        Value::Number(n) => n
+            .as_i64()
+            .map(Rational::from_int)
+            .ok_or_else(|| format!("{json} is not a whole number; send decimals as a string"))?,
         _ => return Err(format!("expected a number as an integer or a decimal string, got {json}")),
     };
     if n < *min || n > *max {
-        return Err(format!("{} is outside {} to {}", display_rational(&n), display_rational(min), display_rational(max)));
+        return Err(format!(
+            "{} is outside {} to {}",
+            display_rational(&n),
+            display_rational(min),
+            display_rational(max)
+        ));
     }
     Ok(n)
 }
@@ -154,8 +168,15 @@ fn display_rational(n: &Rational) -> String {
 fn plot_size(json: &Value) -> Read<PlotSize> {
     let size = match json {
         Value::Number(n) => {
-            let n = n.as_u64().and_then(|n| u32::try_from(n).ok()).ok_or_else(|| format!("not a plot size: {json}"))?;
-            if n > PLOT_SIZE_PERCENT_MAX { PlotSize::Pixels(n) } else { PlotSize::Percent(n) }
+            let n = n
+                .as_u64()
+                .and_then(|n| u32::try_from(n).ok())
+                .ok_or_else(|| format!("not a plot size: {json}"))?;
+            if n > PLOT_SIZE_PERCENT_MAX {
+                PlotSize::Pixels(n)
+            } else {
+                PlotSize::Percent(n)
+            }
         }
         _ => serde_json::from_value(json.clone())
             .map_err(|_| format!("expected {{\"percent\": n}}, {{\"pixels\": n}} or an integer, got {json}"))?,
@@ -176,11 +197,15 @@ fn date(json: &Value, ui: DateUi, allowed: &[RelativeDate], ctx: &ValueContext<'
     let fields = json.as_object().filter(|o| o.len() == 1).ok_or_else(shape)?;
     match fields.iter().next() {
         Some((k, v)) if k == "absolute" => {
-            (ui != DateUi::Relative).then_some(()).ok_or("this date option takes only relative dates")?;
+            (ui != DateUi::Relative)
+                .then_some(())
+                .ok_or("this date option takes only relative dates")?;
             absolute_date(string(v)?, ctx.zone).map(DateValue::Absolute)
         }
         Some((k, v)) if k == "relative" => {
-            (ui != DateUi::Absolute).then_some(()).ok_or("this date option takes only absolute dates")?;
+            (ui != DateUi::Absolute)
+                .then_some(())
+                .ok_or("this date option takes only absolute dates")?;
             let name = string(v)?;
             let r = parse_relative(name).ok_or_else(|| format!("not a relative date: {name:?}"))?;
             if allowed.is_empty() || allowed.contains(&r) {
@@ -195,8 +220,14 @@ fn date(json: &Value, ui: DateUi, allowed: &[RelativeDate], ctx: &ValueContext<'
 
 fn absolute_date(text: &str, zone: &TimeZone) -> Read<Time64> {
     let t = match Date::parse(text) {
-        Ok(d) => zone.instant(d, 10, 59, 0).ok_or_else(|| format!("{text} is outside the supported range"))?,
-        Err(_) => Timestamp::parse(text).map_err(|_| format!("not a date YYYY-MM-DD or an RFC 3339 timestamp: {text:?}"))?.0,
+        Ok(d) => zone
+            .instant(d, 10, 59, 0)
+            .ok_or_else(|| format!("{text} is outside the supported range"))?,
+        Err(_) => {
+            Timestamp::parse(text)
+                .map_err(|_| format!("not a date YYYY-MM-DD or an RFC 3339 timestamp: {text:?}"))?
+                .0
+        }
     };
     check_time(t).map_err(|()| format!("{text} is outside the supported range"))
 }
@@ -209,14 +240,19 @@ pub(super) fn check_time(t: Time64) -> Result<Time64, ()> {
 /// A non-multiselect option holds at most one account, and every account must be of an allowed type
 /// (`5.17:libgnucash/engine/gnc-option-impl.cpp:384-407`). An empty list reads as the default.
 fn account_list(json: &Value, types: &[AccountType], multiple: bool, default: &OptionValue, ctx: &ValueContext<'_>) -> Read<OptionValue> {
-    let items = json.as_array().ok_or_else(|| format!("expected an array of accounts, got {json}"))?;
+    let items = json
+        .as_array()
+        .ok_or_else(|| format!("expected an array of accounts, got {json}"))?;
     if items.is_empty() {
         return Ok(default.clone());
     }
     if !multiple && items.len() > 1 {
         return Err("this option takes one account".to_owned());
     }
-    let guids = items.iter().map(|item| string(item).and_then(|s| account(s, types, ctx))).collect::<Read<Vec<_>>>()?;
+    let guids = items
+        .iter()
+        .map(|item| string(item).and_then(|s| account(s, types, ctx)))
+        .collect::<Read<Vec<_>>>()?;
     let repeated = guids.iter().enumerate().find(|(i, g)| guids[..*i].contains(g));
     match repeated {
         Some((_, g)) => Err(format!("account {g} is chosen twice")),
@@ -230,12 +266,18 @@ fn account(text: &str, types: &[AccountType], ctx: &ValueContext<'_>) -> Read<Gu
     let Some(book) = ctx.book else {
         return Guid::parse(text).map_err(|_| format!("{text:?} is not a GUID; naming an account by full name needs an open book"));
     };
-    let found = Guid::parse(text).ok().and_then(|g| book.account(g)).or_else(|| book.account_by_full_name(text));
+    let found = Guid::parse(text)
+        .ok()
+        .and_then(|g| book.account(g))
+        .or_else(|| book.account_by_full_name(text));
     let a = found.ok_or_else(|| format!("unknown account {text:?}"))?;
     if types.is_empty() || types.contains(&a.account_type) {
         Ok(a.guid)
     } else {
-        Err(format!("account {text:?} is of type {}, not one this option allows", a.account_type.as_str()))
+        Err(format!(
+            "account {text:?} is of type {}, not one this option allows",
+            a.account_type.as_str()
+        ))
     }
 }
 
@@ -246,7 +288,9 @@ fn commodity(json: &Value, currency: bool, ctx: &ValueContext<'_>) -> Read<Commo
         return Err(format!("{id} is not a currency"));
     }
     match ctx.book {
-        Some(book) => lookup(book, &id).map(|c| c.id.clone()).ok_or_else(|| format!("unknown commodity {id}")),
+        Some(book) => lookup(book, &id)
+            .map(|c| c.id.clone())
+            .ok_or_else(|| format!("unknown commodity {id}")),
         None => Ok(id),
     }
 }

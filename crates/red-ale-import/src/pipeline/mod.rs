@@ -105,7 +105,11 @@ pub struct Warning {
 impl Warning {
     /// A warning about one transaction.
     pub fn about(index: usize, code: &'static str, message: impl Into<String>) -> Self {
-        Self { code, message: message.into(), index: Some(index) }
+        Self {
+            code,
+            message: message.into(),
+            index: Some(index),
+        }
     }
 }
 

@@ -68,8 +68,15 @@ impl Setup {
         let config = json!({ "reports": { "directory": "reports", "reverseBalancedAccounts": "none", "dateFormat": date_format } });
         std::fs::write(dir.path().join("config.json"), config.to_string()).unwrap();
         let book = dir.path().join("book.gnucash");
-        std::fs::copy(format!("{}/../../fixtures/reports/{name}.gnucash", env!("CARGO_MANIFEST_DIR")), &book).unwrap();
-        let mut s = Self { d: dispatcher(&dir.path().join("config.json")), dir };
+        std::fs::copy(
+            format!("{}/../../fixtures/reports/{name}.gnucash", env!("CARGO_MANIFEST_DIR")),
+            &book,
+        )
+        .unwrap();
+        let mut s = Self {
+            d: dispatcher(&dir.path().join("config.json")),
+            dir,
+        };
         s.call("book.open", json!({ "path": book.display().to_string() }));
         s
     }
@@ -80,7 +87,9 @@ impl Setup {
     }
 
     fn call(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     fn run(&mut self, template: &str, options: &Value) -> Value {
@@ -88,7 +97,10 @@ impl Setup {
     }
 
     fn export(&mut self, template: &str, options: &Value) -> String {
-        self.call("report.export", json!({ "report": template, "options": options }))["html"].as_str().unwrap().to_owned()
+        self.call("report.export", json!({ "report": template, "options": options }))["html"]
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
 
     /// The one block of the report's one section.
@@ -100,15 +112,20 @@ impl Setup {
     }
 
     fn files(&self) -> Vec<String> {
-        let mut names: Vec<String> =
-            std::fs::read_dir(self.dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        let mut names: Vec<String> = std::fs::read_dir(self.dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
         names.sort();
         names
     }
 }
 
 fn dispatcher(config: &Path) -> Dispatcher {
-    let settings = Settings { config: ConfigStore::at(PathBuf::from(config)), ..Settings::default() };
+    let settings = Settings {
+        config: ConfigStore::at(PathBuf::from(config)),
+        ..Settings::default()
+    };
     let mut d = Dispatcher::new(settings);
     let made = AtomicU32::new(0);
     d.set_env_factory(Box::new(move || {
@@ -120,7 +137,11 @@ fn dispatcher(config: &Path) -> Dispatcher {
 
 /// Text as the HTML renderer escapes it.
 fn escaped(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 /// A pie as a hand-worked case expects it: the two title lines and each slice's legend label and display.
@@ -142,7 +163,11 @@ fn check_pie(s: &mut Setup, case: &str, template: &str, options: Value, want: &P
     let series = &chart["series"].as_array().unwrap()[0];
     assert_eq!(series["label"], "Accounts", "{case}: AP:528-532");
     assert_eq!(series["displays"], json!(displays), "{case}: slice values");
-    assert_eq!(series["colors"].as_array().unwrap().len(), labels.len(), "{case}: one colour per slice (AP:531)");
+    assert_eq!(
+        series["colors"].as_array().unwrap().len(),
+        labels.len(),
+        "{case}: one colour per slice (AP:531)"
+    );
     let html = s.export(template, &options);
     let shown = want.title.iter().chain(labels.iter()).chain(displays.iter());
     shown.for_each(|text| assert!(html.contains(&escaped(text)), "{case}: the export shows {text:?}"));
@@ -152,7 +177,11 @@ fn check_pie(s: &mut Setup, case: &str, template: &str, options: Value, want: &P
 /// Run `template` with `options` and check it gives the warning titled `title`, in the result and the export.
 fn check_warning(s: &mut Setup, case: &str, template: &str, options: Value, title: &str) {
     let block = s.block(template, &options);
-    assert_eq!((block["kind"].as_str(), block["title"].as_str()), (Some("warning"), Some(title)), "{case}: {block}");
+    assert_eq!(
+        (block["kind"].as_str(), block["title"].as_str()),
+        (Some("warning"), Some(title)),
+        "{case}: {block}"
+    );
     assert!(s.export(template, &options).contains(title), "{case}: the export shows the warning");
 }
 
@@ -168,9 +197,19 @@ fn account_link(n: u32) -> Value {
 /// A drill-down link's template, its Accounts and the options it changes beside them, as `(levels, name)`.
 fn report_link(link: &Value) -> (&str, Vec<&str>, &Value, &Value) {
     let report = &link["report"];
-    let accounts = report["options"]["Accounts"]["Accounts"].as_array().unwrap().iter().map(|a| a.as_str().unwrap()).collect();
+    let accounts = report["options"]["Accounts"]["Accounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a.as_str().unwrap())
+        .collect();
     let options = &report["options"];
-    (report["template"].as_str().unwrap(), accounts, &options["Accounts"]["Levels of Subaccounts"], &options["General"]["Report name"])
+    (
+        report["template"].as_str().unwrap(),
+        accounts,
+        &options["Accounts"]["Levels of Subaccounts"],
+        &options["General"]["Report name"],
+    )
 }
 
 fn date(d: &str) -> Value {
@@ -193,15 +232,26 @@ fn date(d: &str) -> Value {
 #[test]
 fn test_data_assets_defaults() {
     let mut s = Setup::fixture("test-data");
-    let pie = Pie { title: ["Assets", "Balance at 12/31/24: $3,118.00"], slices: &[("Asset - $3,118.00 (100.0%)", "$3,118.00")] };
+    let pie = Pie {
+        title: ["Assets", "Balance at 12/31/24: $3,118.00"],
+        slices: &[("Asset - $3,118.00 (100.0%)", "$3,118.00")],
+    };
     let chart = check_pie(&mut s, "assets defaults", "Assets", json!({}), &pie);
     let asset = link(&chart, 0);
     let (template, accounts, levels, name) = report_link(&asset);
     assert_eq!(template, ASSETS);
     assert_eq!(accounts, [2, 3, 4, 5].map(acct), "Asset and its children (AP:479-488)");
     assert_eq!((levels, name), (&json!(3), &json!("Asset")), "AP:489-495");
-    assert_eq!(chart["yAxis"], json!({ "label": "", "format": "currency", "commodity": "CURRENCY::USD" }), "AP:504-507");
-    assert_eq!((chart["width"].clone(), chart["height"].clone()), (json!({ "percent": 100 }), json!({ "percent": 100 })), "AP:153-155");
+    assert_eq!(
+        chart["yAxis"],
+        json!({ "label": "", "format": "currency", "commodity": "CURRENCY::USD" }),
+        "AP:504-507"
+    );
+    assert_eq!(
+        (chart["width"].clone(), chart["height"].clone()),
+        (json!({ "percent": 100 }), json!({ "percent": 100 })),
+        "AP:153-155"
+    );
 }
 
 /// Three levels: Root and Asset show their own zero balances; Bank, GBP Bank and Wallet, at the limit, theirs. The
@@ -211,18 +261,42 @@ fn test_data_assets_defaults() {
 #[test]
 fn test_data_assets_three_levels() {
     let mut s = Setup::fixture("test-data");
-    let slices =
-        [("Bank - $2,186.00 (70.1%)", "$2,186.00"), ("GBP Bank - $912.00 (29.2%)", "$912.00"), ("Wallet - $20.00 (.6%)", "$20.00")];
-    let pie = Pie { title: ["Assets", "Balance at 12/31/24: $3,118.00"], slices: &slices };
-    let chart = check_pie(&mut s, "three levels", "Assets", json!({ "Accounts": { "Levels of Subaccounts": 3 } }), &pie);
-    assert_eq!(chart["series"][0]["links"], json!([account_link(3), account_link(4), account_link(5)]));
+    let slices = [
+        ("Bank - $2,186.00 (70.1%)", "$2,186.00"),
+        ("GBP Bank - $912.00 (29.2%)", "$912.00"),
+        ("Wallet - $20.00 (.6%)", "$20.00"),
+    ];
+    let pie = Pie {
+        title: ["Assets", "Balance at 12/31/24: $3,118.00"],
+        slices: &slices,
+    };
+    let chart = check_pie(
+        &mut s,
+        "three levels",
+        "Assets",
+        json!({ "Accounts": { "Levels of Subaccounts": 3 } }),
+        &pie,
+    );
+    assert_eq!(
+        chart["series"][0]["links"],
+        json!([account_link(3), account_link(4), account_link(5)])
+    );
     let long = [
         ("Root:Asset:Bank - $2,186.00 (70.1%)", "$2,186.00"),
         ("Root:Asset:GBP Bank - $912.00 (29.2%)", "$912.00"),
         ("Root:Asset:Wallet - $20.00 (.6%)", "$20.00"),
     ];
     let options = json!({ "Accounts": { "Levels of Subaccounts": 3 }, "Display": { "Show long names": true } });
-    check_pie(&mut s, "long names", "Assets", options, &Pie { title: pie.title, slices: &long });
+    check_pie(
+        &mut s,
+        "long names",
+        "Assets",
+        options,
+        &Pie {
+            title: pie.title,
+            slices: &long,
+        },
+    );
 }
 
 /// "Maximum Slices" 2: past it, the first slice stays and the rest become "Other", $912 + $20 = $932, 29.89 %
@@ -233,7 +307,10 @@ fn test_data_assets_other_slice() {
     let mut s = Setup::fixture("test-data");
     let options = json!({ "Accounts": { "Levels of Subaccounts": 3 }, "Display": { "Maximum Slices": 2 } });
     let slices = [("Bank - $2,186.00 (70.1%)", "$2,186.00"), ("Other - $932.00 (29.9%)", "$932.00")];
-    let pie = Pie { title: ["Assets", "Balance at 12/31/24: $3,118.00"], slices: &slices };
+    let pie = Pie {
+        title: ["Assets", "Balance at 12/31/24: $3,118.00"],
+        slices: &slices,
+    };
     let chart = check_pie(&mut s, "other", "Assets", options, &pie);
     let other = link(&chart, 1);
     let (template, accounts, levels, name) = report_link(&other);
@@ -241,7 +318,10 @@ fn test_data_assets_other_slice() {
     assert_eq!((levels, name), (&json!(3), &json!("Assets")), "the options are copied as they were");
     assert_eq!(other["report"]["options"]["Display"]["Maximum Slices"], json!(2));
     let slices = [("GBP Bank - $912.00 (97.9%)", "$912.00"), ("Wallet - $20.00 (2.1%)", "$20.00")];
-    let pie = Pie { title: ["Assets", "Balance at 12/31/24: $932.00"], slices: &slices };
+    let pie = Pie {
+        title: ["Assets", "Balance at 12/31/24: $932.00"],
+        slices: &slices,
+    };
     check_pie(&mut s, "the other slice's report", ASSETS, other["report"]["options"].clone(), &pie);
 }
 
@@ -251,8 +331,17 @@ fn test_data_assets_other_slice() {
 #[test]
 fn test_data_assets_in_pounds() {
     let mut s = Setup::fixture("test-data");
-    let pie = Pie { title: ["Assets", "Balance at 12/31/24: #2,078.67"], slices: &[("Asset - #2,078.67 (100.0%)", "#2,078.67")] };
-    let chart = check_pie(&mut s, "in pounds", "Assets", json!({ "General": { "Report's currency": "CURRENCY::GBP" } }), &pie);
+    let pie = Pie {
+        title: ["Assets", "Balance at 12/31/24: #2,078.67"],
+        slices: &[("Asset - #2,078.67 (100.0%)", "#2,078.67")],
+    };
+    let chart = check_pie(
+        &mut s,
+        "in pounds",
+        "Assets",
+        json!({ "General": { "Report's currency": "CURRENCY::GBP" } }),
+        &pie,
+    );
     assert_eq!(chart["yAxis"]["commodity"], "CURRENCY::GBP");
 }
 
@@ -262,7 +351,10 @@ fn test_data_assets_in_pounds() {
 fn test_data_securities_defaults() {
     let mut s = Setup::fixture("test-data");
     let slices = [("USD - $2,206.00 (70.8%)", "$2,206.00"), ("GBP - $912.00 (29.2%)", "$912.00")];
-    let pie = Pie { title: ["Securities", "Balance at 12/31/24: $3,118.00"], slices: &slices };
+    let pie = Pie {
+        title: ["Securities", "Balance at 12/31/24: $3,118.00"],
+        slices: &slices,
+    };
     let chart = check_pie(&mut s, "securities", "Securities", json!({}), &pie);
     assert!(chart["series"][0].get("links").is_none(), "no drill-down by commodity");
 }
@@ -272,7 +364,9 @@ fn test_data_securities_defaults() {
 #[test]
 fn test_data_income_expense_and_liability_pies_have_no_data() {
     let mut s = Setup::fixture("test-data");
-    ["Income Accounts", "Expense Accounts", "Liabilities"].into_iter().for_each(|t| check_warning(&mut s, t, t, json!({}), "No data"));
+    ["Income Accounts", "Expense Accounts", "Liabilities"]
+        .into_iter()
+        .for_each(|t| check_warning(&mut s, t, t, json!({}), "No data"));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -286,7 +380,10 @@ fn test_data_income_expense_and_liability_pies_have_no_data() {
 #[test]
 fn balsheet_assets_defaults() {
     let mut s = Setup::fixture("balsheet-pnl");
-    let pie = Pie { title: ["Assets", "Balance at 2024-12-31: $122,743.52"], slices: &[("Asset - $122,743.52 (100.0%)", "$122,743.52")] };
+    let pie = Pie {
+        title: ["Assets", "Balance at 2024-12-31: $122,743.52"],
+        slices: &[("Asset - $122,743.52 (100.0%)", "$122,743.52")],
+    };
     let chart = check_pie(&mut s, "defaults", "Assets", json!({}), &pie);
     let asset = link(&chart, 0);
     let (_, accounts, levels, _) = report_link(&asset);
@@ -312,7 +409,16 @@ fn balsheet_assets_by_price_source() {
     sources.into_iter().for_each(|(source, total)| {
         let options = json!({ "General": { "End Date": date("1971-01-01"), "Price Source": source } });
         let (title, label) = (format!("Balance at 1971-01-01: {total}"), format!("Asset - {total} (100.0%)"));
-        check_pie(&mut s, source, "Assets", options, &Pie { title: ["Assets", &title], slices: &[(&label, total)] });
+        check_pie(
+            &mut s,
+            source,
+            "Assets",
+            options,
+            &Pie {
+                title: ["Assets", &title],
+                slices: &[(&label, total)],
+            },
+        );
     });
 }
 
@@ -331,8 +437,17 @@ fn balsheet_assets_all_levels() {
         ("ForeignSavings - $1,190.00 (1.0%)", "$1,190.00"),
         ("Savings - $100.00 (.1%)", "$100.00"),
     ];
-    let pie = Pie { title: ["Assets", "Balance at 2024-12-31: $122,743.52"], slices: &slices };
-    let chart = check_pie(&mut s, "all levels", "Assets", json!({ "Accounts": { "Levels of Subaccounts": "all" } }), &pie);
+    let pie = Pie {
+        title: ["Assets", "Balance at 2024-12-31: $122,743.52"],
+        slices: &slices,
+    };
+    let chart = check_pie(
+        &mut s,
+        "all levels",
+        "Assets",
+        json!({ "Accounts": { "Levels of Subaccounts": "all" } }),
+        &pie,
+    );
     let leaves = [8, 12, 7, 11, 5, 10, 4].map(account_link);
     let mut links = chart["series"][0]["links"].as_array().unwrap().clone();
     let broker = links.remove(3);
@@ -347,13 +462,29 @@ fn balsheet_assets_all_levels() {
 fn balsheet_assets_other_slice_and_its_report() {
     let mut s = Setup::fixture("balsheet-pnl");
     let options = json!({ "Accounts": { "Levels of Subaccounts": "all" }, "Display": { "Maximum Slices": 2 } });
-    let slices = [("House - $100,000.00 (81.5%)", "$100,000.00"), ("Other - $22,743.52 (18.5%)", "$22,743.52")];
-    let pie = Pie { title: ["Assets", "Balance at 2024-12-31: $122,743.52"], slices: &slices };
+    let slices = [
+        ("House - $100,000.00 (81.5%)", "$100,000.00"),
+        ("Other - $22,743.52 (18.5%)", "$22,743.52"),
+    ];
+    let pie = Pie {
+        title: ["Assets", "Balance at 2024-12-31: $122,743.52"],
+        slices: &slices,
+    };
     let chart = check_pie(&mut s, "other", "Assets", options, &pie);
     let other = link(&chart, 1);
-    assert_eq!(report_link(&other).1, [12, 7, 11, 5, 10, 4].map(acct), "the folded accounts, in slice order");
-    let slices = [("Funds - $14,424.52 (63.4%)", "$14,424.52"), ("Other - $8,319.00 (36.6%)", "$8,319.00")];
-    let pie = Pie { title: ["Assets", "Balance at 2024-12-31: $22,743.52"], slices: &slices };
+    assert_eq!(
+        report_link(&other).1,
+        [12, 7, 11, 5, 10, 4].map(acct),
+        "the folded accounts, in slice order"
+    );
+    let slices = [
+        ("Funds - $14,424.52 (63.4%)", "$14,424.52"),
+        ("Other - $8,319.00 (36.6%)", "$8,319.00"),
+    ];
+    let pie = Pie {
+        title: ["Assets", "Balance at 2024-12-31: $22,743.52"],
+        slices: &slices,
+    };
     check_pie(&mut s, "the other slice's report", ASSETS, other["report"]["options"].clone(), &pie);
 }
 
@@ -367,17 +498,44 @@ fn balsheet_securities() {
         ("FUNDS - $14,424.52 (11.8%)", "$14,424.52"),
         ("GBP - $1,190.00 (1.0%)", "$1,190.00"),
     ];
-    let pie = Pie { title: ["Securities", "Balance at 2024-12-31: $122,743.52"], slices: &slices };
+    let pie = Pie {
+        title: ["Securities", "Balance at 2024-12-31: $122,743.52"],
+        slices: &slices,
+    };
     check_pie(&mut s, "securities", "Securities", json!({}), &pie);
     let by_name = [slices[1], slices[2], slices[0]];
     ["alphabetical", "acct-code"].into_iter().for_each(|sort| {
         let options = json!({ "Display": { "Sort Method": sort } });
-        check_pie(&mut s, sort, "Securities", options, &Pie { title: pie.title, slices: &by_name });
+        check_pie(
+            &mut s,
+            sort,
+            "Securities",
+            options,
+            &Pie {
+                title: pie.title,
+                slices: &by_name,
+            },
+        );
     });
-    let slices = [("USD - $107,129.00 (87.3%)", "$107,129.00"), ("Other - $15,614.52 (12.7%)", "$15,614.52")];
+    let slices = [
+        ("USD - $107,129.00 (87.3%)", "$107,129.00"),
+        ("Other - $15,614.52 (12.7%)", "$15,614.52"),
+    ];
     let options = json!({ "Display": { "Maximum Slices": 2 } });
-    let chart = check_pie(&mut s, "other", "Securities", options, &Pie { title: pie.title, slices: &slices });
-    assert!(chart["series"][0].get("links").is_none(), "no report for the other securities (AP:458)");
+    let chart = check_pie(
+        &mut s,
+        "other",
+        "Securities",
+        options,
+        &Pie {
+            title: pie.title,
+            slices: &slices,
+        },
+    );
+    assert!(
+        chart["series"][0].get("links").is_none(),
+        "no report for the other securities (AP:458)"
+    );
 }
 
 /// Securities at 1971-01-01 at the latest prices: the figures of the Balance Sheet's recursive run, $106,709 in
@@ -391,7 +549,10 @@ fn balsheet_securities_latest_1971() {
         ("FUNDS - $14,424.52 (11.9%)", "$14,424.52"),
         ("GBP - $340.00 (.3%)", "$340.00"),
     ];
-    let pie = Pie { title: ["Securities", "Balance at 1971-01-01: $121,473.52"], slices: &slices };
+    let pie = Pie {
+        title: ["Securities", "Balance at 1971-01-01: $121,473.52"],
+        slices: &slices,
+    };
     let options = json!({ "General": { "End Date": date("1971-01-01"), "Price Source": "pricedb-latest" } });
     check_pie(&mut s, "latest", "Securities", options, &pie);
 }
@@ -407,10 +568,22 @@ fn balsheet_securities_long_names() {
         ("Pound Sterling - $1,190.00 (1.0%)", "$1,190.00"),
     ];
     let title = ["Securities", "Balance at 2024-12-31: $122,743.52"];
-    check_pie(&mut s, "long names", "Securities", json!({ "Display": { "Show long names": true } }), &Pie { title, slices: &slices });
+    check_pie(
+        &mut s,
+        "long names",
+        "Securities",
+        json!({ "Display": { "Show long names": true } }),
+        &Pie { title, slices: &slices },
+    );
     let by_name = [slices[1], slices[2], slices[0]];
     let options = json!({ "Display": { "Show long names": true, "Sort Method": "alphabetical" } });
-    check_pie(&mut s, "long names by name", "Securities", options, &Pie { title, slices: &by_name });
+    check_pie(
+        &mut s,
+        "long names by name",
+        "Securities",
+        options,
+        &Pie { title, slices: &by_name },
+    );
 }
 
 /// No top-level income or liability account: no data. No expense account at all: none selected (AP:441, :565-568).
@@ -458,7 +631,10 @@ fn category_expenses_defaults() {
         ("Rent - $496.00 (14.3%)", "$496.00"),
         ("Expenses - $496.00 (14.3%)", "$496.00"),
     ];
-    let pie = Pie { title: ["Expense Accounts", "2024-01-01 to 2024-12-31: $3,472.00"], slices: &slices };
+    let pie = Pie {
+        title: ["Expense Accounts", "2024-01-01 to 2024-12-31: $3,472.00"],
+        slices: &slices,
+    };
     let chart = check_pie(&mut s, "defaults", "Expense Accounts", json!({}), &pie);
     let auto = link(&chart, 0);
     let (template, accounts, levels, name) = report_link(&auto);
@@ -481,7 +657,16 @@ fn category_expenses_drill_down() {
         ("Petrol - $496.00 (25.0%)", "$496.00"),
         ("Auto - $496.00 (25.0%)", "$496.00"),
     ];
-    check_pie(&mut s, "auto", EXPENSE, options, &Pie { title: ["Auto", &format!("{MARCH}: $1,984.00")], slices: &slices });
+    check_pie(
+        &mut s,
+        "auto",
+        EXPENSE,
+        options,
+        &Pie {
+            title: ["Auto", &format!("{MARCH}: $1,984.00")],
+            slices: &slices,
+        },
+    );
 }
 
 /// "Levels of Subaccounts" 1 and 3. At one level Expenses shows everything below it. At three every account shows
@@ -490,19 +675,40 @@ fn category_expenses_drill_down() {
 fn category_expenses_levels() {
     let mut s = Setup::fixture("category-multi");
     let total = format!("{MARCH}: $3,472.00");
-    let pie = Pie { title: ["Expense Accounts", &total], slices: &[("Expenses - $3,472.00 (100.0%)", "$3,472.00")] };
-    let chart = check_pie(&mut s, "one level", "Expense Accounts", march(json!({ "Accounts": { "Levels of Subaccounts": 1 } })), &pie);
+    let pie = Pie {
+        title: ["Expense Accounts", &total],
+        slices: &[("Expenses - $3,472.00 (100.0%)", "$3,472.00")],
+    };
+    let chart = check_pie(
+        &mut s,
+        "one level",
+        "Expense Accounts",
+        march(json!({ "Accounts": { "Levels of Subaccounts": 1 } })),
+        &pie,
+    );
     assert_eq!(report_link(&link(&chart, 0)).2, &json!(2));
     let names = ["Tax", "Parking", "Petrol", "Auto", "Rent", "Groceries", "Expenses"];
     let labels: Vec<String> = names.iter().map(|n| format!("{n} - $496.00 (14.3%)")).collect();
     let slices: Vec<(&str, &str)> = labels.iter().map(|l| (l.as_str(), "$496.00")).collect();
     let three = json!({ "Accounts": { "Levels of Subaccounts": 3 } });
-    let pie = Pie { title: ["Expense Accounts", &total], slices: &slices };
+    let pie = Pie {
+        title: ["Expense Accounts", &total],
+        slices: &slices,
+    };
     check_pie(&mut s, "three levels", "Expense Accounts", march(three.clone()), &pie);
     let mut other = three;
     merge(&mut other, json!({ "Display": { "Maximum Slices": 2 } }));
     let slices = [("Tax - $496.00 (14.3%)", "$496.00"), ("Other - $2,976.00 (85.7%)", "$2,976.00")];
-    check_pie(&mut s, "other", "Expense Accounts", march(other), &Pie { title: ["Expense Accounts", &total], slices: &slices });
+    check_pie(
+        &mut s,
+        "other",
+        "Expense Accounts",
+        march(other),
+        &Pie {
+            title: ["Expense Accounts", &total],
+            slices: &slices,
+        },
+    );
 }
 
 /// "Sort Method": by code, which every account leaves empty, the stable sort keeps the walk's order; by name,
@@ -518,20 +724,56 @@ fn category_expenses_sort_methods() {
         label("Rent", "$496.00", "14.3"),
         label("Expenses", "$496.00", "14.3"),
     );
-    let by_code =
-        [(groceries.as_str(), "$496.00"), (rent.as_str(), "$496.00"), (auto.as_str(), "$1,984.00"), (expenses.as_str(), "$496.00")];
+    let by_code = [
+        (groceries.as_str(), "$496.00"),
+        (rent.as_str(), "$496.00"),
+        (auto.as_str(), "$1,984.00"),
+        (expenses.as_str(), "$496.00"),
+    ];
     let options = march(json!({ "Display": { "Sort Method": "acct-code" } }));
-    check_pie(&mut s, "by code", "Expense Accounts", options, &Pie { title: ["Expense Accounts", &total], slices: &by_code });
+    check_pie(
+        &mut s,
+        "by code",
+        "Expense Accounts",
+        options,
+        &Pie {
+            title: ["Expense Accounts", &total],
+            slices: &by_code,
+        },
+    );
     let by_name = [by_code[2], by_code[3], by_code[0], by_code[1]];
     let options = march(json!({ "Display": { "Sort Method": "alphabetical" } }));
-    check_pie(&mut s, "by name", "Expense Accounts", options, &Pie { title: ["Expense Accounts", &total], slices: &by_name });
-    let auto = ["Expenses:Auto", "Expenses:Auto:Parking", "Expenses:Auto:Petrol", "Expenses:Auto:Tax"];
+    check_pie(
+        &mut s,
+        "by name",
+        "Expense Accounts",
+        options,
+        &Pie {
+            title: ["Expense Accounts", &total],
+            slices: &by_name,
+        },
+    );
+    let auto = [
+        "Expenses:Auto",
+        "Expenses:Auto:Parking",
+        "Expenses:Auto:Petrol",
+        "Expenses:Auto:Tax",
+    ];
     let full = [&["Expenses"][..], &auto[..], &["Expenses:Groceries", "Expenses:Rent"][..]].concat();
     let labels: Vec<String> = full.iter().map(|n| label(n, "$496.00", "14.3")).collect();
     let slices: Vec<(&str, &str)> = labels.iter().map(|l| (l.as_str(), "$496.00")).collect();
     let display = json!({ "Sort Method": "alphabetical", "Show long names": true });
     let options = march(json!({ "Accounts": { "Levels of Subaccounts": 3 }, "Display": display }));
-    check_pie(&mut s, "by full name", "Expense Accounts", options, &Pie { title: ["Expense Accounts", &total], slices: &slices });
+    check_pie(
+        &mut s,
+        "by full name",
+        "Expense Accounts",
+        options,
+        &Pie {
+            title: ["Expense Accounts", &total],
+            slices: &slices,
+        },
+    );
 }
 
 /// "Show Average" (AP:365-386): the amounts times one over the span from the start to just after the end, in
@@ -541,17 +783,47 @@ fn category_expenses_sort_methods() {
 fn category_expenses_averages() {
     let mut s = Setup::fixture("category-multi");
     let cases = [
-        ("MonthDelta", "Expense Accounts Monthly Average", "$3,472.00", "$1,984.00", "$496.00"),
-        ("YearDelta", "Expense Accounts Yearly Average", "$40,992.00", "$23,424.00", "$5,856.00"),
+        (
+            "MonthDelta",
+            "Expense Accounts Monthly Average",
+            "$3,472.00",
+            "$1,984.00",
+            "$496.00",
+        ),
+        (
+            "YearDelta",
+            "Expense Accounts Yearly Average",
+            "$40,992.00",
+            "$23,424.00",
+            "$5,856.00",
+        ),
         ("WeekDelta", "Expense Accounts Weekly Average", "$784.00", "$448.00", "$112.00"),
     ];
     cases.into_iter().for_each(|(average, title, total, auto, other)| {
-        let labels = [format!("Auto - {auto} (57.1%)"), format!("Groceries - {other} (14.3%)"), format!("Rent - {other} (14.3%)"),
-                      format!("Expenses - {other} (14.3%)")];
-        let slices = [(labels[0].as_str(), auto), (labels[1].as_str(), other), (labels[2].as_str(), other), (labels[3].as_str(), other)];
+        let labels = [
+            format!("Auto - {auto} (57.1%)"),
+            format!("Groceries - {other} (14.3%)"),
+            format!("Rent - {other} (14.3%)"),
+            format!("Expenses - {other} (14.3%)"),
+        ];
+        let slices = [
+            (labels[0].as_str(), auto),
+            (labels[1].as_str(), other),
+            (labels[2].as_str(), other),
+            (labels[3].as_str(), other),
+        ];
         let line = format!("{MARCH}: {total}");
         let options = march(json!({ "General": { "Show Average": average } }));
-        check_pie(&mut s, average, "Expense Accounts", options, &Pie { title: [title, &line], slices: &slices });
+        check_pie(
+            &mut s,
+            average,
+            "Expense Accounts",
+            options,
+            &Pie {
+                title: [title, &line],
+                slices: &slices,
+            },
+        );
     });
 }
 
@@ -560,10 +832,23 @@ fn category_expenses_averages() {
 #[test]
 fn category_expenses_legend_options() {
     let mut s = Setup::fixture("category-multi");
-    let no_totals =
-        [("Auto (57.1%)", "$1,984.00"), ("Groceries (14.3%)", "$496.00"), ("Rent (14.3%)", "$496.00"), ("Expenses (14.3%)", "$496.00")];
+    let no_totals = [
+        ("Auto (57.1%)", "$1,984.00"),
+        ("Groceries (14.3%)", "$496.00"),
+        ("Rent (14.3%)", "$496.00"),
+        ("Expenses (14.3%)", "$496.00"),
+    ];
     let options = march(json!({ "Display": { "Show Totals": false } }));
-    check_pie(&mut s, "no totals", "Expense Accounts", options, &Pie { title: ["Expense Accounts", MARCH], slices: &no_totals });
+    check_pie(
+        &mut s,
+        "no totals",
+        "Expense Accounts",
+        options,
+        &Pie {
+            title: ["Expense Accounts", MARCH],
+            slices: &no_totals,
+        },
+    );
     let no_percents = [
         ("Auto - $1,984.00", "$1,984.00"),
         ("Groceries - $496.00", "$496.00"),
@@ -572,7 +857,16 @@ fn category_expenses_legend_options() {
     ];
     let options = march(json!({ "Display": { "Show Percents": false } }));
     let total = format!("{MARCH}: $3,472.00");
-    check_pie(&mut s, "no percents", "Expense Accounts", options, &Pie { title: ["Expense Accounts", &total], slices: &no_percents });
+    check_pie(
+        &mut s,
+        "no percents",
+        "Expense Accounts",
+        options,
+        &Pie {
+            title: ["Expense Accounts", &total],
+            slices: &no_percents,
+        },
+    );
 }
 
 /// "Accounts": Groceries alone; the walk passes Expenses, which is not selected (AP:344-345). The period: 10 to 12
@@ -582,7 +876,10 @@ fn category_expenses_legend_options() {
 fn category_expenses_accounts_period_and_size() {
     let mut s = Setup::fixture("category-multi");
     let options = march(json!({ "Accounts": { "Accounts": [acct(2)] } }));
-    let pie = Pie { title: ["Expense Accounts", &format!("{MARCH}: $496.00")], slices: &[("Groceries - $496.00 (100.0%)", "$496.00")] };
+    let pie = Pie {
+        title: ["Expense Accounts", &format!("{MARCH}: $496.00")],
+        slices: &[("Groceries - $496.00 (100.0%)", "$496.00")],
+    };
     check_pie(&mut s, "groceries", "Expense Accounts", options, &pie);
     let options = json!({ "General": { "Start Date": date("2024-03-10"), "End Date": date("2024-03-12") } });
     let slices = [
@@ -591,10 +888,19 @@ fn category_expenses_accounts_period_and_size() {
         ("Rent - $33.00 (14.3%)", "$33.00"),
         ("Expenses - $33.00 (14.3%)", "$33.00"),
     ];
-    let pie = Pie { title: ["Expense Accounts", "2024-03-10 to 2024-03-12: $231.00"], slices: &slices };
+    let pie = Pie {
+        title: ["Expense Accounts", "2024-03-10 to 2024-03-12: $231.00"],
+        slices: &slices,
+    };
     check_pie(&mut s, "three days", "Expense Accounts", options, &pie);
-    let chart = s.block("Expense Accounts", &json!({ "Display": { "Plot Width": { "pixels": 400 }, "Plot Height": { "percent": 50 } } }));
-    assert_eq!((chart["width"].clone(), chart["height"].clone()), (json!({ "pixels": 400 }), json!({ "percent": 50 })));
+    let chart = s.block(
+        "Expense Accounts",
+        &json!({ "Display": { "Plot Width": { "pixels": 400 }, "Plot Height": { "percent": 50 } } }),
+    );
+    assert_eq!(
+        (chart["width"].clone(), chart["height"].clone()),
+        (json!({ "pixels": 400 }), json!({ "percent": 50 }))
+    );
 }
 
 /// Nothing in 2023: no data, under the averaged title. No income account exists, so none is selected.
@@ -617,11 +923,23 @@ fn category_warnings() {
 #[test]
 fn category_liabilities() {
     let mut s = Setup::fixture("category-liability");
-    let pie = Pie { title: ["Liabilities", "Balance at 2024-12-31: $55.00"], slices: &[("account-2 - $55.00 (100.0%)", "$55.00")] };
+    let pie = Pie {
+        title: ["Liabilities", "Balance at 2024-12-31: $55.00"],
+        slices: &[("account-2 - $55.00 (100.0%)", "$55.00")],
+    };
     let chart = check_pie(&mut s, "defaults", "Liabilities", json!({}), &pie);
     assert_eq!(link(&chart, 0), account_link(2));
-    let pie = Pie { title: ["Liabilities", "Balance at 2017-03-01: $82.00"], slices: &[("account-2 - $82.00 (100.0%)", "$82.00")] };
-    check_pie(&mut s, "march 2017", "Liabilities", json!({ "General": { "End Date": date("2017-03-01") } }), &pie);
+    let pie = Pie {
+        title: ["Liabilities", "Balance at 2017-03-01: $82.00"],
+        slices: &[("account-2 - $82.00 (100.0%)", "$82.00")],
+    };
+    check_pie(
+        &mut s,
+        "march 2017",
+        "Liabilities",
+        json!({ "General": { "End Date": date("2017-03-01") } }),
+        &pie,
+    );
 }
 
 /// Income negates too (AP:605): $50 in 2017; a monthly average over twelve months, $4.17 (50/12 rounded); a weekly
@@ -641,7 +959,16 @@ fn category_income() {
         let mut options = year.clone();
         merge(&mut options, json!({ "General": { "Show Average": average } }));
         let (line, label) = (format!("{line}: {amount}"), format!("account-3 - {amount} (100.0%)"));
-        check_pie(&mut s, average, "Income Accounts", options, &Pie { title: [title, &line], slices: &[(&label, amount)] });
+        check_pie(
+            &mut s,
+            average,
+            "Income Accounts",
+            options,
+            &Pie {
+                title: [title, &line],
+                slices: &[(&label, amount)],
+            },
+        );
     });
     check_warning(&mut s, "2024", "Income Accounts", json!({}), "No data");
 }
@@ -663,8 +990,16 @@ fn templates_keep_gnucash_identities() {
         (LIABILITIES, "Liabilities", "_Assets & Liabilities", "Liability Piechart"),
     ];
     menus.into_iter().for_each(|(guid, name, menu, menu_name)| {
-        let t = list["reports"].as_array().unwrap().iter().find(|r| r["guid"] == guid).unwrap_or_else(|| panic!("{name}: {list}"));
-        assert_eq!((t["name"].as_str(), t["menuPath"].clone(), t["menuName"].as_str()), (Some(name), json!([menu]), Some(menu_name)));
+        let t = list["reports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["guid"] == guid)
+            .unwrap_or_else(|| panic!("{name}: {list}"));
+        assert_eq!(
+            (t["name"].as_str(), t["menuPath"].clone(), t["menuName"].as_str()),
+            (Some(name), json!([menu]), Some(menu_name))
+        );
         assert_eq!(t["script"], "standard/account-piecharts.rhai");
     });
 }
@@ -680,31 +1015,62 @@ fn options_follow_gnucash() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|o| (format!("{}/{}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap()), o["key"].as_str().unwrap().to_owned(),
-                      o["type"].as_str().unwrap().to_owned(), o["default"].clone()))
+            .map(|o| {
+                (
+                    format!("{}/{}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap()),
+                    o["key"].as_str().unwrap().to_owned(),
+                    o["type"].as_str().unwrap().to_owned(),
+                    o["default"].clone(),
+                )
+            })
             .collect()
     };
     let expense = described(&mut s, "Expense Accounts");
     let names: Vec<&str> = expense.iter().map(|(n, ..)| n.as_str()).collect();
-    assert_eq!(names, [
-        "Accounts/Accounts", "Accounts/Levels of Subaccounts",
-        "Display/Show long names", "Display/Show Totals", "Display/Show Percents", "Display/Maximum Slices", "Display/Plot Width",
-        "Display/Plot Height", "Display/Sort Method",
-        "General/Report name", "General/Stylesheet", "General/Add options summary", "General/Start Date", "General/End Date",
-        "General/Report's currency", "General/Price Source", "General/Show Average",
-    ]);
+    assert_eq!(
+        names,
+        [
+            "Accounts/Accounts",
+            "Accounts/Levels of Subaccounts",
+            "Display/Show long names",
+            "Display/Show Totals",
+            "Display/Show Percents",
+            "Display/Maximum Slices",
+            "Display/Plot Width",
+            "Display/Plot Height",
+            "Display/Sort Method",
+            "General/Report name",
+            "General/Stylesheet",
+            "General/Add options summary",
+            "General/Start Date",
+            "General/End Date",
+            "General/Report's currency",
+            "General/Price Source",
+            "General/Show Average",
+        ]
+    );
     let find = |list: &[(String, String, String, Value)], name: &str| list.iter().find(|(n, ..)| n == name).cloned().unwrap();
     let every = json!([1, 4, 6, 7, 5, 2, 3].map(acct));
-    assert_eq!(find(&expense, "Accounts/Accounts").3, every, "every expense account in display order (AP:115-122)");
+    assert_eq!(
+        find(&expense, "Accounts/Accounts").3,
+        every,
+        "every expense account in display order (AP:115-122)"
+    );
     assert_eq!(find(&expense, "Accounts/Levels of Subaccounts").3, json!(2));
     assert_eq!(find(&expense, "Display/Maximum Slices").2, "numberRange");
     assert_eq!(find(&expense, "Display/Sort Method").3, json!("amount"));
     assert_eq!(find(&expense, "General/Price Source").3, json!("pricedb-nearest"));
-    assert_eq!(find(&expense, "General/Show Average"), ("General/Show Average".into(), "f".into(), "multichoice".into(), json!("None")));
+    assert_eq!(
+        find(&expense, "General/Show Average"),
+        ("General/Show Average".into(), "f".into(), "multichoice".into(), json!("None"))
+    );
     assert_eq!(find(&expense, "General/Start Date").1, "aa");
     let securities = described(&mut s, "Securities");
     let absent = ["Accounts/Levels of Subaccounts", "General/Show Average", "General/Start Date"];
-    assert!(securities.iter().all(|(n, ..)| !absent.contains(&n.as_str())), "no depth and no interval (AP:90-128)");
+    assert!(
+        securities.iter().all(|(n, ..)| !absent.contains(&n.as_str())),
+        "no depth and no interval (AP:90-128)"
+    );
     assert_eq!(find(&securities, "General/End Date").1, "a", "a report date (AP:94-96)");
 }
 
@@ -718,7 +1084,9 @@ fn every_template_reads_only_and_exports_deterministically() {
         let before = s.d.context().book().unwrap().clone();
         let files = s.files();
         let all_levels = json!({ "Accounts": { "Levels of Subaccounts": "all" } });
-        let runs = TEMPLATES.iter().flat_map(|t| [(*t, json!({})), (*t, if *t == SECURITIES { json!({}) } else { all_levels.clone() })]);
+        let runs = TEMPLATES
+            .iter()
+            .flat_map(|t| [(*t, json!({})), (*t, if *t == SECURITIES { json!({}) } else { all_levels.clone() })]);
         runs.for_each(|(t, options)| {
             s.run(t, &options);
             let (a, b) = (s.export(t, &options), s.export(t, &options));

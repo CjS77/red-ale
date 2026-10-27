@@ -29,7 +29,11 @@ fn check(book: &TempBook) -> Value {
 
 fn assert_nothing_to_fix(book: &TempBook) {
     let found = check(book);
-    assert_eq!(found, json!({ "unbalanced": [], "changed": [], "accountsAdded": 0, "logged": [] }), "{found}");
+    assert_eq!(
+        found,
+        json!({ "unbalanced": [], "changed": [], "accountsAdded": 0, "logged": [] }),
+        "{found}"
+    );
 }
 
 /// The transactions both sides post, as `trading.py post` takes them.
@@ -54,7 +58,11 @@ fn transactions() -> Value {
 /// that made it: reopening books in it keeps new GUIDs from repeating the ones it already gave.
 fn trading_book() -> (TempBook, red_ale_rpc::Dispatcher) {
     let (book, mut d) = create();
-    call(&mut d, "commodity.create", &json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1000 }));
+    call(
+        &mut d,
+        "commodity.create",
+        &json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1000 }),
+    );
     [
         ("Assets", "ASSET", None, "CURRENCY::USD"),
         ("Checking", "BANK", Some("Assets"), "CURRENCY::USD"),
@@ -65,7 +73,11 @@ fn trading_book() -> (TempBook, red_ale_rpc::Dispatcher) {
     ]
     .iter()
     .for_each(|(name, ty, parent, commodity)| {
-        call(&mut d, "account.create", &json!({ "name": name, "type": ty, "parent": parent, "commodity": commodity }));
+        call(
+            &mut d,
+            "account.create",
+            &json!({ "name": name, "type": ty, "parent": parent, "commodity": commodity }),
+        );
     });
     call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }));
     call(&mut d, "book.close", &json!({ "save": true }));
@@ -108,7 +120,11 @@ fn red_ale_posts_the_trading_splits_gnucash_posts() {
 
     let (gnucash, red_ale) = (show(&theirs), show(&ours));
     assert_eq!(gnucash, red_ale, "\nGnuCash posted:\n{gnucash:#}\nred-ale posted:\n{red_ale:#}");
-    assert_eq!(gnucash["transactions"]["Exchange"]["splits"].as_array().unwrap().len(), 4, "{gnucash:#}");
+    assert_eq!(
+        gnucash["transactions"]["Exchange"]["splits"].as_array().unwrap().len(),
+        4,
+        "{gnucash:#}"
+    );
     assert_nothing_to_fix(&ours);
 }
 
@@ -121,7 +137,11 @@ fn gnucash_rebalances_a_transaction_posted_before_the_option_was_on() {
     call(&mut d, "book.setOptions", &json!({ "useTradingAccounts": true }));
     call(&mut d, "book.close", &json!({ "save": true }));
     let found = check(&book);
-    assert_eq!((&found["unbalanced"], &found["changed"]), (&json!(["Exchange"]), &json!(["Exchange"])), "{found}");
+    assert_eq!(
+        (&found["unbalanced"], &found["changed"]),
+        (&json!(["Exchange"]), &json!(["Exchange"])),
+        "{found}"
+    );
 }
 
 #[test]
@@ -138,9 +158,20 @@ fn red_ale_scrubs_a_trading_book_as_gnucash_does() {
     let ours = copy_of(&base);
     call(&mut d, "book.open", &json!({ "path": ours.path_str() }));
     let result = call(&mut d, "scrub.checkAndRepair", &json!({}));
-    assert!(result["repairs"].as_array().unwrap().iter().any(|r| r["kind"] == "tradingSplitAdded"), "{result}");
+    assert!(
+        result["repairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["kind"] == "tradingSplitAdded"),
+        "{result}"
+    );
     let diffs = oracle_check(&mut d, &ours, &[]);
-    assert!(diffs.is_empty(), "GnuCash reads red-ale's scrubbed book differently:\n{}", diffs.join("\n"));
+    assert!(
+        diffs.is_empty(),
+        "GnuCash reads red-ale's scrubbed book differently:\n{}",
+        diffs.join("\n")
+    );
     let (gnucash, red_ale) = (show(&theirs), show(&ours));
     assert_eq!(gnucash, red_ale, "\nGnuCash scrubbed:\n{gnucash:#}\nred-ale scrubbed:\n{red_ale:#}");
     assert_nothing_to_fix(&ours);
@@ -148,16 +179,18 @@ fn red_ale_scrubs_a_trading_book_as_gnucash_does() {
 
 #[test]
 fn trading_fixtures_edited_by_red_ale_need_nothing_from_gnucash() {
-    ["piecash/simple_sample.gnucash", "piecash/investment.gnucash"].iter().for_each(|name| {
-        let book = TempBook::copy(name);
-        assert_nothing_to_fix(&book);
-        let mut d = dispatcher();
-        let info = call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-        assert_eq!(info["readOnly"], false, "{name}: {info}");
-        assert_eq!(call(&mut d, "book.options", &json!({}))["useTradingAccounts"], true, "{name}");
-        let diffs = oracle_check(&mut d, &book, &[]);
-        assert!(diffs.is_empty(), "{name} saved unedited:\n{}", diffs.join("\n"));
-    });
+    ["piecash/simple_sample.gnucash", "piecash/investment.gnucash"]
+        .iter()
+        .for_each(|name| {
+            let book = TempBook::copy(name);
+            assert_nothing_to_fix(&book);
+            let mut d = dispatcher();
+            let info = call(&mut d, "book.open", &json!({ "path": book.path_str() }));
+            assert_eq!(info["readOnly"], false, "{name}: {info}");
+            assert_eq!(call(&mut d, "book.options", &json!({}))["useTradingAccounts"], true, "{name}");
+            let diffs = oracle_check(&mut d, &book, &[]);
+            assert!(diffs.is_empty(), "{name} saved unedited:\n{}", diffs.join("\n"));
+        });
 }
 
 #[test]
@@ -177,16 +210,28 @@ fn an_investment_book_edited_by_red_ale_reads_the_same_and_balances_in_gnucash()
     );
     assert_eq!(buy["splits"].as_array().unwrap().len(), 4, "{buy}");
     let veur_split = buy["splits"].as_array().unwrap().iter().find(|s| s["accountName"] == veur).unwrap()["guid"].clone();
-    call(&mut d, "transaction.update", &json!({ "guid": buy["guid"], "changeSplits": [{ "guid": veur_split, "amount": "6" }] }));
+    call(
+        &mut d,
+        "transaction.update",
+        &json!({ "guid": buy["guid"], "changeSplits": [{ "guid": veur_split, "amount": "6" }] }),
+    );
     let reversed = call(&mut d, "transaction.reverse", &json!({ "guid": buy["guid"], "date": "2024-05-02" }));
     // `show` keys transactions by description, and a reversal copies the original's.
-    call(&mut d, "transaction.update", &json!({ "guid": reversed["guid"], "description": "Reversal" }));
+    call(
+        &mut d,
+        "transaction.update",
+        &json!({ "guid": reversed["guid"], "description": "Reversal" }),
+    );
     call(&mut d, "transaction.void", &json!({ "guid": reversed["guid"], "reason": "test" }));
     let diffs = oracle_check(&mut d, &book, &[]);
     assert!(diffs.is_empty(), "GnuCash reads red-ale's book differently:\n{}", diffs.join("\n"));
     let seen = show(&book);
     assert!(
-        seen["transactions"]["More VEUR"]["splits"].as_array().unwrap().iter().any(|s| s[0] == "Trading:AEX:VEUR" && s[2] == "-6/1"),
+        seen["transactions"]["More VEUR"]["splits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s[0] == "Trading:AEX:VEUR" && s[2] == "-6/1"),
         "{seen:#}"
     );
     assert_nothing_to_fix(&book);

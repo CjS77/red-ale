@@ -169,7 +169,9 @@ impl Frame {
     /// The slots whose keys start with `prefix`, in key order, without path splitting: GnuCash's
     /// `KvpFrame::for_each_slot_prefix` (`5.17:libgnucash/engine/kvp-frame.hpp:242-253`).
     pub fn iter_prefix<'a>(&'a self, prefix: &'a str) -> impl Iterator<Item = (&'a String, &'a SlotValue)> {
-        self.0.range::<str, _>((std::ops::Bound::Included(prefix), std::ops::Bound::Unbounded)).take_while(move |(k, _)| k.starts_with(prefix))
+        self.0
+            .range::<str, _>((std::ops::Bound::Included(prefix), std::ops::Bound::Unbounded))
+            .take_while(move |(k, _)| k.starts_with(prefix))
     }
 
     /// Remove the slot directly under `key` (no path splitting).
@@ -181,7 +183,9 @@ impl Frame {
     /// key may itself hold `/`.
     pub fn get_in(&self, path: &[&str]) -> Option<&SlotValue> {
         let (last, parents) = path.split_last()?;
-        let frame = parents.iter().try_fold(self, |f, part| f.0.get(*part).and_then(SlotValue::as_frame))?;
+        let frame = parents
+            .iter()
+            .try_fold(self, |f, part| f.0.get(*part).and_then(SlotValue::as_frame))?;
         frame.0.get(*last)
     }
 

@@ -10,8 +10,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use crate::account::slot_paths;
-use crate::ops::commit::{commodity_fraction, round_amount, sort_splits};
 use crate::ops::account_properties::apply_properties;
+use crate::ops::commit::{commodity_fraction, round_amount, sort_splits};
 use crate::ops::commodities::account_commodity_changed;
 use crate::transaction::slot_paths as txn_slots;
 use crate::{Account, AccountType, Book, CommodityRef, DomainError, DomainResult, Env, Guid, Numeric, SlotValue, Transaction};
@@ -135,7 +135,9 @@ fn check_commodity(book: &Book, t: AccountType, c: &CommodityRef) -> DomainResul
     let fraction = commodity_fraction(book, c).ok_or_else(|| DomainError::not_found("commodity", c))?;
     match (commodity_rule(t), c.is_currency()) {
         (CommodityRule::Currency, false) => Err(DomainError::invalid(format!("a {t} account holds a currency, not {c}"))),
-        (CommodityRule::Security, true) => Err(DomainError::invalid(format!("a {t} account holds a security, not the currency {c}"))),
+        (CommodityRule::Security, true) => Err(DomainError::invalid(format!(
+            "a {t} account holds a security, not the currency {c}"
+        ))),
         _ => Ok(fraction),
     }
 }
@@ -150,7 +152,9 @@ pub fn check_name(name: &str) -> DomainResult<()> {
         return Err(DomainError::invalid("an account must have a name"));
     }
     if name.contains(SEPARATOR) {
-        return Err(DomainError::invalid(format!("account names may not contain the separator '{SEPARATOR}': {name:?}")));
+        return Err(DomainError::invalid(format!(
+            "account names may not contain the separator '{SEPARATOR}': {name:?}"
+        )));
     }
     Ok(())
 }
@@ -158,7 +162,11 @@ pub fn check_name(name: &str) -> DomainResult<()> {
 /// Accounts whose names contain the separator, which make full names ambiguous. GnuCash warns about them when a
 /// book is opened (`gnc_account_list_name_violations`, `5.17:libgnucash/engine/Account.cpp:262-281`).
 pub fn name_violations(book: &Book) -> Vec<Guid> {
-    book.descendants(book.root).into_iter().filter(|a| a.name.contains(SEPARATOR)).map(|a| a.guid).collect()
+    book.descendants(book.root)
+        .into_iter()
+        .filter(|a| a.name.contains(SEPARATOR))
+        .map(|a| a.guid)
+        .collect()
 }
 
 /// Refuse a name another child of `parent` already has: GnuCash refuses an account whose full name exists
@@ -179,8 +187,21 @@ fn check_no_sibling(book: &Book, parent: Guid, name: &str, except: Option<Guid>)
 fn type_rank(t: AccountType) -> usize {
     use AccountType as T;
     const ORDER: [AccountType; 15] = [
-        T::Root, T::Stock, T::Mutual, T::Currency, T::Cash, T::Asset, T::Receivable, T::Credit, T::Liability, T::Payable, T::Income, T::Expense,
-        T::Equity, T::Trading, T::Bank,
+        T::Root,
+        T::Stock,
+        T::Mutual,
+        T::Currency,
+        T::Cash,
+        T::Asset,
+        T::Receivable,
+        T::Credit,
+        T::Liability,
+        T::Payable,
+        T::Income,
+        T::Expense,
+        T::Equity,
+        T::Trading,
+        T::Bank,
     ];
     ORDER.iter().position(|o| *o == t).unwrap_or(ORDER.len())
 }
@@ -207,7 +228,10 @@ pub fn sorted_children(book: &Book, parent: Guid) -> Vec<&Account> {
 /// followed by its own descendants (`gnc_account_get_descendants_sorted`, `5.17:libgnucash/engine/Account.cpp:2807-2822`,
 /// `:3039-3045`).
 pub fn descendants_sorted(book: &Book, parent: Guid) -> Vec<&Account> {
-    sorted_children(book, parent).into_iter().flat_map(|child| std::iter::once(child).chain(descendants_sorted(book, child.guid))).collect()
+    sorted_children(book, parent)
+        .into_iter()
+        .flat_map(|child| std::iter::once(child).chain(descendants_sorted(book, child.guid)))
+        .collect()
 }
 
 /// How many levels an account is below the root account: 0 for the root, 1 for its children
@@ -234,7 +258,9 @@ pub fn has_splits(book: &Book, guid: Guid) -> bool {
 }
 
 fn subtree(book: &Book, guid: Guid) -> Vec<Guid> {
-    std::iter::once(guid).chain(book.descendants(guid).into_iter().map(|a| a.guid)).collect()
+    std::iter::once(guid)
+        .chain(book.descendants(guid).into_iter().map(|a| a.guid))
+        .collect()
 }
 
 /// Put an account and its descendants just after the last account of its parent's subtree, keeping their relative
@@ -243,12 +269,23 @@ fn subtree(book: &Book, guid: Guid) -> Vec<Guid> {
 /// (`5.17:libgnucash/backend/xml/io-utils.cpp:59-82`); its reader refuses an account whose parent comes later
 /// (`5.17:libgnucash/backend/xml/gnc-account-xml-v2.cpp:349-365`).
 fn place_subtree(book: &mut Book, guid: Guid) {
-    let Some(parent) = book.account(guid).and_then(|a| a.parent) else { return };
+    let Some(parent) = book.account(guid).and_then(|a| a.parent) else {
+        return;
+    };
     let moving: BTreeSet<Guid> = subtree(book, guid).into_iter().collect();
-    let entries: Vec<(Guid, Arc<Account>)> = book.accounts.iter().filter(|(g, _)| moving.contains(*g)).map(|(g, a)| (*g, Arc::clone(a))).collect();
+    let entries: Vec<(Guid, Arc<Account>)> = book
+        .accounts
+        .iter()
+        .filter(|(g, _)| moving.contains(*g))
+        .map(|(g, a)| (*g, Arc::clone(a)))
+        .collect();
     book.accounts.retain(|g, _| !moving.contains(g));
     let host: BTreeSet<Guid> = subtree(book, parent).into_iter().collect();
-    let at = book.accounts.keys().rposition(|g| host.contains(g)).map_or(book.accounts.len(), |i| i + 1);
+    let at = book
+        .accounts
+        .keys()
+        .rposition(|g| host.contains(g))
+        .map_or(book.accounts.len(), |i| i + 1);
     entries.into_iter().enumerate().for_each(|(i, (g, a))| {
         book.accounts.shift_insert(at + i, g, a);
     });
@@ -259,11 +296,18 @@ fn account(book: &Book, guid: Guid) -> DomainResult<&Account> {
 }
 
 fn account_mut(book: &mut Book, guid: Guid) -> DomainResult<&mut Account> {
-    book.accounts.get_mut(&guid).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("account", &guid))
+    book.accounts
+        .get_mut(&guid)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("account", &guid))
 }
 
 fn not_root(book: &Book, guid: Guid, what: &str) -> DomainResult<()> {
-    if guid == book.root { Err(DomainError::invalid(format!("the root account cannot be {what}"))) } else { Ok(()) }
+    if guid == book.root {
+        Err(DomainError::invalid(format!("the root account cannot be {what}")))
+    } else {
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -330,8 +374,13 @@ pub struct AccountEdit {
 /// Checks follow `gnc_common_ok` (`5.17:gnucash/gnome-utils/dialog-account.c:938`).
 pub fn create_account(book: &mut Book, env: &mut dyn Env, parent: Guid, edit: &AccountEdit) -> DomainResult<Guid> {
     let parent_account = account(book, parent)?;
-    let name = edit.name.as_deref().ok_or_else(|| DomainError::invalid("an account must have a name"))?;
-    let account_type = edit.account_type.ok_or_else(|| DomainError::invalid("an account must have a type"))?;
+    let name = edit
+        .name
+        .as_deref()
+        .ok_or_else(|| DomainError::invalid("an account must have a name"))?;
+    let account_type = edit
+        .account_type
+        .ok_or_else(|| DomainError::invalid("an account must have a type"))?;
     check_name(name)?;
     check_type(account_type, parent_account.account_type)?;
     check_no_sibling(book, parent, name, None)?;
@@ -360,7 +409,9 @@ fn check_type(t: AccountType, parent_type: AccountType) -> DomainResult<()> {
         return Err(DomainError::invalid(format!("{t} is not an account type that can be chosen")));
     }
     if !t.compatible_with_parent(parent_type) {
-        return Err(DomainError::invalid(format!("a {t} account cannot be placed under a {parent_type} account")));
+        return Err(DomainError::invalid(format!(
+            "a {t} account cannot be placed under a {parent_type} account"
+        )));
     }
     Ok(())
 }
@@ -389,7 +440,11 @@ pub fn update_account(book: &mut Book, guid: Guid, edit: &AccountEdit) -> Domain
     if let Some(c) = after.commodity.clone().filter(|_| commodity_changed || edit.account_type.is_some()) {
         check_commodity(book, after.account_type, &c)?;
     }
-    let current_choice = if current.non_standard_scu { current.commodity_scu.map(Scu::Fraction) } else { Some(Scu::Commodity) };
+    let current_choice = if current.non_standard_scu {
+        current.commodity_scu.map(Scu::Fraction)
+    } else {
+        Some(Scu::Commodity)
+    };
     if let Some(scu) = edit.scu.or(if commodity_changed { current_choice } else { None }) {
         apply_scu(book, guid, scu, commodity_changed)?;
     }
@@ -404,19 +459,41 @@ pub fn update_account(book: &mut Book, guid: Guid, edit: &AccountEdit) -> Domain
 fn change_type(book: &mut Book, guid: Guid, new: AccountType, retype_children: bool) -> DomainResult<()> {
     let acc = account(book, guid)?;
     let old = acc.account_type;
-    let parent_type = acc.parent.and_then(|p| book.account(p)).map_or(AccountType::Root, |p| p.account_type);
+    let parent_type = acc
+        .parent
+        .and_then(|p| book.account(p))
+        .map_or(AccountType::Root, |p| p.account_type);
     check_type(new, parent_type)?;
     if has_splits(book, guid) && !type_change_allowed_with_splits(old, new) {
-        return Err(DomainError::conflict(format!("{} has splits, so its type cannot change from {old} to {new}", acc.name)));
+        return Err(DomainError::conflict(format!(
+            "{} has splits, so its type cannot change from {old} to {new}",
+            acc.name
+        )));
     }
-    let retyped = if old.compatible_with_parent(new) { Vec::new() } else { children_to_retype(book, guid, new) };
+    let retyped = if old.compatible_with_parent(new) {
+        Vec::new()
+    } else {
+        children_to_retype(book, guid, new)
+    };
     if !retyped.is_empty() && !retype_children {
-        return Err(DomainError::conflict(format!("the sub-accounts of {} must become {new} too; pass retypeChildren to confirm", acc.name)));
+        return Err(DomainError::conflict(format!(
+            "the sub-accounts of {} must become {new} too; pass retypeChildren to confirm",
+            acc.name
+        )));
     }
-    if let Some(blocked) = retyped.iter().filter_map(|g| book.account(*g)).find(|a| has_splits(book, a.guid) && !type_change_allowed_with_splits(a.account_type, new)) {
-        return Err(DomainError::conflict(format!("sub-account {} has splits, so it cannot become {new}", blocked.name)));
+    if let Some(blocked) = retyped
+        .iter()
+        .filter_map(|g| book.account(*g))
+        .find(|a| has_splits(book, a.guid) && !type_change_allowed_with_splits(a.account_type, new))
+    {
+        return Err(DomainError::conflict(format!(
+            "sub-account {} has splits, so it cannot become {new}",
+            blocked.name
+        )));
     }
-    std::iter::once(guid).chain(retyped).try_for_each(|g| account_mut(book, g).map(|a| a.account_type = new))
+    std::iter::once(guid)
+        .chain(retyped)
+        .try_for_each(|g| account_mut(book, g).map(|a| a.account_type = new))
 }
 
 /// `set_children_types`: children not already of the new type, and their children, recursively.
@@ -453,10 +530,15 @@ fn apply_scu(book: &mut Book, guid: Guid, scu: Scu, commodity_changed: bool) -> 
     if let Scu::Fraction(f) = scu
         && !is_scu_choice(f)
     {
-        return Err(DomainError::invalid(format!("the smallest fraction must be a power of ten from 1 to 1000000000, not {f}")));
+        return Err(DomainError::invalid(format!(
+            "the smallest fraction must be a power of ten from 1 to 1000000000, not {f}"
+        )));
     }
     let acc = account(book, guid)?;
-    let commodity = acc.commodity.clone().ok_or_else(|| DomainError::invalid(format!("{} has no commodity", acc.name)))?;
+    let commodity = acc
+        .commodity
+        .clone()
+        .ok_or_else(|| DomainError::invalid(format!("{} has no commodity", acc.name)))?;
     let fraction = commodity_fraction(book, &commodity).ok_or_else(|| DomainError::not_found("commodity", &commodity))?;
     let old_scu = if commodity_changed { 0 } else { acc.scu(fraction) };
     let (nonstd, new_scu) = match scu {
@@ -533,13 +615,19 @@ pub fn move_account(book: &mut Book, guid: Guid, new_parent: Guid) -> DomainResu
     let acc = account(book, guid)?;
     let parent = account(book, new_parent)?;
     if subtree(book, guid).contains(&new_parent) {
-        return Err(DomainError::invalid(format!("{} cannot be moved under itself or one of its sub-accounts", acc.name)));
+        return Err(DomainError::invalid(format!(
+            "{} cannot be moved under itself or one of its sub-accounts",
+            acc.name
+        )));
     }
     if acc.parent == Some(new_parent) {
         return Ok(());
     }
     if !acc.account_type.compatible_with_parent(parent.account_type) {
-        return Err(DomainError::invalid(format!("a {} account cannot be placed under a {} account", acc.account_type, parent.account_type)));
+        return Err(DomainError::invalid(format!(
+            "a {} account cannot be placed under a {} account",
+            acc.account_type, parent.account_type
+        )));
     }
     check_no_sibling(book, new_parent, &acc.name, Some(guid))?;
     account_mut(book, guid)?.parent = Some(new_parent);
@@ -563,12 +651,19 @@ pub struct Renumber {
 
 impl Default for Renumber {
     fn default() -> Self {
-        Self { prefix: None, interval: 10, digits: 3 }
+        Self {
+            prefix: None,
+            interval: 10,
+            digits: 3,
+        }
     }
 }
 
 fn decimal_digits(n: i64) -> i64 {
-    std::iter::successors(Some(n), |x| (*x >= 10).then_some(x / 10)).count().try_into().unwrap_or(i64::MAX)
+    std::iter::successors(Some(n), |x| (*x >= 10).then_some(x / 10))
+        .count()
+        .try_into()
+        .unwrap_or(i64::MAX)
 }
 
 /// Give the immediate children of `parent`, in display order, the codes `prefix-NNN` (or `NNN` with no prefix)
@@ -578,14 +673,20 @@ fn decimal_digits(n: i64) -> i64 {
 pub fn renumber_children(book: &mut Book, parent: Guid, r: &Renumber) -> DomainResult<Vec<(Guid, String)>> {
     let parent_account = account(book, parent)?;
     if !(1..=10_000).contains(&r.interval) {
-        return Err(DomainError::invalid(format!("the interval must be from 1 to 10000, not {}", r.interval)));
+        return Err(DomainError::invalid(format!(
+            "the interval must be from 1 to 10000, not {}",
+            r.interval
+        )));
     }
     if !(1..=100).contains(&r.digits) {
         return Err(DomainError::invalid(format!("the digits must be from 1 to 100, not {}", r.digits)));
     }
     let children: Vec<Guid> = sorted_children(book, parent).iter().map(|a| a.guid).collect();
     if children.is_empty() {
-        return Err(DomainError::invalid(format!("{} has no sub-accounts to renumber", parent_account.name)));
+        return Err(DomainError::invalid(format!(
+            "{} has no sub-accounts to renumber",
+            parent_account.name
+        )));
     }
     let prefix = r.prefix.clone().unwrap_or_else(|| parent_account.code.clone().unwrap_or_default());
     let n = i64::try_from(children.len()).unwrap_or(i64::MAX);
@@ -595,10 +696,19 @@ pub fn renumber_children(book: &mut Book, parent: Guid, r: &Renumber) -> DomainR
         .zip(1_i64..)
         .map(|(g, i)| {
             let number = i * r.interval;
-            (g, if prefix.is_empty() { format!("{number:0width$}") } else { format!("{prefix}-{number:0width$}") })
+            (
+                g,
+                if prefix.is_empty() {
+                    format!("{number:0width$}")
+                } else {
+                    format!("{prefix}-{number:0width$}")
+                },
+            )
         })
         .collect();
-    codes.iter().try_for_each(|(g, code)| account_mut(book, *g).map(|a| a.code = Some(code.clone())))?;
+    codes
+        .iter()
+        .try_for_each(|(g, code)| account_mut(book, *g).map(|a| a.code = Some(code.clone())))?;
     Ok(codes)
 }
 
@@ -680,17 +790,30 @@ impl Plan {
             )));
         }
         let descendants: Vec<Guid> = book.descendants(guid).iter().map(|a| a.guid).collect();
-        let transactions = has_splits(book, guid).then(|| required(opts.transactions, "its transactions")).transpose()?;
+        let transactions = has_splits(book, guid)
+            .then(|| required(opts.transactions, "its transactions"))
+            .transpose()?;
         let subaccount = children.first().map(|_| required(opts.subaccount, "its sub-account")).transpose()?;
         let sub_splits = descendants.iter().any(|g| has_splits(book, *g));
         let subaccount_transactions = (subaccount == Some(Disposal::Delete) && sub_splits)
             .then(|| required(opts.subaccount_transactions, "the sub-account's transactions"))
             .transpose()?;
-        Ok(Self { account, child: children.first().copied(), descendants, transactions, subaccount, subaccount_transactions })
+        Ok(Self {
+            account,
+            child: children.first().copied(),
+            descendants,
+            transactions,
+            subaccount,
+            subaccount_transactions,
+        })
     }
 
     fn doomed(&self) -> Vec<Guid> {
-        let subs = if self.subaccount == Some(Disposal::Delete) { self.descendants.clone() } else { Vec::new() };
+        let subs = if self.subaccount == Some(Disposal::Delete) {
+            self.descendants.clone()
+        } else {
+            Vec::new()
+        };
         std::iter::once(self.account.guid).chain(subs).collect()
     }
 
@@ -723,10 +846,16 @@ impl Plan {
     fn check_target(&self, book: &Book, target: Guid, excluded: &[Guid]) -> DomainResult<()> {
         let t = account(book, target)?;
         if excluded.contains(&target) {
-            return Err(DomainError::invalid(format!("{} is being deleted and cannot receive anything", t.name)));
+            return Err(DomainError::invalid(format!(
+                "{} is being deleted and cannot receive anything",
+                t.name
+            )));
         }
         if t.account_type != self.account.account_type {
-            return Err(DomainError::invalid(format!("the target {} must be a {} account like {}", t.name, self.account.account_type, self.account.name)));
+            return Err(DomainError::invalid(format!(
+                "the target {} must be a {} account like {}",
+                t.name, self.account.account_type, self.account.name
+            )));
         }
         Ok(())
     }
@@ -738,9 +867,15 @@ impl Plan {
         self.check_target(book, target, excluded)?;
         let t = account(book, target)?;
         if t.is_placeholder() || is_hidden_in_tree(book, target) {
-            return Err(DomainError::invalid(format!("splits cannot be moved to {}: it is a placeholder or hidden", t.name)));
+            return Err(DomainError::invalid(format!(
+                "splits cannot be moved to {}: it is a placeholder or hidden",
+                t.name
+            )));
         }
-        let mismatch = sources.iter().filter_map(|g| book.account(*g)).find(|a| has_splits(book, a.guid) && a.commodity != t.commodity);
+        let mismatch = sources
+            .iter()
+            .filter_map(|g| book.account(*g))
+            .find(|a| has_splits(book, a.guid) && a.commodity != t.commodity);
         match mismatch {
             Some(a) if !allow_mismatch => Err(DomainError::conflict(format!(
                 "{} holds {} but {} holds {}; pass allowCommodityMismatch to move the amounts unconverted",
@@ -764,13 +899,19 @@ impl Plan {
                 report.reparented = Some(child);
             }
             (Some(Disposal::Delete), _) => {
-                self.descendants.iter().try_for_each(|g| dispose(book, *g, self.subaccount_transactions, &mut report))?;
+                self.descendants
+                    .iter()
+                    .try_for_each(|g| dispose(book, *g, self.subaccount_transactions, &mut report))?;
             }
             _ => {}
         }
         dispose(book, self.account.guid, self.transactions, &mut report)?;
         let doomed: BTreeSet<Guid> = self.doomed().into_iter().collect();
-        let released: Vec<CommodityRef> = doomed.iter().filter_map(|g| book.account(*g)).filter_map(|a| a.commodity.clone()).collect();
+        let released: Vec<CommodityRef> = doomed
+            .iter()
+            .filter_map(|g| book.account(*g))
+            .filter_map(|a| a.commodity.clone())
+            .collect();
         book.accounts.retain(|g, _| !doomed.contains(g));
         released.iter().for_each(|c| account_commodity_changed(book, Some(c), None));
         let lots: Vec<Guid> = book.lots.values().filter(|l| doomed.contains(&l.account)).map(|l| l.guid).collect();
@@ -800,30 +941,52 @@ fn dispose(book: &mut Book, from: Guid, how: Option<Disposal>, report: &mut Dele
 fn check_referrers(book: &Book, accounts: &[Guid]) -> DomainResult<()> {
     let uses = |g: Option<Guid>| g.is_some_and(|g| accounts.contains(&g));
     let b = &book.business;
-    let invoices = b.invoices.values().filter(|i| uses(i.post_acc)).map(|i| format!("document {}", i.id));
-    let entries = b.entries.values().filter(|e| uses(e.i_account) || uses(e.b_account)).map(|e| format!("entry {}", e.guid));
+    let invoices = b
+        .invoices
+        .values()
+        .filter(|i| uses(i.post_acc))
+        .map(|i| format!("document {}", i.id));
+    let entries = b
+        .entries
+        .values()
+        .filter(|e| uses(e.i_account) || uses(e.b_account))
+        .map(|e| format!("entry {}", e.guid));
     let employees = b.employees.values().filter(|e| uses(e.ccard)).map(|e| format!("employee {}", e.id));
-    let tables = b.tax_tables.values().filter(|t| t.entries.iter().any(|e| uses(e.account))).map(|t| format!("tax table {}", t.name));
+    let tables = b
+        .tax_tables
+        .values()
+        .filter(|t| t.entries.iter().any(|e| uses(e.account)))
+        .map(|t| format!("tax table {}", t.name));
     let referrers: Vec<String> = invoices.chain(entries).chain(employees).chain(tables).collect();
     if referrers.is_empty() {
         Ok(())
     } else {
-        Err(DomainError::conflict(format!("the account is used by business objects; change them first: {}", referrers.join(", "))))
+        Err(DomainError::conflict(format!(
+            "the account is used by business objects; change them first: {}",
+            referrers.join(", ")
+        )))
     }
 }
 
 fn transactions_touching(book: &Book, account: Guid) -> Vec<Guid> {
-    book.transactions.values().filter(|t| t.splits.iter().any(|s| s.account == Some(account))).map(|t| t.guid).collect()
+    book.transactions
+        .values()
+        .filter(|t| t.splits.iter().any(|s| s.account == Some(account)))
+        .map(|t| t.guid)
+        .collect()
 }
 
 /// Deleting read-only transactions is not offered (`delete_account_helper`, `gnc-plugin-page-account-tree.cpp:1165`,
 /// and the insensitive "Delete" buttons at `:1415-1475`).
 fn check_deletable(book: &Book, accounts: &[Guid]) -> DomainResult<()> {
     let read_only = accounts.iter().flat_map(|a| transactions_touching(book, *a)).find_map(|g| {
-        book.transaction(g).and_then(|t| t.slots.get_str(txn_slots::READ_ONLY).map(|reason| (g, reason.to_owned())))
+        book.transaction(g)
+            .and_then(|t| t.slots.get_str(txn_slots::READ_ONLY).map(|reason| (g, reason.to_owned())))
     });
     match read_only {
-        Some((g, reason)) => Err(DomainError::conflict(format!("transaction {g} is read-only ({reason}); move its splits instead"))),
+        Some((g, reason)) => Err(DomainError::conflict(format!(
+            "transaction {g} is read-only ({reason}); move its splits instead"
+        ))),
         None => Ok(()),
     }
 }
@@ -837,22 +1000,27 @@ pub fn move_all_splits(book: &mut Book, from: Guid, to: Guid) -> DomainResult<Ve
     }
     account(book, to)?;
     let mut moved = Vec::new();
-    transactions_touching(book, from).into_iter().try_for_each(|g| -> DomainResult<()> {
-        let Some(original) = book.transactions.get(&g) else { return Ok(()) };
-        let mut t = Transaction::clone(original);
-        t.splits.iter_mut().filter(|s| s.account == Some(from)).try_for_each(|s| -> DomainResult<()> {
-            s.account = Some(to);
-            s.amount = round_amount(book, to, s.amount)?;
-            if s.lot.is_some_and(|l| book.lot(l).is_none_or(|lot| lot.account != to)) {
-                s.lot = None;
-            }
-            moved.push(s.guid);
+    transactions_touching(book, from)
+        .into_iter()
+        .try_for_each(|g| -> DomainResult<()> {
+            let Some(original) = book.transactions.get(&g) else { return Ok(()) };
+            let mut t = Transaction::clone(original);
+            t.splits
+                .iter_mut()
+                .filter(|s| s.account == Some(from))
+                .try_for_each(|s| -> DomainResult<()> {
+                    s.account = Some(to);
+                    s.amount = round_amount(book, to, s.amount)?;
+                    if s.lot.is_some_and(|l| book.lot(l).is_none_or(|lot| lot.account != to)) {
+                        s.lot = None;
+                    }
+                    moved.push(s.guid);
+                    Ok(())
+                })?;
+            sort_splits(&mut t);
+            book.transactions.insert(g, Arc::new(t));
             Ok(())
         })?;
-        sort_splits(&mut t);
-        book.transactions.insert(g, Arc::new(t));
-        Ok(())
-    })?;
     Ok(moved)
 }
 
@@ -861,10 +1029,17 @@ pub fn move_all_splits(book: &mut Book, from: Guid, to: Guid) -> DomainResult<Ve
 /// (`gnc_lot_remove_split`, `5.17:libgnucash/engine/gnc-lot.cpp:631-652`). Returns the transactions and lots removed.
 pub fn destroy_all_transactions(book: &mut Book, account: Guid) -> (Vec<Guid>, Vec<Guid>) {
     let doomed = transactions_touching(book, account);
-    let touched_lots: BTreeSet<Guid> =
-        doomed.iter().filter_map(|g| book.transaction(*g)).flat_map(|t| t.splits.iter().filter_map(|s| s.lot)).collect();
+    let touched_lots: BTreeSet<Guid> = doomed
+        .iter()
+        .filter_map(|g| book.transaction(*g))
+        .flat_map(|t| t.splits.iter().filter_map(|s| s.lot))
+        .collect();
     book.transactions.retain(|g, _| !doomed.contains(g));
-    let still_used: BTreeSet<Guid> = book.transactions.values().flat_map(|t| t.splits.iter().filter_map(|s| s.lot)).collect();
+    let still_used: BTreeSet<Guid> = book
+        .transactions
+        .values()
+        .flat_map(|t| t.splits.iter().filter_map(|s| s.lot))
+        .collect();
     let empty: Vec<Guid> = touched_lots.into_iter().filter(|l| !still_used.contains(l)).collect();
     book.lots.retain(|g, _| !empty.contains(g));
     (doomed, empty)
@@ -896,12 +1071,21 @@ mod tests {
                 commodity: Some(CommodityRef::currency("USD")),
                 ..AccountEdit::default()
             };
-            create_account(&mut self.book, &mut self.env, if parent == Guid::NULL { root } else { parent }, &edit).unwrap()
+            create_account(
+                &mut self.book,
+                &mut self.env,
+                if parent == Guid::NULL { root } else { parent },
+                &edit,
+            )
+            .unwrap()
         }
 
         fn post(&mut self, a: Guid, b: Guid, cents: i64, day: u32) -> Guid {
             let mut t = NewTransaction::new(CommodityRef::currency("USD"), Date::from_ymd(2024, 1, day).unwrap());
-            t.splits = vec![NewSplit::new(a, Numeric::new(cents, 100)), NewSplit::new(b, Numeric::new(-cents, 100))];
+            t.splits = vec![
+                NewSplit::new(a, Numeric::new(cents, 100)),
+                NewSplit::new(b, Numeric::new(-cents, 100)),
+            ];
             add_transaction(&mut self.book, &mut self.env, t).unwrap()
         }
 
@@ -917,19 +1101,41 @@ mod tests {
         let bank = f.add(assets, "Bank", AccountType::Bank);
         assert_eq!(f.book.full_name(bank).unwrap(), "Assets:Bank");
         assert_eq!(f.book.account(bank).unwrap().commodity_scu, Some(100));
-        let mut edit = AccountEdit { name: Some("Bank".into()), account_type: Some(AccountType::Bank), ..AccountEdit::default() };
+        let mut edit = AccountEdit {
+            name: Some("Bank".into()),
+            account_type: Some(AccountType::Bank),
+            ..AccountEdit::default()
+        };
         let root = f.book.root;
-        assert!(matches!(create_account(&mut f.book, &mut f.env, assets, &edit), Err(DomainError::Conflict(_))), "sibling clash");
+        assert!(
+            matches!(
+                create_account(&mut f.book, &mut f.env, assets, &edit),
+                Err(DomainError::Conflict(_))
+            ),
+            "sibling clash"
+        );
         edit.name = Some("A:B".into());
-        assert!(matches!(create_account(&mut f.book, &mut f.env, assets, &edit), Err(DomainError::Invalid(_))));
+        assert!(matches!(
+            create_account(&mut f.book, &mut f.env, assets, &edit),
+            Err(DomainError::Invalid(_))
+        ));
         edit.name = Some("Food".into());
         edit.account_type = Some(AccountType::Expense);
-        assert!(create_account(&mut f.book, &mut f.env, assets, &edit).is_err(), "EXPENSE under ASSET");
+        assert!(
+            create_account(&mut f.book, &mut f.env, assets, &edit).is_err(),
+            "EXPENSE under ASSET"
+        );
         edit.account_type = Some(AccountType::Stock);
-        assert!(create_account(&mut f.book, &mut f.env, assets, &edit).is_err(), "a stock needs a security; the parent's USD does not do");
+        assert!(
+            create_account(&mut f.book, &mut f.env, assets, &edit).is_err(),
+            "a stock needs a security; the parent's USD does not do"
+        );
         edit.account_type = Some(AccountType::Currency);
         edit.commodity = Some(CommodityRef::currency("USD"));
-        assert!(create_account(&mut f.book, &mut f.env, root, &edit).is_err(), "CURRENCY is deprecated");
+        assert!(
+            create_account(&mut f.book, &mut f.env, root, &edit).is_err(),
+            "CURRENCY is deprecated"
+        );
         edit.account_type = Some(AccountType::Bank);
         edit.commodity = None;
         edit.scu = Some(Scu::Fraction(1000));
@@ -949,7 +1155,11 @@ mod tests {
         let b = f.add(Guid::NULL, "B", AccountType::Asset);
         f.add(b, "B1", AccountType::Asset);
         let c = f.add(a, "A2", AccountType::Asset);
-        assert_eq!(f.order(), ["A", "A1", "A1x", "A2", "B", "B1"], "a new account goes after its parent's subtree");
+        assert_eq!(
+            f.order(),
+            ["A", "A1", "A1x", "A2", "B", "B1"],
+            "a new account goes after its parent's subtree"
+        );
         move_account(&mut f.book, a1, b).unwrap();
         assert_eq!(f.order(), ["A", "A2", "B", "B1", "A1", "A1x"]);
         assert_eq!(f.book.full_name(a1).unwrap(), "B:A1");
@@ -965,26 +1175,43 @@ mod tests {
         let a = f.add(Guid::NULL, "A", AccountType::Asset);
         let child = f.add(a, "Child", AccountType::Bank);
         let other = f.add(Guid::NULL, "Other", AccountType::Equity);
-        let mut edit = AccountEdit { account_type: Some(AccountType::Equity), ..AccountEdit::default() };
-        assert!(matches!(update_account(&mut f.book, a, &edit), Err(DomainError::Conflict(_))), "children need confirming");
+        let mut edit = AccountEdit {
+            account_type: Some(AccountType::Equity),
+            ..AccountEdit::default()
+        };
+        assert!(
+            matches!(update_account(&mut f.book, a, &edit), Err(DomainError::Conflict(_))),
+            "children need confirming"
+        );
         edit.retype_children = true;
         update_account(&mut f.book, a, &edit).unwrap();
         assert_eq!(f.book.account(child).unwrap().account_type, AccountType::Equity);
         f.post(child, other, 500, 2);
         edit.account_type = Some(AccountType::Receivable);
         edit.retype_children = false;
-        assert!(update_account(&mut f.book, child, &edit).is_err(), "EQUITY cannot become A/R under EQUITY");
+        assert!(
+            update_account(&mut f.book, child, &edit).is_err(),
+            "EQUITY cannot become A/R under EQUITY"
+        );
         assert!(!type_change_allowed_with_splits(AccountType::Receivable, AccountType::Asset));
         assert!(type_change_allowed_with_splits(AccountType::Bank, AccountType::Income));
-        let commodity = AccountEdit { commodity: Some(CommodityRef::currency("EUR")), ..AccountEdit::default() };
-        assert!(matches!(update_account(&mut f.book, child, &commodity), Err(DomainError::Conflict(_))), "has splits");
+        let commodity = AccountEdit {
+            commodity: Some(CommodityRef::currency("EUR")),
+            ..AccountEdit::default()
+        };
+        assert!(
+            matches!(update_account(&mut f.book, child, &commodity), Err(DomainError::Conflict(_))),
+            "has splits"
+        );
     }
 
     #[test]
     fn details_change_only_what_differs() {
         let mut f = Fx::new();
         let a = f.add(Guid::NULL, "A", AccountType::Expense);
-        Arc::make_mut(f.book.accounts.get_mut(&a).unwrap()).slots.set("tax-related", SlotValue::Integer(1));
+        Arc::make_mut(f.book.accounts.get_mut(&a).unwrap())
+            .slots
+            .set("tax-related", SlotValue::Integer(1));
         let edit = AccountEdit {
             tax_related: Some(true),
             tax_us_code: Some("N123".into()),
@@ -995,10 +1222,19 @@ mod tests {
         };
         update_account(&mut f.book, a, &edit).unwrap();
         let acc = f.book.account(a).unwrap();
-        assert_eq!(acc.slots.get("tax-related"), Some(&SlotValue::Integer(1)), "already true: left alone");
+        assert_eq!(
+            acc.slots.get("tax-related"),
+            Some(&SlotValue::Integer(1)),
+            "already true: left alone"
+        );
         assert_eq!(acc.slots.get_str("tax-US/code"), Some("N123"));
         assert_eq!(acc.code.as_deref(), Some("5100"));
-        let clear = AccountEdit { notes: Some(String::new()), tax_us_copy_number: Some(0), tax_related: Some(false), ..AccountEdit::default() };
+        let clear = AccountEdit {
+            notes: Some(String::new()),
+            tax_us_copy_number: Some(0),
+            tax_related: Some(false),
+            ..AccountEdit::default()
+        };
         update_account(&mut f.book, a, &clear).unwrap();
         let acc = f.book.account(a).unwrap();
         assert!(acc.notes().is_none() && acc.slots.get("tax-US/copy-number").is_none() && acc.slots.get("tax-related").is_none());
@@ -1008,17 +1244,54 @@ mod tests {
     fn renumber_as_the_dialog() {
         let mut f = Fx::new();
         let p = f.add(Guid::NULL, "P", AccountType::Expense);
-        update_account(&mut f.book, p, &AccountEdit { code: Some("1000".into()), ..AccountEdit::default() }).unwrap();
+        update_account(
+            &mut f.book,
+            p,
+            &AccountEdit {
+                code: Some("1000".into()),
+                ..AccountEdit::default()
+            },
+        )
+        .unwrap();
         ["C", "A", "B"].iter().for_each(|n| {
             f.add(p, n, AccountType::Expense);
         });
-        let codes: Vec<String> = renumber_children(&mut f.book, p, &Renumber::default()).unwrap().into_iter().map(|(_, c)| c).collect();
+        let codes: Vec<String> = renumber_children(&mut f.book, p, &Renumber::default())
+            .unwrap()
+            .into_iter()
+            .map(|(_, c)| c)
+            .collect();
         assert_eq!(codes, ["1000-010", "1000-020", "1000-030"]);
-        let r = Renumber { prefix: Some(String::new()), interval: 400, digits: 1 };
-        let named: Vec<(String, String)> =
-            renumber_children(&mut f.book, p, &r).unwrap().into_iter().map(|(g, c)| (f.book.account(g).unwrap().name.clone(), c)).collect();
-        assert_eq!(named, [("A".into(), "0400".into()), ("B".into(), "0800".into()), ("C".into(), "1200".into())], "sorted by the current codes");
-        assert!(renumber_children(&mut f.book, p, &Renumber { interval: 0, ..Renumber::default() }).is_err());
+        let r = Renumber {
+            prefix: Some(String::new()),
+            interval: 400,
+            digits: 1,
+        };
+        let named: Vec<(String, String)> = renumber_children(&mut f.book, p, &r)
+            .unwrap()
+            .into_iter()
+            .map(|(g, c)| (f.book.account(g).unwrap().name.clone(), c))
+            .collect();
+        assert_eq!(
+            named,
+            [
+                ("A".into(), "0400".into()),
+                ("B".into(), "0800".into()),
+                ("C".into(), "1200".into())
+            ],
+            "sorted by the current codes"
+        );
+        assert!(
+            renumber_children(
+                &mut f.book,
+                p,
+                &Renumber {
+                    interval: 0,
+                    ..Renumber::default()
+                }
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -1038,7 +1311,10 @@ mod tests {
             subaccount_transactions: Some(Disposal::Delete),
             ..DeleteOptions::default()
         };
-        let wrong = DeleteOptions { transactions: Some(Disposal::MoveTo(food)), ..opts };
+        let wrong = DeleteOptions {
+            transactions: Some(Disposal::MoveTo(food)),
+            ..opts
+        };
         assert!(delete_account(&mut f.book, bank, &wrong).is_err(), "a target of another type");
         let r = delete_account(&mut f.book, bank, &opts).unwrap();
         assert_eq!(r.deleted_accounts, [bank, sub]);
@@ -1055,10 +1331,19 @@ mod tests {
         let second = f.add(Guid::NULL, "B", AccountType::Asset);
         let spend = f.add(Guid::NULL, "E", AccountType::Expense);
         let txn = f.post(spend, first, 100, 2);
-        Arc::make_mut(f.book.transactions.get_mut(&txn).unwrap()).slots.set(txn_slots::READ_ONLY, SlotValue::String("posted".into()));
-        let opts = DeleteOptions { transactions: Some(Disposal::Delete), subaccount: Some(Disposal::MoveTo(second)), ..DeleteOptions::default() };
+        Arc::make_mut(f.book.transactions.get_mut(&txn).unwrap())
+            .slots
+            .set(txn_slots::READ_ONLY, SlotValue::String("posted".into()));
+        let opts = DeleteOptions {
+            transactions: Some(Disposal::Delete),
+            subaccount: Some(Disposal::MoveTo(second)),
+            ..DeleteOptions::default()
+        };
         assert!(matches!(delete_account(&mut f.book, first, &opts), Err(DomainError::Conflict(_))));
-        let opts = DeleteOptions { transactions: Some(Disposal::MoveTo(child)), ..opts };
+        let opts = DeleteOptions {
+            transactions: Some(Disposal::MoveTo(child)),
+            ..opts
+        };
         let r = delete_account(&mut f.book, first, &opts).unwrap();
         assert_eq!(r.reparented, Some(child));
         assert_eq!(f.book.full_name(child).unwrap(), "B:Child");
@@ -1075,10 +1360,17 @@ mod tests {
         f.add(Guid::NULL, "Y", AccountType::Asset);
         let names = |v: Vec<&Account>| v.iter().map(|a| a.name.clone()).collect::<Vec<_>>();
         assert_eq!(names(descendants_sorted(&f.book, f.book.root)), ["Y", "Z", "A", "B", "C"]);
-        assert_eq!(names(f.book.descendants(f.book.root)), ["Z", "B", "C", "A", "Y"], "book order for comparison");
+        assert_eq!(
+            names(f.book.descendants(f.book.root)),
+            ["Z", "B", "C", "A", "Y"],
+            "book order for comparison"
+        );
         let root = f.book.root;
         assert_eq!((depth(&f.book, root), depth(&f.book, z), depth(&f.book, zb)), (0, 1, 2));
-        assert_eq!((tree_depth(&f.book, root), tree_depth(&f.book, z), tree_depth(&f.book, zb)), (4, 3, 2));
+        assert_eq!(
+            (tree_depth(&f.book, root), tree_depth(&f.book, z), tree_depth(&f.book, zb)),
+            (4, 3, 2)
+        );
     }
 
     #[test]
@@ -1089,7 +1381,12 @@ mod tests {
             a.code = code.map(Into::into);
             a
         };
-        let mut v = [acc("A", AccountType::Bank, None), acc("B", AccountType::Trading, None), acc("C", AccountType::Cash, None), acc("D", AccountType::Bank, Some("1"))];
+        let mut v = [
+            acc("A", AccountType::Bank, None),
+            acc("B", AccountType::Trading, None),
+            acc("C", AccountType::Cash, None),
+            acc("D", AccountType::Bank, Some("1")),
+        ];
         v.sort_by(account_order);
         assert_eq!(v.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["C", "B", "A", "D"]);
     }

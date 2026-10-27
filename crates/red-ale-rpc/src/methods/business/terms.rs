@@ -18,16 +18,61 @@ use crate::wire::{AccountRef, Amount, Done, Id};
 /// The tax table and billing term methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("taxTable.create", "Create a tax table with one or more lines.", Effect::Write, tax_table_create),
-        method("taxTable.get", "A tax table, with its lines and family links.", Effect::Read, tax_table_get),
-        method("taxTable.list", "Tax tables; frozen copies made by posting only on request.", Effect::Read, tax_table_list),
-        method("taxTable.update", "Rename a tax table or replace its lines.", Effect::Write, tax_table_update),
-        method("taxTable.delete", "Delete a tax table nothing uses.", Effect::Destructive, tax_table_delete),
-        method("billTerm.create", "Create a billing term (days or proximo).", Effect::Write, bill_term_create),
-        method("billTerm.get", "A billing term, with its family links.", Effect::Read, bill_term_get),
-        method("billTerm.list", "Billing terms; frozen copies made by posting only on request.", Effect::Read, bill_term_list),
+        method(
+            "taxTable.create",
+            "Create a tax table with one or more lines.",
+            Effect::Write,
+            tax_table_create,
+        ),
+        method(
+            "taxTable.get",
+            "A tax table, with its lines and family links.",
+            Effect::Read,
+            tax_table_get,
+        ),
+        method(
+            "taxTable.list",
+            "Tax tables; frozen copies made by posting only on request.",
+            Effect::Read,
+            tax_table_list,
+        ),
+        method(
+            "taxTable.update",
+            "Rename a tax table or replace its lines.",
+            Effect::Write,
+            tax_table_update,
+        ),
+        method(
+            "taxTable.delete",
+            "Delete a tax table nothing uses.",
+            Effect::Destructive,
+            tax_table_delete,
+        ),
+        method(
+            "billTerm.create",
+            "Create a billing term (days or proximo).",
+            Effect::Write,
+            bill_term_create,
+        ),
+        method(
+            "billTerm.get",
+            "A billing term, with its family links.",
+            Effect::Read,
+            bill_term_get,
+        ),
+        method(
+            "billTerm.list",
+            "Billing terms; frozen copies made by posting only on request.",
+            Effect::Read,
+            bill_term_list,
+        ),
         method("billTerm.update", "Change a billing term.", Effect::Write, bill_term_update),
-        method("billTerm.delete", "Delete a billing term nothing uses.", Effect::Destructive, bill_term_delete),
+        method(
+            "billTerm.delete",
+            "Delete a billing term nothing uses.",
+            Effect::Destructive,
+            bill_term_delete,
+        ),
     ]
 }
 
@@ -218,12 +263,22 @@ pub struct TaxTableList {
 fn tax_lines(book: &Book, lines: Vec<TaxLineParams>) -> Result<Vec<TaxTableEntry>, RpcError> {
     lines
         .into_iter()
-        .map(|l| Ok(TaxTableEntry { account: Some(l.account.resolve(book)?), amount: l.amount.0, kind: l.kind.into() }))
+        .map(|l| {
+            Ok(TaxTableEntry {
+                account: Some(l.account.resolve(book)?),
+                amount: l.amount.0,
+                kind: l.kind.into(),
+            })
+        })
         .collect()
 }
 
 fn get_tax_table(book: &Book, guid: Guid) -> Result<TaxTableInfo, RpcError> {
-    book.business.tax_tables.get(&guid).map(|t| tax_table_info(book, t)).ok_or_else(|| RpcError::not_found("tax table", guid))
+    book.business
+        .tax_tables
+        .get(&guid)
+        .map(|t| tax_table_info(book, t))
+        .ok_or_else(|| RpcError::not_found("tax table", guid))
 }
 
 fn tax_table_create(ctx: &mut Context, p: TaxTableCreate) -> Result<TaxTableInfo, RpcError> {
@@ -241,10 +296,17 @@ fn tax_table_get(ctx: &mut Context, p: TaxTableKey) -> Result<TaxTableInfo, RpcE
 
 fn tax_table_list(ctx: &mut Context, p: FamilyListParams) -> Result<TaxTableList, RpcError> {
     let book = ctx.book()?;
-    let mut tables: Vec<&TaxTable> =
-        book.business.tax_tables.values().map(AsRef::as_ref).filter(|t| p.include_frozen || (t.parent.is_none() && !t.invisible)).collect();
+    let mut tables: Vec<&TaxTable> = book
+        .business
+        .tax_tables
+        .values()
+        .map(AsRef::as_ref)
+        .filter(|t| p.include_frozen || (t.parent.is_none() && !t.invisible))
+        .collect();
     tables.sort_by(|a, b| (&a.name, a.guid).cmp(&(&b.name, b.guid)));
-    Ok(TaxTableList { tax_tables: tables.into_iter().map(|t| tax_table_info(book, t)).collect() })
+    Ok(TaxTableList {
+        tax_tables: tables.into_iter().map(|t| tax_table_info(book, t)).collect(),
+    })
 }
 
 fn tax_table_update(ctx: &mut Context, p: TaxTableUpdate) -> Result<TaxTableInfo, RpcError> {
@@ -375,18 +437,34 @@ pub struct BillTermInfo {
 /// The kind fields as GnuCash's accessors return them: type, due days, discount days, discount, cutoff.
 fn kind_parts(kind: Option<BillTermKind>) -> (Option<BillTermTypeWire>, i64, i64, Numeric, i64) {
     match kind {
-        Some(BillTermKind::Days { due_days, disc_days, discount }) => (Some(BillTermTypeWire::Days), due_days, disc_days, discount, 0),
-        Some(BillTermKind::Proximo { due_day, disc_day, discount, cutoff_day }) => {
-            (Some(BillTermTypeWire::Proximo), due_day, disc_day, discount, cutoff_day)
-        }
+        Some(BillTermKind::Days {
+            due_days,
+            disc_days,
+            discount,
+        }) => (Some(BillTermTypeWire::Days), due_days, disc_days, discount, 0),
+        Some(BillTermKind::Proximo {
+            due_day,
+            disc_day,
+            discount,
+            cutoff_day,
+        }) => (Some(BillTermTypeWire::Proximo), due_day, disc_day, discount, cutoff_day),
         None => (None, 0, 0, Numeric::ZERO, 0),
     }
 }
 
 fn make_kind(kind: BillTermTypeWire, due: i64, disc: i64, discount: Numeric, cutoff: i64) -> BillTermKind {
     match kind {
-        BillTermTypeWire::Days => BillTermKind::Days { due_days: due, disc_days: disc, discount },
-        BillTermTypeWire::Proximo => BillTermKind::Proximo { due_day: due, disc_day: disc, discount, cutoff_day: cutoff },
+        BillTermTypeWire::Days => BillTermKind::Days {
+            due_days: due,
+            disc_days: disc,
+            discount,
+        },
+        BillTermTypeWire::Proximo => BillTermKind::Proximo {
+            due_day: due,
+            disc_day: disc,
+            discount,
+            cutoff_day: cutoff,
+        },
     }
 }
 
@@ -419,11 +497,21 @@ pub struct BillTermList {
 }
 
 fn get_bill_term(book: &Book, guid: Guid) -> Result<BillTermInfo, RpcError> {
-    book.business.bill_terms.get(&guid).map(|t| t.as_ref().into()).ok_or_else(|| RpcError::not_found("billing term", guid))
+    book.business
+        .bill_terms
+        .get(&guid)
+        .map(|t| t.as_ref().into())
+        .ok_or_else(|| RpcError::not_found("billing term", guid))
 }
 
 fn bill_term_create(ctx: &mut Context, p: BillTermCreate) -> Result<BillTermInfo, RpcError> {
-    let kind = make_kind(p.kind, p.due_days, p.discount_days, p.discount.map_or(Numeric::ZERO, |d| d.0), p.cutoff);
+    let kind = make_kind(
+        p.kind,
+        p.due_days,
+        p.discount_days,
+        p.discount.map_or(Numeric::ZERO, |d| d.0),
+        p.cutoff,
+    );
     ctx.mutate_rpc(|book, env| {
         let guid = add_bill_term(book, env, &p.name, &p.description, kind)?;
         get_bill_term(book, guid)
@@ -437,23 +525,40 @@ fn bill_term_get(ctx: &mut Context, p: BillTermKey) -> Result<BillTermInfo, RpcE
 
 fn bill_term_list(ctx: &mut Context, p: FamilyListParams) -> Result<BillTermList, RpcError> {
     let book = ctx.book()?;
-    let mut terms: Vec<&BillTerm> =
-        book.business.bill_terms.values().map(AsRef::as_ref).filter(|t| p.include_frozen || (t.parent.is_none() && !t.invisible)).collect();
+    let mut terms: Vec<&BillTerm> = book
+        .business
+        .bill_terms
+        .values()
+        .map(AsRef::as_ref)
+        .filter(|t| p.include_frozen || (t.parent.is_none() && !t.invisible))
+        .collect();
     terms.sort_by(|a, b| (&a.name, &a.description, a.guid).cmp(&(&b.name, &b.description, b.guid)));
-    Ok(BillTermList { bill_terms: terms.into_iter().map(Into::into).collect() })
+    Ok(BillTermList {
+        bill_terms: terms.into_iter().map(Into::into).collect(),
+    })
 }
 
 fn bill_term_update(ctx: &mut Context, p: BillTermUpdate) -> Result<BillTermInfo, RpcError> {
     ctx.mutate_rpc(|book, _| {
         let guid = p.bill_term.resolve(book)?;
-        let current = book.business.bill_terms.get(&guid).ok_or_else(|| RpcError::not_found("billing term", guid))?;
+        let current = book
+            .business
+            .bill_terms
+            .get(&guid)
+            .ok_or_else(|| RpcError::not_found("billing term", guid))?;
         let (kind, due, disc, discount, cutoff) = kind_parts(current.kind);
         let changes_kind =
             p.kind.is_some() || p.due_days.is_some() || p.discount_days.is_some() || p.discount.is_some() || p.cutoff.is_some();
         let new_kind = if changes_kind {
             let kind = p.kind.or(kind).ok_or_else(|| RpcError::invalid("the billing term needs a type"))?;
             let discount = p.discount.map_or(discount, |d| d.0);
-            Some(make_kind(kind, p.due_days.unwrap_or(due), p.discount_days.unwrap_or(disc), discount, p.cutoff.unwrap_or(cutoff)))
+            Some(make_kind(
+                kind,
+                p.due_days.unwrap_or(due),
+                p.discount_days.unwrap_or(disc),
+                discount,
+                p.cutoff.unwrap_or(cutoff),
+            ))
         } else {
             None
         };

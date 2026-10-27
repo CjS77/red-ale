@@ -6,7 +6,9 @@ use red_ale_locale::Locale;
 
 use super::chart::{Axis, AxisFormat};
 use super::validate::Stage;
-use super::{Block, Cell, Chart, CommodityLine, LogEntry, OptionValues, RESULT_VERSION, ReportDraft, ReportIdentity, ReportResult, Section};
+use super::{
+    Block, Cell, Chart, CommodityLine, LogEntry, OptionValues, RESULT_VERSION, ReportDraft, ReportIdentity, ReportResult, Section,
+};
 use crate::error::ResultError;
 use crate::number::{CommodityFormat, Monetary, Rational, display_exact, display_monetary, display_number, display_price};
 use crate::settings::DateFormat;
@@ -82,7 +84,10 @@ impl ReportDraft {
 }
 
 fn fill_sections(sections: &mut [Section], ctx: &DisplayContext<'_>) -> Fill {
-    sections.iter_mut().enumerate().try_for_each(|(i, s)| fill_blocks(&mut s.blocks, &format!("sections[{i}].blocks"), ctx))
+    sections
+        .iter_mut()
+        .enumerate()
+        .try_for_each(|(i, s)| fill_blocks(&mut s.blocks, &format!("sections[{i}].blocks"), ctx))
 }
 
 fn fill_blocks(blocks: &mut [Block], path: &str, ctx: &DisplayContext<'_>) -> Fill {
@@ -91,7 +96,8 @@ fn fill_blocks(blocks: &mut [Block], path: &str, ctx: &DisplayContext<'_>) -> Fi
         match b {
             Block::Table(t) => t.rows.iter_mut().enumerate().try_for_each(|(r, row)| {
                 row.cells.iter_mut().enumerate().try_for_each(|(c, cell)| {
-                    cell.as_mut().map_or(Ok(()), |cell| fill_cell(cell, &format!("{at}.rows[{r}].cells[{c}]"), ctx))
+                    cell.as_mut()
+                        .map_or(Ok(()), |cell| fill_cell(cell, &format!("{at}.rows[{r}].cells[{c}]"), ctx))
                 })
             }),
             Block::Chart(c) => fill_chart(c, &at, ctx),
@@ -112,17 +118,26 @@ fn fill_cell(cell: &mut Cell, path: &str, ctx: &DisplayContext<'_>) -> Fill {
         let currency = ctx.commodity(&currency.0, &format!("{path}.currency"))?;
         cell.display = Some(display_price(p, &currency, &ctx.locale.conventions()));
     } else if let Some(t) = cell.date {
-        let day = ctx.zone.local_date(t.0).ok_or_else(|| ResultError::new(format!("{path}.date"), "outside the supported range"))?;
+        let day = ctx
+            .zone
+            .local_date(t.0)
+            .ok_or_else(|| ResultError::new(format!("{path}.date"), "outside the supported range"))?;
         (cell.local_date, cell.display) = (Some(day.to_file_string()), Some(ctx.print_date(day)));
     } else if let Some(lines) = &mut cell.commodities {
-        lines.iter_mut().enumerate().try_for_each(|(i, l)| fill_line(l, &format!("{path}.commodities[{i}]"), ctx))?;
+        lines
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, l)| fill_line(l, &format!("{path}.commodities[{i}]"), ctx))?;
     }
     Ok(())
 }
 
 fn fill_line(line: &mut CommodityLine, path: &str, ctx: &DisplayContext<'_>) -> Fill {
     line.display = Some(ctx.monetary(&line.monetary, &format!("{path}.monetary.commodity"))?.1);
-    let converted = line.converted.as_ref().map(|m| ctx.monetary(m, &format!("{path}.converted.commodity")));
+    let converted = line
+        .converted
+        .as_ref()
+        .map(|m| ctx.monetary(m, &format!("{path}.converted.commodity")));
     line.converted_display = converted.transpose()?.map(|(_, d)| d);
     Ok(())
 }
@@ -130,7 +145,10 @@ fn fill_line(line: &mut CommodityLine, path: &str, ctx: &DisplayContext<'_>) -> 
 fn fill_chart(chart: &mut Chart, path: &str, ctx: &DisplayContext<'_>) -> Fill {
     let show = value_formatter(&chart.y_axis, &format!("{path}.yAxis.commodity"), ctx)?;
     chart.series.iter_mut().for_each(|s| {
-        s.displays = s.values.as_ref().map(|values| values.iter().map(|v| v.as_ref().map(&show)).collect());
+        s.displays = s
+            .values
+            .as_ref()
+            .map(|values| values.iter().map(|v| v.as_ref().map(&show)).collect());
         s.points.iter_mut().flatten().for_each(|p| p.display = Some(show(&p.y)));
     });
     Ok(())

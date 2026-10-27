@@ -41,7 +41,11 @@ fn duplicate(ctx: &mut Context, p: DuplicateParams) -> Result<InvoiceDetail, Rpc
             Some(d) => d.0,
             None => local_today(env)?,
         };
-        let d = Duplicate { source: p.invoice.0, id: p.id.unwrap_or_default(), date: env.zone().neutral_time(date) };
+        let d = Duplicate {
+            source: p.invoice.0,
+            id: p.id.unwrap_or_default(),
+            date: env.zone().neutral_time(date),
+        };
         let guid = duplicate_invoice(book, env, &d)?;
         get_invoice(book, guid)
     })

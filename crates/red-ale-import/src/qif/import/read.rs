@@ -11,8 +11,8 @@ use std::collections::BTreeSet;
 
 use super::super::dialog_utils::{action, default_equity_account, fix_from_acct};
 use super::super::file::{
-    FieldError, FieldKind, FieldProblem, ParseFieldsReport, ReadError, ReadOptions, ReadWarningKind, RecordKind, check_from_acct, parse_fields, read_file,
-    reparse_dates, reparse_price_dates,
+    FieldError, FieldKind, FieldProblem, ParseFieldsReport, ReadError, ReadOptions, ReadWarningKind, RecordKind, check_from_acct,
+    parse_fields, read_file, reparse_dates, reparse_price_dates,
 };
 use super::super::objects::{Field, QifFile, QifXtn, TickerMap};
 use super::super::parse::{Action, DateFormat};
@@ -40,29 +40,59 @@ pub(super) struct Loaded {
 /// Read and parse every file; with the dates decided, leave out the error rows and give each file its account.
 pub(super) fn load(inputs: &[QifFileInput], date_format: Option<DateFormat>) -> Result<Loaded, QifError> {
     let mut loaded = Loaded::default();
-    let reports: Vec<ParseFieldsReport> = inputs.iter().enumerate().map(|(i, input)| read_one(i, input, &mut loaded)).collect::<Result<_, _>>()?;
-    let ambiguous: Vec<(usize, Vec<DateFormat>)> = reports.iter().enumerate().filter_map(|(i, r)| r.date_formats().map(|f| (i, f))).collect();
+    let reports: Vec<ParseFieldsReport> = inputs
+        .iter()
+        .enumerate()
+        .map(|(i, input)| read_one(i, input, &mut loaded))
+        .collect::<Result<_, _>>()?;
+    let ambiguous: Vec<(usize, Vec<DateFormat>)> = reports
+        .iter()
+        .enumerate()
+        .filter_map(|(i, r)| r.date_formats().map(|f| (i, f)))
+        .collect();
     if !ambiguous.is_empty() {
         let Some(format) = date_format else {
             loaded.date_formats = common_formats(&ambiguous);
-            loaded.errors.extend(reports.iter().enumerate().flat_map(|(i, r)| unreadable_rows(i, &r.errors)));
-            return if loaded.date_formats.is_empty() { Err(no_common_format(&ambiguous)) } else { Ok(loaded) };
+            loaded
+                .errors
+                .extend(reports.iter().enumerate().flat_map(|(i, r)| unreadable_rows(i, &r.errors)));
+            return if loaded.date_formats.is_empty() {
+                Err(no_common_format(&ambiguous))
+            } else {
+                Ok(loaded)
+            };
         };
-        ambiguous.iter().try_for_each(|(i, formats)| reparse(&mut loaded.files, *i, formats, format))?;
+        ambiguous
+            .iter()
+            .try_for_each(|(i, formats)| reparse(&mut loaded.files, *i, formats, format))?;
     }
-    reports.iter().enumerate().for_each(|(i, r)| loaded.warnings.extend(field_warnings(i, r)));
+    reports
+        .iter()
+        .enumerate()
+        .for_each(|(i, r)| loaded.warnings.extend(field_warnings(i, r)));
     let files = std::mem::take(&mut loaded.files);
-    loaded.files = files.into_iter().enumerate().map(|(i, f)| without_errors(i, f, &reports[i], &mut loaded.errors)).collect();
+    loaded.files = files
+        .into_iter()
+        .enumerate()
+        .map(|(i, f)| without_errors(i, f, &reports[i], &mut loaded.errors))
+        .collect();
     loaded.files.iter_mut().zip(inputs).for_each(|(f, input)| default_account(f, input));
     Ok(loaded)
 }
 
 /// `qif-file:read-file` then `qif-file:parse-fields` for one file.
 fn read_one(index: usize, input: &QifFileInput, loaded: &mut Loaded) -> Result<ParseFieldsReport, QifError> {
-    let options = ReadOptions { path: input.path.clone(), default_equity_account: default_equity_account() };
+    let options = ReadOptions {
+        path: input.path.clone(),
+        default_equity_account: default_equity_account(),
+    };
     let read = read_file(&input.text, &options).map_err(|e| read_error(index, &e))?;
     read.securities.into_iter().for_each(|s| loaded.ticker_map.add_ticker(s));
-    loaded.ignored.extend(read.warnings.iter().map(|w| IgnoredLine { file: index, line: w.line, reason: warning_reason(&w.kind) }));
+    loaded.ignored.extend(read.warnings.iter().map(|w| IgnoredLine {
+        file: index,
+        line: w.line,
+        reason: warning_reason(&w.kind),
+    }));
     let mut file = read.file;
     let report = parse_fields(&mut file).map_err(|e| QifError::File {
         file: index,
@@ -78,7 +108,12 @@ fn read_error(file: usize, e: &ReadError) -> QifError {
     let line = match e {
         ReadError::NotQif { line, .. } | ReadError::Category { line, .. } => *line,
     };
-    QifError::File { file, line: Some(line), reason: "qif", message: e.to_string() }
+    QifError::File {
+        file,
+        line: Some(line),
+        reason: "qif",
+        message: e.to_string(),
+    }
 }
 
 /// The reason code of a line the reader skipped.
@@ -96,21 +131,41 @@ fn warning_reason(kind: &ReadWarningKind) -> &'static str {
 /// The formats every ambiguous file allows, in GnuCash's order.
 fn common_formats(ambiguous: &[(usize, Vec<DateFormat>)]) -> Vec<DateFormat> {
     let first = ambiguous.first().map(|(_, f)| f.clone()).unwrap_or_default();
-    first.into_iter().filter(|f| ambiguous.iter().all(|(_, formats)| formats.contains(f))).collect()
+    first
+        .into_iter()
+        .filter(|f| ambiguous.iter().all(|(_, formats)| formats.contains(f)))
+        .collect()
 }
 
 fn no_common_format(ambiguous: &[(usize, Vec<DateFormat>)]) -> QifError {
     let (file, _) = ambiguous.last().cloned().unwrap_or_default();
     let message = "the files' dates are ambiguous, and no one date format fits them all: import the files one at a time".to_owned();
-    QifError::File { file, line: None, reason: "date-format", message }
+    QifError::File {
+        file,
+        line: None,
+        reason: "date-format",
+        message,
+    }
 }
 
 /// `qif-file:reparse-dates` with the caller's format, for transactions and prices.
 fn reparse(files: &mut [QifFile], index: usize, formats: &[DateFormat], format: DateFormat) -> Result<(), QifError> {
-    let fail = |line: Option<usize>, message: String| QifError::File { file: index, line, reason: "date-format", message };
+    let fail = |line: Option<usize>, message: String| QifError::File {
+        file: index,
+        line,
+        reason: "date-format",
+        message,
+    };
     if !formats.contains(&format) {
         let names: Vec<&str> = formats.iter().map(|f| f.symbol()).collect();
-        return Err(fail(None, format!("dateFormat {} does not fit the dates; these do: {}", format.symbol(), names.join(", "))));
+        return Err(fail(
+            None,
+            format!(
+                "dateFormat {} does not fit the dates; these do: {}",
+                format.symbol(),
+                names.join(", ")
+            ),
+        ));
     }
     let Some(file) = files.get_mut(index) else { return Ok(()) };
     let failed = |errors: Vec<FieldError>| {
@@ -131,7 +186,14 @@ fn unreadable_rows(file: usize, errors: &[FieldError]) -> impl Iterator<Item = R
     errors
         .iter()
         .filter(|e| matches!(e.record, RecordKind::Transaction | RecordKind::Price) && is_row_error(e))
-        .filter_map(move |e| e.line.map(|line| RowError { file, line, column: None, message: e.problem.to_string() }))
+        .filter_map(move |e| {
+            e.line.map(|line| RowError {
+                file,
+                line,
+                column: None,
+                message: e.problem.to_string(),
+            })
+        })
 }
 
 /// The field problems that do not make an error row, as warnings, and the number formats guessed.
@@ -141,26 +203,59 @@ fn field_warnings(file: usize, report: &ParseFieldsReport) -> Vec<Warning> {
         .iter()
         .filter(|e| !(matches!(e.record, RecordKind::Transaction | RecordKind::Price) && is_row_error(e)))
         .filter(|e| !matches!(e.problem, FieldProblem::Ambiguous(_)))
-        .map(|e| Warning { code: "qif-field", message: format!("file {file}: {e}"), index: None });
+        .map(|e| Warning {
+            code: "qif-field",
+            message: format!("file {file}: {e}"),
+            index: None,
+        });
     let guesses = report.guesses.iter().map(|g| {
         let candidates: Vec<String> = g.candidates.iter().map(ToString::to_string).collect();
-        let message = format!("file {file}: {} read as {}; it also fits {}", g.field, g.chosen, candidates.join(", "));
-        Warning { code: "number-format", message, index: None }
+        let message = format!(
+            "file {file}: {} read as {}; it also fits {}",
+            g.field,
+            g.chosen,
+            candidates.join(", ")
+        );
+        Warning {
+            code: "number-format",
+            message,
+            index: None,
+        }
     });
     problems.chain(guesses).collect()
 }
 
 /// The file without its error rows, which are added to `errors`.
 fn without_errors(index: usize, mut file: QifFile, report: &ParseFieldsReport, errors: &mut Vec<RowError>) -> QifFile {
-    let row = |line: usize, message: String| RowError { file: index, line, column: None, message };
+    let row = |line: usize, message: String| RowError {
+        file: index,
+        line,
+        column: None,
+        message,
+    };
     let bad = |record: RecordKind| -> BTreeSet<usize> {
-        report.errors.iter().filter(|e| e.record == record && is_row_error(e)).filter_map(|e| e.line).collect()
+        report
+            .errors
+            .iter()
+            .filter(|e| e.record == record && is_row_error(e))
+            .filter_map(|e| e.line)
+            .collect()
     };
     let (bad_xtns, bad_prices) = (bad(RecordKind::Transaction), bad(RecordKind::Price));
     errors.extend(unreadable_rows(index, &report.errors));
-    errors.extend(file.xtns.iter().filter(|x| !bad_xtns.contains(&x.line)).filter_map(|x| xtn_problem(x).map(|m| row(x.line, m))));
+    errors.extend(
+        file.xtns
+            .iter()
+            .filter(|x| !bad_xtns.contains(&x.line))
+            .filter_map(|x| xtn_problem(x).map(|m| row(x.line, m))),
+    );
     file.xtns.retain(|x| !bad_xtns.contains(&x.line) && xtn_problem(x).is_none());
-    errors.extend(file.prices.iter().filter(|p| !bad_prices.contains(&p.line) && !date_ok(&p.date)).map(|p| row(p.line, no_such_day(&p.date))));
+    errors.extend(
+        file.prices
+            .iter()
+            .filter(|p| !bad_prices.contains(&p.line) && !date_ok(&p.date))
+            .map(|p| row(p.line, no_such_day(&p.date))),
+    );
     file.prices.retain(|p| !bad_prices.contains(&p.line) && date_ok(&p.date));
     file
 }

@@ -28,11 +28,21 @@ fn trade(d: &mut Dispatcher, date: (u32, u32), shares: &str, value: &str) -> Gui
 fn split_in(d: &mut Dispatcher, txn: Guid, account: &str) -> String {
     let book = d.context().book().unwrap();
     let acc = book.account_by_full_name(account).unwrap().guid;
-    book.transaction(txn).unwrap().splits.iter().find(|s| s.account == Some(acc)).unwrap().guid.to_string()
+    book.transaction(txn)
+        .unwrap()
+        .splits
+        .iter()
+        .find(|s| s.account == Some(acc))
+        .unwrap()
+        .guid
+        .to_string()
 }
 
 fn amount(v: &Value) -> Numeric {
-    Numeric::new(v["num"].as_str().unwrap().parse().unwrap(), v["denom"].as_str().unwrap().parse().unwrap())
+    Numeric::new(
+        v["num"].as_str().unwrap().parse().unwrap(),
+        v["denom"].as_str().unwrap().parse().unwrap(),
+    )
 }
 
 #[test]
@@ -46,10 +56,18 @@ fn the_viewer_lists_the_fixture_lot() {
     assert_eq!(lot["openDate"], "2024-06-04");
     assert_eq!(lot["closeDate"], Value::Null);
     assert_eq!(amount(&lot["balance"]), Numeric::from_int(5));
-    assert!(call(&mut d, "lot.list", &json!({ "account": ACME, "state": "closed" })).as_array().unwrap().is_empty());
+    assert!(
+        call(&mut d, "lot.list", &json!({ "account": ACME, "state": "closed" }))
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
     let detail = call(&mut d, "lot.get", &json!({ "lot": lot["guid"] }));
     let splits = detail["splits"].as_array().unwrap();
-    assert_eq!(splits.iter().map(|s| s["action"].as_str().unwrap()).collect::<Vec<_>>(), ["Buy", "Sell"]);
+    assert_eq!(
+        splits.iter().map(|s| s["action"].as_str().unwrap()).collect::<Vec<_>>(),
+        ["Buy", "Sell"]
+    );
     assert_eq!(splits[1]["kind"], "normal");
     assert_eq!(detail["splitCount"], 2);
 }
@@ -61,7 +79,11 @@ fn scrubbing_records_the_fixture_gain() {
     assert_eq!(out["transactionsCreated"].as_array().unwrap().len(), 1);
     assert_eq!(out["accountsCreated"].as_array().unwrap().len(), 1);
     let lot = &call(&mut d, "lot.list", &json!({ "account": ACME }))[0];
-    assert_eq!(amount(&lot["realizedGains"]), Numeric::new(10000, 100), "sold 5 for 600.00 that cost 500.00");
+    assert_eq!(
+        amount(&lot["realizedGains"]),
+        Numeric::new(10000, 100),
+        "sold 5 for 600.00 that cost 500.00"
+    );
     assert_eq!(lot["gainsCurrency"], "CURRENCY::USD");
     let again = call(&mut d, "lot.scrubAccount", &json!({ "account": ACME }));
     assert!(again["transactionsChanged"].as_array().unwrap().is_empty() && again["transactionsCreated"].as_array().unwrap().is_empty());
@@ -91,12 +113,19 @@ fn lots_are_made_edited_filled_and_deleted() {
     let lot = call(&mut d, "lot.get", &json!({ "lot": lot_id }));
     assert_eq!(lot["closed"], true);
     assert_eq!(lot["closeDate"], "2024-07-02");
-    assert_eq!(call_err(&mut d, "lot.assignSplit", &json!({ "split": rest, "lot": lot_id })).code, codes::CONFLICT);
+    assert_eq!(
+        call_err(&mut d, "lot.assignSplit", &json!({ "split": rest, "lot": lot_id })).code,
+        codes::CONFLICT
+    );
     assert_eq!(call_err(&mut d, "lot.delete", &json!({ "lot": lot_id })).code, codes::CONFLICT);
     let deleted = call(&mut d, "lot.delete", &json!({ "lot": lot_id, "releaseSplits": true }));
     assert_eq!(deleted["releasedSplits"].as_array().unwrap().len(), 2);
     let fifo = call(&mut d, "lot.assignSplit", &json!({ "split": rest }));
-    assert_eq!(fifo["pieces"].as_array().unwrap().len(), 1, "FIFO puts the rest into the fixture's open lot");
+    assert_eq!(
+        fifo["pieces"].as_array().unwrap().len(),
+        1,
+        "FIFO puts the rest into the fixture's open lot"
+    );
     assert_eq!(call(&mut d, "lot.removeSplit", &json!({ "split": rest }))["lotDeleted"], false);
 }
 
@@ -109,9 +138,16 @@ fn refusals_have_stable_codes() {
     let other = call(&mut d, "lot.create", &json!({ "account": CASH }));
     let buy = trade(&mut d, (7, 1), "1", "100.00");
     let split = split_in(&mut d, buy, ACME);
-    assert_eq!(call_err(&mut d, "lot.assignSplit", &json!({ "split": split, "lot": other["guid"] })).code, codes::INVALID);
+    assert_eq!(
+        call_err(&mut d, "lot.assignSplit", &json!({ "split": split, "lot": other["guid"] })).code,
+        codes::INVALID
+    );
     let bank_split = split_in(&mut d, buy, CASH);
-    assert_eq!(call_err(&mut d, "lot.assignSplit", &json!({ "split": bank_split })).code, codes::INVALID, "a cash account has no trades");
+    assert_eq!(
+        call_err(&mut d, "lot.assignSplit", &json!({ "split": bank_split })).code,
+        codes::INVALID,
+        "a cash account has no trades"
+    );
     assert_eq!(call_err(&mut d, "lot.removeSplit", &json!({ "split": split })).code, codes::INVALID);
     let bad = json!({ "account": ACME, "date": "2024-07-01", "shares": 10 });
     assert_eq!(call_err(&mut d, "stock.split", &bad).code, codes::INVALID_PARAMS);
@@ -138,9 +174,15 @@ fn stock_split_records_the_assistants_transaction() {
     assert_eq!(t.description.as_deref(), Some("Stock Split"));
     assert!(t.splits[0].value.same_repr(Numeric::new(0, 1)));
     assert!(t.splits[0].amount.same_repr(Numeric::new(50000, 10000)));
-    assert_eq!(t.splits.iter().map(|s| s.memo.as_deref()).collect::<Vec<_>>(), [None, Some("Cash in lieu"), Some("Cash in lieu")]);
+    assert_eq!(
+        t.splits.iter().map(|s| s.memo.as_deref()).collect::<Vec<_>>(),
+        [None, Some("Cash in lieu"), Some("Cash in lieu")]
+    );
     let lots = call(&mut d, "lot.scrubAccount", &json!({ "account": ACME }));
-    assert!(lots["lotsCreated"].as_array().unwrap().is_empty(), "the stock split stays out of lots");
+    assert!(
+        lots["lotsCreated"].as_array().unwrap().is_empty(),
+        "the stock split stays out of lots"
+    );
     let lot = &call(&mut d, "lot.list", &json!({ "account": ACME }))[0];
     assert_eq!(amount(&lot["balance"]), Numeric::from_int(10), "5 held, doubled by the split");
 }
@@ -150,8 +192,16 @@ fn a_read_only_book_still_answers_queries() {
     let book = red_ale_testkit::TempBook::copy("piecash/investment.gnucash");
     let mut d = red_ale_testkit::dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str(), "readOnly": true }));
-    let lots = call(&mut d, "lot.list", &json!({ "account": "Assets:Investments:Brokerage Account:Stock:VEUR" }));
+    let lots = call(
+        &mut d,
+        "lot.list",
+        &json!({ "account": "Assets:Investments:Brokerage Account:Stock:VEUR" }),
+    );
     assert!(lots.as_array().unwrap().is_empty());
-    let err = call_err(&mut d, "lot.create", &json!({ "account": "Assets:Investments:Brokerage Account:Stock:VEUR" }));
+    let err = call_err(
+        &mut d,
+        "lot.create",
+        &json!({ "account": "Assets:Investments:Brokerage Account:Stock:VEUR" }),
+    );
     assert_eq!(err.code, codes::READ_ONLY);
 }

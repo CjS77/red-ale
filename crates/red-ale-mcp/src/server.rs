@@ -4,13 +4,13 @@ use std::borrow::Cow;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use red_ale_rpc::{Dispatcher, Origin, RpcError, codes};
+use rmcp::ServerHandler;
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData, Implementation, ListToolsResult,
     PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerConfig, Tool,
 };
-use rmcp::transport::async_rw::{AsyncRwTransport, DEFAULT_MAX_LINE_LENGTH};
 use rmcp::service::{QuitReason, RequestContext, RoleServer, ServerInitializeError, ServiceExt};
-use rmcp::ServerHandler;
+use rmcp::transport::async_rw::{AsyncRwTransport, DEFAULT_MAX_LINE_LENGTH};
 use serde_json::{Map, Value, json};
 use tokio::io::{AsyncRead, AsyncWrite};
 
@@ -48,7 +48,11 @@ impl McpServer {
     pub fn new(dispatcher: Arc<Mutex<Dispatcher>>) -> Self {
         red_ale_rpc::quote_fetches::settle_when_fetched(&dispatcher);
         let tools = tools::tools(&lock(&dispatcher)).into();
-        Self { dispatcher, tools, max_request_bytes: DEFAULT_MAX_LINE_LENGTH }
+        Self {
+            dispatcher,
+            tools,
+            max_request_bytes: DEFAULT_MAX_LINE_LENGTH,
+        }
     }
 
     /// The same server, accepting messages of up to `bytes` (the Configuration's `mcp.maxRequestBytes`) instead of
@@ -135,7 +139,12 @@ fn error_object(e: &RpcError) -> Value {
         ("message", Some(json!(e.message))),
         ("data", e.data.clone()),
     ];
-    Value::Object(fields.into_iter().filter_map(|(k, v)| Some((k.to_owned(), v?))).collect::<Map<_, _>>())
+    Value::Object(
+        fields
+            .into_iter()
+            .filter_map(|(k, v)| Some((k.to_owned(), v?)))
+            .collect::<Map<_, _>>(),
+    )
 }
 
 #[cfg(test)]
@@ -145,7 +154,10 @@ mod tests {
     #[test]
     fn errors_carry_the_code_name() {
         let e = RpcError::new(codes::NO_BOOK, "no book is open").with_data(json!({ "hint": "open one" }));
-        assert_eq!(error_object(&e), json!({ "code": 1000, "name": "no-book", "message": "no book is open", "data": { "hint": "open one" } }));
+        assert_eq!(
+            error_object(&e),
+            json!({ "code": 1000, "name": "no-book", "message": "no book is open", "data": { "hint": "open one" } })
+        );
         assert_eq!(error_object(&RpcError::new(9999, "?")), json!({ "code": 9999, "message": "?" }));
     }
 

@@ -105,14 +105,19 @@ pub struct Applied {
 pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &[Change], choices: ApplyChoices) -> DomainResult<Applied> {
     if !proposal.errors.is_empty() && !choices.skip_errors {
         let n = proposal.errors.len();
-        return Err(DomainError::invalid(format!("the proposal has {n} row(s) that can't be imported; apply with skipErrors to leave them out")));
+        return Err(DomainError::invalid(format!(
+            "the proposal has {n} row(s) that can't be imported; apply with skipErrors to leave them out"
+        )));
     }
     match proposal.format {
         Format::CsvAccounts => return crate::csv::accounts::apply(book, env, proposal, changes),
         Format::CsvPrices => return crate::csv::prices::apply(book, env, proposal, changes),
         Format::CsvDocuments | Format::CsvOwners => return apply_business(book, env, proposal, changes),
         Format::Qif => {
-            let qif = proposal.qif.as_deref().ok_or_else(|| DomainError::invalid("the QIF proposal has lost its state"))?;
+            let qif = proposal
+                .qif
+                .as_deref()
+                .ok_or_else(|| DomainError::invalid("the QIF proposal has lost its state"))?;
             return crate::qif::import::apply(book, env, proposal, qif, changes);
         }
         Format::CsvTransactions => {}
@@ -121,9 +126,22 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
     changes.iter().try_for_each(|c| change(book, proposal, &mut infos, c))?;
     infos.iter().try_for_each(check_action)?;
     let before = book.clone();
-    let append = choices.append_text.unwrap_or_else(|| infos.last().and_then(TransInfo::account).is_some_and(|a| append_text(book, a)));
-    let processed = apply_batch(book, env, &infos, ApplyOptions { use_bayes: proposal.settings.use_bayes, append_text: append })?;
-    let csv_learned = proposal.csv.as_ref().map_or(Ok(Vec::new()), |csv| learn_account_names(book, &csv.account_names))?;
+    let append = choices
+        .append_text
+        .unwrap_or_else(|| infos.last().and_then(TransInfo::account).is_some_and(|a| append_text(book, a)));
+    let processed = apply_batch(
+        book,
+        env,
+        &infos,
+        ApplyOptions {
+            use_bayes: proposal.settings.use_bayes,
+            append_text: append,
+        },
+    )?;
+    let csv_learned = proposal
+        .csv
+        .as_ref()
+        .map_or(Ok(Vec::new()), |csv| learn_account_names(book, &csv.account_names))?;
     let mut applied = summarize(&processed);
     applied.learned.csv_account_map = csv_learned;
     applied.warnings.extend(read_only_warnings(&before, proposal, &infos));
@@ -133,9 +151,15 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
 
 /// A business proposal: its documents or Owners, each found by ID, in one go.
 fn apply_business(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &[Change]) -> DomainResult<Applied> {
-    let records = proposal.business.as_ref().ok_or_else(|| DomainError::invalid("the business proposal holds no records"))?;
+    let records = proposal
+        .business
+        .as_ref()
+        .ok_or_else(|| DomainError::invalid("the business proposal holds no records"))?;
     let (done, warnings) = business::apply(book, env, records, changes, proposal.threshold)?;
-    let mut applied = Applied { warnings, ..Applied::default() };
+    let mut applied = Applied {
+        warnings,
+        ..Applied::default()
+    };
     match records {
         Records::Documents(_) => applied.documents = Some(done),
         Records::Owners(_) => applied.owners = Some(done),
@@ -145,11 +169,17 @@ fn apply_business(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, chang
 
 /// One change, in GnuCash's order of clicks: the match, the destination and its amount, then the action.
 fn change(book: &Book, proposal: &Proposal, infos: &mut [TransInfo], c: &Change) -> DomainResult<()> {
-    let info = infos.iter_mut().find(|i| i.index == c.index).ok_or_else(|| DomainError::invalid(format!("no transaction {} in the proposal", c.index)))?;
+    let info = infos
+        .iter_mut()
+        .find(|i| i.index == c.index)
+        .ok_or_else(|| DomainError::invalid(format!("no transaction {} in the proposal", c.index)))?;
     if let Some(split) = c.match_split
         && !info.select_match(split, true)
     {
-        return Err(DomainError::invalid(format!("split {split} is not one of transaction {}'s matches", c.index)));
+        return Err(DomainError::invalid(format!(
+            "split {split} is not one of transaction {}'s matches",
+            c.index
+        )));
     }
     if let Some(account) = c.account {
         let acc = book.account(account).ok_or_else(|| DomainError::not_found("account", &account))?;
@@ -173,9 +203,11 @@ fn change(book: &Book, proposal: &Proposal, infos: &mut [TransInfo], c: &Change)
 /// `clear` and `update` need a selected match.
 fn check_action(info: &TransInfo) -> DomainResult<()> {
     match info.action {
-        ImportAction::Clear | ImportAction::Update if info.selected().is_none() => {
-            Err(DomainError::invalid(format!("transaction {} has no match to {}", info.index, info.action.as_str())))
-        }
+        ImportAction::Clear | ImportAction::Update if info.selected().is_none() => Err(DomainError::invalid(format!(
+            "transaction {} has no match to {}",
+            info.index,
+            info.action.as_str()
+        ))),
         _ => Ok(()),
     }
 }
@@ -191,7 +223,8 @@ fn summarize(processed: &[Processed]) -> Applied {
             (ImportAction::Update, Some(d)) => out.updated.push(d),
             _ => out.skipped.push(p.index),
         }
-        out.imbalance_splits.extend(p.repairs.iter().filter_map(|r| imbalance_split(p.index, r)));
+        out.imbalance_splits
+            .extend(p.repairs.iter().filter_map(|r| imbalance_split(p.index, r)));
         p.prices.iter().for_each(|c| match c {
             PriceChange::Created(g) => out.prices.0.push(*g),
             PriceChange::Updated(g) => out.prices.1.push(*g),
@@ -199,14 +232,30 @@ fn summarize(processed: &[Processed]) -> Applied {
         });
         p.learned.iter().for_each(|l| match l {
             Learned::Bayes { source, target, tokens } => out.learned.bayes.push((*source, *target, tokens.clone())),
-            Learned::Plain { source, target, category, key } => out.learned.plain.push((*source, *target, category, key.clone())),
+            Learned::Plain {
+                source,
+                target,
+                category,
+                key,
+            } => out.learned.plain.push((*source, *target, category, key.clone())),
         });
         out.warnings.extend(p.warnings.iter().map(|w| process_warning(p.index, w)));
     });
     let imbalance_warnings: Vec<Warning> = out
         .imbalance_splits
         .iter()
-        .map(|s| Warning::about(s.index, "imbalance", format!("transaction {} was balanced with split {} of {}", s.transaction, s.split, s.value.to_decimal_string())))
+        .map(|s| {
+            Warning::about(
+                s.index,
+                "imbalance",
+                format!(
+                    "transaction {} was balanced with split {} of {}",
+                    s.transaction,
+                    s.split,
+                    s.value.to_decimal_string()
+                ),
+            )
+        })
         .collect();
     out.warnings.extend(imbalance_warnings);
     out
@@ -215,12 +264,31 @@ fn summarize(processed: &[Processed]) -> Applied {
 /// The Imbalance split a repair made.
 pub(crate) fn imbalance_split(index: usize, r: &Repair) -> Option<ImbalanceSplit> {
     match r {
-        Repair::BalanceSplitAdded { transaction, split, account, value } => {
-            Some(ImbalanceSplit { index, transaction: *transaction, split: *split, account: *account, value: *value })
-        }
-        Repair::BalanceSplitChanged { transaction, split, account, to, .. } => {
-            Some(ImbalanceSplit { index, transaction: *transaction, split: *split, account: *account, value: *to })
-        }
+        Repair::BalanceSplitAdded {
+            transaction,
+            split,
+            account,
+            value,
+        } => Some(ImbalanceSplit {
+            index,
+            transaction: *transaction,
+            split: *split,
+            account: *account,
+            value: *value,
+        }),
+        Repair::BalanceSplitChanged {
+            transaction,
+            split,
+            account,
+            to,
+            ..
+        } => Some(ImbalanceSplit {
+            index,
+            transaction: *transaction,
+            split: *split,
+            account: *account,
+            value: *to,
+        }),
         _ => None,
     }
 }
@@ -230,14 +298,30 @@ fn read_only_warnings(before: &Book, proposal: &Proposal, infos: &[TransInfo]) -
     infos
         .iter()
         .filter(|i| super::review::read_only_by_date(before, Some(threshold), i))
-        .map(|i| Warning::about(i.index, "read-only-by-date", format!("applied although dated before the read-only threshold {threshold}")))
+        .map(|i| {
+            Warning::about(
+                i.index,
+                "read-only-by-date",
+                format!("applied although dated before the read-only threshold {threshold}"),
+            )
+        })
         .collect()
 }
 
 /// Accounts created and accounts changed, by comparing the Book before and after, in book order.
 pub(crate) fn changed_accounts(before: &Book, after: &Book) -> (Vec<Guid>, Vec<Guid>) {
-    let created = after.accounts.keys().filter(|g| !before.accounts.contains_key(*g)).copied().collect();
-    let updated = after.accounts.iter().filter(|(g, a)| before.accounts.get(*g).is_some_and(|b| b != *a)).map(|(g, _)| *g).collect();
+    let created = after
+        .accounts
+        .keys()
+        .filter(|g| !before.accounts.contains_key(*g))
+        .copied()
+        .collect();
+    let updated = after
+        .accounts
+        .iter()
+        .filter(|(g, a)| before.accounts.get(*g).is_some_and(|b| b != *a))
+        .map(|(g, _)| *g)
+        .collect();
     (created, updated)
 }
 
@@ -250,7 +334,10 @@ fn learn_account_names(book: &mut Book, names: &[AccountName]) -> DomainResult<V
         .filter(|n| n.source == Some(NameSource::Param))
         .filter_map(|n| n.account.map(|a| (n, a)))
         .map(|(n, account)| {
-            if let Some(previous) = n.previous.filter(|p| find_account(book, *p, Some(CATEGORY_CSV_ACCOUNT_MAP), &n.name).is_some()) {
+            if let Some(previous) = n
+                .previous
+                .filter(|p| find_account(book, *p, Some(CATEGORY_CSV_ACCOUNT_MAP), &n.name).is_some())
+            {
                 delete_account(book, previous, Some(CATEGORY_CSV_ACCOUNT_MAP), &n.name)?;
             }
             add_account(book, account, Some(CATEGORY_CSV_ACCOUNT_MAP), &n.name, account)?;

@@ -160,7 +160,9 @@ impl<'de> Deserialize<'de> for Timestamp {
             }
 
             fn visit_u64<E: de::Error>(self, v: u64) -> Result<Timestamp, E> {
-                i64::try_from(v).map(|s| Timestamp(Time64(s))).map_err(|_| E::custom(format!("instant out of range: {v}")))
+                i64::try_from(v)
+                    .map(|s| Timestamp(Time64(s)))
+                    .map_err(|_| E::custom(format!("instant out of range: {v}")))
             }
         }
         d.deserialize_any(V)

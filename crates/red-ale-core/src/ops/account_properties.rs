@@ -61,9 +61,13 @@ pub fn parse_color(given: &str) -> DomainResult<Option<String>> {
     }
     let rgb = match text.strip_prefix('#') {
         Some(hex) => parse_hex(hex),
-        None => text.strip_prefix("rgb(").and_then(|inner| inner.strip_suffix(')')).and_then(parse_rgb),
+        None => text
+            .strip_prefix("rgb(")
+            .and_then(|inner| inner.strip_suffix(')'))
+            .and_then(parse_rgb),
     };
-    let [red, green, blue] = rgb.ok_or_else(|| DomainError::invalid(format!("not a colour: {given:?}; use #rrggbb, #rgb or rgb(r,g,b)")))?;
+    let [red, green, blue] =
+        rgb.ok_or_else(|| DomainError::invalid(format!("not a colour: {given:?}; use #rrggbb, #rgb or rgb(r,g,b)")))?;
     let color = format!("rgb({red},{green},{blue})");
     Ok((color != DEFAULT_COLOR).then_some(color))
 }
@@ -97,13 +101,18 @@ pub(crate) fn apply_properties(book: &mut Book, guid: Guid, edit: &AccountEdit, 
 }
 
 fn account_mut(book: &mut Book, guid: Guid) -> DomainResult<&mut Account> {
-    book.accounts.get_mut(&guid).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("account", &guid))
+    book.accounts
+        .get_mut(&guid)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("account", &guid))
 }
 
 fn check_associated(book: &Book, edit: &AccountEdit) -> DomainResult<()> {
     edit.associated_accounts.iter().try_for_each(|(tag, target)| {
         if tag.is_empty() || tag.contains('/') {
-            return Err(DomainError::invalid(format!("an associated account tag must be non-empty and without '/': {tag:?}")));
+            return Err(DomainError::invalid(format!(
+                "an associated account tag must be non-empty and without '/': {tag:?}"
+            )));
         }
         match target {
             Some(g) if book.account(*g).is_none() => Err(DomainError::not_found("account", g)),
@@ -121,7 +130,10 @@ fn apply_limits(acc: &mut Account, edit: &AccountEdit) -> DomainResult<()> {
     if let Some(l) = edit.lower_balance_limit.filter(|l| *l != acc.lower_balance_limit()) {
         acc.set_lower_balance_limit(l);
     }
-    if let Some(on) = edit.include_subaccount_balances.filter(|on| *on != acc.includes_subaccount_balances()) {
+    if let Some(on) = edit
+        .include_subaccount_balances
+        .filter(|on| *on != acc.includes_subaccount_balances())
+    {
         acc.set_include_subaccount_balances(on);
     }
     let touched = edit.higher_balance_limit.is_some() || edit.lower_balance_limit.is_some() || edit.include_subaccount_balances.is_some();
@@ -148,10 +160,16 @@ fn apply_opening_balance(book: &mut Book, guid: Guid, edit: &AccountEdit, before
     if let Some(on) = edit.opening_balance.filter(|on| *on != current) {
         let acc = account(book, guid)?;
         if acc.account_type != AccountType::Equity {
-            return Err(DomainError::invalid(format!("only an EQUITY account can hold opening balances; {} is {}", acc.name, acc.account_type)));
+            return Err(DomainError::invalid(format!(
+                "only an EQUITY account can hold opening balances; {} is {}",
+                acc.name, acc.account_type
+            )));
         }
         if before.is_some() && has_splits(book, guid) {
-            return Err(DomainError::conflict(format!("{} has splits, so whether it holds opening balances cannot change", acc.name)));
+            return Err(DomainError::conflict(format!(
+                "{} has splits, so whether it holds opening balances cannot change",
+                acc.name
+            )));
         }
         account_mut(book, guid)?.set_opening_balance(on);
         if on {
@@ -164,10 +182,16 @@ fn apply_opening_balance(book: &mut Book, guid: Guid, edit: &AccountEdit, before
     if changed
         && acc.is_opening_balance()
         && !unchanged
-        && let Some(other) = book.accounts.values().find(|a| a.guid != guid && a.is_opening_balance() && a.commodity == acc.commodity)
+        && let Some(other) = book
+            .accounts
+            .values()
+            .find(|a| a.guid != guid && a.is_opening_balance() && a.commodity == acc.commodity)
     {
         let c = acc.commodity.as_ref().map(ToString::to_string).unwrap_or_default();
-        return Err(DomainError::conflict(format!("{} already holds the opening balances in {c}", other.name)));
+        return Err(DomainError::conflict(format!(
+            "{} already holds the opening balances in {c}",
+            other.name
+        )));
     }
     Ok(())
 }
@@ -216,7 +240,14 @@ pub fn check_balance_limit(book: &Book, guid: Guid, before: Option<Time64>, now:
     let includes_subaccounts = acc.includes_subaccount_balances();
     let (balance, unconverted) = limit_balance(book, acc, includes_subaccounts, before, now)?;
     let (higher, lower) = (acc.higher_balance_limit(), acc.lower_balance_limit());
-    Ok(LimitCheck { balance, higher, lower, includes_subaccounts, state: limit_state(balance, higher, lower), unconverted })
+    Ok(LimitCheck {
+        balance,
+        higher,
+        lower,
+        includes_subaccounts,
+        state: limit_state(balance, higher, lower),
+        unconverted,
+    })
 }
 
 /// `account_get_balance_as_of_date` (`gnc-ui-balances.cpp:186-233`): the account's balance plus each descendant's,
@@ -302,19 +333,25 @@ pub enum FoundBy {
 /// True when the book declares the opening balance account feature (`gnc_using_equity_type_opening_balance_account`,
 /// `5.17:libgnucash/app-utils/gnc-ui-util.cpp:175-178`).
 pub fn uses_opening_balance_feature(book: &Book) -> bool {
-    crate::book_options::features(book).iter().any(|(name, _)| name == OPENING_BALANCE_FEATURE)
+    crate::book_options::features(book)
+        .iter()
+        .any(|(name, _)| name == OPENING_BALANCE_FEATURE)
 }
 
 /// Descendants in the order `gnc_account_foreach_descendant_until` visits them: each child, then its descendants
 /// (`5.17:libgnucash/engine/Account.cpp:3231-3251`).
 fn depth_first(book: &Book, parent: Guid) -> Vec<&Account> {
-    book.children(parent).flat_map(|c| std::iter::once(c).chain(depth_first(book, c.guid))).collect()
+    book.children(parent)
+        .flat_map(|c| std::iter::once(c).chain(depth_first(book, c.guid)))
+        .collect()
 }
 
 /// The first account named `name` as `gnc_account_lookup_by_name` finds it: the children, then each child's
 /// descendants the same way (`account_foreach_descendant_breadthfirst_until`, `Account.cpp:3052-3084`).
 fn lookup_by_name<'a>(book: &'a Book, parent: Guid, name: &str) -> Option<&'a Account> {
-    book.children(parent).find(|c| c.name == name).or_else(|| book.children(parent).find_map(|c| lookup_by_name(book, c.guid, name)))
+    book.children(parent)
+        .find(|c| c.name == name)
+        .or_else(|| book.children(parent).find_map(|c| lookup_by_name(book, c.guid, name)))
 }
 
 /// The lookup half of `gnc_find_or_create_equity_account` for opening balances
@@ -325,7 +362,9 @@ pub fn opening_balance_account(book: &Book, currency: &CommodityRef) -> DomainRe
         return Err(DomainError::invalid(format!("{currency} is not a currency")));
     }
     if uses_opening_balance_feature(book)
-        && let Some(a) = depth_first(book, book.root).into_iter().find(|a| a.is_opening_balance() && a.commodity.as_ref() == Some(currency))
+        && let Some(a) = depth_first(book, book.root)
+            .into_iter()
+            .find(|a| a.is_opening_balance() && a.commodity.as_ref() == Some(currency))
     {
         return Ok(Some((a.guid, FoundBy::EquityType)));
     }
@@ -415,7 +454,10 @@ mod tests {
     impl Fx {
         fn new() -> Self {
             let mut env = FixedEnv::new(NOW, 7);
-            Self { book: Book::new_empty(&mut env), env }
+            Self {
+                book: Book::new_empty(&mut env),
+                env,
+            }
         }
 
         fn add(&mut self, name: &str, t: AccountType, parent: Option<Guid>, commodity: &str) -> Guid {
@@ -457,7 +499,9 @@ mod tests {
         assert_eq!(parse_color(" rgb( 1, 2 ,3 ) ").unwrap().as_deref(), Some("rgb(1,2,3)"));
         assert_eq!(parse_color("").unwrap(), None);
         assert_eq!(parse_color("#EDECEB").unwrap(), None, "the dialog's default colour is no colour");
-        ["red", "rgb(256,0,0)", "#12345", "rgb(1,2)", "Not Set"].iter().for_each(|bad| assert!(parse_color(bad).is_err(), "{bad}"));
+        ["red", "rgb(256,0,0)", "#12345", "rgb(1,2)", "Not Set"]
+            .iter()
+            .for_each(|bad| assert!(parse_color(bad).is_err(), "{bad}"));
     }
 
     #[test]
@@ -466,7 +510,14 @@ mod tests {
         let a = fx.add("A", AccountType::Asset, None, "USD");
         Arc::make_mut(fx.book.accounts.get_mut(&a).unwrap()).set_color(Some("Not Set"));
         assert_eq!(fx.book.account(a).unwrap().color(), None);
-        fx.edit(a, AccountEdit { color: Some(String::new()), ..AccountEdit::default() }).unwrap();
+        fx.edit(
+            a,
+            AccountEdit {
+                color: Some(String::new()),
+                ..AccountEdit::default()
+            },
+        )
+        .unwrap();
         assert_eq!(fx.book.account(a).unwrap().stored_color(), None);
     }
 
@@ -474,15 +525,43 @@ mod tests {
     fn limits_follow_the_dialog() {
         let mut fx = Fx::new();
         let a = fx.add("A", AccountType::Bank, None, "USD");
-        let limits = |h, l| AccountEdit { higher_balance_limit: Some(h), lower_balance_limit: Some(l), ..AccountEdit::default() };
+        let limits = |h, l| AccountEdit {
+            higher_balance_limit: Some(h),
+            lower_balance_limit: Some(l),
+            ..AccountEdit::default()
+        };
         assert!(fx.edit(a, limits(Some(n(100, 1)), Some(n(100, 1)))).is_err(), "equal and not zero");
         assert!(fx.edit(a, limits(Some(n(1, 1)), Some(n(2, 1)))).is_err(), "lower above higher");
         fx.edit(a, limits(Some(Numeric::ZERO), Some(Numeric::ZERO))).unwrap();
-        fx.edit(a, AccountEdit { include_subaccount_balances: Some(true), ..limits(Some(n(50000, 100)), None) }).unwrap();
+        fx.edit(
+            a,
+            AccountEdit {
+                include_subaccount_balances: Some(true),
+                ..limits(Some(n(50000, 100)), None)
+            },
+        )
+        .unwrap();
         let acc = fx.book.account(a).unwrap();
-        assert_eq!((acc.higher_balance_limit(), acc.lower_balance_limit(), acc.includes_subaccount_balances()), (Some(n(50000, 100)), None, true));
-        fx.edit(a, AccountEdit { higher_balance_limit: Some(None), ..AccountEdit::default() }).unwrap();
-        assert!(!fx.book.account(a).unwrap().includes_subaccount_balances(), "no limits left clears the flag");
+        assert_eq!(
+            (
+                acc.higher_balance_limit(),
+                acc.lower_balance_limit(),
+                acc.includes_subaccount_balances()
+            ),
+            (Some(n(50000, 100)), None, true)
+        );
+        fx.edit(
+            a,
+            AccountEdit {
+                higher_balance_limit: Some(None),
+                ..AccountEdit::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            !fx.book.account(a).unwrap().includes_subaccount_balances(),
+            "no limits left clears the flag"
+        );
     }
 
     #[test]
@@ -491,7 +570,11 @@ mod tests {
         assert_eq!(limit_state(n(101, 1), h, l), Some(LimitState::Above));
         assert_eq!(limit_state(n(100, 1), h, l), None, "reaching is crossing, not touching");
         assert_eq!(limit_state(n(-51, 1), h, l), Some(LimitState::Below));
-        assert_eq!(limit_state(Numeric::ZERO, Some(n(-1, 1)), None), None, "a zero balance never crosses");
+        assert_eq!(
+            limit_state(Numeric::ZERO, Some(n(-1, 1)), None),
+            None,
+            "a zero balance never crosses"
+        );
         let zero = Some(Numeric::ZERO);
         assert_eq!(limit_state(n(1, 1), zero, zero), Some(LimitState::ShouldBeZero));
         assert_eq!(limit_state(n(-1, 1), zero, zero), Some(LimitState::ShouldBeZero));
@@ -509,12 +592,29 @@ mod tests {
         fx.post(a, inc, n(10000, 100));
         fx.post(sub, inc, n(5000, 100));
         Arc::make_mut(fx.book.accounts.get_mut(&eur).unwrap()).commodity = Some(CommodityRef::currency("EUR"));
-        fx.edit(a, AccountEdit { higher_balance_limit: Some(Some(n(120, 1))), ..AccountEdit::default() }).unwrap();
+        fx.edit(
+            a,
+            AccountEdit {
+                higher_balance_limit: Some(Some(n(120, 1))),
+                ..AccountEdit::default()
+            },
+        )
+        .unwrap();
         assert_eq!(check_balance_limit(&fx.book, a, None, NOW).unwrap().state, None);
-        fx.edit(a, AccountEdit { include_subaccount_balances: Some(true), ..AccountEdit::default() }).unwrap();
+        fx.edit(
+            a,
+            AccountEdit {
+                include_subaccount_balances: Some(true),
+                ..AccountEdit::default()
+            },
+        )
+        .unwrap();
         let check = check_balance_limit(&fx.book, a, None, NOW).unwrap();
         assert_eq!((check.balance, check.state), (n(15000, 100), Some(LimitState::Above)));
-        assert_eq!(check_balance_limit(&fx.book, a, Some(Time64(0)), NOW).unwrap().balance, Numeric::ZERO);
+        assert_eq!(
+            check_balance_limit(&fx.book, a, Some(Time64(0)), NOW).unwrap().balance,
+            Numeric::ZERO
+        );
     }
 
     #[test]
@@ -523,7 +623,10 @@ mod tests {
         let a = fx.add("A", AccountType::Bank, None, "USD");
         let eur = fx.add("Euro", AccountType::Bank, Some(a), "EUR");
         let gbp = fx.add("Pound", AccountType::Bank, Some(a), "GBP");
-        let (inc_eur, inc_gbp) = (fx.add("IncEur", AccountType::Income, None, "EUR"), fx.add("IncGbp", AccountType::Income, None, "GBP"));
+        let (inc_eur, inc_gbp) = (
+            fx.add("IncEur", AccountType::Income, None, "EUR"),
+            fx.add("IncGbp", AccountType::Income, None, "GBP"),
+        );
         fx.post_in("EUR", eur, inc_eur, n(1000, 100));
         fx.post_in("GBP", gbp, inc_gbp, n(500, 100));
         let price = |n: u8, commodity: &str, time: i64, value: Numeric| Price {
@@ -540,7 +643,15 @@ mod tests {
             .into_iter()
             .for_each(|p| _ = fx.book.prices.insert(p.guid, Arc::new(p)));
         let limit = Some(Some(n(10, 1)));
-        fx.edit(a, AccountEdit { higher_balance_limit: limit, include_subaccount_balances: Some(true), ..AccountEdit::default() }).unwrap();
+        fx.edit(
+            a,
+            AccountEdit {
+                higher_balance_limit: limit,
+                include_subaccount_balances: Some(true),
+                ..AccountEdit::default()
+            },
+        )
+        .unwrap();
         let check = check_balance_limit(&fx.book, a, None, NOW).unwrap();
         // 10 EUR at 1.0833 is 10.833, rounded to the cent with banker's rounding; GBP has no price and counts as zero.
         assert_eq!((check.balance, check.state), (n(1083, 100), Some(LimitState::Above)));
@@ -554,16 +665,31 @@ mod tests {
         let ob = fx.add("Opening Balances", AccountType::Equity, Some(equity), "USD");
         let other = fx.add("Other", AccountType::Equity, Some(equity), "USD");
         let bank = fx.add("Bank", AccountType::Bank, None, "USD");
-        let flag = |on| AccountEdit { opening_balance: Some(on), ..AccountEdit::default() };
-        assert_eq!(opening_balance_account(&fx.book, &CommodityRef::currency("USD")).unwrap(), Some((ob, FoundBy::Name)));
+        let flag = |on| AccountEdit {
+            opening_balance: Some(on),
+            ..AccountEdit::default()
+        };
+        assert_eq!(
+            opening_balance_account(&fx.book, &CommodityRef::currency("USD")).unwrap(),
+            Some((ob, FoundBy::Name))
+        );
         assert!(!uses_opening_balance_feature(&fx.book));
         fx.edit(other, flag(true)).unwrap();
         assert!(uses_opening_balance_feature(&fx.book));
-        assert_eq!(opening_balance_account(&fx.book, &CommodityRef::currency("USD")).unwrap(), Some((other, FoundBy::EquityType)));
-        assert!(matches!(fx.edit(ob, flag(true)), Err(DomainError::Conflict(_))), "a second one in USD");
+        assert_eq!(
+            opening_balance_account(&fx.book, &CommodityRef::currency("USD")).unwrap(),
+            Some((other, FoundBy::EquityType))
+        );
+        assert!(
+            matches!(fx.edit(ob, flag(true)), Err(DomainError::Conflict(_))),
+            "a second one in USD"
+        );
         assert!(matches!(fx.edit(bank, flag(true)), Err(DomainError::Invalid(_))));
         fx.post(bank, other, n(100, 1));
-        assert!(matches!(fx.edit(other, flag(false)), Err(DomainError::Conflict(_))), "it has splits");
+        assert!(
+            matches!(fx.edit(other, flag(false)), Err(DomainError::Conflict(_))),
+            "it has splits"
+        );
         assert!(opening_balance_account(&fx.book, &CommodityRef::new("NASDAQ", "X")).is_err());
     }
 
@@ -573,7 +699,10 @@ mod tests {
         let equity = fx.add("Equity", AccountType::Equity, None, "USD");
         fx.add("Opening Balances", AccountType::Equity, Some(equity), "USD");
         let eur = fx.add("Opening Balances - EUR", AccountType::Equity, Some(equity), "EUR");
-        assert_eq!(opening_balance_account(&fx.book, &CommodityRef::currency("EUR")).unwrap(), Some((eur, FoundBy::NameWithCurrency)));
+        assert_eq!(
+            opening_balance_account(&fx.book, &CommodityRef::currency("EUR")).unwrap(),
+            Some((eur, FoundBy::NameWithCurrency))
+        );
         assert_eq!(opening_balance_account(&fx.book, &CommodityRef::currency("GBP")).unwrap(), None);
     }
 
@@ -582,10 +711,16 @@ mod tests {
         let mut fx = Fx::new();
         let a = fx.add("A", AccountType::Asset, None, "USD");
         let b = fx.add("B", AccountType::Income, None, "USD");
-        let set = |tag: &str, g| AccountEdit { associated_accounts: BTreeMap::from([(tag.to_owned(), g)]), ..AccountEdit::default() };
+        let set = |tag: &str, g| AccountEdit {
+            associated_accounts: BTreeMap::from([(tag.to_owned(), g)]),
+            ..AccountEdit::default()
+        };
         fx.edit(a, set("stock-dividends", Some(b))).unwrap();
         fx.edit(a, set("stock-capgains", Some(b))).unwrap();
-        assert_eq!(fx.book.account(a).unwrap().associated_accounts(), vec![("stock-capgains", b), ("stock-dividends", b)]);
+        assert_eq!(
+            fx.book.account(a).unwrap().associated_accounts(),
+            vec![("stock-capgains", b), ("stock-dividends", b)]
+        );
         fx.edit(a, set("stock-capgains", None)).unwrap();
         assert_eq!(fx.book.account(a).unwrap().associated_accounts(), vec![("stock-dividends", b)]);
         assert!(fx.edit(a, set("a/b", Some(b))).is_err());
@@ -598,14 +733,29 @@ mod tests {
         let top = fx.add("Top", AccountType::Asset, None, "USD");
         let red = fx.add("Red", AccountType::Asset, Some(top), "USD");
         let plain = fx.add("Plain", AccountType::Asset, Some(red), "USD");
-        fx.edit(red, AccountEdit { color: Some("#ff0000".into()), ..AccountEdit::default() }).unwrap();
-        let blue = Cascade { color: Some("#0000ff".into()), placeholder: Some(true), ..Cascade::default() };
+        fx.edit(
+            red,
+            AccountEdit {
+                color: Some("#ff0000".into()),
+                ..AccountEdit::default()
+            },
+        )
+        .unwrap();
+        let blue = Cascade {
+            color: Some("#0000ff".into()),
+            placeholder: Some(true),
+            ..Cascade::default()
+        };
         assert_eq!(cascade(&mut fx.book, top, &blue).unwrap(), vec![top, red, plain]);
         let colors = |b: &Book| [top, red, plain].map(|g| b.account(g).unwrap().color().map(ToOwned::to_owned));
         let some = |s: &str| Some(s.to_owned());
         assert_eq!(colors(&fx.book), [some("rgb(0,0,255)"), some("rgb(255,0,0)"), some("rgb(0,0,255)")]);
         assert!(fx.book.account(plain).unwrap().is_placeholder());
-        let clear = Cascade { color: Some(String::new()), replace_colors: true, ..Cascade::default() };
+        let clear = Cascade {
+            color: Some(String::new()),
+            replace_colors: true,
+            ..Cascade::default()
+        };
         assert_eq!(cascade(&mut fx.book, red, &clear).unwrap(), vec![red, plain]);
         assert_eq!(colors(&fx.book), [some("rgb(0,0,255)"), None, None]);
         assert!(cascade(&mut fx.book, plain, &clear).is_err(), "no sub-accounts");

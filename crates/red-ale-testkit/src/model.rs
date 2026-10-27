@@ -89,7 +89,9 @@ fn accounts(book: &Book) -> Vec<Value> {
 
 fn lot_title(book: &Book, lot: Option<Guid>) -> Value {
     // gnc_lot_get_title is NULL for a lot without a title, such as a pre-payment lot.
-    lot.and_then(|l| book.lot(l)).and_then(|l| l.title()).map_or(Value::Null, |t| Value::String(t.to_owned()))
+    lot.and_then(|l| book.lot(l))
+        .and_then(|l| l.title())
+        .map_or(Value::Null, |t| Value::String(t.to_owned()))
 }
 
 fn transaction(book: &Book, t: &Transaction) -> Value {
@@ -128,8 +130,12 @@ fn transaction(book: &Book, t: &Transaction) -> Value {
 
 /// Transactions GnuCash reaches through its accounts: those with a split in some account.
 fn transactions(book: &Book) -> Vec<Value> {
-    let mut out: Vec<Value> =
-        book.transactions.values().filter(|t| t.splits.iter().any(|s| s.account.is_some())).map(|t| transaction(book, t)).collect();
+    let mut out: Vec<Value> = book
+        .transactions
+        .values()
+        .filter(|t| t.splits.iter().any(|s| s.account.is_some()))
+        .map(|t| transaction(book, t))
+        .collect();
     out.sort_by(|x, y| x["guid"].as_str().cmp(&y["guid"].as_str()));
     out
 }
@@ -160,19 +166,23 @@ fn commodities(book: &Book) -> Vec<Value> {
             "displaySymbol": display_symbol(book, &id),
         })
     });
-    let securities = book.commodities.values().filter(|c| !c.id.is_currency() && c.id.namespace != "template").map(|c| {
-        json!({
-            "id": c.id.to_string(),
-            "fraction": c.fraction,
-            "quoteFlag": c.quote_flag,
-            "quoteSource": if c.quote_flag { text(c.quote_source.as_deref()) } else { Value::Null },
-            "quoteTz": text(c.quote_tz.as_deref()),
-            "fullname": text(c.fullname.as_deref()),
-            "cusip": text(c.cusip.as_deref()),
-            "userSymbol": text(c.slots.get_str(slot_paths::USER_SYMBOL)),
-            "displaySymbol": display_symbol(book, &c.id),
-        })
-    });
+    let securities = book
+        .commodities
+        .values()
+        .filter(|c| !c.id.is_currency() && c.id.namespace != "template")
+        .map(|c| {
+            json!({
+                "id": c.id.to_string(),
+                "fraction": c.fraction,
+                "quoteFlag": c.quote_flag,
+                "quoteSource": if c.quote_flag { text(c.quote_source.as_deref()) } else { Value::Null },
+                "quoteTz": text(c.quote_tz.as_deref()),
+                "fullname": text(c.fullname.as_deref()),
+                "cusip": text(c.cusip.as_deref()),
+                "userSymbol": text(c.slots.get_str(slot_paths::USER_SYMBOL)),
+                "displaySymbol": display_symbol(book, &c.id),
+            })
+        });
     let mut out: Vec<Value> = currencies.chain(securities).collect();
     out.sort_by(|x, y| x["id"].as_str().cmp(&y["id"].as_str()));
     out
@@ -217,7 +227,9 @@ fn lots(book: &Book) -> Vec<Value> {
             // Balance and closure use amounts adjusted for stock splits, gains are the lot viewer's realised gains
             // (gnc_lot_get_balance, 5.17:libgnucash/engine/gnc-lot.cpp:487-525; dialog-lot-viewer.c:146-187).
             let summary = red_ale_core::ops::lots::lot_summary(book, l.guid).ok();
-            let balance = summary.as_ref().map_or_else(|| sum(book.splits_in_lot(l.guid).map(|(_, s)| s.amount)), |s| s.balance);
+            let balance = summary
+                .as_ref()
+                .map_or_else(|| sum(book.splits_in_lot(l.guid).map(|(_, s)| s.amount)), |s| s.balance);
             let closed = summary.as_ref().is_some_and(|s| s.closed);
             json!({
                 "account": l.account.to_string(),
@@ -234,7 +246,13 @@ fn lots(book: &Book) -> Vec<Value> {
         })
         .collect();
     out.sort_by(|x, y| {
-        let k = |v: &Value| (v["account"].as_str().unwrap_or_default().to_owned(), v["splits"].to_string(), v["title"].as_str().unwrap_or_default().to_owned());
+        let k = |v: &Value| {
+            (
+                v["account"].as_str().unwrap_or_default().to_owned(),
+                v["splits"].to_string(),
+                v["title"].as_str().unwrap_or_default().to_owned(),
+            )
+        };
         k(x).cmp(&k(y))
     });
     out
@@ -245,7 +263,11 @@ fn address(a: &Address) -> Value {
         "name": text(Some(&a.name)), "addr1": text(Some(&a.addr1)), "addr2": text(Some(&a.addr2)), "addr3": text(Some(&a.addr3)),
         "addr4": text(Some(&a.addr4)), "phone": text(Some(&a.phone)), "fax": text(Some(&a.fax)), "email": text(Some(&a.email)),
     });
-    if v.as_object().is_some_and(|o| o.values().all(Value::is_null)) { Value::Null } else { v }
+    if v.as_object().is_some_and(|o| o.values().all(Value::is_null)) {
+        Value::Null
+    } else {
+        v
+    }
 }
 
 fn owner(o: OwnerRef) -> Value {
@@ -286,11 +308,13 @@ fn payment(p: PaymentType) -> i64 {
 }
 
 fn term_name(book: &Book, g: Option<Guid>) -> Value {
-    g.and_then(|g| book.business.bill_terms.get(&g)).map_or(Value::Null, |t| Value::String(t.name.clone()))
+    g.and_then(|g| book.business.bill_terms.get(&g))
+        .map_or(Value::Null, |t| Value::String(t.name.clone()))
 }
 
 fn table_name(book: &Book, g: Option<Guid>) -> Value {
-    g.and_then(|g| book.business.tax_tables.get(&g)).map_or(Value::Null, |t| Value::String(t.name.clone()))
+    g.and_then(|g| book.business.tax_tables.get(&g))
+        .map_or(Value::Null, |t| Value::String(t.name.clone()))
 }
 
 fn currency(c: Option<&CommodityRef>) -> Value {
@@ -324,12 +348,22 @@ fn invoices(book: &Book) -> Vec<Value> {
         .map(|inv| {
             let posted = inv.is_posted();
             let post_txn = inv.post_txn.and_then(|g| book.transaction(g));
-            let due = post_txn.map(|t| t.slots.get("trans-date-due").and_then(SlotValue::as_time).unwrap_or(t.date_posted).0);
+            let due = post_txn.map(|t| {
+                t.slots
+                    .get("trans-date-due")
+                    .and_then(SlotValue::as_time)
+                    .unwrap_or(t.date_posted)
+                    .0
+            });
             let lot_balance = inv.post_lot.map(|l| sum(book.splits_in_lot(l).map(|(_, s)| s.amount)));
             // gncInvoiceGetTotal, GetTotalSubtotal and GetTotalTax (5.17:libgnucash/engine/gncInvoice.c:997-1018).
             let totals = calc::document_totals(book, inv).ok();
-            let mut entries: Vec<String> =
-                b.entries.values().filter(|e| e.invoice == Some(inv.guid) || e.bill == Some(inv.guid)).map(|e| e.guid.to_string()).collect();
+            let mut entries: Vec<String> = b
+                .entries
+                .values()
+                .filter(|e| e.invoice == Some(inv.guid) || e.bill == Some(inv.guid))
+                .map(|e| e.guid.to_string())
+                .collect();
             entries.sort();
             json!({
                 "id": inv.id,
@@ -431,8 +465,13 @@ fn business(book: &Book) -> Value {
         .map(|t| json!({ "name": t.name, "entryCount": t.entries.len(), "refcount": t.refcount }))
         .collect();
     tax_tables.sort_by(|x, y| (x["name"].as_str(), x["refcount"].as_i64()).cmp(&(y["name"].as_str(), y["refcount"].as_i64())));
-    let referenced: BTreeSet<Guid> =
-        b.customers.values().filter_map(|c| c.terms).chain(b.vendors.values().filter_map(|v| v.terms)).chain(b.invoices.values().filter_map(|i| i.terms)).collect();
+    let referenced: BTreeSet<Guid> = b
+        .customers
+        .values()
+        .filter_map(|c| c.terms)
+        .chain(b.vendors.values().filter_map(|v| v.terms))
+        .chain(b.invoices.values().filter_map(|i| i.terms))
+        .collect();
     let mut bill_terms: Vec<Value> = referenced.iter().filter_map(|g| b.bill_terms.get(g)).map(bill_term).collect();
     bill_terms.sort_by(|x, y| (x["name"].as_str(), x["frozen"].as_bool()).cmp(&(y["name"].as_str(), y["frozen"].as_bool())));
     bill_terms.dedup_by(|x, y| x["name"] == y["name"] && x["frozen"] == y["frozen"]);
@@ -445,8 +484,17 @@ fn business(book: &Book) -> Value {
 fn bill_term(t: &std::sync::Arc<red_ale_core::business::BillTerm>) -> Value {
     use red_ale_core::business::BillTermKind;
     let (kind, due, disc_days, discount, cutoff) = match t.kind {
-        Some(BillTermKind::Days { due_days, disc_days, discount }) => (1, due_days, disc_days, discount, 0),
-        Some(BillTermKind::Proximo { due_day, disc_day, discount, cutoff_day }) => (2, due_day, disc_day, discount, cutoff_day),
+        Some(BillTermKind::Days {
+            due_days,
+            disc_days,
+            discount,
+        }) => (1, due_days, disc_days, discount, 0),
+        Some(BillTermKind::Proximo {
+            due_day,
+            disc_day,
+            discount,
+            cutoff_day,
+        }) => (2, due_day, disc_day, discount, cutoff_day),
         None => (0, 0, 0, Numeric::ZERO, 0),
     };
     json!({

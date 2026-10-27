@@ -21,18 +21,28 @@ pub struct Answer {
 impl Answer {
     /// A 200 answer with `body`.
     pub fn ok(body: impl Into<Vec<u8>>) -> Self {
-        Self { status: 200, body: body.into(), delay: Duration::ZERO }
+        Self {
+            status: 200,
+            body: body.into(),
+            delay: Duration::ZERO,
+        }
     }
 
     /// A 200 answer with a recorded answer from `crates/red-ale-quotes/tests/fixtures`.
     pub fn recorded(name: &str) -> Self {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../red-ale-quotes/tests/fixtures").join(name);
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../red-ale-quotes/tests/fixtures")
+            .join(name);
         Self::ok(std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display())))
     }
 
     /// An answer with another status.
     pub fn status(status: u16, body: impl Into<Vec<u8>>) -> Self {
-        Self { status, body: body.into(), delay: Duration::ZERO }
+        Self {
+            status,
+            body: body.into(),
+            delay: Duration::ZERO,
+        }
     }
 
     /// The same answer, after `delay`.
@@ -81,11 +91,15 @@ impl QuoteServer {
         let stop = Arc::new(AtomicBool::new(false));
         let (thread_log, thread_stop) = (Arc::clone(&log), Arc::clone(&stop));
         std::thread::spawn(move || {
-            listener.incoming().take_while(|_| !thread_stop.load(Ordering::SeqCst)).flatten().for_each(|stream| {
-                thread_log.connections.fetch_add(1, Ordering::SeqCst);
-                let (answers, log) = (Arc::clone(&answers), Arc::clone(&thread_log));
-                std::thread::spawn(move || serve(&stream, &answers, &log));
-            });
+            listener
+                .incoming()
+                .take_while(|_| !thread_stop.load(Ordering::SeqCst))
+                .flatten()
+                .for_each(|stream| {
+                    thread_log.connections.fetch_add(1, Ordering::SeqCst);
+                    let (answers, log) = (Arc::clone(&answers), Arc::clone(&thread_log));
+                    std::thread::spawn(move || serve(&stream, &answers, &log));
+                });
         });
         Self { addr, log, stop }
     }
@@ -127,9 +141,15 @@ fn serve(stream: &TcpStream, answers: &[(String, Answer)], log: &Log) {
     })
     .for_each(drop);
     let target = request_line.split_whitespace().nth(1).unwrap_or_default().to_owned();
-    log.hits.lock().unwrap_or_else(PoisonError::into_inner).push(Hit { target: target.clone(), at: Instant::now() });
+    log.hits.lock().unwrap_or_else(PoisonError::into_inner).push(Hit {
+        target: target.clone(),
+        at: Instant::now(),
+    });
     let path = target.split('?').next().unwrap_or_default();
-    let answer = answers.iter().find(|(p, _)| p == path).map_or_else(|| Answer::status(404, "{\"message\":\"not found\"}"), |(_, a)| a.clone());
+    let answer = answers
+        .iter()
+        .find(|(p, _)| p == path)
+        .map_or_else(|| Answer::status(404, "{\"message\":\"not found\"}"), |(_, a)| a.clone());
     std::thread::sleep(answer.delay);
     let head = format!(
         "HTTP/1.1 {} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",

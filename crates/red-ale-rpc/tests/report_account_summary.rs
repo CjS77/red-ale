@@ -55,16 +55,57 @@ fn expected_figures_of_gnucash_test() {
     let result = s.run(TEMPLATE, &options);
     let html = s.export(TEMPLATE, &options);
     let checks = [
-        Check { name: "accsum col 1, col 3: GBP Bank", line: 54, label: "GBP Bank", want: &["#608.00", "$912.00"] },
-        Check { name: "accsum col 1, col 3: Income-GBP", line: 54, label: "Income-GBP", want: &["-#612.00", "-$918.00"] },
-        Check { name: "accsum col 3: Bank", line: 61, label: "Bank", want: &["$2,186.00"] },
-        Check { name: "accsum col 3: Wallet", line: 61, label: "Wallet", want: &["$20.00"] },
+        Check {
+            name: "accsum col 1, col 3: GBP Bank",
+            line: 54,
+            label: "GBP Bank",
+            want: &["#608.00", "$912.00"],
+        },
+        Check {
+            name: "accsum col 1, col 3: Income-GBP",
+            line: 54,
+            label: "Income-GBP",
+            want: &["-#612.00", "-$918.00"],
+        },
+        Check {
+            name: "accsum col 3: Bank",
+            line: 61,
+            label: "Bank",
+            want: &["$2,186.00"],
+        },
+        Check {
+            name: "accsum col 3: Wallet",
+            line: 61,
+            label: "Wallet",
+            want: &["$20.00"],
+        },
     ];
     assert_checks(&result, &html, &checks);
-    let names = ["Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity"];
-    assert_eq!(labels(tables(&result)[0]), names, "accsum col 2 (test line 57): every account, in order");
-    names.iter().for_each(|n| assert!(html.contains(&format!(">{n}<")), "{n} is in the HTML"));
-    assert_eq!(run["checks"].as_array().unwrap().len(), 3, "every check of the run is covered above");
+    let names = [
+        "Root",
+        "Asset",
+        "Bank",
+        "GBP Bank",
+        "Wallet",
+        "Liabilities",
+        "Income",
+        "Income-GBP",
+        "Expenses",
+        "Equity",
+    ];
+    assert_eq!(
+        labels(tables(&result)[0]),
+        names,
+        "accsum col 2 (test line 57): every account, in order"
+    );
+    names
+        .iter()
+        .for_each(|n| assert!(html.contains(&format!(">{n}<")), "{n} is in the HTML"));
+    assert_eq!(
+        run["checks"].as_array().unwrap().len(),
+        3,
+        "every check of the run is covered above"
+    );
 }
 
 /// Default options (AS:138-234): depth 3, summarized; parents show their own balance (OU's "immediate-bal" default),
@@ -74,27 +115,41 @@ fn expected_figures_of_gnucash_test() {
 fn default_options() {
     let result = run(&json!({}));
     assert_eq!(result["title"], " Account Summary 03/15/24");
-    assert_eq!(rows(&result), [
-        "0 Root: $0.00",
-        "1 Asset: $0.00",
-        "2 Bank: $2,186.00",
-        "2 GBP Bank: #608.00 $912.00",
-        "2 Wallet: $20.00",
-        "1 Liabilities: -$3.00",
-        "1 Income: -$2,573.00",
-        "1 Income-GBP: -#612.00 -$918.00",
-        "1 Expenses: $264.00",
-        "1 Equity: $111.00",
-    ]);
+    assert_eq!(
+        rows(&result),
+        [
+            "0 Root: $0.00",
+            "1 Asset: $0.00",
+            "2 Bank: $2,186.00",
+            "2 GBP Bank: #608.00 $912.00",
+            "2 Wallet: $20.00",
+            "1 Liabilities: -$3.00",
+            "1 Income: -$2,573.00",
+            "1 Income-GBP: -#612.00 -$918.00",
+            "1 Expenses: $264.00",
+            "1 Equity: $111.00",
+        ]
+    );
     let table = tables(&result)[0];
-    let headers: Vec<&str> = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect();
+    let headers: Vec<&str> = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect();
     assert_eq!(headers, ["Account Code", "Account title", "Balance"], "AS:373-393");
     assert_eq!(table["columns"][2]["levels"], 3, "one staircase level per level of the tree depth");
-    assert!(table["rows"].as_array().unwrap().iter().all(|r| r["cells"][0]["text"] == ""), "no account has a code");
+    assert!(
+        table["rows"].as_array().unwrap().iter().all(|r| r["cells"][0]["text"] == ""),
+        "no account has a code"
+    );
     assert_eq!(tables(&result).len(), 1, "Show Exchange Rates is off by default (AS:191-193)");
     let (_, bank) = rows_labelled(&result, "Bank")[0];
     assert_eq!((bank["level"].as_u64(), bank["role"].as_str()), (Some(2), Some("account")));
-    assert_eq!(bank["cells"][1]["account"], "a0000000000000000000000000000003", "labels link to their account (AS:326)");
+    assert_eq!(
+        bank["cells"][1]["account"], "a0000000000000000000000000000003",
+        "labels link to their account (AS:326)"
+    );
 }
 
 /// One level: "summarize" gives Root its whole tree's balance (HAT:1018-1022), a commodity per line in the
@@ -106,21 +161,31 @@ fn default_options() {
 fn depth_limit_summarize_flatten_truncate() {
     let one = |behavior: &str| run(&json!({ "Accounts": { "Levels of Subaccounts": 1, "Depth limit behavior": behavior } }));
     assert_eq!(rows(&one("summarize")), ["0 Root: -#4.00 -$6.00 $5.00 $5.00"]);
-    assert_eq!(rows(&one("flatten")), [
-        "0 Root: $0.00",
-        "0 Asset: $0.00",
-        "0 Bank: $2,186.00",
-        "0 GBP Bank: #608.00 $912.00",
-        "0 Wallet: $20.00",
-        "0 Liabilities: -$3.00",
-        "0 Income: -$2,573.00",
-        "0 Income-GBP: -#612.00 -$918.00",
-        "0 Expenses: $264.00",
-        "0 Equity: $111.00",
-    ]);
+    assert_eq!(
+        rows(&one("flatten")),
+        [
+            "0 Root: $0.00",
+            "0 Asset: $0.00",
+            "0 Bank: $2,186.00",
+            "0 GBP Bank: #608.00 $912.00",
+            "0 Wallet: $20.00",
+            "0 Liabilities: -$3.00",
+            "0 Income: -$2,573.00",
+            "0 Income-GBP: -#612.00 -$918.00",
+            "0 Expenses: $264.00",
+            "0 Equity: $111.00",
+        ]
+    );
     assert_eq!(rows(&one("truncate")), ["0 Root: $0.00"]);
     let two = run(&json!({ "Accounts": { "Levels of Subaccounts": 2 } }));
-    assert_eq!(rows(&two)[..3], ["0 Root: $0.00", "1 Asset: #608.00 $912.00 $2,206.00 $2,206.00", "1 Liabilities: -$3.00"]);
+    assert_eq!(
+        rows(&two)[..3],
+        [
+            "0 Root: $0.00",
+            "1 Asset: #608.00 $912.00 $2,206.00 $2,206.00",
+            "1 Liabilities: -$3.00"
+        ]
+    );
 }
 
 /// "Parent account subtotals" (AS:266-268, HAT:778-787): a "Total" row after a parent's children with its
@@ -132,10 +197,23 @@ fn parent_subtotals_and_balances() {
     let result = run(&json!({ "Display": { "Parent account subtotals": "t", "Show accounting-style rules": true } }));
     assert_eq!(amount_of(&result, "Total Asset"), ["$3,118.00"]);
     assert_eq!(amount_of(&result, "Total Root"), ["-$1.00"]);
-    assert_eq!(rows(&result)[4..6],["2 Wallet: $20.00".to_owned(), "1 Total Asset: $3,118.00".to_owned()]);
+    assert_eq!(
+        rows(&result)[4..6],
+        ["2 Wallet: $20.00".to_owned(), "1 Total Asset: $3,118.00".to_owned()]
+    );
     let (table, total) = rows_labelled(&result, "Total Asset")[0];
-    assert_eq!((total["role"].as_str(), total["cells"][2]["rule"].as_bool()), (Some("subtotal"), Some(true)));
-    assert!(table["rows"].as_array().unwrap().iter().filter(|r| r["role"] == "account").all(|r| r["cells"][2]["rule"].is_null()));
+    assert_eq!(
+        (total["role"].as_str(), total["cells"][2]["rule"].as_bool()),
+        (Some("subtotal"), Some(true))
+    );
+    assert!(
+        table["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|r| r["role"] == "account")
+            .all(|r| r["cells"][2]["rule"].is_null())
+    );
     let recursive = run(&json!({ "Display": { "Parent account balances": "recursive-bal" } }));
     assert_eq!(amount_of(&recursive, "Asset"), ["#608.00", "$912.00", "$2,206.00", "$2,206.00"]);
     let omitted = run(&json!({ "Display": { "Parent account balances": "omit-bal" } }));
@@ -154,7 +232,10 @@ fn zero_balances() {
     let all = run(&json!({ "General": { "Date": day } }));
     assert_eq!(labels(tables(&all)[0]).len(), 10);
     let nonzero = run(&json!({ "General": { "Date": day }, "Display": { "Include accounts with zero total balances": false } }));
-    assert_eq!(rows(&nonzero), ["1 Asset: $0.00", "2 Bank: $24.00", "1 Income: -$29.00", "1 Expenses: $5.00"]);
+    assert_eq!(
+        rows(&nonzero),
+        ["1 Asset: $0.00", "2 Bank: $24.00", "1 Income: -$29.00", "1 Expenses: $5.00"]
+    );
     assert_eq!(nonzero["title"], " Account Summary 01/01/70");
 }
 
@@ -197,13 +278,16 @@ fn reversed_signs_under_credit() {
     config["reports"]["reverseBalancedAccounts"] = json!("credit");
     let mut s = Setup::fixture("test-data.gnucash", &config);
     let result = s.run(TEMPLATE, &json!({}));
-    assert_eq!(rows(&result)[5..], [
-        "1 Liabilities: $3.00",
-        "1 Income: $2,573.00",
-        "1 Income-GBP: #612.00 $918.00",
-        "1 Expenses: $264.00",
-        "1 Equity: -$111.00",
-    ]);
+    assert_eq!(
+        rows(&result)[5..],
+        [
+            "1 Liabilities: $3.00",
+            "1 Income: $2,573.00",
+            "1 Income-GBP: #612.00 $918.00",
+            "1 Expenses: $264.00",
+            "1 Equity: -$111.00",
+        ]
+    );
     assert_eq!(amount_of(&result, "Bank"), ["$2,186.00"]);
 }
 
@@ -216,16 +300,30 @@ fn columns() {
                           "Display accounts as hyperlinks": false, "Parent account subtotals": "t" });
     let result = run(&json!({ "Display": display }));
     let table = tables(&result)[0];
-    let headers: Vec<&str> = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect();
+    let headers: Vec<&str> = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect();
     assert_eq!(headers, ["Type", "Description", "Account title", "Balance", "Notes"]);
-    let types: Vec<&str> = table["rows"].as_array().unwrap().iter().map(|r| r["cells"][0]["text"].as_str().unwrap()).collect();
+    let types: Vec<&str> = table["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["cells"][0]["text"].as_str().unwrap())
+        .collect();
     assert_eq!(types[..5], ["Asset", "Asset", "Asset", "Asset", "Asset"]);
     assert_eq!(rows_labelled(&result, "Total Asset")[0].1["cells"][0]["text"], "Asset");
     assert_eq!(rows_labelled(&result, "Income")[0].1["cells"][0]["text"], "Income");
     assert!(table["rows"].as_array().unwrap().iter().all(|r| r["cells"][2]["account"].is_null()));
     let no_balance = run(&json!({ "Display": { "Account Balance": false } }));
-    let headers: Vec<&str> =
-        tables(&no_balance)[0]["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect();
+    let headers: Vec<&str> = tables(&no_balance)[0]["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect();
     assert_eq!(headers, ["Account Code", "Account title"], "AS:387-393");
 }
 
@@ -238,7 +336,10 @@ fn title_and_no_accounts() {
     assert_eq!(result["title"], " Chart 03/15/24");
     let none = Setup::new_book(&test_settings("locale")).run(TEMPLATE, &json!({}));
     let block = &none["sections"][0]["blocks"][0];
-    assert_eq!((block["kind"].as_str(), block["title"].as_str()), (Some("warning"), Some("No accounts selected")));
+    assert_eq!(
+        (block["kind"].as_str(), block["title"].as_str()),
+        (Some("warning"), Some("No accounts selected"))
+    );
 }
 
 /// Running the report leaves the Book as it was and writes nothing; two exports are the same bytes, with no
@@ -246,7 +347,11 @@ fn title_and_no_accounts() {
 #[test]
 fn read_only_and_deterministic() {
     let mut s = Setup::with_config(&test_settings("locale"));
-    std::fs::copy(format!("{}/../../fixtures/reports/test-data.gnucash", env!("CARGO_MANIFEST_DIR")), s.book()).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/reports/test-data.gnucash", env!("CARGO_MANIFEST_DIR")),
+        s.book(),
+    )
+    .unwrap();
     let book = s.book().display().to_string();
     s.call("book.open", json!({ "path": book }));
     let before = s.d.context().book().unwrap().clone();

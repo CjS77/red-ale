@@ -79,7 +79,9 @@ fn add_accounts(book: &mut Book, env: &mut FixedEnv) -> Vec<Guid> {
         .flat_map(|(i, (name, kind))| {
             let parent = add_account(book, env, (*name).to_owned(), *kind, root);
             let count = children / TOP_LEVEL.len() + usize::from(i < children % TOP_LEVEL.len());
-            (0..count).map(|n| add_account(book, env, format!("{name} {n:04}"), *kind, parent)).collect::<Vec<_>>()
+            (0..count)
+                .map(|n| add_account(book, env, format!("{name} {n:04}"), *kind, parent))
+                .collect::<Vec<_>>()
         })
         .collect()
 }
@@ -103,7 +105,11 @@ fn transaction(i: usize, leaves: &[Guid], env: &mut FixedEnv, random: &mut Lcg) 
     }
     let amounts = split_amounts(i, random);
     let accounts = distinct_accounts(amounts.len(), leaves, random);
-    let splits = amounts.iter().zip(accounts).map(|(cents, account)| split(env.new_guid(), account, *cents, random)).collect();
+    let splits = amounts
+        .iter()
+        .zip(accounts)
+        .map(|(cents, account)| split(env.new_guid(), account, *cents, random))
+        .collect();
     Transaction {
         guid: env.new_guid(),
         currency: usd(),
@@ -130,7 +136,13 @@ fn split_amounts(i: usize, random: &mut Lcg) -> Vec<i64> {
 fn distinct_accounts(n: usize, leaves: &[Guid], random: &mut Lcg) -> Vec<Guid> {
     let len = i64::try_from(leaves.len()).unwrap_or(1);
     let first = random.below(len);
-    (0..n).filter_map(|k| leaves.get(usize::try_from((first + i64::try_from(k).unwrap_or(0) * 7) % len).unwrap_or(0)).copied()).collect()
+    (0..n)
+        .filter_map(|k| {
+            leaves
+                .get(usize::try_from((first + i64::try_from(k).unwrap_or(0) * 7) % len).unwrap_or(0))
+                .copied()
+        })
+        .collect()
 }
 
 fn split(guid: Guid, account: Guid, cents: i64, random: &mut Lcg) -> Split {
@@ -151,10 +163,17 @@ fn gnucash_order(book: &Book, made: Vec<Transaction>) -> Vec<Transaction> {
     let index_of = |account: Guid| book.accounts.get_index_of(&account);
     let mut by_account: Vec<Vec<usize>> = vec![Vec::new(); book.accounts.len()];
     made.iter().enumerate().for_each(|(i, t)| {
-        t.splits.iter().filter_map(|s| s.account.and_then(index_of)).for_each(|a| by_account[a].push(i));
+        t.splits
+            .iter()
+            .filter_map(|s| s.account.and_then(index_of))
+            .for_each(|a| by_account[a].push(i));
     });
     let mut seen = vec![false; made.len()];
-    let order: Vec<usize> = by_account.into_iter().flatten().filter(|i| !std::mem::replace(&mut seen[*i], true)).collect();
+    let order: Vec<usize> = by_account
+        .into_iter()
+        .flatten()
+        .filter(|i| !std::mem::replace(&mut seen[*i], true))
+        .collect();
     let mut slots: Vec<Option<Transaction>> = made.into_iter().map(Some).collect();
     order.into_iter().filter_map(|i| slots[i].take()).collect()
 }
@@ -165,7 +184,10 @@ struct Lcg(u64);
 impl Lcg {
     /// A number in `0..n`, for `n > 0`.
     fn below(&mut self, n: i64) -> i64 {
-        self.0 = self.0.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        self.0 = self
+            .0
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
         let n = u64::try_from(n.max(1)).unwrap_or(1);
         i64::try_from((self.0 >> 33) % n).unwrap_or(0)
     }

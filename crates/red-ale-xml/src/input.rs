@@ -49,8 +49,22 @@ impl<R: BufRead> TextStream<R> {
         let magic = read_magic(&mut reader).map_err(from_io)?;
         let compressed = crate::book::is_gzip(&magic);
         let chained = io::Cursor::new(magic).chain(reader);
-        let source = if compressed { Source::Gzip(GzDecoder::new(chained)) } else { Source::Plain(chained) };
-        Ok(Self { source, compressed, pending: Vec::new(), raw: vec![0; CHUNK], out: Vec::new(), pos: 0, after_cr: false, eof: false, error: None })
+        let source = if compressed {
+            Source::Gzip(GzDecoder::new(chained))
+        } else {
+            Source::Plain(chained)
+        };
+        Ok(Self {
+            source,
+            compressed,
+            pending: Vec::new(),
+            raw: vec![0; CHUNK],
+            out: Vec::new(),
+            pos: 0,
+            after_cr: false,
+            eof: false,
+            error: None,
+        })
     }
 
     /// The file was gzip-compressed.
@@ -154,7 +168,11 @@ fn invalid_utf8() -> io::Error {
 
 /// An error reading a file: invalid data is a bad encoding, as when the whole file was decoded at once.
 pub(crate) fn from_io(e: io::Error) -> XmlError {
-    if e.kind() == io::ErrorKind::InvalidData { XmlError::Encoding } else { XmlError::Io(e) }
+    if e.kind() == io::ErrorKind::InvalidData {
+        XmlError::Encoding
+    } else {
+        XmlError::Io(e)
+    }
 }
 
 #[cfg(test)]

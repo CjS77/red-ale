@@ -77,14 +77,21 @@ pub fn fill(template: &str, values: &[(&str, &str)], key: Option<&Secret>) -> Ke
                 shown.push_str(MASK);
             }
             Piece::Placeholder(name) => {
-                let value = values.iter().find(|(n, _)| *n == name).map_or_else(|| format!("{{{name}}}"), |(_, v)| encode(v));
+                let value = values
+                    .iter()
+                    .find(|(n, _)| *n == name)
+                    .map_or_else(|| format!("{{{name}}}"), |(_, v)| encode(v));
                 url.push_str(&value);
                 shown.push_str(&value);
             }
         }
         (url, shown)
     });
-    KeyedUrl { url, shown, key: key.cloned() }
+    KeyedUrl {
+        url,
+        shown,
+        key: key.cloned(),
+    }
 }
 
 /// True when the template sends a key.
@@ -105,7 +112,10 @@ fn pieces(template: &str) -> impl Iterator<Item = Piece<'_>> {
         if rest.is_empty() {
             return None;
         }
-        let placeholder = rest.strip_prefix('{').and_then(|r| r.split_once('}')).filter(|(name, _)| !name.contains('{'));
+        let placeholder = rest
+            .strip_prefix('{')
+            .and_then(|r| r.split_once('}'))
+            .filter(|(name, _)| !name.contains('{'));
         if let Some((name, after)) = placeholder {
             rest = after;
             return Some(Piece::Placeholder(name));
@@ -137,8 +147,14 @@ mod tests {
         let key = Secret::new("s3cr+t/K").unwrap();
         let t = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}";
         let u = fill(t, &[("symbol", "BRK.B")], Some(&key));
-        assert_eq!(u.url(), "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=BRK.B&apikey=s3cr%2Bt%2FK");
-        assert_eq!(u.shown(), "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=BRK.B&apikey=***");
+        assert_eq!(
+            u.url(),
+            "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=BRK.B&apikey=s3cr%2Bt%2FK"
+        );
+        assert_eq!(
+            u.shown(),
+            "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=BRK.B&apikey=***"
+        );
         assert_eq!(format!("{u:?}"), u.shown());
         assert_eq!(format!("{key:?}"), "***");
         assert_eq!(u.redact("failed: apikey=s3cr%2Bt%2FK or s3cr+t/K"), "failed: apikey=*** or ***");
@@ -147,7 +163,11 @@ mod tests {
 
     #[test]
     fn values_are_percent_encoded() {
-        let u = fill("https://h/v8/finance/chart/{base}{quote}=X?d={date}", &[("base", "EUR"), ("quote", "USD"), ("date", "2024-05-03")], None);
+        let u = fill(
+            "https://h/v8/finance/chart/{base}{quote}=X?d={date}",
+            &[("base", "EUR"), ("quote", "USD"), ("date", "2024-05-03")],
+            None,
+        );
         assert_eq!(u.url(), "https://h/v8/finance/chart/EURUSD=X?d=2024-05-03");
         let u = fill("https://h/q/{symbol}", &[("symbol", "A B&C/é")], None);
         assert_eq!(u.url(), "https://h/q/A%20B%26C%2F%C3%A9");

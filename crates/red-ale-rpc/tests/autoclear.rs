@@ -15,7 +15,11 @@ const EURO: &str = "c9cde06da6274e87981afb424c59f17d";
 fn open() -> (tempfile::TempDir, Dispatcher) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("book.gnucash");
-    std::fs::copy(format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")), &path).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")),
+        &path,
+    )
+    .unwrap();
     let mut d = Dispatcher::new(Settings::default());
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(1_719_835_200), 1 << 100))));
     d.call("book.open", json!({ "path": path.display().to_string() })).unwrap();
@@ -24,11 +28,16 @@ fn open() -> (tempfile::TempDir, Dispatcher) {
 
 fn call(d: &mut Dispatcher, method: &str, params: Value) -> Value {
     let shown = params.to_string();
-    d.call(method, params).unwrap_or_else(|e| panic!("{method} {shown}: {e} {:?}", e.data))
+    d.call(method, params)
+        .unwrap_or_else(|e| panic!("{method} {shown}: {e} {:?}", e.data))
 }
 
 fn find(d: &mut Dispatcher, figure: &str) -> Value {
-    call(d, "reconcile.findAutoClear", json!({ "account": CHECKING, "clearedBalance": figure }))
+    call(
+        d,
+        "reconcile.findAutoClear",
+        json!({ "account": CHECKING, "clearedBalance": figure }),
+    )
 }
 
 fn states(d: &mut Dispatcher) -> Vec<(String, String)> {
@@ -39,7 +48,12 @@ fn states(d: &mut Dispatcher) -> Vec<(String, String)> {
         .iter()
         .flat_map(|t| t["splits"].as_array().unwrap().clone())
         .filter(|s| s["account"] == CHECKING)
-        .map(|s| (s["guid"].as_str().unwrap().to_owned(), s["reconcileState"].as_str().unwrap().to_owned()))
+        .map(|s| {
+            (
+                s["guid"].as_str().unwrap().to_owned(),
+                s["reconcileState"].as_str().unwrap().to_owned(),
+            )
+        })
         .collect()
 }
 
@@ -49,13 +63,21 @@ fn finds_the_one_set_of_splits_and_reports_failures() {
     let found = find(&mut d, "4877.66");
     assert_eq!(found["outcome"], "found");
     assert_eq!(found["currentClearedBalance"], json!({ "num": "500000", "denom": "100" }));
-    let picked: Vec<&str> = found["splits"].as_array().unwrap().iter().map(|s| s["split"].as_str().unwrap()).collect();
+    let picked: Vec<&str> = found["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["split"].as_str().unwrap())
+        .collect();
     assert_eq!(picked, [GROCERIES, EURO], "in account order");
     assert_eq!(found["splits"][1]["datePosted"], "2024-06-03");
     assert_eq!(found["message"], Value::Null);
 
     let already = find(&mut d, "5000");
-    assert_eq!((already["outcome"].as_str(), already["splits"].as_array().map(Vec::len)), (Some("alreadyCleared"), Some(0)));
+    assert_eq!(
+        (already["outcome"].as_str(), already["splits"].as_array().map(Vec::len)),
+        (Some("alreadyCleared"), Some(0))
+    );
     assert_eq!(already["message"], "Account is already at Auto-Clear Balance.");
     assert_eq!(find(&mut d, "4500")["outcome"], "unreachable");
 
@@ -72,11 +94,17 @@ fn finds_the_one_set_of_splits_and_reports_failures() {
 fn auto_clear_marks_the_splits_cleared_or_changes_nothing() {
     let (_dir, mut d) = open();
     let before = states(&mut d);
-    let e = d.call("reconcile.autoClear", json!({ "account": CHECKING, "clearedBalance": "4500" })).unwrap_err();
+    let e = d
+        .call("reconcile.autoClear", json!({ "account": CHECKING, "clearedBalance": "4500" }))
+        .unwrap_err();
     assert_eq!((e.code, e.data.unwrap()["reason"].as_str()), (codes::INVALID, Some("unreachable")));
     assert_eq!(states(&mut d), before);
 
-    let done = call(&mut d, "reconcile.autoClear", json!({ "account": CHECKING, "clearedBalance": "4877.66" }));
+    let done = call(
+        &mut d,
+        "reconcile.autoClear",
+        json!({ "account": CHECKING, "clearedBalance": "4877.66" }),
+    );
     assert_eq!(done["outcome"], "found");
     let after = states(&mut d);
     let state = |g: &str| after.iter().find(|(s, _)| s == g).map(|(_, st)| st.as_str());

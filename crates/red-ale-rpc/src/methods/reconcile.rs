@@ -3,9 +3,7 @@
 //! Reconciling is stateless: the caller carries the statement and its ticks from call to call, and only
 //! `reconcile.finish` and `reconcile.postpone` change the book. See `design/api/reconcile.md`.
 
-use red_ale_core::ops::reconcile::{
-    self as rec, Balances, Candidate, Interval, Postponed, ReconcileInfo, Request, StateChange, Statement,
-};
+use red_ale_core::ops::reconcile::{self as rec, Balances, Candidate, Interval, Postponed, ReconcileInfo, Request, StateChange, Statement};
 use red_ale_core::{Book, Guid, ReconcileState, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -137,10 +135,17 @@ fn set_state(ctx: &mut Context, p: SetStateParams) -> Result<SplitState, RpcErro
     let split = p.split.0;
     ctx.mutate(|book, env| rec::set_split_state(book, env, split, p.state.into(), p.date.map(|d| d.0)))?;
     let book = ctx.book()?;
-    let t = book.transaction_of_split(split).ok_or_else(|| RpcError::not_found("split", split))?;
+    let t = book
+        .transaction_of_split(split)
+        .ok_or_else(|| RpcError::not_found("split", split))?;
     let s = t.split(split).ok_or_else(|| RpcError::not_found("split", split))?;
     let reconcile_date = s.reconcile_date.map(Into::into);
-    Ok(SplitState { split: p.split, transaction: t.guid.into(), state: s.reconcile_state.into(), reconcile_date })
+    Ok(SplitState {
+        split: p.split,
+        transaction: t.guid.into(),
+        state: s.reconcile_state.into(),
+        reconcile_date,
+    })
 }
 
 /// The interval between reconciliations.
@@ -155,7 +160,10 @@ pub struct IntervalWire {
 
 impl From<Interval> for IntervalWire {
     fn from(i: Interval) -> Self {
-        Self { months: i.months, days: i.days }
+        Self {
+            months: i.months,
+            days: i.days,
+        }
     }
 }
 
@@ -250,10 +258,22 @@ fn set_info(ctx: &mut Context, p: SetInfoParams) -> Result<InfoResult, RpcError>
             rec::set_last_date(acc, date.map(|d| d.0));
         }
         if let Some(interval) = p.last_interval {
-            rec::set_last_interval(acc, interval.map(|i| Interval { months: i.months, days: i.days }))?;
+            rec::set_last_interval(
+                acc,
+                interval.map(|i| Interval {
+                    months: i.months,
+                    days: i.days,
+                }),
+            )?;
         }
         if let Some(postpone) = p.postpone {
-            rec::set_postponed(acc, postpone.map(|q| Postponed { date: q.date.0, balance: q.balance.0 }));
+            rec::set_postponed(
+                acc,
+                postpone.map(|q| Postponed {
+                    date: q.date.0,
+                    balance: q.balance.0,
+                }),
+            );
         }
         if let Some(include) = p.include_subaccounts {
             rec::set_include_children(acc, include);
@@ -413,7 +433,11 @@ fn view(book: &Book, prepared: &rec::Prepared, ticked: &[Guid]) -> Result<Reconc
     let ticked: Vec<Guid> = candidates.iter().filter(|c| ticked.contains(&c.split)).map(|c| c.split).collect();
     Ok(ReconcileView {
         account: st.account.into(),
-        statement_date: st.zone.local_date(st.date).map(Day).ok_or_else(|| RpcError::invalid("statement date out of range"))?,
+        statement_date: st
+            .zone
+            .local_date(st.date)
+            .map(Day)
+            .ok_or_else(|| RpcError::invalid("statement date out of range"))?,
         statement_time: st.date.into(),
         ending_balance: st.ending_balance.into(),
         include_subaccounts: st.include_children,
@@ -480,8 +504,11 @@ fn status(ctx: &mut Context, p: StatusParams) -> Result<ReconcileView, RpcError>
             None => rec::default_ticks(&rec::candidates(book, &prepared.statement)),
         };
         let unmark: Vec<Guid> = p.unmark.iter().map(|i| i.0).collect();
-        let ticks: Vec<Guid> =
-            base.into_iter().chain(p.mark.iter().map(|i| i.0)).filter(|g| !unmark.contains(g)).collect();
+        let ticks: Vec<Guid> = base
+            .into_iter()
+            .chain(p.mark.iter().map(|i| i.0))
+            .filter(|g| !unmark.contains(g))
+            .collect();
         view(book, &prepared, &ticks)
     })
 }
@@ -513,7 +540,12 @@ pub struct StateChangeWire {
 
 impl From<&StateChange> for StateChangeWire {
     fn from(c: &StateChange) -> Self {
-        Self { split: c.split.into(), transaction: c.transaction.into(), from: c.from.into(), to: c.to.into() }
+        Self {
+            split: c.split.into(),
+            transaction: c.transaction.into(),
+            from: c.from.into(),
+            to: c.to.into(),
+        }
     }
 }
 

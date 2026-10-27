@@ -34,7 +34,11 @@ pub fn default_dividend_acct(brokerage: &str, security: &str) -> String {
 
 /// `default-interest-acct`: without a security, the brokerage's interest account. `qif-dialog-utils.scm:75-82`.
 pub fn default_interest_acct(brokerage: &str, security: &str) -> String {
-    let security = if security.is_empty() { String::new() } else { format!("{SEP}{security}") };
+    let security = if security.is_empty() {
+        String::new()
+    } else {
+        format!("{SEP}{security}")
+    };
     format!("Income{SEP}Interest{SEP}{brokerage}{security}")
 }
 
@@ -129,12 +133,20 @@ pub(crate) fn first_split(xtn: &QifXtn) -> Option<&super::objects::QifSplit> {
 
 /// A split's amount, zero when unparsed or absent.
 pub(crate) fn split_amount(split: &super::objects::QifSplit) -> red_ale_core::Numeric {
-    split.amount.as_ref().and_then(|f| f.value()).copied().unwrap_or(red_ale_core::Numeric::ZERO)
+    split
+        .amount
+        .as_ref()
+        .and_then(|f| f.value())
+        .copied()
+        .unwrap_or(red_ale_core::Numeric::ZERO)
 }
 
 /// `qif-import:gnc-account-exists`: an account of this full name exists. `qif-dialog-utils.scm:137-145`.
 fn gnc_account_exists(entry: &QifMapEntry, info: &[GncAcctInfo]) -> bool {
-    entry.gnc_name.as_deref().is_some_and(|name| info.iter().any(|a| a.full_name == name))
+    entry
+        .gnc_name
+        .as_deref()
+        .is_some_and(|name| info.iter().any(|a| a.full_name == name))
 }
 
 /// Look a name up, guessing an entry when there is none, and show it. The `(if (not entry) (guess-acct …))`,
@@ -168,10 +180,15 @@ pub fn make_account_display(files: &[QifFile], acct_hash: &mut MapHash, info: &[
     clear_display(acct_hash);
     files.iter().flat_map(|f| &f.accounts).for_each(|acct| {
         let types = acct.acct_type.value().cloned().unwrap_or_default();
-        let entry = acct_hash.entry(acct.name.clone()).or_insert_with(|| guess_acct(&acct.name, &types, info));
+        let entry = acct_hash
+            .entry(acct.name.clone())
+            .or_insert_with(|| guess_acct(&acct.name, &types, info));
         entry.description.clone_from(&acct.description);
     });
-    files.iter().flat_map(|f| &f.xtns).for_each(|xtn| account_display_xtn(xtn, acct_hash, info));
+    files
+        .iter()
+        .flat_map(|f| &f.xtns)
+        .for_each(|xtn| account_display_xtn(xtn, acct_hash, info));
     display_list(acct_hash, info)
 }
 
@@ -190,7 +207,10 @@ fn account_display_xtn(xtn: &QifXtn, acct_hash: &mut MapHash, info: &[GncAcctInf
         }
     } else {
         reference(acct_hash, from_acct, &CASH_TYPES, info);
-        xtn.splits.iter().filter(|s| s.category_is_account).for_each(|s| reference(acct_hash, &s.category, &CASH_TYPES, info));
+        xtn.splits
+            .iter()
+            .filter(|s| s.category_is_account)
+            .for_each(|s| reference(acct_hash, &s.category, &CASH_TYPES, info));
     }
 }
 
@@ -204,15 +224,31 @@ fn first_account_category(xtn: &QifXtn) -> Option<String> {
 fn stock_near_end(xtn: &QifXtn, action: Action, from_acct: &str, security: &str) -> Option<(String, Vec<AccountType>)> {
     use Action as A;
     match action {
-        A::Buy | A::BuyX | A::Sell | A::SellX | A::ReinvInt | A::ReinvDiv | A::ReinvSh | A::ReinvSg | A::ReinvLg | A::ReinvMd | A::ShrsIn
-        | A::ShrsOut | A::StkSplit => Some((default_stock_acct(from_acct, security), vec![AccountType::Stock, AccountType::Mutual])),
+        A::Buy
+        | A::BuyX
+        | A::Sell
+        | A::SellX
+        | A::ReinvInt
+        | A::ReinvDiv
+        | A::ReinvSh
+        | A::ReinvSg
+        | A::ReinvLg
+        | A::ReinvMd
+        | A::ShrsIn
+        | A::ShrsOut
+        | A::StkSplit => Some((
+            default_stock_acct(from_acct, security),
+            vec![AccountType::Stock, AccountType::Mutual],
+        )),
         A::Div | A::CgShort | A::CgMid | A::CgLong | A::IntInc | A::MiscInc | A::MiscExp | A::MargInt | A::RtrnCap | A::XIn | A::XOut => {
             Some((from_acct.to_owned(), CASH_TYPES.to_vec()))
         }
         A::DivX | A::CgShortX | A::CgMidX | A::CgLongX | A::IntIncX | A::MargIntX | A::RtrnCapX => {
             first_account_category(xtn).map(|name| (name, CASH_TYPES.to_vec()))
         }
-        A::MiscIncX | A::MiscExpX => first_split(xtn).and_then(|s| s.miscx_category.clone()).map(|name| (name, CASH_TYPES.to_vec())),
+        A::MiscIncX | A::MiscExpX => first_split(xtn)
+            .and_then(|s| s.miscx_category.clone())
+            .map(|name| (name, CASH_TYPES.to_vec())),
         _ => None,
     }
 }
@@ -226,7 +262,14 @@ fn stock_far_end(xtn: &QifXtn, action: Action, from_acct: &str, security: &str) 
         A::Buy | A::Sell => Some((from_acct.to_owned(), CASH_TYPES.to_vec())),
         A::BuyX | A::SellX | A::XIn | A::XOut => first_account_category(xtn).map(|name| (name, CASH_TYPES.to_vec())),
         A::StkSplit => {
-            let types = vec![AccountType::Stock, AccountType::Mutual, AccountType::Asset, AccountType::Liability, AccountType::Receivable, AccountType::Payable];
+            let types = vec![
+                AccountType::Stock,
+                AccountType::Mutual,
+                AccountType::Asset,
+                AccountType::Liability,
+                AccountType::Receivable,
+                AccountType::Payable,
+            ];
             Some((default_stock_acct(from_acct, security), types))
         }
         A::CgShort | A::CgShortX | A::ReinvSg | A::ReinvSh => income(default_cgshort_acct(from_acct, security)),
@@ -253,7 +296,11 @@ pub fn make_category_display(files: &[QifFile], cat_hash: &mut MapHash, info: &[
     files.iter().flat_map(|f| &f.cats).for_each(|cat| {
         // GnuCash fails on a category record with no name; red-ale passes over it.
         let Some(name) = cat.name.as_deref() else { return };
-        let types = if cat.expense_cat { [AccountType::Expense, AccountType::Income] } else { [AccountType::Income, AccountType::Expense] };
+        let types = if cat.expense_cat {
+            [AccountType::Expense, AccountType::Income]
+        } else {
+            [AccountType::Income, AccountType::Expense]
+        };
         let entry = cat_hash.entry(name.to_owned()).or_insert_with(|| guess_acct(name, &types, info));
         entry.description.clone_from(&cat.description);
     });
@@ -261,11 +308,16 @@ pub fn make_category_display(files: &[QifFile], cat_hash: &mut MapHash, info: &[
         xtn.splits.iter().filter(|s| !s.category_is_account).for_each(|split| {
             let cat = split.category.as_str();
             let wanted = !cat.is_empty()
-                || (split.memo.as_deref().is_none_or(str::is_empty) && (xtn.splits.len() > 1 || xtn.payee.as_deref().is_none_or(str::is_empty)));
+                || (split.memo.as_deref().is_none_or(str::is_empty)
+                    && (xtn.splits.len() > 1 || xtn.payee.as_deref().is_none_or(str::is_empty)));
             if !cat_hash.contains_key(cat) && !wanted {
                 return;
             }
-            let types = if split_amount(split).is_positive() { [AccountType::Income, AccountType::Expense] } else { [AccountType::Expense, AccountType::Income] };
+            let types = if split_amount(split).is_positive() {
+                [AccountType::Income, AccountType::Expense]
+            } else {
+                [AccountType::Expense, AccountType::Income]
+            };
             reference(cat_hash, cat, &types, info);
         });
     });
@@ -275,8 +327,24 @@ pub fn make_category_display(files: &[QifFile], cat_hash: &mut MapHash, info: &[
 /// The types a payee or memo entry allows, by the sign of the amount. `qif-dialog-utils.scm:630-643`.
 fn memo_types(positive: bool) -> Vec<AccountType> {
     use AccountType as T;
-    let first = if positive { [T::Income, T::Expense] } else { [T::Expense, T::Income] };
-    first.into_iter().chain([T::Bank, T::Credit, T::Liability, T::Asset, T::Receivable, T::Payable, T::Stock, T::Mutual]).collect()
+    let first = if positive {
+        [T::Income, T::Expense]
+    } else {
+        [T::Expense, T::Income]
+    };
+    first
+        .into_iter()
+        .chain([
+            T::Bank,
+            T::Credit,
+            T::Liability,
+            T::Asset,
+            T::Receivable,
+            T::Payable,
+            T::Stock,
+            T::Mutual,
+        ])
+        .collect()
 }
 
 /// `qif-dialog:make-memo-display`: the payees (of transactions with one split) and memos of splits with no
@@ -298,7 +366,11 @@ pub fn make_memo_display(files: &[QifFile], memo_hash: &mut MapHash, info: &[Gnc
                 key
             } else {
                 // A new entry for an empty name replaces whatever is kept under `Unspecified` (`:620-627`, `:645`).
-                let stored = if key.is_empty() { default_unspec_acct().to_owned() } else { key.clone() };
+                let stored = if key.is_empty() {
+                    default_unspec_acct().to_owned()
+                } else {
+                    key.clone()
+                };
                 let entry = QifMapEntry {
                     qif_name: Some(key),
                     allowed_types: memo_types(split_amount(split).is_positive()),
@@ -317,7 +389,10 @@ pub fn make_memo_display(files: &[QifFile], memo_hash: &mut MapHash, info: &[Gnc
 /// `qif-import:fix-from-acct`: the account for the transactions read under none, which the user names when a file
 /// has no `!Account` record. `qif-dialog-utils.scm:694-699`.
 pub fn fix_from_acct(file: &mut QifFile, new_acct_name: &str) {
-    file.xtns.iter_mut().filter(|x| x.from_acct.is_none()).for_each(|x| x.from_acct = Some(new_acct_name.to_owned()));
+    file.xtns
+        .iter_mut()
+        .filter(|x| x.from_acct.is_none())
+        .for_each(|x| x.from_acct = Some(new_acct_name.to_owned()));
 }
 
 /// `qif-import:get-account-name`: the last part of a full name. `qif-dialog-utils.scm:710-715`.
@@ -386,18 +461,28 @@ pub fn update_security_hash(
     let mut names = Vec::new();
     acct_hash.iter().for_each(|(qif_name, entry)| {
         let security_name = get_account_name(qif_name);
-        let stock = entry.allowed_types.iter().any(|t| matches!(t, AccountType::Stock | AccountType::Mutual));
+        let stock = entry
+            .allowed_types
+            .iter()
+            .any(|t| matches!(t, AccountType::Stock | AccountType::Mutual));
         if !entry.display || !stock || security_hash.contains_key(security_name) {
             return;
         }
-        let held = entry.gnc_name.as_deref().and_then(&existing).filter(|(t, _)| matches!(t, AccountType::Stock | AccountType::Mutual));
+        let held = entry
+            .gnc_name
+            .as_deref()
+            .and_then(&existing)
+            .filter(|(t, _)| matches!(t, AccountType::Stock | AccountType::Mutual));
         let choice = if let Some(commodity) = held.and_then(|(_, c)| c) {
             SecurityChoice::Existing(commodity)
         } else {
             let symbol = ticker_map.lookup_symbol(security_name);
             let namespace = default_namespace(symbol, ticker_map.lookup_type(security_name), sec_prefs);
             names.push(security_name.to_owned());
-            SecurityChoice::New { id: CommodityRef::new(namespace, symbol.unwrap_or(security_name)), fullname: security_name.to_owned() }
+            SecurityChoice::New {
+                id: CommodityRef::new(namespace, symbol.unwrap_or(security_name)),
+                fullname: security_name.to_owned(),
+            }
         };
         security_hash.insert(security_name.to_owned(), choice);
     });
@@ -408,7 +493,7 @@ pub fn update_security_hash(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::qif::objects::{QifStockSymbol, QifSplit};
+    use crate::qif::objects::{QifSplit, QifStockSymbol};
     use crate::qif::{Field, QifXtn};
 
     #[test]
@@ -424,7 +509,10 @@ mod tests {
 
     #[test]
     fn namespaces_from_saved_securities() {
-        let prefs = [("McD".to_owned(), "NYSE".to_owned(), "MCD".to_owned()), ("Euro".to_owned(), "CURRENCY".to_owned(), "EUR".to_owned())];
+        let prefs = [
+            ("McD".to_owned(), "NYSE".to_owned(), "MCD".to_owned()),
+            ("Euro".to_owned(), "CURRENCY".to_owned(), "EUR".to_owned()),
+        ];
         assert_eq!(default_namespace(Some("MCD"), None, &prefs), "NYSE");
         assert_eq!(default_namespace(Some("MCD"), Some("Bond"), &prefs), "NYSE");
         // The code, unlike its comment (`:740-748`), passes over a saved security of a stock-like type whose
@@ -447,7 +535,10 @@ mod tests {
 
     #[test]
     fn displays_guess_categories_and_payees() {
-        let file = QifFile { xtns: vec![xtn("Checking", Some("Shop"), "Food", -5), xtn("Checking", Some("Shell"), "", -9)], ..QifFile::default() };
+        let file = QifFile {
+            xtns: vec![xtn("Checking", Some("Shop"), "Food", -5), xtn("Checking", Some("Shell"), "", -9)],
+            ..QifFile::default()
+        };
         let files = [file];
         let mut accounts = MapHash::new();
         assert_eq!(make_account_display(&files, &mut accounts, &[]), ["Checking"]);
@@ -474,12 +565,22 @@ mod tests {
         acct_hash.insert("Broker:Acme".into(), entry("Broker:Acme"));
         acct_hash.insert("Broker:Held".into(), entry("Broker:Held"));
         let mut tickers = TickerMap::default();
-        tickers.add_ticker(QifStockSymbol { name: "Acme".into(), symbol: "ACM".into(), security_type: "Stock".into() });
+        tickers.add_ticker(QifStockSymbol {
+            name: "Acme".into(),
+            symbol: "ACM".into(),
+            security_type: "Stock".into(),
+        });
         let mut hash = BTreeMap::new();
         let existing = |name: &str| (name == "Broker:Held").then(|| (AccountType::Stock, Some(CommodityRef::new("NASDAQ", "HLD"))));
         let names = update_security_hash(&mut hash, &tickers, &acct_hash, &[], existing);
         assert_eq!(names, ["Acme"]);
-        assert_eq!(hash["Acme"], SecurityChoice::New { id: CommodityRef::new(NONCURRENCY, "ACM"), fullname: "Acme".into() });
+        assert_eq!(
+            hash["Acme"],
+            SecurityChoice::New {
+                id: CommodityRef::new(NONCURRENCY, "ACM"),
+                fullname: "Acme".into()
+            }
+        );
         assert_eq!(hash["Held"], SecurityChoice::Existing(CommodityRef::new("NASDAQ", "HLD")));
     }
 }

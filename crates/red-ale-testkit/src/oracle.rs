@@ -68,7 +68,11 @@ pub fn version() -> Result<String, String> {
 /// Fail unless the oracle runs and is the pinned version.
 pub fn check_version() -> Result<(), String> {
     let found = version()?;
-    if found == PINNED_VERSION { Ok(()) } else { Err(format!("the oracle must be GnuCash {PINNED_VERSION}, found {found}")) }
+    if found == PINNED_VERSION {
+        Ok(())
+    } else {
+        Err(format!("the oracle must be GnuCash {PINNED_VERSION}, found {found}"))
+    }
 }
 
 /// GnuCash's view of a book, as canonical JSON (see `oracle/dump.py`). The book is opened read-only.

@@ -96,15 +96,30 @@ type Matched<T> = Result<T, String>;
 pub fn saved_report(form: &Form) -> Result<SavedReportForm, Malformed> {
     let malformed = |message: String| Malformed { line: form.line, message };
     let [define_gen, define_report] = let_body(&form.datum, &[]).map_err(malformed)? else {
-        return Err(malformed("expected (let () (define (options-gen) …) (gnc:define-report …))".to_owned()));
+        return Err(malformed(
+            "expected (let () (define (options-gen) …) (gnc:define-report …))".to_owned(),
+        ));
     };
     let keys = define_report_keys(define_report).map_err(malformed)?;
-    let text = |key: &str| keys.iter().find(|(k, _)| *k == key).and_then(|(_, v)| v.as_str()).map(str::to_owned);
+    let text = |key: &str| {
+        keys.iter()
+            .find(|(k, _)| *k == key)
+            .and_then(|(_, v)| v.as_str())
+            .map(str::to_owned)
+    };
     let (Some(name), Some(guid), Some(template)) = (text("name"), text("report-guid"), text("parent-type")) else {
-        return Err(malformed("gnc:define-report needs 'name, 'report-guid and 'parent-type strings".to_owned()));
+        return Err(malformed(
+            "gnc:define-report needs 'name, 'report-guid and 'parent-type strings".to_owned(),
+        ));
     };
     let options = options_gen(define_gen, &template);
-    Ok(SavedReportForm { line: form.line, name, guid, template, options })
+    Ok(SavedReportForm {
+        line: form.line,
+        name,
+        guid,
+        template,
+        options,
+    })
 }
 
 /// Match a top-level form as a style sheet.
@@ -119,7 +134,12 @@ pub fn style_sheet(form: &Form) -> Result<StyleSheetForm, Malformed> {
     let template = template.ok_or_else(|| malformed(shape()))?;
     let restored = body.first().and_then(|b| style_sheet_body(b, &template));
     let (name, options) = restored.ok_or_else(|| malformed(shape()))?;
-    Ok(StyleSheetForm { line: form.line, name, template, options })
+    Ok(StyleSheetForm {
+        line: form.line,
+        name,
+        template,
+        options,
+    })
 }
 
 /// The `(if template (let ((options …)) <forms> (gnc:restore-html-style-sheet "<name>" "<template>" options)))`
@@ -134,9 +154,9 @@ fn style_sheet_body(body: &Datum, template: &str) -> Option<(String, Matched<Vec
     let [var, call] = binding.as_list()? else { return None };
     let [generator] = call.as_list()? else { return None };
     let template_options = var.is_symbol("options")
-        && generator.as_list().is_some_and(|c| {
-            matches!(c, [f, t] if f.is_symbol("gnc:html-style-sheet-template-options-generator") && t.is_symbol("template"))
-        });
+        && generator.as_list().is_some_and(
+            |c| matches!(c, [f, t] if f.is_symbol("gnc:html-style-sheet-template-options-generator") && t.is_symbol("template")),
+        );
     let (restore, option_forms) = forms.split_last()?;
     let restore = restore.as_list()?;
     let [f, name, again, options] = restore else { return None };
@@ -150,7 +170,11 @@ fn style_sheet_body(body: &Datum, template: &str) -> Option<(String, Matched<Vec
 /// The forms after `(let <bindings>` when the bindings are exactly `expected` (here only `()`).
 fn let_body<'a>(d: &'a Datum, expected: &[Datum]) -> Matched<&'a [Datum]> {
     let (bindings, body) = let_parts(d).ok_or("expected a let form")?;
-    if bindings == expected { Ok(body) } else { Err("unexpected let bindings".to_owned()) }
+    if bindings == expected {
+        Ok(body)
+    } else {
+        Err("unexpected let bindings".to_owned())
+    }
 }
 
 /// The bindings and body of `(let (<bindings>) <body>…)`.
@@ -176,7 +200,15 @@ fn one_string(args: &[Datum]) -> Option<String> {
 
 /// The keyword arguments of `(gnc:define-report 'key value …)`, every key one GnuCash writes.
 fn define_report_keys(d: &Datum) -> Matched<Vec<(&str, &Datum)>> {
-    const KEYS: [&str; 7] = ["version", "name", "report-guid", "parent-type", "options-generator", "menu-path", "renderer"];
+    const KEYS: [&str; 7] = [
+        "version",
+        "name",
+        "report-guid",
+        "parent-type",
+        "options-generator",
+        "menu-path",
+        "renderer",
+    ];
     let [f, args @ ..] = d.as_list().ok_or("expected (gnc:define-report …)")? else {
         return Err("expected (gnc:define-report …)".to_owned());
     };
@@ -185,9 +217,17 @@ fn define_report_keys(d: &Datum) -> Matched<Vec<(&str, &Datum)>> {
     }
     args.chunks(2)
         .map(|kv| {
-            let key = kv.first().and_then(Datum::unquoted).and_then(Datum::as_symbol).ok_or("a gnc:define-report key is a quoted symbol")?;
+            let key = kv
+                .first()
+                .and_then(Datum::unquoted)
+                .and_then(Datum::as_symbol)
+                .ok_or("a gnc:define-report key is a quoted symbol")?;
             let value = kv.get(1).ok_or("a gnc:define-report key needs a value")?;
-            if KEYS.contains(&key) { Ok((key, value)) } else { Err(format!("unknown gnc:define-report key '{key}")) }
+            if KEYS.contains(&key) {
+                Ok((key, value))
+            } else {
+                Err(format!("unknown gnc:define-report key '{key}"))
+            }
         })
         .collect()
 }
@@ -196,7 +236,9 @@ fn define_report_keys(d: &Datum) -> Matched<Vec<(&str, &Datum)>> {
 /// <option forms> options))`.
 fn options_gen(d: &Datum, template: &str) -> Matched<Vec<OptionForm>> {
     let shape = || "expected (define (options-gen) (let ((options …)) … options))".to_owned();
-    let [define, head, body] = d.as_list().ok_or_else(shape)? else { return Err(shape()) };
+    let [define, head, body] = d.as_list().ok_or_else(shape)? else {
+        return Err(shape());
+    };
     let names_options_gen = head.as_list().is_some_and(|h| matches!(h, [n] if n.is_symbol("options-gen")));
     if !define.is_symbol("define") || !names_options_gen {
         return Err(shape());
@@ -212,7 +254,9 @@ fn options_gen(d: &Datum, template: &str) -> Matched<Vec<OptionForm>> {
 /// `((options (gnc:report-template-new-options/report-guid "<template>" "<name>")) (new-embedded-report-ids '()))`,
 /// the second binding written from 2.8 on.
 fn check_bindings(bindings: &[Datum], template: &str) -> Matched<()> {
-    let options = bindings.first().and_then(|b| binding_call(b, "options", "gnc:report-template-new-options/report-guid"));
+    let options = bindings
+        .first()
+        .and_then(|b| binding_call(b, "options", "gnc:report-template-new-options/report-guid"));
     let options_ok = matches!(options, Some([t, n]) if t.as_str() == Some(template) && n.as_str().is_some());
     let embedded_ok = match bindings.get(1..) {
         Some([]) => true,
@@ -225,7 +269,9 @@ fn check_bindings(bindings: &[Datum], template: &str) -> Matched<()> {
     if options_ok && embedded_ok {
         Ok(())
     } else {
-        Err(format!("expected (options (gnc:report-template-new-options/report-guid {template:?} …)) as the only option bindings"))
+        Err(format!(
+            "expected (options (gnc:report-template-new-options/report-guid {template:?} …)) as the only option bindings"
+        ))
     }
 }
 
@@ -241,18 +287,26 @@ fn option_form(d: &Datum) -> Matched<OptionForm> {
     let [binding] = bindings else { return Err(shape()) };
     let lookup = binding_call(binding, "option", "gnc:lookup-option").ok_or_else(shape)?;
     let [opts, section, name] = lookup else { return Err(shape()) };
-    let (Some(section), Some(name)) = (section.as_str(), name.as_str()) else { return Err(shape()) };
+    let (Some(section), Some(name)) = (section.as_str(), name.as_str()) else {
+        return Err(shape());
+    };
     if !opts.is_symbol("options") {
         return Err(shape());
     }
     let [call] = body else { return Err(shape()) };
-    let [setter, arg] = call.as_list().ok_or_else(shape)? else { return Err(shape()) };
+    let [setter, arg] = call.as_list().ok_or_else(shape)? else {
+        return Err(shape());
+    };
     if !arg.is_symbol("option") {
         return Err(shape());
     }
     let value = setter_value(setter).ok_or_else(shape)?;
     let value = literal(value).ok_or_else(|| format!("option {section}/{name}: {} is not a literal value", short(value)))?;
-    Ok(OptionForm { section: section.to_owned(), name: name.to_owned(), value: value.clone() })
+    Ok(OptionForm {
+        section: section.to_owned(),
+        name: name.to_owned(),
+        value: value.clone(),
+    })
 }
 
 /// The value form inside `(lambda (o) (if o (gnc:option-set-value o <value>)))` or
@@ -347,12 +401,18 @@ mod tests {
     #[test]
     fn reads_a_saved_report() {
         let entry = saved_report(&first(SAVED)).unwrap();
-        assert_eq!((entry.name.as_str(), entry.guid.as_str()), ("My Balance Sheet", "0f9d3b6a1c2e4d5f8a7b6c5d4e3f2a1b"));
+        assert_eq!(
+            (entry.name.as_str(), entry.guid.as_str()),
+            ("My Balance Sheet", "0f9d3b6a1c2e4d5f8a7b6c5d4e3f2a1b")
+        );
         assert_eq!(entry.template, "c4173ac99b2b448289bf4d11c731af13");
         assert_eq!(entry.line, 4);
         let options = entry.options.unwrap();
         assert_eq!(options.len(), 2);
-        assert_eq!((options[0].section.as_str(), options[0].name.as_str()), ("Accounts", "Levels of Subaccounts"));
+        assert_eq!(
+            (options[0].section.as_str(), options[0].name.as_str()),
+            ("Accounts", "Levels of Subaccounts")
+        );
         assert_eq!(options[1].value.to_string(), "(relative . end-prev-fin-year)");
     }
 

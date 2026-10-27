@@ -35,7 +35,11 @@ pub(super) struct Choices {
 
 impl Choices {
     pub(super) fn read(config: &Config, layout: &LayoutChoice) -> Result<Self, ServiceError> {
-        Ok(Self { layout: config.csv_layout(layout)?, settings: config.import_settings()?, locale: config.locale()? })
+        Ok(Self {
+            layout: config.csv_layout(layout)?,
+            settings: config.import_settings()?,
+            locale: config.locale()?,
+        })
     }
 }
 
@@ -46,7 +50,11 @@ fn base_account(book: &Book, layout: &TxLayout, given: Option<Guid>) -> Result<O
         return Ok(given);
     }
     let Some(base) = &layout.base_account else { return Ok(None) };
-    let by_guid = base.guid.as_deref().and_then(|g| Guid::parse(g).ok()).filter(|g| book.account(*g).is_some());
+    let by_guid = base
+        .guid
+        .as_deref()
+        .and_then(|g| Guid::parse(g).ok())
+        .filter(|g| book.account(*g).is_some());
     let by_name = || base.full_name.as_deref().and_then(|n| book.account_by_full_name(n)).map(|a| a.guid);
     by_guid.or_else(by_name).map(Some).ok_or_else(|| {
         let name = base.full_name.clone().or_else(|| base.guid.clone()).unwrap_or_default();
@@ -55,31 +63,68 @@ fn base_account(book: &Book, layout: &TxLayout, given: Option<Guid>) -> Result<O
 }
 
 /// Read the file and build the proposal.
-pub(super) fn propose(book: &Book, env: &mut dyn Env, files: &[ImportFile], params: &CsvParams, choices: &Choices) -> Result<Proposal, ServiceError> {
-    let [file] = files else { return Err(invalid(format!("csvTransactions takes exactly one file, not {}", files.len()))) };
+pub(super) fn propose(
+    book: &Book,
+    env: &mut dyn Env,
+    files: &[ImportFile],
+    params: &CsvParams,
+    choices: &Choices,
+) -> Result<Proposal, ServiceError> {
+    let [file] = files else {
+        return Err(invalid(format!("csvTransactions takes exactly one file, not {}", files.len())));
+    };
     let layout = &choices.layout;
     let text = decode(0, file, &layout.csv.encoding)?;
-    let rows = tokenize(&text, &layout.csv).map_err(|e| ServiceError::ImportFile { file: 0, line: None, reason: "tokenize", message: e.to_string() })?;
+    let rows = tokenize(&text, &layout.csv).map_err(|e| ServiceError::ImportFile {
+        file: 0,
+        line: None,
+        reason: "tokenize",
+        message: e.to_string(),
+    })?;
     let base = base_account(book, layout, params.base_account)?;
     let today = env.today().ok_or_else(|| invalid("the session's clock is outside the calendar"))?;
     let monetary = choices.locale.monetary();
     let locale_date = locale_parser(&choices.locale, today);
     let ctx = ParseContext {
-        dates: DateContext { today, locale_date: Some(&locale_date) },
-        monetary: MonetaryLocale::from_lconv(monetary.negative_sign, monetary.mon_decimal_point, monetary.mon_thousands_sep, monetary.positive_sign),
+        dates: DateContext {
+            today,
+            locale_date: Some(&locale_date),
+        },
+        monetary: MonetaryLocale::from_lconv(
+            monetary.negative_sign,
+            monetary.mon_decimal_point,
+            monetary.mon_thousands_sep,
+            monetary.positive_sign,
+        ),
     };
     let import = TxImport::parse(rows, layout, &ctx);
     let zone = env.zone().clone();
     let now = env.now();
-    let build_ctx = BuildContext { book, zone: &zone, now, base_account: base, account_names: &params.account_names, file: 0 };
-    let built = build(import, &build_ctx, || env.new_guid())
-        .map_err(|e| ServiceError::ImportFile { file: 0, line: e.line, reason: "columns", message: e.messages.join(" ") })?;
+    let build_ctx = BuildContext {
+        book,
+        zone: &zone,
+        now,
+        base_account: base,
+        account_names: &params.account_names,
+        file: 0,
+    };
+    let built = build(import, &build_ctx, || env.new_guid()).map_err(|e| ServiceError::ImportFile {
+        file: 0,
+        line: e.line,
+        reason: "columns",
+        message: e.messages.join(" "),
+    })?;
     matched(book, built, choices, review::threshold(book, Some(today)))
 }
 
 /// Hand the built transactions to the matcher, as GnuCash's assistant does (`assistant-csv-trans-import.cpp:2190-2213`).
 fn matched(book: &Book, built: CsvBuild, choices: &Choices, threshold: Option<red_ale_core::Date>) -> Result<Proposal, ServiceError> {
-    let CsvBuild { account_names, errors, ignored, transactions } = built;
+    let CsvBuild {
+        account_names,
+        errors,
+        ignored,
+        transactions,
+    } = built;
     let sources: Vec<_> = transactions.iter().map(|b| b.source).collect();
     let imported: Vec<ImportedTransaction> = transactions.into_iter().map(|b| b.imported).collect();
     let batch = match_batch(book, &choices.settings, imported, &choices.locale)?;

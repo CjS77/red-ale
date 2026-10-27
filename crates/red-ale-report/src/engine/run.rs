@@ -85,7 +85,10 @@ impl Registry {
     ) -> Result<ReportResult, ReportError> {
         let run = Run::start(self, template, ctx)?;
         let mut db = run.declare(ctx)?;
-        let values = ValueContext { book: Some(ctx.book), zone: ctx.zone };
+        let values = ValueContext {
+            book: Some(ctx.book),
+            zone: ctx.zone,
+        };
         changes.iter().try_for_each(|c| db.apply(c, &values))?;
         let rendered = run.render(&db, ctx)?;
         run.finish(&rendered, &db, configuration, ctx)
@@ -98,13 +101,36 @@ impl<'r> Run<'r> {
         let snap = Snapshot::new(ctx.book, ctx.now);
         let log = Log::new(limits.get_usize(Limit::StringSize));
         let conventions = ctx.locale.conventions();
-        let engine = engine(&Setup { snap: Rc::clone(&snap), sources: Arc::clone(registry.sources()), limits, log: log.clone(), conventions });
+        let engine = engine(&Setup {
+            snap: Rc::clone(&snap),
+            sources: Arc::clone(registry.sources()),
+            limits,
+            log: log.clone(),
+            conventions,
+        });
         let ast = registry.compile(&engine, &template.script).map_err(|e| {
             let report = template.guid.0.to_string();
-            from_parse(&e, &template.script, &Failure { report: &report, source: &template.script, limits: &limits, log: Vec::new() })
+            from_parse(
+                &e,
+                &template.script,
+                &Failure {
+                    report: &report,
+                    source: &template.script,
+                    limits: &limits,
+                    log: Vec::new(),
+                },
+            )
         })?;
         let params = from_json(&template.params).map_err(|e| ReportError::Internal(format!("params of {}: {e}", template.name)))?;
-        Ok(Self { template, engine, ast, snap, log, params, registry })
+        Ok(Self {
+            template,
+            engine,
+            ast,
+            snap,
+            log,
+            params,
+            registry,
+        })
     }
 
     fn book(&self) -> BookHandle {
@@ -114,16 +140,30 @@ impl<'r> Run<'r> {
     fn failed(&self, e: &rhai::EvalAltResult) -> ReportError {
         let limits = self.registry.limits();
         let report = self.template.guid.0.to_string();
-        from_eval(e, Failure { report: &report, source: &self.template.script, limits: &limits, log: self.log.entries() })
+        from_eval(
+            e,
+            Failure {
+                report: &report,
+                source: &self.template.script,
+                limits: &limits,
+                log: self.log.entries(),
+            },
+        )
     }
 
     /// `options(params, o, book)`, then the General options every template gets.
     fn declare(&self, ctx: &RunContext<'_>) -> Result<OptionDb, ReportError> {
         let builder = OptionBuilder::new(self.book(), ctx.settings.report_currency(ctx.book, &ctx.locale));
         let args = (self.params.clone(), builder.clone(), self.book());
-        call(&self.engine, &self.ast, "options", args).map(drop).map_err(|e| self.failed(&e))?;
+        call(&self.engine, &self.ast, "options", args)
+            .map(drop)
+            .map_err(|e| self.failed(&e))?;
         let mut db = builder.into_db();
-        let sheets = if ctx.style_sheets.is_empty() { &[DEFAULT_STYLE_SHEET][..] } else { ctx.style_sheets };
+        let sheets = if ctx.style_sheets.is_empty() {
+            &[DEFAULT_STYLE_SHEET][..]
+        } else {
+            ctx.style_sheets
+        };
         db.add_general_options(&self.template.name, sheets)?;
         Ok(db)
     }
@@ -131,7 +171,15 @@ impl<'r> Run<'r> {
     /// `render(params, book, opts, ctx)`.
     fn render(&self, db: &OptionDb, ctx: &RunContext<'_>) -> Result<Dynamic, ReportError> {
         let period = accounting_period(ctx);
-        let opts = resolve(db, &Resolve { book: &self.book(), now: ctx.now, zone: ctx.zone, period: &period })?;
+        let opts = resolve(
+            db,
+            &Resolve {
+                book: &self.book(),
+                now: ctx.now,
+                zone: ctx.zone,
+                period: &period,
+            },
+        )?;
         let context = ContextHandle::new(Rc::clone(&self.snap), ctx.zone.clone(), ctx, period);
         let args = (self.params.clone(), self.book(), opts, context);
         call(&self.engine, &self.ast, "render", args).map_err(|e| self.failed(&e))
@@ -146,14 +194,25 @@ impl<'r> Run<'r> {
         configuration: Option<Guid>,
         ctx: &RunContext<'_>,
     ) -> Result<ReportResult, ReportError> {
-        let display = DisplayContext { book: ctx.book, zone: ctx.zone, date_format: ctx.settings.date_format, locale: ctx.locale };
+        let display = DisplayContext {
+            book: ctx.book,
+            zone: ctx.zone,
+            date_format: ctx.settings.date_format,
+            locale: ctx.locale,
+        };
         let run = RunInfo {
-            report: ReportIdentity { guid: self.template.guid, name: self.template.name.clone(), configuration: configuration.map(Id) },
+            report: ReportIdentity {
+                guid: self.template.guid,
+                name: self.template.name.clone(),
+                configuration: configuration.map(Id),
+            },
             now: ctx.now,
             options: db.values(),
             log: self.log.entries(),
         };
-        let finished = to_json(rendered).and_then(|json| ReportDraft::from_json(&json)).and_then(|draft| draft.finish(run, &display));
+        let finished = to_json(rendered)
+            .and_then(|json| ReportDraft::from_json(&json))
+            .and_then(|draft| draft.finish(run, &display));
         let mut result = finished.map_err(|e| self.invalid(e))?;
         if ctx.export.is_none() {
             result.export = None;
@@ -161,7 +220,10 @@ impl<'r> Run<'r> {
         let summary = db.get(GENERAL, OPTIONS_SUMMARY).map(ReportOption::value);
         if summary.is_some_and(|v| *v != OptionValue::Key(ChoiceKey::from("never"))) {
             let rows = db.summary(&display);
-            result.sections.push(Section { title: None, blocks: vec![Block::OptionsSummary(OptionsSummary { rows })] });
+            result.sections.push(Section {
+                title: None,
+                blocks: vec![Block::OptionsSummary(OptionsSummary { rows })],
+            });
         }
         Ok(result)
     }
@@ -170,7 +232,10 @@ impl<'r> Run<'r> {
     fn invalid(&self, mut e: ResultError) -> ReportError {
         if self.template.kind == TemplateKind::Builtin {
             let name = &self.template.name;
-            return ReportError::Internal(format!("built-in template {name} returned an invalid result at {}: {}", e.path, e.reason));
+            return ReportError::Internal(format!(
+                "built-in template {name} returned an invalid result at {}: {}",
+                e.path, e.reason
+            ));
         }
         e.report = self.template.guid.0.to_string();
         e.log = self.log.entries();
@@ -181,7 +246,10 @@ impl<'r> Run<'r> {
 /// The accounting period containing now's local date, as GnuCash bounds it: local 00:00:00 of its first day to
 /// 23:59:59 of its last (`ops::period::period_bounds`). An error is kept until something needs the period.
 fn accounting_period(ctx: &RunContext<'_>) -> Result<PeriodBounds, String> {
-    let today = ctx.zone.local_date(ctx.now).ok_or_else(|| "now is outside the supported range".to_owned())?;
+    let today = ctx
+        .zone
+        .local_date(ctx.now)
+        .ok_or_else(|| "now is outside the supported range".to_owned())?;
     let fy = ctx.fiscal_year_end.or_else(|| book_fiscal_year_end(ctx.book));
     period_bounds(ctx.accounting_period, today, fy, ctx.zone).map_err(|e| e.to_string())
 }

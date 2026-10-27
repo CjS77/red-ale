@@ -47,18 +47,27 @@ pub fn annotations(effect: Effect) -> ToolAnnotations {
 
 /// The schema MCP recommends for a tool that takes no params.
 fn no_params() -> JsonObject {
-    let Value::Object(schema) = json!({ "type": "object", "additionalProperties": false }) else { return JsonObject::new() };
+    let Value::Object(schema) = json!({ "type": "object", "additionalProperties": false }) else {
+        return JsonObject::new();
+    };
     schema
 }
 
 /// A method's params schema made self-contained: the definition its top-level `$ref` names, plus the `$defs` it
 /// reaches. `$ref`s cannot all be inlined, as some definitions refer to themselves.
 fn input_schema(params: Option<&Value>, defs: &Map<String, Value>) -> JsonObject {
-    let mut root = params.map(|p| dereference(p, defs)).and_then(|p| p.as_object().cloned()).unwrap_or_default();
+    let mut root = params
+        .map(|p| dereference(p, defs))
+        .and_then(|p| p.as_object().cloned())
+        .unwrap_or_default();
     root.entry("type").or_insert_with(|| json!("object"));
     let reached = reachable(&Value::Object(root.clone()), defs);
     if !reached.is_empty() {
-        let own: Map<String, Value> = defs.iter().filter(|(name, _)| reached.contains(*name)).map(|(n, d)| (n.clone(), d.clone())).collect();
+        let own: Map<String, Value> = defs
+            .iter()
+            .filter(|(name, _)| reached.contains(*name))
+            .map(|(n, d)| (n.clone(), d.clone()))
+            .collect();
         root.insert("$defs".to_owned(), Value::Object(own));
     }
     root
@@ -66,8 +75,15 @@ fn input_schema(params: Option<&Value>, defs: &Map<String, Value>) -> JsonObject
 
 /// The definition a bare `{"$ref": "#/$defs/<Name>"}` names, or the schema itself.
 fn dereference<'a>(schema: &'a Value, defs: &'a Map<String, Value>) -> &'a Value {
-    let bare_ref = schema.as_object().filter(|o| o.len() == 1).and_then(|o| o.get("$ref")).and_then(Value::as_str);
-    bare_ref.and_then(|r| r.strip_prefix(DEFS)).and_then(|name| defs.get(name)).unwrap_or(schema)
+    let bare_ref = schema
+        .as_object()
+        .filter(|o| o.len() == 1)
+        .and_then(|o| o.get("$ref"))
+        .and_then(Value::as_str);
+    bare_ref
+        .and_then(|r| r.strip_prefix(DEFS))
+        .and_then(|name| defs.get(name))
+        .unwrap_or(schema)
 }
 
 /// The names of every definition `schema` reaches, directly or through other definitions.
@@ -122,7 +138,11 @@ mod tests {
         let schema = input_schema(Some(&json!({ "$ref": "#/$defs/Params" })), &defs());
         assert_eq!(schema["properties"]["q"]["$ref"], "#/$defs/Query");
         let names: Vec<&String> = schema["$defs"].as_object().unwrap().keys().collect();
-        assert_eq!(names, ["Query", "Leaf"], "recursive Query is kept once, Unused and Params are left out");
+        assert_eq!(
+            names,
+            ["Query", "Leaf"],
+            "recursive Query is kept once, Unused and Params are left out"
+        );
     }
 
     #[test]

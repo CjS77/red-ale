@@ -35,7 +35,10 @@ fn json_at(value: &Dynamic, path: &str, depth: usize) -> Result<Value, ResultErr
         return Ok(json);
     }
     if let Some(items) = value.read_lock::<Array>() {
-        let items = items.iter().enumerate().map(|(i, v)| json_at(v, &format!("{path}[{i}]"), depth + 1));
+        let items = items
+            .iter()
+            .enumerate()
+            .map(|(i, v)| json_at(v, &format!("{path}[{i}]"), depth + 1));
         return items.collect::<Result<Vec<_>, _>>().map(Value::Array);
     }
     if let Some(map) = value.read_lock::<Map>() {

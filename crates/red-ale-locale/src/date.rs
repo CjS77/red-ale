@@ -71,8 +71,15 @@ pub enum Weekday {
 
 impl Weekday {
     /// Every day, from Sunday, as `struct tm`'s `tm_wday` counts them.
-    pub const ALL: [Weekday; 7] =
-        [Self::Sunday, Self::Monday, Self::Tuesday, Self::Wednesday, Self::Thursday, Self::Friday, Self::Saturday];
+    pub const ALL: [Weekday; 7] = [
+        Self::Sunday,
+        Self::Monday,
+        Self::Tuesday,
+        Self::Wednesday,
+        Self::Thursday,
+        Self::Friday,
+        Self::Saturday,
+    ];
 
     /// `tm_wday`: 0 for Sunday to 6 for Saturday.
     pub fn days_from_sunday(self) -> usize {
@@ -80,7 +87,10 @@ impl Weekday {
     }
 
     fn from_sunday(n: i64) -> Self {
-        usize::try_from(n).ok().and_then(|i| Self::ALL.get(i).copied()).unwrap_or(Self::Sunday)
+        usize::try_from(n)
+            .ok()
+            .and_then(|i| Self::ALL.get(i).copied())
+            .unwrap_or(Self::Sunday)
     }
 }
 

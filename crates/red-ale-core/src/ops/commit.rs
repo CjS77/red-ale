@@ -11,7 +11,9 @@ use crate::book_options::uses_trading_accounts;
 use crate::currencies::iso_currency;
 use crate::ops::trading;
 use crate::transaction::slot_paths;
-use crate::{Book, CommodityRef, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, Round, SlotValue, Split, Time64, Transaction};
+use crate::{
+    Book, CommodityRef, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, Round, SlotValue, Split, Time64, Transaction,
+};
 
 /// A split to create.
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +40,16 @@ pub struct NewSplit {
 impl NewSplit {
     /// A split of `value` to `account`, with the amount equal to the value.
     pub fn new(account: Guid, value: Numeric) -> Self {
-        Self { account, value, amount: None, memo: None, action: None, reconcile_state: ReconcileState::New, reconcile_date: None, lot: None }
+        Self {
+            account,
+            value,
+            amount: None,
+            memo: None,
+            action: None,
+            reconcile_state: ReconcileState::New,
+            reconcile_date: None,
+            lot: None,
+        }
     }
 
     /// The same split with an explicit amount.
@@ -85,13 +96,27 @@ pub struct NewTransaction {
 impl NewTransaction {
     /// A transaction in `currency` on `date_posted` with no splits yet.
     pub fn new(currency: CommodityRef, date_posted: Date) -> Self {
-        Self { currency, date_posted, date_entered: None, num: None, description: None, notes: None, splits: Vec::new() }
+        Self {
+            currency,
+            date_posted,
+            date_entered: None,
+            num: None,
+            description: None,
+            notes: None,
+            splits: Vec::new(),
+        }
     }
 }
 
 /// The smallest fraction of a commodity: the book's own definition, else the built-in ISO 4217 table.
 pub fn commodity_fraction(book: &Book, id: &CommodityRef) -> Option<i64> {
-    book.commodity(id).map(|c| c.fraction).or_else(|| if id.is_currency() { iso_currency(&id.mnemonic).map(|c| c.fraction) } else { None })
+    book.commodity(id).map(|c| c.fraction).or_else(|| {
+        if id.is_currency() {
+            iso_currency(&id.mnemonic).map(|c| c.fraction)
+        } else {
+            None
+        }
+    })
 }
 
 /// The fraction a transaction currency's values are kept in.
@@ -105,7 +130,10 @@ pub fn currency_fraction(book: &Book, currency: &CommodityRef) -> DomainResult<i
 /// The SCU an account's amounts are kept in.
 pub fn account_scu(book: &Book, account: Guid) -> DomainResult<i64> {
     let acc = book.account(account).ok_or_else(|| DomainError::not_found("account", &account))?;
-    let commodity = acc.commodity.as_ref().ok_or_else(|| DomainError::invalid(format!("account {} has no commodity", acc.name)))?;
+    let commodity = acc
+        .commodity
+        .as_ref()
+        .ok_or_else(|| DomainError::invalid(format!("account {} has no commodity", acc.name)))?;
     let fraction = commodity_fraction(book, commodity).ok_or_else(|| DomainError::not_found("commodity", commodity))?;
     Ok(acc.scu(fraction))
 }
@@ -115,7 +143,10 @@ pub fn account_scu(book: &Book, account: Guid) -> DomainResult<i64> {
 fn round_to(n: Numeric, denom: i64, what: &str) -> DomainResult<Numeric> {
     let rounded = n.to_denom(denom, Round::HalfUp)?;
     if rounded.is_zero() && !n.is_zero() {
-        return Err(DomainError::invalid(format!("{what} {} rounds to zero at 1/{denom}", n.to_decimal_string())));
+        return Err(DomainError::invalid(format!(
+            "{what} {} rounds to zero at 1/{denom}",
+            n.to_decimal_string()
+        )));
     }
     Ok(rounded)
 }
@@ -150,7 +181,9 @@ pub fn sort_splits(t: &mut Transaction) {
 
 /// Build a split for a transaction in `currency`, applying the rounding rules.
 pub fn build_split(book: &Book, env: &mut dyn Env, currency: &CommodityRef, new: NewSplit) -> DomainResult<Split> {
-    let account = book.account(new.account).ok_or_else(|| DomainError::not_found("account", &new.account))?;
+    let account = book
+        .account(new.account)
+        .ok_or_else(|| DomainError::not_found("account", &new.account))?;
     if account.guid == book.root {
         return Err(DomainError::invalid("cannot post to the root account"));
     }
@@ -159,10 +192,18 @@ pub fn build_split(book: &Book, env: &mut dyn Env, currency: &CommodityRef, new:
         None if account.commodity.as_ref() == Some(currency) => new.value,
         None => {
             let commodity = account.commodity.as_ref().map_or_else(String::new, ToString::to_string);
-            return Err(DomainError::invalid(format!("split to {} needs an amount in {commodity}", account.name)));
+            return Err(DomainError::invalid(format!(
+                "split to {} needs an amount in {commodity}",
+                account.name
+            )));
         }
     };
-    let mut split = Split::new(env.new_guid(), new.account, round_value(book, currency, new.value)?, round_amount(book, new.account, amount)?);
+    let mut split = Split::new(
+        env.new_guid(),
+        new.account,
+        round_value(book, currency, new.value)?,
+        round_amount(book, new.account, amount)?,
+    );
     split.memo = new.memo;
     split.action = new.action;
     split.reconcile_state = new.reconcile_state;
@@ -177,7 +218,10 @@ pub fn check_balanced(t: &Transaction) -> DomainResult<()> {
     if imbalance.is_zero() {
         Ok(())
     } else {
-        Err(DomainError::Unbalanced { imbalance: imbalance.to_decimal_string(), currency: t.currency.mnemonic.clone() })
+        Err(DomainError::Unbalanced {
+            imbalance: imbalance.to_decimal_string(),
+            currency: t.currency.mnemonic.clone(),
+        })
     }
 }
 
@@ -186,7 +230,11 @@ pub fn check_balanced(t: &Transaction) -> DomainResult<()> {
 /// `5.17:libgnucash/engine/Transaction.cpp:1078-1121`).
 pub fn check_committed(book: &Book, t: &Transaction) -> DomainResult<()> {
     check_balanced(t)?;
-    if uses_trading_accounts(book) { trading::check(book, t) } else { Ok(()) }
+    if uses_trading_accounts(book) {
+        trading::check(book, t)
+    } else {
+        Ok(())
+    }
 }
 
 /// Re-apply the commit rules to an edited transaction: values to the currency fraction, amounts to each account's
@@ -220,7 +268,9 @@ pub fn commit_changed(before: &Book, after: &mut Book, env: &mut dyn Env) -> Dom
         .map(|(g, _)| *g)
         .collect();
     changed.into_iter().try_for_each(|guid| {
-        let Some(mut t) = after.transaction(guid).cloned() else { return Ok(()) };
+        let Some(mut t) = after.transaction(guid).cloned() else {
+            return Ok(());
+        };
         if trading::commit(after, env, &mut t)?.is_some() {
             sort_splits(&mut t);
             after.transactions.insert(guid, Arc::new(t));
@@ -237,7 +287,11 @@ pub fn add_transaction(book: &mut Book, env: &mut dyn Env, new: NewTransaction) 
     }
     currency_fraction(book, &new.currency)?;
     let currency = new.currency.clone();
-    let splits = new.splits.into_iter().map(|s| build_split(book, env, &currency, s)).collect::<DomainResult<Vec<_>>>()?;
+    let splits = new
+        .splits
+        .into_iter()
+        .map(|s| build_split(book, env, &currency, s))
+        .collect::<DomainResult<Vec<_>>>()?;
     let date_entered = match new.date_entered {
         Some(t) => t,
         None => env.now(),
@@ -289,7 +343,10 @@ mod tests {
         let date = Date::from_ymd(2024, 1, 15).unwrap();
         let mut new = NewTransaction::new(CommodityRef::currency("USD"), date);
         new.notes = Some(String::new());
-        new.splits = vec![NewSplit::new(bank, Numeric::new(-12345, 1000)), NewSplit::new(food, Numeric::new(12345, 1000))];
+        new.splits = vec![
+            NewSplit::new(bank, Numeric::new(-12345, 1000)),
+            NewSplit::new(food, Numeric::new(12345, 1000)),
+        ];
         let guid = add_transaction(&mut book, &mut env, new).unwrap();
         let t = book.transaction(guid).unwrap();
         assert!(t.splits[0].value.same_repr(Numeric::new(1235, 100)), "debit first, rounded half up");
@@ -305,8 +362,14 @@ mod tests {
         let (mut book, mut env, bank, food) = book();
         let date = Date::from_ymd(2024, 1, 15).unwrap();
         let mut new = NewTransaction::new(CommodityRef::currency("USD"), date);
-        new.splits = vec![NewSplit::new(bank, Numeric::new(-100, 100)), NewSplit::new(food, Numeric::new(99, 100))];
-        assert!(matches!(add_transaction(&mut book, &mut env, new.clone()), Err(DomainError::Unbalanced { .. })));
+        new.splits = vec![
+            NewSplit::new(bank, Numeric::new(-100, 100)),
+            NewSplit::new(food, Numeric::new(99, 100)),
+        ];
+        assert!(matches!(
+            add_transaction(&mut book, &mut env, new.clone()),
+            Err(DomainError::Unbalanced { .. })
+        ));
         new.currency = CommodityRef::currency("EUR");
         new.splits[1].value = Numeric::new(100, 100);
         assert!(matches!(add_transaction(&mut book, &mut env, new), Err(DomainError::Invalid(_))));

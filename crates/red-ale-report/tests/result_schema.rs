@@ -13,5 +13,8 @@ fn the_report_result_schema_matches_its_snapshot() {
         std::fs::write(&path, &schema).unwrap();
     }
     let expected = std::fs::read_to_string(&path).unwrap();
-    assert!(schema == expected, "the ReportResult schema changed; regenerate the snapshot with UPDATE_SNAPSHOTS=1 and review it");
+    assert!(
+        schema == expected,
+        "the ReportResult schema changed; regenerate the snapshot with UPDATE_SNAPSHOTS=1 and review it"
+    );
 }

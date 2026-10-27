@@ -19,7 +19,9 @@ pub(crate) fn commodity_arg(book: &Book, v: &Dynamic) -> Fallible<CommodityRef> 
     } else {
         return Err(script_error(format!("expected a commodity, got {}", v.type_name())));
     };
-    lookup(book, &canonical(&id)).map(|c| c.id.clone()).ok_or_else(|| script_error(format!("unknown commodity {id}")))
+    lookup(book, &canonical(&id))
+        .map(|c| c.id.clone())
+        .ok_or_else(|| script_error(format!("unknown commodity {id}")))
 }
 
 /// A commodity, or `()` for none.
@@ -29,7 +31,9 @@ pub(crate) fn optional_commodity_arg(book: &Book, v: &Dynamic) -> Fallible<Optio
 
 /// A Time64: seconds since the epoch, an integer.
 pub(crate) fn time_arg(v: &Dynamic) -> Fallible<Time64> {
-    v.as_int().map(Time64).map_err(|t| script_error(format!("expected a time (an integer), got {t}")))
+    v.as_int()
+        .map(Time64)
+        .map_err(|t| script_error(format!("expected a time (an integer), got {t}")))
 }
 
 /// A Time64, or `()` for none.
@@ -42,9 +46,16 @@ pub(crate) fn account_arg(book: &Book, v: &Dynamic) -> Fallible<Guid> {
     if let Some(a) = v.read_lock::<AccountHandle>() {
         return Ok(a.guid);
     }
-    let text = v.read_lock::<rhai::ImmutableString>().ok_or_else(|| script_error(format!("expected an account, got {}", v.type_name())))?;
-    let found = Guid::parse(text.trim()).ok().and_then(|g| book.account(g)).or_else(|| book.account_by_full_name(&text));
-    found.map(|a| a.guid).ok_or_else(|| script_error(format!("unknown account {:?}", text.as_str())))
+    let text = v
+        .read_lock::<rhai::ImmutableString>()
+        .ok_or_else(|| script_error(format!("expected an account, got {}", v.type_name())))?;
+    let found = Guid::parse(text.trim())
+        .ok()
+        .and_then(|g| book.account(g))
+        .or_else(|| book.account_by_full_name(&text));
+    found
+        .map(|a| a.guid)
+        .ok_or_else(|| script_error(format!("unknown account {:?}", text.as_str())))
 }
 
 /// Accounts: an array of what [`account_arg`] reads.

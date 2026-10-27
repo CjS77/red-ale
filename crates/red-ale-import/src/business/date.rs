@@ -73,7 +73,11 @@ pub struct DateContext<'a> {
 impl<'a> DateContext<'a> {
     /// The context for a preference.
     pub fn new(format: DateFormat, locale: &'a Locale, today: Date) -> Self {
-        Self { format: format.format_string(locale), locale, today }
+        Self {
+            format: format.format_string(locale),
+            locale,
+            today,
+        }
     }
 }
 
@@ -143,11 +147,15 @@ fn directive<'s>(d: char, input: &'s str, ctx: &DateContext<'_>, f: &mut Fields)
             f.year = i32::try_from(v).ok().map(|y| if y >= 69 { 1900 + y } else { 2000 + y });
             rest
         }),
-        'b' | 'B' | 'h' => match_name(input, &time.mon).or_else(|| match_name(input, &time.abmon)).map(|(i, rest)| {
-            f.month = u32::try_from(i + 1).ok();
-            rest
-        }),
-        'a' | 'A' => match_name(input, &time.day).or_else(|| match_name(input, &time.abday)).map(|(_, rest)| rest),
+        'b' | 'B' | 'h' => match_name(input, &time.mon)
+            .or_else(|| match_name(input, &time.abmon))
+            .map(|(i, rest)| {
+                f.month = u32::try_from(i + 1).ok();
+                rest
+            }),
+        'a' | 'A' => match_name(input, &time.day)
+            .or_else(|| match_name(input, &time.abday))
+            .map(|(_, rest)| rest),
         'n' | 't' => Some(input.trim_start_matches(|c: char| c.is_ascii_whitespace())),
         '%' => input.strip_prefix('%'),
         _ => None,
@@ -172,7 +180,11 @@ fn strptime<'s>(text: &'s str, ctx: &DateContext<'_>) -> Option<(Fields, &'s str
 
 /// `qof_scan_date`'s century for a year below 100: the one that puts it nearest today (`gnc-date.cpp:972-975`).
 fn complete_year(year: i32, today: Date) -> i32 {
-    if year < 100 { year + ((today.year() + 50 - year) / 100) * 100 } else { year }
+    if year < 100 {
+        year + ((today.year() + 50 - year) / 100) * 100
+    } else {
+        year
+    }
 }
 
 /// A date as GnuCash's business importers check and read it, or `None` when it is not valid.
@@ -183,7 +195,11 @@ pub fn scan_date(text: &str, ctx: &DateContext<'_>) -> Option<Date> {
     }
     // A field the format doesn't name is today's, as qof_scan_date defaults day and month (gnc-date.cpp:801-804).
     let year = complete_year(fields.year.unwrap_or_else(|| ctx.today.year()), ctx.today);
-    Date::from_ymd(year, fields.month.unwrap_or_else(|| ctx.today.month()), fields.day.unwrap_or_else(|| ctx.today.day()))
+    Date::from_ymd(
+        year,
+        fields.month.unwrap_or_else(|| ctx.today.month()),
+        fields.day.unwrap_or_else(|| ctx.today.day()),
+    )
 }
 
 #[cfg(test)]
@@ -194,7 +210,11 @@ mod tests {
 
     fn scan(text: &str, format: &str) -> Option<String> {
         let c = Locale::c();
-        let ctx = DateContext { format, locale: &c, today: Date::from_ymd(2026, 10, 26).unwrap() };
+        let ctx = DateContext {
+            format,
+            locale: &c,
+            today: Date::from_ymd(2026, 10, 26).unwrap(),
+        };
         scan_date(text, &ctx).map(Date::to_file_string)
     }
 
@@ -204,8 +224,16 @@ mod tests {
         assert_eq!(scan("15/01/2024", "%d/%m/%Y").as_deref(), Some("2024-01-15"));
         assert_eq!(scan("15.1.2024", "%d.%m.%Y").as_deref(), Some("2024-01-15"));
         assert_eq!(scan("2024-01-15", "%Y-%m-%d").as_deref(), Some("2024-01-15"));
-        assert_eq!(scan(" 2024- 1-5", "%Y-%m-%d").as_deref(), Some("2024-01-05"), "white space before a number is skipped");
-        assert_eq!(scan("2024-01-15 10:30", "%Y-%m-%d").as_deref(), Some("2024-01-15"), "text after the date is ignored");
+        assert_eq!(
+            scan(" 2024- 1-5", "%Y-%m-%d").as_deref(),
+            Some("2024-01-05"),
+            "white space before a number is skipped"
+        );
+        assert_eq!(
+            scan("2024-01-15 10:30", "%Y-%m-%d").as_deref(),
+            Some("2024-01-15"),
+            "text after the date is ignored"
+        );
     }
 
     #[test]
@@ -216,7 +244,11 @@ mod tests {
         assert_eq!(scan("abc", "%Y-%m-%d"), None);
         assert_eq!(scan("02/30/2024", "%m/%d/%Y"), None, "GnuCash rolls this into March");
         assert_eq!(scan("1/15/2024", "%m/%d/%y"), None, "GnuCash reads the year as 2020");
-        assert_eq!(scan("45/01/2024", "%d/%m/%Y"), None, "the day takes one digit, then the separator doesn't match");
+        assert_eq!(
+            scan("45/01/2024", "%d/%m/%Y"),
+            None,
+            "the day takes one digit, then the separator doesn't match"
+        );
     }
 
     #[test]

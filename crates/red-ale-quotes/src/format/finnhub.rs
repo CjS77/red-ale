@@ -11,14 +11,20 @@ use super::{AnswerError, Ask, Context, text, unix_date};
 const FORMAT: &str = "finnhub";
 
 pub fn parse(v: &Value, cx: &Context<'_>) -> Result<QuoteRecord, AnswerError> {
-    let Ask::Security { symbol } = cx.ask else { return Err(AnswerError::unexpected(FORMAT, "Finnhub has no currency rates")) };
+    let Ask::Security { symbol } = cx.ask else {
+        return Err(AnswerError::unexpected(FORMAT, "Finnhub has no currency rates"));
+    };
     let price = text(v, "c").ok_or_else(|| AnswerError::unexpected(FORMAT, "no \"c\""))?;
     let time = text(v, "t").ok_or_else(|| AnswerError::unexpected(FORMAT, "no \"t\""))?;
     let zero = |t: &str| number(t).is_none_or(red_ale_core::Numeric::is_zero);
     if zero(price) || zero(time) {
         return Ok(QuoteRecord::failed(format!("Symbol {symbol} not found")));
     }
-    Ok(QuoteRecord::last(price, Some(cx.currency.unwrap_or("USD").to_owned()), unix_date(time, cx.zone)))
+    Ok(QuoteRecord::last(
+        price,
+        Some(cx.currency.unwrap_or("USD").to_owned()),
+        unix_date(time, cx.zone),
+    ))
 }
 
 #[cfg(test)]

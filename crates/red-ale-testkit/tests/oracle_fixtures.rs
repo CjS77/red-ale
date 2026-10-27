@@ -11,7 +11,11 @@ use red_ale_xml::{read_book, write_book};
 use serde_json::json;
 
 fn compare(name: &str, gnucash: &serde_json::Value, ours: &serde_json::Value) -> Vec<String> {
-    diff(gnucash, ours, &model::NOT_YET_COMPUTED).into_iter().take(10).map(|d| format!("{name}: {d}")).collect()
+    diff(gnucash, ours, &model::NOT_YET_COMPUTED)
+        .into_iter()
+        .take(10)
+        .map(|d| format!("{name}: {d}"))
+        .collect()
 }
 
 #[test]
@@ -76,7 +80,11 @@ fn every_writable_fixture_saved_unedited_is_the_same_book_to_gnucash() {
             red_ale_testkit::call(&mut d, "book.save", &json!({}));
             red_ale_testkit::call(&mut d, "book.close", &json!({}));
             let after = oracle::dump(&book.path).unwrap_or_else(|e| panic!("{name}: {e}"));
-            diff(&before, &after, &[]).into_iter().take(10).map(|d| format!("{name}: {d}")).collect()
+            diff(&before, &after, &[])
+                .into_iter()
+                .take(10)
+                .map(|d| format!("{name}: {d}"))
+                .collect()
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));

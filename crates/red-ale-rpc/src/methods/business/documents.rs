@@ -8,8 +8,8 @@ use red_ale_core::business::{AmountType, DiscountHow, Entry, Invoice, Order, Own
 use red_ale_core::ops::business::contacts::{owner_currency, owner_terms};
 use red_ale_core::ops::business::documents::{
     CREDIT_NOTE, DocumentKind, add_entry, add_invoice, add_order, close_order, default_document_entry, delete_invoice, document_kind,
-    document_quantity, entries_of, entry_document_kind, entry_on_credit_note, owner_document_kind, remove_entry, update_entry, update_invoice,
-    update_order,
+    document_quantity, entries_of, entry_document_kind, entry_on_credit_note, owner_document_kind, remove_entry, update_entry,
+    update_invoice, update_order,
 };
 use red_ale_core::{Book, Env, Frame, Guid, Numeric, Time64, TimeZone};
 use schemars::JsonSchema;
@@ -24,22 +24,72 @@ use crate::wire::{AccountRef, Amount, CommodityId, Day, Done, Id, Timestamp};
 /// The document methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("invoice.create", "Create an invoice, bill or expense voucher; the owner decides which.", Effect::Write, invoice_create),
+        method(
+            "invoice.create",
+            "Create an invoice, bill or expense voucher; the owner decides which.",
+            Effect::Write,
+            invoice_create,
+        ),
         method("invoice.get", "A document with its lines.", Effect::Read, invoice_get),
-        method("invoice.list", "Invoices, bills and vouchers, optionally filtered.", Effect::Read, invoice_list),
-        method("invoice.update", "Change an unposted document, or (de)activate any document.", Effect::Write, invoice_update),
-        method("invoice.delete", "Delete an unposted document and its lines.", Effect::Destructive, invoice_delete),
-        method("invoice.addEntry", "Add a line to an unposted document (and optionally to an order).", Effect::Write, invoice_add_entry),
-        method("invoice.updateEntry", "Change a line of an unposted document or open order.", Effect::Write, entry_update),
-        method("invoice.removeEntry", "Delete a line from its documents and order.", Effect::Destructive, entry_remove),
-        method("order.create", "Create an order for a customer, vendor or job.", Effect::Write, order_create),
+        method(
+            "invoice.list",
+            "Invoices, bills and vouchers, optionally filtered.",
+            Effect::Read,
+            invoice_list,
+        ),
+        method(
+            "invoice.update",
+            "Change an unposted document, or (de)activate any document.",
+            Effect::Write,
+            invoice_update,
+        ),
+        method(
+            "invoice.delete",
+            "Delete an unposted document and its lines.",
+            Effect::Destructive,
+            invoice_delete,
+        ),
+        method(
+            "invoice.addEntry",
+            "Add a line to an unposted document (and optionally to an order).",
+            Effect::Write,
+            invoice_add_entry,
+        ),
+        method(
+            "invoice.updateEntry",
+            "Change a line of an unposted document or open order.",
+            Effect::Write,
+            entry_update,
+        ),
+        method(
+            "invoice.removeEntry",
+            "Delete a line from its documents and order.",
+            Effect::Destructive,
+            entry_remove,
+        ),
+        method(
+            "order.create",
+            "Create an order for a customer, vendor or job.",
+            Effect::Write,
+            order_create,
+        ),
         method("order.get", "An order with its lines.", Effect::Read, order_get),
         method("order.list", "Orders, optionally filtered.", Effect::Read, order_list),
         method("order.update", "Change an order.", Effect::Write, order_update),
         method("order.close", "Close an order that has lines.", Effect::Write, order_close),
         method("order.addEntry", "Add a line to an open order.", Effect::Write, order_add_entry),
-        method("order.updateEntry", "Change a line of an open order (same as invoice.updateEntry).", Effect::Write, entry_update),
-        method("order.removeEntry", "Delete a line (same as invoice.removeEntry).", Effect::Destructive, entry_remove),
+        method(
+            "order.updateEntry",
+            "Change a line of an open order (same as invoice.updateEntry).",
+            Effect::Write,
+            entry_update,
+        ),
+        method(
+            "order.removeEntry",
+            "Delete a line (same as invoice.removeEntry).",
+            Effect::Destructive,
+            entry_remove,
+        ),
     ]
 }
 
@@ -262,20 +312,34 @@ impl LineFields {
     /// Refuse fields that do not exist on this kind of document, as GnuCash's entry ledger shows no column for them
     /// (`5.17:gnucash/register/ledger-core/gncEntryLedgerLayout.c:218-282`).
     fn check_side(&self, doc: DocumentKind) -> Result<(), RpcError> {
-        let refuse =
-            |present: bool, what: &str| if present { Err(RpcError::invalid(format!("{what} not on this kind of document"))) } else { Ok(()) };
+        let refuse = |present: bool, what: &str| {
+            if present {
+                Err(RpcError::invalid(format!("{what} not on this kind of document")))
+            } else {
+                Ok(())
+            }
+        };
         match doc {
             DocumentKind::Invoice => {
                 refuse(self.billable.is_some() || self.bill_to.is_some(), "billable and billTo are")?;
                 refuse(self.payment.is_some(), "payment is")
             }
             DocumentKind::Bill => {
-                refuse(self.discount.is_some() || self.discount_type.is_some() || self.discount_how.is_some(), "discounts are")?;
+                refuse(
+                    self.discount.is_some() || self.discount_type.is_some() || self.discount_how.is_some(),
+                    "discounts are",
+                )?;
                 refuse(self.payment.is_some(), "payment is")
             }
             DocumentKind::ExpenseVoucher => {
-                refuse(self.discount.is_some() || self.discount_type.is_some() || self.discount_how.is_some(), "discounts are")?;
-                refuse(self.taxable.is_some() || self.tax_included.is_some() || self.tax_table.is_some(), "tax settings are")
+                refuse(
+                    self.discount.is_some() || self.discount_type.is_some() || self.discount_how.is_some(),
+                    "discounts are",
+                )?;
+                refuse(
+                    self.taxable.is_some() || self.tax_included.is_some() || self.tax_table.is_some(),
+                    "tax settings are",
+                )
             }
         }
     }
@@ -400,7 +464,11 @@ pub struct EntryKey {
 }
 
 fn get_entry(book: &Book, guid: Guid) -> Result<EntryInfo, RpcError> {
-    book.business.entries.get(&guid).map(|e| EntryInfo::of(book, e)).ok_or_else(|| RpcError::not_found("entry", guid))
+    book.business
+        .entries
+        .get(&guid)
+        .map(|e| EntryInfo::of(book, e))
+        .ok_or_else(|| RpcError::not_found("entry", guid))
 }
 
 /// Make a new line for a document or order, with GnuCash's defaults, then the caller's fields. A document's lines
@@ -427,7 +495,11 @@ fn invoice_add_entry(ctx: &mut Context, p: AddLineParams) -> Result<EntryInfo, R
     let (doc, order) = (p.invoice.0, p.order.map(|o| o.0));
     let fields = p.fields();
     ctx.mutate_rpc(|book, env| {
-        let inv = book.business.invoices.get(&doc).ok_or_else(|| RpcError::not_found("invoice", doc))?;
+        let inv = book
+            .business
+            .invoices
+            .get(&doc)
+            .ok_or_else(|| RpcError::not_found("invoice", doc))?;
         let customer = document_kind(book, inv).is_some_and(DocumentKind::is_customer);
         let e = new_line(book, env, doc, fields, |e| {
             if customer {
@@ -456,7 +528,12 @@ fn entry_update(ctx: &mut Context, p: UpdateLineParams) -> Result<EntryInfo, Rpc
     let guid = p.entry.0;
     let fields = p.fields();
     ctx.mutate_rpc(|book, env| {
-        let mut e = book.business.entries.get(&guid).map(|e| (**e).clone()).ok_or_else(|| RpcError::not_found("entry", guid))?;
+        let mut e = book
+            .business
+            .entries
+            .get(&guid)
+            .map(|e| (**e).clone())
+            .ok_or_else(|| RpcError::not_found("entry", guid))?;
         let doc = entry_document_kind(book, &e).ok_or_else(|| RpcError::invalid("the line is on no document or order"))?;
         fields.apply(book, &mut e, doc, env.zone())?;
         update_entry(book, e)?;
@@ -596,14 +673,30 @@ fn invoice_info(book: &Book, inv: &Invoice) -> InvoiceInfo {
         posted_account: inv.post_acc.map(Into::into),
         posted_transaction: inv.post_txn.map(Into::into),
         posted_lot: inv.post_lot.map(Into::into),
-        entry_count: book.business.entries.values().filter(|e| e.invoice == Some(inv.guid) || e.bill == Some(inv.guid)).count(),
+        entry_count: book
+            .business
+            .entries
+            .values()
+            .filter(|e| e.invoice == Some(inv.guid) || e.bill == Some(inv.guid))
+            .count(),
     }
 }
 
 pub(super) fn get_invoice(book: &Book, guid: Guid) -> Result<InvoiceDetail, RpcError> {
-    let inv = book.business.invoices.get(&guid).ok_or_else(|| RpcError::not_found("invoice", guid))?;
-    let entries = entries_of(book, guid).into_iter().filter(|e| e.invoice == Some(guid) || e.bill == Some(guid)).map(|e| EntryInfo::of(book, e)).collect();
-    Ok(InvoiceDetail { invoice: invoice_info(book, inv), entries })
+    let inv = book
+        .business
+        .invoices
+        .get(&guid)
+        .ok_or_else(|| RpcError::not_found("invoice", guid))?;
+    let entries = entries_of(book, guid)
+        .into_iter()
+        .filter(|e| e.invoice == Some(guid) || e.bill == Some(guid))
+        .map(|e| EntryInfo::of(book, e))
+        .collect();
+    Ok(InvoiceDetail {
+        invoice: invoice_info(book, inv),
+        entries,
+    })
 }
 
 /// Names one document.
@@ -696,7 +789,13 @@ fn invoice_get(ctx: &mut Context, p: InvoiceKey) -> Result<InvoiceDetail, RpcErr
 
 fn invoice_list(ctx: &mut Context, p: InvoiceListParams) -> Result<InvoiceList, RpcError> {
     let book = ctx.book()?;
-    let invoices = book.business.invoices.values().filter(|i| invoice_matches(book, &p, i)).map(|i| invoice_info(book, i)).collect();
+    let invoices = book
+        .business
+        .invoices
+        .values()
+        .filter(|i| invoice_matches(book, &p, i))
+        .map(|i| invoice_info(book, i))
+        .collect();
     Ok(InvoiceList { invoices })
 }
 
@@ -704,7 +803,12 @@ fn invoice_update(ctx: &mut Context, p: InvoiceUpdate) -> Result<InvoiceDetail, 
     let (key, mut fields) = p.split();
     let link = fields.doc_link.take();
     ctx.mutate_rpc(|book, env| {
-        let mut inv = book.business.invoices.get(&key.0).map(|i| (**i).clone()).ok_or_else(|| RpcError::not_found("invoice", key.0))?;
+        let mut inv = book
+            .business
+            .invoices
+            .get(&key.0)
+            .map(|i| (**i).clone())
+            .ok_or_else(|| RpcError::not_found("invoice", key.0))?;
         fields.apply(book, env, &mut inv)?;
         update_invoice(book, inv)?;
         set_doc_link(book, key.0, link.as_deref())?;
@@ -715,7 +819,9 @@ fn invoice_update(ctx: &mut Context, p: InvoiceUpdate) -> Result<InvoiceDetail, 
 /// The link is set apart from the other fields, so a posted document, which takes no other change but its active
 /// flag, can take one.
 fn set_doc_link(book: &mut Book, guid: Guid, link: Option<&str>) -> Result<(), RpcError> {
-    link.map_or(Ok(()), |l| red_ale_core::ops::doc_links::set_invoice_link(book, guid, l).map_err(Into::into))
+    link.map_or(Ok(()), |l| {
+        red_ale_core::ops::doc_links::set_invoice_link(book, guid, l).map_err(Into::into)
+    })
 }
 
 fn invoice_delete(ctx: &mut Context, p: InvoiceKey) -> Result<Done, RpcError> {
@@ -809,8 +915,15 @@ fn order_info(book: &Book, o: &Order) -> OrderInfo {
 
 fn get_order(book: &Book, guid: Guid) -> Result<OrderDetail, RpcError> {
     let o = book.business.orders.get(&guid).ok_or_else(|| RpcError::not_found("order", guid))?;
-    let entries = entries_of(book, guid).into_iter().filter(|e| e.order == Some(guid)).map(|e| EntryInfo::of(book, e)).collect();
-    Ok(OrderDetail { order: order_info(book, o), entries })
+    let entries = entries_of(book, guid)
+        .into_iter()
+        .filter(|e| e.order == Some(guid))
+        .map(|e| EntryInfo::of(book, e))
+        .collect();
+    Ok(OrderDetail {
+        order: order_info(book, o),
+        entries,
+    })
 }
 
 /// Names one order.
@@ -888,14 +1001,25 @@ fn order_list(ctx: &mut Context, p: OrderListParams) -> Result<OrderList, RpcErr
             && p.closed.is_none_or(|c| o.closed.is_some() == c)
             && (!p.active_only || o.active)
     };
-    let orders = book.business.orders.values().filter(|o| matches(o)).map(|o| order_info(book, o)).collect();
+    let orders = book
+        .business
+        .orders
+        .values()
+        .filter(|o| matches(o))
+        .map(|o| order_info(book, o))
+        .collect();
     Ok(OrderList { orders })
 }
 
 fn order_update(ctx: &mut Context, p: OrderUpdate) -> Result<OrderDetail, RpcError> {
     let (key, fields) = p.split();
     ctx.mutate_rpc(|book, env| {
-        let mut o = book.business.orders.get(&key.0).map(|o| (**o).clone()).ok_or_else(|| RpcError::not_found("order", key.0))?;
+        let mut o = book
+            .business
+            .orders
+            .get(&key.0)
+            .map(|o| (**o).clone())
+            .ok_or_else(|| RpcError::not_found("order", key.0))?;
         fields.apply(book, env, &mut o)?;
         update_order(book, o)?;
         get_order(book, key.0)
@@ -909,4 +1033,3 @@ fn order_close(ctx: &mut Context, p: OrderCloseParams) -> Result<OrderDetail, Rp
         get_order(book, p.order.0)
     })
 }
-

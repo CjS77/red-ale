@@ -13,10 +13,25 @@ use crate::wire::{Id, NoParams};
 /// The book methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("book.open", "Open an XML book. SQL books are refused; some books open read-only (see readOnlyReasons).", Effect::Read, open),
+        method(
+            "book.open",
+            "Open an XML book. SQL books are refused; some books open read-only (see readOnlyReasons).",
+            Effect::Read,
+            open,
+        ),
         method("book.create", "Create a new, empty XML book and open it.", Effect::Write, create),
-        method("book.info", "Describe the open book: path, read-only state, features and counts.", Effect::Read, info),
-        method("book.save", "Save the open book, backing up the previous file first.", Effect::Write, save),
+        method(
+            "book.info",
+            "Describe the open book: path, read-only state, features and counts.",
+            Effect::Read,
+            info,
+        ),
+        method(
+            "book.save",
+            "Save the open book, backing up the previous file first.",
+            Effect::Write,
+            save,
+        ),
         method("book.close", "Close the open book and release its lock.", Effect::Write, close),
         method(
             "book.replayJournal",
@@ -192,7 +207,10 @@ pub struct CloseResult {
 }
 
 fn reason_info(r: &ReadOnlyReason) -> ReadOnlyInfo {
-    ReadOnlyInfo { code: r.code(), message: r.to_string() }
+    ReadOnlyInfo {
+        code: r.code(),
+        message: r.to_string(),
+    }
 }
 
 /// Describe a session.
@@ -258,13 +276,20 @@ fn info(ctx: &mut Context, _: NoParams) -> Result<BookInfo, RpcError> {
 fn save(ctx: &mut Context, p: SaveParams) -> Result<SaveResult, RpcError> {
     let report = ctx.session()?.save(p.compressed)?;
     let show = |p: &std::path::PathBuf| p.display().to_string();
-    Ok(SaveResult { backup: report.backup.as_ref().map(show), removed: report.removed.iter().map(show).collect(), compressed: report.compressed })
+    Ok(SaveResult {
+        backup: report.backup.as_ref().map(show),
+        removed: report.removed.iter().map(show).collect(),
+        compressed: report.compressed,
+    })
 }
 
 fn close(ctx: &mut Context, p: CloseParams) -> Result<CloseResult, RpcError> {
     let dirty = ctx.session()?.is_dirty();
     if dirty && !p.save && !p.discard {
-        return Err(RpcError::new(codes::UNSAVED_CHANGES, "the book has unsaved changes; pass save or discard"));
+        return Err(RpcError::new(
+            codes::UNSAVED_CHANGES,
+            "the book has unsaved changes; pass save or discard",
+        ));
     }
     let save = dirty && p.save;
     // Save while the session is still held, so a failed save keeps the book open with its changes.
@@ -272,7 +297,10 @@ fn close(ctx: &mut Context, p: CloseParams) -> Result<CloseResult, RpcError> {
         ctx.session()?.save(None)?;
     }
     ctx.take_session()?.close(false)?;
-    Ok(CloseResult { saved: save, discarded: dirty && !p.save })
+    Ok(CloseResult {
+        saved: save,
+        discarded: dirty && !p.save,
+    })
 }
 
 fn replay_journal(ctx: &mut Context, p: ReplayParams) -> Result<ReplayResult, RpcError> {

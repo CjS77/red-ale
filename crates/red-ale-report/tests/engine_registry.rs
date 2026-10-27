@@ -48,7 +48,10 @@ fn one_script_declares_several_templates_told_apart_by_params() {
     let names: Vec<&str> = reg.templates().iter().map(|t| t.name.as_str()).collect();
     assert_eq!(names, ["Assets Chart", "Income Chart"]);
     let t = reg.find("Income Chart").unwrap();
-    assert_eq!((t.kind, t.script.as_str(), t.in_menu, t.menu_path.is_empty()), (TemplateKind::User, "./charts.rhai", true, true));
+    assert_eq!(
+        (t.kind, t.script.as_str(), t.in_menu, t.menu_path.is_empty()),
+        (TemplateKind::User, "./charts.rhai", true, true)
+    );
     let host = Host::new(empty_book());
     assert_eq!(host.run(&reg, A, &json!({})).unwrap().title, "assets");
     assert_eq!(host.run(&reg, "Income Chart", &json!({})).unwrap().title, "income");
@@ -63,7 +66,10 @@ fn menu_fields_are_kept() {
     let reg = registry(&[("m.rhai", &script(&[rec]))]);
     let t = reg.find(A).unwrap();
     assert_eq!(t.menu_path, ["_Assets & Liabilities"]);
-    assert_eq!((t.menu_name.as_deref(), t.menu_tip.as_deref(), t.in_menu), (Some("Menu"), Some("Tip"), false));
+    assert_eq!(
+        (t.menu_name.as_deref(), t.menu_tip.as_deref(), t.in_menu),
+        (Some("Menu"), Some("Tip"), false)
+    );
 }
 
 #[test]
@@ -92,8 +98,14 @@ fn the_first_definition_of_a_guid_wins() {
     assert_eq!(names, [("Built in", TemplateKind::Builtin), ("Other", TemplateKind::User)]);
     let problems: Vec<String> = reg.problems().iter().map(load_message).collect();
     assert_eq!(problems.len(), 2, "{problems:?}");
-    assert!(problems[0].starts_with("./a.rhai: template \"Mine\" repeats the GUID"), "{problems:?}");
-    assert!(problems[1].starts_with("./b.rhai: template \"Later\" repeats the GUID"), "{problems:?}");
+    assert!(
+        problems[0].starts_with("./a.rhai: template \"Mine\" repeats the GUID"),
+        "{problems:?}"
+    );
+    assert!(
+        problems[1].starts_with("./b.rhai: template \"Later\" repeats the GUID"),
+        "{problems:?}"
+    );
 }
 
 #[test]
@@ -104,7 +116,10 @@ fn a_built_in_script_that_does_not_load_is_a_bug() {
     let dup = format!("fn templates() {{ [#{{ guid: \"{A}\", name: \"X\" }}] }}\nfn options(p, o, b) {{}}\nfn render(p, b, o, c) {{ () }}");
     let dup = dup.as_str();
     let twice = Library::from_sources([("standard/a.rhai", dup), ("standard/b.rhai", dup)]);
-    assert_eq!(Registry::load(&twice, &[], Limits::default()).unwrap_err().kind().name(), "internal-error");
+    assert_eq!(
+        Registry::load(&twice, &[], Limits::default()).unwrap_err().kind().name(),
+        "internal-error"
+    );
 }
 
 #[test]
@@ -112,13 +127,37 @@ fn user_scripts_that_do_not_load_are_listed_and_the_rest_load() {
     let good = script(&[record(A, "Good", "good")]);
     let cases = [
         ("syntax.rhai", "fn templates( {".to_owned(), "./syntax.rhai: "),
-        ("not-array.rhai", format!("fn templates() {{ 5 }}\n{STUBS}"), "templates() returns an array"),
-        ("no-render.rhai", "fn templates() { [] }\nfn options(p, o, b) {}".to_owned(), "needs fn render() with 4 parameters"),
-        ("bad-guid.rhai", script(&[record("ABC", "Bad", "x")]), "guid must be 32 lowercase hex digits"),
-        ("upper.rhai", script(&[record(&B.to_uppercase(), "Upper", "x")]), "guid must be 32 lowercase hex digits"),
+        (
+            "not-array.rhai",
+            format!("fn templates() {{ 5 }}\n{STUBS}"),
+            "templates() returns an array",
+        ),
+        (
+            "no-render.rhai",
+            "fn templates() { [] }\nfn options(p, o, b) {}".to_owned(),
+            "needs fn render() with 4 parameters",
+        ),
+        (
+            "bad-guid.rhai",
+            script(&[record("ABC", "Bad", "x")]),
+            "guid must be 32 lowercase hex digits",
+        ),
+        (
+            "upper.rhai",
+            script(&[record(&B.to_uppercase(), "Upper", "x")]),
+            "guid must be 32 lowercase hex digits",
+        ),
         ("no-name.rhai", script(&[format!("#{{ guid: \"{B}\" }}")]), "name is required"),
-        ("extra.rhai", script(&[format!("#{{ guid: \"{B}\", name: \"E\", colour: 1 }}")]), "unknown field \"colour\""),
-        ("throws.rhai", format!("fn templates() {{ throw \"no\" }}\n{STUBS}"), "./throws.rhai: no"),
+        (
+            "extra.rhai",
+            script(&[format!("#{{ guid: \"{B}\", name: \"E\", colour: 1 }}")]),
+            "unknown field \"colour\"",
+        ),
+        (
+            "throws.rhai",
+            format!("fn templates() {{ throw \"no\" }}\n{STUBS}"),
+            "./throws.rhai: no",
+        ),
     ];
     let mut scripts: Vec<(&str, &str)> = cases.iter().map(|(p, t, _)| (*p, t.as_str())).collect();
     scripts.push(("good.rhai", &good));
@@ -127,9 +166,15 @@ fn user_scripts_that_do_not_load_are_listed_and_the_rest_load() {
     let reg = registry(&scripts);
     assert_eq!(reg.templates().iter().map(|t| t.name.as_str()).collect::<Vec<_>>(), ["Good"]);
     let problems: Vec<String> = reg.problems().iter().map(load_message).collect();
-    assert_eq!(problems.len(), cases.len() + 1, "a script without templates() is a module, not a problem: {problems:?}");
+    assert_eq!(
+        problems.len(),
+        cases.len() + 1,
+        "a script without templates() is a module, not a problem: {problems:?}"
+    );
     assert!(problems[0].contains("relative, ends in .rhai"), "{problems:?}");
-    cases.iter().for_each(|(_, _, want)| assert!(problems.iter().any(|p| p.contains(want)), "{want}: {problems:?}"));
+    cases
+        .iter()
+        .for_each(|(_, _, want)| assert!(problems.iter().any(|p| p.contains(want)), "{want}: {problems:?}"));
     let syntax = reg.problems().iter().find_map(|p| match p {
         ReportError::Load(l) if l.source == "./syntax.rhai" => Some(l.clone()),
         _ => None,
@@ -140,7 +185,10 @@ fn user_scripts_that_do_not_load_are_listed_and_the_rest_load() {
 #[test]
 fn the_registry_can_be_shared_between_threads() {
     fn shareable<T: Send + Sync>(_: &T) {}
-    let source = ScriptSource { path: "a.rhai".into(), text: script(&[record(A, "A", "a")]) };
+    let source = ScriptSource {
+        path: "a.rhai".into(),
+        text: script(&[record(A, "A", "a")]),
+    };
     let reg = Registry::load(&Library::builtin(), &[source], Limits::default());
     shareable(&reg.unwrap());
 }

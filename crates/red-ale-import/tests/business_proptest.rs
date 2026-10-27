@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use proptest::prelude::*;
-use red_ale_core::business::{Address, Customer, OwnerKind, TaxIncluded, TaxTableEntry, AmountType, Vendor};
+use red_ale_core::business::{Address, AmountType, Customer, OwnerKind, TaxIncluded, TaxTableEntry, Vendor};
 use red_ale_core::ops::business::contacts::{add_customer, add_vendor};
 use red_ale_core::ops::business::documents::DocumentKind;
 use red_ale_core::ops::business::terms::add_tax_table;
@@ -18,7 +18,12 @@ use red_ale_locale::Locale;
 
 const NOW: i64 = 1_719_835_200;
 
-const SEPARATORS: [Separator; 4] = [Separator::Semicolon, Separator::Comma, Separator::SemicolonQuoted, Separator::CommaQuoted];
+const SEPARATORS: [Separator; 4] = [
+    Separator::Semicolon,
+    Separator::Comma,
+    Separator::SemicolonQuoted,
+    Separator::CommaQuoted,
+];
 
 /// Bills, an invoice and Owners in every layout, to mutate.
 const DOCUMENTS: &str = "B1;2024-03-01;V1;REF;notes;2024-03-02;Toner;Mat;Expenses:Office;2;4.5;;;;yes;no;VAT;2024-03-05;2024-04-01;Liabilities:Payable;memo;x\n\
@@ -84,7 +89,11 @@ fn book() -> Book {
         slots: Frame::new(),
     };
     add_customer(&mut book, customer).unwrap();
-    let line = TaxTableEntry { account: Some(tax), amount: Numeric::from_int(20), kind: AmountType::Percent };
+    let line = TaxTableEntry {
+        account: Some(tax),
+        amount: Numeric::from_int(20),
+        kind: AmountType::Percent,
+    };
     add_tax_table(&mut book, &mut env, "VAT", vec![line]).unwrap();
     book
 }
@@ -93,17 +102,37 @@ fn book() -> Book {
 fn exercise(base: &Book, text: &str) {
     let locale = Locale::c();
     let zone = TimeZone::utc();
-    let ctx = Context { book: base, locale: &locale, today: Date::from_ymd(2024, 7, 1).unwrap(), now: Time64(NOW), zone: &zone, file: 0, threshold: None };
+    let ctx = Context {
+        book: base,
+        locale: &locale,
+        today: Date::from_ymd(2024, 7, 1).unwrap(),
+        now: Time64(NOW),
+        zone: &zone,
+        file: 0,
+        threshold: None,
+    };
     SEPARATORS.iter().for_each(|separator| {
         [DocumentKind::Bill, DocumentKind::Invoice].iter().for_each(|kind| {
-            let opts = DocumentOptions { kind: *kind, separator: *separator, date_format: DateFormat::Iso, account_names: AccountNames::Full, update_existing: true, auto_pay: true };
+            let opts = DocumentOptions {
+                kind: *kind,
+                separator: *separator,
+                date_format: DateFormat::Iso,
+                account_names: AccountNames::Full,
+                update_existing: true,
+                auto_pay: true,
+            };
             let found = documents::propose(text, &ctx, &opts).unwrap();
             let mut book = base.clone();
             let mut env = FixedEnv::new(Time64(NOW), 1 << 100);
-            apply(&mut book, &mut env, &Records::Documents(found.documents), &[], None).unwrap_or_else(|e| panic!("documents {text:?}: {e}"));
+            apply(&mut book, &mut env, &Records::Documents(found.documents), &[], None)
+                .unwrap_or_else(|e| panic!("documents {text:?}: {e}"));
         });
         [OwnerKind::Customer, OwnerKind::Vendor].iter().for_each(|kind| {
-            let opts = OwnerOptions { kind: *kind, separator: *separator, currency: CommodityRef::currency("USD") };
+            let opts = OwnerOptions {
+                kind: *kind,
+                separator: *separator,
+                currency: CommodityRef::currency("USD"),
+            };
             let found = owners::propose(text, &ctx, &opts).unwrap();
             let mut book = base.clone();
             let mut env = FixedEnv::new(Time64(NOW), 1 << 100);
@@ -133,13 +162,42 @@ fn the_seeds_import() {
     exercise(&base, OWNERS);
     let locale = Locale::c();
     let zone = TimeZone::utc();
-    let ctx = Context { book: &base, locale: &locale, today: Date::from_ymd(2024, 7, 1).unwrap(), now: Time64(NOW), zone: &zone, file: 0, threshold: None };
-    let bills = documents::propose(DOCUMENTS, &ctx, &DocumentOptions { date_format: DateFormat::Iso, ..DocumentOptions::default() }).unwrap();
-    assert_eq!(bills.documents.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["B1", "B2"], "{:?}", bills.errors);
+    let ctx = Context {
+        book: &base,
+        locale: &locale,
+        today: Date::from_ymd(2024, 7, 1).unwrap(),
+        now: Time64(NOW),
+        zone: &zone,
+        file: 0,
+        threshold: None,
+    };
+    let bills = documents::propose(
+        DOCUMENTS,
+        &ctx,
+        &DocumentOptions {
+            date_format: DateFormat::Iso,
+            ..DocumentOptions::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        bills.documents.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(),
+        ["B1", "B2"],
+        "{:?}",
+        bills.errors
+    );
     assert!(bills.documents[0].will_post() && bills.documents[1].will_post());
-    let opts = DocumentOptions { kind: DocumentKind::Invoice, date_format: DateFormat::Iso, ..DocumentOptions::default() };
+    let opts = DocumentOptions {
+        kind: DocumentKind::Invoice,
+        date_format: DateFormat::Iso,
+        ..DocumentOptions::default()
+    };
     assert_eq!(documents::propose(DOCUMENTS, &ctx, &opts).unwrap().documents.len(), 1);
-    let opts = OwnerOptions { kind: OwnerKind::Customer, separator: Separator::Semicolon, currency: CommodityRef::currency("USD") };
+    let opts = OwnerOptions {
+        kind: OwnerKind::Customer,
+        separator: Separator::Semicolon,
+        currency: CommodityRef::currency("USD"),
+    };
     assert_eq!(owners::propose(OWNERS, &ctx, &opts).unwrap().owners.len(), 4);
 }
 

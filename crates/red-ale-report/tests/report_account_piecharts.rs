@@ -37,13 +37,21 @@ fn tree() -> impl Strategy<Value = Tree> {
     prop::collection::vec(any::<bool>(), 1..=5).prop_flat_map(|grandchildren| {
         let accounts = 1 + grandchildren.len() + grandchildren.iter().filter(|g| **g).count();
         let posting = (0..accounts, 1_u32..=3, 1_u32..=28, -20_000_i64..=20_000);
-        prop::collection::vec(posting, 0..16).prop_map(move |postings| Tree { grandchildren: grandchildren.clone(), postings })
+        prop::collection::vec(posting, 0..16).prop_map(move |postings| Tree {
+            grandchildren: grandchildren.clone(),
+            postings,
+        })
     })
 }
 
 fn account(book: &mut Book, env: &mut FixedEnv, parent: Guid, name: &str, t: AccountType) -> Guid {
     let usd = Some(CommodityRef::currency("USD"));
-    let edit = AccountEdit { name: Some(name.into()), account_type: Some(t), commodity: usd, ..AccountEdit::default() };
+    let edit = AccountEdit {
+        name: Some(name.into()),
+        account_type: Some(t),
+        commodity: usd,
+        ..AccountEdit::default()
+    };
     create_account(book, env, parent, &edit).unwrap()
 }
 
@@ -66,7 +74,10 @@ fn build(t: &Tree) -> (Book, Vec<(String, i64)>) {
     let mut own = vec![0_i64; accounts.len()];
     t.postings.iter().for_each(|&(i, month, day, cents)| {
         let mut txn = NewTransaction::new(CommodityRef::currency("USD"), Date::from_ymd(2024, month, day).unwrap());
-        txn.splits = vec![NewSplit::new(accounts[i].0, Numeric::new(cents, 100)), NewSplit::new(bank, Numeric::new(-cents, 100))];
+        txn.splits = vec![
+            NewSplit::new(accounts[i].0, Numeric::new(cents, 100)),
+            NewSplit::new(bank, Numeric::new(-cents, 100)),
+        ];
         add_transaction(&mut book, &mut env, txn).unwrap();
         own[i] += cents;
     });
@@ -106,14 +117,24 @@ fn multiplier(average: &str) -> Rational {
 
 /// A pie's slices as `(name, value)` and its shown total, or `None` for the no-data warning.
 fn pie(host: &Host, registry: &Registry, options: &Value) -> Option<(Vec<(String, Rational)>, Rational)> {
-    let result = host.run(registry, "Expense Accounts", options).unwrap_or_else(|e| panic!("{options}: {e:?}"));
+    let result = host
+        .run(registry, "Expense Accounts", options)
+        .unwrap_or_else(|e| panic!("{options}: {e:?}"));
     let block = serde_json::to_value(&result.sections[0].blocks[0]).unwrap();
     if block["kind"] == "warning" {
         assert_eq!(block["title"], "No data");
         return None;
     }
-    let labels = block["labels"].as_array().unwrap().iter().map(|l| l.as_str().unwrap().split(" - ").next().unwrap().to_owned());
-    let values = block["series"][0]["values"].as_array().unwrap().iter().map(|v| serde_json::from_value::<Rational>(v.clone()).unwrap());
+    let labels = block["labels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l.as_str().unwrap().split(" - ").next().unwrap().to_owned());
+    let values = block["series"][0]["values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| serde_json::from_value::<Rational>(v.clone()).unwrap());
     let title = block["title"][1].as_str().unwrap();
     Some((labels.zip(values).collect(), amount(title.rsplit(": ").next().unwrap())))
 }

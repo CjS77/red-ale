@@ -42,23 +42,26 @@ fn add_puts_new_commodities_first_and_merge_reverses() {
         c.reset();
         print(`reset=${show.call(c)}`);
     "#);
-    check(&got, &[
-        "add=[\"GBP:2\", \"USD:9/2\"]",
-        // merge walks c from its front, putting each new commodity first.
-        "merge=[\"USD:9/2\", \"GBP:2\"]",
-        "minusmerge=[\"USD:-9/2\", \"GBP:-2\"]",
-        // gnc:commodity-collector-get-negated minus-merges once (RU:418-421) …
-        "negated=[\"USD:-9/2\", \"GBP:-2\"]",
-        // … gnc:collector- of one collector merges it into a sum first, then minus-merges (RU:436-445).
-        "minus-one=[\"GBP:-2\", \"USD:-9/2\"]",
-        // plus merges c (USD, GBP), then d (USD, FUNDS): FUNDS is new.
-        "plus=[\"FUNDS:10\", \"USD:11/2\", \"GBP:2\"] empty=[]",
-        // c merged (USD, GBP), minus the sum of d and d (USD 2, FUNDS 20), which walks USD then FUNDS.
-        "minus=[\"FUNDS:-20\", \"USD:5/2\", \"GBP:2\"]",
-        // A value collector ignores what is not a number (RU:293), but the commodity is added.
-        "not-a-number=[\"FUNDS:0\", \"GBP:2\", \"USD:9/2\"]",
-        "reset=[]",
-    ]);
+    check(
+        &got,
+        &[
+            "add=[\"GBP:2\", \"USD:9/2\"]",
+            // merge walks c from its front, putting each new commodity first.
+            "merge=[\"USD:9/2\", \"GBP:2\"]",
+            "minusmerge=[\"USD:-9/2\", \"GBP:-2\"]",
+            // gnc:commodity-collector-get-negated minus-merges once (RU:418-421) …
+            "negated=[\"USD:-9/2\", \"GBP:-2\"]",
+            // … gnc:collector- of one collector merges it into a sum first, then minus-merges (RU:436-445).
+            "minus-one=[\"GBP:-2\", \"USD:-9/2\"]",
+            // plus merges c (USD, GBP), then d (USD, FUNDS): FUNDS is new.
+            "plus=[\"FUNDS:10\", \"USD:11/2\", \"GBP:2\"] empty=[]",
+            // c merged (USD, GBP), minus the sum of d and d (USD 2, FUNDS 20), which walks USD then FUNDS.
+            "minus=[\"FUNDS:-20\", \"USD:5/2\", \"GBP:2\"]",
+            // A value collector ignores what is not a number (RU:293), but the commodity is added.
+            "not-a-number=[\"FUNDS:0\", \"GBP:2\", \"USD:9/2\"]",
+            "reset=[]",
+        ],
+    );
 }
 
 #[test]
@@ -86,20 +89,23 @@ fn lookups_signs_and_zeros() {
         u.add(usd, 1); u.add(gbp, 1);
         print(`uniform-two=${collectors::uniform_commodity(u, usd)}`);
     "#);
-    check(&got, &[
-        "getpair=USD -5/4 missing=0",
-        "getmonetary=$1.25 -$1.25 0. FUNDS",
-        "strict=$1.25 ",
-        "allzero=false true",
-        "remove-zeros=[\"USD:5/4\"]",
-        "allzero-after-sum=true",
-        "monetaries-add=[\"GBP:2\", \"USD:4\"]",
-        "value=11/2",
-        // gnc:not-all-zeros looks into lists and is false for anything but numbers (RU:1018-1022).
-        "not-all-zeros=true false false true",
-        "uniform=true true false true",
-        "uniform-two=false",
-    ]);
+    check(
+        &got,
+        &[
+            "getpair=USD -5/4 missing=0",
+            "getmonetary=$1.25 -$1.25 0. FUNDS",
+            "strict=$1.25 ",
+            "allzero=false true",
+            "remove-zeros=[\"USD:5/4\"]",
+            "allzero-after-sum=true",
+            "monetaries-add=[\"GBP:2\", \"USD:4\"]",
+            "value=11/2",
+            // gnc:not-all-zeros looks into lists and is false for anything but numbers (RU:1018-1022).
+            "not-all-zeros=true false false true",
+            "uniform=true true false true",
+            "uniform-two=false",
+        ],
+    );
 }
 
 /// gnc:sum-collector-commodity (CU:900-910) rounds each exchanged amount to the domestic SCU with banker's rounding
@@ -128,11 +134,14 @@ fn monetary_plus_wants_one_commodity() {
             try { collectors::monetary_plus(ms); } catch (e) { print(`error: ${e}`); }
         }
     ");
-    check(&got, &[
-        "$1.50",
-        "error: monetary_plus expects 1 currency: [monetary(\"CURRENCY::USD\", \"1\"), monetary(\"CURRENCY::GBP\", \"1\")]",
-        "error: monetary_plus expects 1 currency: []",
-    ]);
+    check(
+        &got,
+        &[
+            "$1.50",
+            "error: monetary_plus expects 1 currency: [monetary(\"CURRENCY::USD\", \"1\"), monetary(\"CURRENCY::GBP\", \"1\")]",
+            "error: monetary_plus expects 1 currency: []",
+        ],
+    );
 }
 
 /// A collector method called from another module after this script called it through the module (here `add`,
@@ -150,5 +159,12 @@ fn methods_work_from_another_module_after_this_one() {
         c.add(gbp, 0); c.add(funds, 0); c.remove_zeros();
         print(`zeros=${show.call(c)}`);
     "#);
-    check(&got, &[r#"direct=["GBP:2", "USD:4"]"#, r#"balances=["USD:2609"]"#, r#"zeros=["GBP:2", "USD:4"]"#]);
+    check(
+        &got,
+        &[
+            r#"direct=["GBP:2", "USD:4"]"#,
+            r#"balances=["USD:2609"]"#,
+            r#"zeros=["GBP:2", "USD:4"]"#,
+        ],
+    );
 }

@@ -18,7 +18,11 @@ const SETTING: &str = "locale";
 /// The Locale `name` names: a supported locale (`fr_FR`, `fr_FR.UTF-8`, `C`), or `environment`, read from this
 /// process's `LC_ALL`, `LC_NUMERIC`, `LC_MONETARY`, `LC_TIME`, `LC_MESSAGES` and `LANG`.
 pub fn resolve(name: &str) -> Result<Locale, LocaleError> {
-    if name == ENVIRONMENT { Locale::from_environment(|v| std::env::var(v).ok()) } else { Locale::by_name(name) }
+    if name == ENVIRONMENT {
+        Locale::from_environment(|v| std::env::var(v).ok())
+    } else {
+        Locale::by_name(name)
+    }
 }
 
 impl Config {
@@ -45,7 +49,10 @@ impl Config {
         });
         let locale = CommodityRef::currency(self.locale()?.conventions().currency_code());
         let known = |id: &CommodityRef| id.is_currency() && lookup(book, id).is_some();
-        Ok(named.filter(known).or_else(|| Some(locale).filter(known)).unwrap_or_else(|| CommodityRef::currency("USD")))
+        Ok(named
+            .filter(known)
+            .or_else(|| Some(locale).filter(known))
+            .unwrap_or_else(|| CommodityRef::currency("USD")))
     }
 }
 
@@ -57,7 +64,10 @@ mod tests {
     fn the_setting_names_the_locale() {
         let config = |text: &str| Config::parse(text).unwrap();
         assert_eq!(config("{}").locale().unwrap(), Locale::c());
-        assert_eq!(config(r#"{"locale": "fr_FR"}"#).locale().unwrap(), Locale::by_name("fr_FR").unwrap());
+        assert_eq!(
+            config(r#"{"locale": "fr_FR"}"#).locale().unwrap(),
+            Locale::by_name("fr_FR").unwrap()
+        );
         assert!(config(r#"{"locale": "xx_YY"}"#).locale().is_err());
         assert!(resolve("fr_FR.utf8").is_ok());
         assert!(resolve("xx_YY").is_err());

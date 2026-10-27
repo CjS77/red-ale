@@ -39,7 +39,14 @@ pub(crate) fn fixture() -> Fixture {
     let expense = add("Expense", AccountType::Expense, root);
     let food = add("Food", AccountType::Expense, expense);
     let drink = add("Drink", AccountType::Expense, expense);
-    Fixture { book, bank, sav, asset2, food, drink }
+    Fixture {
+        book,
+        bank,
+        sav,
+        asset2,
+        food,
+        drink,
+    }
 }
 
 fn slots(f: &Fixture) -> &red_ale_core::Frame {
@@ -60,7 +67,13 @@ fn toks(tokens: &[&str]) -> Vec<String> {
 
 /// `t_list1` … `t_list5`, each built by prepending (`gtest-import-map.cpp:224-233`).
 fn lists() -> [Vec<String>; 5] {
-    [toks(&["bar", "foo"]), toks(&["waldo", "baz"]), toks(&["pepper"]), toks(&["salt"]), toks(&["sausage", "pork"])]
+    [
+        toks(&["bar", "foo"]),
+        toks(&["waldo", "baz"]),
+        toks(&["pepper"]),
+        toks(&["salt"]),
+        toks(&["sausage", "pork"]),
+    ]
 }
 
 /// `ImapPlainTest.FindAccount` (`gtest-import-map.cpp:111-125`).
@@ -90,8 +103,14 @@ fn add_account_plain() {
     assert!(add_account(&mut f.book, bank, None, "pepper", food).unwrap());
     assert!(add_account(&mut f.book, bank, None, "salt", drink).unwrap());
     let before = f.book.clone();
-    assert!(!add_account(&mut f.book, bank, None, "", drink).unwrap(), "an empty key writes nothing");
-    assert!(add_account(&mut f.book, bank, Some("pork"), "sausage", Guid::from_bytes([9; 16])).is_err(), "no added account");
+    assert!(
+        !add_account(&mut f.book, bank, None, "", drink).unwrap(),
+        "an empty key writes nothing"
+    );
+    assert!(
+        add_account(&mut f.book, bank, Some("pork"), "sausage", Guid::from_bytes([9; 16])).is_err(),
+        "no added account"
+    );
     assert_eq!(f.book, before);
     let s = slots(&f);
     assert_eq!(s.get_in(&[IMAP_FRAME, "foo", "bar"]), Some(&SlotValue::Guid(food)));
@@ -129,7 +148,16 @@ fn find_account_bayes_counts() {
     let mut f = fixture();
     let (bank, food, drink) = (f.bank, f.food, f.drink);
     let s = slots_mut(&mut f.book, bank).unwrap();
-    [("foo", food), ("bar", food), ("baz", drink), ("waldo", drink), ("pepper", food), ("salt", drink)].into_iter().for_each(|(t, g)| {
+    [
+        ("foo", food),
+        ("bar", food),
+        ("baz", drink),
+        ("waldo", drink),
+        ("pepper", food),
+        ("salt", drink),
+    ]
+    .into_iter()
+    .for_each(|(t, g)| {
         s.insert_key(flat(t, g), SlotValue::Integer(42));
     });
     let [l1, l2, l3, l4, l5] = lists();
@@ -164,14 +192,24 @@ fn add_account_bayes_counts() {
 
     let count = |f: &Fixture, t: &str, g: Guid| slots(f).get_key(&flat(t, g)).and_then(SlotValue::as_int);
     assert_eq!(slots(&f).get_key(&format!("{IMAP_FRAME_BAYES}/foo/bar")), None);
-    [("foo", food), ("bar", food), ("baz", drink), ("waldo", drink), ("pepper", food), ("salt", drink)]
-        .into_iter()
-        .for_each(|(t, g)| assert_eq!(count(&f, t, g), Some(1), "{t}"));
+    [
+        ("foo", food),
+        ("bar", food),
+        ("baz", drink),
+        ("waldo", drink),
+        ("pepper", food),
+        ("salt", drink),
+    ]
+    .into_iter()
+    .for_each(|(t, g)| assert_eq!(count(&f, t, g), Some(1), "{t}"));
     assert_eq!(count(&f, "baz", food), None);
 
     add_account_bayes(&mut f.book, bank, &l2, drink).unwrap();
     assert_eq!(count(&f, "baz", drink), Some(2));
-    assert_eq!(features(&f.book).iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), [FLAT_BAYESIAN_FEATURE]);
+    assert_eq!(
+        features(&f.book).iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(),
+        [FLAT_BAYESIAN_FEATURE]
+    );
 }
 
 /// `ImapBayesTest.ConvertBayesData` (`gtest-import-map.cpp:333-381`).
@@ -203,7 +241,11 @@ fn convert_bayes_data() {
     assert_eq!(count(&f, &flat("sausage", drink)), Some(3), "2, then one more");
     assert_eq!(count(&f, &flat("foo", food)), Some(5));
     assert_eq!(count(&f, &flat("salt", food)), Some(10), "a GUID is kept");
-    assert_eq!(count(&f, &flat("salt", Guid::NULL)), Some(5), "an unresolved name becomes the all-zero GUID");
+    assert_eq!(
+        count(&f, &flat("salt", Guid::NULL)),
+        Some(5),
+        "an unresolved name becomes the all-zero GUID"
+    );
     assert!(slots(&f).get_key(IMAP_FRAME_BAYES).is_none(), "the nested frame is gone");
     assert!(features(&f.book).iter().any(|(n, _)| n == FLAT_BAYESIAN_FEATURE));
     assert!(!check_import_map_data(&mut f.book).unwrap(), "a flat book is not converted again");
@@ -252,10 +294,18 @@ fn probabilities_combine_shared_tokens_and_truncate() {
     let probs = account_probabilities(&f.book, bank, &toks(&["shop"]));
     // Food: 0.9 / (0.9 + 0.1) × 100000 = 90000 (0.9 + 0.1 is exactly 1.0 in doubles).
     let food_first = if food < drink { [food, drink] } else { [drink, food] };
-    assert_eq!(probs.iter().map(|(g, _)| g.clone()).collect::<Vec<_>>(), food_first.map(|g| g.to_string()), "accounts in key order");
+    assert_eq!(
+        probs.iter().map(|(g, _)| g.clone()).collect::<Vec<_>>(),
+        food_first.map(|g| g.to_string()),
+        "accounts in key order"
+    );
     assert!(probs.contains(&(food.to_string(), 90_000)));
     assert!(probs.contains(&(drink.to_string(), 10_000)));
-    assert_eq!(find_account_bayes(&f.book, bank, &toks(&["shop"])), Some(food), "90000 reaches the threshold");
+    assert_eq!(
+        find_account_bayes(&f.book, bank, &toks(&["shop"])),
+        Some(food),
+        "90000 reaches the threshold"
+    );
     // With Monday: food 0.9 × 0.5 / (0.45 + 0.05) = 0.9; the same.
     assert_eq!(find_account_bayes(&f.book, bank, &toks(&["shop", "Monday"])), Some(food));
     // Monday alone: 50000 each; a tie goes to the first, but it misses the threshold.
@@ -287,14 +337,24 @@ fn find_any_listing_and_deleting() {
     let (bank, food, drink) = (f.bank, f.food, f.drink);
     add_account(&mut f.book, drink, Some(CATEGORY_CSV_ACCOUNT_MAP), "Pub", drink).unwrap();
     add_account(&mut f.book, food, Some(CATEGORY_CSV_ACCOUNT_MAP), "Pub", food).unwrap();
-    assert_eq!(find_any(&f.book, Some(CATEGORY_CSV_ACCOUNT_MAP), "Pub"), Some(drink), "Drink sorts before Food");
+    assert_eq!(
+        find_any(&f.book, Some(CATEGORY_CSV_ACCOUNT_MAP), "Pub"),
+        Some(drink),
+        "Drink sorts before Food"
+    );
     add_account(&mut f.book, bank, Some(CATEGORY_DESC), "b", food).unwrap();
     add_account(&mut f.book, bank, Some(CATEGORY_DESC), "a", drink).unwrap();
-    let listed: Vec<(String, Option<Guid>)> = plain_info(&f.book, bank, Some(CATEGORY_DESC)).into_iter().map(|i| (i.match_string, i.map_account)).collect();
+    let listed: Vec<(String, Option<Guid>)> = plain_info(&f.book, bank, Some(CATEGORY_DESC))
+        .into_iter()
+        .map(|i| (i.match_string, i.map_account))
+        .collect();
     assert_eq!(listed, [("a".to_owned(), Some(drink)), ("b".to_owned(), Some(food))]);
     assert!(delete_map_entry(&mut f.book, bank, IMAP_FRAME, Some(CATEGORY_DESC), Some("a"), false).unwrap());
     assert!(delete_map_entry(&mut f.book, bank, IMAP_FRAME, Some(CATEGORY_DESC), None, true).unwrap());
-    assert!(slots(&f).get_in(&[IMAP_FRAME, CATEGORY_DESC]).is_some(), "a category still holding entries is kept");
+    assert!(
+        slots(&f).get_in(&[IMAP_FRAME, CATEGORY_DESC]).is_some(),
+        "a category still holding entries is kept"
+    );
 
     add_account_bayes(&mut f.book, bank, &toks(&["p", "q"]), food).unwrap();
     let head = flat("p", food);

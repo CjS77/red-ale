@@ -41,7 +41,10 @@ pub struct ReadOptions {
 
 impl Default for ReadOptions {
     fn default() -> Self {
-        Self { path: None, default_equity_account: "Equity:Retained Earnings".to_owned() }
+        Self {
+            path: None,
+            default_equity_account: "Equity:Retained Earnings".to_owned(),
+        }
     }
 }
 
@@ -150,7 +153,11 @@ pub fn read_file(text: &str, options: &ReadOptions) -> Result<ReadResult, ReadEr
         reader.line_num = number;
         reader.read_line(line)
     })?;
-    Ok(ReadResult { file: reader.file, securities: reader.securities, warnings: reader.warnings })
+    Ok(ReadResult {
+        file: reader.file,
+        securities: reader.securities,
+        warnings: reader.warnings,
+    })
 }
 
 /// The state of `private-read`. `qif-file.scm:82-100`.
@@ -233,7 +240,12 @@ impl<'a> Reader<'a> {
             // Lines of memorised transactions and of unknown sections are skipped. `qif-file.scm:227-230`.
             Some(_) => {}
             None if line.trim().is_empty() => {}
-            None => return Err(ReadError::NotQif { line: self.line_num, text: line.to_owned() }),
+            None => {
+                return Err(ReadError::NotQif {
+                    line: self.line_num,
+                    text: line.to_owned(),
+                });
+            }
         }
         Ok(())
     }
@@ -291,7 +303,10 @@ impl<'a> Reader<'a> {
             'L' => self.set_default_category(value)?,
             'S' => self.start_split(value)?,
             'E' => self.current_split().into_iter().for_each(|s| s.memo = text()),
-            '$' if not_bad_numeric_string(value) => self.current_split().into_iter().for_each(|s| s.amount = Some(Field::text_of(value))),
+            '$' if not_bad_numeric_string(value) => self
+                .current_split()
+                .into_iter()
+                .for_each(|s| s.amount = Some(Field::text_of(value))),
             '^' => self.end_xtn(section),
             _ => {}
         }
@@ -322,14 +337,21 @@ impl<'a> Reader<'a> {
         if let Some(default) = self.default_split.take() {
             self.xtn.default_split = Some(default);
         }
-        split.set_category(value).map_err(|source| ReadError::Category { line: self.line_num, source })?;
+        split.set_category(value).map_err(|source| ReadError::Category {
+            line: self.line_num,
+            source,
+        })?;
         self.xtn.splits.insert(0, split);
         self.has_current_split = true;
         Ok(())
     }
 
     fn current_split(&mut self) -> Option<&mut QifSplit> {
-        if self.has_current_split { self.xtn.splits.first_mut() } else { None }
+        if self.has_current_split {
+            self.xtn.splits.first_mut()
+        } else {
+            None
+        }
     }
 
     /// `^` ends a transaction. `qif-file.scm:360-392`.
@@ -454,7 +476,9 @@ impl<'a> Reader<'a> {
 pub fn process_opening_balance_xtn(acct_name: Option<&str>, xtn: &mut QifXtn, options: &ReadOptions) -> Option<String> {
     let no_security = xtn.security_name.is_none();
     let opening_payee = xtn.payee.as_deref().is_some_and(|p| p.trim_end() == "Opening Balance");
-    let Some(split) = xtn.splits.first_mut() else { return acct_name.map(str::to_owned) };
+    let Some(split) = xtn.splits.first_mut() else {
+        return acct_name.map(str::to_owned);
+    };
     let named = acct_name.is_none() && no_security && opening_payee && split.category_is_account;
     let same_account = acct_name.is_some_and(|a| a == split.category) && no_security;
     if named || same_account {
@@ -496,12 +520,21 @@ pub fn parse_price_line(line: &str, line_num: usize) -> Option<QifPrice> {
     if symbol.is_empty() || date.is_empty() {
         return None;
     }
-    Some(QifPrice { line: line_num, symbol, share_price: Field::Text(scheme_number_string(value)), date: Field::Text(date) })
+    Some(QifPrice {
+        line: line_num,
+        symbol,
+        share_price: Field::Text(scheme_number_string(value)),
+        date: Field::Text(date),
+    })
 }
 
 /// Scheme's `number->string` of an exact number: `n` or `n/d`.
 fn scheme_number_string(value: Numeric) -> String {
-    if value.denom() == 1 { value.num().to_string() } else { format!("{}/{}", value.num(), value.denom()) }
+    if value.denom() == 1 {
+        value.num().to_string()
+    } else {
+        format!("{}/{}", value.num(), value.denom())
+    }
 }
 
 /// The kind of record a field belongs to.
@@ -671,12 +704,24 @@ impl ParseFieldsReport {
     /// (`assistant-qif-import.c:2043-2075`). `qif-file.scm:1120-1136`.
     pub fn date_formats(&self) -> Option<Vec<DateFormat>> {
         let newest = self.errors.iter().rev().find(|e| e.field == FieldKind::Date)?;
-        let FieldProblem::Ambiguous(formats) = &newest.problem else { return None };
-        Some(formats.iter().filter_map(|f| if let Format::Date(d) = f { Some(*d) } else { None }).collect())
+        let FieldProblem::Ambiguous(formats) = &newest.problem else {
+            return None;
+        };
+        Some(
+            formats
+                .iter()
+                .filter_map(|f| if let Format::Date(d) = f { Some(*d) } else { None })
+                .collect(),
+        )
     }
 
     fn error(&mut self, record: RecordKind, field: FieldKind, line: Option<usize>, problem: FieldProblem) {
-        self.errors.push(FieldError { record, field, line, problem });
+        self.errors.push(FieldError {
+            record,
+            field,
+            line,
+            problem,
+        });
     }
 }
 
@@ -732,7 +777,9 @@ fn check_and_parse_field<R, G, P: PartialEq, F: Copy + Into<Format>>(
             return false;
         }
     };
-    let Some(format) = choose_format(objects, slot, check, &formats, do_parsing, report) else { return true };
+    let Some(format) = choose_format(objects, slot, check, &formats, do_parsing, report) else {
+        return true;
+    };
     if !do_parsing {
         return true;
     }
@@ -740,7 +787,9 @@ fn check_and_parse_field<R, G, P: PartialEq, F: Copy + Into<Format>>(
     objects.iter_mut().for_each(|obj| {
         let Some(val) = (slot.get)(obj) else { return };
         let line = Some((slot.line)(obj));
-        (check.unreadable)(&val, format).into_iter().for_each(|text| report.error(check.record, check.field, line, FieldProblem::Unreadable(text)));
+        (check.unreadable)(&val, format)
+            .into_iter()
+            .for_each(|text| report.error(check.record, check.field, line, FieldProblem::Unreadable(text)));
         let problem = match (check.parser)(&val, format) {
             Ok(Some(parsed)) => return (slot.set)(obj, parsed),
             Ok(None) => FieldProblem::ParsingFailed,
@@ -790,7 +839,12 @@ fn choose_format<R, G, P: PartialEq, F: Copy + Into<Format>>(
     match check.on_ambiguity {
         OnAmbiguity::Guess => {
             if !equivalent {
-                let guess = FormatGuess { record: check.record, field: check.field, chosen: first.into(), candidates: candidates() };
+                let guess = FormatGuess {
+                    record: check.record,
+                    field: check.field,
+                    chosen: first.into(),
+                    candidates: candidates(),
+                };
                 report.guesses.push(guess);
             }
             Some(first)
@@ -829,7 +883,9 @@ fn parse_field<R, P>(
         let parsed = parser(&unparsed, &mut messages);
         (slot.set)(obj, parsed);
         let line = Some((slot.line)(obj));
-        messages.into_iter().for_each(|m| report.error(record, field, line, FieldProblem::Message(m)));
+        messages
+            .into_iter()
+            .for_each(|m| report.error(record, field, line, FieldProblem::Message(m)));
     });
     true
 }
@@ -857,7 +913,11 @@ fn check_number(val: &String, formats: &[NumberFormat]) -> Option<Vec<NumberForm
 
 #[allow(clippy::ptr_arg)]
 fn unreadable_number(val: &String, format: NumberFormat) -> Vec<String> {
-    if parse::number_is_readable(val, format) { Vec::new() } else { vec![val.clone()] }
+    if parse::number_is_readable(val, format) {
+        Vec::new()
+    } else {
+        vec![val.clone()]
+    }
 }
 
 fn no_unreadable<G, F>(_: &G, _: F) -> Vec<String> {
@@ -870,7 +930,13 @@ fn parse_number(val: &String, format: NumberFormat) -> Result<Option<Numeric>, N
 }
 
 /// A `check-and-parse-field` of numbers with `'guess-on-ambiguity`, as every number field of `parse-fields` is.
-fn numbers<R>(objects: &mut [R], slot: &Slot<R, String, Numeric>, target: (RecordKind, FieldKind), formats: &[NumberFormat], report: &mut ParseFieldsReport) -> bool {
+fn numbers<R>(
+    objects: &mut [R],
+    slot: &Slot<R, String, Numeric>,
+    target: (RecordKind, FieldKind),
+    formats: &[NumberFormat],
+    report: &mut ParseFieldsReport,
+) -> bool {
     let (record, field) = target;
     let check = Check {
         record,
@@ -885,9 +951,22 @@ fn numbers<R>(objects: &mut [R], slot: &Slot<R, String, Numeric>, target: (Recor
 }
 
 /// A `check-and-parse-field` of dates with `'error-on-ambiguity`.
-fn dates<R>(objects: &mut [R], slot: &Slot<R, String, QifDate>, record: RecordKind, formats: &[DateFormat], report: &mut ParseFieldsReport) -> bool {
-    let check =
-        Check { record, field: FieldKind::Date, formats: formats.to_vec(), on_ambiguity: OnAmbiguity::Error, checker: check_dates, parser: parse_date, unreadable: no_unreadable };
+fn dates<R>(
+    objects: &mut [R],
+    slot: &Slot<R, String, QifDate>,
+    record: RecordKind,
+    formats: &[DateFormat],
+    report: &mut ParseFieldsReport,
+) -> bool {
+    let check = Check {
+        record,
+        field: FieldKind::Date,
+        formats: formats.to_vec(),
+        on_ambiguity: OnAmbiguity::Error,
+        checker: check_dates,
+        parser: parse_date,
+        unreadable: no_unreadable,
+    };
     check_and_parse_field(objects, slot, &check, report)
 }
 
@@ -899,65 +978,165 @@ type Step = fn(&mut QifFile, &mut ParseFieldsReport) -> bool;
 /// The fields of `parse-fields`, in its order. `qif-file.scm:736-934`.
 const STEPS: [Step; 14] = [
     |f, r| {
-        let slot = Slot { get: |c: &QifCat| text_of(c.tax_class.as_ref()), set: |c, v| c.tax_class = Some(Field::Value(v)), line: |c| c.line };
-        numbers(f.cats.make_contiguous(), &slot, (RecordKind::Category, FieldKind::TaxClass), &DECIMAL_COMMA, r)
+        let slot = Slot {
+            get: |c: &QifCat| text_of(c.tax_class.as_ref()),
+            set: |c, v| c.tax_class = Some(Field::Value(v)),
+            line: |c| c.line,
+        };
+        numbers(
+            f.cats.make_contiguous(),
+            &slot,
+            (RecordKind::Category, FieldKind::TaxClass),
+            &DECIMAL_COMMA,
+            r,
+        )
     },
     |f, r| {
-        let slot = Slot { get: |c: &QifCat| text_of(c.budget_amt.as_ref()), set: |c, v| c.budget_amt = Some(Field::Value(v)), line: |c| c.line };
-        numbers(f.cats.make_contiguous(), &slot, (RecordKind::Category, FieldKind::BudgetAmt), &DECIMAL_COMMA, r)
+        let slot = Slot {
+            get: |c: &QifCat| text_of(c.budget_amt.as_ref()),
+            set: |c, v| c.budget_amt = Some(Field::Value(v)),
+            line: |c| c.line,
+        };
+        numbers(
+            f.cats.make_contiguous(),
+            &slot,
+            (RecordKind::Category, FieldKind::BudgetAmt),
+            &DECIMAL_COMMA,
+            r,
+        )
     },
     |f, r| {
-        let slot = Slot { get: |a: &QifAcct| text_of(a.limit.as_ref()), set: |a, v| a.limit = Some(Field::Value(v)), line: |a| a.line };
-        numbers(f.accounts.make_contiguous(), &slot, (RecordKind::Account, FieldKind::Limit), &DECIMAL_COMMA, r)
+        let slot = Slot {
+            get: |a: &QifAcct| text_of(a.limit.as_ref()),
+            set: |a, v| a.limit = Some(Field::Value(v)),
+            line: |a| a.line,
+        };
+        numbers(
+            f.accounts.make_contiguous(),
+            &slot,
+            (RecordKind::Account, FieldKind::Limit),
+            &DECIMAL_COMMA,
+            r,
+        )
     },
     |f, r| {
-        let slot = Slot { get: |a: &QifAcct| text_of(a.budget.as_ref()), set: |a, v| a.budget = Some(Field::Value(v)), line: |a| a.line };
-        numbers(f.accounts.make_contiguous(), &slot, (RecordKind::Account, FieldKind::Budget), &DECIMAL_COMMA, r)
+        let slot = Slot {
+            get: |a: &QifAcct| text_of(a.budget.as_ref()),
+            set: |a, v| a.budget = Some(Field::Value(v)),
+            line: |a| a.line,
+        };
+        numbers(
+            f.accounts.make_contiguous(),
+            &slot,
+            (RecordKind::Account, FieldKind::Budget),
+            &DECIMAL_COMMA,
+            r,
+        )
     },
     |f, r| {
-        let slot = Slot { get: |a: &QifAcct| text_of(Some(&a.acct_type)), set: |a, v| a.acct_type = Field::Value(v), line: |a| a.line };
-        parse_field(f.accounts.make_contiguous(), &slot, parse_acct_type, (RecordKind::Account, FieldKind::AcctType), r)
+        let slot = Slot {
+            get: |a: &QifAcct| text_of(Some(&a.acct_type)),
+            set: |a, v| a.acct_type = Field::Value(v),
+            line: |a| a.line,
+        };
+        parse_field(
+            f.accounts.make_contiguous(),
+            &slot,
+            parse_acct_type,
+            (RecordKind::Account, FieldKind::AcctType),
+            r,
+        )
     },
     |f, r| dates(f.prices.make_contiguous(), &PRICE_DATE, RecordKind::Price, &DATE_FORMATS, r),
     |f, r| {
-        let slot =
-            Slot { get: |p: &QifPrice| text_of(Some(&p.share_price)), set: |p, v| p.share_price = Field::Value(v), line: |p| p.line };
-        numbers(f.prices.make_contiguous(), &slot, (RecordKind::Price, FieldKind::SharePrice), &DECIMAL_COMMA_RATIONAL, r)
+        let slot = Slot {
+            get: |p: &QifPrice| text_of(Some(&p.share_price)),
+            set: |p, v| p.share_price = Field::Value(v),
+            line: |p| p.line,
+        };
+        numbers(
+            f.prices.make_contiguous(),
+            &slot,
+            (RecordKind::Price, FieldKind::SharePrice),
+            &DECIMAL_COMMA_RATIONAL,
+            r,
+        )
     },
     |f, r| dates(&mut f.xtns, &XTN_DATE, RecordKind::Transaction, &DATE_FORMATS, r),
     |f, r| {
-        let slot = Slot { get: |x: &QifXtn| text_of(x.cleared.as_ref()), set: |x, v: Option<Cleared>| x.cleared = v.map(Field::Value), line: |x| x.line };
+        let slot = Slot {
+            get: |x: &QifXtn| text_of(x.cleared.as_ref()),
+            set: |x, v: Option<Cleared>| x.cleared = v.map(Field::Value),
+            line: |x| x.line,
+        };
         parse_field(&mut f.xtns, &slot, parse_cleared, (RecordKind::Transaction, FieldKind::Cleared), r)
     },
     |f, r| {
-        let slot = Slot { get: |x: &QifXtn| text_of(x.action.as_ref()), set: |x, v| x.action = Some(Field::Value(v)), line: |x| x.line };
+        let slot = Slot {
+            get: |x: &QifXtn| text_of(x.action.as_ref()),
+            set: |x, v| x.action = Some(Field::Value(v)),
+            line: |x| x.line,
+        };
         parse_field(&mut f.xtns, &slot, parse_action, (RecordKind::Transaction, FieldKind::Action), r)
     },
     |f, r| {
-        let slot =
-            Slot { get: |x: &QifXtn| text_of(x.share_price.as_ref()), set: |x, v| x.share_price = Some(Field::Value(v)), line: |x| x.line };
-        numbers(&mut f.xtns, &slot, (RecordKind::Transaction, FieldKind::SharePrice), &DECIMAL_COMMA_RATIONAL, r)
+        let slot = Slot {
+            get: |x: &QifXtn| text_of(x.share_price.as_ref()),
+            set: |x, v| x.share_price = Some(Field::Value(v)),
+            line: |x| x.line,
+        };
+        numbers(
+            &mut f.xtns,
+            &slot,
+            (RecordKind::Transaction, FieldKind::SharePrice),
+            &DECIMAL_COMMA_RATIONAL,
+            r,
+        )
     },
     |f, r| {
-        let slot =
-            Slot { get: |x: &QifXtn| text_of(x.num_shares.as_ref()), set: |x, v| x.num_shares = Some(Field::Value(v)), line: |x| x.line };
-        numbers(&mut f.xtns, &slot, (RecordKind::Transaction, FieldKind::NumShares), &DECIMAL_COMMA, r)
+        let slot = Slot {
+            get: |x: &QifXtn| text_of(x.num_shares.as_ref()),
+            set: |x, v| x.num_shares = Some(Field::Value(v)),
+            line: |x| x.line,
+        };
+        numbers(
+            &mut f.xtns,
+            &slot,
+            (RecordKind::Transaction, FieldKind::NumShares),
+            &DECIMAL_COMMA,
+            r,
+        )
     },
     |f, r| {
-        let slot =
-            Slot { get: |x: &QifXtn| text_of(x.commission.as_ref()), set: |x, v| x.commission = Some(Field::Value(v)), line: |x| x.line };
-        numbers(&mut f.xtns, &slot, (RecordKind::Transaction, FieldKind::Commission), &DECIMAL_COMMA, r)
+        let slot = Slot {
+            get: |x: &QifXtn| text_of(x.commission.as_ref()),
+            set: |x, v| x.commission = Some(Field::Value(v)),
+            line: |x| x.line,
+        };
+        numbers(
+            &mut f.xtns,
+            &slot,
+            (RecordKind::Transaction, FieldKind::Commission),
+            &DECIMAL_COMMA,
+            r,
+        )
     },
     split_amounts,
 ];
 
 /// The transaction date slot, shared by `parse-fields` and `reparse-dates`.
-const XTN_DATE: Slot<QifXtn, String, QifDate> =
-    Slot { get: |x: &QifXtn| text_of(x.date.as_ref()), set: |x, v| x.date = Some(Field::Value(v)), line: |x| x.line };
+const XTN_DATE: Slot<QifXtn, String, QifDate> = Slot {
+    get: |x: &QifXtn| text_of(x.date.as_ref()),
+    set: |x, v| x.date = Some(Field::Value(v)),
+    line: |x| x.line,
+};
 
 /// The price date slot, shared by `parse-fields` and [`reparse_price_dates`].
-const PRICE_DATE: Slot<QifPrice, String, QifDate> =
-    Slot { get: |p: &QifPrice| text_of(Some(&p.date)), set: |p, v| p.date = Field::Value(v), line: |p| p.line };
+const PRICE_DATE: Slot<QifPrice, String, QifDate> = Slot {
+    get: |p: &QifPrice| text_of(Some(&p.date)),
+    set: |p, v| p.date = Field::Value(v),
+    line: |p| p.line,
+};
 
 fn parse_acct_type(value: &str, messages: &mut Vec<String>) -> Vec<AccountType> {
     parse::parse_acct_type(value, |m| messages.push(m))
@@ -986,7 +1165,14 @@ fn split_amounts(file: &mut QifFile, report: &mut ParseFieldsReport) -> bool {
         on_ambiguity: OnAmbiguity::Guess,
         checker: |amounts: &Vec<Option<String>>, formats| Some(parse::check_number_formats(&borrowed(amounts), formats)),
         parser: |amounts, format| parse::parse_numbers_format(&borrowed(amounts), format).map(Some),
-        unreadable: |amounts, format| amounts.iter().flatten().filter(|a| !parse::number_is_readable(a, format)).cloned().collect(),
+        unreadable: |amounts, format| {
+            amounts
+                .iter()
+                .flatten()
+                .filter(|a| !parse::number_is_readable(a, format))
+                .cloned()
+                .collect()
+        },
     };
     check_and_parse_field(&mut file.xtns, &slot, &check, report)
 }
@@ -1021,7 +1207,11 @@ pub fn reparse_price_dates(file: &mut QifFile, format: DateFormat) -> Result<(),
 
 fn reparse<R>(objects: &mut [R], slot: &Slot<R, String, QifDate>, record: RecordKind, format: DateFormat) -> Result<(), Vec<FieldError>> {
     let mut report = ParseFieldsReport::default();
-    if dates(objects, slot, record, &[format], &mut report) && report.errors.is_empty() { Ok(()) } else { Err(report.errors) }
+    if dates(objects, slot, record, &[format], &mut report) && report.errors.is_empty() {
+        Ok(())
+    } else {
+        Err(report.errors)
+    }
 }
 
 #[cfg(test)]
@@ -1032,9 +1222,15 @@ mod tests {
     fn parse_price_line() {
         // test-qif-imp.scm:65-84
         let price = super::parse_price_line("\"ABC\",1.0,\"1/1/04\"", 1).unwrap();
-        assert_eq!((price.symbol.as_str(), price.share_price.text(), price.date.text()), ("ABC", Some("1"), Some("1/1/04")));
+        assert_eq!(
+            (price.symbol.as_str(), price.share_price.text(), price.date.text()),
+            ("ABC", Some("1"), Some("1/1/04"))
+        );
         let price = super::parse_price_line("\"ABC\",1 3/4,\"1/1' 4\"", 1).unwrap();
-        assert_eq!((price.symbol.as_str(), price.share_price.text(), price.date.text()), ("ABC", Some("7/4"), Some("1/1' 4")));
+        assert_eq!(
+            (price.symbol.as_str(), price.share_price.text(), price.date.text()),
+            ("ABC", Some("7/4"), Some("1/1' 4"))
+        );
         assert_eq!(super::parse_price_line("\"ABC\",,\"1/1' 4\"", 1), None);
         assert_eq!(super::parse_price_line("\"ABC\",\"1/1' 4\"", 1), None);
     }

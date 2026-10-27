@@ -148,7 +148,10 @@ pub struct Tooltip {
 
 impl Default for Tooltip {
     fn default() -> Self {
-        Self { grouped: true, non_zero_only: false }
+        Self {
+            grouped: true,
+            non_zero_only: false,
+        }
     }
 }
 
@@ -242,8 +245,11 @@ pub struct Color(String);
 impl Color {
     /// A colour from `#rrggbb`, either case.
     pub fn parse(s: &str) -> Result<Self, String> {
-        let hex = s.strip_prefix('#').filter(|h| h.len() == 6 && h.bytes().all(|b| b.is_ascii_hexdigit()));
-        hex.map(|h| Self(format!("#{}", h.to_ascii_lowercase()))).ok_or_else(|| format!("not a colour #rrggbb: {s:?}"))
+        let hex = s
+            .strip_prefix('#')
+            .filter(|h| h.len() == 6 && h.bytes().all(|b| b.is_ascii_hexdigit()));
+        hex.map(|h| Self(format!("#{}", h.to_ascii_lowercase())))
+            .ok_or_else(|| format!("not a colour #rrggbb: {s:?}"))
     }
 
     /// The text, `#rrggbb`.
@@ -300,7 +306,10 @@ impl Chart {
     }
 
     fn point_title(&self, index: usize, series: Option<usize>) -> String {
-        let point = series.and_then(|s| self.series.get(s)).and_then(|s| s.points.as_ref()).and_then(|p| p.get(index));
+        let point = series
+            .and_then(|s| self.series.get(s))
+            .and_then(|s| s.points.as_ref())
+            .and_then(|p| p.get(index));
         match point {
             Some(p) => p.label.clone().unwrap_or_else(|| p.x.to_string()),
             None => self.labels.get(index).cloned().unwrap_or_default(),

@@ -41,24 +41,27 @@ fn predicates_and_lists_by_type() {
             print(`${k}=${names.call(kinds[k])}`);
         }
     "#);
-    check(&got, &[
-        "all=[\"Root\", \"Asset\", \"Bank1\", \"Bonds\", \"Current\", \"Empty\", \"Savings\", \"Broker\", \"Funds\", \
+    check(
+        &got,
+        &[
+            "all=[\"Root\", \"Asset\", \"Bank1\", \"Bonds\", \"Current\", \"Empty\", \"Savings\", \"Broker\", \"Funds\", \
          \"ForeignBank\", \"ForeignSavings\", \"House\", \"Liability\", \"Bank2\", \"CreditCard\", \"Loan\", \"Income\", \
          \"Income-GBP\", \"Equity\"]",
-        "has-shares=[\"Funds\"]",
-        "stock=[\"Funds\"]",
-        "inc-exp=[\"Income\", \"Income-GBP\"]",
-        // A null account is skipped (RU:180).
-        "filter=[\"Funds\", \"Income\", \"Income-GBP\"]",
-        "kinds=[\"ASSET\", \"EQUITY\", \"EXPENSE\", \"INCOME\", \"LIABILITY\", \"TRADING\"]",
-        "ASSET=[\"Root\", \"Asset\", \"Bank1\", \"Bonds\", \"Current\", \"Empty\", \"Savings\", \"Broker\", \"Funds\", \
+            "has-shares=[\"Funds\"]",
+            "stock=[\"Funds\"]",
+            "inc-exp=[\"Income\", \"Income-GBP\"]",
+            // A null account is skipped (RU:180).
+            "filter=[\"Funds\", \"Income\", \"Income-GBP\"]",
+            "kinds=[\"ASSET\", \"EQUITY\", \"EXPENSE\", \"INCOME\", \"LIABILITY\", \"TRADING\"]",
+            "ASSET=[\"Root\", \"Asset\", \"Bank1\", \"Bonds\", \"Current\", \"Empty\", \"Savings\", \"Broker\", \"Funds\", \
          \"ForeignBank\", \"ForeignSavings\", \"House\"]",
-        "LIABILITY=[\"Liability\", \"Bank2\", \"CreditCard\", \"Loan\"]",
-        "EQUITY=[\"Equity\"]",
-        "INCOME=[\"Income\", \"Income-GBP\"]",
-        "EXPENSE=[]",
-        "TRADING=[]",
-    ]);
+            "LIABILITY=[\"Liability\", \"Bank2\", \"CreditCard\", \"Loan\"]",
+            "EQUITY=[\"Equity\"]",
+            "INCOME=[\"Income\", \"Income-GBP\"]",
+            "EXPENSE=[]",
+            "TRADING=[]",
+        ],
+    );
 }
 
 /// gnc:accounts-get-commodities builds its list from the end, so a commodity stands where it last appears
@@ -77,12 +80,15 @@ fn commodities_of_accounts() {
         print(`sorted=${mn.call(accounts::accounts_get_commodities_sorted(all, ()))} ` +
               `no-usd=${mn.call(accounts::accounts_get_commodities_sorted(all, usd))}`);
     "#);
-    check(&got, &[
-        "all=[\"FUNDS\", \"GBP\", \"USD\"] no-usd=[\"FUNDS\", \"GBP\"]",
-        "some=[\"USD\", \"GBP\", \"FUNDS\"] none=[]",
-        "symbols=[\"$\", \"#\", \"FUNDS\"]",
-        "sorted=[\"GBP\", \"USD\", \"FUNDS\"] no-usd=[\"GBP\", \"FUNDS\"]",
-    ]);
+    check(
+        &got,
+        &[
+            "all=[\"FUNDS\", \"GBP\", \"USD\"] no-usd=[\"FUNDS\", \"GBP\"]",
+            "some=[\"USD\", \"GBP\", \"FUNDS\"] none=[]",
+            "symbols=[\"$\", \"#\", \"FUNDS\"]",
+            "sorted=[\"GBP\", \"USD\", \"FUNDS\"] no-usd=[\"GBP\", \"FUNDS\"]",
+        ],
+    );
 }
 
 /// Depths count the book's root as 0 for an account and 1 for a tree: Bonds is at depth 4, under Root, Asset and
@@ -100,12 +106,15 @@ fn depths_descendants_and_name_order() {
         unsorted.sort(|a, b| if accounts::account_full_name_lt(a, b) { -1 } else if accounts::account_full_name_lt(b, a) { 1 } else { 0 });
         print(`by-name=${names.call(unsorted)}`);
     "#);
-    check(&got, &[
-        "tree=5",
-        "children-depth=4 4 2",
-        "descendants=[\"Bank1\", \"Bonds\", \"Current\", \"Empty\", \"Savings\", \"Broker\", \"Funds\"]",
-        "by-name=[\"Asset\", \"Bank1\", \"House\"]",
-    ]);
+    check(
+        &got,
+        &[
+            "tree=5",
+            "children-depth=4 4 2",
+            "descendants=[\"Bank1\", \"Bonds\", \"Current\", \"Empty\", \"Savings\", \"Broker\", \"Funds\"]",
+            "by-name=[\"Asset\", \"Bank1\", \"House\"]",
+        ],
+    );
 }
 
 /// gnc:account-get-type-string-plural (RU:210-231).
@@ -115,13 +124,23 @@ fn plural_type_names() {
         let types = ["BANK", "CREDIT", "ASSET", "MUTUAL", "INCOME", "EQUITY", "MONEYMRKT", "PAYABLE", "TRADING", "ROOT"];
         print(`${types.map(|t| accounts::account_get_type_string_plural(t))}`);
     "#);
-    check(&got, &["[\"Bank\", \"Credits\", \"Assets\", \"Mutual Funds\", \"Income\", \"Equities\", \"Money Market\", \
-                   \"Accounts Payable\", \"Trading Accounts\", ()]"]);
+    check(
+        &got,
+        &[
+            "[\"Bank\", \"Credits\", \"Assets\", \"Mutual Funds\", \"Income\", \"Equities\", \"Money Market\", \
+                   \"Accounts Payable\", \"Trading Accounts\", ()]",
+        ],
+    );
 }
 
 /// `(apply max '())` is an error in Guile; so is asking for the depth of no accounts.
 #[test]
 fn children_depth_of_no_accounts_is_an_error() {
-    let err = lines_with(&host(), "", "import \"lib/accounts\" as accounts; accounts::accounts_get_children_depth([]);").unwrap_err();
+    let err = lines_with(
+        &host(),
+        "",
+        "import \"lib/accounts\" as accounts; accounts::accounts_get_children_depth([]);",
+    )
+    .unwrap_err();
     assert!(format!("{err:?}").contains("accounts_get_children_depth: no accounts"), "{err:?}");
 }

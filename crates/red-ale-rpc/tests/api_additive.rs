@@ -45,7 +45,8 @@ fn shape(schema: &Value, defs: &Map<String, Value>, root: &str) -> Shape {
 fn walk<'a>(schema: &'a Value, defs: &'a Map<String, Value>, path: &str, refs: &mut Vec<&'a str>, out: &mut Shape) {
     let slot = out.entry(path.to_owned()).or_default();
     slot.types.extend(types(schema));
-    slot.values.extend(list(schema, "enum").chain(schema.get("const")).map(Value::to_string));
+    slot.values
+        .extend(list(schema, "enum").chain(schema.get("const")).map(Value::to_string));
     let target = schema.get("$ref").and_then(Value::as_str).and_then(|r| r.strip_prefix("#/$defs/"));
     if let Some(name) = target.filter(|name| !refs.contains(name)) {
         refs.push(name);
@@ -65,11 +66,16 @@ fn walk<'a>(schema: &'a Value, defs: &'a Map<String, Value>, path: &str, refs: &
 
 fn walk_properties<'a>(schema: &'a Value, defs: &'a Map<String, Value>, path: &str, refs: &mut Vec<&'a str>, out: &mut Shape) {
     let required: BTreeSet<&str> = list(schema, "required").filter_map(Value::as_str).collect();
-    schema.get("properties").and_then(Value::as_object).into_iter().flatten().for_each(|(name, v)| {
-        let field = format!("{path}.{name}");
-        walk(v, defs, &field, refs, out);
-        out.get_mut(&field).unwrap().required |= required.contains(name.as_str());
-    });
+    schema
+        .get("properties")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten()
+        .for_each(|(name, v)| {
+            let field = format!("{path}.{name}");
+            walk(v, defs, &field, refs, out);
+            out.get_mut(&field).unwrap().required |= required.contains(name.as_str());
+        });
 }
 
 /// The members of the array at `key`, none when there is none.
@@ -85,7 +91,10 @@ fn types(schema: &Value) -> Vec<String> {
         Some(Value::Array(ts)) => ts.iter().filter_map(Value::as_str).collect(),
         _ => Vec::new(),
     };
-    names.into_iter().map(|t| format.filter(|_| t != "null").map_or_else(|| t.to_owned(), |f| format!("{t}:{f}"))).collect()
+    names
+        .into_iter()
+        .map(|t| format.filter(|_| t != "null").map_or_else(|| t.to_owned(), |f| format!("{t}:{f}")))
+        .collect()
 }
 
 /// How `new` breaks a client of `old`: params may only widen and add optional fields; results may only narrow their
@@ -118,7 +127,12 @@ fn still_fits(o: &Slot, n: &Slot, side: Side) -> bool {
 /// Every way `new` is not additive over `old`, as one line each.
 fn not_additive(old: &Value, new: &Value) -> Vec<String> {
     let by_name = |s: &Value| -> BTreeMap<String, Value> {
-        s["methods"].as_array().unwrap().iter().map(|m| (m["name"].as_str().unwrap().to_owned(), m.clone())).collect()
+        s["methods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| (m["name"].as_str().unwrap().to_owned(), m.clone()))
+            .collect()
     };
     let (old_methods, new_methods) = (by_name(old), by_name(new));
     let (old_defs, new_defs) = (old["$defs"].as_object().unwrap(), new["$defs"].as_object().unwrap());
@@ -126,13 +140,18 @@ fn not_additive(old: &Value, new: &Value) -> Vec<String> {
         let Some(n) = new_methods.get(name) else {
             return vec![format!("{name}: removed")];
         };
-        let effect = ["effect", "target"].into_iter().filter(|k| o[k] != n[k]).map(|k| format!("{k} {} became {}", o[k], n[k]));
+        let effect = ["effect", "target"]
+            .into_iter()
+            .filter(|k| o[k] != n[k])
+            .map(|k| format!("{k} {} became {}", o[k], n[k]));
         let side = |key: &str, side: Side| breaks(&shape(&o[key], old_defs, key), &shape(&n[key], new_defs, key), side);
         let sides = side("params", Side::Params).into_iter().chain(side("result", Side::Result));
         effect.chain(sides).map(|b| format!("{name}: {b}")).collect()
     });
     let new_errors: &Vec<Value> = new["errors"].as_array().unwrap();
-    let errors = list(old, "errors").filter(|e| !new_errors.contains(e)).map(|e| format!("error {e} removed or renamed"));
+    let errors = list(old, "errors")
+        .filter(|e| !new_errors.contains(e))
+        .map(|e| format!("error {e} removed or renamed"));
     methods.chain(errors).collect()
 }
 
@@ -153,7 +172,12 @@ fn the_check_finds_breaking_changes() {
         edit(&mut new);
         not_additive(&old, &new)
     };
-    let info = old["methods"].as_array().unwrap().iter().position(|m| m["name"] == "book.info").unwrap();
+    let info = old["methods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|m| m["name"] == "book.info")
+        .unwrap();
     let found = broken(&|s| drop(s["methods"].as_array_mut().unwrap().remove(info)));
     assert_eq!(found, ["book.info: removed"]);
     let found = broken(&|s| s["methods"][info]["effect"] = json!("write"));
@@ -162,7 +186,10 @@ fn the_check_finds_breaking_changes() {
     assert_eq!(found, ["account.checkBalanceLimit: params.asOf: newly required"]);
     let found = broken(&|s| s["$defs"]["CheckResult"]["properties"]["includesSubaccounts"] = json!({ "type": "string" }));
     assert_eq!(found.len(), 1, "{found:?}");
-    assert!(found[0].starts_with("account.checkBalanceLimit: result.includesSubaccounts: "), "{found:?}");
+    assert!(
+        found[0].starts_with("account.checkBalanceLimit: result.includesSubaccounts: "),
+        "{found:?}"
+    );
     let found = broken(&|s| drop(s["errors"].as_array_mut().unwrap().pop()));
     assert_eq!(found.len(), 1, "{found:?}");
     let found = broken(&|s| s["$defs"]["CheckParams"]["properties"]["extra"] = json!({ "type": "string" }));

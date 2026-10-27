@@ -43,12 +43,16 @@ impl Time64 {
     /// GnuCash's file format: `YYYY-MM-DD HH:MM:SS +0000`, always in UTC.
     /// `5.17:libgnucash/backend/xml/sixtp-dom-generators.cpp:131` (`time64_to_dom_tree`).
     pub fn to_file_string(self) -> String {
-        self.to_datetime().map_or_else(String::new, |dt| format!("{} +0000", dt.format("%Y-%m-%d %H:%M:%S")))
+        self.to_datetime()
+            .map_or_else(String::new, |dt| format!("{} +0000", dt.format("%Y-%m-%d %H:%M:%S")))
     }
 
     /// Parse `YYYY-MM-DD HH:MM:SS [+-]HHMM` (the offset is optional and may be absent in old files).
     pub fn parse_file_string(s: &str) -> Result<Self, ParseTimeError> {
-        let err = || ParseTimeError { kind: "timestamp", text: s.to_owned() };
+        let err = || ParseTimeError {
+            kind: "timestamp",
+            text: s.to_owned(),
+        };
         let s = s.trim();
         let (datetime, offset) = split_offset(s);
         let naive = NaiveDateTime::parse_from_str(datetime.trim(), "%Y-%m-%d %H:%M:%S")
@@ -125,7 +129,12 @@ impl Date {
 
     /// Parse `YYYY-MM-DD`.
     pub fn parse(s: &str) -> Result<Self, ParseTimeError> {
-        NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").map(Self).map_err(|_| ParseTimeError { kind: "date", text: s.to_owned() })
+        NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
+            .map(Self)
+            .map_err(|_| ParseTimeError {
+                kind: "date",
+                text: s.to_owned(),
+            })
     }
 
     /// 10:59:00 UTC on this date: GnuCash's *neutral time* in every time zone from UTC-10 to UTC+13
@@ -175,7 +184,11 @@ impl Date {
 
 /// Days in a month of a year.
 pub fn days_in_month(year: i32, month: u32) -> u32 {
-    let next = if month == 12 { NaiveDate::from_ymd_opt(year + 1, 1, 1) } else { NaiveDate::from_ymd_opt(year, month + 1, 1) };
+    let next = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    };
     next.and_then(|n| n.pred_opt()).map_or(28, |d| d.day())
 }
 

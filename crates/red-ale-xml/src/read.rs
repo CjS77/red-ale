@@ -22,7 +22,10 @@ use crate::XmlError;
 use crate::book::{Originals, Section, XmlResidue};
 use crate::business::{self, BusinessObject};
 use crate::dom::{Element, Token, Tokens, TreeBuilder};
-use crate::entities::{account_el, commodity_el, commodity_is_written, parse_account, parse_commodity, parse_price, parse_transaction, price_el, transaction_el};
+use crate::entities::{
+    account_el, commodity_el, commodity_is_written, parse_account, parse_commodity, parse_price, parse_transaction, price_el,
+    transaction_el,
+};
 use crate::envelope::BOOK_VERSION;
 use crate::input::TextStream;
 use crate::values::{Notices, parse_guid, parse_slots, slots_el};
@@ -65,12 +68,19 @@ pub fn read_back<R: BufRead>(reader: R, expected: &Book) -> Result<ReadBack, Xml
 /// Check the start of a decoded file the way GnuCash's `gnc_is_xml_data_file_v2` does.
 fn check_v2(text: &str) -> Result<(), XmlError> {
     let trimmed = text.trim_start();
-    let rest = trimmed.strip_prefix("<?xml").ok_or_else(|| XmlError::NotABook("no XML declaration".into()))?;
-    let after_decl = rest.split_once('>').map(|(_, r)| r.trim_start()).ok_or_else(|| XmlError::NotABook("unterminated declaration".into()))?;
+    let rest = trimmed
+        .strip_prefix("<?xml")
+        .ok_or_else(|| XmlError::NotABook("no XML declaration".into()))?;
+    let after_decl = rest
+        .split_once('>')
+        .map(|(_, r)| r.trim_start())
+        .ok_or_else(|| XmlError::NotABook("unterminated declaration".into()))?;
     if after_decl.starts_with("<gnc-v2") && after_decl[7..].starts_with(|c: char| c.is_whitespace()) {
         Ok(())
     } else if after_decl.starts_with("<gnc>") {
-        Err(XmlError::NotABook("this is a GnuCash version 1 file; open and save it with GnuCash first".into()))
+        Err(XmlError::NotABook(
+            "this is a GnuCash version 1 file; open and save it with GnuCash first".into(),
+        ))
     } else if after_decl.starts_with("<gnc-v") {
         Err(XmlError::NotABook("this file was written by a newer GnuCash format version".into()))
     } else {
@@ -92,7 +102,9 @@ fn walk<R: BufRead, S: Sink>(reader: R, sink: S) -> Result<(Reader<S>, bool), Xm
     let mut tokens = Tokens::new(text);
     let mut walker = Walker::new(sink);
     loop {
-        let step = tokens.next().and_then(|token| token.map(|t| walker.token(t, tokens.position())).transpose());
+        let step = tokens
+            .next()
+            .and_then(|token| token.map(|t| walker.token(t, tokens.position())).transpose());
         match step {
             Ok(Some(())) => {}
             Ok(None) => break,
@@ -129,8 +141,19 @@ struct Walker<S> {
 
 impl<S: Sink> Walker<S> {
     fn new(sink: S) -> Self {
-        let reader = Reader { sink, kept: Kept::default() };
-        Self { reader, levels: Vec::new(), builder: TreeBuilder::default(), roots: 0, books: 0, outside: Vec::new(), failed: None }
+        let reader = Reader {
+            sink,
+            kept: Kept::default(),
+        };
+        Self {
+            reader,
+            levels: Vec::new(),
+            builder: TreeBuilder::default(),
+            roots: 0,
+            books: 0,
+            outside: Vec::new(),
+            failed: None,
+        }
     }
 
     /// Parts are translated until one fails or a second book appears; after that the walk only looks for errors that
@@ -184,7 +207,10 @@ impl<S: Sink> Walker<S> {
     fn root(&mut self, offset: u64) -> Result<Level, XmlError> {
         self.roots += 1;
         if self.roots > 1 {
-            return Err(XmlError::Syntax { offset, message: "content after the root element".into() });
+            return Err(XmlError::Syntax {
+                offset,
+                message: "content after the root element".into(),
+            });
         }
         Ok(Level::Root)
     }
@@ -193,7 +219,9 @@ impl<S: Sink> Walker<S> {
         match el.name.as_str() {
             "gnc:book" => {
                 self.books += 1;
-                el.get_attr("version").unwrap_or(BOOK_VERSION).clone_into(&mut self.reader.kept.book_version);
+                el.get_attr("version")
+                    .unwrap_or(BOOK_VERSION)
+                    .clone_into(&mut self.reader.kept.book_version);
                 if self.books == 1 { Level::Book } else { Level::Skip }
             }
             "gnc:count-data" => Level::Skip,
@@ -312,7 +340,11 @@ impl<S: Sink> Reader<S> {
             "gnc:commodity" => {
                 kept.enter(Section::Commodities);
                 let c = parse_commodity(el, &mut kept.notices)?;
-                keep(&mut kept.originals.commodities, c.id.clone(), original_if_needed(el, commodity_el(&c).as_ref(), 0));
+                keep(
+                    &mut kept.originals.commodities,
+                    c.id.clone(),
+                    original_if_needed(el, commodity_el(&c).as_ref(), 0),
+                );
                 self.sink.commodity(c);
             }
             "gnc:account" => {
@@ -324,7 +356,11 @@ impl<S: Sink> Reader<S> {
             "gnc:transaction" => {
                 kept.enter(Section::Transactions);
                 let t = parse_transaction(el, &mut kept.notices)?;
-                keep(&mut kept.originals.transactions, t.guid, original_if_needed(el, Some(&transaction_el(&t)), 0));
+                keep(
+                    &mut kept.originals.transactions,
+                    t.guid,
+                    original_if_needed(el, Some(&transaction_el(&t)), 0),
+                );
                 self.sink.transaction(t);
             }
             "gnc:template-transactions" => kept.out_of_scope_part(Section::Templates, el),
@@ -333,7 +369,11 @@ impl<S: Sink> Reader<S> {
             name if business::ELEMENT_NAMES.contains(&name) => {
                 kept.enter(Section::Business);
                 let obj = business::parse(el, &mut kept.notices)?;
-                keep(&mut kept.originals.business, obj.guid(), original_if_needed(el, Some(&obj.to_element()), 0));
+                keep(
+                    &mut kept.originals.business,
+                    obj.guid(),
+                    original_if_needed(el, Some(&obj.to_element()), 0),
+                );
                 self.sink.business(obj);
             }
             other => {
@@ -347,7 +387,11 @@ impl<S: Sink> Reader<S> {
     /// One price of the price database, written at indentation level 1.
     fn price(&mut self, el: &Element) -> Result<(), XmlError> {
         let price = parse_price(el, &mut self.kept.notices)?;
-        keep(&mut self.kept.originals.prices, price.guid, original_if_needed(el, Some(&price_el(&price)), 1));
+        keep(
+            &mut self.kept.originals.prices,
+            price.guid,
+            original_if_needed(el, Some(&price_el(&price)), 1),
+        );
         self.sink.price(price);
         Ok(())
     }
@@ -367,7 +411,10 @@ fn account_originals(book: &Book, elements: &HashMap<Guid, Element>) -> HashMap<
     elements
         .iter()
         .filter_map(|(guid, el)| {
-            let generated = book.accounts.get(guid).map(|a| account_el(a, lots.get(guid).map_or(&[][..], Vec::as_slice)));
+            let generated = book
+                .accounts
+                .get(guid)
+                .map(|a| account_el(a, lots.get(guid).map_or(&[][..], Vec::as_slice)));
             original_if_needed(el, generated.as_ref(), 0).map(|text| (*guid, text))
         })
         .collect()
@@ -514,7 +561,13 @@ fn matches<K: Hash + Eq + Copy, T: PartialEq>(expected: Option<&Arc<T>>, found: 
 
 impl<'a> Verify<'a> {
     fn new(expected: &'a Book) -> Self {
-        Self { expected, guid: None, roots: Vec::new(), seen: Seen::default(), difference: None }
+        Self {
+            expected,
+            guid: None,
+            roots: Vec::new(),
+            seen: Seen::default(),
+            difference: None,
+        }
     }
 
     /// Record a difference unless `same`; the first one found is the one reported.
@@ -530,20 +583,27 @@ impl<'a> Verify<'a> {
         let root = single_root(&self.roots)?;
         let expected = self.expected;
         self.check(root == expected.root, || "book identity differ after writing".into());
-        let commodity = expected.commodities.iter().find(|(k, c)| commodity_is_written(c) && !self.seen.commodities.contains(*k));
+        let commodity = expected
+            .commodities
+            .iter()
+            .find(|(k, c)| commodity_is_written(c) && !self.seen.commodities.contains(*k));
         let missing = commodity
             .map(|(k, _)| format!("commodity {k} differs after writing"))
             .or_else(|| first_missing("account", expected.accounts.keys(), &self.seen.accounts))
             .or_else(|| first_missing("transaction", expected.transactions.keys(), &self.seen.transactions))
             .or_else(|| first_missing("price", expected.prices.keys(), &self.seen.prices))
             .or_else(|| first_missing("lot", expected.lots.keys(), &self.seen.lots))
-            .or_else(|| (business_count(&expected.business) != self.seen.business.len()).then(|| "business objects differ after writing".into()));
+            .or_else(|| {
+                (business_count(&expected.business) != self.seen.business.len()).then(|| "business objects differ after writing".into())
+            });
         Ok(self.difference.or(missing))
     }
 }
 
 fn first_missing<'g>(kind: &str, mut expected: impl Iterator<Item = &'g Guid>, seen: &HashSet<Guid>) -> Option<String> {
-    expected.find(|g| !seen.contains(g)).map(|g| format!("{kind} {g} differs after writing"))
+    expected
+        .find(|g| !seen.contains(g))
+        .map(|g| format!("{kind} {g} differs after writing"))
 }
 
 fn business_count(b: &Business) -> usize {
@@ -588,7 +648,9 @@ impl Sink for Verify<'_> {
 
     /// Currencies GnuCash does not write may be absent or differ; they are not data.
     fn commodity(&mut self, commodity: Commodity) {
-        let Some(held) = self.expected.commodities.get(&commodity.id).filter(|c| commodity_is_written(c)) else { return };
+        let Some(held) = self.expected.commodities.get(&commodity.id).filter(|c| commodity_is_written(c)) else {
+            return;
+        };
         let same = **held == commodity && self.seen.commodities.insert(commodity.id.clone());
         self.check(same, || format!("commodity {} differs after writing", commodity.id));
     }
@@ -602,7 +664,12 @@ impl Sink for Verify<'_> {
         if is_root(&account) && !self.roots.contains(&account.guid) {
             self.roots.push(account.guid);
         }
-        let same = matches(self.expected.accounts.get(&account.guid), &account, &mut self.seen.accounts, account.guid);
+        let same = matches(
+            self.expected.accounts.get(&account.guid),
+            &account,
+            &mut self.seen.accounts,
+            account.guid,
+        );
         self.check(same, || format!("account {} differs after writing", account.guid));
         lots.iter().for_each(|lot| {
             let same = matches(self.expected.lots.get(&lot.guid), lot, &mut self.seen.lots, lot.guid);
@@ -612,7 +679,12 @@ impl Sink for Verify<'_> {
 
     fn transaction(&mut self, transaction: Transaction) {
         let guid = transaction.guid;
-        let same = matches(self.expected.transactions.get(&guid), &transaction, &mut self.seen.transactions, guid);
+        let same = matches(
+            self.expected.transactions.get(&guid),
+            &transaction,
+            &mut self.seen.transactions,
+            guid,
+        );
         self.check(same, || format!("transaction {guid} differs after writing"));
     }
 
@@ -645,7 +717,9 @@ mod tests {
     fn a_written_book_reads_back_as_itself() {
         let (book, residue) = read_book(sample().as_bytes()).unwrap();
         let written = write_book(&book, &residue, true).unwrap();
-        let ReadBack::Same(again) = read_back(&written[..], &book).unwrap() else { panic!("the book reads back differently") };
+        let ReadBack::Same(again) = read_back(&written[..], &book).unwrap() else {
+            panic!("the book reads back differently")
+        };
         assert!(again.compressed);
         assert_eq!(again.originals_kept(), residue.originals_kept());
     }
@@ -662,7 +736,13 @@ mod tests {
 
         let mut more = book.clone();
         let extra = Guid::from_str("00000000000000000000000000000001").unwrap();
-        more.transactions.insert(extra, Arc::new(Transaction { guid: extra, ..(*first).clone() }));
+        more.transactions.insert(
+            extra,
+            Arc::new(Transaction {
+                guid: extra,
+                ..(*first).clone()
+            }),
+        );
         assert_eq!(differs(&written, &more), format!("transaction {extra} differs after writing"));
 
         let mut fewer = book.clone();
@@ -678,11 +758,18 @@ mod tests {
         assert!(read(bad_guid.as_bytes()).starts_with("bad act:id"));
         let mut bad_utf8 = bad_guid.clone().into_bytes();
         bad_utf8.insert(bad_utf8.len() - 20, 0xff);
-        assert_eq!(read(&bad_utf8), XmlError::Encoding.to_string(), "a bad encoding anywhere comes first");
+        assert_eq!(
+            read(&bad_utf8),
+            XmlError::Encoding.to_string(),
+            "a bad encoding anywhere comes first"
+        );
         let two_books = bad_guid.replacen("</gnc:book>", "</gnc:book>\n<gnc:book version=\"2.0.0\"></gnc:book>", 1);
         assert_eq!(read(two_books.as_bytes()), "not a GnuCash XML book: expected one gnc:book, found 2");
         let bad_syntax = bad_guid.replacen("</gnc:book>", "</gnc:boo>", 1);
-        assert!(read(bad_syntax.as_bytes()).starts_with("XML syntax error"), "malformed XML before a malformed entity");
+        assert!(
+            read(bad_syntax.as_bytes()).starts_with("XML syntax error"),
+            "malformed XML before a malformed entity"
+        );
         assert!(read(format!("{text}<other/>").as_bytes()).contains("content after the root element"));
     }
 }

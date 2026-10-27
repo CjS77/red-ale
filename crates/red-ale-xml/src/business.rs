@@ -85,7 +85,9 @@ impl<'a> Fields<'a> {
     fn word<T>(&self, name: &str, default: T, parse: impl Fn(&str) -> Option<T>, notices: &mut Notices) -> T {
         match self.get(name) {
             Some(e) => parse(&e.text_content()).unwrap_or_else(|| {
-                notices.unrecognised.push(format!("{name} has unknown value {:?}", e.text_content()));
+                notices
+                    .unrecognised
+                    .push(format!("{name} has unknown value {:?}", e.text_content()));
                 default
             }),
             None => default,
@@ -93,13 +95,28 @@ impl<'a> Fields<'a> {
     }
 
     fn check_known(&self, known: &[&str], notices: &mut Notices) {
-        unknown_children(self.el, known).iter().for_each(|(_, c)| notices.unrecognised.push(format!("unknown element {} in {}", c.name, self.el.name)));
+        unknown_children(self.el, known)
+            .iter()
+            .for_each(|(_, c)| notices.unrecognised.push(format!("unknown element {} in {}", c.name, self.el.name)));
     }
 }
 
 fn parse_address(el: &Element, notices: &mut Notices) -> Result<Address, XmlError> {
     let f = Fields::new(el);
-    f.check_known(&["addr:name", "addr:addr1", "addr:addr2", "addr:addr3", "addr:addr4", "addr:phone", "addr:fax", "addr:email", "addr:slots"], notices);
+    f.check_known(
+        &[
+            "addr:name",
+            "addr:addr1",
+            "addr:addr2",
+            "addr:addr3",
+            "addr:addr4",
+            "addr:phone",
+            "addr:fax",
+            "addr:email",
+            "addr:slots",
+        ],
+        notices,
+    );
     Ok(Address {
         name: f.text("addr:name"),
         addr1: f.text("addr:addr1"),
@@ -129,7 +146,10 @@ fn address_el(tag: &str, a: &Address) -> Element {
 }
 
 fn parse_owner(el: &Element) -> Result<OwnerRef, XmlError> {
-    let kind_text = el.find("owner:type").map(Element::text_content).ok_or_else(|| malformed(&el.name, "missing owner:type"))?;
+    let kind_text = el
+        .find("owner:type")
+        .map(Element::text_content)
+        .ok_or_else(|| malformed(&el.name, "missing owner:type"))?;
     let kind = OwnerKind::from_type_name(&kind_text).ok_or_else(|| malformed(&el.name, format!("unknown owner type {kind_text:?}")))?;
     let guid = parse_guid(el.find("owner:id").ok_or_else(|| malformed(&el.name, "missing owner:id"))?)?;
     Ok(OwnerRef { kind, guid })
@@ -137,7 +157,10 @@ fn parse_owner(el: &Element) -> Result<OwnerRef, XmlError> {
 
 /// `gnc_owner_to_dom_tree`, `5.17:libgnucash/backend/xml/gnc-owner-xml-v2.cpp:56-89`.
 fn owner_el(tag: &str, o: OwnerRef) -> Element {
-    Element::new(tag).attr("version", VERSION).child(Element::text("owner:type", o.kind.type_name())).child(guid_el("owner:id", o.guid))
+    Element::new(tag)
+        .attr("version", VERSION)
+        .child(Element::text("owner:type", o.kind.type_name()))
+        .child(guid_el("owner:id", o.guid))
 }
 
 fn top(name: &str) -> Element {
@@ -235,10 +258,17 @@ fn parse_bill_term(el: &Element, notices: &mut Notices) -> Result<BillTerm, XmlE
     let kind = if let Some(days) = f.get("billterm:days") {
         let d = Fields::new(days);
         d.check_known(&["bt-days:due-days", "bt-days:disc-days", "bt-days:discount"], notices);
-        Some(BillTermKind::Days { due_days: d.int("bt-days:due-days")?, disc_days: d.int("bt-days:disc-days")?, discount: d.numeric("bt-days:discount")? })
+        Some(BillTermKind::Days {
+            due_days: d.int("bt-days:due-days")?,
+            disc_days: d.int("bt-days:disc-days")?,
+            discount: d.numeric("bt-days:discount")?,
+        })
     } else if let Some(prox) = f.get("billterm:proximo") {
         let p = Fields::new(prox);
-        p.check_known(&["bt-prox:due-day", "bt-prox:disc-day", "bt-prox:discount", "bt-prox:cutoff-day"], notices);
+        p.check_known(
+            &["bt-prox:due-day", "bt-prox:disc-day", "bt-prox:discount", "bt-prox:cutoff-day"],
+            notices,
+        );
         Some(BillTermKind::Proximo {
             due_day: p.int("bt-prox:due-day")?,
             disc_day: p.int("bt-prox:disc-day")?,
@@ -272,11 +302,20 @@ fn maybe_numeric(tag: &str, v: Numeric) -> Option<Element> {
 /// `5.17:libgnucash/backend/xml/gnc-bill-term-xml-v2.cpp:76-130`.
 pub fn bill_term_el(t: &BillTerm) -> Element {
     let kind = t.kind.map(|k| match k {
-        BillTermKind::Days { due_days, disc_days, discount } => Element::new("billterm:days")
+        BillTermKind::Days {
+            due_days,
+            disc_days,
+            discount,
+        } => Element::new("billterm:days")
             .child_opt(maybe_int("bt-days:due-days", due_days))
             .child_opt(maybe_int("bt-days:disc-days", disc_days))
             .child_opt(maybe_numeric("bt-days:discount", discount)),
-        BillTermKind::Proximo { due_day, disc_day, discount, cutoff_day } => Element::new("billterm:proximo")
+        BillTermKind::Proximo {
+            due_day,
+            disc_day,
+            discount,
+            cutoff_day,
+        } => Element::new("billterm:proximo")
             .child_opt(maybe_int("bt-prox:due-day", due_day))
             .child_opt(maybe_int("bt-prox:disc-day", disc_day))
             .child_opt(maybe_numeric("bt-prox:discount", discount))
@@ -328,7 +367,11 @@ fn parse_customer(el: &Element, notices: &mut Notices) -> Result<Customer, XmlEr
         active: f.bool("cust:active", true)?,
         discount: f.numeric("cust:discount")?,
         credit: f.numeric("cust:credit")?,
-        currency: f.get("cust:currency").or_else(|| f.get("cust:commodity")).map(parse_commodity_ref).transpose()?,
+        currency: f
+            .get("cust:currency")
+            .or_else(|| f.get("cust:commodity"))
+            .map(parse_commodity_ref)
+            .transpose()?,
         use_tax_table: f.bool("cust:use-tt", false)?,
         tax_table: f.guid("cust:taxtable")?,
         slots: f.slots("cust:slots", notices)?,
@@ -384,7 +427,11 @@ fn parse_employee(el: &Element, notices: &mut Notices) -> Result<Employee, XmlEr
         active: f.bool("employee:active", true)?,
         workday: f.numeric("employee:workday")?,
         rate: f.numeric("employee:rate")?,
-        currency: f.get("employee:currency").or_else(|| f.get("employee:commodity")).map(parse_commodity_ref).transpose()?,
+        currency: f
+            .get("employee:currency")
+            .or_else(|| f.get("employee:commodity"))
+            .map(parse_commodity_ref)
+            .transpose()?,
         ccard: f.guid("employee:ccard")?,
         slots: f.slots("employee:slots", notices)?,
     })
@@ -441,7 +488,9 @@ fn parse_entry(el: &Element, notices: &mut Notices) -> Result<Entry, XmlError> {
     let f = Fields::new(el);
     f.check_known(&ENTRY_FIELDS, notices);
     let date = f.time("entry:date")?.ok_or_else(|| malformed(&el.name, "missing entry:date"))?;
-    let entered = f.time("entry:entered")?.ok_or_else(|| malformed(&el.name, "missing entry:entered"))?;
+    let entered = f
+        .time("entry:entered")?
+        .ok_or_else(|| malformed(&el.name, "missing entry:entered"))?;
     let mut e = Entry::new(parse_guid(f.req("entry:guid")?)?, date, entered);
     e.description = f.text("entry:description");
     e.action = f.text("entry:action");
@@ -545,7 +594,11 @@ fn parse_invoice(el: &Element, notices: &mut Notices) -> Result<Invoice, XmlErro
         post_txn: f.guid("invoice:posttxn")?,
         post_lot: f.guid("invoice:postlot")?,
         post_acc: f.guid("invoice:postacc")?,
-        currency: f.get("invoice:currency").or_else(|| f.get("invoice:commodity")).map(parse_commodity_ref).transpose()?,
+        currency: f
+            .get("invoice:currency")
+            .or_else(|| f.get("invoice:commodity"))
+            .map(parse_commodity_ref)
+            .transpose()?,
         bill_to: f.get("invoice:billto").map(parse_owner).transpose()?,
         charge_amount: f.numeric("invoice:charge-amt")?,
         slots: f.slots("invoice:slots", notices)?,
@@ -575,7 +628,18 @@ pub fn invoice_el(i: &Invoice) -> Element {
 
 fn parse_job(el: &Element, notices: &mut Notices) -> Result<Job, XmlError> {
     let f = Fields::new(el);
-    f.check_known(&["job:guid", "job:id", "job:name", "job:reference", "job:owner", "job:active", "job:slots"], notices);
+    f.check_known(
+        &[
+            "job:guid",
+            "job:id",
+            "job:name",
+            "job:reference",
+            "job:owner",
+            "job:active",
+            "job:slots",
+        ],
+        notices,
+    );
     Ok(Job {
         guid: parse_guid(f.req("job:guid")?)?,
         id: f.req_text("job:id")?,
@@ -602,7 +666,17 @@ pub fn job_el(j: &Job) -> Element {
 fn parse_order(el: &Element, notices: &mut Notices) -> Result<Order, XmlError> {
     let f = Fields::new(el);
     f.check_known(
-        &["order:guid", "order:id", "order:owner", "order:opened", "order:closed", "order:notes", "order:reference", "order:active", "order:slots"],
+        &[
+            "order:guid",
+            "order:id",
+            "order:owner",
+            "order:opened",
+            "order:closed",
+            "order:notes",
+            "order:reference",
+            "order:active",
+            "order:slots",
+        ],
         notices,
     );
     Ok(Order {
@@ -635,7 +709,16 @@ pub fn order_el(o: &Order) -> Element {
 fn parse_tax_table(el: &Element, notices: &mut Notices) -> Result<TaxTable, XmlError> {
     let f = Fields::new(el);
     f.check_known(
-        &["taxtable:guid", "taxtable:name", "taxtable:refcount", "taxtable:invisible", "taxtable:child", "taxtable:parent", "taxtable:entries", "taxtable:slots"],
+        &[
+            "taxtable:guid",
+            "taxtable:name",
+            "taxtable:refcount",
+            "taxtable:invisible",
+            "taxtable:child",
+            "taxtable:parent",
+            "taxtable:entries",
+            "taxtable:slots",
+        ],
         notices,
     );
     let entries = f
@@ -650,7 +733,11 @@ fn parse_tax_table(el: &Element, notices: &mut Notices) -> Result<TaxTable, XmlE
             ef.check_known(&["tte:acct", "tte:amount", "tte:type"], notices);
             let kind_text = ef.req_text("tte:type")?;
             let kind = AmountType::parse(&kind_text).ok_or_else(|| malformed("tte:type", format!("unknown type {kind_text:?}")))?;
-            Ok(Some(TaxTableEntry { account: ef.guid("tte:acct")?, amount: parse_numeric(ef.req("tte:amount")?)?, kind }))
+            Ok(Some(TaxTableEntry {
+                account: ef.guid("tte:acct")?,
+                amount: parse_numeric(ef.req("tte:amount")?)?,
+                kind,
+            }))
         })
         .collect::<Result<Vec<_>, XmlError>>()?
         .into_iter()
@@ -719,7 +806,11 @@ fn parse_vendor(el: &Element, notices: &mut Notices) -> Result<Vendor, XmlError>
         terms: f.guid("vendor:terms")?,
         tax_included: f.word("vendor:taxincluded", TaxIncluded::UseGlobal, TaxIncluded::parse, notices),
         active: f.bool("vendor:active", true)?,
-        currency: f.get("vendor:currency").or_else(|| f.get("vendor:commodity")).map(parse_commodity_ref).transpose()?,
+        currency: f
+            .get("vendor:currency")
+            .or_else(|| f.get("vendor:commodity"))
+            .map(parse_commodity_ref)
+            .transpose()?,
         use_tax_table: f.bool("vendor:use-tt", false)?,
         tax_table: f.guid("vendor:taxtable")?,
         slots: f.slots("vendor:slots", notices)?,

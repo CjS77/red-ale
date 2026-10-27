@@ -98,15 +98,28 @@ pub fn build(mut import: TxImport, ctx: &BuildContext, new_guid: impl FnMut() ->
     let errors = row_errors(&import, &states, ctx.file);
     let ignored = ignored_lines(&import, &states, ctx.file);
     let drafts = import.create_drafts(true).map_err(|e| create_error(&import, &e))?;
-    let resolved: BTreeMap<String, Guid> = account_names.iter().filter_map(|n| n.account.map(|a| (n.name.clone(), a))).collect();
-    let builder = Builder { ctx, import: &import, accounts: &resolved, commodities: &commodities };
+    let resolved: BTreeMap<String, Guid> = account_names
+        .iter()
+        .filter_map(|n| n.account.map(|a| (n.name.clone(), a)))
+        .collect();
+    let builder = Builder {
+        ctx,
+        import: &import,
+        accounts: &resolved,
+        commodities: &commodities,
+    };
     let (transactions, build_errors): (Vec<_>, Vec<_>) = drafts.iter().map(|d| builder.transaction(d)).partition(Result::is_ok);
     let mut errors = errors;
     errors.extend(build_errors.into_iter().filter_map(Result::err));
     errors.sort_by_key(|e| (e.line, e.column));
     let mut transactions: Vec<Built> = transactions.into_iter().filter_map(Result::ok).collect();
     assign_guids(&mut transactions, new_guid);
-    Ok(CsvBuild { account_names, errors, ignored, transactions })
+    Ok(CsvBuild {
+        account_names,
+        errors,
+        ignored,
+        transactions,
+    })
 }
 
 fn row(import: &TxImport, line: usize) -> usize {
@@ -116,9 +129,10 @@ fn row(import: &TxImport, line: usize) -> usize {
 fn create_error(import: &TxImport, e: &CreateError) -> FileError {
     let line = match e {
         CreateError::Verify(_) => None,
-        CreateError::Transaction { line } | CreateError::NoAccount { line } | CreateError::Split { line, .. } | CreateError::Numeric { line, .. } => {
-            Some(row(import, *line))
-        }
+        CreateError::Transaction { line }
+        | CreateError::NoAccount { line }
+        | CreateError::Split { line, .. }
+        | CreateError::Numeric { line, .. } => Some(row(import, *line)),
     };
     let messages = match e {
         CreateError::Verify(m) => m.clone(),
@@ -134,14 +148,25 @@ fn resolve_name(ctx: &BuildContext, name: &str) -> AccountName {
     let mapped = find_any(ctx.book, Some(CATEGORY_CSV_ACCOUNT_MAP), name).map(|a| (a, NameSource::Map));
     let previous = mapped.or_else(|| ctx.book.account_by_full_name(name).map(|a| (a.guid, NameSource::FullName)));
     let chosen = ctx.account_names.get(name).map(|a| (*a, NameSource::Param)).or(previous);
-    AccountName { name: name.to_owned(), account: chosen.map(|c| c.0), source: chosen.map(|c| c.1), previous: previous.map(|p| p.0) }
+    AccountName {
+        name: name.to_owned(),
+        account: chosen.map(|c| c.0),
+        source: chosen.map(|c| c.1),
+        previous: previous.map(|p| p.0),
+    }
 }
 
 /// Resolve every Account and Transfer Account text and record GnuCash's error on each line whose name means no
 /// account; a line using the base account gets an error when there is none.
 fn resolve_accounts(import: &mut TxImport, ctx: &BuildContext) -> Vec<AccountName> {
     let names: Vec<AccountName> = import.account_names(false).iter().map(|n| resolve_name(ctx, n)).collect();
-    let known = |text: &str| names.iter().find(|n| n.name == text).and_then(|n| n.account).or_else(|| resolve_name(ctx, text).account);
+    let known = |text: &str| {
+        names
+            .iter()
+            .find(|n| n.name == text)
+            .and_then(|n| n.account)
+            .or_else(|| resolve_name(ctx, text).account)
+    };
     (0..import.lines().len()).for_each(|i| {
         let Some(line) = import.line_mut(i) else { return };
         let split = &mut line.pre_split;
@@ -154,7 +179,10 @@ fn resolve_accounts(import: &mut TxImport, ctx: &BuildContext) -> Vec<AccountNam
             split.add_error(ColumnType::Account, "Account value can't be mapped back to an account.");
         }
         if split.transfer_account.as_deref().is_some_and(|text| known(text).is_none()) {
-            split.add_error(ColumnType::TransferAccount, "Transfer account value can't be mapped back to an account.");
+            split.add_error(
+                ColumnType::TransferAccount,
+                "Transfer account value can't be mapped back to an account.",
+            );
         }
     });
     names
@@ -166,9 +194,13 @@ fn resolve_accounts(import: &mut TxImport, ctx: &BuildContext) -> Vec<AccountNam
 pub fn parse_commodity(book: &Book, text: &str) -> Option<CommodityRef> {
     let known = |c: &CommodityRef| book.commodity(c).is_some() || (c.is_currency() && iso_currency(&c.mnemonic).is_some());
     let unique = text.split_once("::").map(|(ns, m)| CommodityRef::new(ns, m)).filter(known);
-    unique
-        .or_else(|| Some(CommodityRef::currency(text)).filter(known))
-        .or_else(|| book.commodities.keys().filter(|c| !c.is_currency()).find(|c| c.mnemonic == text).cloned())
+    unique.or_else(|| Some(CommodityRef::currency(text)).filter(known)).or_else(|| {
+        book.commodities
+            .keys()
+            .filter(|c| !c.is_currency())
+            .find(|c| c.mnemonic == text)
+            .cloned()
+    })
 }
 
 /// Each line's Transaction Commodity, resolved; an unknown one is an error on the line.
@@ -179,7 +211,8 @@ fn resolve_commodities(import: &mut TxImport, book: &Book) -> Vec<Option<Commodi
             let text = line.pre_trans.commodity.clone()?;
             let found = parse_commodity(book, &text);
             if found.is_none() {
-                line.pre_trans.add_error(ColumnType::Commodity, "Value can't be parsed into a valid commodity.");
+                line.pre_trans
+                    .add_error(ColumnType::Commodity, "Value can't be parsed into a valid commodity.");
             }
             found
         })
@@ -199,12 +232,19 @@ fn line_account(import: &TxImport, i: usize, ctx: &BuildContext, names: &[Accoun
 /// then `verify_column_selections`' column check (`gnc-import-tx.cpp:542-556`) and, per split,
 /// `verify_essentials`' (`gnc-imp-props-tx.cpp:654-670`), which GnuCash checks only when building the split and
 /// then drops it silently; red-ale makes it an error on the line. Returns the column check's message, if any.
-fn check_multi_currency(import: &mut TxImport, ctx: &BuildContext, names: &[AccountName], commodities: &[Option<CommodityRef>]) -> Vec<String> {
+fn check_multi_currency(
+    import: &mut TxImport,
+    ctx: &BuildContext,
+    names: &[AccountName],
+    commodities: &[Option<CommodityRef>],
+) -> Vec<String> {
     let states = import.line_states(false);
     let mut groups: BTreeMap<usize, (Vec<CommodityRef>, Vec<CommodityRef>)> = BTreeMap::new();
     states.iter().enumerate().for_each(|(i, s)| {
         let (alt, comms) = groups.entry(s.trans_line).or_default();
-        let Some(acc) = line_account(import, i, ctx, names).and_then(|a| ctx.book.account(a)) else { return };
+        let Some(acc) = line_account(import, i, ctx, names).and_then(|a| ctx.book.account(a)) else {
+            return;
+        };
         let (currency, commodity) = match &acc.commodity {
             Some(c) if c.is_currency() => (Some(c.clone()), None),
             other => (currency_or_parent(ctx.book, acc), other.clone()),
@@ -218,7 +258,12 @@ fn check_multi_currency(import: &mut TxImport, ctx: &BuildContext, names: &[Acco
             alt.len() + comms.len() + usize::from(extra) > 1
         })
     };
-    let multi_lines: Vec<usize> = states.iter().enumerate().filter(|(_, s)| multi(s.trans_line)).map(|(i, _)| i).collect();
+    let multi_lines: Vec<usize> = states
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| multi(s.trans_line))
+        .map(|(i, _)| i)
+        .collect();
     if multi_lines.is_empty() {
         return Vec::new();
     }
@@ -242,7 +287,10 @@ fn flag_unpriced(import: &mut TxImport, i: usize, multi_split: bool) {
     let priced = s.price.is_some() || s.value.is_some() || s.value_neg.is_some();
     let transferred = s.transfer_amount.is_some() || s.transfer_amount_neg.is_some();
     if multi_split && !priced {
-        s.add_error(ColumnType::Price, "Choice of accounts makes this a multi-currency transaction but price or (negated) value column is missing or invalid.");
+        s.add_error(
+            ColumnType::Price,
+            "Choice of accounts makes this a multi-currency transaction but price or (negated) value column is missing or invalid.",
+        );
     } else if !multi_split && !priced && !transferred {
         s.add_error(
             ColumnType::Price,
@@ -286,7 +334,11 @@ fn ignored_lines(import: &TxImport, states: &[LineState], file: usize) -> Vec<Ig
             } else {
                 return None;
             };
-            Some(IgnoredLine { file, line: row(import, i), reason })
+            Some(IgnoredLine {
+                file,
+                line: row(import, i),
+                reason,
+            })
         })
         .collect()
 }
@@ -308,27 +360,64 @@ impl Builder<'_> {
     }
 
     fn error(&self, line: usize, message: impl Into<String>) -> RowError {
-        RowError { file: self.ctx.file, line: row(self.import, line), column: None, message: message.into() }
+        RowError {
+            file: self.ctx.file,
+            line: row(self.import, line),
+            column: None,
+            message: message.into(),
+        }
     }
 
     /// `trans_properties_to_trans` and `GncPreTrans::create_trans` (`gnc-import-tx.cpp:629-678`,
     /// `gnc-imp-props-tx.cpp:323-362`), then each split (`GncPreSplit::create_split`), then the void.
     fn transaction(&self, draft: &DraftTransaction) -> Result<Built, RowError> {
         let book = self.ctx.book;
-        let first = draft.splits.first().ok_or_else(|| self.error(draft.line, "No split could be created for this transaction."))?;
-        let account = self.account(&first.account).and_then(|a| book.account(a)).ok_or_else(|| self.error(first.line, "Account value can't be mapped back to an account."))?;
-        let fallback = account.commodity.clone().filter(CommodityRef::is_currency).or_else(|| currency_or_parent(book, account));
-        let column = self.commodities.get(draft.line).cloned().flatten().filter(CommodityRef::is_currency);
-        let currency = column.or(fallback).ok_or_else(|| self.error(draft.line, format!("Account {} has no currency to use for the transaction.", account.name)))?;
+        let first = draft
+            .splits
+            .first()
+            .ok_or_else(|| self.error(draft.line, "No split could be created for this transaction."))?;
+        let account = self
+            .account(&first.account)
+            .and_then(|a| book.account(a))
+            .ok_or_else(|| self.error(first.line, "Account value can't be mapped back to an account."))?;
+        let fallback = account
+            .commodity
+            .clone()
+            .filter(CommodityRef::is_currency)
+            .or_else(|| currency_or_parent(book, account));
+        let column = self
+            .commodities
+            .get(draft.line)
+            .cloned()
+            .flatten()
+            .filter(CommodityRef::is_currency);
+        let currency = column.or(fallback).ok_or_else(|| {
+            self.error(
+                draft.line,
+                format!("Account {} has no currency to use for the transaction.", account.name),
+            )
+        })?;
         let mut t = self.new_transaction(draft, currency);
         let mut last = None;
         draft.splits.iter().try_for_each(|s| self.add_splits(&mut t, s, &mut last))?;
         if let Some(reason) = &draft.void_reason {
             void_detached(book, self.ctx.now, &mut t, reason).map_err(|e| self.error(draft.line, e.to_string()))?;
         }
-        let lines = std::iter::once(draft.line).chain(draft.splits.iter().map(|s| s.line)).map(|l| row(self.import, l));
+        let lines = std::iter::once(draft.line)
+            .chain(draft.splits.iter().map(|s| s.line))
+            .map(|l| row(self.import, l));
         let (first_line, last_line) = lines.fold((usize::MAX, 0), |(lo, hi), l| (lo.min(l), hi.max(l)));
-        Ok(Built { imported: ImportedTransaction { transaction: t, last_split: last }, source: Source { file: self.ctx.file, first_line, last_line } })
+        Ok(Built {
+            imported: ImportedTransaction {
+                transaction: t,
+                last_split: last,
+            },
+            source: Source {
+                file: self.ctx.file,
+                first_line,
+                last_line,
+            },
+        })
     }
 
     fn new_transaction(&self, draft: &DraftTransaction, currency: CommodityRef) -> Transaction {
@@ -352,14 +441,31 @@ impl Builder<'_> {
     fn add_splits(&self, t: &mut Transaction, s: &DraftSplit, last: &mut Option<LastSplitInfo>) -> Result<(), RowError> {
         let book = self.ctx.book;
         let fail = |e: &dyn std::fmt::Display| self.error(s.line, e.to_string());
-        let account = self.account(&s.account).ok_or_else(|| self.error(s.line, "Account value can't be mapped back to an account."))?;
+        let account = self
+            .account(&s.account)
+            .ok_or_else(|| self.error(s.line, "Account value can't be mapped back to an account."))?;
         let in_currency = |a: Guid| book.account(a).and_then(|a| a.commodity.as_ref()) == Some(&t.currency);
-        let value = s.split_value(in_currency(account), || self.nearest(account, t)).map_err(|e| fail(&e))?;
-        let split = self.split(t, account, s.amount, value, s.action.clone(), s.memo.clone(), s.reconcile, s.reconcile_date).map_err(|e| fail(&e))?;
+        let value = s
+            .split_value(in_currency(account), || self.nearest(account, t))
+            .map_err(|e| fail(&e))?;
+        let split = self
+            .split(
+                t,
+                account,
+                s.amount,
+                value,
+                s.action.clone(),
+                s.memo.clone(),
+                s.reconcile,
+                s.reconcile_date,
+            )
+            .map_err(|e| fail(&e))?;
         t.splits.push(split);
         let transfer = s.transfer.account.as_ref().and_then(|text| self.accounts.get(text).copied());
         let transfer_amount = match transfer {
-            Some(ta) => s.transfer_amount(value, in_currency(ta), || self.nearest(ta, t)).map_err(|e| fail(&e))?,
+            Some(ta) => s
+                .transfer_amount(value, in_currency(ta), || self.nearest(ta, t))
+                .map_err(|e| fail(&e))?,
             None => None,
         };
         match (transfer, transfer_amount) {
@@ -367,10 +473,18 @@ impl Builder<'_> {
                 let tr = &s.transfer;
                 let state = tr.reconcile.filter(|r| *r != ReconcileState::New);
                 let date = tr.reconcile_date.filter(|_| state == Some(ReconcileState::Reconciled));
-                let split = self.split(t, ta, amount, value.neg(), tr.action.clone(), tr.memo.clone(), state, date).map_err(|e| fail(&e))?;
+                let split = self
+                    .split(t, ta, amount, value.neg(), tr.action.clone(), tr.memo.clone(), state, date)
+                    .map_err(|e| fail(&e))?;
                 t.splits.push(split);
             }
-            _ => *last = Some(LastSplitInfo { price: s.price, amount: s.transfer.amount, account: transfer }),
+            _ => {
+                *last = Some(LastSplitInfo {
+                    price: s.price,
+                    amount: s.transfer.amount,
+                    account: transfer,
+                })
+            }
         }
         Ok(())
     }
@@ -391,7 +505,12 @@ impl Builder<'_> {
         date: Option<Date>,
     ) -> Result<Split, DomainError> {
         let book = self.ctx.book;
-        let mut split = Split::new(placeholder_guid(), account, round_value(book, &t.currency, value)?, round_amount(book, account, amount)?);
+        let mut split = Split::new(
+            placeholder_guid(),
+            account,
+            round_value(book, &t.currency, value)?,
+            round_amount(book, account, amount)?,
+        );
         split.action = action;
         split.memo = memo;
         if let Some(state) = state {
@@ -404,8 +523,18 @@ impl Builder<'_> {
     /// `gnc_pricedb_lookup_nearest_in_time64` between the account's commodity and the transaction currency.
     fn nearest(&self, account: Guid, t: &Transaction) -> Option<NearestPrice> {
         let commodity = self.ctx.book.account(account)?.commodity.clone()?;
-        let price = nearest(self.ctx.book, &commodity, &t.currency, t.date_posted, Nearest::Nearest, self.ctx.zone)?;
-        Some(NearestPrice { value: price.value, in_transaction_currency: price.currency == t.currency })
+        let price = nearest(
+            self.ctx.book,
+            &commodity,
+            &t.currency,
+            t.date_posted,
+            Nearest::Nearest,
+            self.ctx.zone,
+        )?;
+        Some(NearestPrice {
+            value: price.value,
+            in_transaction_currency: price.currency == t.currency,
+        })
     }
 }
 

@@ -18,5 +18,8 @@ fn gnucash_saves_a_synthetic_book_byte_for_byte() {
     oracle::run_script(&script, &[&book.path_str(), &resaved.display().to_string()]).unwrap();
     let gnucash = std::fs::read_to_string(&resaved).unwrap();
     let first = text.lines().zip(gnucash.lines()).position(|(a, b)| a != b);
-    assert!(gnucash == text, "GnuCash rewrote the synthetic book; first difference at line {first:?}");
+    assert!(
+        gnucash == text,
+        "GnuCash rewrote the synthetic book; first difference at line {first:?}"
+    );
 }

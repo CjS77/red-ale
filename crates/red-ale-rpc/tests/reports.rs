@@ -82,7 +82,11 @@ impl Setup {
         let config = json!({ "reports": { "directory": "reports", "limits": { "operations": 200_000 }, "dateFormat": "iso" } });
         std::fs::write(dir.path().join("config.json"), config.to_string()).unwrap();
         let book = dir.path().join("book.gnucash");
-        std::fs::copy(format!("{}/../../fixtures/reports/balsheet-pnl.gnucash", env!("CARGO_MANIFEST_DIR")), &book).unwrap();
+        std::fs::copy(
+            format!("{}/../../fixtures/reports/balsheet-pnl.gnucash", env!("CARGO_MANIFEST_DIR")),
+            &book,
+        )
+        .unwrap();
         let d = dispatcher(&dir.path().join("config.json"));
         Self { dir, d }
     }
@@ -101,11 +105,16 @@ impl Setup {
     }
 
     fn call(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     fn err(&mut self, method: &str, params: Value) -> RpcError {
-        self.d.call(method, params.clone()).err().unwrap_or_else(|| panic!("{method} {params} should fail"))
+        self.d
+            .call(method, params.clone())
+            .err()
+            .unwrap_or_else(|| panic!("{method} {params} should fail"))
     }
 
     /// Files in the book's directory, to see that nothing was written beside the book.
@@ -120,7 +129,10 @@ impl Setup {
 /// A dispatcher keeping its Configuration in `config`, with a fixed clock. Each environment it makes counts GUIDs
 /// from its own seed, so a configuration saved with no book open never gets a GUID a later session hands out.
 fn dispatcher(config: &Path) -> Dispatcher {
-    let settings = Settings { config: ConfigStore::at(PathBuf::from(config)), ..Settings::default() };
+    let settings = Settings {
+        config: ConfigStore::at(PathBuf::from(config)),
+        ..Settings::default()
+    };
     let mut d = Dispatcher::new(settings);
     let made = AtomicU32::new(0);
     d.set_env_factory(Box::new(move || {
@@ -132,7 +144,12 @@ fn dispatcher(config: &Path) -> Dispatcher {
 
 /// The user templates and saved configurations of a `report.list` result, leaving out the built-in reports.
 fn listed(list: &Value) -> Vec<&Value> {
-    list["reports"].as_array().unwrap().iter().filter(|r| r["kind"] != "builtin").collect()
+    list["reports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["kind"] != "builtin")
+        .collect()
 }
 
 fn names(list: &Value) -> Vec<&str> {
@@ -156,7 +173,10 @@ fn list_gives_every_template_and_the_scripts_that_did_not_load() {
     assert_eq!(user[2]["inMenu"], false, "templates out of the menus are listed too");
     let problems = list["problems"].as_array().unwrap();
     assert_eq!(problems.len(), 1, "{problems:?}");
-    assert_eq!((problems[0]["source"].as_str(), problems[0]["code"].as_str()), (Some("./broken.rhai"), Some("report-load")));
+    assert_eq!(
+        (problems[0]["source"].as_str(), problems[0]["code"].as_str()),
+        (Some("./broken.rhai"), Some("report-load"))
+    );
     assert_eq!(problems[0]["line"], 1);
 }
 
@@ -171,12 +191,29 @@ fn options_describe_defaults_values_and_the_params_schema_without_a_book() {
         .iter()
         .map(|o| format!("{}/{}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap()))
         .collect();
-    let expected = ["Accounts/Accounts", "Display/Levels", "Display/Show Chart", "General/Report name", "General/Stylesheet"];
+    let expected = [
+        "Accounts/Accounts",
+        "Display/Levels",
+        "Display/Show Chart",
+        "General/Report name",
+        "General/Stylesheet",
+    ];
     assert_eq!(described[..5], expected[..], "sections by name, options by key: {described:?}");
-    let stylesheet = options["options"].as_array().unwrap().iter().find(|o| o["name"] == "Stylesheet").unwrap();
+    let stylesheet = options["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["name"] == "Stylesheet")
+        .unwrap();
     assert_eq!(stylesheet["choices"].as_array().unwrap().len(), 6, "the predefined style sheets");
-    assert_eq!(options["paramsSchema"]["properties"]["Display"]["properties"]["Levels"]["default"], json!(2));
-    assert_eq!(s.err("report.options", json!({ "report": "No Such Report" })).code, codes::NOT_FOUND);
+    assert_eq!(
+        options["paramsSchema"]["properties"]["Display"]["properties"]["Levels"]["default"],
+        json!(2)
+    );
+    assert_eq!(
+        s.err("report.options", json!({ "report": "No Such Report" })).code,
+        codes::NOT_FOUND
+    );
 }
 
 #[test]
@@ -185,7 +222,10 @@ fn running_and_exporting_leave_the_book_as_it_was() {
     s.open(false);
     let before = s.d.context().book().unwrap().clone();
     let files = s.files();
-    let result = s.call("report.run", json!({ "report": "Account Listing", "options": { "Display": { "Levels": 3 } } }));
+    let result = s.call(
+        "report.run",
+        json!({ "report": "Account Listing", "options": { "Display": { "Levels": 3 } } }),
+    );
     assert_eq!(result["report"]["guid"], LISTING);
     assert_eq!(result["now"], "2024-03-15T12:00:00Z", "now comes from the session's clock");
     assert_eq!(result["options"]["Display"]["Levels"], json!(3));
@@ -204,9 +244,17 @@ fn reports_run_on_a_read_only_book_and_need_one() {
     let mut s = Setup::new();
     assert_eq!(s.err("report.run", json!({ "report": "Account Listing" })).code, codes::NO_BOOK);
     s.open(true);
-    let result = s.call("report.run", json!({ "report": "Account Listing", "now": "2024-01-31T23:00:00-02:00" }));
+    let result = s.call(
+        "report.run",
+        json!({ "report": "Account Listing", "now": "2024-01-31T23:00:00-02:00" }),
+    );
     assert_eq!(result["now"], "2024-02-01T01:00:00Z", "the caller's now");
-    assert!(s.call("report.export", json!({ "report": "Account Listing" }))["html"].as_str().unwrap().starts_with("<!DOCTYPE html>"));
+    assert!(
+        s.call("report.export", json!({ "report": "Account Listing" }))["html"]
+            .as_str()
+            .unwrap()
+            .starts_with("<!DOCTYPE html>")
+    );
 }
 
 #[test]
@@ -241,16 +289,28 @@ fn errors_carry_the_report_codes() {
     let err = s.err("report.run", json!({ "report": SPINS }));
     assert_eq!(err.code, codes::REPORT_LIMIT);
     assert_eq!(err.data.unwrap()["limit"], "operations", "reports.limits.operations applies");
-    let err = s.err("report.run", json!({ "report": "Account Listing", "options": { "Display": { "Levels": 11 } } }));
+    let err = s.err(
+        "report.run",
+        json!({ "report": "Account Listing", "options": { "Display": { "Levels": 11 } } }),
+    );
     assert_eq!(err.code, codes::REPORT_OPTION);
     assert_eq!(err.data.unwrap()["name"], "Levels");
-    let err = s.err("report.run", json!({ "report": "Account Listing", "options": { "Display": { "Levels": 2 } }, "nope": 1 }));
+    let err = s.err(
+        "report.run",
+        json!({ "report": "Account Listing", "options": { "Display": { "Levels": 2 } }, "nope": 1 }),
+    );
     assert_eq!(err.code, codes::INVALID_PARAMS, "unknown params are refused");
     std::fs::write(s.dir.path().join("reports/mine/listing.rhai"), "fn templates() { [] ").unwrap();
     let err = s.err("report.run", json!({ "report": LISTING }));
     assert_eq!(err.code, codes::NOT_FOUND, "a script that no longer loads defines nothing");
     let problems = s.call("report.list", json!({}))["problems"].clone();
-    assert!(problems.as_array().unwrap().iter().any(|p| p["source"] == "./mine/listing.rhai" && p["code"] == "report-load"));
+    assert!(
+        problems
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["source"] == "./mine/listing.rhai" && p["code"] == "report-load")
+    );
 }
 
 #[test]
@@ -263,7 +323,11 @@ fn saved_configurations_round_trip_through_the_configuration_file() {
     assert_eq!((saved["kind"].as_str(), saved["template"].as_str()), (Some("saved"), Some(LISTING)));
     let guid = saved["guid"].as_str().unwrap().to_owned();
     let stored = s.config()["reports"]["saved"].clone();
-    assert_eq!(stored[0]["options"], json!({ "Display": { "Levels": 4 } }), "only what differs from the defaults");
+    assert_eq!(
+        stored[0]["options"],
+        json!({ "Display": { "Levels": 4 } }),
+        "only what differs from the defaults"
+    );
     assert_eq!(s.config()["reports"]["dateFormat"], "iso", "other keys are kept");
 
     let err = s.err("report.saveConfiguration", json!({ "name": "Deep", "report": "Account Listing" }));
@@ -273,11 +337,20 @@ fn saved_configurations_round_trip_through_the_configuration_file() {
     assert_eq!(err.code, codes::REPORT_OPTION);
 
     let options = s.call("report.options", json!({ "report": "Deep" }));
-    let levels = options["options"].as_array().unwrap().iter().find(|o| o["name"] == "Levels").unwrap().clone();
+    let levels = options["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["name"] == "Levels")
+        .unwrap()
+        .clone();
     assert_eq!((levels["default"].clone(), levels["value"].clone()), (json!(2), json!(4)));
 
     s.open(true);
-    let run = s.call("report.run", json!({ "report": guid, "options": { "General": { "Report Title": "Mine" } } }));
+    let run = s.call(
+        "report.run",
+        json!({ "report": guid, "options": { "General": { "Report Title": "Mine" } } }),
+    );
     assert_eq!(run["report"]["configuration"], json!(guid));
     let seen = (run["title"].as_str(), run["log"][0]["text"].as_str());
     assert_eq!(seen, (Some("Mine"), Some("levels=4")), "saved values, then the caller's");
@@ -287,65 +360,164 @@ fn saved_configurations_round_trip_through_the_configuration_file() {
     let changes = json!({ "configuration": "Deep", "options": { "Display": { "Levels": null, "Show Chart": false } } });
     let updated = s.call("report.updateConfiguration", changes);
     assert_eq!(updated["guid"], json!(guid));
-    assert_eq!(s.config()["reports"]["saved"][0]["options"], json!({ "Display": { "Show Chart": false } }), "null returns to the default");
-    assert_eq!(s.err("report.updateConfiguration", json!({ "configuration": "Account Listing", "options": {} })).code, codes::NOT_FOUND);
+    assert_eq!(
+        s.config()["reports"]["saved"][0]["options"],
+        json!({ "Display": { "Show Chart": false } }),
+        "null returns to the default"
+    );
+    assert_eq!(
+        s.err(
+            "report.updateConfiguration",
+            json!({ "configuration": "Account Listing", "options": {} })
+        )
+        .code,
+        codes::NOT_FOUND
+    );
 
     s.call("report.saveConfiguration", json!({ "name": "Shared", "report": "Deep" }));
     let err = s.err("report.run", json!({ "report": "Shared" }));
     assert_eq!(err.code, codes::CONFLICT, "a template and a saved configuration share the name");
     assert_eq!(err.data.unwrap()["matches"].as_array().unwrap().len(), 2);
-    assert_eq!(s.config()["reports"]["saved"][1]["template"], LISTING, "a configuration of a configuration configures its template");
-    assert_eq!(s.err("report.renameConfiguration", json!({ "configuration": "Shared", "name": "Deep" })).code, codes::CONFLICT);
+    assert_eq!(
+        s.config()["reports"]["saved"][1]["template"],
+        LISTING,
+        "a configuration of a configuration configures its template"
+    );
+    assert_eq!(
+        s.err("report.renameConfiguration", json!({ "configuration": "Shared", "name": "Deep" }))
+            .code,
+        codes::CONFLICT
+    );
     let renamed = s.call("report.renameConfiguration", json!({ "configuration": "Shared", "name": "Copy" }));
     assert_eq!(renamed["name"], "Copy");
     let list = s.call("report.list", json!({}));
-    assert_eq!(names(&list), ["Account Listing", "Copy", "Deep", "Invalid", "Shared", "Spins", "Throws"]);
+    assert_eq!(
+        names(&list),
+        ["Account Listing", "Copy", "Deep", "Invalid", "Shared", "Spins", "Throws"]
+    );
 
     let deleted = s.call("report.deleteConfiguration", json!({ "configuration": guid }));
     assert_eq!(deleted["deleted"]["name"], "Deep");
     assert_eq!(s.config()["reports"]["saved"].as_array().unwrap().len(), 1);
-    assert_eq!(s.err("report.deleteConfiguration", json!({ "configuration": "Deep" })).code, codes::NOT_FOUND);
-    assert_eq!(s.call("book.info", json!({}))["dirty"], false, "Configuration methods never touch the Book");
+    assert_eq!(
+        s.err("report.deleteConfiguration", json!({ "configuration": "Deep" })).code,
+        codes::NOT_FOUND
+    );
+    assert_eq!(
+        s.call("book.info", json!({}))["dirty"],
+        false,
+        "Configuration methods never touch the Book"
+    );
 }
 
 #[test]
 fn style_sheets_are_created_changed_and_deleted_in_the_configuration() {
     let mut s = Setup::new();
     let list = s.call("report.styleSheets", json!({}));
-    let templates: Vec<&str> = list["templates"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
+    let templates: Vec<&str> = list["templates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
     assert_eq!(templates, ["CSS", "Easy", "Fancy", "Footer", "Head or Tail", "Plain"]);
-    let sheets: Vec<&str> = list["styleSheets"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
-    assert_eq!(sheets, ["CSS-based stylesheet (experimental)", "Default", "Easy", "Footer", "Head or Tail", "Technicolor"]);
+    let sheets: Vec<&str> = list["styleSheets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        sheets,
+        [
+            "CSS-based stylesheet (experimental)",
+            "Default",
+            "Easy",
+            "Footer",
+            "Head or Tail",
+            "Technicolor"
+        ]
+    );
 
     let options = json!({ "General": { "Preparer": "A. Bookkeeper" }, "Images": { "Logo": "logo.png" } });
-    let created = s.call("report.createStyleSheet", json!({ "name": "Mine", "template": "Footer", "options": options }));
-    assert_eq!((created["template"].as_str(), created["predefined"].as_bool()), (Some("Footer"), Some(false)));
-    assert_eq!(s.config()["reports"]["styleSheets"][0]["options"], options, "image options are kept though red-ale ignores them");
-    assert_eq!(s.err("report.createStyleSheet", json!({ "name": "Mine", "template": "Plain" })).code, codes::CONFLICT);
-    assert_eq!(s.err("report.createStyleSheet", json!({ "name": "Other", "template": "Gothic" })).code, codes::NOT_FOUND);
+    let created = s.call(
+        "report.createStyleSheet",
+        json!({ "name": "Mine", "template": "Footer", "options": options }),
+    );
+    assert_eq!(
+        (created["template"].as_str(), created["predefined"].as_bool()),
+        (Some("Footer"), Some(false))
+    );
+    assert_eq!(
+        s.config()["reports"]["styleSheets"][0]["options"],
+        options,
+        "image options are kept though red-ale ignores them"
+    );
+    assert_eq!(
+        s.err("report.createStyleSheet", json!({ "name": "Mine", "template": "Plain" }))
+            .code,
+        codes::CONFLICT
+    );
+    assert_eq!(
+        s.err("report.createStyleSheet", json!({ "name": "Other", "template": "Gothic" }))
+            .code,
+        codes::NOT_FOUND
+    );
     let css = json!({ "General": { "CSS": "body { background: url(http://x) }" } });
-    assert_eq!(s.err("report.createStyleSheet", json!({ "name": "Other", "template": "CSS", "options": css })).code, codes::REPORT_OPTION);
+    assert_eq!(
+        s.err(
+            "report.createStyleSheet",
+            json!({ "name": "Other", "template": "CSS", "options": css })
+        )
+        .code,
+        codes::REPORT_OPTION
+    );
 
     let general = json!({ "Preparer": null, "Prepared for": "B", "Show preparer info": true });
-    s.call("report.updateStyleSheet", json!({ "name": "Mine", "options": { "General": general } }));
+    s.call(
+        "report.updateStyleSheet",
+        json!({ "name": "Mine", "options": { "General": general } }),
+    );
     let stored = &s.config()["reports"]["styleSheets"][0]["options"];
     let general = json!({ "Prepared for": "B", "Show preparer info": true });
-    assert_eq!(stored, &json!({ "General": general, "Images": { "Logo": "logo.png" } }), "merged, not replaced");
-    s.call("report.updateStyleSheet", json!({ "name": "Default", "options": { "Tables": { "Table border width": 3 } } }));
-    assert_eq!(s.err("report.updateStyleSheet", json!({ "name": "Nope", "options": {} })).code, codes::NOT_FOUND);
+    assert_eq!(
+        stored,
+        &json!({ "General": general, "Images": { "Logo": "logo.png" } }),
+        "merged, not replaced"
+    );
+    s.call(
+        "report.updateStyleSheet",
+        json!({ "name": "Default", "options": { "Tables": { "Table border width": 3 } } }),
+    );
+    assert_eq!(
+        s.err("report.updateStyleSheet", json!({ "name": "Nope", "options": {} })).code,
+        codes::NOT_FOUND
+    );
 
     let styled = json!({ "name": "Styled", "report": "Account Listing", "options": { "General": { "Stylesheet": "Mine" } } });
     s.call("report.saveConfiguration", styled);
     s.open(true);
-    let styled = s.call("report.export", json!({ "report": "Styled" }))["html"].as_str().unwrap().to_owned();
-    assert!(styled.contains("sheet-footer") && styled.contains("Prepared for: <b>B</b>"), "{styled}");
+    let styled = s.call("report.export", json!({ "report": "Styled" }))["html"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(
+        styled.contains("sheet-footer") && styled.contains("Prepared for: <b>B</b>"),
+        "{styled}"
+    );
 
     let deleted = s.call("report.deleteStyleSheet", json!({ "name": "Mine" }));
     assert_eq!(deleted["reset"], false);
-    let base = s.call("report.export", json!({ "report": "Styled" }))["html"].as_str().unwrap().to_owned();
+    let base = s.call("report.export", json!({ "report": "Styled" }))["html"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(base.contains("sheet-none"), "a deleted style sheet renders with the base look");
     let run = s.call("report.run", json!({ "report": "Styled" }));
-    assert_eq!(run["options"]["General"]["Stylesheet"], "Mine", "the saved configuration still names it");
+    assert_eq!(
+        run["options"]["General"]["Stylesheet"], "Mine",
+        "the saved configuration still names it"
+    );
     let reset = s.call("report.deleteStyleSheet", json!({ "name": "Default" }));
     assert_eq!(reset["reset"], true);
     assert_eq!(s.config()["reports"]["styleSheets"], json!([]));
@@ -366,13 +538,28 @@ fn configuration_methods_work_with_no_book_and_declare_their_target() {
     ["report.list", "report.options", "report.run", "report.export", "report.styleSheets"]
         .iter()
         .for_each(|m| assert_eq!(declared(m), expect("read", Value::Null), "{m}"));
-    let writes = ["saveConfiguration", "updateConfiguration", "renameConfiguration", "createStyleSheet", "updateStyleSheet"];
-    writes.iter().for_each(|m| assert_eq!(declared(&format!("report.{m}")), expect("write", json!("configuration")), "{m}"));
+    let writes = [
+        "saveConfiguration",
+        "updateConfiguration",
+        "renameConfiguration",
+        "createStyleSheet",
+        "updateStyleSheet",
+    ];
+    writes
+        .iter()
+        .for_each(|m| assert_eq!(declared(&format!("report.{m}")), expect("write", json!("configuration")), "{m}"));
     ["report.deleteConfiguration", "report.deleteStyleSheet"]
         .iter()
         .for_each(|m| assert_eq!(declared(m), expect("destructive", json!("configuration")), "{m}"));
-    let errors: Vec<(i64, &str)> =
-        schema["errors"].as_array().unwrap().iter().map(|e| (e["code"].as_i64().unwrap(), e["name"].as_str().unwrap())).collect();
+    let errors: Vec<(i64, &str)> = schema["errors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| (e["code"].as_i64().unwrap(), e["name"].as_str().unwrap()))
+        .collect();
     let names = ["report-script", "report-limit", "report-option", "report-result", "report-load"];
-    names.iter().zip(3000..).for_each(|(name, code)| assert!(errors.contains(&(code, *name)), "{code} {name}"));
+    names
+        .iter()
+        .zip(3000..)
+        .for_each(|(name, code)| assert!(errors.contains(&(code, *name)), "{code} {name}"));
 }

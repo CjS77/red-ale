@@ -102,7 +102,11 @@ fn fast_numeral_rational(s: &str) -> Option<(i128, i128)> {
 /// `gnc-numeric.cpp:154-173`.
 fn numeric_from_decimal_match(integer: &str, decimal: &str) -> Option<(i128, i128)> {
     let neg = integer.starts_with('-');
-    let high = if (neg && integer.len() > 1) || (!neg && !integer.is_empty()) { stoll(integer)? } else { 0 };
+    let high = if (neg && integer.len() > 1) || (!neg && !integer.is_empty()) {
+        stoll(integer)?
+    } else {
+        0
+    };
     let low = if decimal.is_empty() { 0 } else { stoll(decimal)? };
     let mut exp10 = decimal.len();
     let d = powten(exp10);
@@ -187,7 +191,8 @@ fn from_patterns(s: &str) -> Option<(i128, i128)> {
 
 /// `has_hex_prefix` on the text before the scientific match: `.*0[xX]$`. `gnc-numeric.cpp:281`, `:334`.
 fn has_hex_prefix(s: &str, m: &Captures) -> bool {
-    m.get(0).is_some_and(|whole| s[..whole.start()].ends_with("0x") || s[..whole.start()].ends_with("0X"))
+    m.get(0)
+        .is_some_and(|whole| s[..whole.start()].ends_with("0x") || s[..whole.start()].ends_with("0X"))
 }
 
 /// The groups of `sep_decimal`: captures 1 to 5 and 6 for the first form, 7 to 11 and 12 for the second.

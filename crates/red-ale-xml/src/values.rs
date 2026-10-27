@@ -15,7 +15,10 @@ pub struct Notices {
 }
 
 pub(crate) fn malformed(element: &str, message: impl Into<String>) -> XmlError {
-    XmlError::Malformed { element: element.to_owned(), message: message.into() }
+    XmlError::Malformed {
+        element: element.to_owned(),
+        message: message.into(),
+    }
 }
 
 /// `guid_to_dom_tree`: `<tag type="guid">hex</tag>`.
@@ -65,7 +68,9 @@ pub fn gdate_el(tag: &str, d: Date) -> Element {
 
 /// `commodity_ref_to_dom_tree`.
 pub fn commodity_ref_el(tag: &str, c: &CommodityRef) -> Element {
-    Element::new(tag).child(Element::text_child("cmdty:space", &c.namespace)).child(Element::text_child("cmdty:id", &c.mnemonic))
+    Element::new(tag)
+        .child(Element::text_child("cmdty:space", &c.namespace))
+        .child(Element::text_child("cmdty:id", &c.mnemonic))
 }
 
 /// The text of an element, required.
@@ -84,7 +89,10 @@ pub fn parse_guid(el: &Element) -> Result<Guid, XmlError> {
 
 /// Parse an integer element, trimming ASCII whitespace.
 pub fn parse_int(el: &Element) -> Result<i64, XmlError> {
-    el.text_content().trim().parse().map_err(|_| malformed(&el.name, format!("not an integer: {:?}", el.text_content())))
+    el.text_content()
+        .trim()
+        .parse()
+        .map_err(|_| malformed(&el.name, format!("not an integer: {:?}", el.text_content())))
 }
 
 /// Parse a `0`/`1` integer boolean (any non-zero integer is true).
@@ -163,7 +171,10 @@ fn slot_value_el(value: &SlotValue) -> Element {
 pub fn parse_slots(el: &Element, notices: &mut Notices) -> Result<Frame, XmlError> {
     let mut frame = Frame::new();
     for slot in el.elements().filter(|e| e.name == "slot") {
-        let key = slot.find("slot:key").map(Element::text_content).ok_or_else(|| malformed("slot", "missing slot:key"))?;
+        let key = slot
+            .find("slot:key")
+            .map(Element::text_content)
+            .ok_or_else(|| malformed("slot", "missing slot:key"))?;
         let Some(value_el) = slot.find("slot:value") else {
             notices.unrecognised.push(format!("slot {key:?} has no value"));
             continue;
@@ -172,7 +183,9 @@ pub fn parse_slots(el: &Element, notices: &mut Notices) -> Result<Frame, XmlErro
             Some(value) => {
                 frame.insert_key(key, value);
             }
-            None => notices.unrecognised.push(format!("slot {key:?} has unknown type {:?}", value_el.get_attr("type"))),
+            None => notices
+                .unrecognised
+                .push(format!("slot {key:?} has unknown type {:?}", value_el.get_attr("type"))),
         }
     }
     Ok(frame)

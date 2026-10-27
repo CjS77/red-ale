@@ -197,7 +197,10 @@ impl Transaction {
     /// True for a book-closing transaction (`xaccTransGetIsClosingTxn`,
     /// `5.17:libgnucash/engine/Transaction.cpp:2228-2234`).
     pub fn is_closing(&self) -> bool {
-        self.slots.get(slot_paths::BOOK_CLOSING).and_then(SlotValue::as_int).is_some_and(|i| i != 0)
+        self.slots
+            .get(slot_paths::BOOK_CLOSING)
+            .and_then(SlotValue::as_int)
+            .is_some_and(|i| i != 0)
     }
 
     /// The transaction type character from the `trans-txn-type` slot.
@@ -228,7 +231,9 @@ fn parse_void_time(s: &str) -> Option<Time64> {
 
 /// Split a trailing `[+-]HH[[:]MM]` zone, after optional spaces, from a time string; the offset in seconds.
 fn split_zone(s: &str) -> (&str, Option<i64>) {
-    let Some(idx) = s.rfind(['+', '-']).filter(|&i| i >= 10) else { return (s, None) };
+    let Some(idx) = s.rfind(['+', '-']).filter(|&i| i >= 10) else {
+        return (s, None);
+    };
     let zone: String = s[idx + 1..].chars().filter(|c| *c != ':').collect();
     if !matches!(zone.len(), 2 | 4) || !zone.bytes().all(|b| b.is_ascii_digit()) {
         return (s, None);

@@ -9,7 +9,9 @@
 use std::sync::Arc;
 
 use crate::account::slot_paths;
-use crate::{Account, Book, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, SlotValue, Split, Time64, TimeZone, Transaction};
+use crate::{
+    Account, Book, Date, DomainError, DomainResult, Env, Guid, Numeric, ReconcileState, SlotValue, Split, Time64, TimeZone, Transaction,
+};
 
 /// `reconcile-info/include-children`: whether the last reconciliation included sub-accounts.
 pub const INCLUDE_CHILDREN: &str = "reconcile-info/include-children";
@@ -76,7 +78,10 @@ pub fn reconcile_info(account: &Account) -> ReconcileInfo {
         last_date: slot_int(account, slot_paths::RECONCILE_LAST_DATE).map(Time64),
         last_interval: months.zip(days).map(|(months, days)| Interval { months, days }),
         postpone_date: slot_int(account, slot_paths::RECONCILE_POSTPONE_DATE).map(Time64),
-        postpone_balance: account.slots.get(slot_paths::RECONCILE_POSTPONE_BALANCE).and_then(SlotValue::as_numeric),
+        postpone_balance: account
+            .slots
+            .get(slot_paths::RECONCILE_POSTPONE_BALANCE)
+            .and_then(SlotValue::as_numeric),
         include_children: slot_bool(account, INCLUDE_CHILDREN),
     }
 }
@@ -112,7 +117,9 @@ pub fn set_postponed(account: &mut Account, postponed: Option<Postponed>) {
     match postponed {
         Some(p) => {
             account.slots.set(slot_paths::RECONCILE_POSTPONE_DATE, SlotValue::Integer(p.date.0));
-            account.slots.set(slot_paths::RECONCILE_POSTPONE_BALANCE, SlotValue::Numeric(p.balance));
+            account
+                .slots
+                .set(slot_paths::RECONCILE_POSTPONE_BALANCE, SlotValue::Numeric(p.balance));
         }
         None => drop(account.slots.remove(POSTPONE)),
     }
@@ -126,11 +133,18 @@ pub fn set_include_children(account: &mut Account, include: bool) {
 
 /// The account, mutably.
 pub fn account_mut(book: &mut Book, guid: Guid) -> DomainResult<&mut Account> {
-    book.accounts.get_mut(&guid).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("account", &guid))
+    book.accounts
+        .get_mut(&guid)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("account", &guid))
 }
 
 fn split_in_txn_mut(book: &mut Book, txn: Guid, split: Guid) -> DomainResult<&mut Split> {
-    let t = book.transactions.get_mut(&txn).map(Arc::make_mut).ok_or_else(|| DomainError::not_found("transaction", &txn))?;
+    let t = book
+        .transactions
+        .get_mut(&txn)
+        .map(Arc::make_mut)
+        .ok_or_else(|| DomainError::not_found("transaction", &txn))?;
     t.split_mut(split).ok_or_else(|| DomainError::not_found("split", &split))
 }
 
@@ -142,9 +156,13 @@ fn split_in_txn_mut(book: &mut Book, txn: Guid, split: Guid) -> DomainResult<&mu
 /// and the register makes voided transactions read-only), and `v` comes only from voiding. Setting `y` stamps the
 /// reconcile date (`date`, else now), so a reconciled split always says when; other states keep the stored date.
 pub fn set_split_state(book: &mut Book, env: &mut dyn Env, split: Guid, state: ReconcileState, date: Option<Time64>) -> DomainResult<()> {
-    let t = book.transaction_of_split(split).ok_or_else(|| DomainError::not_found("split", &split))?;
+    let t = book
+        .transaction_of_split(split)
+        .ok_or_else(|| DomainError::not_found("split", &split))?;
     if t.is_void() {
-        return Err(DomainError::conflict(format!("split {split} belongs to a voided transaction; unvoid it first")));
+        return Err(DomainError::conflict(format!(
+            "split {split} belongs to a voided transaction; unvoid it first"
+        )));
     }
     if state == ReconcileState::Voided {
         return Err(DomainError::invalid("the void state comes only from voiding the transaction"));
@@ -159,7 +177,11 @@ pub fn set_split_state(book: &mut Book, env: &mut dyn Env, split: Guid, state: R
     if current == Some(state) && date.is_none() {
         return Ok(());
     }
-    let stamp = if state == ReconcileState::Reconciled { Some(date.unwrap_or_else(|| env.now())) } else { None };
+    let stamp = if state == ReconcileState::Reconciled {
+        Some(date.unwrap_or_else(|| env.now()))
+    } else {
+        None
+    };
     let s = split_in_txn_mut(book, t.guid, split)?;
     s.reconcile_state = state;
     if stamp.is_some() {
@@ -233,14 +255,21 @@ pub fn default_statement_date(info: &ReconcileInfo, now: Time64, zone: &TimeZone
 
 /// The accounts a statement covers: the account, then its descendants if included.
 pub fn covered_accounts(book: &Book, account: Guid, include_children: bool) -> Vec<Guid> {
-    let children = if include_children { book.descendants(account).iter().map(|a| a.guid).collect() } else { Vec::new() };
+    let children = if include_children {
+        book.descendants(account).iter().map(|a| a.guid).collect()
+    } else {
+        Vec::new()
+    };
     std::iter::once(account).chain(children).collect()
 }
 
 fn covered_splits<'a>(book: &'a Book, accounts: &'a [Guid]) -> impl Iterator<Item = (&'a Transaction, &'a Split)> {
-    book.transactions
-        .values()
-        .flat_map(move |t| t.splits.iter().filter(move |s| s.account.is_some_and(|a| accounts.contains(&a))).map(move |s| (t.as_ref(), s)))
+    book.transactions.values().flat_map(move |t| {
+        t.splits
+            .iter()
+            .filter(move |s| s.account.is_some_and(|a| accounts.contains(&a)))
+            .map(move |s| (t.as_ref(), s))
+    })
 }
 
 fn sum(mut amounts: impl Iterator<Item = Numeric>) -> DomainResult<Numeric> {
@@ -251,24 +280,32 @@ fn sum(mut amounts: impl Iterator<Item = Numeric>) -> DomainResult<Numeric> {
 /// `5.17:libgnucash/engine/Account.cpp:3505-3525`). Stock-split adjustments do not apply to the currency accounts
 /// reconciled against statements.
 pub fn balance_as_of(book: &Book, accounts: &[Guid], date: Time64) -> DomainResult<Numeric> {
-    sum(covered_splits(book, accounts).filter(|(t, _)| t.date_posted < date).map(|(_, s)| s.amount))
+    sum(covered_splits(book, accounts)
+        .filter(|(t, _)| t.date_posted < date)
+        .map(|(_, s)| s.amount))
 }
 
 /// Fill in a statement's defaults as GnuCash's start dialog does (`startRecnWindow` and `recn_date_changed_cb`,
 /// `5.17:gnucash/gnome/window-reconcile.cpp:449-512`, `:757-947`): the ending balance is the postponed balance when the
 /// date was not changed, else the balance as of the statement date.
 pub fn prepare(book: &Book, now: Time64, request: &Request) -> DomainResult<Prepared> {
-    let account = book.account(request.account).ok_or_else(|| DomainError::not_found("account", &request.account))?;
+    let account = book
+        .account(request.account)
+        .ok_or_else(|| DomainError::not_found("account", &request.account))?;
     if account.guid == book.root {
         return Err(DomainError::invalid("the root account cannot be reconciled"));
     }
     let info = reconcile_info(account);
     let mixed = has_different_commodities(book, account);
     if request.include_children == Some(true) && mixed {
-        return Err(DomainError::invalid("sub-accounts hold other commodities, so they cannot be reconciled with this account"));
+        return Err(DomainError::invalid(
+            "sub-accounts hold other commodities, so they cannot be reconciled with this account",
+        ));
     }
     let include_children = request.include_children.unwrap_or(info.include_children && !mixed);
-    let date = request.date.map_or_else(|| default_statement_date(&info, now, &request.zone), |d| request.zone.day_end(d));
+    let date = request
+        .date
+        .map_or_else(|| default_statement_date(&info, now, &request.zone), |d| request.zone.day_end(d));
     let use_postponed = request.date.is_none() && request.include_children.is_none_or(|i| i == (info.include_children && !mixed));
     let postponed = info.postpone_balance.filter(|_| use_postponed);
     let ending_balance = match request.ending_balance.or(postponed) {
@@ -276,8 +313,17 @@ pub fn prepare(book: &Book, now: Time64, request: &Request) -> DomainResult<Prep
         None => balance_as_of(book, &covered_accounts(book, account.guid, include_children), date)?,
     };
     let resumed_postponed = use_postponed && (info.postpone_balance.is_some() || info.postpone_date.is_some());
-    let statement = Statement { account: account.guid, include_children, date, ending_balance, zone: request.zone.clone() };
-    Ok(Prepared { statement, resumed_postponed })
+    let statement = Statement {
+        account: account.guid,
+        include_children,
+        date,
+        ending_balance,
+        zone: request.zone.clone(),
+    };
+    Ok(Prepared {
+        statement,
+        resumed_postponed,
+    })
 }
 
 /// A split the reconciliation can tick: one of the covered accounts' splits that is not yet reconciled.
@@ -354,12 +400,22 @@ pub fn ticked_candidates<'a>(candidates: &'a [Candidate], ticked: &[Guid]) -> Do
 pub fn balances(book: &Book, statement: &Statement, candidates: &[Candidate], ticked: &[Guid]) -> DomainResult<Balances> {
     let accounts = covered_accounts(book, statement.account, statement.include_children);
     let reconciled_state = |s: &Split| matches!(s.reconcile_state, ReconcileState::Reconciled | ReconcileState::Frozen);
-    let starting = sum(covered_splits(book, &accounts).filter(|(_, s)| reconciled_state(s)).map(|(_, s)| s.amount))?;
-    let cleared = sum(covered_splits(book, &accounts).filter(|(_, s)| s.reconcile_state != ReconcileState::New).map(|(_, s)| s.amount))?;
+    let starting = sum(covered_splits(book, &accounts)
+        .filter(|(_, s)| reconciled_state(s))
+        .map(|(_, s)| s.amount))?;
+    let cleared = sum(covered_splits(book, &accounts)
+        .filter(|(_, s)| s.reconcile_state != ReconcileState::New)
+        .map(|(_, s)| s.amount))?;
     let ticked = sum(ticked_candidates(candidates, ticked)?.into_iter().map(|c| c.amount))?;
     let reconciled = starting.add_exact(ticked)?;
     let difference = statement.ending_balance.sub_exact(reconciled)?;
-    Ok(Balances { starting, cleared, ticked, reconciled, difference })
+    Ok(Balances {
+        starting,
+        cleared,
+        ticked,
+        reconciled,
+        difference,
+    })
 }
 
 /// The interval GnuCash remembers when a reconciliation starts (`gnc_save_reconcile_interval`,
@@ -432,7 +488,12 @@ pub fn finish(book: &mut Book, statement: &Statement, ticked: &[Guid], force: bo
     let interval = record_start(book, statement)?;
     let changes = ticked_candidates(&candidates, ticked)?
         .into_iter()
-        .map(|c| StateChange { transaction: c.transaction, split: c.split, from: c.state, to: ReconcileState::Reconciled })
+        .map(|c| StateChange {
+            transaction: c.transaction,
+            split: c.split,
+            from: c.state,
+            to: ReconcileState::Reconciled,
+        })
         .collect::<Vec<_>>();
     changes.iter().try_for_each(|c| -> DomainResult<()> {
         let s = split_in_txn_mut(book, c.transaction, c.split)?;
@@ -443,7 +504,11 @@ pub fn finish(book: &mut Book, statement: &Statement, ticked: &[Guid], force: bo
     let account = account_mut(book, statement.account)?;
     set_postponed(account, None);
     set_last_date(account, Some(statement.date));
-    Ok(Finished { reconciled: changes, interval, balances })
+    Ok(Finished {
+        reconciled: changes,
+        interval,
+        balances,
+    })
 }
 
 /// What Postpone did.
@@ -466,13 +531,30 @@ pub fn postpone(book: &mut Book, statement: &Statement, ticked: &[Guid]) -> Doma
         .iter()
         .filter(|c| c.date_posted <= statement.date || ticked.contains(&c.split))
         .map(|c| {
-            let to = if ticked.contains(&c.split) { ReconcileState::Cleared } else { ReconcileState::New };
-            StateChange { transaction: c.transaction, split: c.split, from: c.state, to }
+            let to = if ticked.contains(&c.split) {
+                ReconcileState::Cleared
+            } else {
+                ReconcileState::New
+            };
+            StateChange {
+                transaction: c.transaction,
+                split: c.split,
+                from: c.state,
+                to,
+            }
         })
         .filter(|c| c.from != c.to)
         .collect();
-    changed.iter().try_for_each(|c| split_in_txn_mut(book, c.transaction, c.split).map(|s| s.reconcile_state = c.to))?;
-    set_postponed(account_mut(book, statement.account)?, Some(Postponed { date: statement.date, balance: statement.ending_balance }));
+    changed
+        .iter()
+        .try_for_each(|c| split_in_txn_mut(book, c.transaction, c.split).map(|s| s.reconcile_state = c.to))?;
+    set_postponed(
+        account_mut(book, statement.account)?,
+        Some(Postponed {
+            date: statement.date,
+            balance: statement.ending_balance,
+        }),
+    );
     Ok(PostponedResult { changed, interval })
 }
 
@@ -515,9 +597,19 @@ mod tests {
     /// A payment from the bank on `date`; returns the bank split.
     fn pay(f: &mut Fixture, date: Date, cents: i64) -> Guid {
         let mut new = NewTransaction::new(CommodityRef::currency("USD"), date);
-        new.splits = vec![NewSplit::new(f.bank, Numeric::new(-cents, 100)), NewSplit::new(f.food, Numeric::new(cents, 100))];
+        new.splits = vec![
+            NewSplit::new(f.bank, Numeric::new(-cents, 100)),
+            NewSplit::new(f.food, Numeric::new(cents, 100)),
+        ];
         let t = add_transaction(&mut f.book, &mut f.env, new).unwrap();
-        f.book.transaction(t).unwrap().splits.iter().find(|s| s.account == Some(f.bank)).unwrap().guid
+        f.book
+            .transaction(t)
+            .unwrap()
+            .splits
+            .iter()
+            .find(|s| s.account == Some(f.bank))
+            .unwrap()
+            .guid
     }
 
     fn state(book: &Book, split: Guid) -> (ReconcileState, Option<Time64>) {
@@ -526,7 +618,13 @@ mod tests {
     }
 
     fn request(account: Guid, date: Option<Date>) -> Request {
-        Request { account, date, ending_balance: None, include_children: None, zone: TimeZone::utc() }
+        Request {
+            account,
+            date,
+            ending_balance: None,
+            include_children: None,
+            zone: TimeZone::utc(),
+        }
     }
 
     fn statement(f: &Fixture, date: Date, ending_cents: i64) -> Statement {
@@ -549,14 +647,21 @@ mod tests {
         set_split_state(&mut f.book, &mut f.env, split, ReconcileState::Reconciled, None).unwrap();
         assert_eq!(state(&f.book, split), (ReconcileState::Reconciled, Some(NOW)));
         set_split_state(&mut f.book, &mut f.env, split, ReconcileState::New, None).unwrap();
-        assert_eq!(state(&f.book, split), (ReconcileState::New, Some(NOW)), "the date is kept, as xaccSplitSetReconcile does");
+        assert_eq!(
+            state(&f.book, split),
+            (ReconcileState::New, Some(NOW)),
+            "the date is kept, as xaccSplitSetReconcile does"
+        );
         assert!(set_split_state(&mut f.book, &mut f.env, split, ReconcileState::Voided, None).is_err());
         assert!(set_split_state(&mut f.book, &mut f.env, split, ReconcileState::Cleared, Some(NOW)).is_err());
         let t = f.book.transaction_of_split(split).unwrap().guid;
         let voided = Arc::make_mut(f.book.transactions.get_mut(&t).unwrap());
         voided.slots.set(txn_paths::VOID_REASON, SlotValue::String("x".into()));
         // Void status follows the void time in 5.17 (Transaction::is_void).
-        voided.slots.set(txn_paths::VOID_TIME, SlotValue::String("2024-06-04 10:00:00.000000000 +0000".into()));
+        voided.slots.set(
+            txn_paths::VOID_TIME,
+            SlotValue::String("2024-06-04 10:00:00.000000000 +0000".into()),
+        );
         let err = set_split_state(&mut f.book, &mut f.env, split, ReconcileState::Cleared, None).unwrap_err();
         assert!(matches!(err, DomainError::Conflict(_)));
     }
@@ -565,11 +670,23 @@ mod tests {
     fn default_statement_date_follows_the_interval() {
         let zone = &TimeZone::utc();
         let mut info = reconcile_info(&fixture().book.accounts[1]);
-        assert_eq!(default_statement_date(&info, NOW, zone), day(2024, 7, 1).end_utc(), "no history: today");
+        assert_eq!(
+            default_statement_date(&info, NOW, zone),
+            day(2024, 7, 1).end_utc(),
+            "no history: today"
+        );
         info.last_date = Some(day(2024, 1, 31).end_utc());
-        assert_eq!(default_statement_date(&info, NOW, zone), day(2024, 2, 29).end_utc(), "month ends track month ends");
+        assert_eq!(
+            default_statement_date(&info, NOW, zone),
+            day(2024, 2, 29).end_utc(),
+            "month ends track month ends"
+        );
         info.last_date = Some(day(2024, 6, 15).end_utc());
-        assert_eq!(default_statement_date(&info, NOW, zone), day(2024, 7, 1).end_utc(), "clamped to today");
+        assert_eq!(
+            default_statement_date(&info, NOW, zone),
+            day(2024, 7, 1).end_utc(),
+            "clamped to today"
+        );
         info.last_interval = Some(Interval { months: 0, days: 7 });
         assert_eq!(default_statement_date(&info, NOW, zone), day(2024, 6, 22).end_utc());
         info.postpone_date = Some(Time64(5));
@@ -584,12 +701,28 @@ mod tests {
         let mut info = reconcile_info(&fixture().book.accounts[1]);
         assert_eq!(next_interval(&info, NOW, zone), None);
         info.last_date = Some(day(2024, 2, 1).end_utc());
-        assert_eq!(next_interval(&info, day(2024, 2, 29).end_utc(), zone), Some(Interval { months: 1, days: 0 }));
+        assert_eq!(
+            next_interval(&info, day(2024, 2, 29).end_utc(), zone),
+            Some(Interval { months: 1, days: 0 })
+        );
         info.last_interval = Some(Interval { months: 0, days: 14 });
-        assert_eq!(next_interval(&info, day(2024, 2, 29).end_utc(), zone), Some(Interval { months: 0, days: 28 }));
-        assert_eq!(next_interval(&info, day(2024, 4, 30).end_utc(), zone), Some(Interval { months: 2, days: 0 }));
-        assert_eq!(next_interval(&info, day(2024, 2, 8).end_utc(), zone), Some(Interval { months: 0, days: 7 }));
-        assert_eq!(next_interval(&info, day(2024, 1, 8).end_utc(), zone), None, "negative intervals are not stored");
+        assert_eq!(
+            next_interval(&info, day(2024, 2, 29).end_utc(), zone),
+            Some(Interval { months: 0, days: 28 })
+        );
+        assert_eq!(
+            next_interval(&info, day(2024, 4, 30).end_utc(), zone),
+            Some(Interval { months: 2, days: 0 })
+        );
+        assert_eq!(
+            next_interval(&info, day(2024, 2, 8).end_utc(), zone),
+            Some(Interval { months: 0, days: 7 })
+        );
+        assert_eq!(
+            next_interval(&info, day(2024, 1, 8).end_utc(), zone),
+            None,
+            "negative intervals are not stored"
+        );
     }
 
     #[test]
@@ -609,23 +742,42 @@ mod tests {
 
         let p = postpone(&mut f.book, &st, &[a]).unwrap();
         let moves: Vec<_> = p.changed.iter().map(|c| (c.split, c.to)).collect();
-        assert_eq!(moves, [(a, ReconcileState::Cleared), (b, ReconcileState::New)], "late splits are left alone");
+        assert_eq!(
+            moves,
+            [(a, ReconcileState::Cleared), (b, ReconcileState::New)],
+            "late splits are left alone"
+        );
         let info = reconcile_info(f.book.account(f.bank).unwrap());
-        assert_eq!((info.postpone_date, info.postpone_balance), (Some(st.date), Some(Numeric::new(-750, 100))));
-        assert_eq!(f.book.account(f.bank).unwrap().slots.get(INCLUDE_CHILDREN), Some(&SlotValue::Integer(0)));
+        assert_eq!(
+            (info.postpone_date, info.postpone_balance),
+            (Some(st.date), Some(Numeric::new(-750, 100)))
+        );
+        assert_eq!(
+            f.book.account(f.bank).unwrap().slots.get(INCLUDE_CHILDREN),
+            Some(&SlotValue::Integer(0))
+        );
 
         let resumed = prepare(&f.book, NOW, &request(f.bank, None)).unwrap();
         assert!(resumed.resumed_postponed);
-        assert_eq!((resumed.statement.date, resumed.statement.ending_balance), (st.date, Numeric::new(-750, 100)));
+        assert_eq!(
+            (resumed.statement.date, resumed.statement.ending_balance),
+            (st.date, Numeric::new(-750, 100))
+        );
 
         let done = finish(&mut f.book, &st, &[a, b], false).unwrap();
         assert_eq!(done.reconciled.len(), 2);
         assert_eq!(state(&f.book, a), (ReconcileState::Reconciled, Some(st.date)));
         assert_eq!(state(&f.book, late).0, ReconcileState::New);
         let info = reconcile_info(f.book.account(f.bank).unwrap());
-        assert_eq!((info.last_date, info.postpone_date, info.postpone_balance), (Some(st.date), None, None));
+        assert_eq!(
+            (info.last_date, info.postpone_date, info.postpone_balance),
+            (Some(st.date), None, None)
+        );
         assert!(f.book.account(f.bank).unwrap().slots.get(POSTPONE).is_none());
-        assert!(finish(&mut f.book, &st, &[a], false).is_err(), "a reconciled split is no longer a candidate");
+        assert!(
+            finish(&mut f.book, &st, &[a], false).is_err(),
+            "a reconciled split is no longer a candidate"
+        );
     }
 
     #[test]

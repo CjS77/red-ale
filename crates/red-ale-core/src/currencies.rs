@@ -19,7 +19,14 @@ pub struct IsoCurrency {
 }
 
 /// Old ISO codes GnuCash maps to their replacements on lookup (`5.17:libgnucash/engine/gnc-commodity.cpp:131-145`).
-const RENAMED: [(&str, &str); 6] = [("RUR", "RUB"), ("PLZ", "PLN"), ("UAG", "UAH"), ("NIS", "ILS"), ("MXP", "MXN"), ("TRL", "TRY")];
+const RENAMED: [(&str, &str); 6] = [
+    ("RUR", "RUB"),
+    ("PLZ", "PLN"),
+    ("UAG", "UAH"),
+    ("NIS", "ILS"),
+    ("MXP", "MXN"),
+    ("TRL", "TRY"),
+];
 
 /// The current code for a possibly renamed ISO code.
 pub fn canonical_code(code: &str) -> &str {
@@ -29,18 +36,29 @@ pub fn canonical_code(code: &str) -> &str {
 /// The built-in currency with this code (after renaming), if any.
 pub fn iso_currency(code: &str) -> Option<IsoCurrency> {
     let code = canonical_code(code);
-    CURRENCIES.iter().find(|c| c.0 == code).map(|&(code, fullname, exchange_code, fraction, symbol)| IsoCurrency {
-        code,
-        fullname,
-        exchange_code,
-        fraction,
-        symbol,
-    })
+    CURRENCIES
+        .iter()
+        .find(|c| c.0 == code)
+        .map(|&(code, fullname, exchange_code, fraction, symbol)| IsoCurrency {
+            code,
+            fullname,
+            exchange_code,
+            fraction,
+            symbol,
+        })
 }
 
 /// Every built-in currency, in ISO code order.
 pub fn iso_currencies() -> impl Iterator<Item = IsoCurrency> {
-    CURRENCIES.iter().map(|&(code, fullname, exchange_code, fraction, symbol)| IsoCurrency { code, fullname, exchange_code, fraction, symbol })
+    CURRENCIES
+        .iter()
+        .map(|&(code, fullname, exchange_code, fraction, symbol)| IsoCurrency {
+            code,
+            fullname,
+            exchange_code,
+            fraction,
+            symbol,
+        })
 }
 
 impl IsoCurrency {
@@ -83,7 +101,10 @@ pub fn euro_rate(currency: &CommodityRef) -> Option<Numeric> {
     if !currency.is_currency() {
         return None;
     }
-    EURO_RATES.iter().find(|(c, _, _)| *c == currency.mnemonic).map(|&(_, n, d)| Numeric::new(n, d))
+    EURO_RATES
+        .iter()
+        .find(|(c, _, _)| *c == currency.mnemonic)
+        .map(|&(_, n, d)| Numeric::new(n, d))
 }
 
 /// True for the euro and the currencies it replaced at a fixed rate.
@@ -128,10 +149,48 @@ pub enum QuoteSourceType {
 }
 
 const SINGLE_SOURCES: [&str; 42] = [
-    "alphavantage", "amfiindia", "asegr", "asx", "borsa_italiana", "bseindia", "bvb", "cse", "comdirect", "consorsbank", "deka",
-    "ftfunds", "finanzpartner", "finnhub", "fondsweb", "goldmoney", "googleweb", "marketwatch", "morningstarjp", "fool", "nzx",
-    "nseindia", "onvista", "bourso", "sinvestor", "za", "six", "stockdata", "stooq", "swissfunddata", "tesouro_direto", "tsx",
-    "tradegate", "treasurydirect", "twelvedata", "unionfunds", "usbonds", "tsp", "xetra", "yahoo_json", "yahooweb", "financeapi",
+    "alphavantage",
+    "amfiindia",
+    "asegr",
+    "asx",
+    "borsa_italiana",
+    "bseindia",
+    "bvb",
+    "cse",
+    "comdirect",
+    "consorsbank",
+    "deka",
+    "ftfunds",
+    "finanzpartner",
+    "finnhub",
+    "fondsweb",
+    "goldmoney",
+    "googleweb",
+    "marketwatch",
+    "morningstarjp",
+    "fool",
+    "nzx",
+    "nseindia",
+    "onvista",
+    "bourso",
+    "sinvestor",
+    "za",
+    "six",
+    "stockdata",
+    "stooq",
+    "swissfunddata",
+    "tesouro_direto",
+    "tsx",
+    "tradegate",
+    "treasurydirect",
+    "twelvedata",
+    "unionfunds",
+    "usbonds",
+    "tsp",
+    "xetra",
+    "yahoo_json",
+    "yahooweb",
+    "financeapi",
 ];
 
 const MULTI_SOURCES: [&str; 7] = ["canada", "europe", "india", "nasdaq", "nyse", "ukfunds", "usa"];
@@ -172,10 +231,22 @@ mod tests {
     #[test]
     fn euro_conversions_match_the_oracle() {
         let dem = CommodityRef::currency("DEM");
-        assert!(convert_to_euro(&dem, Numeric::new(10_000, 100)).unwrap().same_repr(Numeric::new(5113, 100)));
+        assert!(
+            convert_to_euro(&dem, Numeric::new(10_000, 100))
+                .unwrap()
+                .same_repr(Numeric::new(5113, 100))
+        );
         let itl = CommodityRef::currency("ITL");
-        assert!(convert_from_euro(&itl, Numeric::new(100, 100)).unwrap().same_repr(Numeric::new(1936, 1)));
-        assert!(convert_to_euro(&dem, Numeric::new(-9779, 1_000_000)).unwrap().same_repr(Numeric::new(0, 100)));
+        assert!(
+            convert_from_euro(&itl, Numeric::new(100, 100))
+                .unwrap()
+                .same_repr(Numeric::new(1936, 1))
+        );
+        assert!(
+            convert_to_euro(&dem, Numeric::new(-9779, 1_000_000))
+                .unwrap()
+                .same_repr(Numeric::new(0, 100))
+        );
         assert!(euro_rate(&CommodityRef::currency("USD")).is_none());
     }
 }

@@ -3,8 +3,8 @@
 
 use super::edit_txn;
 use crate::lot::split_slots;
-use crate::ops::prices;
 use crate::ops::commit::{NewSplit, NewTransaction, add_transaction, currency_fraction, round_amount};
+use crate::ops::prices;
 use crate::{AccountType, Book, CommodityRef, Date, DomainError, DomainResult, Env, Guid, Numeric, Price, SlotValue, Time64};
 
 /// The action of a stock split's split (`C_("Action Column", "Split")`, `5.17:gnucash/gnome/assistant-stock-split.c:388`).
@@ -92,11 +92,17 @@ pub fn stock_split(book: &mut Book, env: &mut dyn Env, req: &StockSplit) -> Doma
     let shares = round_amount(book, req.account, req.shares)?;
     let mut new = NewTransaction::new(currency.clone(), req.date);
     new.description = Some(req.description.clone().unwrap_or_else(|| DEFAULT_DESCRIPTION.to_owned())).filter(|d| !d.is_empty());
-    new.splits.push(NewSplit::new(req.account, Numeric::ZERO).with_amount(shares).with_action(STOCK_SPLIT_ACTION));
+    new.splits.push(
+        NewSplit::new(req.account, Numeric::ZERO)
+            .with_amount(shares)
+            .with_action(STOCK_SPLIT_ACTION),
+    );
     if let Some((asset, income, cash)) = cash {
         let memo = req.memo.clone().unwrap_or_else(|| DEFAULT_MEMO.to_owned());
-        new.splits.push(NewSplit::new(asset, cash).with_amount(cash).with_memo(memo.clone()));
-        new.splits.push(NewSplit::new(income, cash.neg()).with_amount(cash.neg()).with_memo(memo));
+        new.splits
+            .push(NewSplit::new(asset, cash).with_amount(cash).with_memo(memo.clone()));
+        new.splits
+            .push(NewSplit::new(income, cash.neg()).with_amount(cash.neg()).with_memo(memo));
     }
     let txn = add_transaction(book, env, new)?;
     // xaccSplitMakeStockSplit sets the value to gnc_numeric_zero() without converting it, so it is written 0/1
@@ -104,12 +110,16 @@ pub fn stock_split(book: &mut Book, env: &mut dyn Env, req: &StockSplit) -> Doma
     edit_txn(book, txn, |t| {
         t.splits.iter_mut().filter(|s| s.account == Some(req.account)).for_each(|s| {
             s.value = Numeric::ZERO;
-            s.slots.set(split_slots::SPLIT_TYPE, SlotValue::String(split_slots::STOCK_SPLIT.to_owned()));
+            s.slots
+                .set(split_slots::SPLIT_TYPE, SlotValue::String(split_slots::STOCK_SPLIT.to_owned()));
         });
     })?;
     let price = match req.price.filter(|p| p.is_positive()) {
         Some(value) => {
-            let price_currency = req.price_currency.clone().unwrap_or_else(|| latest_price_currency(book, &commodity).unwrap_or(currency));
+            let price_currency = req
+                .price_currency
+                .clone()
+                .unwrap_or_else(|| latest_price_currency(book, &commodity).unwrap_or(currency));
             let time = env.zone().neutral_time(req.date);
             add_price(book, env, &commodity, price_currency, time, value)?
         }
@@ -123,7 +133,10 @@ pub fn stock_split(book: &mut Book, env: &mut dyn Env, req: &StockSplit) -> Doma
 fn check_account(book: &Book, account: Guid) -> DomainResult<CommodityRef> {
     let acc = book.account(account).ok_or_else(|| DomainError::not_found("account", &account))?;
     if !matches!(acc.account_type, AccountType::Stock | AccountType::Mutual | AccountType::Currency) {
-        return Err(DomainError::invalid(format!("{} is not a STOCK, MUTUAL or CURRENCY account", acc.name)));
+        return Err(DomainError::invalid(format!(
+            "{} is not a STOCK, MUTUAL or CURRENCY account",
+            acc.name
+        )));
     }
     if acc.is_placeholder() {
         return Err(DomainError::invalid(format!("{} is a placeholder", acc.name)));
@@ -132,23 +145,33 @@ fn check_account(book: &Book, account: Guid) -> DomainResult<CommodityRef> {
     if balance.is_zero() {
         return Err(DomainError::invalid(format!("{} holds no shares", acc.name)));
     }
-    acc.commodity.clone().ok_or_else(|| DomainError::invalid(format!("{} has no commodity", acc.name)))
+    acc.commodity
+        .clone()
+        .ok_or_else(|| DomainError::invalid(format!("{} has no commodity", acc.name)))
 }
 
 /// The cash in lieu with its asset and income accounts, when positive (`gnc_stock_split_assistant_cash_complete`,
 /// `5.17:gnucash/gnome/assistant-stock-split.c:309-335`, account filters `:485-504`).
 fn check_cash(book: &Book, req: &StockSplit) -> DomainResult<Option<(Guid, Guid, Numeric)>> {
-    let Some(cash) = req.cash.filter(|c| !c.is_zero()) else { return Ok(None) };
+    let Some(cash) = req.cash.filter(|c| !c.is_zero()) else {
+        return Ok(None);
+    };
     if cash.is_negative() {
         return Err(DomainError::invalid("cash in lieu must not be negative"));
     }
     let typed = |g: Option<Guid>, what: &str, ok: fn(AccountType) -> bool| -> DomainResult<Guid> {
         let g = g.ok_or_else(|| DomainError::invalid(format!("cash in lieu needs {what}")))?;
         let acc = book.account(g).ok_or_else(|| DomainError::not_found("account", &g))?;
-        if ok(acc.account_type) { Ok(g) } else { Err(DomainError::invalid(format!("{} cannot be {what}", acc.name))) }
+        if ok(acc.account_type) {
+            Ok(g)
+        } else {
+            Err(DomainError::invalid(format!("{} cannot be {what}", acc.name)))
+        }
     };
     let income = typed(req.income_account, "an INCOME account", |t| t == AccountType::Income)?;
-    let asset = typed(req.asset_account, "a BANK, CASH or ASSET account", |t| matches!(t, AccountType::Bank | AccountType::Cash | AccountType::Asset))?;
+    let asset = typed(req.asset_account, "a BANK, CASH or ASSET account", |t| {
+        matches!(t, AccountType::Bank | AccountType::Cash | AccountType::Asset)
+    })?;
     Ok(Some((asset, income, cash)))
 }
 
@@ -165,12 +188,21 @@ fn default_currency(book: &Book, account: Guid) -> DomainResult<CommodityRef> {
 /// `5.17:gnucash/gnome/assistant-stock-split.c:190-249`).
 fn latest_price_currency(book: &Book, commodity: &CommodityRef) -> Option<CommodityRef> {
     let mut latest: Option<&Price> = None;
-    book.prices.values().filter(|p| &p.commodity == commodity || &p.currency == commodity).for_each(|p| {
-        if latest.is_none_or(|l| p.time > l.time) {
-            latest = Some(p);
+    book.prices
+        .values()
+        .filter(|p| &p.commodity == commodity || &p.currency == commodity)
+        .for_each(|p| {
+            if latest.is_none_or(|l| p.time > l.time) {
+                latest = Some(p);
+            }
+        });
+    latest.map(|p| {
+        if &p.currency == commodity {
+            p.commodity.clone()
+        } else {
+            p.currency.clone()
         }
-    });
-    latest.map(|p| if &p.currency == commodity { p.commodity.clone() } else { p.currency.clone() })
+    })
 }
 
 /// Add the assistant's price under the price database's same-day rules (`ops::prices::add_price`).

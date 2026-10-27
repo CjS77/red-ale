@@ -8,7 +8,14 @@ use std::path::Path;
 
 use red_ale_testkit::{fixture, oracle, report_fixtures};
 
-const SCRIPTS: [&str; 6] = ["account_summary", "balsheet_pnl", "average_balance", "charts", "net_barchart", "category_report"];
+const SCRIPTS: [&str; 6] = [
+    "account_summary",
+    "balsheet_pnl",
+    "average_balance",
+    "charts",
+    "net_barchart",
+    "category_report",
+];
 
 #[test]
 fn the_scripts_rebuild_the_committed_books() {
@@ -18,8 +25,10 @@ fn the_scripts_rebuild_the_committed_books() {
     SCRIPTS.iter().for_each(|script| {
         oracle::run_script(&dir.join(format!("{script}.py")), &[&out.path().display().to_string()]).unwrap_or_else(|e| panic!("{e}"));
     });
-    let mut built: Vec<String> =
-        std::fs::read_dir(out.path()).unwrap().map(|e| format!("reports/{}", e.unwrap().file_name().to_string_lossy())).collect();
+    let mut built: Vec<String> = std::fs::read_dir(out.path())
+        .unwrap()
+        .map(|e| format!("reports/{}", e.unwrap().file_name().to_string_lossy()))
+        .collect();
     built.sort();
     assert_eq!(built, report_fixtures());
     let stale: Vec<&String> = built

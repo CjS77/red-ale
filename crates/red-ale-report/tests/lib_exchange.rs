@@ -51,18 +51,21 @@ fn case_exchange_fn_gives_gnucash_total_assets_for_each_price_source() {
             print(`${source} 1970=${collectors::sum_collector_commodity(balance, usd, fx)}`);
         }
     "#);
-    check(&got, &[
-        "pricedb-nearest=$116,006.33",
-        "weighted-average=$114,071.66",
-        "average-cost=$113,100.00",
-        "pricedb-latest=$121,473.52",
-        "pricedb-before=$116,006.33",
-        // GnuCash falls back to the nearest price for a source it does not know (CU:786-795).
-        "no-such=$116,006.33",
-        // $106,709 + 200 × $1.65 + 30 × $250.
-        "pricedb-before 1970=$114,539.00",
-        "pricedb-nearest 1970=$116,006.33",
-    ]);
+    check(
+        &got,
+        &[
+            "pricedb-nearest=$116,006.33",
+            "weighted-average=$114,071.66",
+            "average-cost=$113,100.00",
+            "pricedb-latest=$121,473.52",
+            "pricedb-before=$116,006.33",
+            // GnuCash falls back to the nearest price for a source it does not know (CU:786-795).
+            "no-such=$116,006.33",
+            // $106,709 + 200 × $1.65 + 30 × $250.
+            "pricedb-before 1970=$114,539.00",
+            "pricedb-nearest 1970=$116,006.33",
+        ],
+    );
 }
 
 /// The Income Statement's revenue for 1980 at each price source: −$250 and −600 GBP, the GBP at $1.70 by the
@@ -88,23 +91,26 @@ fn revenue_follows_the_1980_exchange() {
         print(`cost-alist-1971=${names.call(exchange::make_exchange_cost_alist(book, usd, end_of.call(1971, 1, 1)))}`);
         print(`in-gbp=${names.call(exchange::make_exchange_alist(book, gbp, to))}`);
     "#);
-    check(&got, &[
-        "income=[\"-#600.00\", \"-$250.00\"]",
-        "pricedb-nearest=-$1,270.00",
-        "weighted-average=-$1,160.36",
-        "average-cost=-$976.00",
-        "pricedb-latest=-$1,270.00",
-        // Current's split comes first and starts GBP's pair inside USD's entry, so FUNDS is put in front of it.
-        "totals=[\"FUNDS=[rational(\\\"70\\\"), rational(\\\"16480\\\")]\", \"GBP=[rational(\\\"1100\\\"), rational(\\\"1669\\\")]\"]",
-        "cost-totals=[\"FUNDS=[rational(\\\"30\\\"), rational(\\\"6100\\\")]\", \"GBP=[rational(\\\"100\\\"), rational(\\\"121\\\")]\"]",
-        "alist=[\"FUNDS=1648/7\", \"GBP=1669/1100\"]",
-        "cost-alist=[\"FUNDS=610/3\", \"GBP=121/100\"]",
-        "alist-1971=[\"GBP=1499/1000\", \"FUNDS=1648/7\"]",
-        "cost-alist-1971=[\"GBP=291/200\", \"FUNDS=610/3\"]",
-        // In GBP: Current's split puts USD in GBP's entry; FUNDS, 70 for $16,480, goes through USD's 1,100 GBP for
-        // $1,669 and is put first (CU:395-428).
-        "in-gbp=[\"FUNDS=1812800/11683\", \"USD=1100/1669\"]",
-    ]);
+    check(
+        &got,
+        &[
+            "income=[\"-#600.00\", \"-$250.00\"]",
+            "pricedb-nearest=-$1,270.00",
+            "weighted-average=-$1,160.36",
+            "average-cost=-$976.00",
+            "pricedb-latest=-$1,270.00",
+            // Current's split comes first and starts GBP's pair inside USD's entry, so FUNDS is put in front of it.
+            "totals=[\"FUNDS=[rational(\\\"70\\\"), rational(\\\"16480\\\")]\", \"GBP=[rational(\\\"1100\\\"), rational(\\\"1669\\\")]\"]",
+            "cost-totals=[\"FUNDS=[rational(\\\"30\\\"), rational(\\\"6100\\\")]\", \"GBP=[rational(\\\"100\\\"), rational(\\\"121\\\")]\"]",
+            "alist=[\"FUNDS=1648/7\", \"GBP=1669/1100\"]",
+            "cost-alist=[\"FUNDS=610/3\", \"GBP=121/100\"]",
+            "alist-1971=[\"GBP=1499/1000\", \"FUNDS=1648/7\"]",
+            "cost-alist-1971=[\"GBP=291/200\", \"FUNDS=610/3\"]",
+            // In GBP: Current's split puts USD in GBP's entry; FUNDS, 70 for $16,480, goes through USD's 1,100 GBP for
+            // $1,669 and is put first (CU:395-428).
+            "in-gbp=[\"FUNDS=1812800/11683\", \"USD=1100/1669\"]",
+        ],
+    );
 }
 
 /// gnc:resolve-unknown-comm (CU:313-432) on hand-made sumlists in USD. An entry `[C, [[P, [a, b]], ...]]` says `a`
@@ -135,17 +141,20 @@ fn resolve_unknown_comm_follows_each_branch() {
         let zero = [usd, [[gbp, [r.call(0), r.call(3)]]]];
         print(`zero=${show.call(exchange::resolve_unknown_comm([[gbp, [[funds, [r.call(10), r.call(5)]]]], zero], usd))}`);
     "#);
-    check(&got, &[
-        "pair-a=[\"FUNDS=10:15/2\", \"GBP=2:3\"]",
-        "pair-b=[\"FRF=9:3\", \"GBP=2:3\"]",
-        "wrong-side=[\"FRF=6:4\", \"GBP=2:3\"]",
-        "ambiguous=[\"GBP=2:3\", \"FUNDS=1:1\"]",
-        "unknown=[\"GBP=2:3\"]",
-        // 4 GBP for 1 FUNDS, at the first GBP entry's $3 for 2.
-        "first-match=[\"FUNDS=1:6\", \"GBP=2:3\", \"GBP=1:100\"]",
-        "euro=[\"GBP=4:1\"]",
-        "zero=[\"FUNDS=10:0\", \"GBP=0:3\"]",
-    ]);
+    check(
+        &got,
+        &[
+            "pair-a=[\"FUNDS=10:15/2\", \"GBP=2:3\"]",
+            "pair-b=[\"FRF=9:3\", \"GBP=2:3\"]",
+            "wrong-side=[\"FRF=6:4\", \"GBP=2:3\"]",
+            "ambiguous=[\"GBP=2:3\", \"FUNDS=1:1\"]",
+            "unknown=[\"GBP=2:3\"]",
+            // 4 GBP for 1 FUNDS, at the first GBP entry's $3 for 2.
+            "first-match=[\"FUNDS=1:6\", \"GBP=2:3\", \"GBP=1:100\"]",
+            "euro=[\"GBP=4:1\"]",
+            "zero=[\"FUNDS=10:0\", \"GBP=0:3\"]",
+        ],
+    );
 }
 
 /// The euro comes before everything else (CU:635-678): 100 DEM is €51.13 at the fixed 1.95583, and €1/3 exchanged
@@ -164,15 +173,18 @@ fn euro_currencies_exchange_at_fixed_rates() {
         print(`if-same=${exchange::exchange_if_same(monetary(usd, 1), usd)} [${exchange::exchange_if_same(monetary(usd, 1), gbp)}]`);
         print(`closure=${exchange::apply_exchange_fn(|f, d| monetary(d, f.amount * 2), monetary(gbp, 1), usd)}`);
     ");
-    check(&got, &[
-        "dem=€51.13 usd=[]",
-        "numeric=€51.13",
-        "alist-euro=33/100",
-        "alist-same=1/3",
-        "alist-rate=$6.00 missing=$0.00",
-        "if-same=$1.00 []",
-        "closure=$2.00",
-    ]);
+    check(
+        &got,
+        &[
+            "dem=€51.13 usd=[]",
+            "numeric=€51.13",
+            "alist-euro=33/100",
+            "alist-same=1/3",
+            "alist-rate=$6.00 missing=$0.00",
+            "if-same=$1.00 []",
+            "closure=$2.00",
+        ],
+    );
 }
 
 /// gnc:case-price-fn (CU:797-810): one unit's price in USD by each source, after the 1970 transfers and the 1971
@@ -191,18 +203,21 @@ fn case_price_fn_prices_one_unit() {
         print(`none=${exchange::apply_price_fn(exchange::case_price_fn(book, "pricedb-nearest", gbp, when), funds)}`);
         print(`closure=${exchange::apply_price_fn(|c| c.mnemonic, gbp)}`);
     "#);
-    check(&got, &[
-        "pricedb-nearest=150/101 30001/100",
-        "pricedb-before=150/101 30001/100",
-        "pricedb-latest=17/10 50005/104",
-        "weighted-average=1499/1000 1648/7",
-        "average-cost=291/200 610/3",
-        "before-1971=33/20 250",
-        // No FUNDS price in GBP: the database's indirect price through USD, 300.01 / (150/101)
-        // (5.17:libgnucash/engine/gnc-pricedb.cpp:2479-2501).
-        "none=3030101/15000",
-        "closure=GBP",
-    ]);
+    check(
+        &got,
+        &[
+            "pricedb-nearest=150/101 30001/100",
+            "pricedb-before=150/101 30001/100",
+            "pricedb-latest=17/10 50005/104",
+            "weighted-average=1499/1000 1648/7",
+            "average-cost=291/200 610/3",
+            "before-1971=33/20 250",
+            // No FUNDS price in GBP: the database's indirect price through USD, 300.01 / (150/101)
+            // (5.17:libgnucash/engine/gnc-pricedb.cpp:2479-2501).
+            "none=3030101/15000",
+            "closure=GBP",
+        ],
+    );
 }
 
 /// gnc:case-exchange-time-fn (CU:829-887): the exchange of 3 GBP and 3 FUNDS at the date of each, by each source.
@@ -234,24 +249,27 @@ fn case_exchange_time_fn_exchanges_at_each_date() {
         print(`1980=${exchange::apply_exchange_time_fn(only_gbp, monetary(gbp, 1), usd, at.call(1980, 3, 1)).amount}`);
         print(`not-monetary=[${exchange::apply_exchange_time_fn(only_gbp, 3, usd, at.call(1980, 3, 1))}]`);
     "#);
-    check(&got, &[
-        "10 weighted-average=843/200 635",
-        "10 average-cost=417/100 635",
-        "10 pricedb-nearest=9/2 675",
-        "10 pricedb-before=9/2 675",
-        "10 pricedb-latest=51/10 28849/20",
-        "10 no-such=9/2 675",
-        "25 weighted-average=843/200 635",
-        "25 average-cost=417/100 635",
-        "25 pricedb-nearest=93/20 732",
-        "25 pricedb-before=9/2 675",
-        "25 pricedb-latest=51/10 28849/20",
-        "25 no-such=93/20 732",
-        "memo=2",
-        "unlisted=$0.00",
-        "1980=1669/1100",
-        "not-monetary=[]",
-    ]);
+    check(
+        &got,
+        &[
+            "10 weighted-average=843/200 635",
+            "10 average-cost=417/100 635",
+            "10 pricedb-nearest=9/2 675",
+            "10 pricedb-before=9/2 675",
+            "10 pricedb-latest=51/10 28849/20",
+            "10 no-such=9/2 675",
+            "25 weighted-average=843/200 635",
+            "25 average-cost=417/100 635",
+            "25 pricedb-nearest=93/20 732",
+            "25 pricedb-before=9/2 675",
+            "25 pricedb-latest=51/10 28849/20",
+            "25 no-such=93/20 732",
+            "memo=2",
+            "unlisted=$0.00",
+            "1980=1669/1100",
+            "not-monetary=[]",
+        ],
+    );
 }
 
 /// The splits with two commodities, and the price lists made from them (CU:64-275).
@@ -277,15 +295,18 @@ fn commodity_splits_and_price_lists() {
         print(`nearest=${near.call(at.call(1969, 1, 1))} ${near.call(at.call(1970, 1, 2) - 1)} ${near.call(at.call(1970, 1, 2))} ` +
               `${near.call(at.call(1970, 1, 4) + 1)} ${near.call(at.call(1971, 1, 1))} [${exchange::pricelist_price_find_nearest([], 0)}]`);
     ");
-    check(&got, &[
-        "counts=18 7 17",
-        "unsorted-first=earn 100GBP into $170 sorted-first=buy 100GBP at $1.30",
-        "totalavg=[\"200\", \"205\", \"635/3\", \"879/4\", \"1143/5\", \"233\", \"1648/7\"]",
-        "inst=[\"200\", \"210\", \"225\", \"244\", \"264\", \"255\", \"250\"]",
-        "gbp-inst=11 13/10 17/10 1980-02-01 10:59:00",
-        "list=[\"FUNDS:[\\\"200\\\", \\\"205\\\", \\\"635/3\\\"]\", \
+    check(
+        &got,
+        &[
+            "counts=18 7 17",
+            "unsorted-first=earn 100GBP into $170 sorted-first=buy 100GBP at $1.30",
+            "totalavg=[\"200\", \"205\", \"635/3\", \"879/4\", \"1143/5\", \"233\", \"1648/7\"]",
+            "inst=[\"200\", \"210\", \"225\", \"244\", \"264\", \"255\", \"250\"]",
+            "gbp-inst=11 13/10 17/10 1980-02-01 10:59:00",
+            "list=[\"FUNDS:[\\\"200\\\", \\\"205\\\", \\\"635/3\\\"]\", \
          \"GBP:[\\\"13/10\\\", \\\"27/20\\\", \\\"103/75\\\", \\\"281/200\\\"]\"]",
-        // Halfway is a tie, which takes the later price (CU:289).
-        "nearest=1 1 3 5 5 []",
-    ]);
+            // Halfway is a tie, which takes the later price (CU:289).
+            "nearest=1 1 3 5 5 []",
+        ],
+    );
 }

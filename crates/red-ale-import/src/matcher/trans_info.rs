@@ -71,7 +71,14 @@ impl TransInfo {
     /// `gnc_import_TransInfo_new` with `set_last_split_info` (`import-backend.cpp:1127-1147`, `:291-314`): the
     /// destination is looked up in the imported split's account's Import map, then the file's account, when it names
     /// one, replaces it without the amount being recomputed, as in GnuCash.
-    pub fn new(book: &Book, settings: &ImportSettings, index: usize, trans: Transaction, last: Option<&LastSplitInfo>, locale: &Locale) -> DomainResult<Self> {
+    pub fn new(
+        book: &Book,
+        settings: &ImportSettings,
+        index: usize,
+        trans: Transaction,
+        last: Option<&LastSplitInfo>,
+        locale: &Locale,
+    ) -> DomainResult<Self> {
         if trans.splits.is_empty() {
             return Err(DomainError::invalid(format!("imported transaction {index} has no split")));
         }
@@ -109,11 +116,16 @@ impl TransInfo {
     /// `matchmap_find_destination` (`import-backend.cpp:501-524`): from the Bayesian map with the tokens, or the
     /// plain map's `desc` category with the whole description.
     fn find_destination(&self, book: &Book, use_bayes: bool) -> (Option<Guid>, DestSource) {
-        let Some(acc) = self.account() else { return (None, DestSource::Map) };
+        let Some(acc) = self.account() else {
+            return (None, DestSource::Map);
+        };
         if use_bayes {
             (find_account_bayes(book, acc, &self.tokens), DestSource::Bayes)
         } else {
-            (find_account(book, acc, Some(CATEGORY_DESC), self.trans.description.as_deref().unwrap_or("")), DestSource::Map)
+            (
+                find_account(book, acc, Some(CATEGORY_DESC), self.trans.description.as_deref().unwrap_or("")),
+                DestSource::Map,
+            )
         }
     }
 
@@ -171,7 +183,9 @@ impl TransInfo {
         if !self.dest_amount_selected_manually {
             self.dest_amount = Numeric::ZERO;
         }
-        let Some(dest) = self.dest_account.and_then(|a| book.account(a)) else { return };
+        let Some(dest) = self.dest_account.and_then(|a| book.account(a)) else {
+            return;
+        };
         if self.dest_value.is_zero() {
             return;
         }
@@ -183,7 +197,9 @@ impl TransInfo {
             return;
         }
         if let Some(price) = self.price.filter(|p| p.is_valid()) {
-            let by_price = price.invert().and_then(|inverse| self.dest_value.mul(inverse, DENOM_AUTO, How::round(Round::HalfUp)));
+            let by_price = price
+                .invert()
+                .and_then(|inverse| self.dest_value.mul(inverse, DENOM_AUTO, How::round(Round::HalfUp)));
             self.dest_amount = by_price.unwrap_or(Numeric::ZERO);
         }
     }
@@ -220,7 +236,11 @@ impl TransInfo {
         self.match_selected_manually = false;
         self.action = match self.matches.first() {
             Some(best) if best.probability >= settings.auto_clear_threshold => {
-                if settings.enable_update && best.update_proposed { ImportAction::Update } else { ImportAction::Clear }
+                if settings.enable_update && best.update_proposed {
+                    ImportAction::Update
+                } else {
+                    ImportAction::Clear
+                }
             }
             Some(best) if best.probability > settings.auto_add_threshold => {
                 if settings.enable_skip {

@@ -16,20 +16,35 @@ pub(super) fn register(engine: &mut Engine) {
     properties(engine);
     engine.register_fn("==", |a: &mut AccountHandle, b: AccountHandle| a.guid == b.guid);
     engine.register_fn("!=", |a: &mut AccountHandle, b: AccountHandle| a.guid != b.guid);
-    engine.register_fn("to_string", |a: &mut AccountHandle| a.snap.book().full_name(a.guid).unwrap_or_default());
-    engine.register_fn("to_debug", |a: &mut AccountHandle| format!("Account({})", a.snap.book().full_name(a.guid).unwrap_or_default()));
-    engine.register_fn("children", |a: &mut AccountHandle| list(a, a.snap.book().children(a.guid).map(|c| c.guid)));
-    engine.register_fn("descendants", |a: &mut AccountHandle| list(a, a.snap.book().descendants(a.guid).iter().map(|c| c.guid)));
-    engine.register_fn("children_sorted", |a: &mut AccountHandle| list(a, sorted_children(a.snap.book(), a.guid).iter().map(|c| c.guid)));
+    engine.register_fn("to_string", |a: &mut AccountHandle| {
+        a.snap.book().full_name(a.guid).unwrap_or_default()
+    });
+    engine.register_fn("to_debug", |a: &mut AccountHandle| {
+        format!("Account({})", a.snap.book().full_name(a.guid).unwrap_or_default())
+    });
+    engine.register_fn("children", |a: &mut AccountHandle| {
+        list(a, a.snap.book().children(a.guid).map(|c| c.guid))
+    });
+    engine.register_fn("descendants", |a: &mut AccountHandle| {
+        list(a, a.snap.book().descendants(a.guid).iter().map(|c| c.guid))
+    });
+    engine.register_fn("children_sorted", |a: &mut AccountHandle| {
+        list(a, sorted_children(a.snap.book(), a.guid).iter().map(|c| c.guid))
+    });
     engine.register_fn("descendants_sorted", |a: &mut AccountHandle| {
         list(a, descendants_sorted(a.snap.book(), a.guid).iter().map(|c| c.guid))
     });
     engine.register_fn("tree_depth", |a: &mut AccountHandle| count(tree_depth(a.snap.book(), a.guid)));
-    engine.register_fn("splits", |a: &mut AccountHandle| a.book().splits(account_splits(a.snap.book(), a.guid)));
-    engine.register_fn("splits_between", |a: &mut AccountHandle, from: Dynamic, to: Dynamic| splits_between(a, &from, &to, false));
-    engine.register_fn("splits_between", |a: &mut AccountHandle, from: Dynamic, to: Dynamic, descendants: bool| {
-        splits_between(a, &from, &to, descendants)
+    engine.register_fn("splits", |a: &mut AccountHandle| {
+        a.book().splits(account_splits(a.snap.book(), a.guid))
     });
+    engine.register_fn("splits_between", |a: &mut AccountHandle, from: Dynamic, to: Dynamic| {
+        splits_between(a, &from, &to, false)
+    });
+    engine.register_fn(
+        "splits_between",
+        |a: &mut AccountHandle, from: Dynamic, to: Dynamic, descendants: bool| splits_between(a, &from, &to, descendants),
+    );
     engine.register_fn("balance_as_of", |a: &mut AccountHandle, t: Dynamic| -> Fallible<Rational> {
         let total = balance_as_of(a.snap.book(), a.guid, time_arg(&t)?, Total::Balance).map_err(|e| script_error(e.to_string()))?;
         numeric(total)
@@ -41,22 +56,32 @@ pub(super) fn register(engine: &mut Engine) {
 }
 
 fn properties(engine: &mut Engine) {
-    let text = |f: fn(&Account) -> Option<&str>| {
-        move |a: &mut AccountHandle| -> Fallible<String> { Ok(f(a.get()?).unwrap_or("").to_owned()) }
-    };
+    let text =
+        |f: fn(&Account) -> Option<&str>| move |a: &mut AccountHandle| -> Fallible<String> { Ok(f(a.get()?).unwrap_or("").to_owned()) };
     engine.register_get("guid", |a: &mut AccountHandle| a.guid.to_string());
     engine.register_get("name", |a: &mut AccountHandle| -> Fallible<String> { Ok(a.get()?.name.clone()) });
-    engine.register_get("fullName", |a: &mut AccountHandle| a.snap.book().full_name(a.guid).unwrap_or_default());
-    engine.register_get("type", |a: &mut AccountHandle| -> Fallible<String> { Ok(a.get()?.account_type.as_str().to_owned()) });
+    engine.register_get("fullName", |a: &mut AccountHandle| {
+        a.snap.book().full_name(a.guid).unwrap_or_default()
+    });
+    engine.register_get("type", |a: &mut AccountHandle| -> Fallible<String> {
+        Ok(a.get()?.account_type.as_str().to_owned())
+    });
     // `xaccAccountGetTypeStr`, untranslated: the label GnuCash shows for the type ("Credit Card").
-    engine.register_get("typeString", |a: &mut AccountHandle| -> Fallible<String> { Ok(type_label(a.get()?.account_type).to_owned()) });
+    engine.register_get("typeString", |a: &mut AccountHandle| -> Fallible<String> {
+        Ok(type_label(a.get()?.account_type).to_owned())
+    });
     engine.register_get("code", text(|a| a.code.as_deref()));
     engine.register_get("description", text(|a| a.description.as_deref()));
     engine.register_get("notes", text(Account::notes));
-    engine.register_get("placeholder", |a: &mut AccountHandle| -> Fallible<bool> { Ok(a.get()?.is_placeholder()) });
+    engine.register_get("placeholder", |a: &mut AccountHandle| -> Fallible<bool> {
+        Ok(a.get()?.is_placeholder())
+    });
     engine.register_get("hidden", |a: &mut AccountHandle| -> Fallible<bool> { Ok(a.get()?.is_hidden()) });
     engine.register_get("commodity", |a: &mut AccountHandle| -> Fallible<Dynamic> {
-        Ok(a.get()?.commodity.as_ref().map_or(Dynamic::UNIT, |c| Dynamic::from(a.book().commodity(c))))
+        Ok(a.get()?
+            .commodity
+            .as_ref()
+            .map_or(Dynamic::UNIT, |c| Dynamic::from(a.book().commodity(c))))
     });
     engine.register_get("parent", |a: &mut AccountHandle| -> Fallible<Dynamic> {
         Ok(a.get()?.parent.map_or(Dynamic::UNIT, |p| Dynamic::from(a.book().account(p))))
@@ -92,5 +117,8 @@ fn accumulate_at(a: &mut AccountHandle, times: Array, what: &str) -> Fallible<Ar
     };
     let times = times.iter().map(time_arg).collect::<Fallible<Vec<_>>>()?;
     let totals = running_totals_at(a.snap.book(), a.guid, &times, total).map_err(|e| script_error(e.to_string()))?;
-    totals.into_iter().map(|t| t.map_or(Ok(Dynamic::UNIT), |n| numeric(n).map(Dynamic::from))).collect()
+    totals
+        .into_iter()
+        .map(|t| t.map_or(Ok(Dynamic::UNIT), |n| numeric(n).map(Dynamic::from)))
+        .collect()
 }

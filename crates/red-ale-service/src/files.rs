@@ -36,8 +36,12 @@ impl Default for Retention {
 /// `gnc_date_timestamp()`: the system clock in the local time zone as `YYYYMMDDhhmmss`
 /// (`5.17:libgnucash/engine/gnc-datetime.cpp:638-644`).
 pub fn local_timestamp() -> String {
-    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
-    crate::zone::local_zone().to_local(red_ale_core::Time64(now)).map_or_else(|| "19700101000000".to_owned(), red_ale_core::time::LocalTime::compact)
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
+    crate::zone::local_zone()
+        .to_local(red_ale_core::Time64(now))
+        .map_or_else(|| "19700101000000".to_owned(), red_ale_core::time::LocalTime::compact)
 }
 
 fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
@@ -47,7 +51,10 @@ fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
 }
 
 fn io_err(path: &Path) -> impl FnOnce(io::Error) -> ServiceError + '_ {
-    move |source| ServiceError::Io { path: path.to_owned(), source }
+    move |source| ServiceError::Io {
+        path: path.to_owned(),
+        source,
+    }
 }
 
 /// Link `orig` as `backup`, copying instead where hard links are unsupported (`link_or_make_backup`,
@@ -84,7 +91,9 @@ pub fn backup(book: &Path) -> Result<Option<PathBuf>, ServiceError> {
 
 fn temp_path(book: &Path) -> PathBuf {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let nanos = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
+    let nanos = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_or(0, |d| d.subsec_nanos());
     let seed = u64::from(nanos) ^ u64::from(std::process::id()).rotate_left(20);
     let tail: String = (0..6)
         .map(|i| {
@@ -126,7 +135,12 @@ pub fn replace_book_file<T>(
 }
 
 fn write_temp(tmp: &Path, write: impl FnOnce(&mut File) -> Result<(), ServiceError>) -> Result<(), ServiceError> {
-    let mut file = OpenOptions::new().write(true).create_new(true).mode(0o666).open(tmp).map_err(io_err(tmp))?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o666)
+        .open(tmp)
+        .map_err(io_err(tmp))?;
     write(&mut file)?;
     file.sync_all().map_err(io_err(tmp))
 }
@@ -143,19 +157,25 @@ fn keep_owner(tmp: &Path, old: Option<&fs::Metadata>) -> Result<(), ServiceError
 /// True for names GnuCash's cleanup considers: `<book>.<14 digits>.(gnucash|log|xac)`, suffix case-sensitive in the
 /// pre-filter and case-insensitive in the regex (`5.17:libgnucash/backend/xml/gnc-xml-backend.cpp:728-789`).
 fn is_dated_sibling(book_name: &str, candidate: &str) -> bool {
-    let Some(rest) = candidate.strip_prefix(book_name) else { return false };
+    let Some(rest) = candidate.strip_prefix(book_name) else {
+        return false;
+    };
     if ![".gnucash", ".log", ".xac"].iter().any(|s| candidate.ends_with(s)) {
         return false;
     }
     let Some(rest) = rest.strip_prefix('.') else { return false };
     let (digits, suffix) = rest.split_at(rest.len().min(14));
-    digits.len() == 14 && digits.bytes().all(|b| b.is_ascii_digit()) && [".gnucash", ".log", ".xac"].contains(&suffix.to_ascii_lowercase().as_str())
+    digits.len() == 14
+        && digits.bytes().all(|b| b.is_ascii_digit())
+        && [".gnucash", ".log", ".xac"].contains(&suffix.to_ascii_lowercase().as_str())
 }
 
 /// Delete old backups and journals of `book` according to `retention`, never touching `keep` (the open journal).
 /// Returns the files deleted.
 pub fn remove_old_files(book: &Path, retention: Retention, keep: Option<&Path>) -> Vec<PathBuf> {
-    let Some(book_name) = book.file_name().and_then(|n| n.to_str()) else { return Vec::new() };
+    let Some(book_name) = book.file_name().and_then(|n| n.to_str()) else {
+        return Vec::new();
+    };
     let dir = book.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(Path::new("."));
     let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
     let now = SystemTime::now();
@@ -213,7 +233,11 @@ mod tests {
     }
 
     fn temp_files(dir: &Path) -> Vec<fs::DirEntry> {
-        fs::read_dir(dir).unwrap().filter_map(Result::ok).filter(|e| e.file_name().to_string_lossy().contains(".tmp-")).collect()
+        fs::read_dir(dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp-"))
+            .collect()
     }
 
     #[test]

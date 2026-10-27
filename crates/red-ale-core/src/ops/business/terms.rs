@@ -51,8 +51,11 @@ pub fn tax_table_references(book: &Book, table: Guid) -> usize {
     let b = &book.business;
     let owners = b.customers.values().filter(|c| c.tax_table == Some(table)).count()
         + b.vendors.values().filter(|v| v.tax_table == Some(table)).count();
-    let entries =
-        b.entries.values().map(|e| usize::from(e.i_tax_table == Some(table)) + usize::from(e.b_tax_table == Some(table))).sum::<usize>();
+    let entries = b
+        .entries
+        .values()
+        .map(|e| usize::from(e.i_tax_table == Some(table)) + usize::from(e.b_tax_table == Some(table)))
+        .sum::<usize>();
     owners + entries
 }
 
@@ -71,9 +74,15 @@ pub fn bill_term_references(book: &Book, term: Guid) -> usize {
 pub fn check_tax_table_ref(book: &Book, new: Option<Guid>, old: Option<Guid>) -> DomainResult<()> {
     match new {
         Some(g) if new != old => {
-            let t = book.business.tax_tables.get(&g).ok_or_else(|| DomainError::not_found("tax table", &g))?;
+            let t = book
+                .business
+                .tax_tables
+                .get(&g)
+                .ok_or_else(|| DomainError::not_found("tax table", &g))?;
             if t.parent.is_some() || t.invisible {
-                return Err(DomainError::invalid(format!("tax table {g} is a frozen copy kept for a posted document; use its parent")));
+                return Err(DomainError::invalid(format!(
+                    "tax table {g} is a frozen copy kept for a posted document; use its parent"
+                )));
             }
             Ok(())
         }
@@ -85,9 +94,15 @@ pub fn check_tax_table_ref(book: &Book, new: Option<Guid>, old: Option<Guid>) ->
 pub fn check_bill_term_ref(book: &Book, new: Option<Guid>, old: Option<Guid>) -> DomainResult<()> {
     match new {
         Some(g) if new != old => {
-            let t = book.business.bill_terms.get(&g).ok_or_else(|| DomainError::not_found("billing term", &g))?;
+            let t = book
+                .business
+                .bill_terms
+                .get(&g)
+                .ok_or_else(|| DomainError::not_found("billing term", &g))?;
             if t.parent.is_some() || t.invisible {
-                return Err(DomainError::invalid(format!("billing term {g} is a frozen copy kept for a posted document; use its parent")));
+                return Err(DomainError::invalid(format!(
+                    "billing term {g} is a frozen copy kept for a posted document; use its parent"
+                )));
             }
             Ok(())
         }
@@ -101,13 +116,23 @@ pub fn check_bill_term_ref(book: &Book, new: Option<Guid>, old: Option<Guid>) ->
 /// The visible tax table with this name (`gncTaxTableLookupByName` searches visible tables only,
 /// `5.17:libgnucash/engine/gncTaxTable.c:667-678`).
 pub fn tax_table_by_name<'a>(book: &'a Book, name: &str) -> Option<&'a TaxTable> {
-    book.business.tax_tables.values().map(AsRef::as_ref).find(|t| t.parent.is_none() && !t.invisible && t.name == name)
+    book.business
+        .tax_tables
+        .values()
+        .map(AsRef::as_ref)
+        .find(|t| t.parent.is_none() && !t.invisible && t.name == name)
 }
 
 fn visible_tax_table(book: &Book, guid: Guid) -> DomainResult<&TaxTable> {
-    let t = book.business.tax_tables.get(&guid).ok_or_else(|| DomainError::not_found("tax table", &guid))?;
+    let t = book
+        .business
+        .tax_tables
+        .get(&guid)
+        .ok_or_else(|| DomainError::not_found("tax table", &guid))?;
     if t.parent.is_some() || t.invisible {
-        return Err(DomainError::conflict(format!("tax table {guid} is a frozen copy kept for posted documents and cannot be changed")));
+        return Err(DomainError::conflict(format!(
+            "tax table {guid} is a frozen copy kept for posted documents and cannot be changed"
+        )));
     }
     Ok(t)
 }
@@ -130,7 +155,9 @@ fn check_tax_table(book: &Book, guid: Guid, name: &str, entries: &[TaxTableEntry
 }
 
 fn check_tax_line(book: &Book, e: &TaxTableEntry) -> DomainResult<()> {
-    let acc = e.account.ok_or_else(|| DomainError::invalid("each tax table line needs an account"))?;
+    let acc = e
+        .account
+        .ok_or_else(|| DomainError::invalid("each tax table line needs an account"))?;
     if book.account(acc).is_none() || acc == book.root {
         return Err(DomainError::not_found("account", &acc));
     }
@@ -152,8 +179,16 @@ pub fn add_tax_table(book: &mut Book, env: &mut dyn Env, name: &str, mut entries
     let guid = env.new_guid();
     check_tax_table(book, guid, name, &entries)?;
     sort_tax_lines(book, &mut entries);
-    let table =
-        TaxTable { guid, name: name.to_owned(), refcount: 0, invisible: false, child: None, parent: None, entries, slots: Frame::new() };
+    let table = TaxTable {
+        guid,
+        name: name.to_owned(),
+        refcount: 0,
+        invisible: false,
+        child: None,
+        parent: None,
+        entries,
+        slots: Frame::new(),
+    };
     book.business.tax_tables.insert(guid, Arc::new(table));
     Ok(guid)
 }
@@ -186,10 +221,17 @@ pub fn delete_tax_table(book: &mut Book, guid: Guid) -> DomainResult<()> {
     let t = visible_tax_table(book, guid)?;
     let refs = tax_table_references(book, guid);
     if t.refcount > 0 || refs > 0 {
-        return Err(DomainError::conflict(format!("tax table {:?} is in use and cannot be deleted", t.name)));
+        return Err(DomainError::conflict(format!(
+            "tax table {:?} is in use and cannot be deleted",
+            t.name
+        )));
     }
     book.business.tax_tables.remove(&guid);
-    book.business.tax_tables.values_mut().filter(|c| c.parent == Some(guid)).for_each(|c| Arc::make_mut(c).parent = None);
+    book.business
+        .tax_tables
+        .values_mut()
+        .filter(|c| c.parent == Some(guid))
+        .for_each(|c| Arc::make_mut(c).parent = None);
     Ok(())
 }
 
@@ -198,13 +240,23 @@ pub fn delete_tax_table(book: &mut Book, guid: Guid) -> DomainResult<()> {
 
 /// The visible billing term with this name (`gncBillTermLookupByName`, `5.17:libgnucash/engine/gncBillTerm.c:494-505`).
 pub fn bill_term_by_name<'a>(book: &'a Book, name: &str) -> Option<&'a BillTerm> {
-    book.business.bill_terms.values().map(AsRef::as_ref).find(|t| t.parent.is_none() && !t.invisible && t.name == name)
+    book.business
+        .bill_terms
+        .values()
+        .map(AsRef::as_ref)
+        .find(|t| t.parent.is_none() && !t.invisible && t.name == name)
 }
 
 fn visible_bill_term(book: &Book, guid: Guid) -> DomainResult<&BillTerm> {
-    let t = book.business.bill_terms.get(&guid).ok_or_else(|| DomainError::not_found("billing term", &guid))?;
+    let t = book
+        .business
+        .bill_terms
+        .get(&guid)
+        .ok_or_else(|| DomainError::not_found("billing term", &guid))?;
     if t.parent.is_some() || t.invisible {
-        return Err(DomainError::conflict(format!("billing term {guid} is a frozen copy kept for posted documents and cannot be changed")));
+        return Err(DomainError::conflict(format!(
+            "billing term {guid} is a frozen copy kept for posted documents and cannot be changed"
+        )));
     }
     Ok(t)
 }
@@ -221,10 +273,21 @@ fn check_bill_term(book: &Book, guid: Guid, name: &str, kind: &BillTermKind) -> 
         return Err(DomainError::conflict(format!("a billing term named {name:?} already exists")));
     }
     let (due, disc, discount) = match *kind {
-        BillTermKind::Days { due_days, disc_days, discount } => (due_days, disc_days, discount),
-        BillTermKind::Proximo { due_day, disc_day, discount, cutoff_day } => {
+        BillTermKind::Days {
+            due_days,
+            disc_days,
+            discount,
+        } => (due_days, disc_days, discount),
+        BillTermKind::Proximo {
+            due_day,
+            disc_day,
+            discount,
+            cutoff_day,
+        } => {
             if !(1..=31).contains(&due_day) || !(0..=31).contains(&disc_day) {
-                return Err(DomainError::invalid("proximo days must be days of the month (due 1-31, discount 0-31)"));
+                return Err(DomainError::invalid(
+                    "proximo days must be days of the month (due 1-31, discount 0-31)",
+                ));
             }
             if !(-31..=31).contains(&cutoff_day) {
                 return Err(DomainError::invalid("the cutoff day must be from -31 to 31"));
@@ -297,10 +360,17 @@ pub fn update_bill_term(
 pub fn delete_bill_term(book: &mut Book, guid: Guid) -> DomainResult<()> {
     let t = visible_bill_term(book, guid)?;
     if t.refcount > 0 || bill_term_references(book, guid) > 0 {
-        return Err(DomainError::conflict(format!("billing term {:?} is in use and cannot be deleted", t.name)));
+        return Err(DomainError::conflict(format!(
+            "billing term {:?} is in use and cannot be deleted",
+            t.name
+        )));
     }
     book.business.bill_terms.remove(&guid);
-    book.business.bill_terms.values_mut().filter(|c| c.parent == Some(guid)).for_each(|c| Arc::make_mut(c).parent = None);
+    book.business
+        .bill_terms
+        .values_mut()
+        .filter(|c| c.parent == Some(guid))
+        .for_each(|c| Arc::make_mut(c).parent = None);
     Ok(())
 }
 
@@ -322,7 +392,11 @@ mod tests {
     }
 
     fn line(account: Guid, amount: i64, kind: AmountType) -> TaxTableEntry {
-        TaxTableEntry { account: Some(account), amount: Numeric::from_int(amount), kind }
+        TaxTableEntry {
+            account: Some(account),
+            amount: Numeric::from_int(amount),
+            kind,
+        }
     }
 
     #[test]
@@ -332,7 +406,10 @@ mod tests {
         let g = add_tax_table(&mut book, &mut env, "GST", lines).unwrap();
         let t = &book.business.tax_tables[&g];
         assert_eq!(t.entries.iter().map(|e| e.account).collect::<Vec<_>>(), [Some(levy), Some(tax)]);
-        assert!(add_tax_table(&mut book, &mut env, "GST", vec![line(tax, 1, AmountType::Percent)]).is_err(), "duplicate name");
+        assert!(
+            add_tax_table(&mut book, &mut env, "GST", vec![line(tax, 1, AmountType::Percent)]).is_err(),
+            "duplicate name"
+        );
         assert!(add_tax_table(&mut book, &mut env, "Big", vec![line(tax, 101, AmountType::Percent)]).is_err());
         assert!(add_tax_table(&mut book, &mut env, "Empty", vec![]).is_err());
         add_tax_table(&mut book, &mut env, "Neg", vec![line(tax, -100, AmountType::Percent)]).unwrap();
@@ -358,7 +435,10 @@ mod tests {
         Arc::make_mut(book.business.tax_tables.get_mut(&g).unwrap()).child = Some(c);
         retarget_tax_table(&mut book, None, Some(c));
         assert_eq!(book.business.tax_tables[&c].refcount, 0);
-        assert!(update_tax_table(&mut book, c, Some("X"), None).is_err(), "frozen copies are not edited");
+        assert!(
+            update_tax_table(&mut book, c, Some("X"), None).is_err(),
+            "frozen copies are not edited"
+        );
         assert!(check_tax_table_ref(&book, Some(c), None).is_err());
         assert!(check_tax_table_ref(&book, Some(c), Some(c)).is_ok());
 
@@ -374,12 +454,25 @@ mod tests {
     #[test]
     fn bill_terms_are_checked() {
         let (mut book, mut env, _, _) = setup();
-        let days = BillTermKind::Days { due_days: 30, disc_days: 10, discount: Numeric::from_int(2) };
+        let days = BillTermKind::Days {
+            due_days: 30,
+            disc_days: 10,
+            discount: Numeric::from_int(2),
+        };
         let g = add_bill_term(&mut book, &mut env, "Net30", "", days).unwrap();
         assert!(add_bill_term(&mut book, &mut env, "Net30", "", days).is_err());
-        let bad = BillTermKind::Days { due_days: 5, disc_days: 10, discount: Numeric::ZERO };
+        let bad = BillTermKind::Days {
+            due_days: 5,
+            disc_days: 10,
+            discount: Numeric::ZERO,
+        };
         assert!(add_bill_term(&mut book, &mut env, "Bad", "", bad).is_err());
-        let prox = BillTermKind::Proximo { due_day: 0, disc_day: 0, discount: Numeric::ZERO, cutoff_day: 0 };
+        let prox = BillTermKind::Proximo {
+            due_day: 0,
+            disc_day: 0,
+            discount: Numeric::ZERO,
+            cutoff_day: 0,
+        };
         assert!(add_bill_term(&mut book, &mut env, "Prox", "", prox).is_err());
         retarget_bill_term(&mut book, None, Some(g));
         assert!(delete_bill_term(&mut book, g).is_err());

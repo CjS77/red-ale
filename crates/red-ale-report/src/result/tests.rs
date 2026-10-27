@@ -86,11 +86,23 @@ fn book() -> Book {
 fn finished() -> ReportResult {
     let book = book();
     let zone = TimeZone::utc();
-    draft().finish(run(), &DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Locale, locale: Locale::c() }).unwrap()
+    draft()
+        .finish(
+            run(),
+            &DisplayContext {
+                book: &book,
+                zone: &zone,
+                date_format: DateFormat::Locale,
+                locale: Locale::c(),
+            },
+        )
+        .unwrap()
 }
 
 fn cell(result: &ReportResult, row: usize, col: usize) -> &Cell {
-    let Block::Table(t) = &result.sections[0].blocks[1] else { panic!("not a table") };
+    let Block::Table(t) = &result.sections[0].blocks[1] else {
+        panic!("not a table")
+    };
     t.rows[row].cells[col].as_ref().unwrap()
 }
 
@@ -110,11 +122,19 @@ fn finishing_fills_every_display() {
     assert_eq!(cell(&r, 1, 1).rounded, Some(Rational::from_int(2186)));
     assert_eq!(cell(&r, 2, 1).display.as_deref(), Some("57.14 %"));
     assert_eq!(cell(&r, 3, 1).display.as_deref(), Some("$480 + 85/104"));
-    assert_eq!((cell(&r, 4, 1).local_date.as_deref(), cell(&r, 4, 1).display.as_deref()), (Some("2024-12-31"), Some("12/31/24")));
+    assert_eq!(
+        (cell(&r, 4, 1).local_date.as_deref(), cell(&r, 4, 1).display.as_deref()),
+        (Some("2024-12-31"), Some("12/31/24"))
+    );
     let line = &cell(&r, 5, 1).commodities.as_ref().unwrap()[0];
-    assert_eq!((line.display.as_deref(), line.converted_display.as_deref()), (Some("#608.00"), Some("$912.00")));
+    assert_eq!(
+        (line.display.as_deref(), line.converted_display.as_deref()),
+        (Some("#608.00"), Some("$912.00"))
+    );
     assert_eq!(cell(&r, 6, 1).display.as_deref(), Some("$116,006.33"));
-    let Block::Chart(chart) = &r.sections[0].blocks[2] else { panic!("not a chart") };
+    let Block::Chart(chart) = &r.sections[0].blocks[2] else {
+        panic!("not a chart")
+    };
     assert_eq!(chart.series[0].displays, Some(vec![Some("$2,500.00".into()), None]));
     assert_eq!(chart.hover_label(1, None), "02/01/24\nLiabilities : -$12.50");
     assert_eq!(chart.hover_label(0, Some(0)), "01/01/24\nAssets : $2,500.00\nLiabilities : $0.00");
@@ -125,10 +145,16 @@ fn json_round_trips_with_host_fields() {
     let r = finished();
     let v = serde_json::to_value(&r).unwrap();
     assert_eq!(v["now"], json!("2025-01-15T09:30:00Z"));
-    assert_eq!(v["report"], json!({ "guid": "c4173ac99b2b448289bf4d11c731af13", "name": "Balance Sheet", "configuration": null }));
+    assert_eq!(
+        v["report"],
+        json!({ "guid": "c4173ac99b2b448289bf4d11c731af13", "name": "Balance Sheet", "configuration": null })
+    );
     assert_eq!(v["headline"], Value::Null);
     let money = &v["sections"][0]["blocks"][1]["rows"][1]["cells"][1];
-    assert_eq!(money["monetary"], json!({ "amount": { "num": "2186", "denom": "1" }, "commodity": "CURRENCY::USD" }));
+    assert_eq!(
+        money["monetary"],
+        json!({ "amount": { "num": "2186", "denom": "1" }, "commodity": "CURRENCY::USD" })
+    );
     assert_eq!(money["display"], json!("$2,186.00"));
     assert!(money.get("rule").is_none(), "false flags are left out");
     assert_eq!(v["sections"][0]["blocks"][2]["series"][0]["color"], json!("#0074d9"));
@@ -210,8 +236,20 @@ fn scatter_charts_have_points() {
     d.validate().unwrap();
     let book = book();
     let zone = TimeZone::utc();
-    let r = d.finish(run(), &DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso, locale: Locale::c() }).unwrap();
-    let Block::Chart(chart) = &r.sections[0].blocks[2] else { panic!("not a chart") };
+    let r = d
+        .finish(
+            run(),
+            &DisplayContext {
+                book: &book,
+                zone: &zone,
+                date_format: DateFormat::Iso,
+                locale: Locale::c(),
+            },
+        )
+        .unwrap();
+    let Block::Chart(chart) = &r.sections[0].blocks[2] else {
+        panic!("not a chart")
+    };
     assert_eq!(chart.series[0].points.as_ref().unwrap()[1].display.as_deref(), Some("1/3"));
     assert_eq!(chart.hover_label(0, Some(0)), "01/01/24\nFUNDS : 480.5");
     assert_eq!(chart.hover_label(1, Some(0)), "1\nFUNDS : 1/3");
@@ -223,7 +261,12 @@ fn unknown_commodities_are_result_errors() {
     v["sections"][0]["blocks"][1]["rows"][1]["cells"][1]["monetary"]["commodity"] = json!("NASDAQ::NONE");
     let book = book();
     let zone = TimeZone::utc();
-    let ctx = DisplayContext { book: &book, zone: &zone, date_format: DateFormat::Iso, locale: Locale::c() };
+    let ctx = DisplayContext {
+        book: &book,
+        zone: &zone,
+        date_format: DateFormat::Iso,
+        locale: Locale::c(),
+    };
     let e = ReportDraft::from_json(&v).unwrap().finish(run(), &ctx).unwrap_err();
     assert_eq!(e.path, "sections[0].blocks[1].rows[1].cells[1].monetary.commodity");
     assert!(e.reason.contains("NASDAQ::NONE"));
@@ -232,7 +275,10 @@ fn unknown_commodities_are_result_errors() {
 #[test]
 fn finished_results_need_their_host_fields() {
     let mut v = serde_json::to_value(finished()).unwrap();
-    v["sections"][0]["blocks"][1]["rows"][1]["cells"][1].as_object_mut().unwrap().remove("display");
+    v["sections"][0]["blocks"][1]["rows"][1]["cells"][1]
+        .as_object_mut()
+        .unwrap()
+        .remove("display");
     let e = ReportResult::from_json(&v).unwrap().validate().unwrap_err();
     assert_eq!(e.path, "sections[0].blocks[1].rows[1].cells[1].display");
     let mut wrong = finished();

@@ -1,7 +1,7 @@
 //! Methods: closing the books (GnuCash's Close Book). See `design/api/close-book.md`.
 
-use red_ale_core::ops::close_book::{CloseBooks, CloseReport, close_books};
 use red_ale_core::AccountType;
+use red_ale_core::ops::close_book::{CloseBooks, CloseReport, close_books};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -78,7 +78,11 @@ fn result(report: CloseReport) -> CloseResult {
             .into_iter()
             .map(|t| ClosingInfo {
                 guid: t.guid.into(),
-                kind: if t.kind == AccountType::Income { ClosingKind::Income } else { ClosingKind::Expense },
+                kind: if t.kind == AccountType::Income {
+                    ClosingKind::Income
+                } else {
+                    ClosingKind::Expense
+                },
                 currency: t.currency.into(),
                 equity_account: t.equity_account.into(),
                 total: t.total.into(),

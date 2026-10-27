@@ -57,7 +57,10 @@ fn points(f: &mut Fixture, options: &Value) -> Vec<Point> {
 
 /// `(x, y, title)` triples as owned points without the display, for comparing.
 fn without_display(points: &[Point]) -> Vec<(&str, &str, &str)> {
-    points.iter().map(|(x, y, label, _)| (x.as_str(), y.as_str(), label.as_str())).collect()
+    points
+        .iter()
+        .map(|(x, y, label, _)| (x.as_str(), y.as_str(), label.as_str()))
+        .collect()
 }
 
 /// The one warning of a run, `(title, text)`, after checking the exported page shows its title.
@@ -71,7 +74,15 @@ fn warning(f: &mut Fixture, options: &Value) -> (String, String) {
 
 /// The FUNDS dates of the fixture's purchases and sales, at 10:59 on the first of each month from January to July
 /// 1970, as months since the start.
-const MONTHS: [&str; 7] = ["659/43800", "45299/43800", "85619/43800", "130259/43800", "173459/43800", "218099/43800", "261299/43800"];
+const MONTHS: [&str; 7] = [
+    "659/43800",
+    "45299/43800",
+    "85619/43800",
+    "130259/43800",
+    "173459/43800",
+    "218099/43800",
+    "261299/43800",
+];
 
 // Expected figures from 5.17.
 
@@ -123,7 +134,10 @@ fn default_options_are_identical_commodities() {
     let result = f.run(TEMPLATE, &json!({}));
     assert_eq!(result["title"], "Price Scatterplot");
     assert_eq!(only(&result, "warning")["title"], "Identical commodities");
-    assert!(result["sections"][0]["blocks"].as_array().unwrap().len() == 1, "no chart (PS:193-199)");
+    assert!(
+        result["sections"][0]["blocks"].as_array().unwrap().len() == 1,
+        "no chart (PS:193-199)"
+    );
 }
 
 /// Actual Transactions (CU:230-275): each FUNDS split's value over its shares, from the Funds account, the only
@@ -210,7 +224,10 @@ fn inverted_prices() {
     let result = f.run(TEMPLATE, &options);
     let chart = only(&result, "chart");
     assert_eq!(chart["title"], json!(["Price Scatterplot", "USD - 1970-01-01 to 1975-12-31"]));
-    assert_eq!(chart["yAxis"], json!({ "label": "FUNDS", "format": "currency", "commodity": "FUNDS::FUNDS" }));
+    assert_eq!(
+        chart["yAxis"],
+        json!({ "label": "FUNDS", "format": "currency", "commodity": "FUNDS::FUNDS" })
+    );
 }
 
 /// The chart itself (PS:166-187, :269-274): titled by the report and the commodity over the period, x in months on
@@ -224,11 +241,22 @@ fn chart_options() {
     assert_eq!(chart["type"], "scatter");
     assert_eq!(chart["title"], json!(["Price Scatterplot", "FUNDS - 1970-01-01 to 1975-12-31"]));
     assert_eq!(chart["xAxis"], json!({ "label": "Months", "scale": "linear" }));
-    assert_eq!(chart["yAxis"], json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" }));
+    assert_eq!(
+        chart["yAxis"],
+        json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" })
+    );
     let series = &chart["series"][0];
-    assert_eq!((&series["label"], &series["color"], &series["line"]), (&json!("Price"), &json!("#b22222"), &json!("#4bb2c5")));
+    assert_eq!(
+        (&series["label"], &series["color"], &series["line"]),
+        (&json!("Price"), &json!("#b22222"), &json!("#4bb2c5"))
+    );
 
-    let options = with(with(funds_options(), "Price", "Price Source", json!("pricedb")), "General", "Step Size", json!("YearDelta"));
+    let options = with(
+        with(funds_options(), "Price", "Price Source", json!("pricedb")),
+        "General",
+        "Step Size",
+        json!("YearDelta"),
+    );
     let options = with(options, "Display", "Marker Color", json!("00ff00"));
     let options = with(options, "Display", "Plot Width", json!({ "pixels": 500 }));
     let points = points(&mut f, &options);
@@ -247,7 +275,12 @@ fn chart_options() {
 fn no_data() {
     let mut f = Fixture::open("balsheet-pnl", "iso", true);
     let later = json!({ "absolute": "1976-01-01" });
-    let options = with(with(funds_options(), "Price", "Price Source", json!("pricedb")), "General", "Start Date", later);
+    let options = with(
+        with(funds_options(), "Price", "Price Source", json!("pricedb")),
+        "General",
+        "Start Date",
+        later,
+    );
     assert_eq!(warning(&mut f, &options).0, "No data");
     let gbp = with(funds_options(), "Price", "Price of Commodity", json!("CURRENCY::GBP"));
     assert_eq!(warning(&mut f, &gbp).0, "No data");
@@ -275,12 +308,27 @@ fn only_one_price() {
 #[test]
 fn all_prices_equal_or_on_one_day() {
     let mut f = Fixture::open("balsheet-pnl", "iso", false);
-    [("1976-01-01", "3000"), ("1976-02-01", "3000"), ("1977-03-01", "3000"), ("1977-03-01", "3100")].into_iter().for_each(|(day, value)| {
+    [
+        ("1976-01-01", "3000"),
+        ("1976-02-01", "3000"),
+        ("1977-03-01", "3000"),
+        ("1977-03-01", "3100"),
+    ]
+    .into_iter()
+    .for_each(|(day, value)| {
         let splits = json!([{ "account": CURRENT, "value": format!("-{value}") }, { "account": FUNDS, "value": value, "amount": "10" }]);
-        f.call("transaction.post", &json!({ "currency": "USD", "datePosted": day, "description": "buy 10FUND", "splits": splits }));
+        f.call(
+            "transaction.post",
+            &json!({ "currency": "USD", "datePosted": day, "description": "buy 10FUND", "splits": splits }),
+        );
     });
     let year = |y: u32| {
-        let options = with(funds_options(), "General", "Start Date", json!({ "absolute": format!("{y}-01-01") }));
+        let options = with(
+            funds_options(),
+            "General",
+            "Start Date",
+            json!({ "absolute": format!("{y}-01-01") }),
+        );
         with(options, "General", "End Date", json!({ "absolute": format!("{y}-12-31") }))
     };
     let (title, text) = warning(&mut f, &year(1976));
@@ -295,19 +343,28 @@ fn all_prices_equal_or_on_one_day() {
 /// with the default options and for GBP and EUR in USD under each price source, inverted or not.
 #[test]
 fn runs_on_every_fixture_book() {
-    let books = ["average-balance", "balsheet-pnl", "category-average", "category-daily", "category-liability", "category-multi"];
+    let books = [
+        "average-balance",
+        "balsheet-pnl",
+        "category-average",
+        "category-daily",
+        "category-liability",
+        "category-multi",
+    ];
     let books = books.into_iter().chain(["charts-daily", "charts-net", "net-days", "test-data"]);
     books.for_each(|book| {
         let mut f = Fixture::open(book, "iso", true);
         f.run(TEMPLATE, &json!({}));
         let general = json!({ "Start Date": { "absolute": "1970-01-01" }, "End Date": { "absolute": "2025-12-31" } });
         ["CURRENCY::GBP", "CURRENCY::EUR"].into_iter().for_each(|commodity| {
-            ["actual-transactions", "weighted-average", "pricedb"].into_iter().for_each(|source| {
-                [false, true].into_iter().for_each(|invert| {
-                    let price = json!({ "Price of Commodity": commodity, "Price Source": source, "Invert prices": invert });
-                    f.run(TEMPLATE, &json!({ "General": general, "Price": price }));
+            ["actual-transactions", "weighted-average", "pricedb"]
+                .into_iter()
+                .for_each(|source| {
+                    [false, true].into_iter().for_each(|invert| {
+                        let price = json!({ "Price of Commodity": commodity, "Price Source": source, "Invert prices": invert });
+                        f.run(TEMPLATE, &json!({ "General": general, "Price": price }));
+                    });
                 });
-            });
         });
     });
 }
@@ -319,13 +376,15 @@ fn runs_only_read_and_exports_are_deterministic() {
     let mut f = Fixture::open("balsheet-pnl", "iso", false);
     let before = f.d.context().book().unwrap().clone();
     let files = f.files();
-    ["actual-transactions", "weighted-average", "pricedb"].into_iter().for_each(|source| {
-        let options = with(funds_options(), "Price", "Price Source", json!(source));
-        f.run(TEMPLATE, &options);
-        let (a, b) = (f.export(TEMPLATE, &options), f.export(TEMPLATE, &options));
-        assert_eq!(a, b, "{source}");
-        assert!(a.contains("<svg") && !a.to_ascii_lowercase().contains("<script"), "{source}");
-    });
+    ["actual-transactions", "weighted-average", "pricedb"]
+        .into_iter()
+        .for_each(|source| {
+            let options = with(funds_options(), "Price", "Price Source", json!(source));
+            f.run(TEMPLATE, &options);
+            let (a, b) = (f.export(TEMPLATE, &options), f.export(TEMPLATE, &options));
+            assert_eq!(a, b, "{source}");
+            assert!(a.contains("<svg") && !a.to_ascii_lowercase().contains("<script"), "{source}");
+        });
     assert_eq!(f.d.context().book().unwrap(), &before, "the Book is unchanged");
     assert_eq!(f.call("book.info", &json!({}))["dirty"], false);
     assert_eq!(f.files(), files, "no journal or other file was written");

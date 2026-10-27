@@ -16,8 +16,8 @@ use std::collections::BTreeSet;
 use proptest::prelude::*;
 use serde_json::{Value, json};
 use statements::{
-    Check, Setup, amount_of, assert_checks, assert_rows_at, blocks, expected, expected_run, labels, options_param, rates,
-    rows_labelled, tables, test_settings,
+    Check, Setup, amount_of, assert_checks, assert_rows_at, blocks, expected, expected_run, labels, options_param, rates, rows_labelled,
+    tables, test_settings,
 };
 
 const TEMPLATE: &str = "Balance Sheet";
@@ -51,7 +51,12 @@ fn multilevel_run() -> Run {
         check("multilevel. funds = $14,424.52", 246, "Funds", &["30. FUNDS", "$14,424.52"]),
         check("multilevel. total broker = $16,424.52", 249, "Total Broker", &["$16,424.52"]),
         check("multilevel. foreign = $0.00", 252, "ForeignBank", &["$0.00"]),
-        check("multilevel. foreignsavings = #200.00 = $340", 255, "ForeignSavings", &["#200.00", "$340.00"]),
+        check(
+            "multilevel. foreignsavings = #200.00 = $340",
+            255,
+            "ForeignSavings",
+            &["#200.00", "$340.00"],
+        ),
         check("multilevel. total foreign = $340", 258, "Total ForeignBank", &["$340.00"]),
         check("multilevel. house = $100,000", 261, "House", &["$100,000.00"]),
         check("multilevel. total asset = $121,473.52", 264, "Total Asset", &["$121,473.52"]),
@@ -78,7 +83,11 @@ fn multilevel_run() -> Run {
         ("multilevel. total root", 19, "Total Root"),
         ("multilevel. total assets", 20, "Total Assets"),
     ];
-    Run { id: "balsheet-multilevel", checks, rows }
+    Run {
+        id: "balsheet-multilevel",
+        checks,
+        rows,
+    }
 }
 
 /// Root with its sub-accounts at the latest prices: #200.00 ($340.00), 30 FUNDS ($14,424.52) and $106,709.00.
@@ -93,10 +102,20 @@ fn recursive_run() -> Run {
         check("recursive. current = $2609.00", 290, "Current", &["$2,609.00"]),
         check("recursive. empty = $0.00", 293, "Empty", &["$0.00"]),
         check("recursive. savings = $100.00", 296, "Savings", &["$100.00"]),
-        check("recursive. broker = $14424.52+$2000.00", 299, "Broker", &["30. FUNDS", "$14,424.52", "$2,000.00", "$2,000.00"]),
+        check(
+            "recursive. broker = $14424.52+$2000.00",
+            299,
+            "Broker",
+            &["30. FUNDS", "$14,424.52", "$2,000.00", "$2,000.00"],
+        ),
         check("recursive. funds = $14424.52", 302, "Funds", &["30. FUNDS", "$14,424.52"]),
         check("recursive. foreign = $340.00", 305, "ForeignBank", &["#200.00", "$340.00"]),
-        check("recursive. foreignsavings = #200.00 = $340", 308, "ForeignSavings", &["#200.00", "$340.00"]),
+        check(
+            "recursive. foreignsavings = #200.00 = $340",
+            308,
+            "ForeignSavings",
+            &["#200.00", "$340.00"],
+        ),
         check("recursive. house = $100,000", 311, "House", &["$100,000.00"]),
         check("recursive. total assets = $121,473.52", 314, "Total Assets", &["$121,473.52"]),
     ];
@@ -115,7 +134,11 @@ fn recursive_run() -> Run {
         ("recursive. house", 14, "House"),
         ("recursive. total assets", 15, "Total Assets"),
     ];
-    Run { id: "balsheet-recursive", checks, rows }
+    Run {
+        id: "balsheet-recursive",
+        checks,
+        rows,
+    }
 }
 
 fn runs() -> Vec<Run> {
@@ -138,10 +161,26 @@ fn runs() -> Vec<Run> {
                 ("total equity", 28, "Total Equity"),
             ],
         },
-        Run { id: "balsheet-weighted-average", checks: wa, rows: wa_rows },
-        Run { id: "balsheet-average-cost", checks: ac, rows: ac_rows },
-        Run { id: "balsheet-pricedb-nearest", checks: pn, rows: pn_rows },
-        Run { id: "balsheet-pricedb-latest", checks: latest, rows: latest_rows },
+        Run {
+            id: "balsheet-weighted-average",
+            checks: wa,
+            rows: wa_rows,
+        },
+        Run {
+            id: "balsheet-average-cost",
+            checks: ac,
+            rows: ac_rows,
+        },
+        Run {
+            id: "balsheet-pricedb-nearest",
+            checks: pn,
+            rows: pn_rows,
+        },
+        Run {
+            id: "balsheet-pricedb-latest",
+            checks: latest,
+            rows: latest_rows,
+        },
         multilevel_run(),
         recursive_run(),
         Run {
@@ -156,12 +195,18 @@ fn runs() -> Vec<Run> {
         },
         Run {
             id: "balsheet-incl-zb-accts=#f omit-zb-bals=#t",
-            checks: vec![check("omit-zb-bals=#t", 345, "Root", &[]), check("incl-zb-accts=#f", 348, "Savings", &["$100.00"])],
+            checks: vec![
+                check("omit-zb-bals=#t", 345, "Root", &[]),
+                check("incl-zb-accts=#f", 348, "Savings", &["$100.00"]),
+            ],
             rows: vec![("omit-zb-bals=#t", 3, "Root"), ("incl-zb-accts=#f", 8, "Savings")],
         },
         Run {
             id: "balsheet-incl-zb-accts=#t omit-zb-bals=#f",
-            checks: vec![check("omit-zb-bals=#f", 355, "Root", &["$0.00"]), check("incl-zb-accts=#t", 358, "Empty", &["$0.00"])],
+            checks: vec![
+                check("omit-zb-bals=#f", 355, "Root", &["$0.00"]),
+                check("incl-zb-accts=#t", 358, "Empty", &["$0.00"]),
+            ],
             rows: vec![("omit-zb-bals=#f", 3, "Root"), ("incl-zb-accts=#t", 8, "Empty")],
         },
     ]
@@ -172,7 +217,12 @@ fn runs() -> Vec<Run> {
 fn rates_checks() -> Vec<(&'static str, &'static str, u32, Vec<&'static str>)> {
     vec![
         ("balsheet-disable show-fcur show-rates", "show-rates disabled", 324, vec![]),
-        ("balsheet-enable show-fcur show-rates", "show-rates enabled", 334, vec!["#1.00", "$1.70", "1. FUNDS", "$480 + 85/104"]),
+        (
+            "balsheet-enable show-fcur show-rates",
+            "show-rates enabled",
+            334,
+            vec!["#1.00", "$1.70", "1. FUNDS", "$480 + 85/104"],
+        ),
     ]
 }
 
@@ -203,8 +253,11 @@ fn expected_figures_of_gnucash_test() {
         want.iter().for_each(|w| assert!(html.contains(w), "{name}: {w} is in the HTML"));
         assert_eq!(tables(&result).len(), if want.is_empty() { 1 } else { 2 }, "{name}");
     });
-    let ours: BTreeSet<&str> =
-        runs.iter().flat_map(|r| r.checks.iter().map(|c| c.name)).chain(rates_checks().iter().map(|c| c.1)).collect();
+    let ours: BTreeSet<&str> = runs
+        .iter()
+        .flat_map(|r| r.checks.iter().map(|c| c.name))
+        .chain(rates_checks().iter().map(|c| c.1))
+        .collect();
     let theirs: BTreeSet<&str> = e["runs"]
         .as_array()
         .unwrap()
@@ -221,28 +274,79 @@ fn expected_figures_of_gnucash_test() {
 /// liabilities and equity equals the total assets. Section totals sit at level 0, the rightmost (BS:326-329).
 #[test]
 fn default_layout() {
-    let result = fixture().run(TEMPLATE, &json!({ "General": { "Balance Sheet Date": { "absolute": "1971-01-01" } },
-                                                    "Accounts": { "Levels of Subaccounts": "all" } }));
+    let result = fixture().run(
+        TEMPLATE,
+        &json!({ "General": { "Balance Sheet Date": { "absolute": "1971-01-01" } },
+                                                    "Accounts": { "Levels of Subaccounts": "all" } }),
+    );
     assert_eq!(result["title"], " Balance Sheet 1971-01-01");
     let table = tables(&result)[0];
-    assert_eq!(labels(table), [
-        "Assets", "Root", "Asset", "Bank1", "Bonds", "Current", "Empty", "Savings", "Broker", "Funds", "ForeignBank",
-        "ForeignSavings", "House", "Total Assets", "Liabilities", "Liability", "Bank2", "CreditCard", "Loan",
-        "Total Liabilities", "Equity", "Equity", "Unrealized Gains", "Total Equity", "Total Liabilities & Equity",
-    ]);
+    assert_eq!(
+        labels(table),
+        [
+            "Assets",
+            "Root",
+            "Asset",
+            "Bank1",
+            "Bonds",
+            "Current",
+            "Empty",
+            "Savings",
+            "Broker",
+            "Funds",
+            "ForeignBank",
+            "ForeignSavings",
+            "House",
+            "Total Assets",
+            "Liabilities",
+            "Liability",
+            "Bank2",
+            "CreditCard",
+            "Loan",
+            "Total Liabilities",
+            "Equity",
+            "Equity",
+            "Unrealized Gains",
+            "Total Equity",
+            "Total Liabilities & Equity",
+        ]
+    );
     assert_eq!(amount_of(&result, "Unrealized Gains"), ["$2,906.33"]);
     assert_eq!(amount_of(&result, "Total Liabilities & Equity"), ["$116,006.33"]);
-    assert_eq!(table["columns"][1]["levels"], 5, "the tree depth, Root Account counted (RU:255-257)");
-    let roles: Vec<(&str, u64)> = ["Assets", "Total Assets", "Unrealized Gains", "Total Liabilities & Equity", "Root", "Bonds"]
-        .iter()
-        .map(|l| {
-            let (_, r) = rows_labelled(&result, l).into_iter().next().unwrap();
-            (r["role"].as_str().unwrap(), r["level"].as_u64().unwrap())
-        })
-        .collect();
-    assert_eq!(roles, [("heading", 0), ("total", 0), ("subtotal", 0), ("grandTotal", 0), ("account", 0), ("account", 3)]);
+    assert_eq!(
+        table["columns"][1]["levels"], 5,
+        "the tree depth, Root Account counted (RU:255-257)"
+    );
+    let roles: Vec<(&str, u64)> = [
+        "Assets",
+        "Total Assets",
+        "Unrealized Gains",
+        "Total Liabilities & Equity",
+        "Root",
+        "Bonds",
+    ]
+    .iter()
+    .map(|l| {
+        let (_, r) = rows_labelled(&result, l).into_iter().next().unwrap();
+        (r["role"].as_str().unwrap(), r["level"].as_u64().unwrap())
+    })
+    .collect();
+    assert_eq!(
+        roles,
+        [
+            ("heading", 0),
+            ("total", 0),
+            ("subtotal", 0),
+            ("grandTotal", 0),
+            ("account", 0),
+            ("account", 3)
+        ]
+    );
     let ruled = table["rows"].as_array().unwrap().iter().filter(|r| r["role"] == "rule").count();
-    assert_eq!(ruled, 4, "two after the assets in one column (BS:456-458), one after the liabilities and the equity");
+    assert_eq!(
+        ruled, 4,
+        "two after the assets in one column (BS:456-458), one after the liabilities and the equity"
+    );
 }
 
 /// The two-column form (BS:413-415, :503-513): the assets in a table on the left, without the two rules, and the
@@ -250,7 +354,10 @@ fn default_layout() {
 #[test]
 fn two_column_layout() {
     let general = json!({ "Balance Sheet Date": { "absolute": "1971-01-01" }, "Single column Balance Sheet": false });
-    let result = fixture().run(TEMPLATE, &json!({ "General": general, "Accounts": { "Levels of Subaccounts": "all" } }));
+    let result = fixture().run(
+        TEMPLATE,
+        &json!({ "General": general, "Accounts": { "Levels of Subaccounts": "all" } }),
+    );
     assert_eq!(result["sections"][0]["blocks"][0]["kind"], "group");
     let (left, right) = (tables(&result)[0], tables(&result)[1]);
     assert_eq!(labels(left).last().unwrap(), "Total Assets");
@@ -266,13 +373,30 @@ fn non_us_layout() {
     let general = json!({ "Balance Sheet Date": { "absolute": "1971-01-01" }, "Use standard US layout": false });
     let result = fixture().run(TEMPLATE, &json!({ "General": general, "Accounts": { "Levels of Subaccounts": 2 } }));
     let shown: Vec<String> = labels(tables(&result)[0]).into_iter().filter(|l| !l.is_empty()).collect();
-    assert_eq!(shown, [
-        "Assets", "Root", "Asset", "Total Assets", "Equity", "Equity", "Unrealized Gains", "Total Equity", "Liabilities",
-        "Liability", "Bank2", "Total Liabilities", "Total Liabilities & Equity",
-    ]);
+    assert_eq!(
+        shown,
+        [
+            "Assets",
+            "Root",
+            "Asset",
+            "Total Assets",
+            "Equity",
+            "Equity",
+            "Unrealized Gains",
+            "Total Equity",
+            "Liabilities",
+            "Liability",
+            "Bank2",
+            "Total Liabilities",
+            "Total Liabilities & Equity",
+        ]
+    );
     // Levels 2 summarizes the second level (HAT:1018-1022). Root, selected, is the first level of the assets; it is
     // not a liability, so Liability is the first level of the liabilities and Bank2 the second.
-    assert_eq!(amount_of(&result, "Asset"), ["#200.00", "$297.03", "30. FUNDS", "$9,000.30", "$106,709.00", "$106,709.00"]);
+    assert_eq!(
+        amount_of(&result, "Asset"),
+        ["#200.00", "$297.03", "30. FUNDS", "$9,000.30", "$106,709.00", "$106,709.00"]
+    );
     assert_eq!(amount_of(&result, "Liability"), ["$0.00"]);
     assert_eq!(amount_of(&result, "Bank2"), ["-$9,500.00"]);
 }
@@ -318,7 +442,10 @@ fn exchange_book(trading: bool) -> Setup {
     let buy = json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "description": "Buy EUR", "splits": splits });
     s.call("transaction.post", buy);
     [("2024-03-02", "0.90"), ("2024-03-14", "1.20")].iter().for_each(|(date, value)| {
-        s.call("price.add", json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": value, "date": date }));
+        s.call(
+            "price.add",
+            json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": value, "date": date }),
+        );
     });
     s
 }
@@ -385,7 +512,10 @@ fn retained_earnings_and_losses() {
     assert_eq!(amount_of(&late, "Total Assets"), ["$800.00"]);
     assert_eq!(amount_of(&late, "Total Liabilities"), ["$0.00"]);
     assert_eq!(amount_of(&late, "Total Liabilities & Equity"), ["$800.00"]);
-    assert!(rows_labelled(&late, "Unrealized Gains").is_empty(), "a zero unrealized gain is left out (BS:470-472)");
+    assert!(
+        rows_labelled(&late, "Unrealized Gains").is_empty(),
+        "a zero unrealized gain is left out (BS:470-472)"
+    );
 }
 
 /// The test's null-test (`standard/test/test-balsheet-pnl.scm:87`): the report renders on a book with no accounts,
@@ -401,7 +531,11 @@ fn empty_book() {
 #[test]
 fn read_only_and_deterministic() {
     let mut s = Setup::with_config(&test_settings("iso"));
-    std::fs::copy(format!("{}/../../fixtures/reports/balsheet-pnl.gnucash", env!("CARGO_MANIFEST_DIR")), s.book()).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/reports/balsheet-pnl.gnucash", env!("CARGO_MANIFEST_DIR")),
+        s.book(),
+    )
+    .unwrap();
     let book = s.book().display().to_string();
     s.call("book.open", json!({ "path": book }));
     let before = s.d.context().book().unwrap().clone();
@@ -446,8 +580,12 @@ fn post(s: &mut Setup, (kind, cents, other, day): Txn) {
     let value = format!("{}.{:02}", cents / 100, cents % 100);
     let date = format!("2024-03-{day:02}");
     let pair = |from: &str, to: &str| [(to.to_owned(), value.clone(), None), (from.to_owned(), format!("-{value}"), None)];
-    let from_cash =
-        |to: &str, amount: String| [(to.to_owned(), value.clone(), Some(amount)), ("Assets:Cash".to_owned(), format!("-{value}"), None)];
+    let from_cash = |to: &str, amount: String| {
+        [
+            (to.to_owned(), value.clone(), Some(amount)),
+            ("Assets:Cash".to_owned(), format!("-{value}"), None),
+        ]
+    };
     let splits = match kind {
         0 => pair("Equity", "Assets:Cash"),
         1 => pair("Income", "Assets:Cash"),
@@ -456,7 +594,10 @@ fn post(s: &mut Setup, (kind, cents, other, day): Txn) {
         4 => pair("Assets:Cash", "Liabilities:Card"),
         5 => from_cash("Assets:Euro", format!("{other}.00")),
         6 => from_cash("Assets:ACME", format!("{other}")),
-        _ => [("Expenses".to_owned(), value.clone(), None), ("Assets:Euro".to_owned(), format!("-{value}"), Some(format!("-{other}.00")))],
+        _ => [
+            ("Expenses".to_owned(), value.clone(), None),
+            ("Assets:Euro".to_owned(), format!("-{value}"), Some(format!("-{other}.00"))),
+        ],
     };
     let splits: Vec<Value> = splits
         .iter()
@@ -465,7 +606,10 @@ fn post(s: &mut Setup, (kind, cents, other, day): Txn) {
             None => json!({ "account": account, "value": value }),
         })
         .collect();
-    s.call("transaction.post", json!({ "datePosted": date, "currency": "CURRENCY::USD", "splits": splits }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": date, "currency": "CURRENCY::USD", "splits": splits }),
+    );
 }
 
 /// A book of USD, EUR and ACME accounts of every kind the statement shows, with `txns` and prices for EUR and ACME,
@@ -476,7 +620,10 @@ fn generated_book(trading: bool, txns: &[Txn], eur: u32, acme: u32) -> Setup {
     if trading {
         s.call("book.setOptions", json!({ "useTradingAccounts": true }));
     }
-    s.call("commodity.create", json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1000 }));
+    s.call(
+        "commodity.create",
+        json!({ "namespace": "NASDAQ", "mnemonic": "ACME", "fullname": "Acme", "fraction": 1000 }),
+    );
     [
         ("Assets", "ASSET", None, "CURRENCY::USD"),
         ("Cash", "BANK", Some("Assets"), "CURRENCY::USD"),
@@ -491,10 +638,15 @@ fn generated_book(trading: bool, txns: &[Txn], eur: u32, acme: u32) -> Setup {
     .iter()
     .for_each(|(name, kind, parent, commodity)| s.account(name, kind, *parent, commodity));
     txns.iter().for_each(|t| post(&mut s, *t));
-    [("CURRENCY::EUR", eur), ("NASDAQ::ACME", acme)].iter().for_each(|(commodity, cents)| {
-        let value = format!("{}.{:02}", cents / 100, cents % 100);
-        s.call("price.add", json!({ "commodity": commodity, "currency": "CURRENCY::USD", "value": value, "date": "2024-03-10" }));
-    });
+    [("CURRENCY::EUR", eur), ("NASDAQ::ACME", acme)]
+        .iter()
+        .for_each(|(commodity, cents)| {
+            let value = format!("{}.{:02}", cents / 100, cents % 100);
+            s.call(
+                "price.add",
+                json!({ "commodity": commodity, "currency": "CURRENCY::USD", "value": value, "date": "2024-03-10" }),
+            );
+        });
     s
 }
 

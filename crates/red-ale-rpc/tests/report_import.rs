@@ -26,11 +26,19 @@ fn config(c: &Charts) -> Value {
 }
 
 fn import_reports(c: &mut Charts, dry_run: bool) -> Value {
-    c.call("report.importConfigurations", json!({ "text": userdata("saved-reports-2.8"), "dryRun": dry_run }))
+    c.call(
+        "report.importConfigurations",
+        json!({ "text": userdata("saved-reports-2.8"), "dryRun": dry_run }),
+    )
 }
 
 fn skipped(result: &Value) -> Vec<(String, String)> {
-    let one = |s: &Value| (s["name"].as_str().unwrap_or("").to_owned(), s["reason"].as_str().unwrap().to_owned());
+    let one = |s: &Value| {
+        (
+            s["name"].as_str().unwrap_or("").to_owned(),
+            s["reason"].as_str().unwrap().to_owned(),
+        )
+    };
     result["skipped"].as_array().unwrap().iter().map(one).collect()
 }
 
@@ -48,7 +56,10 @@ fn imports_saved_configurations() {
     let mut c = Charts::new("iso");
     let result = import_reports(&mut c, false);
     assert_eq!(result["dryRun"], false);
-    assert_eq!(skipped(&result), pairs(&[("Transactions this month", "untranslated"), ("Household budget", "untranslated")]));
+    assert_eq!(
+        skipped(&result),
+        pairs(&[("Transactions this month", "untranslated"), ("Household budget", "untranslated")])
+    );
     let imported = result["imported"].as_array().unwrap();
     assert_eq!(imported.len(), 2);
 
@@ -75,15 +86,27 @@ fn imports_saved_configurations() {
         "Display": { "Parent account balances": "recursive-bal" },
         "General": { "Report name": "Year-end balance sheet", "Single column Balance Sheet": false, "Stylesheet": "Head or Tail" },
     });
-    assert_eq!(sheet["options"], want, "the default currency and end-accounting-period date are not kept");
-    assert_eq!(sheet["ignored"], json!([{ "section": "General", "name": "Use Tabs", "reason": "unknown-option" }]));
+    assert_eq!(
+        sheet["options"], want,
+        "the default currency and end-accounting-period date are not kept"
+    );
+    assert_eq!(
+        sheet["ignored"],
+        json!([{ "section": "General", "name": "Use Tabs", "reason": "unknown-option" }])
+    );
 
     let saved = config(&c)["reports"]["saved"].clone();
     assert_eq!(saved.as_array().unwrap().len(), 2);
     assert_eq!(saved[0]["guid"], NET_WORTH_SAVED);
     assert_eq!(saved[1]["options"], sheet["options"]);
     let list = c.call("report.list", json!({}));
-    assert!(list["reports"].as_array().unwrap().iter().any(|r| r["name"] == "Net worth, monthly" && r["kind"] == "saved"));
+    assert!(
+        list["reports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["name"] == "Net worth, monthly" && r["kind"] == "saved")
+    );
 }
 
 /// Both spellings of the accounting period's dates read alike: GnuCash 5.17 writes `end-prev-fin-year`
@@ -97,12 +120,21 @@ fn both_accounting_period_spellings() {
     let imported = |c: &mut Charts, end: &str| c.call("report.importConfigurations", json!({ "text": entry(end), "dryRun": true }));
     let (fin_year, period) = (imported(&mut c, "end-prev-fin-year"), imported(&mut c, "end-accounting-period"));
     assert_eq!(fin_year["imported"][0]["options"], period["imported"][0]["options"]);
-    assert!(fin_year["imported"][0]["options"]["General"].get("End Date").is_none(), "both are the template's default");
+    assert!(
+        fin_year["imported"][0]["options"]["General"].get("End Date").is_none(),
+        "both are the template's default"
+    );
     let month = imported(&mut c, "end-this-month");
-    assert_eq!(month["imported"][0]["options"]["General"]["End Date"], json!({ "relative": "end-this-month" }));
+    assert_eq!(
+        month["imported"][0]["options"]["General"]["End Date"],
+        json!({ "relative": "end-this-month" })
+    );
     let start_text = text.replace("'(absolute . 1704106740)", "'(relative . start-prev-fin-year)");
     let result = c.call("report.importConfigurations", json!({ "text": start_text, "dryRun": true }));
-    assert!(result["imported"][0]["options"]["General"].get("Start Date").is_none(), "start-prev-fin-year is the default start");
+    assert!(
+        result["imported"][0]["options"]["General"].get("Start Date").is_none(),
+        "start-prev-fin-year is the default start"
+    );
 }
 
 #[test]
@@ -110,7 +142,10 @@ fn dry_run_writes_nothing_and_a_second_import_skips() {
     let mut c = Charts::new("iso");
     let before = config(&c);
     let result = import_reports(&mut c, true);
-    assert_eq!((result["dryRun"].as_bool(), result["imported"].as_array().unwrap().len()), (Some(true), 2));
+    assert_eq!(
+        (result["dryRun"].as_bool(), result["imported"].as_array().unwrap().len()),
+        (Some(true), 2)
+    );
     assert_eq!(config(&c), before);
     import_reports(&mut c, false);
     let again = import_reports(&mut c, false);
@@ -122,7 +157,10 @@ fn dry_run_writes_nothing_and_a_second_import_skips() {
 #[test]
 fn name_conflicts_are_skipped() {
     let mut c = Charts::new("iso");
-    c.call("report.saveConfiguration", json!({ "name": "Year-end balance sheet", "report": "Balance Sheet" }));
+    c.call(
+        "report.saveConfiguration",
+        json!({ "name": "Year-end balance sheet", "report": "Balance Sheet" }),
+    );
     let result = import_reports(&mut c, false);
     assert_eq!(skipped(&result)[2], ("Year-end balance sheet".to_owned(), "conflict".to_owned()));
 }
@@ -132,14 +170,16 @@ fn name_conflicts_are_skipped() {
 fn imported_configurations_run_as_set_by_hand() {
     let mut c = Charts::open("charts-daily.gnucash", "iso");
     let imported = import_reports(&mut c, false);
-    [(NET_WORTH_SAVED, NET_WORTH_LINECHART, 0), (BALANCE_SHEET_SAVED, BALANCE_SHEET, 1)].iter().for_each(|(saved, template, i)| {
-        let by_import = c.call("report.run", json!({ "report": saved }));
-        let options = imported["imported"][i]["options"].clone();
-        let by_hand = c.call("report.run", json!({ "report": template, "options": options }));
-        assert_eq!(by_import["sections"], by_hand["sections"], "{template}");
-        assert_eq!(by_import["options"], by_hand["options"], "{template}");
-        assert_eq!(by_import["report"]["configuration"], json!(saved));
-    });
+    [(NET_WORTH_SAVED, NET_WORTH_LINECHART, 0), (BALANCE_SHEET_SAVED, BALANCE_SHEET, 1)]
+        .iter()
+        .for_each(|(saved, template, i)| {
+            let by_import = c.call("report.run", json!({ "report": saved }));
+            let options = imported["imported"][i]["options"].clone();
+            let by_hand = c.call("report.run", json!({ "report": template, "options": options }));
+            assert_eq!(by_import["sections"], by_hand["sections"], "{template}");
+            assert_eq!(by_import["options"], by_hand["options"], "{template}");
+            assert_eq!(by_import["report"]["configuration"], json!(saved));
+        });
     let run = c.call("report.run", json!({ "report": NET_WORTH_SAVED }));
     let chart = chart_reports::chart(&run);
     assert_eq!(chart["width"], json!({ "pixels": 800 }));
@@ -167,11 +207,24 @@ fn malformed_entries_are_skipped_never_run() {
     let result = c.call("report.importConfigurations", json!({ "text": bad_value, "dryRun": true }));
     let first = &result["skipped"][0];
     assert_eq!(first["reason"], "invalid-option");
-    assert!(first["message"].as_str().unwrap().starts_with("option General/Step Size"), "{first}");
+    assert!(
+        first["message"].as_str().unwrap().starts_with("option General/Step Size"),
+        "{first}"
+    );
 
     let result = c.call("report.importConfigurations", json!({ "text": "" }));
-    assert_eq!((result["imported"].as_array().unwrap().len(), result["skipped"].as_array().unwrap().len()), (0, 0));
-    assert!(c.err("report.importConfigurations", json!({ "path": "/etc/passwd" })).message.contains("unknown field"));
+    assert_eq!(
+        (
+            result["imported"].as_array().unwrap().len(),
+            result["skipped"].as_array().unwrap().len()
+        ),
+        (0, 0)
+    );
+    assert!(
+        c.err("report.importConfigurations", json!({ "path": "/etc/passwd" }))
+            .message
+            .contains("unknown field")
+    );
 }
 
 #[test]
@@ -182,26 +235,47 @@ fn imports_style_sheets() {
     let imported = result["imported"].as_array().unwrap();
     let names: Vec<&str> = imported.iter().map(|i| i["styleSheet"]["name"].as_str().unwrap()).collect();
     assert_eq!(names, ["Default", "Acme", "Plain CSS"]);
-    assert_eq!(imported[1]["ignored"], json!([
-        { "section": "Images", "name": "Heading Alignment", "reason": "not-rendered" },
-        { "section": "Images", "name": "Logo", "reason": "not-rendered" },
-    ]));
-    assert_eq!(imported[2]["ignored"], json!([{ "section": "General", "name": "Obsolete Option", "reason": "unknown-option" }]));
+    assert_eq!(
+        imported[1]["ignored"],
+        json!([
+            { "section": "Images", "name": "Heading Alignment", "reason": "not-rendered" },
+            { "section": "Images", "name": "Logo", "reason": "not-rendered" },
+        ])
+    );
+    assert_eq!(
+        imported[2]["ignored"],
+        json!([{ "section": "General", "name": "Obsolete Option", "reason": "unknown-option" }])
+    );
 
     let records = config(&c)["reports"]["styleSheets"].clone();
-    assert_eq!(records[0], json!({ "name": "Default", "template": "Plain",
-        "options": { "General": { "Background Color": "fffaf0" }, "Tables": { "Table cell padding": 6 } } }));
-    assert_eq!(records[1], json!({ "name": "Acme", "template": "Footer", "options": {
+    assert_eq!(
+        records[0],
+        json!({ "name": "Default", "template": "Plain",
+        "options": { "General": { "Background Color": "fffaf0" }, "Tables": { "Table cell padding": 6 } } })
+    );
+    assert_eq!(
+        records[1],
+        json!({ "name": "Acme", "template": "Footer", "options": {
         "Colors": { "Text Color": "000080" },
         "Fonts": { "Title": "DejaVu Serif Bold 18" },
         "General": { "Footer": "Acme Ltd\n\"Confidential\"", "Prepared for": "Acme Ltd", "Preparer": "A. Bookkeeper",
                      "Show preparer info": true },
         "Tables": { "Table border width": 2 },
-        "Images": { "Heading Alignment": "center", "Logo": "/home/me/acme-logo.png" } } }));
-    assert_eq!(records[2]["options"]["General"]["CSS"], "body { color: #333; }\ntd.number-cell { font-weight: bold; }\n");
+        "Images": { "Heading Alignment": "center", "Logo": "/home/me/acme-logo.png" } } })
+    );
+    assert_eq!(
+        records[2]["options"]["General"]["CSS"],
+        "body { color: #333; }\ntd.number-cell { font-weight: bold; }\n"
+    );
 
     let sheets = c.call("report.styleSheets", json!({}));
-    let acme = sheets["styleSheets"].as_array().unwrap().iter().find(|s| s["name"] == "Acme").unwrap().clone();
+    let acme = sheets["styleSheets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "Acme")
+        .unwrap()
+        .clone();
     assert_eq!(acme["predefined"], false);
     let again = c.call("report.importStyleSheets", json!({ "text": userdata("stylesheets-2.0") }));
     assert_eq!(again["imported"], json!([]), "existing entries are kept, not overwritten");
@@ -216,7 +290,10 @@ fn configurations_name_style_sheets_imported_later() {
     let result = c.call("report.importConfigurations", json!({ "text": text }));
     assert_eq!(result["imported"][0]["options"]["General"]["Stylesheet"], "Acme");
     c.call("report.importStyleSheets", json!({ "text": userdata("stylesheets-2.0") }));
-    let html = c.call("report.export", json!({ "report": NET_WORTH_SAVED }))["html"].as_str().unwrap().to_owned();
+    let html = c.call("report.export", json!({ "report": NET_WORTH_SAVED }))["html"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(html.contains("A. Bookkeeper"), "rendered through the imported Acme style sheet");
 }
 
@@ -226,5 +303,8 @@ fn style_sheet_values_red_ale_refuses_are_skipped() {
     let text = userdata("stylesheets-2.0").replace("td.number-cell", "@import url(x.css); td.number-cell");
     let result = c.call("report.importStyleSheets", json!({ "text": text, "dryRun": true }));
     let last = result["skipped"].as_array().unwrap().last().unwrap().clone();
-    assert_eq!((last["name"].as_str(), last["reason"].as_str()), (Some("Plain CSS"), Some("invalid-option")));
+    assert_eq!(
+        (last["name"].as_str(), last["reason"].as_str()),
+        (Some("Plain CSS"), Some("invalid-option"))
+    );
 }

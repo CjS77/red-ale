@@ -28,7 +28,12 @@ pub fn style_sheets(text: &str) -> Vec<Result<StyleSheetForm, Malformed>> {
 
 fn entries<T>(text: &str, entry: impl Fn(&sexp::Form) -> Result<T, Malformed>) -> Vec<Result<T, Malformed>> {
     let read = sexp::read_all(text);
-    let unread = read.error.map(|e| Err(Malformed { line: e.line, message: format!("cannot read the rest of the file: {}", e.message) }));
+    let unread = read.error.map(|e| {
+        Err(Malformed {
+            line: e.line,
+            message: format!("cannot read the rest of the file: {}", e.message),
+        })
+    });
     read.forms.iter().map(entry).chain(unread).collect()
 }
 

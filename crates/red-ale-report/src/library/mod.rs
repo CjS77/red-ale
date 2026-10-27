@@ -79,7 +79,13 @@ impl Library {
                 && std::path::Path::new(path).extension().is_some_and(|e| e == "rhai")
                 && path.split('/').all(|c| !c.is_empty() && c != "." && c != "..")
         };
-        Self { scripts: scripts.into_iter().filter(|(p, _)| valid(p)).map(|(p, t)| (p.to_owned(), t.to_owned())).collect() }
+        Self {
+            scripts: scripts
+                .into_iter()
+                .filter(|(p, _)| valid(p))
+                .map(|(p, t)| (p.to_owned(), t.to_owned()))
+                .collect(),
+        }
     }
 
     /// The scripts, by path.

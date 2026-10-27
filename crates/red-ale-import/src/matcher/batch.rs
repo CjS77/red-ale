@@ -10,9 +10,9 @@ use red_ale_core::transaction::slot_paths::ONLINE_ID;
 use red_ale_core::{Book, DomainResult, Guid, Split, Time64, Transaction};
 use red_ale_locale::Locale;
 
+use super::ImportSettings;
 use super::score::split_find_match;
 use super::trans_info::{LastSplitInfo, TransInfo};
-use super::ImportSettings;
 
 /// Seconds in a day (`import-main-matcher.cpp:2312`).
 const SECS_PER_DAY: i64 = 86_400;
@@ -48,9 +48,14 @@ impl OnlineIds {
     /// that another split in its account already holds. An empty ID is looked up and never found.
     pub fn exists(&mut self, book: &Book, t: &Transaction) -> bool {
         let Some(split) = t.splits.first() else { return false };
-        let Some(id) = split.slots.get_key(ONLINE_ID).and_then(|v| v.as_str()) else { return false };
+        let Some(id) = split.slots.get_key(ONLINE_ID).and_then(|v| v.as_str()) else {
+            return false;
+        };
         let Some(account) = split.account else { return false };
-        self.0.entry(account).or_insert_with(|| account_online_ids(book, account)).contains(id)
+        self.0
+            .entry(account)
+            .or_insert_with(|| account_online_ids(book, account))
+            .contains(id)
     }
 }
 
@@ -59,13 +64,20 @@ fn online_id(split: &Split) -> Option<&str> {
 }
 
 fn account_online_ids(book: &Book, account: Guid) -> BTreeSet<String> {
-    book.splits_of(account).filter_map(|(_, s)| online_id(s).map(str::to_owned)).collect()
+    book.splits_of(account)
+        .filter_map(|(_, s)| online_id(s).map(str::to_owned))
+        .collect()
 }
 
 /// Match a batch: GnuCash's `gnc_gen_trans_list_add_trans_internal` for each transaction in arrival order (dropping
 /// Online ID duplicates, `import-main-matcher.cpp:2256-2283`), then `gnc_gen_trans_list_create_matches` and
 /// `resolve_conflicts` over its list, which is in reverse order of arrival (`:2446-2461`, `:409-458`).
-pub fn match_batch(book: &Book, settings: &ImportSettings, imported: Vec<ImportedTransaction>, locale: &Locale) -> DomainResult<MatchBatch> {
+pub fn match_batch(
+    book: &Book,
+    settings: &ImportSettings,
+    imported: Vec<ImportedTransaction>,
+    locale: &Locale,
+) -> DomainResult<MatchBatch> {
     let mut ids = OnlineIds::default();
     let mut duplicates = Vec::new();
     let mut list = Vec::new();
@@ -73,7 +85,10 @@ pub fn match_batch(book: &Book, settings: &ImportSettings, imported: Vec<Importe
         if ids.exists(book, &it.transaction) {
             duplicates.push(index);
         } else {
-            list.insert(0, TransInfo::new(book, settings, index, it.transaction, it.last_split.as_ref(), locale)?);
+            list.insert(
+                0,
+                TransInfo::new(book, settings, index, it.transaction, it.last_split.as_ref(), locale)?,
+            );
         }
         Ok(())
     })?;
@@ -88,7 +103,10 @@ pub fn match_batch(book: &Book, settings: &ImportSettings, imported: Vec<Importe
 /// plus the window, inclusive, in the query's default order (`xaccSplitOrder`).
 fn candidate_splits<'a>(book: &'a Book, settings: &ImportSettings, list: &[TransInfo]) -> Vec<(&'a Transaction, &'a Split)> {
     let accounts: BTreeSet<Guid> = list.iter().filter_map(TransInfo::account).collect();
-    let (Some(min), Some(max)) = (list.iter().map(|i| i.trans.date_posted.0).min(), list.iter().map(|i| i.trans.date_posted.0).max()) else {
+    let (Some(min), Some(max)) = (
+        list.iter().map(|i| i.trans.date_posted.0).min(),
+        list.iter().map(|i| i.trans.date_posted.0).max(),
+    ) else {
         return Vec::new();
     };
     let limit = i64::from(settings.match_date_hardlimit).saturating_mul(SECS_PER_DAY);
@@ -97,7 +115,12 @@ fn candidate_splits<'a>(book: &'a Book, settings: &ImportSettings, list: &[Trans
         .transactions
         .values()
         .filter(|t| t.date_posted >= from && t.date_posted <= to)
-        .flat_map(|t| t.splits.iter().filter(|s| s.account.is_some_and(|a| accounts.contains(&a))).map(move |s| (t.as_ref(), s)))
+        .flat_map(|t| {
+            t.splits
+                .iter()
+                .filter(|s| s.account.is_some_and(|a| accounts.contains(&a)))
+                .map(move |s| (t.as_ref(), s))
+        })
         .collect();
     let num_action = uses_split_action_for_num(book);
     found.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
@@ -120,7 +143,10 @@ fn create_matches(book: &Book, settings: &ImportSettings, list: &mut [TransInfo]
     });
     list.iter_mut().for_each(|info| {
         let bucket = info.account().and_then(|a| by_account.get(&a)).map_or(&[][..], Vec::as_slice);
-        info.matches = bucket.iter().filter_map(|(t, s)| split_find_match(book, &info.trans, t, s, settings)).collect();
+        info.matches = bucket
+            .iter()
+            .filter_map(|(t, s)| split_find_match(book, &info.trans, t, s, settings))
+            .collect();
         info.init_matches(settings);
     });
 }
@@ -148,12 +174,12 @@ pub(crate) fn resolve_conflicts(list: &mut [TransInfo]) {
 fn conflicts_of(list: &[TransInfo], i: usize) -> Vec<usize> {
     let Some(top) = list[i].matches.first() else { return Vec::new() };
     let rivals: Vec<(usize, i32)> = std::iter::once((i, top.probability))
-        .chain(
-            list.iter()
-                .enumerate()
-                .skip(i + 1)
-                .filter_map(|(j, info)| info.matches.first().filter(|m| m.transaction == top.transaction).map(|m| (j, m.probability))),
-        )
+        .chain(list.iter().enumerate().skip(i + 1).filter_map(|(j, info)| {
+            info.matches
+                .first()
+                .filter(|m| m.transaction == top.transaction)
+                .map(|m| (j, m.probability))
+        }))
         .collect();
     let best = rivals.iter().fold(rivals[0], |best, r| if r.1 > best.1 { *r } else { best }).0;
     rivals.into_iter().map(|(j, _)| j).filter(|j| *j != best).collect()

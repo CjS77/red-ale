@@ -471,7 +471,10 @@ pub struct Invoice {
 impl Invoice {
     /// True when the document is a credit note (`credit-note` slot is a non-zero integer).
     pub fn is_credit_note(&self) -> bool {
-        self.slots.get("credit-note").and_then(crate::SlotValue::as_int).is_some_and(|v| v != 0)
+        self.slots
+            .get("credit-note")
+            .and_then(crate::SlotValue::as_int)
+            .is_some_and(|v| v != 0)
     }
 
     /// True once posted.

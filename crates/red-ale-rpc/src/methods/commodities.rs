@@ -16,19 +16,54 @@ use crate::wire::{Amount, CommodityId, Id};
 /// The commodities methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("commodity.namespaces", "List the commodity namespaces with how many commodities each holds.", Effect::Read, namespaces),
-        method("commodity.list", "List commodities: the book's own and the built-in ISO 4217 currencies.", Effect::Read, list),
-        method("commodity.get", "Describe one commodity, with how much of the book uses it.", Effect::Read, get),
-        method("commodity.create", "Create a security, with the security editor's checks.", Effect::Write, create),
+        method(
+            "commodity.namespaces",
+            "List the commodity namespaces with how many commodities each holds.",
+            Effect::Read,
+            namespaces,
+        ),
+        method(
+            "commodity.list",
+            "List commodities: the book's own and the built-in ISO 4217 currencies.",
+            Effect::Read,
+            list,
+        ),
+        method(
+            "commodity.get",
+            "Describe one commodity, with how much of the book uses it.",
+            Effect::Read,
+            get,
+        ),
+        method(
+            "commodity.create",
+            "Create a security, with the security editor's checks.",
+            Effect::Write,
+            create,
+        ),
         method(
             "commodity.update",
             "Edit a security (any field, including a rename) or a currency's quote flag, quote time zone and symbol.",
             Effect::Write,
             update,
         ),
-        method("commodity.delete", "Delete a security that nothing uses; its prices go too only with deletePrices.", Effect::Destructive, delete),
-        method("currency.list", "List GnuCash 5.17's built-in ISO 4217 currencies.", Effect::Read, currencies),
-        method("currency.euroConvert", "Convert between the euro and a currency it replaced, at GnuCash's fixed rates.", Effect::Read, euro_convert),
+        method(
+            "commodity.delete",
+            "Delete a security that nothing uses; its prices go too only with deletePrices.",
+            Effect::Destructive,
+            delete,
+        ),
+        method(
+            "currency.list",
+            "List GnuCash 5.17's built-in ISO 4217 currencies.",
+            Effect::Read,
+            currencies,
+        ),
+        method(
+            "currency.euroConvert",
+            "Convert between the euro and a currency it replaced, at GnuCash's fixed rates.",
+            Effect::Read,
+            euro_convert,
+        ),
     ]
 }
 
@@ -68,7 +103,12 @@ pub struct UsageInfo {
 
 impl From<Usage> for UsageInfo {
     fn from(u: Usage) -> Self {
-        Self { accounts: u.accounts, transactions: u.transactions, prices: u.prices, business: u.business }
+        Self {
+            accounts: u.accounts,
+            transactions: u.transactions,
+            prices: u.prices,
+            business: u.business,
+        }
     }
 }
 
@@ -346,7 +386,9 @@ fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> 
         refuse_if_residue_mentions(ctx, &id, "deleted")?;
     }
     let deleted = ctx.mutate(|book, _| ops::delete_commodity(book, &id, p.delete_prices))?;
-    Ok(DeleteResult { deleted_prices: deleted.into_iter().map(Id).collect() })
+    Ok(DeleteResult {
+        deleted_prices: deleted.into_iter().map(Id).collect(),
+    })
 }
 
 /// A built-in ISO 4217 currency.
@@ -411,7 +453,14 @@ pub struct EuroConvertResult {
 
 fn euro_convert(_: &mut Context, p: EuroConvertParams) -> Result<EuroConvertResult, RpcError> {
     let amount = ops::euro_convert(&p.from.0, &p.to.0, p.amount.0)?;
-    let legacy = if ops::canonical(&p.to.0).mnemonic == "EUR" { &p.from.0 } else { &p.to.0 };
+    let legacy = if ops::canonical(&p.to.0).mnemonic == "EUR" {
+        &p.from.0
+    } else {
+        &p.to.0
+    };
     let rate = euro_rate(&ops::canonical(legacy)).ok_or_else(|| RpcError::invalid("no euro rate"))?;
-    Ok(EuroConvertResult { amount: Amount(amount), rate: Amount(rate) })
+    Ok(EuroConvertResult {
+        amount: Amount(amount),
+        rate: Amount(rate),
+    })
 }

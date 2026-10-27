@@ -21,12 +21,31 @@ use red_ale_core::{AccountType, Book, CommodityRef, Date, DomainResult, Env, Gui
 use red_ale_testkit::{TempBook, call, create, diff, oracle};
 use serde_json::{Value, json};
 
-const COMMODITIES: [&str; 6] = ["CURRENCY::USD", "CURRENCY::EUR", "CURRENCY::GBP", "CURRENCY::JPY", "NASDAQ::ACME", "FUND::ZETA"];
+const COMMODITIES: [&str; 6] = [
+    "CURRENCY::USD",
+    "CURRENCY::EUR",
+    "CURRENCY::GBP",
+    "CURRENCY::JPY",
+    "NASDAQ::ACME",
+    "FUND::ZETA",
+];
 
 /// Days probed, each at its posted time (the day-neutral 10:59 UTC) and one second later.
 const DAYS: [&str; 14] = [
-    "2024-01-01", "2024-01-05", "2024-01-06", "2024-01-20", "2024-02-10", "2024-02-15", "2024-03-01", "2024-03-02", "2024-03-15",
-    "2024-04-01", "2024-05-01", "2024-06-30", "2024-07-01", "2099-06-01",
+    "2024-01-01",
+    "2024-01-05",
+    "2024-01-06",
+    "2024-01-20",
+    "2024-02-10",
+    "2024-02-15",
+    "2024-03-01",
+    "2024-03-02",
+    "2024-03-15",
+    "2024-04-01",
+    "2024-05-01",
+    "2024-06-30",
+    "2024-07-01",
+    "2099-06-01",
 ];
 
 fn day(d: &str) -> Date {
@@ -43,7 +62,9 @@ fn n(num: i64, denom: i64) -> Numeric {
 }
 
 fn times() -> Vec<Time64> {
-    DAYS.iter().flat_map(|d| [day(d).neutral_time(), Time64(day(d).neutral_time().0 + 1)]).collect()
+    DAYS.iter()
+        .flat_map(|d| [day(d).neutral_time(), Time64(day(d).neutral_time().0 + 1)])
+        .collect()
 }
 
 /// The accounts of the test book by full name.
@@ -51,7 +72,12 @@ type Accounts = BTreeMap<&'static str, Guid>;
 
 fn account(book: &mut Book, env: &mut dyn Env, accounts: &mut Accounts, name: &'static str, t: AccountType, c: &str) -> DomainResult<()> {
     let (parent, leaf) = name.rsplit_once(':').map_or((book.root, name), |(p, l)| (accounts[p], l));
-    let edit = AccountEdit { name: Some(leaf.into()), account_type: Some(t), commodity: Some(commodity(c)), ..AccountEdit::default() };
+    let edit = AccountEdit {
+        name: Some(leaf.into()),
+        account_type: Some(t),
+        commodity: Some(commodity(c)),
+        ..AccountEdit::default()
+    };
     accounts.insert(name, create_account(book, env, parent, &edit)?);
     Ok(())
 }
@@ -65,7 +91,13 @@ struct Leg {
 }
 
 fn leg(account: &'static str, value: Numeric) -> Leg {
-    Leg { account, value, amount: None, action: "", state: ReconcileState::New }
+    Leg {
+        account,
+        value,
+        amount: None,
+        action: "",
+        state: ReconcileState::New,
+    }
 }
 
 /// A transaction's date, num, description and currency.
@@ -98,11 +130,19 @@ fn mark_stock_split(book: &mut Book, txn: Guid, account: Guid) {
 }
 
 fn build_accounts(book: &mut Book, env: &mut dyn Env) -> DomainResult<Accounts> {
-    [("NASDAQ", "ACME", 1), ("FUND", "ZETA", 1000)].iter().try_for_each(|(ns, m, fraction)| {
-        let names = ((*ns).into(), (*m).into(), (*m).into());
-        let new = NewSecurity { namespace: names.0, mnemonic: names.1, fullname: names.2, fraction: *fraction, ..NewSecurity::default() };
-        create_security(book, &new).map(|_| ())
-    })?;
+    [("NASDAQ", "ACME", 1), ("FUND", "ZETA", 1000)]
+        .iter()
+        .try_for_each(|(ns, m, fraction)| {
+            let names = ((*ns).into(), (*m).into(), (*m).into());
+            let new = NewSecurity {
+                namespace: names.0,
+                mnemonic: names.1,
+                fullname: names.2,
+                fraction: *fraction,
+                ..NewSecurity::default()
+            };
+            create_security(book, &new).map(|_| ())
+        })?;
     let mut a = Accounts::new();
     [
         ("Assets", AccountType::Asset, "CURRENCY::USD"),
@@ -133,45 +173,113 @@ fn build_transactions(book: &mut Book, env: &mut dyn Env, a: &Accounts) -> Domai
         f(&mut l);
         l
     };
-    post(book, env, a, ("2024-01-05", "1", "Salary", "CURRENCY::USD"), vec![
-        with(leg("Assets:Bank", usd(300_000)), &|l| l.action = "3"),
-        with(leg("Income:Salary", usd(-300_000)), &|l| l.state = ReconcileState::Reconciled),
-    ])?;
-    post(book, env, a, ("2024-01-05", "10", "Groceries", "CURRENCY::USD"), vec![
-        leg("Expenses:Food", usd(4550)),
-        with(leg("Assets:Bank", usd(-4550)), &|l| l.action = "1"),
-    ])?;
-    post(book, env, a, ("2024-01-05", "2", "Lunch", "CURRENCY::USD"), vec![
-        leg("Expenses:Food", usd(1225)),
-        with(leg("Assets:Bank", usd(-1225)), &|l| {
-            l.action = "2";
-            l.state = ReconcileState::Cleared;
-        }),
-    ])?;
-    post(book, env, a, ("2024-01-20", "", "To euros", "CURRENCY::USD"), vec![
-        with(leg("Assets:Euro Bank", usd(110_000)), &|l| l.amount = Some(n(100_000, 100))),
-        leg("Assets:Bank", usd(-110_000)),
-    ])?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-01-05", "1", "Salary", "CURRENCY::USD"),
+        vec![
+            with(leg("Assets:Bank", usd(300_000)), &|l| l.action = "3"),
+            with(leg("Income:Salary", usd(-300_000)), &|l| l.state = ReconcileState::Reconciled),
+        ],
+    )?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-01-05", "10", "Groceries", "CURRENCY::USD"),
+        vec![
+            leg("Expenses:Food", usd(4550)),
+            with(leg("Assets:Bank", usd(-4550)), &|l| l.action = "1"),
+        ],
+    )?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-01-05", "2", "Lunch", "CURRENCY::USD"),
+        vec![
+            leg("Expenses:Food", usd(1225)),
+            with(leg("Assets:Bank", usd(-1225)), &|l| {
+                l.action = "2";
+                l.state = ReconcileState::Cleared;
+            }),
+        ],
+    )?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-01-20", "", "To euros", "CURRENCY::USD"),
+        vec![
+            with(leg("Assets:Euro Bank", usd(110_000)), &|l| l.amount = Some(n(100_000, 100))),
+            leg("Assets:Bank", usd(-110_000)),
+        ],
+    )?;
     let paris = ("2024-02-03", "", "Groceries in Paris", "CURRENCY::EUR");
-    post(book, env, a, paris, vec![leg("Expenses:Euro Food", usd(3333)), leg("Assets:Euro Bank", usd(-3333))])?;
-    post(book, env, a, ("2024-02-10", "", "Buy ACME", "CURRENCY::USD"), vec![
-        with(leg("Assets:Brokerage:ACME", usd(150_000)), &|l| l.amount = Some(n(10, 1))),
-        leg("Assets:Bank", usd(-150_000)),
-    ])?;
-    post(book, env, a, ("2024-03-15", "", "Sell ACME", "CURRENCY::USD"), vec![
-        with(leg("Assets:Brokerage:ACME", usd(-90_000)), &|l| l.amount = Some(n(-5, 1))),
-        leg("Assets:Bank", usd(90_000)),
-    ])?;
-    post(book, env, a, ("2024-04-01", "", "To pounds", "CURRENCY::USD"), vec![
-        with(leg("Assets:Pound Bank", usd(64_000)), &|l| l.amount = Some(n(50_000, 100))),
-        leg("Assets:Bank", usd(-64_000)),
-    ])?;
+    post(
+        book,
+        env,
+        a,
+        paris,
+        vec![leg("Expenses:Euro Food", usd(3333)), leg("Assets:Euro Bank", usd(-3333))],
+    )?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-02-10", "", "Buy ACME", "CURRENCY::USD"),
+        vec![
+            with(leg("Assets:Brokerage:ACME", usd(150_000)), &|l| l.amount = Some(n(10, 1))),
+            leg("Assets:Bank", usd(-150_000)),
+        ],
+    )?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-03-15", "", "Sell ACME", "CURRENCY::USD"),
+        vec![
+            with(leg("Assets:Brokerage:ACME", usd(-90_000)), &|l| l.amount = Some(n(-5, 1))),
+            leg("Assets:Bank", usd(90_000)),
+        ],
+    )?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-04-01", "", "To pounds", "CURRENCY::USD"),
+        vec![
+            with(leg("Assets:Pound Bank", usd(64_000)), &|l| l.amount = Some(n(50_000, 100))),
+            leg("Assets:Bank", usd(-64_000)),
+        ],
+    )?;
     let mistake = ("2024-05-01", "", "Mistake", "CURRENCY::USD");
-    let mistake = post(book, env, a, mistake, vec![leg("Expenses:Food", usd(9900)), leg("Assets:Bank", usd(-9900))])?;
+    let mistake = post(
+        book,
+        env,
+        a,
+        mistake,
+        vec![leg("Expenses:Food", usd(9900)), leg("Assets:Bank", usd(-9900))],
+    )?;
     let closing = ("2024-06-30", "", "Closing Entries", "CURRENCY::USD");
-    let closing = post(book, env, a, closing, vec![leg("Income:Salary", usd(300_000)), leg("Equity", usd(-300_000))])?;
-    Arc::make_mut(book.transactions.get_mut(&closing).unwrap()).slots.set(slot_paths::BOOK_CLOSING, SlotValue::Integer(1));
-    post(book, env, a, ("2024-06-30", "", "Snack", "CURRENCY::USD"), vec![leg("Expenses:Food", usd(700)), leg("Assets:Bank", usd(-700))])?;
+    let closing = post(
+        book,
+        env,
+        a,
+        closing,
+        vec![leg("Income:Salary", usd(300_000)), leg("Equity", usd(-300_000))],
+    )?;
+    Arc::make_mut(book.transactions.get_mut(&closing).unwrap())
+        .slots
+        .set(slot_paths::BOOK_CLOSING, SlotValue::Integer(1));
+    post(
+        book,
+        env,
+        a,
+        ("2024-06-30", "", "Snack", "CURRENCY::USD"),
+        vec![leg("Expenses:Food", usd(700)), leg("Assets:Bank", usd(-700))],
+    )?;
     zeta_stock_splits(book, env, a)?;
     Ok(mistake)
 }
@@ -182,18 +290,54 @@ fn zeta_stock_splits(book: &mut Book, env: &mut dyn Env, a: &Accounts) -> Domain
     let zeta = a["Assets:Brokerage:Zeta"];
     let shares = |s: i64| Some(n(s, 1));
     let split = |date| (date, "", "Split", "CURRENCY::USD");
-    let empty = post(book, env, a, split("2024-01-06"), vec![Leg { amount: shares(5), ..leg("Assets:Brokerage:Zeta", n(0, 100)) }])?;
+    let empty = post(
+        book,
+        env,
+        a,
+        split("2024-01-06"),
+        vec![Leg {
+            amount: shares(5),
+            ..leg("Assets:Brokerage:Zeta", n(0, 100))
+        }],
+    )?;
     mark_stock_split(book, empty, zeta);
-    post(book, env, a, ("2024-02-15", "", "Buy Zeta", "CURRENCY::USD"), vec![
-        Leg { amount: shares(10), ..leg("Assets:Brokerage:Zeta", n(3000, 100)) },
-        leg("Assets:Bank", n(-3000, 100)),
-    ])?;
-    let emptying = post(book, env, a, split("2024-03-02"), vec![Leg { amount: shares(-10), ..leg("Assets:Brokerage:Zeta", n(0, 100)) }])?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-02-15", "", "Buy Zeta", "CURRENCY::USD"),
+        vec![
+            Leg {
+                amount: shares(10),
+                ..leg("Assets:Brokerage:Zeta", n(3000, 100))
+            },
+            leg("Assets:Bank", n(-3000, 100)),
+        ],
+    )?;
+    let emptying = post(
+        book,
+        env,
+        a,
+        split("2024-03-02"),
+        vec![Leg {
+            amount: shares(-10),
+            ..leg("Assets:Brokerage:Zeta", n(0, 100))
+        }],
+    )?;
     mark_stock_split(book, emptying, zeta);
-    post(book, env, a, ("2024-04-01", "", "Buy Zeta", "CURRENCY::USD"), vec![
-        Leg { amount: shares(2), ..leg("Assets:Brokerage:Zeta", n(600, 100)) },
-        leg("Assets:Bank", n(-600, 100)),
-    ])?;
+    post(
+        book,
+        env,
+        a,
+        ("2024-04-01", "", "Buy Zeta", "CURRENCY::USD"),
+        vec![
+            Leg {
+                amount: shares(2),
+                ..leg("Assets:Brokerage:Zeta", n(600, 100))
+            },
+            leg("Assets:Bank", n(-600, 100)),
+        ],
+    )?;
     Ok(())
 }
 
@@ -225,10 +369,22 @@ fn report_book(num_source: bool) -> (TempBook, Accounts) {
             Ok((a, mistake))
         })
         .unwrap();
-    call(&mut d, "stock.split", &json!({ "account": "Assets:Brokerage:ACME", "date": "2024-03-01", "shares": "10" }));
-    call(&mut d, "transaction.void", &json!({ "guid": mistake.to_string(), "reason": "typo" }));
+    call(
+        &mut d,
+        "stock.split",
+        &json!({ "account": "Assets:Brokerage:ACME", "date": "2024-03-01", "shares": "10" }),
+    );
+    call(
+        &mut d,
+        "transaction.void",
+        &json!({ "guid": mistake.to_string(), "reason": "typo" }),
+    );
     PRICES.iter().for_each(|(c, cur, date, value)| {
-        call(&mut d, "price.add", &json!({ "commodity": c, "currency": cur, "date": date, "value": value }));
+        call(
+            &mut d,
+            "price.add",
+            &json!({ "commodity": c, "currency": cur, "date": date, "value": value }),
+        );
     });
     call(&mut d, "book.close", &json!({ "save": true }));
     (book, accounts)
@@ -244,18 +400,38 @@ fn fracs(v: impl IntoIterator<Item = DomainResult<Numeric>>) -> Vec<String> {
 }
 
 fn now() -> Time64 {
-    Time64(i64::try_from(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()).unwrap())
+    Time64(
+        i64::try_from(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        )
+        .unwrap(),
+    )
 }
 
 /// The split queries asked of both: accounts by full name, from, to, description pattern, closing.
-type QuerySpec = (&'static [&'static str], Option<&'static str>, Option<&'static str>, Option<(&'static str, bool, bool)>, bool);
+type QuerySpec = (
+    &'static [&'static str],
+    Option<&'static str>,
+    Option<&'static str>,
+    Option<(&'static str, bool, bool)>,
+    bool,
+);
 
 const QUERIES: [QuerySpec; 7] = [
     (&["Expenses:Food", "Expenses:Euro Food", "Income:Salary"], None, None, None, false),
     (&["Assets:Bank"], Some("2024-01-05"), Some("2024-03-15"), None, false),
     (&["Assets:Bank", "Assets:Brokerage:ACME"], None, Some("2024-01-20"), None, false),
     (&["Income:Salary", "Equity"], None, None, None, true),
-    (&["Income:Salary", "Expenses:Food"], None, None, Some(("closing", false, false)), false),
+    (
+        &["Income:Salary", "Expenses:Food"],
+        None,
+        None,
+        Some(("closing", false, false)),
+        false,
+    ),
     (&["Expenses:Food", "Income:Salary"], None, None, Some(("^Gro", true, true)), true),
     (&["Expenses:Food"], None, None, Some(("", true, false)), false),
 ];
@@ -277,7 +453,11 @@ fn query(q: &QuerySpec, a: &Accounts) -> PeriodQuery {
         accounts: accounts.iter().map(|x| a[x]).collect(),
         from: from.map(|d| day(d).neutral_time()),
         to: to.map(|d| day(d).neutral_time()),
-        description: pattern.map(|(text, cased, regexp)| DescriptionPattern { text: text.into(), cased, regexp }),
+        description: pattern.map(|(text, cased, regexp)| DescriptionPattern {
+            text: text.into(),
+            cased,
+            regexp,
+        }),
         closing: *closing,
     }
 }
@@ -291,8 +471,11 @@ fn gnucash(book: &TempBook, a: &Accounts) -> Value {
         "amount": [123_456, 100],
         "queries": QUERIES.iter().map(|q| query_json(q, a)).collect::<Vec<_>>(),
     });
-    let out = oracle::run_script(&oracle::scripts_dir().join("report_reads.py"), &[&book.path_str(), &spec.to_string()])
-        .unwrap_or_else(|e| panic!("oracle: {e}"));
+    let out = oracle::run_script(
+        &oracle::scripts_dir().join("report_reads.py"),
+        &[&book.path_str(), &spec.to_string()],
+    )
+    .unwrap_or_else(|e| panic!("oracle: {e}"));
     serde_json::from_str(&out).unwrap()
 }
 
@@ -306,7 +489,13 @@ fn account_reads(book: &Book, g: Guid) -> Value {
         .iter()
         .map(|s| {
             let r = s.running;
-            json!([s.split.guid.to_string(), frac(r.balance), frac(r.noclosing), frac(r.cleared), frac(r.reconciled)])
+            json!([
+                s.split.guid.to_string(),
+                frac(r.balance),
+                frac(r.noclosing),
+                frac(r.cleared),
+                frac(r.reconciled)
+            ])
         })
         .collect();
     json!({
@@ -341,8 +530,12 @@ fn red_ale(book: &TempBook, a: &Accounts) -> Value {
     let bytes = std::fs::read(&book.path).unwrap();
     let (ours, _) = red_ale_xml::read_book(&bytes).unwrap();
     let now = now();
-    let accounts: serde_json::Map<String, Value> =
-        ours.accounts.keys().filter(|g| **g != ours.root).map(|g| (g.to_string(), account_reads(&ours, *g))).collect();
+    let accounts: serde_json::Map<String, Value> = ours
+        .accounts
+        .keys()
+        .filter(|g| **g != ours.root)
+        .map(|g| (g.to_string(), account_reads(&ours, *g)))
+        .collect();
     let ids: Vec<CommodityRef> = COMMODITIES.iter().map(|c| commodity(c)).collect();
     let prices: serde_json::Map<String, Value> = COMMODITIES
         .iter()
@@ -360,8 +553,16 @@ fn red_ale(book: &TempBook, a: &Accounts) -> Value {
             ((*c).to_owned(), json!({ "nearest": nearest, "before": before }))
         })
         .collect();
-    let queries: Vec<Vec<String>> =
-        QUERIES.iter().map(|q| period_splits(&ours, &query(q, a)).unwrap().iter().map(|(_, s)| s.guid.to_string()).collect()).collect();
+    let queries: Vec<Vec<String>> = QUERIES
+        .iter()
+        .map(|q| {
+            period_splits(&ours, &query(q, a))
+                .unwrap()
+                .iter()
+                .map(|(_, s)| s.guid.to_string())
+                .collect()
+        })
+        .collect();
     json!({ "accounts": accounts, "prices": prices, "anyCurrency": any, "queries": queries })
 }
 
@@ -369,9 +570,18 @@ fn compare(num_source: bool) {
     let (book, accounts) = report_book(num_source);
     let theirs = gnucash(&book, &accounts);
     let ours = red_ale(&book, &accounts);
-    assert_eq!(theirs["accounts"].as_object().map(serde_json::Map::len), Some(13), "every account but the root");
+    assert_eq!(
+        theirs["accounts"].as_object().map(serde_json::Map::len),
+        Some(13),
+        "every account but the root"
+    );
     let diffs = diff(&theirs, &ours, &[]);
-    assert!(diffs.is_empty(), "num source {num_source}: {} differences:\n{}", diffs.len(), diffs.join("\n"));
+    assert!(
+        diffs.is_empty(),
+        "num source {num_source}: {} differences:\n{}",
+        diffs.len(),
+        diffs.join("\n")
+    );
 }
 
 #[test]

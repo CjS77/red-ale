@@ -24,7 +24,10 @@ impl FromStr for SettingPath {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let keys: Vec<String> = s.split('.').map(str::to_owned).collect();
         if keys.iter().any(String::is_empty) {
-            return Err(SettingError::one(s, "is not a setting path: keys joined with \".\", such as import.settings.matchThreshold"));
+            return Err(SettingError::one(
+                s,
+                "is not a setting path: keys joined with \".\", such as import.settings.matchThreshold",
+            ));
         }
         Ok(Self(keys))
     }
@@ -74,7 +77,12 @@ fn summary(problems: &[Problem]) -> String {
 
 impl SettingError {
     fn one(path: impl fmt::Display, message: impl Into<String>) -> Self {
-        Self { problems: vec![Problem { path: path.to_string(), message: message.into() }] }
+        Self {
+            problems: vec![Problem {
+                path: path.to_string(),
+                message: message.into(),
+            }],
+        }
     }
 }
 
@@ -108,13 +116,19 @@ impl Config {
         let path: SettingPath = path.parse().map_err(|e: SettingError| invalid(e.to_string()))?;
         let value = self.setting(&path).map_err(|e| invalid(e.to_string()))?;
         let wrong: Vec<Problem> = self.problems().into_iter().filter(|p| related(&p.path, &path)).collect();
-        if wrong.is_empty() { Ok(value) } else { Err(invalid(format!("the Configuration's {}", SettingError { problems: wrong }))) }
+        if wrong.is_empty() {
+            Ok(value)
+        } else {
+            Err(invalid(format!("the Configuration's {}", SettingError { problems: wrong })))
+        }
     }
 
     /// The Configuration, or one setting, as a client may see it: defaults filled in, and each secret shown only as
     /// `{"set": true|false}`.
     pub fn view(&self, path: Option<&SettingPath>) -> Result<Value, SettingError> {
-        let Some(path) = path else { return Ok(mask(&SCHEMA, self.effective())) };
+        let Some(path) = path else {
+            return Ok(mask(&SCHEMA, self.effective()));
+        };
         let (schema, _) = node(path)?;
         Ok(mask(schema, self.setting(path)?))
     }
@@ -146,7 +160,10 @@ impl Config {
         if let Value::Object(map) = raw {
             self.raw = map;
         }
-        Ok(Applied { refused_over_mcp, cleared_keys })
+        Ok(Applied {
+            refused_over_mcp,
+            cleared_keys,
+        })
     }
 }
 
@@ -177,7 +194,10 @@ fn node(path: &SettingPath) -> Result<(&'static Value, bool), SettingError> {
 }
 
 fn owns_inside(schema: &Value) -> bool {
-    properties(schema).into_iter().flatten().any(|(_, s)| flag(s, "readOnly") || owns_inside(s))
+    properties(schema)
+        .into_iter()
+        .flatten()
+        .any(|(_, s)| flag(s, "readOnly") || owns_inside(s))
 }
 
 fn value_at<'a>(value: &'a Value, keys: &[String]) -> Option<&'a Value> {
@@ -208,9 +228,18 @@ fn effective(schema: &Value, stored: Option<&Value>) -> Option<Value> {
     if !is_object || stored.is_some_and(|v| !v.is_object()) {
         return stored.cloned().or_else(|| schema.get("default").cloned());
     }
-    let base = schema.get("default").cloned().filter(Value::is_object).unwrap_or_else(|| Value::Object(Map::new()));
-    let Value::Object(merged) = overlay(base, stored.unwrap_or(&Value::Null)) else { return None };
-    let own = declared.into_iter().flatten().filter_map(|(key, s)| Some((key.clone(), effective(s, merged.get(key))?)));
+    let base = schema
+        .get("default")
+        .cloned()
+        .filter(Value::is_object)
+        .unwrap_or_else(|| Value::Object(Map::new()));
+    let Value::Object(merged) = overlay(base, stored.unwrap_or(&Value::Null)) else {
+        return None;
+    };
+    let own = declared
+        .into_iter()
+        .flatten()
+        .filter_map(|(key, s)| Some((key.clone(), effective(s, merged.get(key))?)));
     let others = entries(schema).into_iter().flat_map(|entry| {
         let undeclared = merged.iter().filter(|(key, _)| !declared.is_some_and(|d| d.contains_key(*key)));
         undeclared.filter_map(move |(key, v)| Some((key.clone(), effective(entry, Some(v))?)))
@@ -262,7 +291,9 @@ fn unknown(schema: &Value, stored: &Value, at: &str, found: &mut Vec<String>) {
 fn problems(effective: &Value) -> Vec<Problem> {
     let mut found = Vec::new();
     validate(&SCHEMA, effective, "", &mut found);
-    let cross = schema::cross_checks(effective).into_iter().map(|(path, message)| Problem { path, message });
+    let cross = schema::cross_checks(effective)
+        .into_iter()
+        .map(|(path, message)| Problem { path, message });
     found.extend(cross);
     found
 }
@@ -271,7 +302,9 @@ fn problems(effective: &Value) -> Vec<Problem> {
 fn related(problem: &str, path: &SettingPath) -> bool {
     let path = path.to_string();
     let inside = |outer: &str, inner: &str| {
-        inner.strip_prefix(outer).is_some_and(|rest| rest.is_empty() || rest.starts_with('.') || rest.starts_with('['))
+        inner
+            .strip_prefix(outer)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('.') || rest.starts_with('['))
     };
     inside(&path, problem) || inside(problem, &path)
 }
@@ -307,12 +340,19 @@ fn validate(schema: &Value, value: &Value, at: &str, found: &mut Vec<Problem>) {
         Value::Array(items) => return array(schema, items, at, found),
         _ => None,
     };
-    found.extend(message.map(|message| Problem { path: at.to_owned(), message }));
+    found.extend(message.map(|message| Problem {
+        path: at.to_owned(),
+        message,
+    }));
 }
 
 /// `, not <value>` for a message, or nothing for a secret.
 fn shown(schema: &Value, value: &Value) -> String {
-    if flag(schema, "writeOnly") { String::new() } else { format!(", not {value}") }
+    if flag(schema, "writeOnly") {
+        String::new()
+    } else {
+        format!(", not {value}")
+    }
 }
 
 fn kind_allowed(schema: &Value, value: &Value) -> bool {
@@ -325,12 +365,21 @@ fn choice_allowed(schema: &Value, value: &Value) -> bool {
 }
 
 fn choices(schema: &Value) -> String {
-    let names: Vec<String> = schema.get("enum").and_then(Value::as_array).into_iter().flatten().map(Value::to_string).collect();
+    let names: Vec<String> = schema
+        .get("enum")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(Value::to_string)
+        .collect();
     names.join(", ")
 }
 
 fn bounds(schema: &Value, n: &serde_json::Number) -> Option<String> {
-    let (min, max) = (schema.get("minimum").and_then(Value::as_u64), schema.get("maximum").and_then(Value::as_u64));
+    let (min, max) = (
+        schema.get("minimum").and_then(Value::as_u64),
+        schema.get("maximum").and_then(Value::as_u64),
+    );
     match (n.as_u64(), min, max) {
         (None, Some(min), _) => Some(format!("must be at least {min}")),
         (Some(v), Some(min), _) if v < min => Some(format!("must be at least {min}")),
@@ -342,17 +391,29 @@ fn bounds(schema: &Value, n: &serde_json::Number) -> Option<String> {
 fn text(schema: &Value, s: &str) -> Option<String> {
     let min = schema.get("minLength").and_then(Value::as_u64).unwrap_or(0);
     if u64::try_from(s.chars().count()).unwrap_or(u64::MAX) < min {
-        return Some(if min == 1 { "must not be empty".to_owned() } else { format!("must be at least {min} characters") });
+        return Some(if min == 1 {
+            "must not be empty".to_owned()
+        } else {
+            format!("must be at least {min} characters")
+        });
     }
     let format = schema.get("format").and_then(Value::as_str)?;
     schema::check_format(format, s).err()
 }
 
 fn object(schema: &Value, map: &Map<String, Value>, at: &str, found: &mut Vec<Problem>) {
-    let required = schema.get("required").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str);
+    let required = schema
+        .get("required")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str);
     let missing: Vec<Problem> = required
         .filter(|r| !map.contains_key(*r))
-        .map(|r| Problem { path: join(at, r), message: "must be set".to_owned() })
+        .map(|r| Problem {
+            path: join(at, r),
+            message: "must be set".to_owned(),
+        })
         .collect();
     found.extend(missing);
     let names = schema.get("propertyNames");
@@ -369,10 +430,16 @@ fn object(schema: &Value, map: &Map<String, Value>, at: &str, found: &mut Vec<Pr
 fn array(schema: &Value, items: &[Value], at: &str, found: &mut Vec<Problem>) {
     let min = schema.get("minItems").and_then(Value::as_u64).unwrap_or(0);
     if u64::try_from(items.len()).unwrap_or(u64::MAX) < min {
-        found.push(Problem { path: at.to_owned(), message: format!("must have at least {min} item(s)") });
+        found.push(Problem {
+            path: at.to_owned(),
+            message: format!("must have at least {min} item(s)"),
+        });
     }
     if let Some(item) = schema.get("items") {
-        items.iter().enumerate().for_each(|(i, v)| validate(item, v, &format!("{at}[{i}]"), found));
+        items
+            .iter()
+            .enumerate()
+            .for_each(|(i, v)| validate(item, v, &format!("{at}[{i}]"), found));
     }
 }
 
@@ -384,30 +451,44 @@ fn parse_changes(changes: &[(String, Value)]) -> Result<Vec<(SettingPath, Value)
     let mut problems = Vec::new();
     let parsed: Vec<(SettingPath, Value)> = changes
         .iter()
-        .filter_map(|(text, value)| match text.parse::<SettingPath>().and_then(|p| node(&p).map(|n| (p, n.1))) {
-            Ok((path, true)) => {
-                let message = "is kept by its own methods (report.*Configuration, report.*StyleSheet); config.set does not change it";
-                problems.push(Problem { path: path.to_string(), message: message.to_owned() });
-                None
-            }
-            Ok((path, false)) => Some((path, value.clone())),
-            Err(e) => {
-                problems.extend(e.problems);
-                None
-            }
-        })
+        .filter_map(
+            |(text, value)| match text.parse::<SettingPath>().and_then(|p| node(&p).map(|n| (p, n.1))) {
+                Ok((path, true)) => {
+                    let message = "is kept by its own methods (report.*Configuration, report.*StyleSheet); config.set does not change it";
+                    problems.push(Problem {
+                        path: path.to_string(),
+                        message: message.to_owned(),
+                    });
+                    None
+                }
+                Ok((path, false)) => Some((path, value.clone())),
+                Err(e) => {
+                    problems.extend(e.problems);
+                    None
+                }
+            },
+        )
         .collect();
-    let overlaps = parsed.iter().enumerate().flat_map(|(i, (a, _))| parsed[i + 1..].iter().map(move |(b, _)| (a, b)));
+    let overlaps = parsed
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (a, _))| parsed[i + 1..].iter().map(move |(b, _)| (a, b)));
     problems.extend(overlaps.filter(|(a, b)| a.within(b) || b.within(a)).map(|(a, b)| Problem {
         path: a.to_string(),
         message: format!("overlaps {b}; change each setting once"),
     }));
-    if problems.is_empty() { Ok(parsed) } else { Err(SettingError { problems }) }
+    if problems.is_empty() {
+        Ok(parsed)
+    } else {
+        Err(SettingError { problems })
+    }
 }
 
 /// Set `path` in the stored Configuration, or remove it (restoring its default) for `null`.
 fn write(raw: &mut Value, path: &SettingPath, value: &Value) -> Result<(), SettingError> {
-    let Value::Object(map) = raw else { return Err(SettingError::one(path, "cannot be set: the Configuration is not an object")) };
+    let Value::Object(map) = raw else {
+        return Err(SettingError::one(path, "cannot be set: the Configuration is not an object"));
+    };
     if value.is_null() {
         remove(map, path.keys());
         return Ok(());
@@ -462,8 +543,9 @@ fn bind_keys(before: &Value, after: &Value, raw: &mut Value, changes: &[(Setting
         old.is_some_and(|old| new.iter().any(|o| !old.contains(o)))
     });
     let bound = moved.flat_map(|name| BOUND.map(|field| SettingPath(["quotes", "services", name, field].map(str::to_owned).to_vec())));
-    let cleared: Vec<SettingPath> =
-        bound.filter(|key| !sets(changes, key) && value_at(raw, key.keys()).is_some_and(|k| !k.is_null())).collect();
+    let cleared: Vec<SettingPath> = bound
+        .filter(|key| !sets(changes, key) && value_at(raw, key.keys()).is_some_and(|k| !k.is_null()))
+        .collect();
     if let Value::Object(map) = raw {
         cleared.iter().for_each(|key| remove(map, key.keys()));
     }
@@ -472,9 +554,9 @@ fn bind_keys(before: &Value, after: &Value, raw: &mut Value, changes: &[(Setting
 
 /// True when one of `changes` gives `target` a value.
 fn sets(changes: &[(SettingPath, Value)], target: &SettingPath) -> bool {
-    changes.iter().any(|(path, value)| {
-        target.within(path) && value_at(value, &target.keys()[path.keys().len()..]).is_some_and(|v| !v.is_null())
-    })
+    changes
+        .iter()
+        .any(|(path, value)| target.within(path) && value_at(value, &target.keys()[path.keys().len()..]).is_some_and(|v| !v.is_null()))
 }
 
 /// Refuse a change that introduces a problem, or leaves one in a setting it touches.
@@ -484,7 +566,11 @@ fn check_changes(before: &Value, after: &Value, changes: &[(SettingPath, Value)]
         .into_iter()
         .filter(|p| !old.contains(p) || changes.iter().any(|(path, _)| related(&p.path, path)))
         .collect();
-    if wrong.is_empty() { Ok(()) } else { Err(SettingError { problems: wrong }) }
+    if wrong.is_empty() {
+        Ok(())
+    } else {
+        Err(SettingError { problems: wrong })
+    }
 }
 
 /// The values of every setting only a person may change, by path.

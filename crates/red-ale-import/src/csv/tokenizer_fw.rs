@@ -22,7 +22,10 @@ pub(crate) fn tokenize(text: &str, widths: &[u32]) -> Vec<Row> {
 
 /// The longest line in bytes, as `GncFwTokenizer::load_file` measures it (`:144-153`).
 fn longest_line(text: &str) -> u32 {
-    getline_split(text).map(|line| u32::try_from(line.len()).unwrap_or(u32::MAX)).max().unwrap_or(0)
+    getline_split(text)
+        .map(|line| u32::try_from(line.len()).unwrap_or(u32::MAX))
+        .max()
+        .unwrap_or(0)
 }
 
 /// One line cut at the column offsets: a field per width while characters remain.

@@ -113,8 +113,11 @@ fn averaged_single_series() {
     let mut c = multi();
     let options = json!({ "General": { "Show Average": "WeekDelta" }, "Accounts": { "Levels of Subaccounts": 1 } });
     let dates: Vec<String> = (1..=12).map(|m| format!("2024-{m:02}-01")).collect();
-    let lines: Vec<(&str, &str)> =
-        dates.iter().enumerate().map(|(i, d)| (d.as_str(), if i == 2 { "796.8524633707785" } else { "0.0" })).collect();
+    let lines: Vec<(&str, &str)> = dates
+        .iter()
+        .enumerate()
+        .map(|(i, d)| (d.as_str(), if i == 2 { "796.8524633707785" } else { "0.0" }))
+        .collect();
     assert_eq!(csv(&mut c, "Expense Over Time", &options), rows("\"Date\",\"Expenses\"", &lines));
 }
 
@@ -123,7 +126,11 @@ fn only_the_charts_export_csv() {
     let mut c = daily();
     let list = c.call("report.list", json!({}));
     let reports = list["reports"].as_array().unwrap();
-    let with_csv: Vec<&str> = reports.iter().filter(|r| r["exportTypes"] == json!(["csv"])).map(|r| r["name"].as_str().unwrap()).collect();
+    let with_csv: Vec<&str> = reports
+        .iter()
+        .filter(|r| r["exportTypes"] == json!(["csv"]))
+        .map(|r| r["name"].as_str().unwrap())
+        .collect();
     assert_eq!(with_csv.len(), 8, "the four net and four category charts: {with_csv:?}");
     let e = c.err("report.exportCsv", json!({ "report": "Balance Sheet" }));
     assert_eq!((e.code, e.data.unwrap()["reason"].clone()), (2001, json!("no-export")));
@@ -146,11 +153,23 @@ fn only_the_charts_export_csv() {
 fn saved_configurations_export_and_runs_carry_no_rows() {
     let mut c = daily();
     let options = json!({ "General": { "Step Size": "QuarterDelta" } });
-    let saved = c.call("report.saveConfiguration", json!({ "name": "Quarterly", "report": "Net Worth Barchart", "options": options }));
+    let saved = c.call(
+        "report.saveConfiguration",
+        json!({ "name": "Quarterly", "report": "Net Worth Barchart", "options": options }),
+    );
     assert_eq!(saved["exportTypes"], json!(["csv"]));
     let text = csv(&mut c, "Quarterly", &json!({}));
     let dates: Vec<&str> = text.lines().skip(1).map(|l| l.split(',').next().unwrap()).collect();
-    assert_eq!(dates, ["\"2024-01-01\"", "\"2024-04-01\"", "\"2024-07-01\"", "\"2024-10-01\"", "\"2024-12-31\""]);
+    assert_eq!(
+        dates,
+        [
+            "\"2024-01-01\"",
+            "\"2024-04-01\"",
+            "\"2024-07-01\"",
+            "\"2024-10-01\"",
+            "\"2024-12-31\""
+        ]
+    );
     let run = c.call("report.run", json!({ "report": "Quarterly" }));
     assert!(run.get("export").is_none());
     let before = c.files();

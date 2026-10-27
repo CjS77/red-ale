@@ -235,8 +235,26 @@ fn import() -> Value {
 
 /// The account types a QIF map entry may list, as GnuCash names them.
 const ACCOUNT_TYPES: [&str; 20] = [
-    "NONE", "BANK", "CASH", "CREDIT", "ASSET", "LIABILITY", "STOCK", "MUTUAL", "CURRENCY", "INCOME", "EXPENSE", "EQUITY", "RECEIVABLE",
-    "PAYABLE", "ROOT", "TRADING", "CHECKING", "SAVINGS", "MONEYMRKT", "CREDITLINE",
+    "NONE",
+    "BANK",
+    "CASH",
+    "CREDIT",
+    "ASSET",
+    "LIABILITY",
+    "STOCK",
+    "MUTUAL",
+    "CURRENCY",
+    "INCOME",
+    "EXPENSE",
+    "EQUITY",
+    "RECEIVABLE",
+    "PAYABLE",
+    "ROOT",
+    "TRADING",
+    "CHECKING",
+    "SAVINGS",
+    "MONEYMRKT",
+    "CREDITLINE",
 ];
 
 /// The QIF account map (`SavedMap`'s serde form): what GnuCash keeps in its `qif-accounts-map` file
@@ -296,9 +314,16 @@ fn csv_common() -> Map<String, Value> {
 /// A CSV transaction import layout: GnuCash's preset, key for key (`TxLayout`'s serde form; `design/api/import.md`,
 /// "CSV transactions"). Fields left out take GnuCash's defaults, so none is declared here.
 pub fn csv_layout() -> Value {
-    let columns: Vec<&str> = ColumnType::ALL.iter().map(|t| t.gnucash_name()).chain(["Deposit", "Withdrawal", "Num"]).collect();
+    let columns: Vec<&str> = ColumnType::ALL
+        .iter()
+        .map(|t| t.gnucash_name())
+        .chain(["Deposit", "Withdrawal", "Num"])
+        .collect();
     let mut properties = csv_common();
-    properties.insert("multiSplit".to_owned(), json!({ "type": "boolean", "description": "Several lines make one transaction, one split per line." }));
+    properties.insert(
+        "multiSplit".to_owned(),
+        json!({ "type": "boolean", "description": "Several lines make one transaction, one split per line." }),
+    );
     properties.insert(
         "baseAccount".to_owned(),
         json!({
@@ -325,7 +350,10 @@ pub fn csv_price_layout() -> Value {
         "fromCommodity".to_owned(),
         commodity("GnuCash's Commodity From: the commodity of every price, NAMESPACE::MNEMONIC, in place of the From Symbol and From Namespace columns."),
     );
-    properties.insert("toCurrency".to_owned(), commodity("GnuCash's Currency To: the currency of every price, in place of the Currency To column."));
+    properties.insert(
+        "toCurrency".to_owned(),
+        commodity("GnuCash's Currency To: the currency of every price, in place of the Currency To column."),
+    );
     properties.insert("columns".to_owned(), json!({ "type": "array", "items": { "type": "string", "enum": columns }, "description": "Each column's type, by GnuCash's saved name." }));
     json!({
         "type": "object",
@@ -365,7 +393,10 @@ fn import_settings() -> Value {
 }
 
 fn quotes() -> Value {
-    let mut network = boolean(false, "Let Quote fetches reach the network; nothing else does. Not changeable through MCP.");
+    let mut network = boolean(
+        false,
+        "Let Quote fetches reach the network; nothing else does. Not changeable through MCP.",
+    );
     network[REFUSED_OVER_MCP] = json!(true);
     group(
         "Online quotes: where each Finance::Quote source is fetched from (design/api/quotes.md).",
@@ -490,10 +521,14 @@ pub fn check_format(format: &str, text: &str) -> Result<(), String> {
         "commodity-id" => commodity_id(text),
         "decimal" => decimal(text),
         "url-template" => url_template(text),
-        "json-pointer" => (text.is_empty() || text.starts_with('/')).then_some(()).ok_or_else(|| "must be a JSON Pointer".to_owned()),
+        "json-pointer" => (text.is_empty() || text.starts_with('/'))
+            .then_some(())
+            .ok_or_else(|| "must be a JSON Pointer".to_owned()),
         "name" => name(text),
         "env-name" => env_name(text),
-        "encoding" => encoding_rs::Encoding::for_label(text.trim().as_bytes()).map(drop).ok_or_else(|| "must be a WHATWG encoding label".to_owned()),
+        "encoding" => encoding_rs::Encoding::for_label(text.trim().as_bytes())
+            .map(drop)
+            .ok_or_else(|| "must be a WHATWG encoding label".to_owned()),
         _ => Ok(()),
     }
 }
@@ -519,7 +554,8 @@ fn url_template(text: &str) -> Result<(), String> {
 
 fn env_name(text: &str) -> Result<(), String> {
     let ok = text.bytes().next().is_some_and(|b| !b.is_ascii_digit()) && text.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
-    ok.then_some(()).ok_or_else(|| "must be an environment variable name: letters, digits and _".to_owned())
+    ok.then_some(())
+        .ok_or_else(|| "must be an environment variable name: letters, digits and _".to_owned())
 }
 
 fn commodity_id(text: &str) -> Result<(), String> {
@@ -527,7 +563,8 @@ fn commodity_id(text: &str) -> Result<(), String> {
         Some((space, mnemonic)) => !space.is_empty() && !mnemonic.is_empty(),
         None => !text.trim().is_empty(),
     };
-    ok.then_some(()).ok_or_else(|| "must be a commodity, NAMESPACE::MNEMONIC or a currency code".to_owned())
+    ok.then_some(())
+        .ok_or_else(|| "must be a commodity, NAMESPACE::MNEMONIC or a currency code".to_owned())
 }
 
 fn decimal(text: &str) -> Result<(), String> {
@@ -558,13 +595,22 @@ pub fn origin(url: &str) -> Option<String> {
 /// service says where its price is.
 pub fn cross_checks(effective: &Value) -> Vec<(String, String)> {
     let services = effective.pointer("/quotes/services").and_then(Value::as_object);
-    let sources = effective.pointer("/quotes/sources").and_then(Value::as_object).into_iter().flatten();
+    let sources = effective
+        .pointer("/quotes/sources")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten();
     let unknown = sources
         .flat_map(|(source, names)| names.as_array().into_iter().flatten().enumerate().map(move |(i, n)| (source, i, n)))
         .filter_map(|(source, i, n)| {
             let name = n.as_str()?;
             let known = services.is_some_and(|s| s.contains_key(name));
-            (!known).then(|| (format!("quotes.sources.{source}[{i}]"), format!("names the quote service {name:?}, which does not exist")))
+            (!known).then(|| {
+                (
+                    format!("quotes.sources.{source}[{i}]"),
+                    format!("names the quote service {name:?}, which does not exist"),
+                )
+            })
         });
     let incomplete = services.into_iter().flatten().filter_map(|(name, service)| {
         let has = |key: &str| service.get(key).is_some_and(|v| !v.is_null());
@@ -585,7 +631,10 @@ mod tests {
 
     #[test]
     fn origins_are_scheme_host_and_port() {
-        assert_eq!(origin("https://API.example.com:8443/q?x={key}").as_deref(), Some("https://api.example.com:8443"));
+        assert_eq!(
+            origin("https://API.example.com:8443/q?x={key}").as_deref(),
+            Some("https://api.example.com:8443")
+        );
         assert_eq!(origin("https://user@example.com/q").as_deref(), Some("https://example.com"));
         assert_ne!(origin("http://example.com/"), origin("https://example.com/"));
         assert_eq!(origin("ftp://example.com/"), None);

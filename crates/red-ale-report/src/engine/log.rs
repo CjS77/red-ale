@@ -25,7 +25,12 @@ pub(crate) const TRUNCATED: &str = "the report log passed its size limit; later 
 impl Log {
     /// An empty log keeping at most `max` bytes of text.
     pub(crate) fn new(max: usize) -> Self {
-        Self(Rc::new(RefCell::new(Lines { entries: Vec::new(), bytes: 0, max, truncated: false })))
+        Self(Rc::new(RefCell::new(Lines {
+            entries: Vec::new(),
+            bytes: 0,
+            max,
+            truncated: false,
+        })))
     }
 
     /// Add a line.
@@ -36,11 +41,21 @@ impl Log {
         }
         if log.bytes.saturating_add(text.len()) > log.max {
             log.truncated = true;
-            log.entries.push(LogEntry { level, text: TRUNCATED.to_owned(), source: None, line: None });
+            log.entries.push(LogEntry {
+                level,
+                text: TRUNCATED.to_owned(),
+                source: None,
+                line: None,
+            });
             return;
         }
         log.bytes += text.len();
-        log.entries.push(LogEntry { level, text: text.to_owned(), source: source.map(str::to_owned), line });
+        log.entries.push(LogEntry {
+            level,
+            text: text.to_owned(),
+            source: source.map(str::to_owned),
+            line,
+        });
     }
 
     /// The lines so far.

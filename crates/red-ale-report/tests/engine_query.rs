@@ -144,8 +144,18 @@ fn time_follows_the_local_zone() {
     // UTC+14: 2024-03-15 12:00 UTC is 02:00 on 16 March.
     host.zone = TimeZone::fixed(14 * 3600).unwrap();
     let march = Date::from_ymd(2024, 3, 1).unwrap();
-    host.period = AccountingPeriod { start: PeriodBound::Absolute(march), end: PeriodBound::Absolute(march.end_of_month()) };
+    host.period = AccountingPeriod {
+        start: PeriodBound::Absolute(march),
+        end: PeriodBound::Absolute(march.end_of_month()),
+    };
     let title = host.run(&reg, GUID, &json!({})).unwrap().title;
     let day_start = 1_710_504_000 - 2 * 3600;
-    assert_eq!(title, format!("16 2 {day_start} 03/16/24 {} {}", 1_709_251_200 - 14 * 3600, 1_711_929_599 - 14 * 3600));
+    assert_eq!(
+        title,
+        format!(
+            "16 2 {day_start} 03/16/24 {} {}",
+            1_709_251_200 - 14 * 3600,
+            1_711_929_599 - 14 * 3600
+        )
+    );
 }

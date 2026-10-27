@@ -58,7 +58,14 @@ const KEYS: [&str; 24] = [
     "regularMarketTime",
 ];
 
-const FORMATS: [Format; 6] = [Format::AlphaVantage, Format::TwelveData, Format::Finnhub, Format::Frankfurter, Format::YahooChart, Format::Json];
+const FORMATS: [Format; 6] = [
+    Format::AlphaVantage,
+    Format::TwelveData,
+    Format::Finnhub,
+    Format::Frankfurter,
+    Format::YahooChart,
+    Format::Json,
+];
 
 fn json_value() -> impl Strategy<Value = Value> {
     let leaf = prop_oneof![
@@ -85,9 +92,20 @@ fn pointers() -> impl Strategy<Value = Pointers> {
 /// Read `body` in every format, as a security and as a rate.
 fn read_everywhere(body: &[u8], pointers: &Pointers, currency: Option<&str>) {
     let zone = TimeZone::utc();
-    let asks = [Ask::Security { symbol: "IBM".into() }, Ask::Rate { base: "EUR".into(), quote: "USD".into() }];
+    let asks = [
+        Ask::Security { symbol: "IBM".into() },
+        Ask::Rate {
+            base: "EUR".into(),
+            quote: "USD".into(),
+        },
+    ];
     asks.iter().for_each(|ask| {
-        let cx = Context { ask, currency, pointers, zone: &zone };
+        let cx = Context {
+            ask,
+            currency,
+            pointers,
+            zone: &zone,
+        };
         FORMATS.iter().for_each(|f| {
             let _ = parse(*f, body, &cx);
         });

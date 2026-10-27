@@ -40,7 +40,16 @@ impl ContextHandle {
         let currency = settings.report_currency(run.book, &locale);
         let week_start = settings.week_start(&locale);
         let export = run.export.map(str::to_owned);
-        Self(Rc::new(RunContext { snap, zone, settings, locale, currency, week_start, period, export }))
+        Self(Rc::new(RunContext {
+            snap,
+            zone,
+            settings,
+            locale,
+            currency,
+            week_start,
+            period,
+            export,
+        }))
     }
 
     /// The report settings of the run.
@@ -53,7 +62,10 @@ impl ContextHandle {
     }
 
     fn date(&self, t: Time64) -> Fallible<Date> {
-        self.0.zone.local_date(t).ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))
+        self.0
+            .zone
+            .local_date(t)
+            .ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))
     }
 }
 
@@ -73,23 +85,41 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("print_date", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         Ok(c.0.settings.date_format.print(c.date(time_arg(&t)?)?, &c.0.locale))
     });
-    engine.register_fn("print_date_interval", |c: &mut ContextHandle, from: Dynamic, to: Dynamic| -> Fallible<String> {
-        Ok(c.0.settings.date_format.print_interval(c.date(time_arg(&from)?)?, c.date(time_arg(&to)?)?, &c.0.locale))
-    });
+    engine.register_fn(
+        "print_date_interval",
+        |c: &mut ContextHandle, from: Dynamic, to: Dynamic| -> Fallible<String> {
+            Ok(c.0
+                .settings
+                .date_format
+                .print_interval(c.date(time_arg(&from)?)?, c.date(time_arg(&to)?)?, &c.0.locale))
+        },
+    );
     engine.register_fn("print_time_iso", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         let t = time_arg(&t)?;
-        let l = c.0.zone.to_local(t).ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))?;
+        let l =
+            c.0.zone
+                .to_local(t)
+                .ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))?;
         Ok(format!("{} {:02}:{:02}:{:02}", l.date.to_file_string(), l.hour, l.minute, l.second))
     });
     engine.register_fn("print_date_iso", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         Ok(c.date(time_arg(&t)?)?.to_file_string())
     });
-    engine.register_fn("export_type", |c: &mut ContextHandle| c.0.export.clone().map_or(Dynamic::UNIT, Dynamic::from));
-    engine.register_fn("accounting_period", |c: &mut ContextHandle| -> Fallible<Map> {
-        let p = c.0.period.as_ref().map_err(|e| script_error(format!("the accounting period: {e}")))?;
-        Ok([("start".into(), Dynamic::from(p.start.0)), ("end".into(), Dynamic::from(p.end.0))].into_iter().collect())
+    engine.register_fn("export_type", |c: &mut ContextHandle| {
+        c.0.export.clone().map_or(Dynamic::UNIT, Dynamic::from)
     });
-    engine.register_fn("report_currency", |c: &mut ContextHandle| BookHandle(Rc::clone(&c.0.snap)).commodity(&c.0.currency));
+    engine.register_fn("accounting_period", |c: &mut ContextHandle| -> Fallible<Map> {
+        let p =
+            c.0.period
+                .as_ref()
+                .map_err(|e| script_error(format!("the accounting period: {e}")))?;
+        Ok([("start".into(), Dynamic::from(p.start.0)), ("end".into(), Dynamic::from(p.end.0))]
+            .into_iter()
+            .collect())
+    });
+    engine.register_fn("report_currency", |c: &mut ContextHandle| {
+        BookHandle(Rc::clone(&c.0.snap)).commodity(&c.0.currency)
+    });
     engine.register_fn("week_start", |c: &mut ContextHandle| week_start(c.0.week_start));
 }
 
@@ -116,7 +146,10 @@ fn sunday() -> Option<Date> {
 /// (Sunday) to 7, `yearday` 1 to 366, and `hour`, `minute`, `second`.
 fn local(c: &mut ContextHandle, t: Dynamic) -> Fallible<Map> {
     let t = time_arg(&t)?;
-    let l = c.0.zone.to_local(t).ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))?;
+    let l =
+        c.0.zone
+            .to_local(t)
+            .ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))?;
     let d = l.date;
     let jan1 = Date::from_ymd(d.year(), 1, 1).ok_or_else(|| script_error("date out of range"))?;
     let weekday = sunday().map_or(0, |s| s.days_until(d).rem_euclid(7)) + 1;
@@ -150,16 +183,34 @@ fn make_time(c: &mut ContextHandle, fields: Map) -> Fallible<INT> {
     };
     let overflow = || script_error("the time is outside the supported range");
     let (year, month) = (field("year", None)?, field("month", None)?);
-    let months = year.checked_mul(12).and_then(|m| m.checked_add(month)).and_then(|m| m.checked_sub(1)).ok_or_else(overflow)?;
-    let year = i32::try_from(months.div_euclid(12)).ok().filter(|y| (-9999..=9999).contains(y)).ok_or_else(overflow)?;
+    let months = year
+        .checked_mul(12)
+        .and_then(|m| m.checked_add(month))
+        .and_then(|m| m.checked_sub(1))
+        .ok_or_else(overflow)?;
+    let year = i32::try_from(months.div_euclid(12))
+        .ok()
+        .filter(|y| (-9999..=9999).contains(y))
+        .ok_or_else(overflow)?;
     let month = u32::try_from(months.rem_euclid(12) + 1).map_err(|_| overflow())?;
-    let seconds = [("day", 86_400, None), ("hour", 3_600, Some(0)), ("minute", 60, Some(0)), ("second", 1, Some(0))]
-        .into_iter()
-        .try_fold(-86_400_i64, |sum, (name, unit, default)| -> Fallible<INT> {
-            field(name, default)?.checked_mul(unit).and_then(|s| sum.checked_add(s)).ok_or_else(overflow)
-        })?;
+    let seconds = [
+        ("day", 86_400, None),
+        ("hour", 3_600, Some(0)),
+        ("minute", 60, Some(0)),
+        ("second", 1, Some(0)),
+    ]
+    .into_iter()
+    .try_fold(-86_400_i64, |sum, (name, unit, default)| -> Fallible<INT> {
+        field(name, default)?
+            .checked_mul(unit)
+            .and_then(|s| sum.checked_add(s))
+            .ok_or_else(overflow)
+    })?;
     let first = Date::from_ymd(year, month, 1).ok_or_else(overflow)?;
     let date = first.add_days(seconds.div_euclid(86_400));
     let rest = u32::try_from(seconds.rem_euclid(86_400)).map_err(|_| overflow())?;
-    c.0.zone.instant(date, rest / 3600, rest / 60 % 60, rest % 60).map(|t| t.0).ok_or_else(overflow)
+    c.0.zone
+        .instant(date, rest / 3600, rest / 60 % 60, rest % 60)
+        .map(|t| t.0)
+        .ok_or_else(overflow)
 }

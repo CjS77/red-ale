@@ -1,6 +1,13 @@
 //! Helpers for the engine tests: registries of inline scripts, a run context and fixture books.
 
-#![allow(dead_code, clippy::missing_panics_doc, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::needless_pass_by_value)]
+#![allow(
+    dead_code,
+    clippy::missing_panics_doc,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::needless_pass_by_value
+)]
 
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::{Book, FixedEnv, Time64, TimeZone};
@@ -41,7 +48,13 @@ pub fn registry(scripts: &[(&str, &str)]) -> Registry {
 }
 
 pub fn registry_with(library: Library, scripts: &[(&str, &str)], limits: Limits) -> Registry {
-    let user: Vec<ScriptSource> = scripts.iter().map(|(p, t)| ScriptSource { path: (*p).to_owned(), text: (*t).to_owned() }).collect();
+    let user: Vec<ScriptSource> = scripts
+        .iter()
+        .map(|(p, t)| ScriptSource {
+            path: (*p).to_owned(),
+            text: (*t).to_owned(),
+        })
+        .collect();
     Registry::load(&library, &user, limits).expect("the library loads")
 }
 
@@ -70,7 +83,15 @@ pub struct Host {
 impl Host {
     pub fn new(book: Book) -> Self {
         let (zone, settings, period) = (TimeZone::utc(), ReportSettings::default(), AccountingPeriod::default());
-        Self { book, zone, settings, period, fiscal_year_end: None, now: NOW, locale: Locale::c() }
+        Self {
+            book,
+            zone,
+            settings,
+            period,
+            fiscal_year_end: None,
+            now: NOW,
+            locale: Locale::c(),
+        }
     }
 
     pub fn ctx(&self) -> RunContext<'_> {
@@ -89,7 +110,9 @@ impl Host {
 
     /// Run the template `reference` with `options`.
     pub fn run(&self, registry: &Registry, reference: &str, options: &Value) -> Result<ReportResult, ReportError> {
-        let t = registry.find(reference).unwrap_or_else(|e| panic!("{e:?}: {:?}", registry.problems()));
+        let t = registry
+            .find(reference)
+            .unwrap_or_else(|e| panic!("{e:?}: {:?}", registry.problems()));
         registry.run(t, &[options], None, &self.ctx())
     }
 }

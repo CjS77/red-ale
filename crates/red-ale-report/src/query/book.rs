@@ -23,11 +23,17 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("root", |b: &mut BookHandle| b.account(b.0.book().root));
     engine.register_fn("account", account);
     engine.register_fn("accounts", |b: &mut BookHandle| -> Array {
-        b.0.book().descendants(b.0.book().root).iter().map(|a| Dynamic::from(b.account(a.guid))).collect()
+        b.0.book()
+            .descendants(b.0.book().root)
+            .iter()
+            .map(|a| Dynamic::from(b.account(a.guid)))
+            .collect()
     });
     engine.register_fn("accounts_of_types", accounts_of_types);
     engine.register_fn("commodity", |b: &mut BookHandle, id: &str| -> Dynamic {
-        let found = parse_commodity(id).ok().and_then(|id| lookup(b.0.book(), &canonical(&id)).map(|c| c.id.clone()));
+        let found = parse_commodity(id)
+            .ok()
+            .and_then(|id| lookup(b.0.book(), &canonical(&id)).map(|c| c.id.clone()));
         found.map_or(Dynamic::UNIT, |id| Dynamic::from(b.commodity(&id)))
     });
     engine.register_fn("uses_trading_accounts", |b: &mut BookHandle| uses_trading_accounts(b.0.book()));
@@ -37,14 +43,19 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("price_convert", price_convert);
     engine.register_fn("commodity_splits", commodity_splits);
     engine.register_fn("split_query", split_query);
-    engine.register_fn("is_euro_currency", |c: Dynamic| -> Fallible<bool> { euro_side(&c).map(|c| is_euro_currency(&c)) });
+    engine.register_fn("is_euro_currency", |c: Dynamic| -> Fallible<bool> {
+        euro_side(&c).map(|c| is_euro_currency(&c))
+    });
     engine.register_fn("euro_convert", euro_convert);
 }
 
 /// `book.account(ref)`: by GUID or full name, `()` when there is none.
 fn account(b: &mut BookHandle, reference: &str) -> Dynamic {
     let book = b.0.book();
-    let found = Guid::parse(reference.trim()).ok().and_then(|g| book.account(g)).or_else(|| book.account_by_full_name(reference));
+    let found = Guid::parse(reference.trim())
+        .ok()
+        .and_then(|g| book.account(g))
+        .or_else(|| book.account_by_full_name(reference));
     found.map_or(Dynamic::UNIT, |a| Dynamic::from(b.account(a.guid)))
 }
 
@@ -53,12 +64,16 @@ fn accounts_of_types(b: &mut BookHandle, types: Array) -> Fallible<Array> {
     let types: Vec<AccountType> = types
         .iter()
         .map(|t| {
-            let name = t.read_lock::<rhai::ImmutableString>().ok_or_else(|| script_error("account types are names such as \"ASSET\""))?;
+            let name = t
+                .read_lock::<rhai::ImmutableString>()
+                .ok_or_else(|| script_error("account types are names such as \"ASSET\""))?;
             name.parse::<AccountType>().map_err(|e| script_error(e.to_string()))
         })
         .collect::<Fallible<_>>()?;
     let book = b.0.book();
-    let found = descendants_sorted(book, book.root).into_iter().filter(|a| types.contains(&a.account_type));
+    let found = descendants_sorted(book, book.root)
+        .into_iter()
+        .filter(|a| types.contains(&a.account_type));
     Ok(found.map(|a| Dynamic::from(b.account(a.guid))).collect())
 }
 
@@ -67,7 +82,15 @@ fn book_prices(b: &mut BookHandle, commodity: Dynamic, currency: Dynamic) -> Fal
     let book = b.0.book();
     let (commodity, currency) = (commodity_arg(book, &commodity)?, commodity_arg(book, &currency)?);
     let found = prices(book, &commodity, Some(&currency), false);
-    Ok(found.into_iter().map(|p| Dynamic::from(PriceHandle { snap: Rc::clone(&b.0), guid: p.guid })).collect())
+    Ok(found
+        .into_iter()
+        .map(|p| {
+            Dynamic::from(PriceHandle {
+                snap: Rc::clone(&b.0),
+                guid: p.guid,
+            })
+        })
+        .collect())
 }
 
 /// Which price a lookup takes: `"nearest"`, `"before"` or `"latest"`; `"latest"` reads the run's now, never the clock.
@@ -76,7 +99,9 @@ fn price_at(b: &BookHandle, when: INT, mode: &str) -> Fallible<PriceAt> {
         "nearest" => Ok(PriceAt::Nearest(Time64(when))),
         "before" => Ok(PriceAt::Before(Time64(when))),
         "latest" => Ok(PriceAt::Latest { now: b.0.now() }),
-        other => Err(script_error(format!("price mode must be \"nearest\", \"before\" or \"latest\", got {other:?}"))),
+        other => Err(script_error(format!(
+            "price mode must be \"nearest\", \"before\" or \"latest\", got {other:?}"
+        ))),
     }
 }
 
@@ -93,7 +118,10 @@ fn price_convert(b: &mut BookHandle, m: Monetary, currency: Dynamic, when: INT, 
     let book = b.0.book();
     let to = commodity_arg(book, &currency)?;
     // GnuCash makes the amount a gnc_numeric here and fails past 64 bits (`design/reports.md` §3).
-    let amount = m.amount.to_numeric().ok_or_else(|| script_error(format!("{} does not fit a 64-bit amount", m.amount)))?;
+    let amount = m
+        .amount
+        .to_numeric()
+        .ok_or_else(|| script_error(format!("{} does not fit a 64-bit amount", m.amount)))?;
     let converted = convert_balance(book, amount, &m.commodity, &to, price_at(b, when, mode)?).map_err(|e| script_error(e.to_string()))?;
     Ok(Monetary::new(to, numeric(converted)?))
 }
@@ -103,7 +131,13 @@ fn commodity_splits(b: &mut BookHandle, accounts: Array, until: Dynamic, commodi
     let book = b.0.book();
     let accounts = accounts_arg(book, &accounts)?;
     let commodity = optional_commodity_arg(book, &commodity)?;
-    Ok(b.splits(cross_commodity_splits(book, &accounts, optional_time_arg(&until)?, commodity.as_ref(), sorted)))
+    Ok(b.splits(cross_commodity_splits(
+        book,
+        &accounts,
+        optional_time_arg(&until)?,
+        commodity.as_ref(),
+        sorted,
+    )))
 }
 
 /// The split query of `gnc:account-get-trans-type-splits-interval`: `#{ accounts, from, to, description, closing }`.
@@ -126,7 +160,11 @@ fn split_query(b: &mut BookHandle, q: Map) -> Fallible<Array> {
         from: optional_time_arg(&field("from"))?,
         to: optional_time_arg(&field("to"))?,
         description: description(&field("description"))?,
-        closing: if closing.is_unit() { false } else { closing.as_bool().map_err(|_| script_error("closing must be true or false"))? },
+        closing: if closing.is_unit() {
+            false
+        } else {
+            closing.as_bool().map_err(|_| script_error("closing must be true or false"))?
+        },
     };
     let found = period_splits(book, &query).map_err(|e| script_error(e.to_string()))?;
     Ok(b.splits(found))
@@ -137,11 +175,17 @@ fn description(v: &Dynamic) -> Fallible<Option<DescriptionPattern>> {
     if v.is_unit() {
         return Ok(None);
     }
-    let map = v.read_lock::<Map>().ok_or_else(|| script_error("description must be #{ text, cased, regexp }"))?;
+    let map = v
+        .read_lock::<Map>()
+        .ok_or_else(|| script_error("description must be #{ text, cased, regexp }"))?;
     let flag = |name: &str| {
-        map.get(name).map_or(Ok(false), |f| f.as_bool().map_err(|_| script_error(format!("{name} must be true or false"))))
+        map.get(name).map_or(Ok(false), |f| {
+            f.as_bool().map_err(|_| script_error(format!("{name} must be true or false")))
+        })
     };
-    let text = map.get("text").and_then(|t| t.read_lock::<rhai::ImmutableString>().map(|s| s.to_string()));
+    let text = map
+        .get("text")
+        .and_then(|t| t.read_lock::<rhai::ImmutableString>().map(|s| s.to_string()));
     Ok(Some(DescriptionPattern {
         text: text.ok_or_else(|| script_error("description needs its text"))?,
         cased: flag("cased")?,
@@ -154,7 +198,9 @@ fn euro_side(v: &Dynamic) -> Fallible<red_ale_core::CommodityRef> {
     if let Some(c) = v.read_lock::<super::CommodityHandle>() {
         return Ok(canonical(&c.id));
     }
-    let text = v.read_lock::<rhai::ImmutableString>().ok_or_else(|| script_error(format!("expected a commodity, got {}", v.type_name())))?;
+    let text = v
+        .read_lock::<rhai::ImmutableString>()
+        .ok_or_else(|| script_error(format!("expected a commodity, got {}", v.type_name())))?;
     parse_commodity(&text).map(|c| canonical(&c)).map_err(script_error)
 }
 
@@ -166,7 +212,10 @@ fn euro_convert(m: Monetary, currency: Dynamic) -> Fallible<Dynamic> {
     if !(is_euro_currency(&from) && is_euro_currency(&to)) {
         return Ok(Dynamic::UNIT);
     }
-    let amount = m.amount.to_numeric().ok_or_else(|| script_error(format!("{} does not fit a 64-bit amount", m.amount)))?;
+    let amount = m
+        .amount
+        .to_numeric()
+        .ok_or_else(|| script_error(format!("{} does not fit a 64-bit amount", m.amount)))?;
     let fail = |e: red_ale_core::NumericError| script_error(e.to_string());
     let euros = convert_to_euro(&from, amount).map_err(fail)?;
     let converted = convert_from_euro(&to, euros).map_err(fail)?;

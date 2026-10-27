@@ -139,10 +139,18 @@ pub fn propose(book: &Book, rows: &[AccountRow], file: usize) -> (Vec<ProposedAc
         match import_row(&mut copy, &mut env, row, &mut warnings) {
             Ok(outcome) => {
                 let index = accounts.len();
-                let warnings = warnings.into_iter().map(|(code, message)| Warning::about(index, code, message)).collect();
+                let warnings = warnings
+                    .into_iter()
+                    .map(|(code, message)| Warning::about(index, code, message))
+                    .collect();
                 accounts.push(proposed(book, index, row, outcome, warnings));
             }
-            Err(message) => errors.push(RowError { file, line: row.line, column: None, message }),
+            Err(message) => errors.push(RowError {
+                file,
+                line: row.line,
+                column: None,
+                message,
+            }),
         }
     });
     (accounts, errors)
@@ -155,7 +163,14 @@ fn proposed(book: &Book, index: usize, row: &AccountRow, outcome: Outcome, warni
         Outcome::Updated(guid, changes) => (ImportAction::Update, existing(guid), changes),
         Outcome::Unchanged(guid) => (ImportAction::Skip, existing(guid), Vec::new()),
     };
-    ProposedAccount { index, row: row.clone(), action, account, changes, warnings }
+    ProposedAccount {
+        index,
+        row: row.clone(),
+        action,
+        account,
+        changes,
+        warnings,
+    }
 }
 
 /// Apply a CSV account proposal with the caller's changes, which may only turn an `add` or `update` into `skip`.
@@ -169,8 +184,11 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
             return Ok(());
         }
         let mut warnings = Vec::new();
-        let outcome = import_row(book, env, &p.row, &mut warnings).map_err(|e| DomainError::invalid(format!("line {}: {e}", p.row.line)))?;
-        applied.warnings.extend(warnings.into_iter().map(|(code, message)| Warning::about(p.index, code, message)));
+        let outcome =
+            import_row(book, env, &p.row, &mut warnings).map_err(|e| DomainError::invalid(format!("line {}: {e}", p.row.line)))?;
+        applied
+            .warnings
+            .extend(warnings.into_iter().map(|(code, message)| Warning::about(p.index, code, message)));
         match outcome {
             Outcome::Added(guid) => applied.accounts_created.push(guid),
             Outcome::Updated(guid, _) => applied.accounts_updated.push(guid),
@@ -187,7 +205,9 @@ pub fn apply(book: &mut Book, env: &mut dyn Env, proposal: &Proposal, changes: &
 fn actions(proposal: &Proposal, changes: &[Change]) -> DomainResult<Vec<ImportAction>> {
     let mut actions: Vec<ImportAction> = proposal.accounts.iter().map(|a| a.action).collect();
     changes.iter().try_for_each(|c| {
-        let slot = actions.get_mut(c.index).ok_or_else(|| DomainError::invalid(format!("no account row {} in the proposal", c.index)))?;
+        let slot = actions
+            .get_mut(c.index)
+            .ok_or_else(|| DomainError::invalid(format!("no account row {} in the proposal", c.index)))?;
         if c.match_split.is_some() || c.account.is_some() || c.amount.is_some() {
             return Err(DomainError::invalid(format!("account row {}: only its action can change", c.index)));
         }
@@ -198,7 +218,12 @@ fn actions(proposal: &Proposal, changes: &[Change]) -> DomainResult<Vec<ImportAc
                 Ok(())
             }
             Some(a) if a == *slot => Ok(()),
-            Some(a) => Err(DomainError::invalid(format!("account row {}: {} can only become skip, not {}", c.index, slot.as_str(), a.as_str()))),
+            Some(a) => Err(DomainError::invalid(format!(
+                "account row {}: {} can only become skip, not {}",
+                c.index,
+                slot.as_str(),
+                a.as_str()
+            ))),
         }
     })?;
     Ok(actions)
@@ -214,18 +239,36 @@ fn import_row(book: &mut Book, env: &mut dyn Env, row: &AccountRow, warnings: &m
 
 /// An existing account: code, description, notes and colour from the non-empty cells (`csv-account-import.c:334-355`).
 fn update_row(book: &mut Book, guid: Guid, row: &AccountRow, warnings: &mut Vec<(&'static str, String)>) -> Outcome {
-    let Some(account) = book.accounts.get_mut(&guid).map(std::sync::Arc::make_mut) else { return Outcome::Unchanged(guid) };
+    let Some(account) = book.accounts.get_mut(&guid).map(std::sync::Arc::make_mut) else {
+        return Outcome::Unchanged(guid);
+    };
     if let Some(w) = not_updated(account, row) {
         warnings.push(w);
     }
     let color = color_cell(&row.color, warnings);
-    let wanted = [("code", account.code.clone(), &row.code), ("description", account.description.clone(), &row.description)]
-        .into_iter()
-        .chain([("notes", account.notes().map(str::to_owned), &row.notes), ("color", account.stored_color().map(str::to_owned), &color)]);
-    let changes: Vec<FieldChange> =
-        wanted.filter(|(_, from, to)| !to.is_empty() && from.as_deref() != Some(to.as_str())).map(|(field, from, to)| FieldChange { field, from, to: to.clone() }).collect();
+    let wanted = [
+        ("code", account.code.clone(), &row.code),
+        ("description", account.description.clone(), &row.description),
+    ]
+    .into_iter()
+    .chain([
+        ("notes", account.notes().map(str::to_owned), &row.notes),
+        ("color", account.stored_color().map(str::to_owned), &color),
+    ]);
+    let changes: Vec<FieldChange> = wanted
+        .filter(|(_, from, to)| !to.is_empty() && from.as_deref() != Some(to.as_str()))
+        .map(|(field, from, to)| FieldChange {
+            field,
+            from,
+            to: to.clone(),
+        })
+        .collect();
     changes.iter().for_each(|c| set_field(account, c.field, &c.to));
-    if changes.is_empty() { Outcome::Unchanged(guid) } else { Outcome::Updated(guid, changes) }
+    if changes.is_empty() {
+        Outcome::Unchanged(guid)
+    } else {
+        Outcome::Updated(guid, changes)
+    }
 }
 
 fn set_field(account: &mut Account, field: &str, value: &str) {
@@ -240,9 +283,15 @@ fn set_field(account: &mut Account, field: &str, value: &str) {
 /// The cells GnuCash reads but never applies to an existing account, where they differ from it.
 fn not_updated(account: &Account, row: &AccountRow) -> Option<(&'static str, String)> {
     let flag = |cell: &str, on: bool| matches!((cell, on), ("T", false) | ("F", true));
-    let commodity = account.commodity.as_ref().is_some_and(|c| !row.symbol.is_empty() && (c.mnemonic != row.symbol || !same_namespace(&c.namespace, &row.namespace)));
+    let commodity = account
+        .commodity
+        .as_ref()
+        .is_some_and(|c| !row.symbol.is_empty() && (c.mnemonic != row.symbol || !same_namespace(&c.namespace, &row.namespace)));
     let differing: Vec<&str> = [
-        ("type", !row.account_type.is_empty() && row.account_type != account.account_type.as_str()),
+        (
+            "type",
+            !row.account_type.is_empty() && row.account_type != account.account_type.as_str(),
+        ),
         ("commodity", commodity),
         ("hidden", flag(&row.hidden, account.is_hidden())),
         ("placeholder", flag(&row.placeholder, account.is_placeholder())),
@@ -266,21 +315,34 @@ fn color_cell(cell: &str, warnings: &mut Vec<(&'static str, String)>) -> String 
     if cell.is_empty() || is_gdk_color(cell) {
         return cell.to_owned();
     }
-    warnings.push(("color", format!("the colour {cell:?} is not one red-ale recognises (#rgb, #rrggbb, rgb(r,g,b) or rgba(r,g,b,a)); the colour is left as it was")));
+    warnings.push((
+        "color",
+        format!(
+            "the colour {cell:?} is not one red-ale recognises (#rgb, #rrggbb, rgb(r,g,b) or rgba(r,g,b,a)); the colour is left as it was"
+        ),
+    ));
     String::new()
 }
 
 /// A new account, as `csv-account-import.c:244-316` creates it.
 fn add_row(book: &mut Book, env: &mut dyn Env, row: &AccountRow, warnings: &mut Vec<(&'static str, String)>) -> Result<Outcome, String> {
-    let parent_name = parent_full_name(&row.full_name, &row.name).ok_or_else(|| format!("account {} not in {}", row.name, row.full_name))?;
+    let parent_name =
+        parent_full_name(&row.full_name, &row.name).ok_or_else(|| format!("account {} not in {}", row.name, row.full_name))?;
     let parent = if parent_name.is_empty() {
         book.root
     } else {
-        book.account_by_full_name(parent_name).map(|a| a.guid).ok_or_else(|| format!("path to account {} not found", row.name))?
+        book.account_by_full_name(parent_name)
+            .map(|a| a.guid)
+            .ok_or_else(|| format!("path to account {} not found", row.name))?
     };
-    let account_type: AccountType = row.account_type.parse().map_err(|_| format!("account type {:?} is not one GnuCash knows", row.account_type))?;
+    let account_type: AccountType = row
+        .account_type
+        .parse()
+        .map_err(|_| format!("account type {:?} is not one GnuCash knows", row.account_type))?;
     let id = CommodityRef::new(row.namespace.clone(), row.symbol.clone());
-    let commodity = lookup(book, &id).map(|c| c.id.clone()).ok_or_else(|| format!("commodity {} / {} not found", row.symbol, row.namespace))?;
+    let commodity = lookup(book, &id)
+        .map(|c| c.id.clone())
+        .ok_or_else(|| format!("commodity {} / {} not found", row.symbol, row.namespace))?;
     let text = |s: &str| (!s.is_empty()).then(|| s.to_owned());
     let edit = AccountEdit {
         name: Some(row.name.clone()),
@@ -295,7 +357,12 @@ fn add_row(book: &mut Book, env: &mut dyn Env, row: &AccountRow, warnings: &mut 
     };
     let guid = create_account(book, env, parent, &edit).map_err(|e| e.to_string())?;
     let color = color_cell(&row.color, warnings);
-    if let Some(account) = book.accounts.get_mut(&guid).map(std::sync::Arc::make_mut).filter(|_| !color.is_empty()) {
+    if let Some(account) = book
+        .accounts
+        .get_mut(&guid)
+        .map(std::sync::Arc::make_mut)
+        .filter(|_| !color.is_empty())
+    {
         account.set_color(Some(&color));
     }
     Ok(Outcome::Added(guid))
@@ -319,10 +386,13 @@ pub fn is_gdk_color(text: &str) -> bool {
         return matches!(hex.len(), 3 | 6 | 9 | 12) && hex.chars().all(|c| c.is_ascii_hexdigit());
     }
     let functional = |prefix: &str, count: usize| {
-        text.strip_prefix(prefix).and_then(|t| t.trim_start().strip_prefix('(')).and_then(|t| t.strip_suffix(')')).is_some_and(|inner| {
-            let parts: Vec<&str> = inner.split(',').map(str::trim).collect();
-            parts.len() == count && parts.iter().all(|p| is_number(p.strip_suffix('%').unwrap_or(p)))
-        })
+        text.strip_prefix(prefix)
+            .and_then(|t| t.trim_start().strip_prefix('('))
+            .and_then(|t| t.strip_suffix(')'))
+            .is_some_and(|inner| {
+                let parts: Vec<&str> = inner.split(',').map(str::trim).collect();
+                parts.len() == count && parts.iter().all(|p| is_number(p.strip_suffix('%').unwrap_or(p)))
+            })
     };
     functional("rgb", 3) || functional("rgba", 4)
 }

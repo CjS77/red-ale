@@ -39,7 +39,12 @@ pub struct Classifier {
 impl Classifier {
     /// A classifier from its four strings.
     pub fn new(section: impl Into<String>, name: impl Into<String>, key: impl Into<String>, help: impl Into<String>) -> Self {
-        Self { section: section.into(), name: name.into(), key: key.into(), help: help.into() }
+        Self {
+            section: section.into(),
+            name: name.into(),
+            key: key.into(),
+            help: help.into(),
+        }
     }
 }
 
@@ -90,7 +95,11 @@ pub struct Choice {
 impl Choice {
     /// A choice.
     pub fn new(key: impl Into<ChoiceKey>, label: impl Into<String>, help: impl Into<String>) -> Self {
-        Self { key: key.into(), label: label.into(), help: help.into() }
+        Self {
+            key: key.into(),
+            label: label.into(),
+            help: help.into(),
+        }
     }
 }
 
@@ -140,7 +149,9 @@ pub fn relative_name(r: RelativeDate) -> &'static str {
 
 /// A relative date by its Scheme name, or by the C++ storage name GnuCash writes into saved reports.
 pub fn parse_relative(name: &str) -> Option<RelativeDate> {
-    RelativeDate::all().find(|r| relative_name(*r) == name).or_else(|| name.parse().ok())
+    RelativeDate::all()
+        .find(|r| relative_name(*r) == name)
+        .or_else(|| name.parse().ok())
 }
 
 /// An option's type, with the constraints its declaration sets.
@@ -274,7 +285,12 @@ pub struct ReportOption {
 
 impl ReportOption {
     pub(super) fn declared(classifier: Classifier, kind: OptionKind, default: OptionValue) -> Self {
-        Self { classifier, kind, value: default.clone(), default }
+        Self {
+            classifier,
+            kind,
+            value: default.clone(),
+            default,
+        }
     }
 
     /// The section.
@@ -329,10 +345,18 @@ mod tests {
     fn dates_resolve_through_core() {
         let utc = TimeZone::utc();
         let now = Time64::parse_file_string("2024-03-15 12:00:00 +0000").unwrap();
-        let period = PeriodBounds { start: Time64(1_704_067_200), end: Time64(1_735_689_599) };
-        let start = DateValue::Relative(RelativeDate::StartThisMonth).resolve(now, &utc, period).unwrap();
+        let period = PeriodBounds {
+            start: Time64(1_704_067_200),
+            end: Time64(1_735_689_599),
+        };
+        let start = DateValue::Relative(RelativeDate::StartThisMonth)
+            .resolve(now, &utc, period)
+            .unwrap();
         assert_eq!(start.to_file_string(), "2024-03-01 00:00:00 +0000");
-        assert_eq!(DateValue::Relative(RelativeDate::EndAccountingPeriod).resolve(now, &utc, period), Some(period.end));
+        assert_eq!(
+            DateValue::Relative(RelativeDate::EndAccountingPeriod).resolve(now, &utc, period),
+            Some(period.end)
+        );
         assert_eq!(DateValue::Absolute(Time64(5)).resolve(now, &utc, period), Some(Time64(5)));
     }
 }

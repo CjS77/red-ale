@@ -74,7 +74,11 @@ pub fn to_wire(db: &OptionDb, forms: &[OptionForm], not_rendered: impl Fn(&str, 
     forms.iter().try_fold(WireOptions::default(), |mut out, f| {
         let error = |reason: String| OptionError::new(&f.section, &f.name, reason);
         match db.get(&f.section, &f.name) {
-            Some(option) => insert(&mut out.options, f, value(&option.kind, option.default_value(), &f.value).map_err(error)?),
+            Some(option) => insert(
+                &mut out.options,
+                f,
+                value(&option.kind, option.default_value(), &f.value).map_err(error)?,
+            ),
             None if not_rendered(&f.section, &f.name) => {
                 insert(&mut out.kept, f, generic(&f.value).map_err(error)?);
                 out.ignored.push((f.section.clone(), f.name.clone(), Ignored::NotRendered));
@@ -148,7 +152,10 @@ fn color(d: &Datum) -> Converted<Value> {
     if let Some(s) = d.as_str() {
         return Ok(Value::from(s));
     }
-    let items = d.as_list().filter(|l| matches!(l.len(), 3 | 4)).ok_or_else(|| format!("expected a colour (r g b a), got {d}"))?;
+    let items = d
+        .as_list()
+        .filter(|l| matches!(l.len(), 3 | 4))
+        .ok_or_else(|| format!("expected a colour (r g b a), got {d}"))?;
     let components = items
         .iter()
         .map(|c| {
@@ -176,7 +183,10 @@ fn key_text(d: &Datum) -> Converted<String> {
 /// The choice whose key reads as `d`'s text (`permissible_value_index` compares strings).
 fn choice(choices: &[Choice], d: &Datum) -> Converted<Value> {
     let text = key_text(d)?;
-    let found = choices.iter().find(|c| c.key.to_string() == text).ok_or_else(|| format!("{d} is not one of the choices"))?;
+    let found = choices
+        .iter()
+        .find(|c| c.key.to_string() == text)
+        .ok_or_else(|| format!("{d} is not one of the choices"))?;
     Ok(match &found.key {
         ChoiceKey::Text(s) => Value::String(s.clone()),
         ChoiceKey::Number(n) => Value::from(*n),
@@ -198,7 +208,9 @@ fn plot_size(d: &Datum) -> Converted<Value> {
         Some((unit, n)) if unit.is_symbol("percent") || unit.is_symbol("pixels") => n,
         _ => d,
     };
-    number(n).and_then(|n| whole(&n).ok_or_else(|| format!("not a plot size: {d}"))).map(Value::from)
+    number(n)
+        .and_then(|n| whole(&n).ok_or_else(|| format!("not a plot size: {d}")))
+        .map(Value::from)
 }
 
 /// `(absolute . seconds)`, 2.x's `(absolute seconds . nanoseconds)`, or `(relative . name)`.
@@ -214,8 +226,14 @@ fn date(d: &Datum) -> Converted<Value> {
     };
     match kind.as_symbol() {
         Some("absolute") => {
-            let seconds = number(rest).ok().filter(Rational::is_integer).and_then(|n| whole(&n)).ok_or_else(shape)?;
-            let text = Timestamp(Time64(seconds)).to_rfc3339().ok_or_else(|| format!("{seconds} is outside the supported range"))?;
+            let seconds = number(rest)
+                .ok()
+                .filter(Rational::is_integer)
+                .and_then(|n| whole(&n))
+                .ok_or_else(shape)?;
+            let text = Timestamp(Time64(seconds))
+                .to_rfc3339()
+                .ok_or_else(|| format!("{seconds} is outside the supported range"))?;
             Ok(serde_json::json!({ "absolute": text }))
         }
         Some("relative") => Ok(serde_json::json!({ "relative": rest.as_symbol().ok_or_else(shape)? })),
@@ -228,7 +246,11 @@ fn account_list(d: &Datum) -> Converted<Value> {
     match d {
         Datum::String(s) if s.is_empty() => Ok(Value::Array(Vec::new())),
         Datum::Bool(false) => Ok(Value::Array(Vec::new())),
-        Datum::List(items, None) => items.iter().map(|i| string(i).map(Value::from)).collect::<Converted<_>>().map(Value::Array),
+        Datum::List(items, None) => items
+            .iter()
+            .map(|i| string(i).map(Value::from))
+            .collect::<Converted<_>>()
+            .map(Value::Array),
         _ => Err(format!("expected a list of account GUIDs, got {d}")),
     }
 }
@@ -293,13 +315,25 @@ mod tests {
         db.boolean(c("bool"), false).unwrap();
         db.string(c("string"), "").unwrap();
         db.color(c("color"), "000000").unwrap();
-        db.multichoice(c("multi"), "a".into(), vec![Choice::new("a", "A", ""), Choice::new("two plus three", "5", "")]).unwrap();
-        db.multichoice(c("levels"), 1.into(), vec![Choice::new(1, "1", ""), Choice::new(2, "2", "")]).unwrap();
-        db.list(c("list"), vec!["good".into()], vec![Choice::new("good", "", ""), Choice::new("ugly", "", "")]).unwrap();
+        db.multichoice(
+            c("multi"),
+            "a".into(),
+            vec![Choice::new("a", "A", ""), Choice::new("two plus three", "5", "")],
+        )
+        .unwrap();
+        db.multichoice(c("levels"), 1.into(), vec![Choice::new(1, "1", ""), Choice::new(2, "2", "")])
+            .unwrap();
+        db.list(
+            c("list"),
+            vec!["good".into()],
+            vec![Choice::new("good", "", ""), Choice::new("ugly", "", "")],
+        )
+        .unwrap();
         let int = Rational::from_int;
         db.number_range(c("range"), int(1), int(0), int(100), int(1)).unwrap();
         db.plot_size(c("plot"), PlotSize::Percent(100)).unwrap();
-        db.date(c("date"), DateValue::Relative(RelativeDate::Today), DateUi::Both, Vec::new()).unwrap();
+        db.date(c("date"), DateValue::Relative(RelativeDate::Today), DateUi::Both, Vec::new())
+            .unwrap();
         db.account_list(c("accounts"), Vec::new(), Vec::new(), true).unwrap();
         db.account_sel(c("account"), None, Vec::new()).unwrap();
         db.currency(c("currency"), CommodityRef::currency("USD")).unwrap();
@@ -309,13 +343,23 @@ mod tests {
     }
 
     fn wire(name: &str, text: &str) -> Result<Value, OptionError> {
-        let form = OptionForm { section: "S".into(), name: name.into(), value: datum(text) };
+        let form = OptionForm {
+            section: "S".into(),
+            name: name.into(),
+            value: datum(text),
+        };
         let db = db();
         let out = to_wire(&db, &[form], |_, _| false)?;
         let v = out.options["S"][name].clone();
         // Every value converted is one the option itself accepts.
         let mut check = db.clone();
-        check.apply(&json!({ "S": { name: v.clone() } }), &crate::options::ValueContext { book: None, zone: &TimeZone::utc() })?;
+        check.apply(
+            &json!({ "S": { name: v.clone() } }),
+            &crate::options::ValueContext {
+                book: None,
+                zone: &TimeZone::utc(),
+            },
+        )?;
         Ok(v)
     }
 
@@ -337,31 +381,63 @@ mod tests {
         assert_eq!(wire("plot", "'(percent . 48)").unwrap(), json!(48));
         assert_eq!(wire("plot", "'(pixels . 500)").unwrap(), json!(500));
         assert_eq!(wire("plot", "'(pixels . 640.0)").unwrap(), json!(640));
-        assert_eq!(wire("date", "'(absolute . 1608897600)").unwrap(), json!({ "absolute": "2020-12-25T12:00:00Z" }));
-        assert_eq!(wire("date", "'(absolute 1608897600 . 0)").unwrap(), json!({ "absolute": "2020-12-25T12:00:00Z" }));
-        assert_eq!(wire("date", "'(relative . end-prev-year)").unwrap(), json!({ "relative": "end-prev-year" }));
-        assert_eq!(wire("date", "'(relative . start-prev-fin-year)").unwrap(), json!({ "relative": "start-prev-fin-year" }));
-        assert_eq!(wire("date", "'(relative . start-accounting-period)").unwrap(), json!({ "relative": "start-accounting-period" }));
+        assert_eq!(
+            wire("date", "'(absolute . 1608897600)").unwrap(),
+            json!({ "absolute": "2020-12-25T12:00:00Z" })
+        );
+        assert_eq!(
+            wire("date", "'(absolute 1608897600 . 0)").unwrap(),
+            json!({ "absolute": "2020-12-25T12:00:00Z" })
+        );
+        assert_eq!(
+            wire("date", "'(relative . end-prev-year)").unwrap(),
+            json!({ "relative": "end-prev-year" })
+        );
+        assert_eq!(
+            wire("date", "'(relative . start-prev-fin-year)").unwrap(),
+            json!({ "relative": "start-prev-fin-year" })
+        );
+        assert_eq!(
+            wire("date", "'(relative . start-accounting-period)").unwrap(),
+            json!({ "relative": "start-accounting-period" })
+        );
         let guid = "3a5a4bc736d84b879b776ea8caadd3b2";
         assert_eq!(wire("accounts", &format!("'(\"{guid}\")")).unwrap(), json!([guid]));
         assert_eq!(wire("accounts", "'\"\"").unwrap(), json!([]));
         assert_eq!(wire("account", &format!("\"{guid}\"")).unwrap(), json!(guid));
         assert_eq!(wire("currency", r#""EUR""#).unwrap(), json!("CURRENCY::EUR"));
-        assert_eq!(wire("currency", r#"'(commodity-scm "ISO4217" "GBP")"#).unwrap(), json!("CURRENCY::GBP"));
-        assert_eq!(wire("commodity", r#"'(commodity-scm "NASDAQ" "AAPL")"#).unwrap(), json!("NASDAQ::AAPL"));
+        assert_eq!(
+            wire("currency", r#"'(commodity-scm "ISO4217" "GBP")"#).unwrap(),
+            json!("CURRENCY::GBP")
+        );
+        assert_eq!(
+            wire("commodity", r#"'(commodity-scm "NASDAQ" "AAPL")"#).unwrap(),
+            json!("NASDAQ::AAPL")
+        );
         assert_eq!(wire("internal", "#t").unwrap(), json!(true));
     }
 
     #[test]
     fn values_that_do_not_fit_are_errors() {
-        ["bool:\"yes\"", "color:'(1 2)", "color:'(0 0 300 255)", "multi:'b", "range:'x", "plot:'(percent . big)", "date:'(relative)",
-         "date:'(sometime . 5)", "accounts:'(1 2)", "currency:'(commodity-scm \"X\")", "string:#t"]
-            .iter()
-            .for_each(|case| {
-                let (name, text) = case.split_once(':').unwrap();
-                let error = wire(name, text).unwrap_err();
-                assert_eq!(error.name, name, "{case}");
-            });
+        [
+            "bool:\"yes\"",
+            "color:'(1 2)",
+            "color:'(0 0 300 255)",
+            "multi:'b",
+            "range:'x",
+            "plot:'(percent . big)",
+            "date:'(relative)",
+            "date:'(sometime . 5)",
+            "accounts:'(1 2)",
+            "currency:'(commodity-scm \"X\")",
+            "string:#t",
+        ]
+        .iter()
+        .for_each(|case| {
+            let (name, text) = case.split_once(':').unwrap();
+            let error = wire(name, text).unwrap_err();
+            assert_eq!(error.name, name, "{case}");
+        });
         // A converted value the option refuses is also an error, from the option itself.
         assert!(wire("range", "'101").is_err());
         assert!(wire("date", "'(relative . yesterday)").is_err());
@@ -370,12 +446,23 @@ mod tests {
     #[test]
     fn options_the_template_lacks() {
         let forms = [
-            OptionForm { section: "Images".into(), name: "Logo".into(), value: datum("\"logo.png\"") },
-            OptionForm { section: "S".into(), name: "gone".into(), value: datum("#t") },
+            OptionForm {
+                section: "Images".into(),
+                name: "Logo".into(),
+                value: datum("\"logo.png\""),
+            },
+            OptionForm {
+                section: "S".into(),
+                name: "gone".into(),
+                value: datum("#t"),
+            },
         ];
         let out = to_wire(&db(), &forms, |s, _| s == "Images").unwrap();
         assert_eq!(out.kept, json!({ "Images": { "Logo": "logo.png" } }).as_object().cloned().unwrap());
-        assert_eq!(out.ignored.iter().map(|i| i.2).collect::<Vec<_>>(), [Ignored::NotRendered, Ignored::UnknownOption]);
+        assert_eq!(
+            out.ignored.iter().map(|i| i.2).collect::<Vec<_>>(),
+            [Ignored::NotRendered, Ignored::UnknownOption]
+        );
         assert!(out.options.is_empty());
     }
 }

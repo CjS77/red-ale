@@ -75,13 +75,24 @@ pub fn find_with_limit(book: &Book, account: Guid, target: Numeric, limit: u64) 
     let scu = account_scu(book, account)?;
     let target = target.to_denom(scu, Round::Bankers)?;
     let splits = account_splits(book, account);
-    let amounts = splits.iter().map(|(_, s)| whole_units(s.amount, scu, s.guid)).collect::<DomainResult<Vec<i128>>>()?;
+    let amounts = splits
+        .iter()
+        .map(|(_, s)| whole_units(s.amount, scu, s.guid))
+        .collect::<DomainResult<Vec<i128>>>()?;
     let is_new = |i: usize| splits[i].1.reconcile_state == ReconcileState::New;
     let cleared: i128 = (0..splits.len()).filter(|&i| !is_new(i)).map(|i| amounts[i]).sum();
-    let current = Numeric::new(i64::try_from(cleared).map_err(|_| DomainError::invalid("the cleared balance is too large"))?, scu);
+    let current = Numeric::new(
+        i64::try_from(cleared).map_err(|_| DomainError::invalid("the cleared balance is too large"))?,
+        scu,
+    );
     let remaining = i128::from(target.num()) - cleared;
-    let candidates: Vec<Candidate> =
-        (0..splits.len()).filter(|&i| is_new(i) && amounts[i] != 0).map(|i| Candidate { amount: amounts[i], position: i }).collect();
+    let candidates: Vec<Candidate> = (0..splits.len())
+        .filter(|&i| is_new(i) && amounts[i] != 0)
+        .map(|i| Candidate {
+            amount: amounts[i],
+            position: i,
+        })
+        .collect();
     let outcome = if remaining == 0 {
         Outcome::AlreadyCleared
     } else {
@@ -112,16 +123,20 @@ pub fn mark_cleared(book: &mut Book, env: &mut dyn Env, result: &AutoClear) -> D
     let Outcome::Found(splits) = &result.outcome else {
         return Err(DomainError::invalid(result.outcome.message().unwrap_or_default()));
     };
-    splits.iter().try_for_each(|s| set_split_state(book, env, *s, ReconcileState::Cleared, None))
+    splits
+        .iter()
+        .try_for_each(|s| set_split_state(book, env, *s, ReconcileState::Cleared, None))
 }
 
 /// An amount as a whole number of SCUs (`numeric_to_int64`, `5.17:libgnucash/app-utils/gnc-autoclear.cpp:178-184`).
 /// GnuCash's conversion fails silently when the amount is not a whole number of SCUs; red-ale refuses.
 fn whole_units(amount: Numeric, scu: i64, split: Guid) -> DomainResult<i128> {
-    amount
-        .to_denom(scu, Round::Never)
-        .map(|a| i128::from(a.num()))
-        .map_err(|_| DomainError::invalid(format!("split {split}'s amount {} is not a whole number of 1/{scu}", amount.to_decimal_string())))
+    amount.to_denom(scu, Round::Never).map(|a| i128::from(a.num())).map_err(|_| {
+        DomainError::invalid(format!(
+            "split {split}'s amount {} is not a whole number of 1/{scu}",
+            amount.to_decimal_string()
+        ))
+    })
 }
 
 /// What the subset-sum search ends with.
@@ -180,7 +195,10 @@ fn search(mut candidates: Vec<Candidate>, target: i128, limit: u64) -> Search {
         // Taken first, then left: the stack runs them in reverse order of pushing.
         stack.push(Step::Visit { index: index + 1, target });
         stack.push(Step::Pop);
-        stack.push(Step::Visit { index: index + 1, target: target - candidates[index].amount });
+        stack.push(Step::Visit {
+            index: index + 1,
+            target: target - candidates[index].amount,
+        });
         path.push(index);
     }
     solution.map_or(Search::Unreachable, Search::Found)
@@ -251,7 +269,13 @@ mod tests {
                 }
                 new.splits = vec![s, NewSplit::new(other, Numeric::new(-cents, 100))];
                 let t = add_transaction(&mut book, &mut env, new).unwrap();
-                book.transaction(t).unwrap().splits.iter().find(|s| s.account == Some(bank)).unwrap().guid
+                book.transaction(t)
+                    .unwrap()
+                    .splits
+                    .iter()
+                    .find(|s| s.account == Some(bank))
+                    .unwrap()
+                    .guid
             })
             .collect();
         World { book, env, bank, splits }
@@ -279,11 +303,19 @@ mod tests {
 
     #[test]
     fn easy_case() {
-        let cleared = [-8234, -156_326, -4500, -694_056, -7358, -11700, -20497, -11900, -8275, -58700, 100_000, -13881, -5000, 200_000];
+        let cleared = [
+            -8234, -156_326, -4500, -694_056, -7358, -11700, -20497, -11900, -8275, -58700, 100_000, -13881, -5000, 200_000,
+        ];
         let more_cleared = [-16800, -152_000];
-        let open = [160_000, -63610, -2702, -15400, -3900, -22042, -2900, -10900, -44400, -9200, -7900, -1990, -7901, -61200];
-        let data: Vec<Datum> =
-            cleared.iter().chain(&more_cleared).map(|&a| (a, true)).chain(open.iter().map(|&a| (a, false))).collect();
+        let open = [
+            160_000, -63610, -2702, -15400, -3900, -22042, -2900, -10900, -44400, -9200, -7900, -1990, -7901, -61200,
+        ];
+        let data: Vec<Datum> = cleared
+            .iter()
+            .chain(&more_cleared)
+            .map(|&a| (a, true))
+            .chain(open.iter().map(|&a| (a, false)))
+            .collect();
         check(
             &data,
             &[
@@ -301,14 +333,19 @@ mod tests {
     #[test]
     fn ambiguous_case() {
         let data = [(-10, false), (-10, false), (-10, false)];
-        check(&data, &[(-10, Some(Outcome::Ambiguous)), (-20, Some(Outcome::Ambiguous)), (-30, None)]);
+        check(
+            &data,
+            &[(-10, Some(Outcome::Ambiguous)), (-20, Some(Outcome::Ambiguous)), (-30, None)],
+        );
     }
 
     #[test]
     fn sequential_cases() {
         let three = [(2, false), (3, false), (5, false)];
         let w = world(&three);
-        [1, 4, 6, 9, 11, 12].iter().for_each(|&t| assert_eq!(outcome(&w, t), Outcome::Unreachable, "{t}"));
+        [1, 4, 6, 9, 11, 12]
+            .iter()
+            .for_each(|&t| assert_eq!(outcome(&w, t), Outcome::Unreachable, "{t}"));
         assert_eq!(outcome(&w, 5), Outcome::Ambiguous);
         assert_eq!(outcome(&w, 2), picks(&w, &[0]));
         assert_eq!(outcome(&w, 3), picks(&w, &[1]));
@@ -317,7 +354,9 @@ mod tests {
         assert_eq!(outcome(&w, 10), picks(&w, &[0, 1, 2]));
         let four = [(2, false), (3, false), (5, false), (5, false)];
         let w = world(&four);
-        [5, 7, 10].iter().for_each(|&t| assert_eq!(outcome(&w, t), Outcome::Ambiguous, "{t}"));
+        [5, 7, 10]
+            .iter()
+            .for_each(|&t| assert_eq!(outcome(&w, t), Outcome::Ambiguous, "{t}"));
         assert_eq!(outcome(&w, 2), picks(&w, &[0]));
         assert_eq!(outcome(&w, 3), picks(&w, &[1]));
         assert_eq!(outcome(&w, 12), picks(&w, &[0, 2, 3]));
@@ -339,15 +378,32 @@ mod tests {
             ],
         );
         let w = world(&data);
-        assert_eq!(find_with_limit(&w.book, w.bank, Numeric::new(2_000_000, 100), 10).unwrap().outcome, Outcome::Limit);
+        assert_eq!(
+            find_with_limit(&w.book, w.bank, Numeric::new(2_000_000, 100), 10).unwrap().outcome,
+            Outcome::Limit
+        );
     }
 
     #[test]
     fn mixed_signs_and_zeros() {
-        check(&[(30000, false), (-20000, false), (10000, false), (500, false), (-400, false), (300, false)], &[(30300, None)]);
+        check(
+            &[
+                (30000, false),
+                (-20000, false),
+                (10000, false),
+                (500, false),
+                (-400, false),
+                (300, false),
+            ],
+            &[(30300, None)],
+        );
         check(
             &[(10000, false), (0, false), (10000, false), (5000, false)],
-            &[(19999, Some(Outcome::Unreachable)), (20001, Some(Outcome::Unreachable)), (20000, None)],
+            &[
+                (19999, Some(Outcome::Unreachable)),
+                (20001, Some(Outcome::Unreachable)),
+                (20000, None),
+            ],
         );
     }
 
@@ -367,7 +423,10 @@ mod tests {
         assert_eq!(state(&w.book, w.splits[0]), Some(ReconcileState::Cleared));
         assert_eq!(state(&w.book, w.splits[1]), Some(ReconcileState::New));
         assert_eq!(state(&w.book, w.splits[2]), Some(ReconcileState::Cleared));
-        assert_eq!(find(&w.book, w.bank, Numeric::new(7, 100)).unwrap().outcome, Outcome::AlreadyCleared);
+        assert_eq!(
+            find(&w.book, w.bank, Numeric::new(7, 100)).unwrap().outcome,
+            Outcome::AlreadyCleared
+        );
         let err = apply(&mut w.book, &mut w.env, w.bank, Numeric::new(1, 100)).unwrap_err();
         assert_eq!(err, DomainError::invalid("The selected amount cannot be cleared."));
     }

@@ -12,14 +12,44 @@ use crate::wire::{Amount, CommodityId, Day, Id, Timestamp};
 /// The prices methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("price.add", "Add a price; a same-day price of the pair is replaced or wins by source precedence, as GnuCash does.", Effect::Write, add),
+        method(
+            "price.add",
+            "Add a price; a same-day price of the pair is replaced or wins by source precedence, as GnuCash does.",
+            Effect::Write,
+            add,
+        ),
         method("price.get", "Describe one price.", Effect::Read, get),
-        method("price.list", "List prices, by commodity, currency and date range, in GnuCash's order.", Effect::Read, list),
-        method("price.latest", "The latest price of a commodity in a currency, either direction.", Effect::Read, latest),
-        method("price.nearest", "The price of a commodity in a currency nearest to a time, before it, or on its day.", Effect::Read, nearest),
-        method("price.update", "Edit a price's value, time, source, type, commodity or currency, as the price editor does.", Effect::Write, update),
+        method(
+            "price.list",
+            "List prices, by commodity, currency and date range, in GnuCash's order.",
+            Effect::Read,
+            list,
+        ),
+        method(
+            "price.latest",
+            "The latest price of a commodity in a currency, either direction.",
+            Effect::Read,
+            latest,
+        ),
+        method(
+            "price.nearest",
+            "The price of a commodity in a currency nearest to a time, before it, or on its day.",
+            Effect::Read,
+            nearest,
+        ),
+        method(
+            "price.update",
+            "Edit a price's value, time, source, type, commodity or currency, as the price editor does.",
+            Effect::Write,
+            update,
+        ),
         method("price.delete", "Delete a price.", Effect::Destructive, delete),
-        method("price.removeOld", "Remove old prices, keeping the last of each week, month, quarter or fiscal year.", Effect::Destructive, remove_old),
+        method(
+            "price.removeOld",
+            "Remove old prices, keeping the last of each week, month, quarter or fiscal year.",
+            Effect::Destructive,
+            remove_old,
+        ),
     ]
 }
 
@@ -62,7 +92,10 @@ pub(crate) fn info(p: &Price, zone: &TimeZone) -> PriceInfo {
 }
 
 fn find(book: &Book, guid: Id) -> Result<&Price, RpcError> {
-    book.prices.get(&guid.0).map(AsRef::as_ref).ok_or_else(|| RpcError::not_found("price", guid.0))
+    book.prices
+        .get(&guid.0)
+        .map(AsRef::as_ref)
+        .ok_or_else(|| RpcError::not_found("price", guid.0))
 }
 
 /// Exactly one of a date (the price editor's: that day's neutral time) or an exact time.
@@ -194,7 +227,11 @@ fn list(ctx: &mut Context, p: ListParams) -> Result<Vec<PriceInfo>, RpcError> {
     };
     let from = p.from.map(|d| zone.day_start(d.0));
     let to = p.to.map(|d| zone.day_end(d.0));
-    Ok(selected.into_iter().filter(|x| from.is_none_or(|f| x.time >= f) && to.is_none_or(|t| x.time <= t)).map(|x| info(x, &zone)).collect())
+    Ok(selected
+        .into_iter()
+        .filter(|x| from.is_none_or(|f| x.time >= f) && to.is_none_or(|t| x.time <= t))
+        .map(|x| info(x, &zone))
+        .collect())
 }
 
 /// Params of `price.latest`.
@@ -223,7 +260,11 @@ pub struct FoundPrice {
 fn found(p: &Price, requested: &red_ale_core::CommodityRef, zone: &TimeZone) -> FoundPrice {
     let reversed = p.commodity != red_ale_core::ops::commodities::canonical(requested);
     let rate = if reversed { invert(p.value) } else { Some(p.value) };
-    FoundPrice { price: info(p, zone), reversed, rate: rate.map(Amount) }
+    FoundPrice {
+        price: info(p, zone),
+        reversed,
+        rate: rate.map(Amount),
+    }
 }
 
 /// `gnc_numeric_invert`: swap numerator and denominator, keeping the denominator positive.
@@ -342,7 +383,10 @@ fn update(ctx: &mut Context, p: UpdateParams) -> Result<UpdateOutcome, RpcError>
         value: p.value.map(|v| v.0),
     };
     let replaced = ctx.mutate(|book, _| ops::update_price(book, p.price.0, &changes, &zone))?;
-    Ok(UpdateOutcome { price: info(find(ctx.book()?, p.price)?, &zone), replaced: replaced.map(Id) })
+    Ok(UpdateOutcome {
+        price: info(find(ctx.book()?, p.price)?, &zone),
+        replaced: replaced.map(Id),
+    })
 }
 
 fn delete(ctx: &mut Context, p: PriceParams) -> Result<PriceInfo, RpcError> {
@@ -432,9 +476,21 @@ fn remove_old(ctx: &mut Context, p: RemoveOldParams) -> Result<RemoveOldResult, 
     let removed = ctx.mutate(|book, env| {
         // gnc_pricedb_remove_old_prices defaults the fiscal year end to 31 December this year (gnc-pricedb.cpp:1595-1600).
         let this_year = env.today().map_or(1970, Date::year);
-        let fiscal_year_end = p.fiscal_year_end.map(|d| d.0).or_else(|| Date::from_ymd(this_year, 12, 31)).unwrap_or(p.before.0);
-        let opts = RemoveOld { commodities: p.commodities.into_iter().map(|c| c.0).collect(), cutoff: env.zone().neutral_time(p.before.0), sources, keep, fiscal_year_end };
+        let fiscal_year_end = p
+            .fiscal_year_end
+            .map(|d| d.0)
+            .or_else(|| Date::from_ymd(this_year, 12, 31))
+            .unwrap_or(p.before.0);
+        let opts = RemoveOld {
+            commodities: p.commodities.into_iter().map(|c| c.0).collect(),
+            cutoff: env.zone().neutral_time(p.before.0),
+            sources,
+            keep,
+            fiscal_year_end,
+        };
         ops::remove_old_prices(book, &opts, env.zone())
     })?;
-    Ok(RemoveOldResult { removed: removed.into_iter().map(Id).collect() })
+    Ok(RemoveOldResult {
+        removed: removed.into_iter().map(Id).collect(),
+    })
 }

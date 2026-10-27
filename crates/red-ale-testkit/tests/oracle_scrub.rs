@@ -33,7 +33,11 @@ fn broken_book() -> TempBook {
         "<split:value>1000/100</split:value>\n      <split:quantity>1000/100</split:quantity>",
     );
     // GnuCash drops a split with no account element, so an orphan is a split whose account does not exist.
-    text = replace_once(&text, &format!("{EQUITY}</split:account>"), "2222222222222222222222222222cccc</split:account>");
+    text = replace_once(
+        &text,
+        &format!("{EQUITY}</split:account>"),
+        "2222222222222222222222222222cccc</split:account>",
+    );
     text = replace_once(
         &text,
         "<split:value>60000/100</split:value>\n      <split:quantity>60000/100</split:quantity>",
@@ -50,13 +54,18 @@ fn broken_book() -> TempBook {
 fn currency_broken_book() -> TempBook {
     let book = TempBook::copy("synthetic/rich.gnucash");
     let mut text = std::fs::read_to_string(&book.path).unwrap();
-    ["<trn:description>Buy ACME", "<trn:description>To euro account"].iter().for_each(|description| {
-        let at = text.find(description).unwrap();
-        let start = text[..at].rfind("<trn:currency>").unwrap();
-        let usd = "<cmdty:space>CURRENCY</cmdty:space>\n    <cmdty:id>USD</cmdty:id>";
-        let offset = start + text[start..].find(usd).unwrap();
-        text.replace_range(offset..offset + usd.len(), "<cmdty:space>NASDAQ</cmdty:space>\n    <cmdty:id>ACME</cmdty:id>");
-    });
+    ["<trn:description>Buy ACME", "<trn:description>To euro account"]
+        .iter()
+        .for_each(|description| {
+            let at = text.find(description).unwrap();
+            let start = text[..at].rfind("<trn:currency>").unwrap();
+            let usd = "<cmdty:space>CURRENCY</cmdty:space>\n    <cmdty:id>USD</cmdty:id>";
+            let offset = start + text[start..].find(usd).unwrap();
+            text.replace_range(
+                offset..offset + usd.len(),
+                "<cmdty:space>NASDAQ</cmdty:space>\n    <cmdty:id>ACME</cmdty:id>",
+            );
+        });
     std::fs::write(&book.path, text).unwrap();
     book
 }
@@ -94,8 +103,12 @@ fn leftover_imbalance() -> String {
 /// A dump with GUIDs of accounts replaced by full names and splits identified by content, so books scrubbed separately
 /// (whose new accounts and splits have different GUIDs) can be compared.
 fn normalised(dump: &Value) -> Value {
-    let accounts: BTreeMap<String, &Value> =
-        dump["accounts"].as_array().unwrap().iter().map(|a| (a["guid"].as_str().unwrap().to_owned(), a)).collect();
+    let accounts: BTreeMap<String, &Value> = dump["accounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| (a["guid"].as_str().unwrap().to_owned(), a))
+        .collect();
     let full_name = |guid: &Value| -> Value {
         let mut parts = Vec::new();
         let mut current = guid.as_str().map(str::to_owned);
@@ -165,7 +178,11 @@ fn red_ale_scrub(book: &TempBook, method: &str, params: &Value, whole: bool) -> 
     let result = call(&mut d, method, params);
     if whole {
         let diffs = oracle_check(&mut d, book, &[]);
-        assert!(diffs.is_empty(), "GnuCash reads red-ale's scrubbed book differently:\n{}", diffs.join("\n"));
+        assert!(
+            diffs.is_empty(),
+            "GnuCash reads red-ale's scrubbed book differently:\n{}",
+            diffs.join("\n")
+        );
     } else {
         call(&mut d, "book.close", &json!({ "save": true }));
     }
@@ -173,7 +190,12 @@ fn red_ale_scrub(book: &TempBook, method: &str, params: &Value, whole: bool) -> 
 }
 
 fn kinds(result: &Value) -> Vec<&str> {
-    result["repairs"].as_array().unwrap().iter().map(|r| r["kind"].as_str().unwrap()).collect()
+    result["repairs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["kind"].as_str().unwrap())
+        .collect()
 }
 
 #[test]
@@ -184,7 +206,13 @@ fn check_and_repair_matches_gnucash() {
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     assert_eq!(
         kinds(&result),
-        ["accountCreated", "orphanAssigned", "balanceSplitRemoved", "balanceSplitAdded", "amountSetToValue"],
+        [
+            "accountCreated",
+            "orphanAssigned",
+            "balanceSplitRemoved",
+            "balanceSplitAdded",
+            "amountSetToValue"
+        ],
         "{result}"
     );
 }
@@ -205,9 +233,23 @@ fn orphan_scrub_matches_gnucash_load_time_view() {
     let theirs = normalised(&oracle::dump(&book.path).unwrap());
     let (ours, result) = red_ale_scrubbed("scrub.orphans", &json!({}), false);
     assert_eq!(kinds(&result), ["accountCreated", "orphanAssigned"]);
-    let orphan = |v: &Value| v["accounts"].as_array().unwrap().iter().find(|a| a["name"] == "Orphan-USD").cloned();
+    let orphan = |v: &Value| {
+        v["accounts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["name"] == "Orphan-USD")
+            .cloned()
+    };
     assert_eq!(orphan(&theirs), orphan(&ours));
-    let opening = |v: &Value| v["transactions"].as_array().unwrap().iter().find(|t| t["description"] == "Opening").cloned();
+    let opening = |v: &Value| {
+        v["transactions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["description"] == "Opening")
+            .cloned()
+    };
     assert_eq!(opening(&theirs), opening(&ours));
 }
 

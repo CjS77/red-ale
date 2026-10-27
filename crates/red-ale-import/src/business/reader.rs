@@ -53,7 +53,9 @@ impl Separator {
 
     /// The separator by its name.
     pub fn from_name(name: &str) -> Option<Self> {
-        [Self::Semicolon, Self::Comma, Self::SemicolonQuoted, Self::CommaQuoted].into_iter().find(|s| s.as_str() == name)
+        [Self::Semicolon, Self::Comma, Self::SemicolonQuoted, Self::CommaQuoted]
+            .into_iter()
+            .find(|s| s.as_str() == name)
     }
 
     fn char(self) -> char {
@@ -145,8 +147,15 @@ pub fn read(text: &str, file: usize, fields: &[&str], pattern: &Regex, sep: Sepa
             out.stripped.push(line);
         }
         match pattern.captures(&clean) {
-            Some(caps) => out.rows.push(Row { line, fields: fields.iter().map(|f| field_value(&caps, f, sep)).collect() }),
-            None => out.ignored.push(IgnoredLine { file, line, reason: "noMatch" }),
+            Some(caps) => out.rows.push(Row {
+                line,
+                fields: fields.iter().map(|f| field_value(&caps, f, sep)).collect(),
+            }),
+            None => out.ignored.push(IgnoredLine {
+                file,
+                line,
+                reason: "noMatch",
+            }),
         }
     });
     out
@@ -176,13 +185,22 @@ mod tests {
     fn plain_separators_split_and_strip() {
         let r = rows("A1; some notes ;12\nA2;x\n\nA3;\"q\";4\r\n", Separator::Semicolon);
         let got: Vec<(usize, Vec<String>)> = r.rows.iter().map(|r| (r.line, r.fields.clone())).collect();
-        assert_eq!(got, [(1, vec!["A1".into(), "some notes".into(), "12".into()]), (4, vec!["A3".into(), "\"q\"".into(), "4".into()])]);
+        assert_eq!(
+            got,
+            [
+                (1, vec!["A1".into(), "some notes".into(), "12".into()]),
+                (4, vec!["A3".into(), "\"q\"".into(), "4".into()])
+            ]
+        );
         assert_eq!(r.ignored.iter().map(|l| l.line).collect::<Vec<_>>(), [2, 3]);
     }
 
     #[test]
     fn quoted_fields_and_doubled_quotes() {
-        let r = rows("\"A,1\",\"say \"\"hi\"\", ok\",\"7\"\n\u{feff}B,,\n\"C\"x,a,b\n\"D\",\"no \"\"\",1\n", Separator::CommaQuoted);
+        let r = rows(
+            "\"A,1\",\"say \"\"hi\"\", ok\",\"7\"\n\u{feff}B,,\n\"C\"x,a,b\n\"D\",\"no \"\"\",1\n",
+            Separator::CommaQuoted,
+        );
         assert_eq!(r.rows[0].fields, ["A,1", "say \"\"hi\"\", ok", "7"]);
         assert_eq!(r.rows[1].fields, ["B", "", ""]);
         assert_eq!(r.rows[2].fields, ["D", "no \"\"", "1"]);

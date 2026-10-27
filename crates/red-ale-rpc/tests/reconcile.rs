@@ -20,7 +20,11 @@ const VOIDED: &str = "823f78ac78fd44c0956c238ae7c0d28d";
 fn open() -> (tempfile::TempDir, Dispatcher) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("book.gnucash");
-    std::fs::copy(format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")), &path).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")),
+        &path,
+    )
+    .unwrap();
     let mut d = Dispatcher::new(Settings::default());
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(NOW, 1 << 100))));
     d.call("book.open", json!({ "path": path.display().to_string() })).unwrap();
@@ -29,7 +33,8 @@ fn open() -> (tempfile::TempDir, Dispatcher) {
 
 fn call(d: &mut Dispatcher, method: &str, params: Value) -> Value {
     let shown = params.to_string();
-    d.call(method, params).unwrap_or_else(|e| panic!("{method} {shown}: {e} {:?}", e.data))
+    d.call(method, params)
+        .unwrap_or_else(|e| panic!("{method} {shown}: {e} {:?}", e.data))
 }
 
 fn err(d: &mut Dispatcher, method: &str, params: Value) -> i32 {
@@ -47,7 +52,12 @@ fn same(a: &Value, num: i64, denom: i64) -> bool {
 }
 
 fn split_ids(view: &Value) -> Vec<String> {
-    view["splits"].as_array().unwrap().iter().map(|s| s["split"].as_str().unwrap().to_owned()).collect()
+    view["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["split"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 #[test]
@@ -57,18 +67,39 @@ fn start_uses_gnucash_defaults() {
     assert_eq!(info["lastDate"], "2024-01-31T00:00:00Z");
     assert_eq!(info["lastInterval"], Value::Null);
     let view = call(&mut d, "reconcile.start", json!({ "account": CHECKING }));
-    assert_eq!(view["statementDate"], "2024-02-29", "last date plus one month, tracking the month end");
+    assert_eq!(
+        view["statementDate"], "2024-02-29",
+        "last date plus one month, tracking the month end"
+    );
     assert_eq!(view["statementTime"], "2024-02-29T23:59:59Z");
     assert!(same(&view["endingBalance"], 0, 1), "balance at the statement date");
     assert!(same(&view["startingBalance"], 5000, 1), "the reconciled opening split");
-    assert_eq!(split_ids(&view), [GROCERIES, EURO, ACME_BUY, ACME_SELL], "n and c splits, any date; voided and reconciled left out");
+    assert_eq!(
+        split_ids(&view),
+        [GROCERIES, EURO, ACME_BUY, ACME_SELL],
+        "n and c splits, any date; voided and reconciled left out"
+    );
     assert_eq!(view["ticked"], json!([]));
     assert!(same(&view["difference"], -5000, 1));
 
-    let east = call(&mut d, "reconcile.start", json!({ "account": CHECKING, "statementDate": "2024-06-30", "utcOffsetMinutes": 120 }));
+    let east = call(
+        &mut d,
+        "reconcile.start",
+        json!({ "account": CHECKING, "statementDate": "2024-06-30", "utcOffsetMinutes": 120 }),
+    );
     assert_eq!(east["statementTime"], "2024-06-30T21:59:59Z");
-    assert_eq!(err(&mut d, "reconcile.start", json!({ "account": CHECKING, "utcOffsetMinutes": 5000 })), codes::INVALID_PARAMS);
-    assert_eq!(err(&mut d, "reconcile.start", json!({ "account": "Assets", "includeSubaccounts": true })), codes::INVALID);
+    assert_eq!(
+        err(&mut d, "reconcile.start", json!({ "account": CHECKING, "utcOffsetMinutes": 5000 })),
+        codes::INVALID_PARAMS
+    );
+    assert_eq!(
+        err(
+            &mut d,
+            "reconcile.start",
+            json!({ "account": "Assets", "includeSubaccounts": true })
+        ),
+        codes::INVALID
+    );
     assert_eq!(err(&mut d, "reconcile.start", json!({ "account": "Nope" })), codes::NOT_FOUND);
 }
 
@@ -80,7 +111,11 @@ fn tick_and_finish() {
     let start = json!({ "account": CHECKING, "statementDate": "2024-06-30" });
     let view = call(&mut d, "reconcile.start", start);
     assert!(same(&view["endingBalance"], 446_771, 100), "{}", view["endingBalance"]);
-    assert_eq!(view["ticked"], json!([GROCERIES]), "cleared splits by the statement date start ticked");
+    assert_eq!(
+        view["ticked"],
+        json!([GROCERIES]),
+        "cleared splits by the statement date start ticked"
+    );
 
     let base = json!({ "account": CHECKING, "statementDate": "2024-06-30", "endingBalance": "4467.71" });
     let mut status = base.clone();
@@ -92,7 +127,11 @@ fn tick_and_finish() {
 
     let mut fin = base.clone();
     fin["ticked"] = json!([GROCERIES, EURO]);
-    assert_eq!(err(&mut d, "reconcile.finish", fin.clone()), codes::INVALID, "the difference is not zero");
+    assert_eq!(
+        err(&mut d, "reconcile.finish", fin.clone()),
+        codes::INVALID,
+        "the difference is not zero"
+    );
     fin["ticked"] = json!([OPENING]);
     assert_eq!(err(&mut d, "reconcile.finish", fin.clone()), codes::INVALID, "already reconciled");
     fin["ticked"] = json!([GROCERIES, EURO, ACME_BUY, ACME_SELL]);
@@ -114,9 +153,17 @@ fn postpone_then_resume() {
     call(&mut d, "reconcile.setState", json!({ "split": GROCERIES, "state": "c" }));
     let params = json!({ "account": CHECKING, "statementDate": "2024-06-03", "endingBalance": "4890", "ticked": [EURO] });
     let done = call(&mut d, "reconcile.postpone", params);
-    let changed: Vec<(&str, &str)> =
-        done["changed"].as_array().unwrap().iter().map(|c| (c["split"].as_str().unwrap(), c["to"].as_str().unwrap())).collect();
-    assert_eq!(changed, [(GROCERIES, "n"), (EURO, "c")], "unticked cleared splits by the date are un-cleared");
+    let changed: Vec<(&str, &str)> = done["changed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| (c["split"].as_str().unwrap(), c["to"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        changed,
+        [(GROCERIES, "n"), (EURO, "c")],
+        "unticked cleared splits by the date are un-cleared"
+    );
     let info = call(&mut d, "reconcile.info", json!({ "account": CHECKING }));
     assert_eq!(info["postponeDate"], "2024-06-03T23:59:59Z");
     assert!(same(&info["postponeBalance"], 4890, 1));
@@ -136,15 +183,42 @@ fn split_state_rules() {
     let (_dir, mut d) = open();
     let y = call(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "y" }));
     assert_eq!(y["reconcileDate"], "2024-07-01T12:00:00Z");
-    let y = call(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "y", "date": "2024-06-30T23:59:59Z" }));
+    let y = call(
+        &mut d,
+        "reconcile.setState",
+        json!({ "split": EURO, "state": "y", "date": "2024-06-30T23:59:59Z" }),
+    );
     assert_eq!(y["reconcileDate"], "2024-06-30T23:59:59Z");
     let f = call(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "f" }));
     assert_eq!((&f["state"], &f["reconcileDate"]), (&json!("f"), &json!("2024-06-30T23:59:59Z")));
-    assert_eq!(err(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "v" })), codes::INVALID);
-    assert_eq!(err(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "x" })), codes::INVALID_PARAMS);
-    assert_eq!(err(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "c", "date": "2024-06-30T00:00:00Z" })), codes::INVALID);
-    assert_eq!(err(&mut d, "reconcile.setState", json!({ "split": VOIDED, "state": "c" })), codes::CONFLICT);
-    assert_eq!(err(&mut d, "reconcile.setState", json!({ "split": "0123456789abcdef0123456789abcdef", "state": "c" })), codes::NOT_FOUND);
+    assert_eq!(
+        err(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "v" })),
+        codes::INVALID
+    );
+    assert_eq!(
+        err(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "x" })),
+        codes::INVALID_PARAMS
+    );
+    assert_eq!(
+        err(
+            &mut d,
+            "reconcile.setState",
+            json!({ "split": EURO, "state": "c", "date": "2024-06-30T00:00:00Z" })
+        ),
+        codes::INVALID
+    );
+    assert_eq!(
+        err(&mut d, "reconcile.setState", json!({ "split": VOIDED, "state": "c" })),
+        codes::CONFLICT
+    );
+    assert_eq!(
+        err(
+            &mut d,
+            "reconcile.setState",
+            json!({ "split": "0123456789abcdef0123456789abcdef", "state": "c" })
+        ),
+        codes::NOT_FOUND
+    );
 }
 
 #[test]
@@ -161,8 +235,15 @@ fn set_info() {
     assert_eq!(info["lastInterval"], json!({ "months": 0, "days": 14 }));
     assert_eq!(info["postponeDate"], "2024-06-15T23:59:59Z");
     assert_eq!(info["includeSubaccounts"], true);
-    let info = call(&mut d, "reconcile.setInfo", json!({ "account": CHECKING, "lastDate": null, "postpone": null, "lastInterval": null }));
-    assert_eq!((&info["lastDate"], &info["postponeDate"], &info["lastInterval"]), (&Value::Null, &Value::Null, &Value::Null));
+    let info = call(
+        &mut d,
+        "reconcile.setInfo",
+        json!({ "account": CHECKING, "lastDate": null, "postpone": null, "lastInterval": null }),
+    );
+    assert_eq!(
+        (&info["lastDate"], &info["postponeDate"], &info["lastInterval"]),
+        (&Value::Null, &Value::Null, &Value::Null)
+    );
     let bad = json!({ "account": CHECKING, "lastInterval": { "months": -1, "days": 0 } });
     assert_eq!(err(&mut d, "reconcile.setInfo", bad), codes::INVALID);
 }

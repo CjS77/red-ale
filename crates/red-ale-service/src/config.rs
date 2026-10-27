@@ -89,12 +89,18 @@ impl Config {
         let bound = |key: &str, d: PeriodBound| -> Result<PeriodBound, ServiceError> {
             self.period_text(key)?.map_or(Ok(d), |s| s.parse().map_err(ServiceError::Domain))
         };
-        Ok(AccountingPeriod { start: bound("start", default.start)?, end: bound("end", default.end)? })
+        Ok(AccountingPeriod {
+            start: bound("start", default.start)?,
+            end: bound("end", default.end)?,
+        })
     }
 
     /// The configured fiscal year end, if any.
     pub fn fiscal_year_end(&self) -> Result<Option<FiscalYearEnd>, ServiceError> {
-        self.period_text("fiscalYearEnd")?.map(str::parse).transpose().map_err(ServiceError::Domain)
+        self.period_text("fiscalYearEnd")?
+            .map(str::parse)
+            .transpose()
+            .map_err(ServiceError::Domain)
     }
 
     /// Set the accounting period and the fiscal year end (`None` removes it).
@@ -173,7 +179,10 @@ impl ConfigStore {
 
     /// A configuration kept in a JSON file, read at every use so edits by hand are seen.
     pub fn at(path: impl Into<PathBuf>) -> Self {
-        Self { path: Some(path.into()), memory: Arc::default() }
+        Self {
+            path: Some(path.into()),
+            memory: Arc::default(),
+        }
     }
 
     /// The file, if any.
@@ -188,7 +197,10 @@ impl ConfigStore {
             Some(path) => match std::fs::read_to_string(path) {
                 Ok(text) => Config::parse(&text),
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
-                Err(e) => Err(ServiceError::Io { path: path.clone(), source: e }),
+                Err(e) => Err(ServiceError::Io {
+                    path: path.clone(),
+                    source: e,
+                }),
             },
         }
     }
@@ -206,19 +218,28 @@ impl ConfigStore {
     /// The largest request the JSON-RPC server accepts (`jsonRpc.maxRequestBytes`).
     pub fn jsonrpc_max_request_bytes(&self) -> Result<u32, ServiceError> {
         let bytes = self.load()?.checked("jsonRpc.maxRequestBytes")?;
-        bytes.as_u64().and_then(|b| u32::try_from(b).ok()).ok_or_else(|| invalid("jsonRpc.maxRequestBytes must be a whole number of bytes"))
+        bytes
+            .as_u64()
+            .and_then(|b| u32::try_from(b).ok())
+            .ok_or_else(|| invalid("jsonRpc.maxRequestBytes must be a whole number of bytes"))
     }
 
     /// The largest response the JSON-RPC server sends (`jsonRpc.maxResponseBytes`).
     pub fn jsonrpc_max_response_bytes(&self) -> Result<u32, ServiceError> {
         let bytes = self.load()?.checked("jsonRpc.maxResponseBytes")?;
-        bytes.as_u64().and_then(|b| u32::try_from(b).ok()).ok_or_else(|| invalid("jsonRpc.maxResponseBytes must be a whole number of bytes"))
+        bytes
+            .as_u64()
+            .and_then(|b| u32::try_from(b).ok())
+            .ok_or_else(|| invalid("jsonRpc.maxResponseBytes must be a whole number of bytes"))
     }
 
     /// The largest request the MCP server accepts (`mcp.maxRequestBytes`).
     pub fn mcp_max_request_bytes(&self) -> Result<usize, ServiceError> {
         let bytes = self.load()?.checked("mcp.maxRequestBytes")?;
-        bytes.as_u64().and_then(|b| usize::try_from(b).ok()).ok_or_else(|| invalid("mcp.maxRequestBytes must be a whole number of bytes"))
+        bytes
+            .as_u64()
+            .and_then(|b| usize::try_from(b).ok())
+            .ok_or_else(|| invalid("mcp.maxRequestBytes must be a whole number of bytes"))
     }
 }
 
@@ -231,14 +252,22 @@ mod tests {
     fn defaults_round_trip_and_unknown_keys_survive() {
         let mut c = Config::parse(r#"{"other": {"x": 1}, "accountingPeriod": {"note": "kept"}}"#).unwrap();
         assert_eq!(c.accounting_period().unwrap(), AccountingPeriod::default());
-        let p = AccountingPeriod { start: PeriodBound::Relative(RelativePeriod::FiscalYear), end: "2024-12-31".parse().unwrap() };
+        let p = AccountingPeriod {
+            start: PeriodBound::Relative(RelativePeriod::FiscalYear),
+            end: "2024-12-31".parse().unwrap(),
+        };
         c.set_accounting_period(&p, Some("06-30".parse().unwrap()));
         let again = Config::parse(&c.to_text()).unwrap();
         assert_eq!(again.accounting_period().unwrap(), p);
         assert_eq!(again.fiscal_year_end().unwrap().unwrap().to_string(), "06-30");
         assert!(again.to_text().contains("\"other\"") && again.to_text().contains("\"note\""));
         assert!(Config::parse("[]").is_err());
-        assert!(Config::parse(r#"{"accountingPeriod": {"start": "soon"}}"#).unwrap().accounting_period().is_err());
+        assert!(
+            Config::parse(r#"{"accountingPeriod": {"start": "soon"}}"#)
+                .unwrap()
+                .accounting_period()
+                .is_err()
+        );
     }
 
     #[test]
@@ -251,7 +280,12 @@ mod tests {
         assert!(again.to_text().contains("\"other\""));
         c.set_doc_link_path_head(None);
         assert_eq!(c.doc_link_path_head().unwrap(), None);
-        assert!(Config::parse(r#"{"docLinks": {"pathHead": 3}}"#).unwrap().doc_link_path_head().is_err());
+        assert!(
+            Config::parse(r#"{"docLinks": {"pathHead": 3}}"#)
+                .unwrap()
+                .doc_link_path_head()
+                .is_err()
+        );
     }
 
     #[test]

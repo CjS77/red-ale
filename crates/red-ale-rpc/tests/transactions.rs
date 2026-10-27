@@ -20,7 +20,11 @@ struct Book {
 fn open() -> Book {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("book.gnucash");
-    std::fs::copy(format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")), &path).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")),
+        &path,
+    )
+    .unwrap();
     let mut d = Dispatcher::new(Settings::default());
     d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(NOW, 0x00ed_0000_0000_0000_0000_0000_0000_0000))));
     d.call("book.open", json!({ "path": path.display().to_string() })).unwrap();
@@ -29,16 +33,24 @@ fn open() -> Book {
 
 impl Book {
     fn call(&mut self, method: &str, params: Value) -> Value {
-        self.d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        self.d
+            .call(method, params.clone())
+            .unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
     }
 
     fn err(&mut self, method: &str, params: Value) -> RpcError {
-        self.d.call(method, params.clone()).err().unwrap_or_else(|| panic!("{method} {params} should fail"))
+        self.d
+            .call(method, params.clone())
+            .err()
+            .unwrap_or_else(|| panic!("{method} {params} should fail"))
     }
 }
 
 fn amount(v: &Value) -> (i64, i64) {
-    (v["num"].as_str().unwrap().parse().unwrap(), v["denom"].as_str().unwrap().parse().unwrap())
+    (
+        v["num"].as_str().unwrap().parse().unwrap(),
+        v["denom"].as_str().unwrap().parse().unwrap(),
+    )
 }
 
 fn rent(b: &mut Book) -> Value {
@@ -73,8 +85,16 @@ fn post_get_and_list() {
     assert_eq!(t["splits"][1]["reconcileState"], "n");
     let got = b.call("transaction.get", json!({ "guid": t["guid"] }));
     assert_eq!(got, t);
-    let listed = b.call("transaction.list", json!({ "account": "Expenses:Food", "from": "2024-06-02", "to": "2024-06-30" }));
-    let descriptions: Vec<&str> = listed["transactions"].as_array().unwrap().iter().map(|t| t["description"].as_str().unwrap()).collect();
+    let listed = b.call(
+        "transaction.list",
+        json!({ "account": "Expenses:Food", "from": "2024-06-02", "to": "2024-06-30" }),
+    );
+    let descriptions: Vec<&str> = listed["transactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["description"].as_str().unwrap())
+        .collect();
     assert_eq!(descriptions.len(), 3, "groceries, the voided mistake and rent: {descriptions:?}");
     assert_eq!(descriptions[2], "Rent");
 }
@@ -88,7 +108,11 @@ fn post_refuses_bad_input_atomically() {
     let placeholder = json!({ "splits": [{ "account": "Assets", "value": "-1" }, { "account": "Expenses:Food", "value": "1" }] });
     assert_eq!(b.err("transaction.post", placeholder).code, codes::INVALID);
     let foreign = json!({ "splits": [{ "account": CHECKING, "value": "-1" }, { "account": "Assets:Euro Bank", "value": "1" }] });
-    assert_eq!(b.err("transaction.post", foreign).code, codes::INVALID, "a EUR split needs an amount");
+    assert_eq!(
+        b.err("transaction.post", foreign).code,
+        codes::INVALID,
+        "a EUR split needs an amount"
+    );
     let float = json!({ "splits": [{ "account": CHECKING, "value": -1.5 }] });
     assert_eq!(b.err("transaction.post", float).code, codes::INVALID_PARAMS);
     assert_eq!(b.call("book.info", json!({}))["counts"]["transactions"], before);
@@ -125,8 +149,16 @@ fn multi_currency_post_keeps_value_and_amount() {
             "recordPrice": true
         }),
     );
-    assert_eq!(amount(&stock["splits"][0]["amount"]), (10000, 10000), "rounded to the account's SCU");
-    assert_eq!(b.call("book.info", json!({}))["counts"]["prices"], 5, "a STOCK split records its price");
+    assert_eq!(
+        amount(&stock["splits"][0]["amount"]),
+        (10000, 10000),
+        "rounded to the account's SCU"
+    );
+    assert_eq!(
+        b.call("book.info", json!({}))["counts"]["prices"],
+        5,
+        "a STOCK split records its price"
+    );
 }
 
 #[test]
@@ -154,11 +186,19 @@ fn update_edits_fields_and_splits() {
     assert_eq!(u["dateEntered"], "2024-06-23T08:00:00Z");
     assert_eq!(u["splits"].as_array().unwrap().len(), 3);
     let bank_split = u["splits"].as_array().unwrap().iter().find(|s| s["guid"] == bank).unwrap();
-    assert_eq!(amount(&bank_split["amount"]), (-76000, 100), "the amount follows the value in the currency");
+    assert_eq!(
+        amount(&bank_split["amount"]),
+        (-76000, 100),
+        "the amount follows the value in the currency"
+    );
     assert!(bank_split["memo"].is_null());
     let err = b.err("transaction.update", json!({ "guid": t["guid"], "removeSplits": [food] }));
     assert_eq!(err.code, codes::UNBALANCED);
-    assert_eq!(b.call("transaction.get", json!({ "guid": t["guid"] })), u, "a refused update changes nothing");
+    assert_eq!(
+        b.call("transaction.get", json!({ "guid": t["guid"] })),
+        u,
+        "a refused update changes nothing"
+    );
     let err = b.err("transaction.update", json!({ "guid": MISTAKE, "description": "x" }));
     assert_eq!(err.code, codes::CONFLICT, "a voided transaction is read-only");
 }
@@ -203,7 +243,13 @@ fn void_unvoid_and_reverse() {
     assert_eq!(v["voidTime"], "2024-07-01T12:00:00Z");
     assert_eq!(v["notes"], "Voided transaction");
     assert_eq!(v["readOnly"], "Transaction Voided");
-    assert!(v["splits"].as_array().unwrap().iter().all(|s| s["reconcileState"] == "v" && s["value"]["num"] == "0"));
+    assert!(
+        v["splits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["reconcileState"] == "v" && s["value"]["num"] == "0")
+    );
     assert_eq!(b.err("transaction.void", json!({ "guid": GROCERIES })).code, codes::CONFLICT);
     let u = b.call("transaction.unvoid", json!({ "guid": GROCERIES }));
     assert_eq!(u, original);
@@ -213,10 +259,20 @@ fn void_unvoid_and_reverse() {
     assert_eq!(r["description"], original["description"]);
     assert_eq!(r["notes"], original["notes"]);
     assert_eq!(b.call("transaction.get", json!({ "guid": GROCERIES }))["reversedBy"], r["guid"]);
-    let net: i64 = r["splits"].as_array().unwrap().iter().chain(original["splits"].as_array().unwrap()).map(|s| amount(&s["value"]).0).sum();
+    let net: i64 = r["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(original["splits"].as_array().unwrap())
+        .map(|s| amount(&s["value"]).0)
+        .sum();
     assert_eq!(net, 0);
     assert_eq!(b.err("transaction.reverse", json!({ "guid": GROCERIES })).code, codes::CONFLICT);
-    assert_eq!(b.err("transaction.reverse", json!({ "guid": MISTAKE })).code, codes::CONFLICT, "a void transaction");
+    assert_eq!(
+        b.err("transaction.reverse", json!({ "guid": MISTAKE })).code,
+        codes::CONFLICT,
+        "a void transaction"
+    );
     b.call("transaction.void", json!({ "guid": r["guid"], "reason": "" }));
     b.call("book.save", json!({}));
 }
@@ -261,7 +317,10 @@ fn transfer_refusals() {
     assert_eq!(b.err("transaction.transfer", stock).code, codes::INVALID);
     let zero = json!({ "from": CHECKING, "to": "Assets:Cash", "amount": "0" });
     assert_eq!(b.err("transaction.transfer", zero).code, codes::INVALID);
-    let same = b.call("transaction.transfer", json!({ "from": CHECKING, "to": "Assets:Cash", "amount": "5" }));
+    let same = b.call(
+        "transaction.transfer",
+        json!({ "from": CHECKING, "to": "Assets:Cash", "amount": "5" }),
+    );
     assert!(same["price"].is_null() && same["rate"].is_null());
 }
 
@@ -270,32 +329,76 @@ fn find_with_the_dialogs_criteria() {
     let mut b = open();
     rent(&mut b);
     let hits = |b: &mut Book, q: Value| -> Vec<String> {
-        b.call("transaction.find", json!({ "query": q }))["matches"].as_array().unwrap().iter().map(|m| m["split"].as_str().unwrap().to_owned()).collect()
+        b.call("transaction.find", json!({ "query": q }))["matches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["split"].as_str().unwrap().to_owned())
+            .collect()
     };
     assert_eq!(hits(&mut b, json!({ "memo": { "text": "CHEQUE" } })).len(), 1);
     assert!(hits(&mut b, json!({ "memo": { "text": "CHEQUE", "matchCase": true } })).is_empty());
-    assert_eq!(hits(&mut b, json!({ "description": { "op": "matchesRegex", "text": "^(Rent|Opening)$" } })).len(), 4);
-    assert_eq!(hits(&mut b, json!({ "reconcile": { "states": ["v"] } })).len(), 2, "the voided transaction's splits");
+    assert_eq!(
+        hits(
+            &mut b,
+            json!({ "description": { "op": "matchesRegex", "text": "^(Rent|Opening)$" } })
+        )
+        .len(),
+        4
+    );
+    assert_eq!(
+        hits(&mut b, json!({ "reconcile": { "states": ["v"] } })).len(),
+        2,
+        "the voided transaction's splits"
+    );
     assert_eq!(hits(&mut b, json!({ "void": true })).len(), 2);
     let big_debits = json!({ "all": [{ "value": { "op": "ge", "amount": "750", "sign": "debit" } }, { "datePosted": { "op": "onOrAfter", "date": "2024-06-02" } }] });
     assert_eq!(hits(&mut b, big_debits).len(), 2, "rent and the ACME purchase");
     let all = hits(&mut b, json!({ "all": [] }));
-    let last: Vec<String> =
-        b.call("transaction.find", json!({ "query": { "all": [] }, "limit": 2 }))["matches"].as_array().unwrap().iter().map(|m| m["split"].as_str().unwrap().to_owned()).collect();
+    let last: Vec<String> = b.call("transaction.find", json!({ "query": { "all": [] }, "limit": 2 }))["matches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["split"].as_str().unwrap().to_owned())
+        .collect();
     assert_eq!(last, all[all.len() - 2..], "a limit keeps the last matches");
     let both = json!({ "accounts": { "accounts": [CHECKING, "Expenses:Food"], "matching": "all" } });
     assert_eq!(hits(&mut b, both).len(), 6, "groceries, mistake and rent, two splits each");
-    assert_eq!(b.err("transaction.find", json!({ "query": { "memo": { "text": "" } } })).code, codes::INVALID);
-    assert_eq!(b.err("transaction.find", json!({ "query": { "memo": { "text": "(", "op": "matchesRegex" } } })).code, codes::INVALID);
-    assert_eq!(b.err("transaction.find", json!({ "query": { "nope": true } })).code, codes::INVALID_PARAMS);
+    assert_eq!(
+        b.err("transaction.find", json!({ "query": { "memo": { "text": "" } } })).code,
+        codes::INVALID
+    );
+    assert_eq!(
+        b.err(
+            "transaction.find",
+            json!({ "query": { "memo": { "text": "(", "op": "matchesRegex" } } })
+        )
+        .code,
+        codes::INVALID
+    );
+    assert_eq!(
+        b.err("transaction.find", json!({ "query": { "nope": true } })).code,
+        codes::INVALID_PARAMS
+    );
 }
 
 #[test]
 fn schema_lists_every_transaction_method() {
     let b = &mut open();
     let schema = b.call("api.schema", json!({}));
-    let names: Vec<&str> = schema["methods"].as_array().unwrap().iter().map(|m| m["name"].as_str().unwrap()).filter(|n| n.starts_with("transaction.")).collect();
+    let names: Vec<&str> = schema["methods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["name"].as_str().unwrap())
+        .filter(|n| n.starts_with("transaction."))
+        .collect();
     assert_eq!(names.len(), 10, "{names:?}");
-    let delete = schema["methods"].as_array().unwrap().iter().find(|m| m["name"] == "transaction.delete").unwrap();
+    let delete = schema["methods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["name"] == "transaction.delete")
+        .unwrap();
     assert_eq!(delete["effect"], "destructive");
 }

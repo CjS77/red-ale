@@ -31,7 +31,11 @@ impl Formats {
     /// The Locale's number conventions, with dates in `date_format` (GnuCash's date format preference, red-ale's
     /// `reports.dateFormat`).
     pub fn new(date_format: DateFormat, locale: Locale) -> Self {
-        Self { date_format, conventions: locale.conventions(), locale }
+        Self {
+            date_format,
+            conventions: locale.conventions(),
+            locale,
+        }
     }
 
     /// The Locale.
@@ -47,7 +51,9 @@ impl Formats {
     /// `xaccPrintAmount` of an exact value (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1306-1444`). A value that is not
     /// a valid numeric prints as nothing, as GnuCash's `PrintAmountInternal` prints nothing for one (`:1091-1097`).
     pub fn amount(&self, value: Numeric, info: &PrintInfo) -> String {
-        Rational::from_numeric(value).map(|r| format_amount(&r, info, &self.conventions)).unwrap_or_default()
+        Rational::from_numeric(value)
+            .map(|r| format_amount(&r, info, &self.conventions))
+            .unwrap_or_default()
     }
 
     /// `gnc_default_print_info` (`gnc-ui-util.cpp:833-860`): the Locale's `frac_digits` places, and the symbol of the
@@ -55,7 +61,10 @@ impl Formats {
     pub fn default_info(&self, book: &Book, symbol: bool) -> PrintInfo {
         let places = u32::from(self.conventions.frac_digits);
         let currency = CommodityRef::currency(self.conventions.currency_code());
-        PrintInfo { symbol: symbol.then(|| nice_symbol(book, &currency)), ..PrintInfo::plain(places) }
+        PrintInfo {
+            symbol: symbol.then(|| nice_symbol(book, &currency)),
+            ..PrintInfo::plain(places)
+        }
     }
 }
 
@@ -69,7 +78,14 @@ impl Default for Formats {
 /// `gnc_split_amount_print_info`, that is `gnc_account_print_info` (`gnc-ui-util.cpp:919-974`): places from the
 /// account's SCU, padded only for a currency, with the account commodity's symbol when `symbol`.
 pub fn account_info(book: &Book, account: &Account, symbol: bool) -> PrintInfo {
-    let Some(id) = &account.commodity else { return PrintInfo { symbol: None, is_iso: false, use_locale: false, ..PrintInfo::plain(0) } };
+    let Some(id) = &account.commodity else {
+        return PrintInfo {
+            symbol: None,
+            is_iso: false,
+            use_locale: false,
+            ..PrintInfo::plain(0)
+        };
+    };
     let fraction = lookup(book, id).map_or(0, |c| c.fraction);
     let format = CommodityFormat::new(id.clone(), nice_symbol(book, id), account.scu(fraction));
     PrintInfo::commodity(&format, symbol)
@@ -84,14 +100,25 @@ pub fn commodity_info(book: &Book, id: &CommodityRef, symbol: bool) -> Option<Pr
 /// `gnc_default_price_print_info` of the account's commodity (`gnc-ui-util.cpp:1025-1063`): padded to as many places as
 /// the commodity's fraction has trailing zeros, no symbol, grouped. With no commodity, no padding.
 pub fn price_info(book: &Book, account: Option<&Account>) -> PrintInfo {
-    let format = account.and_then(|a| a.commodity.as_ref()).and_then(|id| CommodityFormat::from_book(book, id));
-    format.map_or_else(|| PrintInfo::plain(0), |f| PrintInfo { symbol: None, ..PrintInfo::price(&f) })
+    let format = account
+        .and_then(|a| a.commodity.as_ref())
+        .and_then(|id| CommodityFormat::from_book(book, id));
+    format.map_or_else(
+        || PrintInfo::plain(0),
+        |f| PrintInfo {
+            symbol: None,
+            ..PrintInfo::price(&f)
+        },
+    )
 }
 
 /// The same print info without thousands separators: the `Num.` columns (`csv-transactions-export.cpp:167-168`,
 /// `:179-180`).
 pub fn without_separators(info: PrintInfo) -> PrintInfo {
-    PrintInfo { use_separators: false, ..info }
+    PrintInfo {
+        use_separators: false,
+        ..info
+    }
 }
 
 fn nice_symbol(book: &Book, id: &CommodityRef) -> String {
@@ -126,7 +153,10 @@ mod tests {
         let f = Formats::default();
         let usd = account(CommodityRef::currency("USD"), None);
         assert_eq!(f.amount(n(-123_456, 100), &account_info(&b, &usd, true)), "-$1,234.56");
-        assert_eq!(f.amount(n(-123_456, 100), &without_separators(account_info(&b, &usd, false))), "-1234.56");
+        assert_eq!(
+            f.amount(n(-123_456, 100), &without_separators(account_info(&b, &usd, false))),
+            "-1234.56"
+        );
         assert_eq!(f.amount(n(5, 1), &account_info(&b, &usd, false)), "5.00");
         let info = commodity_info(&b, &CommodityRef::currency("USD"), true).unwrap();
         assert_eq!(f.amount(Numeric::ZERO, &info), "$0.00");
@@ -160,7 +190,10 @@ mod tests {
         let b = book();
         let f = Formats::new(DateFormat::Locale, Locale::by_name("fr_FR").unwrap());
         let eur = account(CommodityRef::currency("EUR"), None);
-        assert_eq!(f.amount(n(-123_456, 100), &without_separators(account_info(&b, &eur, false))), "-1234,56");
+        assert_eq!(
+            f.amount(n(-123_456, 100), &without_separators(account_info(&b, &eur, false))),
+            "-1234,56"
+        );
         assert_eq!(f.date(Date::from_ymd(2024, 3, 5).unwrap()), "05/03/2024");
     }
 

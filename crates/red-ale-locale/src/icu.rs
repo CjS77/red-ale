@@ -72,7 +72,10 @@ pub(crate) fn medium_date_pattern(tag: &str) -> Option<(String, AnyCalendarKind)
 pub(crate) fn month_names(tag: &str) -> Option<[Vec<String>; 12]> {
     let locale = locale(tag)?;
     let lengths = [(MonthNameLength::Abbreviated, "MMM"), (MonthNameLength::Wide, "MMMM")];
-    let per_length: Vec<Vec<String>> = lengths.iter().map(|(length, field)| month_names_of(&locale, *length, field)).collect::<Option<_>>()?;
+    let per_length: Vec<Vec<String>> = lengths
+        .iter()
+        .map(|(length, field)| month_names_of(&locale, *length, field))
+        .collect::<Option<_>>()?;
     let mut out: [Vec<String>; 12] = Default::default();
     out.iter_mut().enumerate().for_each(|(i, names)| {
         *names = per_length.iter().filter_map(|l| l.get(i).cloned()).collect();
@@ -88,7 +91,12 @@ fn month_names_of(locale: &IcuLocale, length: MonthNameLength, field: &str) -> O
     (1..=12)
         .map(|month| {
             let date = Date::try_new_gregorian(2000, month, 1).ok()?;
-            names.with_pattern_unchecked(&pattern).format(&date).try_write_to_string().ok().map(std::borrow::Cow::into_owned)
+            names
+                .with_pattern_unchecked(&pattern)
+                .format(&date)
+                .try_write_to_string()
+                .ok()
+                .map(std::borrow::Cow::into_owned)
         })
         .collect()
 }

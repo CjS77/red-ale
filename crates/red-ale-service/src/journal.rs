@@ -47,7 +47,9 @@ fn format_time(t: Time64) -> String {
 }
 
 fn parse_time(s: &str) -> Option<Time64> {
-    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok().map(|dt| Time64(dt.and_utc().timestamp()))
+    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+        .ok()
+        .map(|dt| Time64(dt.and_utc().timestamp()))
 }
 
 /// The lines of one record for a transaction as it stands in `book`.
@@ -56,9 +58,9 @@ pub fn record_lines(kind: RecordKind, txn: &Transaction, book: &Book, now: Time6
     txn.splits
         .iter()
         .map(|s| {
-            let (acc_guid, acc_name) = s
-                .account
-                .map_or((String::new(), String::new()), |a| (a.to_string(), book.account(a).map(|acc| acc.name.clone()).unwrap_or_default()));
+            let (acc_guid, acc_name) = s.account.map_or((String::new(), String::new()), |a| {
+                (a.to_string(), book.account(a).map(|acc| acc.name.clone()).unwrap_or_default())
+            });
             [
                 kind.flag().to_string(),
                 txn.guid.to_string(),
@@ -94,7 +96,10 @@ pub struct Journal {
 impl Journal {
     /// A journal for the book at `book_path`; no file is created until something is written.
     pub fn new(book_path: &Path) -> Self {
-        Self { book_path: book_path.to_owned(), file: None }
+        Self {
+            book_path: book_path.to_owned(),
+            file: None,
+        }
     }
 
     /// The path of the journal file currently open.
@@ -219,9 +224,27 @@ fn parse_line(text: &str) -> Result<JournalLine, String> {
         "D" => RecordKind::Delete,
         other => return Err(format!("unknown record flag {other:?}")),
     };
-    let guid = |s: &str| if s.is_empty() { Ok(None) } else { Guid::parse(s).map(Some).map_err(|e| e.to_string()) };
-    let time = |s: &str| if s.is_empty() { Ok(None) } else { parse_time(s).map(Some).ok_or_else(|| format!("bad time {s:?}")) };
-    let num = |s: &str| if s.is_empty() { Ok(None) } else { Numeric::parse(s).map(Some).map_err(|e| e.to_string()) };
+    let guid = |s: &str| {
+        if s.is_empty() {
+            Ok(None)
+        } else {
+            Guid::parse(s).map(Some).map_err(|e| e.to_string())
+        }
+    };
+    let time = |s: &str| {
+        if s.is_empty() {
+            Ok(None)
+        } else {
+            parse_time(s).map(Some).ok_or_else(|| format!("bad time {s:?}"))
+        }
+    };
+    let num = |s: &str| {
+        if s.is_empty() {
+            Ok(None)
+        } else {
+            Numeric::parse(s).map(Some).map_err(|e| e.to_string())
+        }
+    };
     Ok(JournalLine {
         kind,
         trans: guid(fields[1])?.ok_or("missing transaction GUID")?,
@@ -253,7 +276,13 @@ pub fn parse(text: &str) -> Result<(Vec<JournalRecord>, Vec<SkippedLine>), Journ
     let mut current: Option<JournalRecord> = None;
     for (idx, line) in lines {
         match line {
-            "===== START" => current = Some(JournalRecord { start_line: idx + 1, lines: Vec::new(), complete: true }),
+            "===== START" => {
+                current = Some(JournalRecord {
+                    start_line: idx + 1,
+                    lines: Vec::new(),
+                    complete: true,
+                })
+            }
             "===== END" => records.extend(current.take()),
             _ if line.starts_with(HEADER) || line.starts_with("-----") => {}
             _ => match (&mut current, parse_line(line)) {
@@ -262,7 +291,10 @@ pub fn parse(text: &str) -> Result<(Vec<JournalRecord>, Vec<SkippedLine>), Journ
                     rec.complete = false;
                     skipped.push(SkippedLine { line: idx + 1, reason });
                 }
-                (None, _) => skipped.push(SkippedLine { line: idx + 1, reason: "outside a record".into() }),
+                (None, _) => skipped.push(SkippedLine {
+                    line: idx + 1,
+                    reason: "outside a record".into(),
+                }),
             },
         }
     }
@@ -295,7 +327,10 @@ C\t65e21d8a290f4355b9555dfca9bfe888\tb7fa927032c94a4ea19da098987e9b42\t2026-10-2
         assert_eq!(line.description.as_deref(), Some("Groceries"));
         assert_eq!(line.action, None);
         assert!(line.amount.unwrap().same_repr(Numeric::new(-1234, 100)));
-        assert_eq!(line.date_posted.unwrap(), Time64::parse_file_string("2024-03-15 10:59:00 +0000").unwrap());
+        assert_eq!(
+            line.date_posted.unwrap(),
+            Time64::parse_file_string("2024-03-15 10:59:00 +0000").unwrap()
+        );
         assert_eq!(skipped.len(), 1);
         assert!(skipped[0].reason.contains("18 fields"));
     }

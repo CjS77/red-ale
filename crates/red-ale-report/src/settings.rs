@@ -137,7 +137,11 @@ impl ReportSettings {
     pub fn report_currency(&self, book: &Book, locale: &Locale) -> CommodityRef {
         self.currency.clone().unwrap_or_else(|| {
             let local = CommodityRef::currency(locale.conventions().currency_code());
-            if lookup(book, &local).is_some() { local } else { CommodityRef::currency("USD") }
+            if lookup(book, &local).is_some() {
+                local
+            } else {
+                CommodityRef::currency("USD")
+            }
         })
     }
 
@@ -192,8 +196,14 @@ mod tests {
         assert_eq!(DateFormat::Locale.print(d, &locale("fr_FR")), "05/03/2026");
         assert_eq!(DateFormat::Locale.print(d, &locale("de_DE")), "05.03.2026");
         assert_eq!(DateFormat::Iso.print(d, &locale("fr_FR")), "2026-03-05");
-        assert_eq!(DateFormat::Locale.print_interval(d, end, &locale("en_US")), "3/5/2026\u{2009}–\u{2009}12/31/2026");
-        assert_eq!(DateFormat::Locale.print_interval(end, d, &locale("en_US")), "3/5/2026\u{2009}–\u{2009}12/31/2026");
+        assert_eq!(
+            DateFormat::Locale.print_interval(d, end, &locale("en_US")),
+            "3/5/2026\u{2009}–\u{2009}12/31/2026"
+        );
+        assert_eq!(
+            DateFormat::Locale.print_interval(end, d, &locale("en_US")),
+            "3/5/2026\u{2009}–\u{2009}12/31/2026"
+        );
         assert_eq!(DateFormat::Uk.print_interval(d, end, &locale("en_US")), "05/03/2026 to 31/12/2026");
     }
 
@@ -205,8 +215,15 @@ mod tests {
         assert_eq!(unset.report_currency(&book, &Locale::c()), CommodityRef::currency("USD"));
         assert_eq!(unset.report_currency(&book, &locale("fr_FR")), CommodityRef::currency("EUR"));
         assert_eq!(unset.report_currency(&book, &locale("ja_JP")), CommodityRef::currency("JPY"));
-        assert_eq!((unset.week_start(&Locale::c()), unset.week_start(&locale("fr_FR"))), (WeekStart::Sunday, WeekStart::Monday));
-        let set = ReportSettings { currency: Some(CommodityRef::currency("GBP")), week_start: Some(WeekStart::Friday), ..unset };
+        assert_eq!(
+            (unset.week_start(&Locale::c()), unset.week_start(&locale("fr_FR"))),
+            (WeekStart::Sunday, WeekStart::Monday)
+        );
+        let set = ReportSettings {
+            currency: Some(CommodityRef::currency("GBP")),
+            week_start: Some(WeekStart::Friday),
+            ..unset
+        };
         assert_eq!(set.report_currency(&book, &locale("fr_FR")), CommodityRef::currency("GBP"));
         assert_eq!(set.week_start(&locale("fr_FR")), WeekStart::Friday);
     }

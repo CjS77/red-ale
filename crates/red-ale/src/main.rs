@@ -68,7 +68,11 @@ impl SettingsArgs {
             (false, days) => Retention::Days(days),
         };
         let config = self.config.as_ref().map_or_else(ConfigStore::in_memory, ConfigStore::at);
-        Settings { retention, config, ..Settings::default() }
+        Settings {
+            retention,
+            config,
+            ..Settings::default()
+        }
     }
 }
 
@@ -175,7 +179,12 @@ impl InputArgs {
 /// Whether `method`'s params have a top-level `text` field, from this build's own method schemas.
 fn takes_text(method: &str) -> bool {
     let schema = Dispatcher::new(Settings::default()).schema();
-    let params = schema["methods"].as_array().into_iter().flatten().find(|m| m["name"] == method).map(|m| &m["params"]);
+    let params = schema["methods"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|m| m["name"] == method)
+        .map(|m| &m["params"]);
     let resolved = params.and_then(|p| match p["$ref"].as_str() {
         Some(r) => r.strip_prefix("#/$defs/").map(|name| &schema["$defs"][name]),
         None => Some(p),
@@ -276,12 +285,18 @@ fn main() -> ExitCode {
     match outcome {
         Ok(Ended::Done) => ExitCode::SUCCESS,
         Ok(Ended::Failed(e)) => {
-            eprintln!("{}", serde_json::to_string_pretty(&json!({ "error": e })).unwrap_or_else(|_| e.to_string()));
+            eprintln!(
+                "{}",
+                serde_json::to_string_pretty(&json!({ "error": e })).unwrap_or_else(|_| e.to_string())
+            );
             ExitCode::from(2)
         }
         // As `gnucash-cli --quotes get` exits when a quote failed (`5.17:gnucash/gnucash-commands.cpp:368-372`).
         Ok(Ended::QuotesFailed(count)) => {
-            eprintln!("red-ale: the Quote fetch found no price for {count} commodit{}", if count == 1 { "y" } else { "ies" });
+            eprintln!(
+                "red-ale: the Quote fetch found no price for {count} commodit{}",
+                if count == 1 { "y" } else { "ies" }
+            );
             ExitCode::from(2)
         }
         // A reader that stops early, as `red-ale schema | head` does, is not a failure. Every command closes its book
@@ -322,7 +337,9 @@ fn methods() -> Result<()> {
 fn server_dispatcher(settings: &SettingsArgs, book: Option<&str>, read_only: bool) -> Result<Arc<Mutex<Dispatcher>>> {
     let mut dispatcher = Dispatcher::new(settings.settings());
     if let Some(book) = book {
-        let info = dispatcher.call("book.open", json!({ "path": book, "readOnly": read_only })).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let info = dispatcher
+            .call("book.open", json!({ "path": book, "readOnly": read_only }))
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         eprintln!("red-ale: opened {}", info["path"].as_str().unwrap_or_default());
     }
     Ok(Arc::new(Mutex::new(dispatcher)))
@@ -382,7 +399,10 @@ fn shut_down(dispatcher: &Mutex<Dispatcher>) {
     // these notes are written with their errors ignored.
     if info["dirty"].as_bool() == Some(true) {
         let journal = info["journal"].as_str().unwrap_or("the journal");
-        let _ = writeln!(std::io::stderr(), "red-ale: unsaved changes were not saved; they are recorded in {journal}");
+        let _ = writeln!(
+            std::io::stderr(),
+            "red-ale: unsaved changes were not saved; they are recorded in {journal}"
+        );
     }
     if let Err(e) = d.call("book.close", json!({ "discard": true })) {
         let _ = writeln!(std::io::stderr(), "red-ale: closing the book failed: {e}");
@@ -396,14 +416,22 @@ fn call(args: &CallArgs) -> Result<Option<RpcError>> {
         // The server's own limit bounds what it sends (`jsonRpc.maxResponseBytes`), so the client takes any size.
         let client = HttpClientBuilder::default().max_response_size(u32::MAX).build(&args.url)?;
         let mut object = ObjectParams::new();
-        params.as_object().into_iter().flatten().try_for_each(|(k, v)| object.insert(k, v))?;
+        params
+            .as_object()
+            .into_iter()
+            .flatten()
+            .try_for_each(|(k, v)| object.insert(k, v))?;
         client.request(&args.method, object).await
     });
     match result {
         Ok(v) => args.output.emit(&v).map(|()| None),
         Err(jsonrpsee::core::ClientError::Call(e)) => {
             let data = e.data().and_then(|d| serde_json::from_str(d.get()).ok());
-            Ok(Some(RpcError { code: e.code(), message: e.message().to_owned(), data }))
+            Ok(Some(RpcError {
+                code: e.code(),
+                message: e.message().to_owned(),
+                data,
+            }))
         }
         Err(e) => Err(anyhow::anyhow!("calling {}: {e}", args.url)),
     }
@@ -437,7 +465,11 @@ fn exec(args: &ExecArgs) -> Result<Ended> {
     } else {
         args.output.emit(&results.into_iter().next().unwrap_or(Value::Null))?;
     }
-    Ok(if quotes_failed > 0 { Ended::QuotesFailed(quotes_failed) } else { Ended::Done })
+    Ok(if quotes_failed > 0 {
+        Ended::QuotesFailed(quotes_failed)
+    } else {
+        Ended::Done
+    })
 }
 
 /// Open or create `--book`, if given.
@@ -452,7 +484,10 @@ fn open_book(d: &mut Dispatcher, args: &ExecArgs) -> Result<(), RpcError> {
 
 /// Run the calls in order: their results, and how many commodities their Quote fetches found no price for.
 fn run_calls(d: &mut Dispatcher, calls: Vec<(String, Value)>) -> Result<(Vec<Value>, usize), RpcError> {
-    let results = calls.into_iter().map(|(method, params)| run_call(d, &method, params)).collect::<Result<Vec<_>, _>>()?;
+    let results = calls
+        .into_iter()
+        .map(|(method, params)| run_call(d, &method, params))
+        .collect::<Result<Vec<_>, _>>()?;
     let failed = results.iter().map(|(_, failed)| failed).sum();
     Ok((results.into_iter().map(|(result, _)| result).collect(), failed))
 }
@@ -474,13 +509,18 @@ fn read_script(path: &Path) -> Result<Vec<(String, Value)>> {
     let reader: Box<dyn BufRead> = if path == Path::new("-") {
         Box::new(std::io::stdin().lock())
     } else {
-        Box::new(std::io::BufReader::new(std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?))
+        Box::new(std::io::BufReader::new(
+            std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?,
+        ))
     };
     reader
         .lines()
         .enumerate()
         .map(|(i, line)| line.map(|l| (i + 1, l)))
-        .filter(|r| r.as_ref().map_or(true, |(_, l)| !l.trim().is_empty() && !l.trim_start().starts_with('#')))
+        .filter(|r| {
+            r.as_ref()
+                .map_or(true, |(_, l)| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
+        })
         .map(|r| {
             let (number, line) = r?;
             params::script_line(&line).with_context(|| format!("{}:{number}", path.display()))

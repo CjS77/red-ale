@@ -43,7 +43,10 @@ fn open_locks_and_close_releases() {
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert!(!session.is_read_only());
     assert!(lock_path(&path).exists());
-    assert!(matches!(Session::open(path.to_str().unwrap(), false, Settings::default()), Err(ServiceError::Locked { .. })));
+    assert!(matches!(
+        Session::open(path.to_str().unwrap(), false, Settings::default()),
+        Err(ServiceError::Locked { .. })
+    ));
     let reader = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap();
     assert_eq!(reader.read_only_reasons(), [ReadOnlyReason::Requested]);
     session.close(false).unwrap();
@@ -67,7 +70,13 @@ fn sql_books_are_refused_before_anything_happens() {
 #[test]
 fn unsupported_feature_opens_read_only_without_a_lock() {
     let dir = tempfile::tempdir().unwrap();
-    let path = with_book_slots(dir.path(), &frame("features", &format!("  {}", slot("Some Future Feature", "string", "A feature from a later GnuCash"))));
+    let path = with_book_slots(
+        dir.path(),
+        &frame(
+            "features",
+            &format!("  {}", slot("Some Future Feature", "string", "A feature from a later GnuCash")),
+        ),
+    );
     let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert!(matches!(session.read_only_reasons(), [ReadOnlyReason::UnsupportedFeatures(_)]));
     assert!(!lock_path(&path).exists());
@@ -82,7 +91,9 @@ fn unknown_features_open_read_only_but_number_field_source_does_not() {
         + &slot("Some Future Feature", "string", "");
     let path = with_book_slots(dir.path(), &frame("features", &features));
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
-    let [ReadOnlyReason::UnsupportedFeatures(names)] = session.read_only_reasons() else { panic!("{:?}", session.read_only_reasons()) };
+    let [ReadOnlyReason::UnsupportedFeatures(names)] = session.read_only_reasons() else {
+        panic!("{:?}", session.read_only_reasons())
+    };
     assert_eq!(names, &["Some Future Feature"]);
     assert!(!lock_path(&path).exists());
 }
@@ -92,8 +103,15 @@ fn num_field_source_and_red_line_books_open_for_editing() {
     let dir = tempfile::tempdir().unwrap();
     let accounts = slot("Day Threshold for Read-Only Transactions (red line)", "double", "30")
         + &slot("Use Split Action Field for Number", "string", "t");
-    let features = slot("Number Field Source", "string", "User specifies source of 'num' field'; either transaction number or split action (requires at least GnuCash 2.5.0)");
-    let path = with_book_slots(dir.path(), &(frame("features", &features) + &frame("options", &frame("Accounts", &accounts))));
+    let features = slot(
+        "Number Field Source",
+        "string",
+        "User specifies source of 'num' field'; either transaction number or split action (requires at least GnuCash 2.5.0)",
+    );
+    let path = with_book_slots(
+        dir.path(),
+        &(frame("features", &features) + &frame("options", &frame("Accounts", &accounts))),
+    );
     let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert!(!session.is_read_only(), "{:?}", session.read_only_reasons());
     assert!(lock_path(&path).exists());
@@ -123,7 +141,11 @@ fn requested_read_only_takes_no_lock_and_refuses_changes() {
 fn supported_features_stay_writable() {
     let dir = tempfile::tempdir().unwrap();
     let features = slot("Register sort and filter settings stored in .gcm file", "string", "x")
-        + &slot("Use a dedicated opening balance account identified by an 'equity-type' slot", "string", "y");
+        + &slot(
+            "Use a dedicated opening balance account identified by an 'equity-type' slot",
+            "string",
+            "y",
+        );
     let path = with_book_slots(dir.path(), &frame("features", &features));
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert!(!session.is_read_only(), "{:?}", session.read_only_reasons());
@@ -132,7 +154,8 @@ fn supported_features_stay_writable() {
 #[test]
 fn red_line_and_trading_accounts_open_for_editing() {
     let dir = tempfile::tempdir().unwrap();
-    let accounts = slot("Use Trading Accounts", "string", "t") + &slot("Day Threshold for Read-Only Transactions (red line)", "double", "30");
+    let accounts =
+        slot("Use Trading Accounts", "string", "t") + &slot("Day Threshold for Read-Only Transactions (red line)", "double", "30");
     let path = with_book_slots(dir.path(), &frame("options", &frame("Accounts", &accounts)));
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert!(!session.is_read_only(), "{:?}", session.read_only_reasons());
@@ -152,14 +175,21 @@ fn a_failed_open_leaves_no_lock() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("broken.gnucash");
     std::fs::write(&path, "<?xml version=\"1.0\"?>\n<gnc-v2>\n<gnc:book version=\"2.0.0\">\n").unwrap();
-    assert!(matches!(Session::open(path.to_str().unwrap(), false, Settings::default()), Err(ServiceError::Xml { .. })));
+    assert!(matches!(
+        Session::open(path.to_str().unwrap(), false, Settings::default()),
+        Err(ServiceError::Xml { .. })
+    ));
     assert!(!lock_path(&path).exists());
 }
 
 #[test]
 fn unknown_elements_open_read_only() {
     let dir = tempfile::tempdir().unwrap();
-    let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash")).unwrap().replacen("<act:type>ASSET</act:type>", "<act:type>ASSET</act:type>\n  <act:frobnicate/>", 1);
+    let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash")).unwrap().replacen(
+        "<act:type>ASSET</act:type>",
+        "<act:type>ASSET</act:type>\n  <act:frobnicate/>",
+        1,
+    );
     let path = dir.path().join("book.gnucash");
     std::fs::write(&path, text).unwrap();
     let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
@@ -228,7 +258,10 @@ fn create_new_book() {
     let path = dir.path().join("new.gnucash");
     let session = Session::create(path.to_str().unwrap(), Settings::default()).unwrap();
     assert!(path.exists());
-    assert!(matches!(Session::create(path.to_str().unwrap(), Settings::default()), Err(ServiceError::Exists { .. } | ServiceError::Locked { .. })));
+    assert!(matches!(
+        Session::create(path.to_str().unwrap(), Settings::default()),
+        Err(ServiceError::Exists { .. } | ServiceError::Locked { .. })
+    ));
     session.close(false).unwrap();
     let reopened = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert_eq!(reopened.book().accounts.len(), 1);

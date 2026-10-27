@@ -15,11 +15,31 @@ use crate::wire::{Day, Id, NoParams, Timestamp};
 /// The document link methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("docLink.transactions", "Transactions with a document link, with the URI each one opens.", Effect::Read, transactions),
-        method("docLink.documents", "Invoices, bills and vouchers with a document link, with the URI each one opens.", Effect::Read, documents),
-        method("docLink.pathHead", "The configured folder relative document links start from.", Effect::Read, path_head),
-        method("docLink.setPathHead", "Set or remove the folder relative document links start from, in red-ale's configuration.", Effect::Write, set_path_head)
-            .on_configuration(),
+        method(
+            "docLink.transactions",
+            "Transactions with a document link, with the URI each one opens.",
+            Effect::Read,
+            transactions,
+        ),
+        method(
+            "docLink.documents",
+            "Invoices, bills and vouchers with a document link, with the URI each one opens.",
+            Effect::Read,
+            documents,
+        ),
+        method(
+            "docLink.pathHead",
+            "The configured folder relative document links start from.",
+            Effect::Read,
+            path_head,
+        ),
+        method(
+            "docLink.setPathHead",
+            "Set or remove the folder relative document links start from, in red-ale's configuration.",
+            Effect::Write,
+            set_path_head,
+        )
+        .on_configuration(),
     ]
 }
 
@@ -79,21 +99,28 @@ fn configured_head(ctx: &Context) -> Result<Option<String>, RpcError> {
 fn transactions(ctx: &mut Context, _: NoParams) -> Result<Links<TransactionLink>, RpcError> {
     let head = configured_head(ctx)?;
     let book = ctx.book()?;
-    let links = txns::list(book, &ListFilter { account: None, from: None, to: None })
-        .into_iter()
-        .filter_map(|t| doc_link(&t.slots).filter(|l| !l.is_empty()).map(|l| (t, l)))
-        .map(|(t, stored)| {
-            let link = legacy_transaction_link(stored);
-            TransactionLink {
-                transaction: t.guid.into(),
-                date_posted: posted_date(t).map(Day),
-                description: t.description.clone(),
-                doc_link: stored.to_owned(),
-                relative: is_relative(link),
-                uri: resolve(link, head.as_deref()),
-            }
-        })
-        .collect();
+    let links = txns::list(
+        book,
+        &ListFilter {
+            account: None,
+            from: None,
+            to: None,
+        },
+    )
+    .into_iter()
+    .filter_map(|t| doc_link(&t.slots).filter(|l| !l.is_empty()).map(|l| (t, l)))
+    .map(|(t, stored)| {
+        let link = legacy_transaction_link(stored);
+        TransactionLink {
+            transaction: t.guid.into(),
+            date_posted: posted_date(t).map(Day),
+            description: t.description.clone(),
+            doc_link: stored.to_owned(),
+            relative: is_relative(link),
+            uri: resolve(link, head.as_deref()),
+        }
+    })
+    .collect();
     Ok(Links { path_head: head, links })
 }
 
@@ -129,7 +156,10 @@ pub struct PathHeadInfo {
 }
 
 fn describe(ctx: &Context) -> Result<PathHeadInfo, RpcError> {
-    Ok(PathHeadInfo { path_head: configured_head(ctx)?, config_file: ctx.settings.config.path().map(|p| p.display().to_string()) })
+    Ok(PathHeadInfo {
+        path_head: configured_head(ctx)?,
+        config_file: ctx.settings.config.path().map(|p| p.display().to_string()),
+    })
 }
 
 fn path_head(ctx: &mut Context, _: NoParams) -> Result<PathHeadInfo, RpcError> {

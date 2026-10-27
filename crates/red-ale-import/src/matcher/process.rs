@@ -194,7 +194,10 @@ pub fn process_trans_item(book: &mut Book, env: &mut dyn Env, info: &TransInfo, 
 fn add(book: &mut Book, env: &mut dyn Env, info: &TransInfo, out: &mut Processed) -> DomainResult<()> {
     let mut t = info.trans.clone();
     if book.transactions.contains_key(&t.guid) {
-        return Err(DomainError::conflict(format!("imported transaction {} is already in the book", t.guid)));
+        return Err(DomainError::conflict(format!(
+            "imported transaction {} is already in the book",
+            t.guid
+        )));
     }
     if let Some(dest) = info.dest_account.filter(|_| !imbalance(&t).is_ok_and(Numeric::is_zero)) {
         let amount = if info.dest_amount.is_zero() {
@@ -204,7 +207,12 @@ fn add(book: &mut Book, env: &mut dyn Env, info: &TransInfo, out: &mut Processed
             info.dest_amount
         };
         account(book, dest)?;
-        let split = Split::new(env.new_guid(), dest, round_value(book, &t.currency, info.dest_value)?, round_amount(book, dest, amount)?);
+        let split = Split::new(
+            env.new_guid(),
+            dest,
+            round_value(book, &t.currency, info.dest_value)?,
+            round_amount(book, dest, amount)?,
+        );
         t.splits.push(split);
     }
     let now = env.now();
@@ -227,13 +235,18 @@ fn add(book: &mut Book, env: &mut dyn Env, info: &TransInfo, out: &mut Processed
 /// `xaccTransCommitEdit`'s part that changes data: the imbalance scrub, then the splits sorted.
 fn commit(book: &mut Book, env: &mut dyn Env, guid: Guid) -> DomainResult<Vec<Repair>> {
     let repairs = scrub_imbalance(book, env, Scope::Transaction(guid))?;
-    let t = book.transactions.get_mut(&guid).ok_or_else(|| DomainError::not_found("transaction", &guid))?;
+    let t = book
+        .transactions
+        .get_mut(&guid)
+        .ok_or_else(|| DomainError::not_found("transaction", &guid))?;
     sort_splits(Arc::make_mut(t));
     Ok(repairs)
 }
 
 fn matched(book: &Book, selected: &MatchInfo) -> DomainResult<Transaction> {
-    book.transaction(selected.transaction).cloned().ok_or_else(|| DomainError::not_found("transaction", &selected.transaction))
+    book.transaction(selected.transaction)
+        .cloned()
+        .ok_or_else(|| DomainError::not_found("transaction", &selected.transaction))
 }
 
 /// *update*'s changes to the matched transaction before it is cleared (`import-backend.cpp:932-1003`): the posted
@@ -242,15 +255,28 @@ fn matched(book: &Book, selected: &MatchInfo) -> DomainResult<Transaction> {
 /// balancing value (GnuCash reads the value where it meant the amount, `:968`, so its price branch never runs); split
 /// 0's memo replaces the matched one unless empty; the description and notes are replaced or appended
 /// ([`update_desc_and_notes`]). Then the transaction is committed.
-fn update_matched(book: &mut Book, env: &mut dyn Env, info: &TransInfo, selected: &MatchInfo, append: bool, out: &mut Processed) -> DomainResult<()> {
+fn update_matched(
+    book: &mut Book,
+    env: &mut dyn Env,
+    info: &TransInfo,
+    selected: &MatchInfo,
+    append: bool,
+    out: &mut Processed,
+) -> DomainResult<()> {
     let mut t = matched(book, selected)?;
-    let fsplit = info.trans.splits.first().ok_or_else(|| DomainError::invalid("imported transaction has no split"))?;
+    let fsplit = info
+        .trans
+        .splits
+        .first()
+        .ok_or_else(|| DomainError::invalid("imported transaction has no split"))?;
     if let Some(date) = env.zone().local_date(info.trans.date_posted) {
         set_date_posted(&mut t, date, env.zone());
     }
     let other = other_split(book, &t, selected.split).map(|s| s.guid);
     let currency = t.currency.clone();
-    let split = t.split_mut(selected.split).ok_or_else(|| DomainError::not_found("split", &selected.split))?;
+    let split = t
+        .split_mut(selected.split)
+        .ok_or_else(|| DomainError::not_found("split", &selected.split))?;
     split.amount = rounded_amount(book, split.account, fsplit.amount)?;
     split.value = round_value(book, &currency, fsplit.value)?;
     if fsplit.memo.as_deref().is_some_and(|m| !m.is_empty()) {
@@ -283,7 +309,10 @@ fn rounded_amount(book: &Book, account: Option<Guid>, amount: Numeric) -> Domain
 /// (`5.17:libgnucash/engine/Transaction.cpp:2042-2046`). With append, each becomes `old|new` ([`maybe_append`]).
 fn update_desc_and_notes(t: &mut Transaction, imported: &Transaction, append: bool) {
     let (description, notes) = if append {
-        (maybe_append(t.description.as_deref(), imported.description.as_deref()), maybe_append(t.notes(), imported.notes()))
+        (
+            maybe_append(t.description.as_deref(), imported.description.as_deref()),
+            maybe_append(t.notes(), imported.notes()),
+        )
     } else {
         (imported.description.clone(), imported.notes().map(str::to_owned))
     };
@@ -299,7 +328,9 @@ fn update_desc_and_notes(t: &mut Transaction, imported: &Transaction, append: bo
 /// when the imported text is empty; else `matched|imported`, unless the imported text, both NFC-normalised, is no
 /// longer than the matched text and already in it.
 pub(crate) fn maybe_append(matched: Option<&str>, imported: Option<&str>) -> Option<String> {
-    let Some(matched) = matched.filter(|m| !m.is_empty()) else { return imported.map(str::to_owned) };
+    let Some(matched) = matched.filter(|m| !m.is_empty()) else {
+        return imported.map(str::to_owned);
+    };
     let imported = imported.filter(|i| !i.is_empty())?;
     let nfc = ComposingNormalizerBorrowed::new_nfc();
     let (norm_matched, norm_imported) = (nfc.normalize(matched), nfc.normalize(imported));
@@ -310,11 +341,26 @@ pub(crate) fn maybe_append(matched: Option<&str>, imported: Option<&str>) -> Opt
 /// `process_reconcile` (`import-backend.cpp:847-881`): the matched split goes to `c` if it was `n`, and is reconciled
 /// now **whatever its state**; it takes split 0's Online ID if there is one; the matched transaction is committed;
 /// then its other split's account is learned.
-fn process_reconcile(book: &mut Book, env: &mut dyn Env, info: &TransInfo, selected: &MatchInfo, use_bayes: bool, out: &mut Processed) -> DomainResult<()> {
+fn process_reconcile(
+    book: &mut Book,
+    env: &mut dyn Env,
+    info: &TransInfo,
+    selected: &MatchInfo,
+    use_bayes: bool,
+    out: &mut Processed,
+) -> DomainResult<()> {
     let mut t = matched(book, selected)?;
-    let online_id = info.trans.splits.first().and_then(|s| s.slots.get_key(ONLINE_ID)).and_then(SlotValue::as_str).filter(|id| !id.is_empty());
+    let online_id = info
+        .trans
+        .splits
+        .first()
+        .and_then(|s| s.slots.get_key(ONLINE_ID))
+        .and_then(SlotValue::as_str)
+        .filter(|id| !id.is_empty());
     let now = env.now();
-    let split = t.split_mut(selected.split).ok_or_else(|| DomainError::not_found("split", &selected.split))?;
+    let split = t
+        .split_mut(selected.split)
+        .ok_or_else(|| DomainError::not_found("split", &selected.split))?;
     if split.reconcile_state == ReconcileState::New {
         split.reconcile_state = ReconcileState::Cleared;
     }
@@ -325,7 +371,10 @@ fn process_reconcile(book: &mut Book, env: &mut dyn Env, info: &TransInfo, selec
     let guid = t.guid;
     book.transactions.insert(guid, Arc::new(t));
     out.repairs.extend(commit(book, env, guid)?);
-    let dest = book.transaction(guid).and_then(|t| other_split(book, t, selected.split)).and_then(|s| s.account);
+    let dest = book
+        .transaction(guid)
+        .and_then(|t| other_split(book, t, selected.split))
+        .and_then(|s| s.account);
     if let Some(dest) = dest {
         out.learned.extend(store_destination(book, info, dest, use_bayes)?);
     }
@@ -341,7 +390,11 @@ fn store_destination(book: &mut Book, info: &TransInfo, dest: Guid, use_bayes: b
     let Some(source) = info.account() else { return Ok(Vec::new()) };
     if use_bayes {
         add_account_bayes(book, source, &info.tokens, dest)?;
-        return Ok(vec![Learned::Bayes { source, target: dest, tokens: info.tokens.clone() }]);
+        return Ok(vec![Learned::Bayes {
+            source,
+            target: dest,
+            tokens: info.tokens.clone(),
+        }]);
     }
     let description = info.trans.description.clone().unwrap_or_default();
     let memo = info.trans.splits.first().and_then(|s| s.memo.clone()).unwrap_or_default();
@@ -350,7 +403,12 @@ fn store_destination(book: &mut Book, info: &TransInfo, dest: Guid, use_bayes: b
         .filter(|(_, key)| !key.is_empty())
         .map(|(category, key)| {
             add_account(book, source, Some(category), &key, dest)?;
-            Ok(Learned::Plain { source, target: dest, category, key })
+            Ok(Learned::Plain {
+                source,
+                target: dest,
+                category,
+                key,
+            })
         })
         .collect()
 }

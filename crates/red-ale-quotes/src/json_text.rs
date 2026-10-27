@@ -30,8 +30,11 @@ fn quote_numbers(text: &str) -> String {
     while let Some(c) = chars.next() {
         state = match (state, c) {
             (State::Outside, '-' | '0'..='9') => {
-                let token: String =
-                    std::iter::once(c).chain(std::iter::from_fn(|| chars.next_if(|n| matches!(n, '0'..='9' | '.' | 'e' | 'E' | '+' | '-')))).collect();
+                let token: String = std::iter::once(c)
+                    .chain(std::iter::from_fn(|| {
+                        chars.next_if(|n| matches!(n, '0'..='9' | '.' | 'e' | 'E' | '+' | '-'))
+                    }))
+                    .collect();
                 if is_number(&token) {
                     out.push('"');
                     out.push_str(&token);
@@ -82,13 +85,19 @@ mod tests {
     #[test]
     fn numbers_keep_their_digits() {
         let v = parse(br#"{"c": 261.74, "t": 1582641000, "e": -1.5E-3, "z": 0, "big": 123456789012345678901234567890.5}"#).unwrap();
-        assert_eq!(v, json!({ "c": "261.74", "t": "1582641000", "e": "-1.5E-3", "z": "0", "big": "123456789012345678901234567890.5" }));
+        assert_eq!(
+            v,
+            json!({ "c": "261.74", "t": "1582641000", "e": "-1.5E-3", "z": "0", "big": "123456789012345678901234567890.5" })
+        );
     }
 
     #[test]
     fn strings_are_left_alone() {
         let v = parse(br#"{"a": "12.5", "b\"9": "x\\", "c": [1, "2", true, null, {"d": 3.10}]}"#).unwrap();
-        assert_eq!(v, json!({ "a": "12.5", "b\"9": "x\\", "c": ["1", "2", true, null, { "d": "3.10" }] }));
+        assert_eq!(
+            v,
+            json!({ "a": "12.5", "b\"9": "x\\", "c": ["1", "2", true, null, { "d": "3.10" }] })
+        );
     }
 
     #[test]

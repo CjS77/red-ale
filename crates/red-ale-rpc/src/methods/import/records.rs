@@ -131,7 +131,11 @@ fn fields(row: &AccountRow) -> AccountFieldsWire {
 }
 
 fn change(c: &FieldChange) -> FieldChangeWire {
-    FieldChangeWire { field: c.field.to_owned(), from: c.from.clone(), to: c.to.clone() }
+    FieldChangeWire {
+        field: c.field.to_owned(),
+        from: c.from.clone(),
+        to: c.to.clone(),
+    }
 }
 
 impl From<&ProposedAccount> for AccountRecordWire {
@@ -152,8 +156,14 @@ impl From<&ProposedAccount> for AccountRecordWire {
 impl From<&ProposedPrice> for PriceRecordWire {
     fn from(p: &ProposedPrice) -> Self {
         let existing = p.existing.map(|e| match e {
-            Existing::Book(g) => ExistingWire { price: Some(Id(g)), index: None },
-            Existing::Index(i) => ExistingWire { price: None, index: Some(i) },
+            Existing::Book(g) => ExistingWire {
+                price: Some(Id(g)),
+                index: None,
+            },
+            Existing::Index(i) => ExistingWire {
+                price: None,
+                index: Some(i),
+            },
         });
         Self {
             index: p.index,

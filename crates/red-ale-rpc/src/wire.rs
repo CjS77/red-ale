@@ -32,7 +32,11 @@ impl Serialize for Amount {
             num: String,
             denom: String,
         }
-        Wire { num: self.0.num().to_string(), denom: self.0.denom().to_string() }.serialize(s)
+        Wire {
+            num: self.0.num().to_string(),
+            denom: self.0.denom().to_string(),
+        }
+        .serialize(s)
     }
 }
 
@@ -60,7 +64,11 @@ impl<'de> Deserialize<'de> for Amount {
                         other => return Err(de::Error::unknown_field(other, &["num", "denom"])),
                     };
                     let text: String = map.next_value()?;
-                    *slot = Some(text.trim().parse::<i64>().map_err(|_| de::Error::custom(format!("{key} is not a 64-bit integer: {text:?}")))?);
+                    *slot = Some(
+                        text.trim()
+                            .parse::<i64>()
+                            .map_err(|_| de::Error::custom(format!("{key} is not a 64-bit integer: {text:?}")))?,
+                    );
                 }
                 let num = num.ok_or_else(|| de::Error::missing_field("num"))?;
                 let denom = denom.ok_or_else(|| de::Error::missing_field("denom"))?;
@@ -84,7 +92,11 @@ impl<'de> Deserialize<'de> for Amount {
 }
 
 fn check_denom(n: Numeric) -> Result<Numeric, String> {
-    if n.denom() > 0 { Ok(n) } else { Err(format!("denominator must be positive, got {}", n.denom())) }
+    if n.denom() > 0 {
+        Ok(n)
+    } else {
+        Err(format!("denominator must be positive, got {}", n.denom()))
+    }
 }
 
 impl JsonSchema for Amount {
@@ -245,7 +257,9 @@ impl AccountRef {
         {
             return Ok(guid);
         }
-        book.account_by_full_name(text).map(|a| a.guid).ok_or_else(|| RpcError::not_found("account", text))
+        book.account_by_full_name(text)
+            .map(|a| a.guid)
+            .ok_or_else(|| RpcError::not_found("account", text))
     }
 }
 

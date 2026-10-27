@@ -22,12 +22,18 @@ pub(super) fn to_posix(text: &str) -> Result<String, String> {
     let fields: Vec<&str> = text.split(',').filter(|f| !f.is_empty()).collect();
     let first = fields.first().ok_or("no zone name")?;
     let zone = parse_zone(first)?;
-    let Some(adjust) = zone.dst_adjust else { return Ok(format!("<STD>{}", posix_offset(zone.std))) };
+    let Some(adjust) = zone.dst_adjust else {
+        return Ok(format!("<STD>{}", posix_offset(zone.std)));
+    };
     let (start, end) = match (fields.get(1), fields.get(2)) {
         (Some(s), Some(e)) => (parse_rule(s)?, parse_rule(e)?),
         _ => return Err("a DST name needs a start and an end rule".to_owned()),
     };
-    Ok(format!("<STD>{}<DST>{},{start},{end}", posix_offset(zone.std), posix_offset(zone.std + adjust)))
+    Ok(format!(
+        "<STD>{}<DST>{},{start},{end}",
+        posix_offset(zone.std),
+        posix_offset(zone.std + adjust)
+    ))
 }
 
 struct Zone {
@@ -63,7 +69,10 @@ fn parse_zone(s: &str) -> Result<Zone, String> {
     if adjust.abs() >= DAY {
         return Err(format!("DST adjustment {adjust}s is a day or more"));
     }
-    Ok(Zone { std, dst_adjust: Some(adjust) })
+    Ok(Zone {
+        std,
+        dst_adjust: Some(adjust),
+    })
 }
 
 /// `[+|-]h[h][:mm[:ss]]` in seconds.
@@ -106,7 +115,11 @@ fn rule_date(s: &str) -> Result<String, String> {
             _ => Err(bad()),
         }
     } else if let Some(j) = s.strip_prefix('J') {
-        number(j).ok().filter(|n| (1..=365).contains(n)).map(|n| format!("J{n}")).ok_or_else(bad)
+        number(j)
+            .ok()
+            .filter(|n| (1..=365).contains(n))
+            .map(|n| format!("J{n}"))
+            .ok_or_else(bad)
     } else {
         number(s).ok().filter(|n| *n <= 365).map(|n| n.to_string()).ok_or_else(bad)
     }
@@ -129,12 +142,18 @@ mod tests {
     use super::*;
 
     fn offset(tz: &str, at: &str) -> i32 {
-        TimeZone::from_gnucash_posix(tz).unwrap().offset_at(Time64::parse_file_string(at).unwrap())
+        TimeZone::from_gnucash_posix(tz)
+            .unwrap()
+            .offset_at(Time64::parse_file_string(at).unwrap())
     }
 
     #[test]
     fn offsets_have_boosts_sign() {
-        assert_eq!(offset("XYZ11", "2024-06-20 00:00:00"), 11 * 3600, "the oracle's day starts at 13:00 UTC under XYZ11");
+        assert_eq!(
+            offset("XYZ11", "2024-06-20 00:00:00"),
+            11 * 3600,
+            "the oracle's day starts at 13:00 UTC under XYZ11"
+        );
         assert_eq!(offset("XYZ-11", "2024-06-20 00:00:00"), -11 * 3600);
         assert_eq!(offset("XYZ+14", "2024-06-20 00:00:00"), 14 * 3600);
         assert_eq!(offset("UTC0", "2024-06-20 00:00:00"), 0);
@@ -155,14 +174,29 @@ mod tests {
 
     #[test]
     fn what_boost_refuses_is_refused() {
-        ["", "<-11>11", "XYZ-13", "XYZ-14", "XYZ15", "Nowhere/Land", "XYZ+", "EST5EDT", "EST5EDT,M3.2.0", "EST5EDT,M13.1.0,M1.1.0", "A5B,M3.2.0/24,M11.1.0"]
-            .iter()
-            .for_each(|tz| assert!(TimeZone::from_gnucash_posix(tz).is_err(), "{tz:?}"));
+        [
+            "",
+            "<-11>11",
+            "XYZ-13",
+            "XYZ-14",
+            "XYZ15",
+            "Nowhere/Land",
+            "XYZ+",
+            "EST5EDT",
+            "EST5EDT,M3.2.0",
+            "EST5EDT,M13.1.0,M1.1.0",
+            "A5B,M3.2.0/24,M11.1.0",
+        ]
+        .iter()
+        .for_each(|tz| assert!(TimeZone::from_gnucash_posix(tz).is_err(), "{tz:?}"));
     }
 
     #[test]
     fn translation() {
         assert_eq!(to_posix("XYZ11").unwrap(), "<STD>-11:00:00");
-        assert_eq!(to_posix("EST-5EDT,M3.2.0,J60/3").unwrap(), "<STD>+05:00:00<DST>+04:00:00,M3.2.0/02:00:00,J60/03:00:00");
+        assert_eq!(
+            to_posix("EST-5EDT,M3.2.0,J60/3").unwrap(),
+            "<STD>+05:00:00<DST>+04:00:00,M3.2.0/02:00:00,J60/03:00:00"
+        );
     }
 }

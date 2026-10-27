@@ -94,7 +94,12 @@ fn test_average_balance_include_internal() {
 #[test]
 fn test_average_balance_exclude_internal() {
     let mut f = Fixture::open("average-balance", "locale", true);
-    let options = with(testing_options(), "Accounts", "Exclude transactions between selected accounts", json!(true));
+    let options = with(
+        testing_options(),
+        "Accounts",
+        "Exclude transactions between selected accounts",
+        json!(true),
+    );
     let rows = rows(&mut f, &options);
     // TAB:94 "gain-exclude-internal".
     assert_eq!(column(&rows, 5), ["$0.00", "$100.00", "$0.00", "$100.00", "$0.00", "$0.00"]);
@@ -154,14 +159,18 @@ fn default_accounts_include_the_income_account_below_root() {
         "General": { "Start Date": { "absolute": "1979-01-01" }, "End Date": { "absolute": "1979-06-30" } },
     });
     let rows = rows(&mut f, &options);
-    [2, 3, 4, 7].into_iter().for_each(|col| assert_eq!(column(&rows, col), ["$0.00"; 6], "column {col}"));
+    [2, 3, 4, 7]
+        .into_iter()
+        .for_each(|col| assert_eq!(column(&rows, col), ["$0.00"; 6], "column {col}"));
     assert_eq!(column(&rows, 5), ["$0.00", "$100.00", "$25.00", "$100.00", "$0.00", "$0.00"]);
     assert_eq!(column(&rows, 6), ["$0.00", "$100.00", "$25.00", "$100.00", "$0.00", "$0.00"]);
     assert_eq!(only(&f.run(TEMPLATE, &options), "warning")["title"], "No data");
     // Every transfer has two splits, both selected, so excluding them leaves no gains or losses (AB:220-233).
     let excluded = with(options, "Accounts", "Exclude transactions between selected accounts", json!(true));
     let rows = self::rows(&mut f, &excluded);
-    [5, 6, 7].into_iter().for_each(|col| assert_eq!(column(&rows, col), ["$0.00"; 6], "column {col}"));
+    [5, 6, 7]
+        .into_iter()
+        .for_each(|col| assert_eq!(column(&rows, col), ["$0.00"; 6], "column {col}"));
 }
 
 /// Step Size "DayDelta", 14 to 16 February 1979: one row per day. The Bank's $100 arrives on the 15th at 10:59, so
@@ -177,7 +186,9 @@ fn step_size_day() {
     });
     let want = [
         ["02/14/79", "02/14/79", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00"],
-        ["02/15/79", "02/15/79", "$100.00", "$100.00", "$100.00", "$100.00", "$0.00", "$100.00"],
+        [
+            "02/15/79", "02/15/79", "$100.00", "$100.00", "$100.00", "$100.00", "$0.00", "$100.00",
+        ],
         ["02/16/79", "02/16/79", "$100.00", "$100.00", "$100.00", "$0.00", "$0.00", "$0.00"],
     ];
     assert_eq!(rows(&mut f, &options), expect(&want));
@@ -194,7 +205,9 @@ fn step_size_quarter() {
     let options = with(testing_options(), "General", "Step Size", json!("QuarterDelta"));
     let want = [
         ["01/01/79", "03/31/79", "$50.00", "$100.00", "$0.00", "$125.00", "$25.00", "$100.00"],
-        ["04/01/79", "06/30/79", "$183.52", "$200.00", "$100.00", "$100.00", "$0.00", "$100.00"],
+        [
+            "04/01/79", "06/30/79", "$183.52", "$200.00", "$100.00", "$100.00", "$0.00", "$100.00",
+        ],
     ];
     assert_eq!(rows(&mut f, &options), expect(&want));
 }
@@ -209,7 +222,9 @@ fn step_size_year() {
         "Display": { "Show table": true },
         "General": { "Start Date": { "absolute": "1979-01-01" }, "End Date": { "absolute": "1979-12-31" }, "Step Size": "YearDelta" },
     });
-    let want = [["01/01/79", "12/31/79", "$158.90", "$200.00", "$0.00", "$225.00", "$25.00", "$200.00"]];
+    let want = [[
+        "01/01/79", "12/31/79", "$158.90", "$200.00", "$0.00", "$225.00", "$25.00", "$200.00",
+    ]];
     assert_eq!(rows(&mut f, &options), expect(&want));
 }
 
@@ -226,7 +241,11 @@ fn no_splits_in_range() {
     assert!(rows(&mut f, &options).is_empty());
     let result = f.run(TEMPLATE, &options);
     assert_eq!(only(&result, "warning")["title"], "No data");
-    assert_eq!(only(&result, "table")["columns"].as_array().unwrap().len(), 8, "the table keeps its headings (AB:458-459)");
+    assert_eq!(
+        only(&result, "table")["columns"].as_array().unwrap().len(),
+        8,
+        "the table keeps its headings (AB:458-459)"
+    );
 }
 
 /// Plot Type: each choice adds its series (AB:391-433), in the order Average, Profit, then Gain and Loss together,
@@ -234,23 +253,36 @@ fn no_splits_in_range() {
 #[test]
 fn plot_types_choose_the_series() {
     let mut f = Fixture::open("average-balance", "locale", true);
-    let options = with(testing_options(), "Display", "Plot Type", json!(["AvgBalPlot", "GainPlot", "GLPlot"]));
+    let options = with(
+        testing_options(),
+        "Display",
+        "Plot Type",
+        json!(["AvgBalPlot", "GainPlot", "GLPlot"]),
+    );
     let result = f.run(TEMPLATE, &options);
     let chart = only(&result, "chart");
     assert_eq!(chart["type"], "bar");
-    assert_eq!(chart["labels"], json!(["01/01/79", "02/01/79", "03/01/79", "04/01/79", "05/01/79", "06/01/79"]));
+    assert_eq!(
+        chart["labels"],
+        json!(["01/01/79", "02/01/79", "03/01/79", "04/01/79", "05/01/79", "06/01/79"])
+    );
     assert_eq!(chart["yAxis"]["format"], "currency");
     assert_eq!(chart["yAxis"]["commodity"], "CURRENCY::USD");
     let series = chart["series"].as_array().unwrap();
-    let seen: Vec<(&str, &str, Vec<String>)> =
-        series.iter().map(|s| (s["label"].as_str().unwrap(), s["color"].as_str().unwrap(), values(s))).collect();
+    let seen: Vec<(&str, &str, Vec<String>)> = series
+        .iter()
+        .map(|s| (s["label"].as_str().unwrap(), s["color"].as_str().unwrap(), values(s)))
+        .collect();
     let strings = |v: [&str; 6]| v.map(str::to_owned).to_vec();
-    assert_eq!(seen, [
-        ("Average", "#0074d9", strings(["0", "50", "100", "150", "200", "200"])),
-        ("Profit", "#2ecc40", strings(["0", "100", "0", "100", "0", "0"])),
-        ("Gain", "#111111", strings(["0", "100", "25", "100", "0", "0"])),
-        ("Loss", "#ff4136", strings(["0", "0", "25", "0", "0", "0"])),
-    ]);
+    assert_eq!(
+        seen,
+        [
+            ("Average", "#0074d9", strings(["0", "50", "100", "150", "200", "200"])),
+            ("Profit", "#2ecc40", strings(["0", "100", "0", "100", "0", "0"])),
+            ("Gain", "#111111", strings(["0", "100", "25", "100", "0", "0"])),
+            ("Loss", "#ff4136", strings(["0", "0", "25", "0", "0", "0"])),
+        ]
+    );
     let html = f.export(TEMPLATE, &options);
     assert!(html.contains("<svg"), "the chart is drawn");
     assert_eq!(series[0]["displays"][1], "$50.00", "hover labels in the report's currency");
@@ -285,7 +317,16 @@ fn include_sub_accounts() {
         "Display": { "Show table": true },
         "General": { "Start Date": { "absolute": "1970-01-01" }, "End Date": { "absolute": "1970-01-31" } },
     });
-    let want = [["1970-01-01", "1970-01-31", "$8,970.00", "$8,970.00", "$8,970.00", "$11,100.00", "$2,130.00", "$8,970.00"]];
+    let want = [[
+        "1970-01-01",
+        "1970-01-31",
+        "$8,970.00",
+        "$8,970.00",
+        "$8,970.00",
+        "$11,100.00",
+        "$2,130.00",
+        "$8,970.00",
+    ]];
     assert_eq!(rows(&mut f, &options), expect(&want));
     let alone = with(options, "Accounts", "Include Sub-Accounts", json!(false));
     assert!(rows(&mut f, &alone).is_empty());
@@ -336,7 +377,10 @@ fn foreign_currency_account_under_each_price_source() {
     // The exact figure behind the weighted average's loss: £100 at 103/75.
     let options = with(options, "General", "Price Source", json!("weighted-average"));
     let result = f.run(TEMPLATE, &options);
-    assert_eq!(rational(&only(&result, "table")["rows"][0]["cells"][6]["monetary"]["amount"]), "412/3");
+    assert_eq!(
+        rational(&only(&result, "table")["rows"][0]["cells"][6]["monetary"]["amount"]),
+        "412/3"
+    );
 }
 
 /// Running the template leaves the Book as it was, not dirty, with no journal written; two exports are the same
@@ -346,7 +390,12 @@ fn runs_only_read_and_exports_are_deterministic() {
     let mut f = Fixture::open("average-balance", "locale", false);
     let before = f.d.context().book().unwrap().clone();
     let files = f.files();
-    let options = with(testing_options(), "Display", "Plot Type", json!(["AvgBalPlot", "GainPlot", "GLPlot"]));
+    let options = with(
+        testing_options(),
+        "Display",
+        "Plot Type",
+        json!(["AvgBalPlot", "GainPlot", "GLPlot"]),
+    );
     f.run(TEMPLATE, &options);
     let (a, b) = (f.export(TEMPLATE, &options), f.export(TEMPLATE, &options));
     assert_eq!(a, b);
@@ -361,7 +410,14 @@ fn runs_only_read_and_exports_are_deterministic() {
 /// source in a GBP report.
 #[test]
 fn runs_on_every_fixture_book() {
-    let books = ["average-balance", "balsheet-pnl", "category-average", "category-daily", "category-liability", "category-multi"];
+    let books = [
+        "average-balance",
+        "balsheet-pnl",
+        "category-average",
+        "category-daily",
+        "category-liability",
+        "category-multi",
+    ];
     let books = books.into_iter().chain(["charts-daily", "charts-net", "net-days", "test-data"]);
     books.for_each(|book| {
         let mut f = Fixture::open(book, "iso", true);
@@ -372,7 +428,15 @@ fn runs_on_every_fixture_book() {
             let options = json!({ "General": dates, "Display": { "Show table": true, "Plot Type": ["AvgBalPlot", "GainPlot", "GLPlot"] } });
             f.run(TEMPLATE, &options);
         });
-        ["average-cost", "weighted-average", "pricedb-before", "pricedb-nearest", "pricedb-latest"].into_iter().for_each(|source| {
+        [
+            "average-cost",
+            "weighted-average",
+            "pricedb-before",
+            "pricedb-nearest",
+            "pricedb-latest",
+        ]
+        .into_iter()
+        .for_each(|source| {
             let general = json!({ "Start Date": { "absolute": "1970-01-01" }, "End Date": { "absolute": "1970-03-31" },
                                   "Report's currency": "CURRENCY::GBP", "Price Source": source });
             f.run(TEMPLATE, &json!({ "General": general, "Display": { "Show table": true } }));
@@ -382,13 +446,18 @@ fn runs_on_every_fixture_book() {
 
 /// An exact amount of the wire as `(num, denom)`.
 fn exact(v: &Value) -> (i128, i128) {
-    (v["num"].as_str().unwrap().parse().unwrap(), v["denom"].as_str().unwrap().parse().unwrap())
+    (
+        v["num"].as_str().unwrap().parse().unwrap(),
+        v["denom"].as_str().unwrap().parse().unwrap(),
+    )
 }
 
 /// The exact figures of each table row: average, maximum, minimum, gain, loss, profit.
 fn figures(result: &Value) -> Vec<[(i128, i128); 6]> {
     let rows = only(result, "table")["rows"].as_array().unwrap();
-    rows.iter().map(|r| std::array::from_fn(|i| exact(&r["cells"][i + 2]["monetary"]["amount"]))).collect()
+    rows.iter()
+        .map(|r| std::array::from_fn(|i| exact(&r["cells"][i + 2]["monetary"]["amount"])))
+        .collect()
 }
 
 /// `a` compared with `b`, exactly.
@@ -413,7 +482,10 @@ fn post(f: &mut Fixture, transfers: &[Transfer]) -> (i128, i128, i128) {
         let value = format!("{}.{:02}", cents / 100, cents % 100);
         let date = chrono::NaiveDate::from_ymd_opt(1979, 1, 1).unwrap() + chrono::Days::new(u64::from(day));
         let splits = json!([{ "account": from, "value": format!("-{value}") }, { "account": to, "value": value }]);
-        f.call("transaction.post", &json!({ "datePosted": date.to_string(), "description": "transfer", "splits": splits }));
+        f.call(
+            "transaction.post",
+            &json!({ "datePosted": date.to_string(), "description": "transfer", "splits": splits }),
+        );
         let cents = i128::from(cents);
         match kind {
             0 => (gain + cents, loss, internal),

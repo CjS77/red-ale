@@ -68,13 +68,19 @@ fn log(host: &Host, options: &Value) -> Vec<String> {
 }
 
 fn bounds() -> PeriodBounds {
-    PeriodBounds { start: Time64(1_704_067_200), end: Time64(1_735_689_599) }
+    PeriodBounds {
+        start: Time64(1_704_067_200),
+        end: Time64(1_735_689_599),
+    }
 }
 
 #[test]
 fn render_reads_each_option_as_a_script_value() {
     let host = Host::new(fixture("balsheet-pnl.gnucash"));
-    let today = DateValue::Relative(RelativeDate::Today).resolve(NOW, &TimeZone::utc(), bounds()).unwrap().0;
+    let today = DateValue::Relative(RelativeDate::Today)
+        .resolve(NOW, &TimeZone::utc(), bounds())
+        .unwrap()
+        .0;
     let want = [
         "Show=bool:true".to_owned(),
         "Report Title=string:Hello".into(),
@@ -130,11 +136,36 @@ fn an_invalid_option_value_is_refused_before_anything_runs() {
         (json!({ "Display": { "Levels": 7 } }), "Display", "Levels", "not one of the choices"),
         (json!({ "Display": { "Width": "10.5" } }), "Display", "Width", "outside"),
         (json!({ "Display": { "Width": 1.5 } }), "Display", "Width", "not a whole number"),
-        (json!({ "Accounts": { "Income": "Root:Asset:House" } }), "Accounts", "Income", "not one this option allows"),
-        (json!({ "Accounts": { "Accounts": ["No:Such"] } }), "Accounts", "Accounts", "unknown account"),
-        (json!({ "General": { "Fixed": { "relative": "end-this-month" } } }), "General", "Fixed", "not offered"),
-        (json!({ "General": { "Stylesheet": "Fancy" } }), "General", "Stylesheet", "not one of the choices"),
-        (json!({ "General": { "Commodity": "XYZ::NONE" } }), "General", "Commodity", "unknown commodity"),
+        (
+            json!({ "Accounts": { "Income": "Root:Asset:House" } }),
+            "Accounts",
+            "Income",
+            "not one this option allows",
+        ),
+        (
+            json!({ "Accounts": { "Accounts": ["No:Such"] } }),
+            "Accounts",
+            "Accounts",
+            "unknown account",
+        ),
+        (
+            json!({ "General": { "Fixed": { "relative": "end-this-month" } } }),
+            "General",
+            "Fixed",
+            "not offered",
+        ),
+        (
+            json!({ "General": { "Stylesheet": "Fancy" } }),
+            "General",
+            "Stylesheet",
+            "not one of the choices",
+        ),
+        (
+            json!({ "General": { "Commodity": "XYZ::NONE" } }),
+            "General",
+            "Commodity",
+            "unknown commodity",
+        ),
     ];
     cases.iter().for_each(|(options, section, name, reason)| {
         let e = run(&host, options).unwrap_err();
@@ -150,15 +181,23 @@ fn every_template_gets_the_general_options() {
     let host = Host::new(empty_book());
     let reg = registry(&[("options.rhai", &script())]);
     let db = reg.options(reg.find(GUID).unwrap(), &host.ctx()).unwrap();
-    let general: Vec<(String, String)> =
-        db.describe().into_iter().filter(|o| o.section == "General").map(|o| (o.key.clone(), o.name.clone())).take(3).collect();
+    let general: Vec<(String, String)> = db
+        .describe()
+        .into_iter()
+        .filter(|o| o.section == "General")
+        .map(|o| (o.key.clone(), o.name.clone()))
+        .take(3)
+        .collect();
     let want = [("0a", "Report name"), ("0b", "Stylesheet"), ("0c", "Add options summary")].map(|(k, n)| (k.to_owned(), n.to_owned()));
     assert_eq!(general, want);
     let sheet = db.describe().into_iter().find(|o| o.name == "Stylesheet").unwrap();
     let keys: Vec<String> = sheet.choices.unwrap().into_iter().map(|c| c.key.to_string()).collect();
     assert_eq!(keys, ["Default", "Easy"]);
     assert_eq!(db.default_section(), Some("Display"));
-    assert_eq!(db.params_schema()["properties"]["Display"]["properties"]["Levels"]["enum"], json!([1, 2, 3]));
+    assert_eq!(
+        db.params_schema()["properties"]["Display"]["properties"]["Levels"]["enum"],
+        json!([1, 2, 3])
+    );
 }
 
 #[test]
@@ -166,7 +205,9 @@ fn the_options_summary_lists_what_changed() {
     let host = Host::new(empty_book());
     let options = json!({ "General": { "Add options summary": "always", "Report Title": "Changed" } });
     let result = run(&host, &options).unwrap();
-    let Some(Block::OptionsSummary(summary)) = result.sections.last().and_then(|s| s.blocks.first()) else { panic!("no summary") };
+    let Some(Block::OptionsSummary(summary)) = result.sections.last().and_then(|s| s.blocks.first()) else {
+        panic!("no summary")
+    };
     let rows: Vec<(&str, &str)> = summary.rows.iter().map(|r| (r.name.as_str(), r.value.as_str())).collect();
     assert_eq!(rows, [("Report Title", "Changed")]);
     assert_eq!(run(&host, &json!({})).unwrap().sections.len(), 1, "no summary by default");
@@ -217,7 +258,10 @@ fn the_configured_fiscal_year_end_decides_a_fiscal_accounting_period() {
     let script = common::template("#{ title: `${ctx.accounting_period().start} ${ctx.accounting_period().end}`, sections: [] }");
     let reg = common::registry(&[("test.rhai", &script)]);
     let mut host = common::Host::new(common::empty_book());
-    host.period = AccountingPeriod { start: "fiscal-year".parse().unwrap(), end: "fiscal-year".parse().unwrap() };
+    host.period = AccountingPeriod {
+        start: "fiscal-year".parse().unwrap(),
+        end: "fiscal-year".parse().unwrap(),
+    };
     host.fiscal_year_end = Some(FiscalYearEnd::new(6, 30).unwrap());
     // now is 2024-03-15 UTC: the fiscal year ending 30 June runs from 2023-07-01 00:00:00 to 2024-06-30 23:59:59.
     let title = host.run(&reg, common::GUID, &json!({})).unwrap().title;
@@ -256,7 +300,10 @@ fn rationals_and_handles_become_their_wire_forms() {
     let rows = &json["sections"][0]["blocks"][0]["rows"];
     let guid = host.book.account_by_full_name("Root:Asset:Bank1:Current").unwrap().guid.to_string();
     assert_eq!(rows[0]["account"], json!(guid));
-    assert_eq!(rows[0]["cells"][1]["monetary"], json!({ "amount": { "num": "1", "denom": "3" }, "commodity": "CURRENCY::USD" }));
+    assert_eq!(
+        rows[0]["cells"][1]["monetary"],
+        json!({ "amount": { "num": "1", "denom": "3" }, "commodity": "CURRENCY::USD" })
+    );
     assert_eq!(rows[0]["cells"][1]["display"], json!("$0.33"));
     assert_eq!(rows[1]["cells"][0]["date"], json!("2024-03-15T12:00:00Z"));
     assert_eq!(rows[1]["cells"][1]["display"], json!("57.12 %"));

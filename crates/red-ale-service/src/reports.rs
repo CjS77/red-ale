@@ -92,8 +92,12 @@ impl Config {
 
     /// The report limits set, by their names under `reports.limits` (`operations`, `seconds`, …), in file order.
     pub fn report_limits(&self) -> Result<Vec<(String, u64)>, ServiceError> {
-        let Some(limits) = self.reports_field(LIMITS)? else { return Ok(Vec::new()) };
-        let limits = limits.as_object().ok_or_else(|| invalid(format!("{REPORTS}.{LIMITS} must be an object, not {limits}")))?;
+        let Some(limits) = self.reports_field(LIMITS)? else {
+            return Ok(Vec::new());
+        };
+        let limits = limits
+            .as_object()
+            .ok_or_else(|| invalid(format!("{REPORTS}.{LIMITS} must be an object, not {limits}")))?;
         limits
             .iter()
             .map(|(name, max)| {
@@ -105,7 +109,11 @@ impl Config {
 
     /// The saved report configurations, in the order they were added.
     pub fn saved_reports(&self) -> Result<Vec<SavedReport>, ServiceError> {
-        entries(self.reports_field(SAVED)?, SAVED)?.into_iter().enumerate().map(|(i, e)| saved(e, i)).collect()
+        entries(self.reports_field(SAVED)?, SAVED)?
+            .into_iter()
+            .enumerate()
+            .map(|(i, e)| saved(e, i))
+            .collect()
     }
 
     /// Replace the saved report configurations.
@@ -127,7 +135,11 @@ impl Config {
 
     /// The style sheet entries, in the order they were added.
     pub fn style_sheets(&self) -> Result<Vec<StyleSheetRecord>, ServiceError> {
-        entries(self.reports_field(STYLE_SHEETS)?, STYLE_SHEETS)?.into_iter().enumerate().map(|(i, e)| style_sheet(e, i)).collect()
+        entries(self.reports_field(STYLE_SHEETS)?, STYLE_SHEETS)?
+            .into_iter()
+            .enumerate()
+            .map(|(i, e)| style_sheet(e, i))
+            .collect()
     }
 
     /// Replace the style sheet entries.
@@ -150,7 +162,9 @@ impl Config {
 /// The objects of the list under `reports.<key>`.
 fn entries(list: Option<Value>, key: &str) -> Result<Vec<Map<String, Value>>, ServiceError> {
     let Some(list) = list else { return Ok(Vec::new()) };
-    let Value::Array(items) = list else { return Err(invalid(format!("{REPORTS}.{key} must be a list, not {list}"))) };
+    let Value::Array(items) = list else {
+        return Err(invalid(format!("{REPORTS}.{key} must be a list, not {list}")));
+    };
     items
         .into_iter()
         .enumerate()
@@ -165,7 +179,10 @@ fn entries(list: Option<Value>, key: &str) -> Result<Vec<Map<String, Value>>, Se
 fn text(entry: &mut Map<String, Value>, field: &str, key: &str, i: usize) -> Result<String, ServiceError> {
     match entry.remove(field) {
         Some(Value::String(s)) if !s.is_empty() => Ok(s),
-        other => Err(invalid(format!("{REPORTS}.{key}[{i}].{field} must be a non-empty string, not {}", other.unwrap_or_default()))),
+        other => Err(invalid(format!(
+            "{REPORTS}.{key}[{i}].{field} must be a non-empty string, not {}",
+            other.unwrap_or_default()
+        ))),
     }
 }
 
@@ -186,14 +203,25 @@ fn saved(mut entry: Map<String, Value>, i: usize) -> Result<SavedReport, Service
     let (guid, template) = (guid(&mut entry, "guid", i)?, guid(&mut entry, "template", i)?);
     let name = text(&mut entry, "name", SAVED, i)?;
     let options = options(&mut entry, SAVED, i)?;
-    Ok(SavedReport { guid, name, template, options, other: entry })
+    Ok(SavedReport {
+        guid,
+        name,
+        template,
+        options,
+        other: entry,
+    })
 }
 
 fn style_sheet(mut entry: Map<String, Value>, i: usize) -> Result<StyleSheetRecord, ServiceError> {
     let name = text(&mut entry, "name", STYLE_SHEETS, i)?;
     let template = text(&mut entry, "template", STYLE_SHEETS, i)?;
     let options = options(&mut entry, STYLE_SHEETS, i)?;
-    Ok(StyleSheetRecord { name, template, options, other: entry })
+    Ok(StyleSheetRecord {
+        name,
+        template,
+        options,
+        other: entry,
+    })
 }
 
 impl ConfigStore {
@@ -242,14 +270,25 @@ pub fn load_report_scripts(dir: &Path) -> ReportScripts {
     let message = match dir.canonicalize() {
         Ok(root) if root.is_dir() => {
             let visited = BTreeSet::from([root.clone()]);
-            let mut walk = Walk { root: root.clone(), visited, found: ReportScripts::default(), full: false };
+            let mut walk = Walk {
+                root: root.clone(),
+                visited,
+                found: ReportScripts::default(),
+                full: false,
+            };
             walk.directory(&root, "");
             return walk.found;
         }
         Ok(_) => format!("the report directory {} is not a directory", dir.display()),
         Err(e) => format!("the report directory {} cannot be read: {e}", dir.display()),
     };
-    ReportScripts { scripts: Vec::new(), problems: vec![ScriptProblem { path: ".".to_owned(), message }] }
+    ReportScripts {
+        scripts: Vec::new(),
+        problems: vec![ScriptProblem {
+            path: ".".to_owned(),
+            message,
+        }],
+    }
 }
 
 struct Walk {
@@ -264,7 +303,10 @@ struct Walk {
 
 impl Walk {
     fn problem(&mut self, path: &str, message: String) {
-        self.found.problems.push(ScriptProblem { path: path.to_owned(), message });
+        self.found.problems.push(ScriptProblem {
+            path: path.to_owned(),
+            message,
+        });
     }
 
     /// Read the directory `resolved`, which is at `below` in the report directory.
@@ -274,11 +316,17 @@ impl Walk {
             Err(e) => return self.problem(if below.is_empty() { "." } else { below }, format!("cannot be read: {e}")),
         };
         entries.sort_by(|a, b| a.1.cmp(&b.1));
-        entries.into_iter().for_each(|(path, name)| self.entry(&path, &name.to_string_lossy(), below));
+        entries
+            .into_iter()
+            .for_each(|(path, name)| self.entry(&path, &name.to_string_lossy(), below));
     }
 
     fn entry(&mut self, path: &Path, name: &str, parent: &str) {
-        let below = if parent.is_empty() { name.to_owned() } else { format!("{parent}/{name}") };
+        let below = if parent.is_empty() {
+            name.to_owned()
+        } else {
+            format!("{parent}/{name}")
+        };
         let resolved = match path.canonicalize() {
             Ok(resolved) => resolved,
             Err(e) => return self.problem(&below, format!("cannot be read: {e}")),
@@ -301,7 +349,10 @@ impl Walk {
         }
         if self.found.scripts.len() == MAX_SCRIPTS {
             self.full = true;
-            return self.problem(&below, format!("more than {MAX_SCRIPTS} scripts; this one and the rest are left out"));
+            return self.problem(
+                &below,
+                format!("more than {MAX_SCRIPTS} scripts; this one and the rest are left out"),
+            );
         }
         match read_script(resolved) {
             Ok(text) => self.found.scripts.push(ScriptFile { path: below, text }),
@@ -313,7 +364,9 @@ impl Walk {
 fn read_script(path: &Path) -> Result<String, String> {
     let file = std::fs::File::open(path).map_err(|e| format!("cannot be read: {e}"))?;
     let mut bytes = Vec::new();
-    file.take(MAX_SCRIPT_BYTES + 1).read_to_end(&mut bytes).map_err(|e| format!("cannot be read: {e}"))?;
+    file.take(MAX_SCRIPT_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("cannot be read: {e}"))?;
     if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > MAX_SCRIPT_BYTES {
         return Err(format!("larger than {MAX_SCRIPT_BYTES} bytes"));
     }
@@ -332,10 +385,16 @@ mod tests {
             "styleSheets": [{"name": "Footer", "template": "Footer", "options": {"Images": {"Logo": "x.png"}}}], "other": 1}}"#;
         let mut c = Config::parse(text).unwrap();
         assert_eq!(c.report_directory().unwrap(), Some(PathBuf::from("mine")));
-        assert_eq!(c.report_limits().unwrap(), [("operations".to_owned(), 5), ("seconds".to_owned(), 2)]);
+        assert_eq!(
+            c.report_limits().unwrap(),
+            [("operations".to_owned(), 5), ("seconds".to_owned(), 2)]
+        );
         assert_eq!(c.reports().unwrap()["dateFormat"], "iso");
         let mut saved = c.saved_reports().unwrap();
-        assert_eq!((saved[0].name.as_str(), saved[0].other["note"].as_str()), ("Two levels", Some("kept")));
+        assert_eq!(
+            (saved[0].name.as_str(), saved[0].other["note"].as_str()),
+            ("Two levels", Some("kept"))
+        );
         saved[0].name = "Renamed".into();
         c.set_saved_reports(&saved);
         let sheets = c.style_sheets().unwrap();
@@ -346,7 +405,10 @@ mod tests {
         assert_eq!(again.style_sheets().unwrap(), sheets);
         assert_eq!(again.reports().unwrap()["other"], 1);
         let empty = Config::default();
-        assert_eq!((empty.report_directory().unwrap(), empty.saved_reports().unwrap()), (None, Vec::new()));
+        assert_eq!(
+            (empty.report_directory().unwrap(), empty.saved_reports().unwrap()),
+            (None, Vec::new())
+        );
         let bad = |t: &str| Config::parse(t).unwrap();
         assert!(bad(r#"{"reports": []}"#).reports().is_err());
         assert!(bad(r#"{"reports": {"saved": [{"name": "x"}]}}"#).saved_reports().is_err());

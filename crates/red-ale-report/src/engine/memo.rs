@@ -26,7 +26,9 @@ pub(super) fn register(engine: &mut Engine, max_entries: usize) {
     engine.register_type_with_name::<Memo>("Memo");
     engine.register_fn("memo", Memo::default);
     engine.register_fn("to_string", |m: &mut Memo| format!("Memo({})", m.0.borrow().len()));
-    engine.register_fn("get", |m: &mut Memo, key: INT| m.0.borrow().get(&key).cloned().unwrap_or(Dynamic::UNIT));
+    engine.register_fn("get", |m: &mut Memo, key: INT| {
+        m.0.borrow().get(&key).cloned().unwrap_or(Dynamic::UNIT)
+    });
     engine.register_fn("contains", |m: &mut Memo, key: INT| m.0.borrow().contains_key(&key));
     engine.register_fn("len", |m: &mut Memo| INT::try_from(m.0.borrow().len()).unwrap_or(INT::MAX));
     engine.register_fn("set", move |m: &mut Memo, key: INT, value: Dynamic| -> Fallible<()> {

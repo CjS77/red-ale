@@ -171,7 +171,10 @@ impl ColumnType {
 
     /// May be given to several columns, whose values are added (`multi_col_props`, `gnc-imp-props-tx.cpp:101-114`).
     pub fn is_multi_col(self) -> bool {
-        matches!(self, Self::Amount | Self::AmountNeg | Self::TransferAmount | Self::TransferAmountNeg | Self::Value | Self::ValueNeg)
+        matches!(
+            self,
+            Self::Amount | Self::AmountNeg | Self::TransferAmount | Self::TransferAmountNeg | Self::Value | Self::ValueNeg
+        )
     }
 
     /// `None` for a type the mode doesn't allow: the transaction ID in two-split mode, the transfer columns in
@@ -225,7 +228,10 @@ pub struct ParseContext<'a> {
 impl ParseContext<'_> {
     /// Today's date, the C locale's number format and no locale date parser.
     pub fn new(today: Date) -> Self {
-        Self { dates: DateContext { today, locale_date: None }, monetary: MonetaryLocale::default() }
+        Self {
+            dates: DateContext { today, locale_date: None },
+            monetary: MonetaryLocale::default(),
+        }
     }
 }
 
@@ -421,7 +427,11 @@ impl PreSplit {
 
     fn set_inner(&mut self, prop: ColumnType, value: &str, formats: Formats, ctx: &ParseContext) -> Result<(), String> {
         let money = |v: &str| parse_monetary(v, formats.currency, &ctx.monetary).map_err(|e| e.to_string());
-        let date = |v: &str| (!v.is_empty()).then(|| parse_date(v, formats.date, &ctx.dates).map_err(|e| e.to_string())).transpose();
+        let date = |v: &str| {
+            (!v.is_empty())
+                .then(|| parse_date(v, formats.date, &ctx.dates).map_err(|e| e.to_string()))
+                .transpose()
+        };
         match prop {
             ColumnType::Action => self.action = non_empty(value),
             ColumnType::TransferAction => self.transfer_action = non_empty(value),
@@ -509,7 +519,12 @@ impl PreSplit {
     /// instead (`design/api/import.md`, "Deviations"). An existing error on the date column is kept.
     pub(crate) fn flag_missing_reconcile_dates(&mut self) {
         let checks = [
-            (self.rec_state, self.rec_date, ColumnType::RecDate, "Split is reconciled but reconcile date column is missing or invalid."),
+            (
+                self.rec_state,
+                self.rec_date,
+                ColumnType::RecDate,
+                "Split is reconciled but reconcile date column is missing or invalid.",
+            ),
             (
                 self.transfer_rec_state,
                 self.transfer_rec_date,
@@ -517,11 +532,12 @@ impl PreSplit {
                 "Transfer split is reconciled but transfer reconcile date column is missing or invalid.",
             ),
         ];
-        checks.into_iter().filter(|(state, date, _, _)| *state == Some(ReconcileState::Reconciled) && date.is_none()).for_each(
-            |(_, _, prop, reason)| {
+        checks
+            .into_iter()
+            .filter(|(state, date, _, _)| *state == Some(ReconcileState::Reconciled) && date.is_none())
+            .for_each(|(_, _, prop, reason)| {
                 self.errors.entry(prop).or_insert_with(|| prop_error(prop, reason));
-            },
-        );
+            });
     }
 
     /// `GncPreSplit::verify_essentials` (`gnc-imp-props-tx.cpp:640-673`) without its multi-currency check, which
@@ -588,7 +604,11 @@ mod tests {
     use super::*;
 
     fn formats(multi_split: bool) -> Formats {
-        Formats { date: DateFormat::Ymd, currency: CurrencyFormat::Period, multi_split }
+        Formats {
+            date: DateFormat::Ymd,
+            currency: CurrencyFormat::Period,
+            multi_split,
+        }
     }
 
     fn ctx() -> ParseContext<'static> {
@@ -597,7 +617,11 @@ mod tests {
 
     #[test]
     fn names_round_trip_with_legacy() {
-        assert!(ColumnType::ALL.iter().all(|&t| ColumnType::from_gnucash_name(t.gnucash_name()) == Some(t)));
+        assert!(
+            ColumnType::ALL
+                .iter()
+                .all(|&t| ColumnType::from_gnucash_name(t.gnucash_name()) == Some(t))
+        );
         assert_eq!(ColumnType::from_gnucash_name("Deposit"), Some(ColumnType::Amount));
         assert_eq!(ColumnType::from_gnucash_name("Withdrawal"), Some(ColumnType::AmountNeg));
         assert_eq!(ColumnType::from_gnucash_name("Num"), Some(ColumnType::Num));
@@ -626,7 +650,10 @@ mod tests {
     fn bad_date_message() {
         let mut t = PreTrans::default();
         t.set(ColumnType::Date, "soon", formats(false), &ctx());
-        assert_eq!(t.errors()[&ColumnType::Date], "Date: Value can't be parsed into a date using the selected date format.");
+        assert_eq!(
+            t.errors()[&ColumnType::Date],
+            "Date: Value can't be parsed into a date using the selected date format."
+        );
         assert!(t.date.is_none());
     }
 
@@ -636,14 +663,19 @@ mod tests {
         s.set(ColumnType::RecState, "v", formats(false), &ctx());
         assert_eq!(s.rec_state, Some(ReconcileState::New));
         s.set(ColumnType::RecState, "", formats(false), &ctx());
-        assert_eq!(s.errors()[&ColumnType::RecState], "Reconciled: Value can't be parsed into a valid reconcile state.");
+        assert_eq!(
+            s.errors()[&ColumnType::RecState],
+            "Reconciled: Value can't be parsed into a valid reconcile state."
+        );
     }
 
     #[test]
     fn multi_column_sum_keeps_denominators() {
         let mut s = PreSplit::default();
         s.reset(ColumnType::Amount, formats(false), &ctx());
-        ["1.5", "", "2.25"].iter().for_each(|v| s.add(ColumnType::Amount, v, formats(false), &ctx()));
+        ["1.5", "", "2.25"]
+            .iter()
+            .for_each(|v| s.add(ColumnType::Amount, v, formats(false), &ctx()));
         assert!(s.amount.unwrap().same_repr(Numeric::new(375, 100)));
         s.add(ColumnType::Amount, "x", formats(false), &ctx());
         s.add(ColumnType::Amount, "1", formats(false), &ctx());
@@ -653,11 +685,31 @@ mod tests {
 
     #[test]
     fn gnc_operators() {
-        assert!(gnc_add(Numeric::new(0, 100), Numeric::new(5, 10)).unwrap().same_repr(Numeric::new(5, 10)));
-        assert!(gnc_add(Numeric::new(1, 10), Numeric::new(1, 10)).unwrap().same_repr(Numeric::new(2, 10)));
-        assert!(gnc_add(Numeric::new(1, 2), Numeric::new(1, 3)).unwrap().same_repr(Numeric::new(5, 6)));
-        assert!(gnc_mul(Numeric::new(15, 10), Numeric::new(2, 100)).unwrap().same_repr(Numeric::new(30, 1000)));
-        assert!(gnc_mul(Numeric::new(0, 100), Numeric::new(2, 100)).unwrap().same_repr(Numeric::ZERO));
+        assert!(
+            gnc_add(Numeric::new(0, 100), Numeric::new(5, 10))
+                .unwrap()
+                .same_repr(Numeric::new(5, 10))
+        );
+        assert!(
+            gnc_add(Numeric::new(1, 10), Numeric::new(1, 10))
+                .unwrap()
+                .same_repr(Numeric::new(2, 10))
+        );
+        assert!(
+            gnc_add(Numeric::new(1, 2), Numeric::new(1, 3))
+                .unwrap()
+                .same_repr(Numeric::new(5, 6))
+        );
+        assert!(
+            gnc_mul(Numeric::new(15, 10), Numeric::new(2, 100))
+                .unwrap()
+                .same_repr(Numeric::new(30, 1000))
+        );
+        assert!(
+            gnc_mul(Numeric::new(0, 100), Numeric::new(2, 100))
+                .unwrap()
+                .same_repr(Numeric::ZERO)
+        );
         assert!(gnc_sub(Numeric::ZERO, Numeric::new(5, 10)).unwrap().same_repr(Numeric::new(-5, 10)));
     }
 }

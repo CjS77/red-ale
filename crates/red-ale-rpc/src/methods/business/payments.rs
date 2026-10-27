@@ -14,8 +14,18 @@ use crate::wire::{AccountRef, Amount, Day, Id, Timestamp};
 /// The business payments methods.
 pub fn methods() -> Vec<Method> {
     vec![
-        method("payment.process", "Record an owner's payment and apply it to chosen documents, or to the oldest open ones.", Effect::Write, process),
-        method("invoice.pay", "Record a payment of one posted document.", Effect::Write, pay_invoice),
+        method(
+            "payment.process",
+            "Record an owner's payment and apply it to chosen documents, or to the oldest open ones.",
+            Effect::Write,
+            process,
+        ),
+        method(
+            "invoice.pay",
+            "Record a payment of one posted document.",
+            Effect::Write,
+            pay_invoice,
+        ),
         method(
             "payment.openItems",
             "An owner's open documents and pre-payments in an A/R or A/P account, in the order GnuCash's payment dialog applies them.",
@@ -28,7 +38,12 @@ pub fn methods() -> Vec<Method> {
             Effect::Destructive,
             from_transaction,
         ),
-        method("invoice.due", "Posted, unpaid documents falling due within some days: GnuCash's bills-due and invoices-due reminders.", Effect::Read, due),
+        method(
+            "invoice.due",
+            "Posted, unpaid documents falling due within some days: GnuCash's bills-due and invoices-due reminders.",
+            Effect::Read,
+            due,
+        ),
     ]
 }
 
@@ -70,8 +85,15 @@ pub struct OwnerParam {
 
 impl OwnerParam {
     fn resolve(self, book: &Book) -> Result<OwnerRef, RpcError> {
-        let owner = OwnerRef { kind: self.owner_type.into(), guid: self.id.0 };
-        if contacts::owner_exists(book, owner) { Ok(owner) } else { Err(RpcError::not_found(owner.kind.type_name(), owner.guid)) }
+        let owner = OwnerRef {
+            kind: self.owner_type.into(),
+            guid: self.id.0,
+        };
+        if contacts::owner_exists(book, owner) {
+            Ok(owner)
+        } else {
+            Err(RpcError::not_found(owner.kind.type_name(), owner.guid))
+        }
     }
 }
 
@@ -79,7 +101,11 @@ impl OwnerParam {
 /// as a debit (`5.17:gnucash/gnome/dialog-payment.c:670-690`), so a payment in the usual direction is positive here
 /// for every owner.
 fn engine_amount(book: &Book, owner: OwnerRef, amount: Numeric) -> Result<Numeric, RpcError> {
-    Ok(if calc::require_end_owner(book, owner)?.kind == OwnerKind::Customer { amount } else { amount.neg() })
+    Ok(if calc::require_end_owner(book, owner)?.kind == OwnerKind::Customer {
+        amount
+    } else {
+        amount.neg()
+    })
 }
 
 /// Params of `payment.process`.
@@ -128,16 +154,23 @@ pub struct PaymentResult {
 
 impl From<payments::PaymentResult> for PaymentResult {
     fn from(r: payments::PaymentResult) -> Self {
-        Self { transaction: r.transaction.map(Id), payment_lot: r.payment_lot.map(Id) }
+        Self {
+            transaction: r.transaction.map(Id),
+            payment_lot: r.payment_lot.map(Id),
+        }
     }
 }
 
 /// A document's lot, or a lot named directly.
 fn lot_of(book: &Book, id: Id) -> Result<Guid, RpcError> {
     if let Some(inv) = book.business.invoices.get(&id.0) {
-        return inv.post_lot.ok_or_else(|| RpcError::invalid(format!("document {} is not posted", inv.id)));
+        return inv
+            .post_lot
+            .ok_or_else(|| RpcError::invalid(format!("document {} is not posted", inv.id)));
     }
-    book.lot(id.0).map(|l| l.guid).ok_or_else(|| RpcError::not_found("invoice or lot", id.0))
+    book.lot(id.0)
+        .map(|l| l.guid)
+        .ok_or_else(|| RpcError::not_found("invoice or lot", id.0))
 }
 
 /// The money side of a payment, as the caller gives it.
@@ -172,7 +205,14 @@ fn process(ctx: &mut Context, p: ProcessParams) -> Result<PaymentResult, RpcErro
         let owner = p.owner.resolve(book)?;
         let posted = p.account.resolve(book)?;
         let lots = p.apply_to.iter().map(|id| lot_of(book, *id)).collect::<Result<Vec<_>, _>>()?;
-        let money = Money { transfer: p.transfer_account, amount: p.amount.0, rate: p.exchange_rate, date: p.date, memo: p.memo, num: p.num };
+        let money = Money {
+            transfer: p.transfer_account,
+            amount: p.amount.0,
+            rate: p.exchange_rate,
+            date: p.date,
+            memo: p.memo,
+            num: p.num,
+        };
         let pay = money.payment(book, owner, posted, env.zone())?;
         Ok(payments::apply_owner_payment(book, env, &pay, &lots, p.auto_pay)?)
     })?;
@@ -206,8 +246,17 @@ fn pay_invoice(ctx: &mut Context, p: PayParams) -> Result<PaymentResult, RpcErro
     let result = ctx.mutate_rpc(|book, env| {
         let inv = invoice(book, p.invoice)?;
         let (guid, owner) = (inv.guid, calc::require_end_owner(book, inv.owner)?);
-        let posted = inv.post_acc.ok_or_else(|| RpcError::invalid(format!("document {} is not posted", inv.id)))?;
-        let money = Money { transfer: Some(p.transfer_account), amount: p.amount.0, rate: p.exchange_rate, date: p.date, memo: p.memo, num: p.num };
+        let posted = inv
+            .post_acc
+            .ok_or_else(|| RpcError::invalid(format!("document {} is not posted", inv.id)))?;
+        let money = Money {
+            transfer: Some(p.transfer_account),
+            amount: p.amount.0,
+            rate: p.exchange_rate,
+            date: p.date,
+            memo: p.memo,
+            num: p.num,
+        };
         let pay = money.payment(book, owner, posted, env.zone())?;
         Ok(payments::apply_invoice_payment(book, env, guid, pay)?)
     })?;
@@ -264,7 +313,10 @@ fn open_items(ctx: &mut Context, p: OpenItemsParams) -> Result<OpenItems, RpcErr
             .map(|i| OpenItem {
                 lot: Id(i.lot),
                 invoice: i.document.map(|(g, _)| Id(g)),
-                id: i.document.and_then(|(g, _)| book.business.invoices.get(&g)).map(|inv| inv.id.clone()),
+                id: i
+                    .document
+                    .and_then(|(g, _)| book.business.invoices.get(&g))
+                    .map(|inv| inv.id.clone()),
                 item_type: i.document.map_or("Pre-Payment", |(_, k)| k.type_string()).to_owned(),
                 date: Timestamp(i.date),
                 sort_date: Timestamp(i.sort_date),
@@ -318,13 +370,20 @@ pub struct FromTransactionParams {
 
 fn from_transaction(ctx: &mut Context, p: FromTransactionParams) -> Result<PaymentResult, RpcError> {
     let result = ctx.mutate_rpc(|book, env| {
-        let t = book.transaction(p.transaction.0).ok_or_else(|| RpcError::not_found("transaction", p.transaction.0))?;
+        let t = book
+            .transaction(p.transaction.0)
+            .ok_or_else(|| RpcError::not_found("transaction", p.transaction.0))?;
         let owner = match p.owner {
             Some(o) => o.resolve(book)?,
-            None => matching::transaction_owner(book, t).ok_or_else(|| RpcError::invalid("the transaction names no owner: give the owner"))?,
+            None => {
+                matching::transaction_owner(book, t).ok_or_else(|| RpcError::invalid("the transaction names no owner: give the owner"))?
+            }
         };
         let amount = p.amount.map(|a| engine_amount(book, owner, a.0)).transpose()?;
-        let apply_to = p.apply_to.map(|ids| ids.into_iter().map(|id| lot_of(book, id)).collect::<Result<Vec<_>, _>>()).transpose()?;
+        let apply_to = p
+            .apply_to
+            .map(|ids| ids.into_iter().map(|id| lot_of(book, id)).collect::<Result<Vec<_>, _>>())
+            .transpose()?;
         let req = matching::FromTransaction {
             transaction: p.transaction.0,
             owner,

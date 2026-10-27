@@ -67,7 +67,10 @@ pub(super) struct Frame {
 
 /// The `<svg>` element for `chart`, identified by `id`, its ticks in the number format `numbers`.
 pub(crate) fn chart(chart: &Chart, id: &str, numbers: Conventions) -> String {
-    let (width, height) = (view_size(chart.width, PERCENT_WIDTH, MIN_WIDTH), view_size(chart.height, PERCENT_HEIGHT, MIN_HEIGHT));
+    let (width, height) = (
+        view_size(chart.width, PERCENT_WIDTH, MIN_WIDTH),
+        view_size(chart.height, PERCENT_HEIGHT, MIN_HEIGHT),
+    );
     let entries = legend_entries(chart);
     let shown: &[Entry<'_>] = if chart.legend { &entries } else { &[] };
     let frame = Frame::new(width * UNIT, height * UNIT, title_lines(chart).len(), shown, numbers);
@@ -78,7 +81,10 @@ pub(crate) fn chart(chart: &Chart, id: &str, numbers: Conventions) -> String {
     let title_text = chart.title.join(" ");
     let size = size_attributes(chart.width, chart.height, width, height);
     [
-        format!("<svg id=\"{}\" class=\"chart\" viewBox=\"0 0 {width} {height}\" {size} role=\"img\">", escape(id)),
+        format!(
+            "<svg id=\"{}\" class=\"chart\" viewBox=\"0 0 {width} {height}\" {size} role=\"img\">",
+            escape(id)
+        ),
         format!("<title>{}</title>", escape(&title_text)),
         title(chart, &frame),
         body,
@@ -120,15 +126,28 @@ impl Frame {
         let top = PAD + lines * (TITLE_FONT + 6 * UNIT);
         let widest = entries.iter().map(|e| text_width(e.label, LEGEND_FONT)).max();
         let legend_width = widest.map(|w| (w + SWATCH + 8 * UNIT).min(width * 3 / 10));
-        let full = Rect { x0: PAD, y0: top, x1: width - PAD, y1: height - PAD };
+        let full = Rect {
+            x0: PAD,
+            y0: top,
+            x1: width - PAD,
+            y1: height - PAD,
+        };
         match legend_width {
             Some(lw) if full.width() - lw - PAD >= width / 3 => Self {
                 width,
-                area: Rect { x1: full.x1 - lw - PAD, ..full },
+                area: Rect {
+                    x1: full.x1 - lw - PAD,
+                    ..full
+                },
                 legend: Some(Rect { x0: full.x1 - lw, ..full }),
                 numbers,
             },
-            _ => Self { width, area: full, legend: None, numbers },
+            _ => Self {
+                width,
+                area: full,
+                legend: None,
+                numbers,
+            },
         }
     }
 }
@@ -142,7 +161,12 @@ fn title(chart: &Chart, frame: &Frame) -> String {
             let y = PAD + n * (TITLE_FONT + 6 * UNIT) - 6 * UNIT;
             let shown = fit(line, frame.width - 2 * PAD, TITLE_FONT);
             let weight = if n == 1 { " font-weight=\"bold\"" } else { "" };
-            format!("<text x=\"{}\" y=\"{}\" font-size=\"16\"{weight} text-anchor=\"middle\">{}</text>", fmt(mid), fmt(y), escape(&shown))
+            format!(
+                "<text x=\"{}\" y=\"{}\" font-size=\"16\"{weight} text-anchor=\"middle\">{}</text>",
+                fmt(mid),
+                fmt(y),
+                escape(&shown)
+            )
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -153,9 +177,24 @@ fn legend_entries(chart: &Chart) -> Vec<Entry<'_>> {
     match (chart.chart_type, chart.series.first()) {
         (ChartType::Pie, Some(s)) => {
             let colors = s.colors.as_deref().unwrap_or_default();
-            chart.labels.iter().enumerate().map(|(i, l)| Entry { label: l, color: colors.get(i).unwrap_or(&s.color).as_str() }).collect()
+            chart
+                .labels
+                .iter()
+                .enumerate()
+                .map(|(i, l)| Entry {
+                    label: l,
+                    color: colors.get(i).unwrap_or(&s.color).as_str(),
+                })
+                .collect()
         }
-        _ => chart.series.iter().map(|s| Entry { label: &s.label, color: s.color.as_str() }).collect(),
+        _ => chart
+            .series
+            .iter()
+            .map(|s| Entry {
+                label: &s.label,
+                color: s.color.as_str(),
+            })
+            .collect(),
     }
 }
 
@@ -180,7 +219,12 @@ fn legend(entries: &[Entry<'_>], area: Rect) -> String {
     });
     let more = (shown < entries.len()).then(|| {
         let y = row_y(shown) + 10 * UNIT;
-        format!("<text x=\"{}\" y=\"{}\" font-size=\"13\">+{} more</text>", fmt(area.x0), fmt(y), entries.len() - shown)
+        format!(
+            "<text x=\"{}\" y=\"{}\" font-size=\"13\">+{} more</text>",
+            fmt(area.x0),
+            fmt(y),
+            entries.len() - shown
+        )
     });
     let body: Vec<String> = rows_svg.chain(more).collect();
     format!("<g class=\"legend\">\n{}\n</g>", body.join("\n"))
