@@ -293,19 +293,19 @@ split value, to the currency fraction.
 | `futureValue(a : r : n : t)` | `:56-64` | `n · t` is a whole number |
 | `computeInterestIncrement(pv : rate : compounds : period)` | `:66-68` | `period` is a whole number |
 | `periodic_rate(rate : yper : ycomp)` | `:110-112` | `ycomp ÷ yper` is a whole number |
-| `cpd_pmt`, `cpd_ipmt`, `cpd_ppmt` | `:152-184` | `ycomp ÷ yfreq` and the period counts are whole numbers |
-| `amort_balance`, `amort_pmt`, `amort_ppmt`, `amort_ipmt` | `:300-337` | `cy ÷ py` and the period counts are whole numbers |
+| `foobar(v)` | `:27` | always (fin.scm's test helper, returning its argument) |
 
 - **Refused, with a reason** (`formula`, `data.reason: "non-integer-power"`): any call whose power is not a whole
   number. Its result is irrational, and exact methods for it are not yet designed ("Decided", item 6). Equal
   frequencies, the common case, are always computed.
-- **Refused** (`formula`, `data.reason: "unknown-function"`): every other name, `foobar` (fin.scm's test helper,
-  `:27`) included. GnuCash would look it up in Guile.
+- **Refused** (`formula`, `data.reason: "inexact"`): `cpd_pmt`, `cpd_ipmt`, `cpd_ppmt` (`:152-184`) and
+  `amort_balance`, `amort_pmt`, `amort_ppmt`, `amort_ipmt` (`:300-337`). They round to the cent with Scheme's `round` on
+  doubles (`:176-184`, `:362-366`), and exact ties are common in an amortisation table; until how Guile rounds those
+  ties is settled (the note's H9), red-ale can't reproduce them.
+- **Refused** (`formula`, `data.reason: "unknown-function"`): every other name. GnuCash would look it up in Guile.
 - **Zero rate.** `pmt`, `ipmt` and `ppmt` divide by the rate (`:88-90`), so a zero rate fails, as in GnuCash, where
   the double result is NaN and the conversion refuses it (`5.17:libgnucash/engine/gnc-numeric.cpp:90-95`); red-ale
   reports `division-by-zero`.
-- **Rounding inside `cpd_*` and `amort_*`.** They round with Scheme's `round` on doubles (`:176-184`, `:362-366`),
-  which R7RS defines as ties to even (docs-only; the note §7.2, H9). red-ale rounds those ties to even.
 - **A string argument** fails the call: no financial function takes one.
 
 GnuCash computes in doubles, so its result can differ from the exact one in the last bits. Both are rounded to 12

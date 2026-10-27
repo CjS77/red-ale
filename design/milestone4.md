@@ -381,11 +381,12 @@ functions, the instance model's amounts, the forecast reports), expected values 
    19920, opens read-only; the `Gnucash` row only has to lie between 19920 and 5.17's, since ordinary edits never update
    it ([`sql-fidelity.md`](sql-fidelity.md)). red-ale never upgrades.
 5. **Double slots in SQLite** keep their eight bytes as read and are written back unchanged.
-6. **Financial functions** are computed exactly (whole numbers of periods make `(1+r)^n` rational), rounded half up to
-   12 significant figures as GnuCash rounds a function's result, then to the SCU. Functions with a non-integer power
-   (`periodic_rate`, `cpd_*`, `amort_*` with differing frequencies) are refused with a reason until exact methods for
-   them are designed. A case where GnuCash's double result would round to a different cent is recorded as a deviation
-   ([`notes/engine-scheduled-transactions.md`](notes/engine-scheduled-transactions.md) §7.4).
+6. **Financial functions** are computed exactly whenever their powers are whole numbers (then `(1+r)^n` is rational),
+   rounded half up to 12 significant figures as GnuCash rounds a function's result, then to the SCU: `pmt`, `ipmt`,
+   `ppmt`, `futureValue`, `computeInterestIncrement`, `periodic_rate` and `foobar`. A non-whole power is refused with a
+   reason. `cpd_*` and `amort_*` are refused too: they round to the cent with Scheme's half-even `round` on doubles,
+   which red-ale can't yet reproduce at exact ties ([`notes/engine-scheduled-transactions.md`](notes/engine-scheduled-transactions.md)
+   §7.4, H9).
 7. **Natural signs.** Budget edits are refused until `budget.scrubSigns`; the feature is set with the first budget and
    unset with the last, as GnuCash does.
 8. **Attached documents** are out of v0.4, with a design doc before any version takes them.
