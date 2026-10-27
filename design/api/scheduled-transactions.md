@@ -412,7 +412,7 @@ Each instance:
 |-------|------|---------|
 | `proposal` | string | The proposal's ID |
 | `choices` | `[{ index, state?, variables? }]` | The caller's changes by index: a new state (`toCreate`, `reminder`, `postponed`, `ignored`) and variable values `{ name: Amount }`. Default none |
-| `autoCreateOnly` | bool | Apply only the instances of auto-create scheduled transactions, as GnuCash does before showing its dialog (`effect_change` with `auto_create_only`, `gnc-sx-instance-model.c:1483-1491`): per schedule, its `toCreate` instances up to the first in another state. Everything else is left as if not proposed. Default false |
+| `autoCreateOnly` | bool | Apply only the instances of auto-create scheduled transactions, as GnuCash does before showing its dialog (`effect_change` with `auto_create_only`, `gnc-sx-instance-model.c:1483-1491`): every instance of the auto-create scheduled transactions, as GnuCash's code does; the others are skipped. Everything else is left as if not proposed. Default false |
 
 Instances not named keep the proposal's state and bindings.
 
@@ -743,6 +743,9 @@ red-ale call scheduledTransaction.apply proposal=slr-2 'choices:=[{"index": 0, "
 | Choosing and applying | A dialog, auto-create instances first | A proposal, applied as one Mutation | No GUI; Since Last Run applies whole or not at all |
 | Instances after a postponed one | Proposed again on every run | Proposed once | A duplicate is money recorded twice |
 | A failing formula | Transaction created with 0, schedule not advanced | Apply refused | No wrong record, no repeat |
+| A postponed instance left postponed | The schedule advanced again on every run: remaining occurrences drop by one and the instance count resets (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1510-1517`) | Nothing changes | With no duplicates after a postponement, advancing again would end a counted schedule early and set `i` back |
+| A deferred instance with no occurrence left (its schedule was edited since) | Proposed | Not proposed | Nothing is due |
+| An exchange rate of 0 on a split with a value, a currency that is not a currency, a template split in the root or a commodity-less account | Created | Refused | A wrong or unbalanced record |
 | Instances before the read-only threshold | Created, unchecked | Flagged; created only when named | The caller sees it first |
 | The reminder rule | Other instances' states changed to keep it | Choices that break it refused | A call changes only what it names |
 | Postponing in an SQLite book | Accepted, then lost on the next load | Refused | No silent loss |
