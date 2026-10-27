@@ -9,8 +9,9 @@ Citations are `5.17:<path>:<line>`. A bare `:<line>` right after a citation refe
 GnuCash's GTK front end: its code is policy, not engine, but Since Last Run, Schedule from transaction and the loan
 assistant only exist there, so they set what users' books contain. "SX" is GnuCash's code abbreviation for a
 scheduled transaction; this note writes *scheduled transaction* except when quoting code. "Oracle" runs used the
-GnuCash 5.17 libraries (§9 says how, since the Python bindings expose none of this); the scripts are not committed,
-and §9 records what they did and what they printed.
+GnuCash 5.17 Python bindings and `ctypes` calls into `libgnc-engine.so`, **never Guile** (§9 says how and why). Results
+that need Guile (formula evaluation, and every Since Last Run path, which evaluates formulas) are marked **needs
+hand-worked cases** and listed in §9.3 with the 5.17 lines a hand-worked case follows. The scripts are not committed.
 
 Notation: `Q` = rational (`num/denom`, i64). **HALF_UP** = round half away from zero. `round(x, d)` = convert to
 denominator `d` with HALF_UP. GDate arithmetic is GLib's: `g_date_add_months` and `g_date_subtract_months` keep the
@@ -24,31 +25,33 @@ sequences in §2.6).
 1. **A postponed instance makes Since Last Run propose already-created instances again.** Instances after a
    deferred instance are generated from the deferred instance's saved state, not from the schedule's last
    occurrence (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:500-535`). Postpone January, create February, and
-   every later run proposes February again as *to create*; the oracle created the same February transaction three
-   times (§9.4). §4.8 lists this and the other state quirks.
+   every later run proposes February again as *to create*. The engine half is reproduced without Guile (§9.2: a hand
+   replay of `:500-535` with `libgnc-engine.so` calls proposes 02-01 and 03-01 after February was created); the whole
+   run **needs hand-worked cases** (§9.3, H7). §4.8 lists this and the other state quirks.
 2. **An instance whose formula fails still creates its transaction.** The transaction is committed with 0 for the
    failing amounts, the error is reported, and the schedule is *not* advanced, so the next run creates it again
-   (`gnc-sx-instance-model.c:1127-1139`, `:1410-1412`, `:1518-1535`; oracle §9.3, "AutoVar": four zero
-   transactions from two runs).
+   (`gnc-sx-instance-model.c:1127-1139`, `:1410-1412`, `:1518-1535`; from source, needs hand-worked cases: §9.3, H6).
 3. **Since Last Run never checks the auto read-only threshold.** It refuses only a read-only Book
-   (`gnc-sx-instance-model.c:1453-1457`); the oracle created transactions dated 2024 in a book whose threshold was
-   30 days (§9.4).
+   (`gnc-sx-instance-model.c:1453-1457`); nothing in that file calls `xaccTransIsReadonlyByPostedDate`
+   (`5.17:libgnucash/engine/Transaction.cpp:2373`), whose callers are all GUI register code. From source; needs
+   hand-worked cases (§9.3, H7).
 4. **Formula functions are Guile procedures called with doubles.** `pmt(a : b : …)` calls the Guile procedure
    `gnc:pmt`, every argument converted to a C `double`, and the result is converted back by keeping 12 significant
    figures, half up (`5.17:libgnucash/app-utils/gnc-exp-parser.c:288-360`). Arguments are separated by `:`, not
-   `,`. A zero interest rate makes `pmt` divide by zero and the formula fails (oracle §9.2).
+   `,`. A zero interest rate makes `pmt` divide by zero (`5.17:bindings/guile/fin.scm:88-90`) and the formula
+   fails (needs hand-worked cases: §9.3, H4).
 5. **Variables are unbound until the user binds them, except `i`.** Every name in a template formula becomes a
    variable that Since Last Run must be given a value for; `i` is predefined as the instance count, read-only
-   (`gnc-sx-instance-model.c:435-456`). Outside scheduled transactions, an unknown name is silently 0 (oracle §9.2:
-   `a + b` = 0).
+   (`gnc-sx-instance-model.c:435-456`). Outside scheduled transactions, an unknown name is silently 0
+   (`expression_parser.c:691-702`, `gnc-exp-parser.c:436-443`: `a + b` = 0; §9.3, H1).
 6. **`(5)` is −5.** An expression whose whole token string is `(number)` is negated, the accounting convention
    (`5.17:libgnucash/app-utils/calculation/expression_parser.c:609-620`); `(5) + 1` is 6.
 7. **The exchange-rate variable means different things for currencies and for other commodities.** For a split in
    another currency the amount is `value × rate` rounded to 1/1000 first; for a stock it is `value ÷ rate` rounded to
-   the commodity's fraction (`gnc-sx-instance-model.c:1218-1224`; oracle §9.3).
+   the commodity's fraction (`gnc-sx-instance-model.c:1218-1224`; §9.3, H6).
 8. **`from-sched-xaction` holds the scheduled transaction's GUID,** although the property's own description says
    "the originating template transaction" (`5.17:libgnucash/engine/Transaction.cpp:455-464`,
-   `gnc-sx-instance-model.c:1405-1409`; oracle §9.3).
+   `gnc-sx-instance-model.c:1405-1409`).
 9. **A scheduled transaction that ends is kept and stays enabled.** Nothing deletes or disables it; it just has no
    next occurrence (§4.9).
 10. **SQL books lose deferred instances.** The `schedxactions` table has no column for them and no other table holds
@@ -64,7 +67,7 @@ sequences in §2.6).
     point: `1,234.56` in `en_US` (`5.17:gnucash/gnome/dialog-sx-from-trans.cpp:238-250`). The formula text is
     therefore only readable in the same locale.
 14. **Rounding can unbalance an instance;** the commit's scrub then adds an `Imbalance-<CUR>` split, creating the
-    account if needed (oracle §9.3, "Round": `1.005` against `1`).
+    account if needed (`Transaction.cpp:1549-1558`; e.g. debit `1.005` against credit `1`: §9.3, H6).
 15. **The loan assistant writes locale-formatted formulas and rounds other payments to two significant figures:**
     `pmt( .06000 / 12.00 : 360.00 : 100,000.00 : 0 : 0 )` in `en_US`, and a 250.75 tax payment becomes `251`
     (§6.2). It writes no numerics, and the template currency is the default currency, not the loan's.
@@ -135,7 +138,7 @@ Keys (`5.17:libgnucash/engine/Split.cpp:69-75`), exposed as GObject properties (
 | `shares` | string | Written by the register as the constant phony text `(x + y)/42` (`split-register-model-save.c:740-748`, FIXME at `Split.cpp:440-444`); read by nothing in Since Last Run. Keep, never interpret. |
 
 - A **marker split** has both formulas empty (`split_is_marker`, `gnc-sx-instance-model.c:200-219`). It is still
-  created, with value 0 (oracle §9.3, "Marker"), but its commodity does not count when choosing the transaction's
+  created, with value 0 (`gnc-sx-instance-model.c:1169-1194`, `:1386-1389`), but its commodity does not count when choosing the transaction's
   currency (§3.8).
 - A transaction whose first split has a credit or debit formula slot (even empty) is a template:
   `xaccTransIsSXTemplate` (`Transaction.cpp:2350-2371`) exempts it from the read-only-by-date check (`:2385-2386`).
@@ -169,7 +172,8 @@ else if sx has a count:         if (tsd ? tsd.num_occur_rem : sx.rem) == 0: next
 ```
 
 So the first occurrence is the first recurrence date on or after the start date, and with a NULL state the result is
-always that first occurrence (oracle §9.4: `GetNextInstance(NULL)` stays 2025-01-01 after three runs). Only the
+always that first occurrence (oracle §9.2: `GetNextInstance(NULL)` is 2025-01-01 for a schedule whose last occurrence
+is 2025-02-01). Only the
 count path reads the remaining occurrences of the scheduled transaction itself.
 
 `gnc_sx_get_num_occur_daterange(sx, start, end)` (`:739-812`) counts occurrences in an inclusive range by stepping a
@@ -274,15 +278,14 @@ start (`:223-229`) and to every computed date (`:369-370`).
 Because the scheduled transaction asks for the first occurrence after *start − 1 day* (§1.5), a start on a Saturday
 or Sunday with `back` has an adjusted start *at or before* that reference, so the first occurrence is skipped: monthly
 from Saturday 2025-05-31 with `back` gives 2025-06-30 first, and yearly from Saturday 2025-03-01 gives 2026-02-27
-first (oracle §9.1, and §9.4 for the whole scheduled transaction). With `forward` the first occurrence is the adjusted
+first (oracle §9.1, and §9.2 for the whole scheduled transaction). With `forward` the first occurrence is the adjusted
 start (2025-06-02).
 
 ### 2.5 Lists of recurrences
 
 - `recurrenceListNextInstance(list, ref)` (`:432-460`): the earliest of each recurrence's next instance; an empty
   list gives invalid. The GUI uses two monthly recurrences for "semi-monthly" (`recurrenceListIsSemiMonthly`,
-  `:555-582`) and one weekly recurrence per weekday for "weekly on several days"; oracle §9.4 ("Two": the 1st and 15th
-  interleave, each counted as one instance).
+  `:555-582`) and one weekly recurrence per weekday for "weekly on several days"; each date from the list is one instance (§1.5).
 - `recurrenceNthInstance(r, n)` (`:384-395`) iterates from the start (zero-based); `recurrenceGetPeriodTime`
   (`:397-418`) gives period boundaries. Budgets use these, not scheduled transactions.
 
@@ -386,7 +389,7 @@ GnuCash Scheme function. The parser loads `gnucash/app-utils/fin` on init (`gnc-
 meant to call (§7).
 
 A failed call reports `Stack underflow` rather than `Not a defined function`, because the parser's end-of-input
-check overwrites the error code (`expression_parser.c:1231-1236`, `:623-633`; oracle §9.2). Only the failure matters.
+check overwrites the error code (`expression_parser.c:1231-1236`, `:623-633`; §9.3, H4). Only the failure matters.
 
 ### 3.5 Variables in scheduled transactions (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c`)
 
@@ -398,8 +401,7 @@ check overwrites the error code (`expression_parser.c:1231-1236`, `:623-633`; or
 - When the first instance of a scheduled transaction is generated, every collected variable's value is set to the
   numeric error `GNC_ERROR_ARG`, i.e. unbound (`_wipe_parsed_sx_var`, `:194-198`, `:435-441`). Each instance gets
   its own copy, plus **`i` = the instance's `num_inst`**, not editable (`:443-456`). So the first instance of a
-  scheduled transaction created by the GUI has `i = 1`; one with instance count 0 in the file has `i = 0` (oracle §9.3,
-  "Count").
+  scheduled transaction created by the GUI has `i = 1`; one with instance count 0 in the file has `i = 0` (`:451-452`; §9.3, H6).
 - Variables assigned inside a formula (`x = 5`) are variables too, and must be bound like any other; an assignment
   binds the name only for the rest of that one formula, since each formula is parsed separately with a copy of the
   bindings (`gnc_sx_instance_get_variables_for_parser`, `:221-232`).
@@ -407,7 +409,7 @@ check overwrites the error code (`expression_parser.c:1231-1236`, `:623-633`; or
   the GUI refuses OK until each is bound (`5.17:gnucash/gnome/dialog-sx-since-last-run.c:1563-1594`). Values are
   only ever numerics (`gnc-sx-instance-model.h:62-67`).
 - The editor refuses auto-create for a scheduled transaction with variables other than `i`, or with more than one
-  commodity (`dialog-sx-editor.c:617-634`, `:882-884`). A book can still hold one (oracle §9.3, "AutoVar"), and then
+  commodity (`dialog-sx-editor.c:617-634`, `:882-884`). A book can still hold one, and then
   every run creates zero transactions (Fact 2).
 
 ### 3.6 Amounts when a transaction is created
@@ -419,15 +421,16 @@ For each template split (`create_each_transaction_helper`, `gnc-sx-instance-mode
    least `i`, so there the formula is always parsed; the shortcut serves only the cash flow (§3.9). An empty formula
    gives 0. A parse failure is reported and leaves the value 0 (`:1127-1139`).
 2. **Value** = debit − credit, exact (`gnc_numeric_sub_fixed`; with `GNC_DENOM_AUTO` and `RND_NEVER` it stays exact
-   across denominators, oracle §9.2), or 0 with an error if that fails (`:1169-1194`). `xaccSplitSetValue` rounds it
+   across denominators, oracle §9.2, Guile-free), or 0 with an error if that fails (`:1169-1194`).
+   `xaccSplitSetValue` rounds it
    HALF_UP to the transaction currency's fraction, and keeps the old 0 if a non-zero value rounds to 0
    (`5.17:libgnucash/engine/Split.cpp:1280-1300`).
 3. **Amount (quantity):** if the account's commodity is the transaction currency, `xaccSplitScrub` sets amount =
    value (`5.17:libgnucash/engine/Scrub.cpp:236-347`). Otherwise (`split_apply_exchange_rate`, `:1196-1231`):
    rate = the exchange-rate variable, or 1 if absent; for a **non-currency** commodity
    `amount = round(value ÷ rate, commodity fraction)`; for a **currency** `amount = round(value × rate, 1000)`; then
-   `xaccSplitSetAmount` rounds HALF_UP to the account's SCU (`Split.cpp:1243-1266`). Oracle §9.3: 100 USD into EUR at
-   `EUR -> USD = 0.9` gives quantity −90.00 EUR; 100 USD of ACME at `ACME -> USD = 3` gives 33.3333 shares.
+   `xaccSplitSetAmount` rounds HALF_UP to the account's SCU (`Split.cpp:1243-1266`). Worked from these lines (§9.3, H6): 100 USD into EUR
+   at `EUR -> USD = 0.9` gives quantity −90.00 EUR; 100 USD of ACME at `ACME -> USD = 3` gives 33.3333 shares.
 4. The commit scrubs the transaction (`Transaction.cpp:1549-1558`): if rounding left it unbalanced, an
    `Imbalance-<CUR>` split is added. The splits are then sorted debits first (`:1508-1510`, `:541-553`).
 
@@ -527,7 +530,7 @@ instance count and remaining occurrences:
   a register of them (`:1604-1608`).
 - red-ale is headless and never runs this on open ([`../milestone4.md`](../milestone4.md), "Out").
 
-### 4.6 The transactions created (`create_each_transaction_helper`, `:1310-1422`; oracle §9.3)
+### 4.6 The transactions created (`create_each_transaction_helper`, `:1310-1422`; needs hand-worked cases, §9.3 H6)
 
 | Field | Value |
 |---|---|
@@ -543,13 +546,13 @@ instance count and remaining occurrences:
 Template transactions dated now and with value 0 are untouched. The created GUIDs are returned to the caller
 (`:1414-1419`).
 
-### 4.7 The scheduled transaction afterwards (oracle §9.3–§9.5)
+### 4.7 The scheduled transaction afterwards (from source; §9.3 H7–H8)
 
 `sx:last` = the latest date acted on; `sx:instanceCount` = last acted instance's count + 1; `sx:rem-occur` reduced by
 one per instance advanced; the deferred list gains newly postponed and loses re-decided instances. Nothing else
 changes: not `enabled`, not the template.
 
-### 4.8 Quirks a faithful port inherits (oracle §9.4, §9.5)
+### 4.8 Quirks a faithful port inherits (from source; §9.2 replay, §9.3 H6–H8)
 
 1. **Duplicates after a deferral.** With a deferred instance, *to create* instances are generated from the deferred
    state + 1, so instances created after the postponed one are proposed again on every later run, until the deferred
@@ -567,7 +570,8 @@ With an end date, occurrences after it are invalid; with a count, none once rema
 transaction is kept, enabled, with its template; no code in 5.17 deletes or disables it (the only callers of
 `xaccSchedXactionDestroy` and `SetEnabled` are the user's own actions:
 `5.17:gnucash/gnome/gnc-plugin-page-sx-list.cpp:978`, `:1029-1031`, `dialog-sx-editor.c:973`, `:1122`,
-`5.17:gnucash/gnome-utils/gnc-tree-view-sx-list.c:183`). Oracle §9.4 ("Ends"): enabled `y`, `rem-occur 0`.
+`5.17:gnucash/gnome-utils/gnc-tree-view-sx-list.c:183`). Oracle §9.2 ("Ends", count 2, remaining 0): no next
+occurrence, with or without a state.
 
 ---
 
@@ -708,7 +712,7 @@ Creation order: the repayment, then the options in order (`AL:3027-3040`).
 5. The review page's preview computes from the loan start with `i` = 1, 2 … and rounds to 1/100 whatever the
    currency (`AL:2057-2235`); it is not what Since Last Run will create for a loan already under way.
 6. `pmt` and `ipmt + ppmt` differ by about 10⁻¹⁰ after the 12-figure conversion (599.550525153 against
-   500 + 99.5505251528); the split values round to the same cents in the worked example, but nothing guarantees it,
+   500 + 99.5505251528, worked by hand in §9.3, H3); the split values round to the same cents in the worked example, but nothing guarantees it,
    and an unbalanced instance gets an Imbalance split (Fact 14).
 
 ---
@@ -740,18 +744,20 @@ argument (0 = end of period, 1 = beginning) only enters `calc_pmt`'s denominator
 ### 7.2 Floating point, precisely
 
 Everything is double: the arguments arrive as doubles (§3.4) and the Scheme literals `1.0`, `0.01` keep them inexact.
-Two Guile details decide the low bits (Guile 3.0.9 behaviour, observed with the oracle's `libguile-3.0.so.1` and the
-`guile` binary; Guile's source is not in the GnuCash tree):
+Two Guile details decide the low bits, and neither can be settled here: Guile's source is not in the GnuCash tree
+and Guile is not run (§9). They **need hand-worked cases** (§9.3, H9):
 
-- **`expt` with an integer-valued exponent** (an exact integer, or a double such as `360.0`) uses
-  square-and-multiply, not C `pow`: `(expt 1.005 360.0)` is `6.022575212262888`, `pow(1.005, 360.0)` is
-  `6.0225752122629865` (§9.6). A non-integer exponent (`periodic_rate`'s `ycomp/yper`) uses `pow`.
-- **`round` is round-half-to-even** on doubles: `(round 2.5)` = 2.0, `(round 0.5)` = 0.0 (§9.6). So `cpd_*` and
-  `amort_*` round ties to even, unlike GnuCash's HALF_UP everywhere else.
+- **`expt` with an integer-valued exponent.** Whether `(expt 1.005 360.0)` (the exponent arrives as a double) is
+  computed with C `pow` or by repeated multiplication changes the last bits: `pow(1.005, 360)` is
+  `6.0225752122629865`, square-and-multiply in doubles gives `6.022575212262888` (both computed in Python, not
+  Guile). A non-integer exponent (`periodic_rate`'s `ycomp/yper`) can only be `pow` or `exp∘log`.
+- **`round` on doubles** rounds ties to even in R7RS Scheme (docs-only), so `cpd_*` and `amort_*` would round ties
+  to even, unlike GnuCash's HALF_UP everywhere else.
 
 Then the result passes through the 12-significant-figure, half-up conversion (§3.4), and the split value through
-HALF_UP to the currency fraction (§3.6). Example (oracle §9.2): `pmt(0.005 : 360 : 100000 : 0 : 0)` → Guile
-`599.550525152759` → `599550525153/1000000000` → value 599.55. The exact rational is `599.55052515275239…`.
+HALF_UP to the currency fraction (§3.6). Worked example (§9.3, H2): the exact `pmt(1/200, 360, 100000, 0, 0)` is
+`599.55052515275239…`; fin.scm's formula in doubles gives 599.5505251527569 with `pow` and 599.550525152759 with
+square-and-multiply; 12 significant figures give `599550525153/1000000000` either way, and the split value 599.55.
 
 ### 7.3 The financial calculator (`5.17:libgnucash/app-utils/calculation/fin.c`)
 
@@ -780,13 +786,13 @@ two ways to give GnuCash's figures (*Proposed*, for "Decide before code" item 6 
    non-integer power (`periodic_rate`, `cpd_*`, `amort_*` with `cy ≠ py`) have irrational results; an exact port
    needs an interval method, and `cpd_*`/`amort_*` add half-even ties on doubles.
 2. **Emulate the doubles bit for bit in software.** IEEE-754 `+ − × ÷` are correctly rounded and can be done with
-   integer arithmetic (a soft-float library), and Guile's `expt` is square-and-multiply, so `pmt`, `ipmt`, `ppmt`
-   reproduce Guile exactly with no hardware float. `pow` is glibc's, which is not specified to the last bit, so the
+   integer arithmetic (a soft-float library); if Guile's `expt` is square-and-multiply for integer exponents (H9),
+   `pmt`, `ipmt`, `ppmt` reproduce Guile exactly with no hardware float. `pow` is glibc's, which is not specified to the last bit, so the
    `periodic_rate` family can only be emulated up to glibc's own error. This keeps `clippy::float_arithmetic`
    satisfied (no `f64` operations) but is float semantics in disguise, against the spirit of "Money is exact".
 
 The amounts that reach the book are rounded to the SCU in both, so either matches GnuCash for every realistic loan;
-hand-worked cases confirm a table of them (§9.2 records the values GnuCash gave, observed before the no-Guile decision).
+hand-worked cases (§9.3, H2–H5) are the test table, each citing the fin.scm and parser lines it follows.
 
 ---
 
@@ -799,32 +805,33 @@ hand-worked cases confirm a table of them (§9.2 records the values GnuCash gave
 
 ---
 
-## 9. Oracle experiments
+## 9. Oracle experiments and hand-worked cases
 
-**How.** The 5.17 Python bindings expose nothing for scheduled transactions: no `SchedXaction`, `Recurrence`,
-instance model or expression parser (a scan of `gnucash_core_c` and `_sw_app_utils` finds no such names; the only
-SWIG wrapper, `gnc_sx_all_instantiate_cashflow_all`, is Guile-only, `5.17:bindings/expressions.i:71`). They do give
-the raw `QofSession*` and `QofBook*` (`int(session.instance)`), and the libraries export everything, so the runs used
-`ctypes`: `libgnc-engine.so` (`recurrenceSet`, `recurrenceNextInstance`, `xaccSchedXactionGetNextInstance`,
-`gnc_sx_*`), and `libgnc-expressions.so`, which in 5.17 holds the instance model and the expression parser
-(`gnc_sx_get_instances`, `gnc_sx_instance_model_change_instance_state`, `…_set_variable`, `…_effect_change`,
-`gnc_exp_parser_parse`). Setup: `gnc_set_current_session(session)` (the instance model uses the current book);
-`scm_init_guile()`, `(use-modules (gnucash app-utils c-interface))` for `gnc:apply-with-error-handling`, and
-`gnc_exp_parser_real_init(FALSE)`, with `GUILE_LOAD_PATH` and `GUILE_LOAD_COMPILED_PATH` pointing into
-`~/.local/opt/gnucash-5.17`. Structs (`GncSxInstances`, `GncSxInstance`, `SXTmpStateData`, `GncSxVariable`,
-`Recurrence`, `GDate` as 8 opaque bytes via GLib's accessors) were declared to match the 5.17 headers. Books were
-built by appending scheduled transactions, template accounts and template transactions in 5.17's own XML form to a
-copy of `fixtures/synthetic/rich.gnucash`, then opened, run with a chosen `range_end`, saved and read back. Version
-checked as 5.17 first. All of it worked.
+**No Guile.** red-ale never loads or runs Guile, in its tests either (`CLAUDE.md`, "No Guile, ever"; the user's
+decision of 2026-10-27 extends it to the oracle). `ldd` shows the 5.17 Python bindings (`_gnucash_core_c.so`,
+`_sw_app_utils.so`), `libgnc-engine.so` and `libgnc-app-utils.so` link no Guile, while `libgnc-expressions.so` links
+`libgnucash-guile.so` and `libguile-3.0.so.1`. That library holds both the expression parser and the Since Last Run
+instance model in 5.17, and its parser starts Guile on first use (`gnc-exp-parser.c:84-85`, `:508-509`), which every
+instance-model path reaches through `gnc_sx_get_variables` (`gnc-sx-instance-model.c:435-441` → `:390-395` →
+`:234-263`). So **the parser and the instance model are not oracles**; loading the library alone loads Guile.
 
-**Not for red-ale's tests.** These runs started Guile (`scm_init_guile`, the `c-interface` module, the parser's
-Guile functions), and were made before the decision of 2026-10-27 that red-ale runs no Guile, in its tests either
-(`CLAUDE.md`, "No Guile, ever"). Their results are recorded here as observations of GnuCash. Oracle tests may use
-only calls that start no Guile: `recurrenceSet`, `recurrenceNextInstance`, `xaccSchedXactionGetNextInstance`, and
-reading back the books red-ale saved. Anything that evaluates a formula (the expression parser, the instance
-model's amounts, `fin.scm`) is tested with hand-worked cases citing the 5.17 lines they follow.
+**What the oracle can do.** The bindings expose nothing for scheduled transactions (no `SchedXaction`, `Recurrence`,
+instance model or parser names in `gnucash_core_c` or `_sw_app_utils`; the one SWIG wrapper,
+`gnc_sx_all_instantiate_cashflow_all`, is a Guile binding, `5.17:bindings/expressions.i:71`). They do give the raw
+`QofBook*` (`int(book.instance)`), and `libgnc-engine.so` exports the engine half, so `ctypes` calls into
+`libgnc-engine.so` and GLib work with no Guile: `recurrenceSet`, `recurrenceNextInstance`,
+`xaccSchedXactionGetNextInstance`, `gnc_sx_create_temporal_state`, `gnc_sx_incr_temporal_state`,
+`gnc_sx_get_defer_instances`, `gnc_sx_get_num_occur_daterange`, `gnc_numeric_*`, and the book's scheduled
+transactions through `qof_collection_foreach(qof_book_get_collection(book, "SchedXaction"), …)`. Books with
+scheduled transactions are built by appending them, with template accounts and template transactions, in 5.17's own
+XML form to a copy of `fixtures/synthetic/rich.gnucash`, and opened read-only with the bindings. Each run checks the
+version is 5.17 first, and afterwards that no `libguile` is mapped in `/proc/self/maps`. `xaccParseAmount`
+(`libgnc-app-utils.so`) is also reachable this way for number parsing (not yet used).
 
-### 9.1 Recurrences
+Earlier runs in this research, made before the decision, started Guile; their scripts are deleted and their results
+are not used here. Each became a hand-worked case in §9.3.
+
+### 9.1 Recurrences (Guile-free)
 
 `recurrenceSet` then repeated `recurrenceNextInstance` from start − 1 (results in §2.6), plus unnormalised
 recurrences set field by field: `end of month` with start 01-15 → 01-15, 01-31, 02-28 …; `nth weekday` stored in the
@@ -832,86 +839,45 @@ fifth week (start 2025-01-29) → 04-23 instead of 04-30; `last weekday` with st
 03-14 …; `week` with `back` → unaffected. `mult` 0 normalised to 1. A reference after the start (monthly from
 2025-01-15, ref 2025-06-20) → 2025-07-15.
 
-### 9.2 The expression parser (`gnc_exp_parser_parse`)
+### 9.2 Engine-level checks (Guile-free)
 
-```
-1 + 2 → 3/1        (5) → -5/1        (5) + 1 → 6/1       1,234.5 * 2 → 2469/1     a = 3 → 3/1
-x + 2 → 2/1        a + b → 0/1       10 / 4 → 5/2        1 / 0 → error "Numeric error"
-1 2 → error        pmt(0.005, 360, 100000, 0, 0) → error (',' is not the separator)
-pmt(0.005 : 360 : 100000 : 0 : 0)        → 599550525153/1000000000
-pmt( 0.06 / 12 : 360 : 100000 : 0 : 0 )  → 599550525153/1000000000
-ipmt(0.005 : 1 : 360 : 100000 : 0 : 0)   → 500/1
-ppmt(0.005 : 1 : 360 : 100000 : 0 : 0)   → 124438156441/1250000000   (99.5505251528)
-ipmt(0.005 : 360 : 360 : 100000 : 0 : 0) → 1864274021/625000000      (2.9828384336)
-ppmt(0.005 : 360 : 360 : 100000 : 0 : 0) → 596567686719/1000000000
-pmt(0 : 12 : 1200 : 0 : 0)               → error (0/0 is NaN)
-cpd_pmt(0.06 : 12 : 2 : 360 : 100000 : 0 : 0) → 29741/50 (594.82)
-periodic_rate(0.06 : 12 : 2)             → 6173277539/1250000000000 (0.0049386220312)
-amort_pmt(12 : 2 : 0.05 : 100000 : 4385 : 24 : 2)  → 219051/50 (4381.02, the smaller last payment)
-amort_ipmt(12 : 2 : 0.05 : 100000 : 4385 : 9 : 2)  → 13971/50 (279.42, matching fin.scm's own table, :260)
-futureValue(1000 : 0.05 : 12 : 10)       → 164700949769/100000000
-foobar(1/3) → 333333333333/1000000000000     foobar(0.1) → 1/10     foobar(123456789.123456789) → 123456789123/1000
-foobar("abc") → error (string result)        nosuch(1) → error      foobar(2) * 1.5 → 3/1
-```
+- `gnc_numeric_sub(a, b, GNC_DENOM_AUTO, DENOM_FIXED | RND_NEVER)` (the `sub_fixed` of §3.6): 3/2 − 1/4 = 5/4,
+  10/3 − 0 = 10/3, 1/3 − 1/7 = 4/21, 123/100 − 1/3 = 269/300: exact.
+- `xaccSchedXactionGetNextInstance` on loaded books:
 
-`gnc_numeric_sub(a, b, GNC_DENOM_AUTO, DENOM_FIXED | RND_NEVER)` (the `sub_fixed` of §3.6): 3/2 − 1/4 = 5/4,
-1/3 − 1/7 = 4/21, 123/100 − 1/3 = 269/300: exact.
+  ```
+  Weekend  monthly from Sat 2025-05-31, back       NULL → 2025-06-30   state → 2025-06-30
+  Ends     count 2, remaining 0, last 2025-02-01   NULL → invalid      state → invalid
+  EndDate  end 2025-02-01, last 2025-02-01         NULL → 2025-01-01   state → invalid
+  Defer    count 6, remaining 4, last 2025-02-01   NULL → 2025-01-01   state → 2025-03-01
+  ```
 
-### 9.3 Since Last Run, creation (`slr1`: ten scheduled transactions, `range_end` 2025-02-12)
+  `NULL` ignores the last occurrence (§1.5); the temporal state of a never-run scheduled transaction has last date
+  1970-01-01 (Weekend).
+- **Deferral replay.** *Defer* also holds the deferred instance `(1970-01-01, 6, 1)` that postponing January leaves
+  (§4.4). Replaying `_gnc_sx_gen_instances` (`gnc-sx-instance-model.c:500-535`) by hand with the engine calls above,
+  to 2025-03-15: postponed 2025-01-01 (count 1), then *to create* **2025-02-01** and 2025-03-01, though the last
+  occurrence is 2025-02-01 and its own next instance is 2025-03-01. This is a hand replay of the loop, not GnuCash's
+  code running; the full Since Last Run is H7 below.
 
-Proposal (excerpt): *Plain* (monthly from 2025-01-01, remind 20 days) → 01-01 and 02-01 *to create*, 03-01
-*reminder*; every instance has `i` = its `num_inst` (1, 2, 3); *Vars* (`amt * 2 + i`) has `amt` unbound
-(`-1/0` = `GNC_ERROR_ARG`); *Euro* has `EUR -> USD` and *Stock* `ACME -> USD`. After binding `amt = 25/2`,
-`EUR -> USD = 9/10`, `ACME -> USD = 3/1`, applying auto-create first and then everything:
+### 9.3 Needs hand-worked cases
 
-```
-Plain  2025-01-01 10:59:00 +0000, entered = now, num "CHK", slots date-posted, from-sched-xaction=<SX guid>, notes "tmpl notes"
-       Food 10000/100 memo "food memo" action "act1" | Bank -10000/100 memo "bank memo"
-Vars   Food 2600/100 | Bank -2600/100 (i=1); next month 2700/100 (i=2)
-Count  (instanceCount 0 in file) i = 0 for the first instance; num 3 rem 3 → rem 1, count 2 after two
-Round  debit 1.005, credit 1:  Food 101/100 | Bank -100/100 | Imbalance-USD -1/100   (account created)
-Third  10/3 each side:          Food 333/100 | Bank -333/100
-Marker Food 500/100 | Food 0/100 memo "marker" | Bank -500/100
-Euro   Food 10000/100 | Euro Bank value -10000/100 quantity -9000/100
-Stock  ACME value 10000/100 quantity 333333/10000 | Bank -10000/100
-AutoNotify  created by the auto-create pass (7.00 each)
-AutoVar     (auto-create, formula "x", x unbound) errors "Error parsing SX [AutoVar] key [sx-debit-formula]=formula [x]
-            at [x]: Numeric error." — and two zero transactions per pass, four in all; SX not advanced
-```
+Each case below needs Guile to run in GnuCash, so red-ale's tests hold it as a hand-worked case: inputs, the value
+worked by hand from the cited 5.17 lines, and those citations. Values marked *worked* are worked from source here
+(with Python `fractions` for exact values; nothing ran in Guile); the rest are still to be worked.
 
-Created splits carry no Slots; reconcile state `n`.
-
-### 9.4 Since Last Run, schedule state (`slr2`, book threshold 30 days)
-
-```
-run1 (to 2025-02-15): Defer (count 6) Jan POSTPONED, Feb TO_CREATE → last 02-01, count 3, rem 4, deferred [(1970-01-01, 6, 1)]
-     Ends (count 2) both created → rem 0, GetNextInstance invalid, enabled stays y
-     Old (start 2024-01-01, last 2024-06-01) → 2024-07-01 … 2025-02-01 all created despite the 30-day threshold
-     Weekend (monthly from Sat 2025-05-31, back) → next 2025-06-30
-     Two (1st and 15th) → 01-01, 01-15, 02-01, 02-15
-run2 (to 2025-03-15): Defer proposes Jan POSTPONED, Feb TO_CREATE (again), Mar TO_CREATE → both created, rem 1
-run3 (to 2025-03-20): Defer proposes Feb and Mar again → created again, rem 0
-run4 (to 2025-04-15): Defer's postponed Jan set IGNORED → deferred list empty; Feb, Mar, Apr created again
-```
-
-The saved Defer: `instanceCount 5`, `last 2025-04-01`, `num-occur 6`, `rem-occur 0`, and seven transactions from a
-schedule limited to six occurrences, Feb and Mar three times each.
-
-### 9.5 Since Last Run, postponing (`slr3`: monthly, count 5, instanceCount 3, remind 45 days)
-
-```
-to 01-15: Jan POSTPONED (Feb, Mar reminders)  → last 01-01, count 4, rem 4, deferred [(1970-01-01, 5, 3)]
-to 01-20: postponed Jan → TO_CREATE           → created; count 4, rem 3, deferred []
-to 01-20: Mar (a reminder) → TO_CREATE         → Feb reminder became POSTPONED; Mar created; count 6, rem 1
-to 02-20: postponed Feb → REMINDER             → all later forced to REMINDER; Feb removed from the deferred list
-```
-
-### 9.6 Guile arithmetic
-
-`(expt 1.005 360.0)` = `(expt 1.005 360)` = 6.022575212262888 (C `pow`: 6.0225752122629865; square-and-multiply in
-doubles: 6.022575212262888); `(expt 1.005 (/ 1.0 6.0))` = 1.0008316025082902 = `pow`; `(round 2.5)` = 2.0,
-`(round 0.5)` = 0.0. Emulating fin.scm's `gnc:pmt` with square-and-multiply doubles gives 599.550525152759, which
-GnuCash's conversion turns into the 599.550525153 of §9.2.
+| # | Case | 5.17 lines a hand-worked case follows |
+|---|---|---|
+| H1 | Parser without functions: `1 + 2` = 3; `(5)` = −5, `(5) + 1` = 6; `1,234.5 * 2` = 2469 (`en_US`); `a = 3` = 3; `a + b` = 0; `10 / 4` = 5/2; `1 / 0`, `1 2`, `1 asdf` fail. *Worked.* GnuCash's own expectations: `test-exp-parser.c:153-189` | `expression_parser.c:583-639` (parse, `(I)` at `:609-620`), `:677-705` (unknown name = 0), `:767-869` (tokens), `:871-1096` (operators, grammar errors); `gnc-exp-parser.c:362-421` (numbers, exact ops), `:436-443`, `:459-490` (`gnc_exp_parser_parse`), `:534-546` (numeric error, reduce) |
+| H2 | `pmt(0.005 : 360 : 100000 : 0 : 0)` and `pmt( 0.06 / 12 : 360 : 100000 : 0 : 0 )`. *Worked:* exact 599.55052515275239…; double candidates 599.5505251527569 (`pow`) and 599.550525152759 (square-and-multiply); 12 significant figures half up 599.550525153 either way; split value 599.55 | `fin.scm:49-51`, `:75-90`; `gnc-exp-parser.c:311-334` (arguments to doubles), `:346-357`; `gnc-numeric.cpp:87-119` (`GncNumeric(double)`: floor at 10^k), `:467-482` (`sigfigs_denom`); `Split.cpp:1280-1300` (value to the currency fraction) |
+| H3 | `ipmt` / `ppmt` with rate 0.005, 360 periods, 100000. *Worked:* per 1 → 500 and 99.5505251527524 → 99.5505251528; per 360 → 2.98283843359578 → 2.98283843360 and 596.567686719157 → 596.567686719; `ipmt + ppmt` ≠ `pmt` by about 10⁻¹⁰ before rounding to cents | `fin.scm:34-46`, `:92-97`; then as H2 |
+| H4 | `pmt(0 : 12 : 1200 : 0 : 0)` (zero rate) fails; `nosuch(1)` fails; `foobar("abc")` fails (string result); `pmt(0.005, 360, …)` fails (`,` not the separator) | `fin.scm:88-90` (division by the rate: 0.0/0.0 is NaN in doubles); `gnc-numeric.cpp:90-95` (NaN refused); `gnc-exp-parser.c:299-310`, `:336-357`; `expression_parser.c:1180-1244`, `:1231-1236`, `:623-633` (the error code is overwritten) |
+| H5 | `cpd_pmt(0.06 : 12 : 2 : 360 : 100000 : 0 : 0)`, `periodic_rate(0.06 : 12 : 2)`, `amort_pmt` / `amort_ipmt` / `amort_ppmt` / `amort_balance` on fin.scm's own example (100000 at 5 % compounded semi-annually, 24 monthly payments of 4385, 2 places: period 9 interest 279.42, `fin.scm:251-261`), `futureValue`, `computeInterestIncrement` | `fin.scm:56-68`, `:110-112`, `:152-184`, `:300-366`; Scheme `round` ties (H9); then as H2 |
+| H6 | Since Last Run creation, one scheduled transaction each: plain (100 from Food to Bank, num `CHK`, notes, memos, action), variables (`amt * 2 + i` with `amt` = 12.5: *worked* 26 then 27), instance count 0 (`i` = 0), rounding (debit `1.005`, credit `1`: *worked* 1.01 / −1.00 / Imbalance-USD −0.01), thirds (`10/3` each side: *worked* 3.33 / −3.33), a marker split (*worked*: a 0.00 split), EUR split at `EUR -> USD` = 0.9 (*worked*: value −100.00, quantity −90.00 EUR), stock split at `ACME -> USD` = 3 (*worked*: quantity 33.3333), auto-create with an unbound variable (*worked*: the transaction is created with split values 0, the errors are reported, the schedule is not advanced, so the next run creates it again), auto-create with notify | `gnc-sx-instance-model.c:424-459` (bindings, `i`), `:1060-1148`, `:1169-1231`, `:1245-1308`, `:1310-1422`; `Transaction.cpp:605-633` (clone), `:1913-1950` (date), `:1508-1510`, `:1549-1558` (sort, scrub); `Split.cpp:1243-1300`; `Scrub.cpp:236-347` |
+| H7 | Schedule state across runs: postpone January and create February, then run monthly to April (the duplicates of §4.8.1); a count of 2 run to its end; an old schedule with a 30-day auto read-only threshold (created anyway); two monthly recurrences (1st and 15th) | `gnc-sx-instance-model.c:482-556` (proposal; engine half checked in §9.2), `:1042-1058`, `:1445-1554` (apply, read-only check at `:1453-1457`); `SchedXaction.cpp:885-926`, `:1031-1054`, `:1098-1125`; `Recurrence.cpp:432-460` |
+| H8 | Postponing quirks: count 5, instance count 3, remind 45 days: postpone January (remaining 4), create the postponed January (remaining 3, count 4), turn a reminder into *to create* (earlier reminder becomes postponed), set a postponed instance to Reminder (dropped from the deferred list) | `gnc-sx-instance-model.c:1042-1058`, `:1493-1517`, `:1556-1596`; GnuCash's `test_state_changes`, `test-sx.cpp:152-223` |
+| H9 | Guile arithmetic: is `(expt x 360.0)` square-and-multiply or `pow`; does `round` on doubles round ties to even (R7RS says so, docs-only). Decides the last bits of H2–H5 | Not in the GnuCash tree; a hand-worked case can only bound the effect: for H2–H3 both candidates round to the same 12 significant figures |
+| H10 | Cash flow for the forecast reports: a scheduled transaction with a stored numeric, one with variables (taken as 0), one in two commodities (0 with an error), counted over a date range | `gnc-sx-instance-model.c:1087-1118`, `:1793-1886`, `:1888-1976`; `SchedXaction.cpp:739-812` (the count is Guile-free and can be checked with the oracle) |
 
 ---
 
@@ -924,7 +890,8 @@ GnuCash's conversion turns into the 599.550525153 of §9.2.
 2. **Recurrences** are ported, not redesigned (§2.2), computing from stored fields; `recurrenceSet`'s normalisation
    applies only to recurrences red-ale creates. A stored `mult` of 0 for a periodic type is refused for computation,
    not rewritten. The tests port `test_some` exactly and `test_all` as a property test over the same ranges, plus the
-   §2.6 table, with the oracle (§9) producing the expected dates.
+   §2.6 table, with the oracle (§9: `recurrenceSet` and `recurrenceNextInstance`, which start no Guile) producing
+   the expected dates.
 3. **Formulas.** Move `expr.rs` into the core and add assignments, compound assignments, `(n)` negation, strings as
    function arguments and `:`-separated calls. Variables come only from the instance's bindings; the user's global
    `expressions-2.0` table is not consulted (deviation). Functions: the fin.scm set of §7.1, implemented per §7.4;
@@ -933,8 +900,8 @@ GnuCash's conversion turns into the 599.550525153 of §9.2.
    documented: (a) do **not** reproduce the deferral duplicates (§4.8.1): generate *to create* instances from the
    schedule's last occurrence and the deferred instances separately; (b) refuse an instance whose formulas fail,
    creating nothing, instead of creating zero transactions (§4.8.5); (c) keep GnuCash's occurrence counting
-   (§4.8.2–3), since it is what the next GnuCash run will read. Whether (a) changes what GnuCash later shows needs an
-   oracle check: GnuCash reading a book red-ale advanced must propose the same instances.
+   (§4.8.2–3), since it is what the next GnuCash run will read. Whether (a) changes what GnuCash later shows needs hand-worked
+   cases (§9.3, H7): the instance model cannot be run without Guile.
 5. **Auto read-only threshold.** GnuCash ignores it in Since Last Run (Fact 3). Proposed: red-ale flags such instances
    in the proposal (as `milestone4.md` says) and refuses them by default, with the caller able to create them
    explicitly, since creating a transaction GnuCash's register then shows as read-only is surprising.
@@ -956,15 +923,18 @@ GnuCash's conversion turns into the 599.550525153 of §9.2.
 1. **What GnuCash proposes after red-ale's deviations.** If red-ale avoids the deferral duplicates (§10.4a), the
    state it saves is the same fields GnuCash saves, but GnuCash's next run will still generate from the deferred
    state and propose duplicates. Can red-ale save a state GnuCash reads without duplicates (for example by creating
-   later instances only after the deferred one is decided)? Needs an oracle experiment.
+   later instances only after the deferred one is decided)? Needs hand-worked cases from `:482-556`; the engine half
+   (temporal states and `GetNextInstance`) can be checked with the Guile-free harness, as §9.2 does.
 2. **Formula text in other locales.** How `xaccParseAmount` in a `,`-decimal locale reads `1234.50` and `1,234.50`
    (§10.7), and what red-ale should do with an existing locale-formatted formula from another locale: the book does
-   not record the locale it was written in. Needs oracle runs with `LC_ALL=de_DE.UTF-8` (the locale must exist).
+   not record the locale it was written in. `xaccParseAmount` is in `libgnc-app-utils.so`, which links no Guile, so
+   oracle runs with `LC_ALL=de_DE.UTF-8` (the locale must exist) can answer this through `ctypes`.
 3. **What `scheduledTransaction.loan` writes.** GnuCash's text is locale-formatted (§6.2) and carries its defects
    (§6.3). Proposed: the same formula shapes (`pmt( r / ppy : n : pv : 0 : 0 )`, `i` for the period) in the C-locale
    form, the instance count and dates computed as GnuCash intends rather than as defect 1 leaves them, numerics set,
    other-payment amounts at full precision rather than two significant figures. Each departure is a deviation to
-   list, and needs an oracle check that GnuCash computes the same repayments from red-ale's text.
+   list, and needs hand-worked cases showing GnuCash computes the same repayments from red-ale's text (formula
+   evaluation needs Guile, §9).
 4. **Int64 overflow** in exact formula arithmetic (`GNC_HOW_DENOM_EXACT` fails where GnuCash would return an error and
    use 0). Proposed: refuse, as `expr.rs` does.
 5. **Template transactions in reports and queries.** GnuCash keeps them out by putting them under the template root;
