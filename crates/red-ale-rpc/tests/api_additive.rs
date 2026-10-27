@@ -1,8 +1,9 @@
-//! The API stays additive over `redAleApi` 0.2.0 until v1.0 freezes it (`design/api.md`, "Versioning"): every 0.2
-//! method is kept with the same Effect and Effect target, its params take no new required field and lose or retype
-//! none, its result loses or retypes no field, and every 0.2 error code keeps its name.
+//! The API stays additive over every released `redAleApi` until v1.0 freezes it (`design/api.md`, "Versioning"): every
+//! method of an earlier version is kept with the same Effect and Effect target, its params take no new required field
+//! and lose or retype none, its result loses or retypes no field, and every earlier error code keeps its name.
 //!
-//! `schemas/red-ale-api-0.2.0.json` is `red-ale schema` as v0.2 shipped it. Schemas are compared by what they let a
+//! `schemas/red-ale-api-0.2.0.json` and `schemas/red-ale-api-0.3.0.json` are `red-ale schema` as v0.2 and v0.3 shipped
+//! it. Schemas are compared by what they let a
 //! value hold, place by place, not by their `$defs` names (schemars numbers clashing names, so they shift) or their
 //! descriptions.
 
@@ -15,6 +16,7 @@ use red_ale_service::Settings;
 use serde_json::{Map, Value, json};
 
 const V0_2: &str = include_str!("schemas/red-ale-api-0.2.0.json");
+const V0_3: &str = include_str!("schemas/red-ale-api-0.3.0.json");
 
 /// What a schema says about one place in a value: the JSON types it may take (with their `format`), the values an
 /// enum or const allows, and whether it must be present.
@@ -162,6 +164,15 @@ fn the_api_is_additive_over_0_2_0() {
     let current = Dispatcher::new(Settings::default()).schema();
     let found = not_additive(&old, &current);
     assert!(found.is_empty(), "the API is no longer additive over 0.2.0:\n{}", found.join("\n"));
+}
+
+#[test]
+fn the_api_is_additive_over_0_3_0() {
+    let old: Value = serde_json::from_str(V0_3).unwrap();
+    assert_eq!(old["redAleApi"], "0.3.0");
+    let current = Dispatcher::new(Settings::default()).schema();
+    let found = not_additive(&old, &current);
+    assert!(found.is_empty(), "the API is no longer additive over 0.3.0:\n{}", found.join("\n"));
 }
 
 #[test]
