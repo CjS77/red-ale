@@ -1,0 +1,95 @@
+{
+  "books": {
+    "gnucash/bug-746937-sx-split-order.gnucash": {
+      "source": "gnucash/bug-746937-sx-split-order.gnucash",
+      "sourceSha256": "986f5c020bdc8dddaf1e08fe99f5c219cf58a76835e7bc4516f55400063582ca"
+    },
+    "gnucash/sample1.gnucash": {
+      "source": "gnucash/sample1.gnucash",
+      "sourceSha256": "957f7dbc88795f09a47dd3ec1735c84610318f08177c52b2b515f444407af6ec"
+    },
+    "piecash/all_account_types.gnucash": {
+      "source": "piecash/all_account_types.gnucash",
+      "sourceSha256": "b572a17155fa3b06573e802d6ac23a8369b6e3876b9d09953678aeaf88e4bbf2"
+    },
+    "piecash/book_prices.gnucash": {
+      "source": "piecash/book_prices.gnucash",
+      "sourceSha256": "9c77b41ae4604a6466000688e47663a58b4584ea89713378e144c72deb2ecdf9"
+    },
+    "piecash/book_schtx.gnucash": {
+      "source": "piecash/book_schtx.gnucash",
+      "sourceSha256": "6d519e5fbce391aea07b5d445c1ae75e4a54f4eb805ce99129aab1117de2f5b2"
+    },
+    "piecash/ghost_kvp_scheduled_transaction.gnucash": {
+      "source": "piecash/ghost_kvp_scheduled_transaction.gnucash",
+      "sourceSha256": "7f2e91224a429954392296b6eab295bd66b26efe537e2c693904c3584ed820a8"
+    },
+    "piecash/investment.gnucash": {
+      "source": "piecash/investment.gnucash",
+      "sourceSha256": "332df1f919041632eb4f072f70096256f4938b339313413f7d85341f91ee903d"
+    },
+    "piecash/invoices.gnucash": {
+      "source": "piecash/invoices.gnucash",
+      "sourceSha256": "1b99678677c325c997fd1c057cbf6ebb495d3579acc9ac1651753efc21d6b83e"
+    },
+    "piecash/simple_sample.gnucash": {
+      "source": "piecash/simple_sample.gnucash",
+      "sourceSha256": "86a114184490004a55ad26b2fb8259d4dc10cfd0dd81a8f54f1fc47a2e4ab18a"
+    },
+    "reports/average-balance.gnucash": {
+      "source": "reports/average-balance.gnucash",
+      "sourceSha256": "ced109b84eb370d2fff37ffd469f5602d998b03a3ac5d131ee9bf330628643bc"
+    },
+    "reports/balsheet-pnl.gnucash": {
+      "source": "reports/balsheet-pnl.gnucash",
+      "sourceSha256": "42eeb6cf8e81620bd2a8c5d92914e4ff38c53866fb53c2db3d067dae47c00aa3"
+    },
+    "reports/category-average.gnucash": {
+      "source": "reports/category-average.gnucash",
+      "sourceSha256": "6ae98c8c1fc38ac232aafe26d8623c6f6bb66d2cb44ace90a782a12c1974f317"
+    },
+    "reports/category-daily.gnucash": {
+      "source": "reports/category-daily.gnucash",
+      "sourceSha256": "5562289dadb59cb27a80d667d5795af71dd4e4f71345329ae165c787409c7f17"
+    },
+    "reports/category-liability.gnucash": {
+      "source": "reports/category-liability.gnucash",
+      "sourceSha256": "fdf46cf89f7a8b7836196f9d3fb10ea22fc5dda4c57691c7a0fbcfc22ea98c29"
+    },
+    "reports/category-multi.gnucash": {
+      "source": "reports/category-multi.gnucash",
+      "sourceSha256": "171281baae7c706c3265d2352042dc687fbfcb6212cf75fb43235529e063cb2c"
+    },
+    "reports/charts-daily.gnucash": {
+      "source": "reports/charts-daily.gnucash",
+      "sourceSha256": "054869eb7faa0aac4e1cb6b03e3991cd4c128974c57315f418ad63a9a3147118"
+    },
+    "reports/charts-net.gnucash": {
+      "source": "reports/charts-net.gnucash",
+      "sourceSha256": "ee571e6afbd675b2b54c3d9bce8330366732543ba6b2eb311981ba907d4e5bed"
+    },
+    "reports/net-days.gnucash": {
+      "source": "reports/net-days.gnucash",
+      "sourceSha256": "299c7785a44a6a7ec0041048f75b622ea002edda5a5c72b42fdab033cca21951"
+    },
+    "reports/test-data.gnucash": {
+      "source": "reports/test-data.gnucash",
+      "sourceSha256": "dcfa4a9d9a2fbb5f783fd79154869107763c590d4105181dbe1307cf59c8fd24"
+    },
+    "synthetic/business-editable.gnucash": {
+      "source": "synthetic/business-editable.gnucash",
+      "sourceSha256": "e54aad4af1520203de2fe2980d64e9a3cd2e10b8044727df6ef5836c393f5b4f"
+    },
+    "synthetic/business.gnucash": {
+      "source": "synthetic/business.gnucash",
+      "sourceSha256": "623fcab6b8b522094b6f9b177c721f2b8d696f483adc71cc9d06424d64b4f28e"
+    },
+    "synthetic/rich.gnucash": {
+      "source": "synthetic/rich.gnucash",
+      "sourceSha256": "643762a255d00cf719a711a3b39a7486c326ad2f8a94c316844f43db20cfbe3c"
+    }
+  },
+  "gnucash": "5.17",
+  "libdbi": "libdbi v0.9.0",
+  "sqlite": "3.45.1"
+}
