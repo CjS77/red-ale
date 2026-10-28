@@ -40,6 +40,8 @@ outside the workspace that builds with nightly and libFuzzer (`libfuzzer-sys`):
 | `quotes`           | Quote service answers in every response format                              |
 | `locale_date`      | The locale date parser                                                       |
 | `xml`              | The streaming XML book reader and the save's read-back                      |
+| `sql_rows`         | SQLite row decoders, the slot Frame builder and the `versions` check        |
+| `sql_file`         | Whole SQLite files, opened read-only; seed with copies of `fixtures/sqlite` |
 
 With [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz) installed:
 

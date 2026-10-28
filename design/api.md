@@ -166,8 +166,7 @@ is used only for protocol errors.
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
 feature red-ale does not implement (`unsupported-features`), holds content red-ale can keep but not edit safely
 (`unrecognised-content`), its SQL schema is not GnuCash 5.17's (`schema-version`), or the caller asked (`requested`). A read-only
-book is never locked and never written. (Before 0.4.0 an SQLite book opened for writing gave `writing-not-supported`;
-it is no longer given.)
+book is never locked and never written.
 Since v0.2 the num field source (and its Book feature `Number Field Source`) and an auto read-only threshold no longer
 make a book read-only; the threshold makes old transactions read-only instead
 ([`api/book-options.md`](api/book-options.md)), and the reason `auto-read-only` is no longer given. Nor do trading

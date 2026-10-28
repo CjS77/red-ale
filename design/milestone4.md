@@ -110,13 +110,13 @@ Out of scope still never means lost, and every v0.1, v0.2 and v0.3 rule holds. A
 
 | Status | Item                        | Notes                                                                                                         |
 |:------:|-----------------------------|---------------------------------------------------------------------------------------------------------------|
-|        | SQLite books                | `red-ale-sql`: read and write every table red-ale models                                                       |
-|        | ISO dates in SQLite         | Read both timestamp forms; write ISO; set the Book feature on the first save                                   |
-|        | The Backend seam            | One interface in `red-ale-service` for opening, reading, saving and locking, with XML and SQLite behind it     |
-|        | Schema versions             | Any `versions` row other than 5.17's opens read-only, naming the tables                                        |
-|        | The SQL lock                | `gnclock`, taken at open and released on every exit path                                                       |
-|        | Saving                      | One SQL transaction per save, read back and compared before it commits                                         |
-|        | Journal and backups         | The `.log` journal as for XML; a backup copy before the first save of a session                               |
+|   ✅   | SQLite books                | `red-ale-sql`: read and write every table red-ale models                                                       |
+|   ✅   | ISO dates in SQLite         | Read both timestamp forms; write ISO; set the Book feature on the first save                                   |
+|   ✅   | The Backend seam            | One interface in `red-ale-service` for opening, reading, saving and locking, with XML and SQLite behind it     |
+|   ✅   | Schema versions             | Any `versions` row other than 5.17's opens read-only, naming the tables                                        |
+|   ✅   | The SQL lock                | `gnclock`, taken at open and released on every exit path                                                       |
+|   ✅   | Saving                      | One SQL transaction per save, read back and compared before it commits                                         |
+|   ✅   | Journal and backups         | The `.log` journal as for XML; a backup copy before the first save of a session                               |
 
 **The Backend seam.** `red-ale-service` today opens, saves and locks XML books directly. A `Backend` trait in
 `red-ale-service` puts XML and SQLite behind one interface, so the Session, the journal, read-only triggers and every

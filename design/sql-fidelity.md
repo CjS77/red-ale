@@ -139,7 +139,6 @@ pub enum Format {
 impl Format {
     /// The format named by a URI scheme (`xml://`, `sqlite3://`), else the one the file's first bytes say, as GnuCash
     /// decides (`5.17:libgnucash/backend/dbi/gnc-backend-dbi.cpp:1029-1068`).
-    /// (Until the SQLite Backend lands, `of(path)` only sniffs; see "The XML Backend moves first".)
     pub fn of(spec: &str, path: &Path) -> Result<Self, ServiceError>;
 }
 
@@ -215,6 +214,9 @@ pub trait Backend: fmt::Debug + Send {
     /// XML only: whether the file is gzipped (`book.info`).
     fn compressed(&self) -> Option<bool>;
 
+    /// SQLite only: the `versions` rows as read, in file order (`book.info`).
+    fn versions(&self) -> Option<&[(String, i64)]>;
+
     /// XML only: the Residue Export Accounts writes from. Export Accounts writes XML whatever the book's format and
     /// uses `XmlResidue::new_book` for an SQLite book, so every account is generated.
     fn xml_residue(&self) -> Option<&XmlResidue>;
@@ -228,16 +230,16 @@ proposals. `try_mutate` calls `check_storable` before it commits; `save` calls `
 then `save`, then sets `saved` to the Book, rotates the journal and applies retention, for both formats.
 `read_only_triggers` takes the Backend's findings (`&[ReadOnlyReason]`) instead of an `XmlResidue`; the rule the
 Session passes adds `Requested` first for a read-only open, so `Opened::read_only` is complete and "empty" means "the
-Backend holds the lock". Until SQLite books can be saved, an SQLite book opened for writing opens read-only with
-`ReadOnlyReason::WritingNotSupported` (`writing-not-supported`), after the rule's reasons. With the SQLite Backend,
+Backend holds the lock". (Until SQLite books could be saved, an SQLite book opened for writing opened read-only with
+`ReadOnlyReason::WritingNotSupported`, `writing-not-supported`; that reason is gone.) With the SQLite Backend,
 `ReadOnlyReason` gains `SchemaVersions(Vec<String>)` with the code
 `schema-version`. A Book `prepare_save` returns replaces the Session's Book only once the save succeeds, and does not
 move the revision: it is not a Mutation and touches nothing an Import proposal reads.
 
 `Session::residue()` is gone (deletion and rename checks now read the model: budgets and scheduled transactions are in the Book); callers use
 `compressed() -> Option<bool>` (`book.info`), `xml_residue() -> Option<&XmlResidue>` (Export Accounts) and
-`format()`. `SaveReport::compressed` is `Option<bool>`; the wire still says `false` for `None` until the SQLite
-ticket decides `book.info` and `book.save`'s results.
+`format()`. `SaveReport::compressed` is `Option<bool>`; the wire keeps `compressed` a boolean in `book.info` and
+`book.save`'s results and says `false` for `None`, and `book.info` says which format the book is in (`format`).
 
 **The XML Backend moves first, with no byte changing.**
 `XmlBackend { path, residue: XmlResidue, lock: Option<BookLock> }` does what `Session::open`, `save` and `close` do
@@ -271,22 +273,28 @@ pub struct Findings {
 /// its backup.
 pub struct SqliteBook { /* private */ }
 
-/// Read the book. With an owner, reads inside `BEGIN IMMEDIATE` and inserts the lock row only if `writable` agrees.
-/// (The read-only ticket provides only `open_read_only(path)`, which is `open` with no owner; the save ticket adds
-/// this.)
-pub fn open(path: &Path, owner: Option<&LockOwner>, writable: &dyn Fn(&Book, &Findings) -> bool)
+/// Read the book for writing: inside `BEGIN IMMEDIATE`, inserting the lock row only if `writable` agrees (§5).
+pub fn open(path: &Path, owner: &LockOwner, writable: &dyn Fn(&Book, &Findings) -> bool)
     -> Result<(Book, SqliteBook, Findings), SqlError>;
 
-/// Write a new book with GnuCash 5.17's schema (§7) and lock it.
+/// Read the book read-only (`SQLITE_OPEN_READONLY`), with no lock.
+pub fn open_read_only(path: &Path) -> Result<(Book, SqliteBook, Findings), SqlError>;
+
+/// Write a new book with GnuCash 5.17's schema (§7) and lock it. The template root's GUID is the Book's, else a new
+/// one from the `Env`.
 pub fn create(path: &Path, book: &Book, owner: &LockOwner, env: &mut dyn Env) -> Result<SqliteBook, SqlError>;
 
 impl SqliteBook {
     /// Why `after` can't be stored in an SQLite book, if it can't (§8).
     pub fn unstorable(before: &Book, after: &Book) -> Option<String>;
+    /// Whether a save of `book` over `saved` would write anything (§4, step 1).
+    pub fn has_changes(saved: &Book, book: &Book) -> bool;
     /// Write the rows that differ between `saved` and `book` in one checked transaction (§4).
     pub fn save(&mut self, saved: &Book, book: &Book, env: &mut dyn Env) -> Result<(), SqlError>;
     /// Copy the database to `dest` with SQLite's online backup API, without this session's lock row (§6).
     pub fn backup_to(&self, dest: &Path) -> Result<(), SqlError>;
+    /// True while this session's lock row is held.
+    pub fn holds_lock(&self) -> bool;
     /// Delete this session's lock row, and only it (§5).
     pub fn release_lock(&mut self) -> Result<(), SqlError>;
 }
@@ -398,8 +406,10 @@ GnuCash has no Save for SQL books: each commit writes through in its own SQL tra
 whose two splits change being two SQL transactions (the note §6.1, experiment E2b). red-ale saves at `book.save`, in
 one transaction (Decided item 2):
 
-1. **Nothing to do.** A save of a Book that is not dirty writes nothing and makes no backup.
-2. **Backup**, before the first save of the session that writes (§6). If it fails, nothing is written.
+1. **Nothing to do.** A save of a Book that is not dirty writes nothing and makes no backup; nor does one of a dirty
+   Book that doesn't differ from the Book as saved (`SqliteBook::has_changes`; an edit undone, say).
+2. **Backup**, before the first save of the session that writes (§6): the SQLite Backend's `save` makes it once step 1
+   finds something to write. If it fails, nothing is written.
 3. **`BEGIN IMMEDIATE`**, so a concurrent writer fails before anything is written.
 4. **Check the file is still red-ale's.** `gnclock` must hold exactly red-ale's row, and `PRAGMA data_version` must
    be what it was after the open (or the last save): SQLite changes it when another connection commits. Either
@@ -408,11 +418,20 @@ one transaction (Decided item 2):
    with `book-changed`, writing nothing.
 5. **Diff** the Book against the Book as saved: `red_ale_core::diff::changes` for each entity map, and by
    `CommodityRef` for commodities.
-6. **Write** the rows of each change (below), table by table in GnuCash's registry order, additions and changes in
-   the Book's order, then deletions. Every statement's row count is checked against what it should touch: an
-   `UPDATE … WHERE guid = ?` must change one row, a slot deletion exactly the rows the owner's Frame was stored as.
-7. **Read back** every entity written, through the same decoders, inside the transaction, and compare its stored form
-   with the Book's; check no row of a deleted entity remains.
+6. **Write** the rows of each change (below), kind by kind: commodities, the Book's slots, accounts (template
+   accounts with them), budgets, prices, lots, transactions (template transactions with them), scheduled
+   transactions, business objects. Within a kind, additions and changes in the Book's order, then deletions; for
+   transactions the deletions come first (removed transactions, and the split rows that leave a changed one), so a
+   split moved between transactions leaves its old place before it takes its new one. The order is not GnuCash's
+   (`5.17:libgnucash/backend/sql/gnc-sql-backend.cpp:222-227`), and need not be: the statements are one SQL
+   transaction and the schema has no foreign keys. Every statement's row count is checked against what it should
+   touch: an `UPDATE … WHERE guid = ?` must change one row, a slot deletion exactly the rows the owner's Frame was
+   stored as.
+7. **Read back** every row written, inside the transaction, and compare it with the cells written: each entity's row
+   by its GUID, each owner's slot rows and dependent rows (recurrences, budget amounts, tax-table entries) whole and
+   in order, and each changed transaction's splits in the Book's order; check no row of a deleted entity remains. The
+   cells, not decoded entities, are compared: the encoders are the decoders' inverse, which `tests/encode.rs` proves
+   against every row of every fixture, so equal cells are an equal stored form.
 8. **`COMMIT`** only if every step passed; otherwise `ROLLBACK`, and the file is as it was. A failed `COMMIT` is
    rolled back too. A mismatch is `save-verification`, as for XML.
 
@@ -460,7 +479,8 @@ one transaction (Decided item 2):
 - **Removed splits** take their slot rows with them. GnuCash's split commit deletes the split's row but not its slots
   (`5.17:libgnucash/backend/sql/gnc-transaction-sql.cpp:575-578`), leaving orphans; red-ale doesn't add to them.
 - **Orphans that would be adopted.** Before inserting an entity, red-ale deletes the orphan rows keyed by its GUID
-  (slots, recurrences, budget amounts, tax-table entries), since GnuCash would read them as the new entity's. This
+  (slots, recurrences, budget amounts, tax-table entries, and split rows naming a transaction that has no row), since
+  GnuCash would read them as the new entity's. This
   happens only when a GUID comes back, as when a journal replay brings back a split GnuCash removed from its
   transaction. All other orphans are never touched.
 
@@ -524,8 +544,8 @@ red-ale never creates `gnclock`: a book without it opens read-only (§1). It nev
 connection holds no SQLite lock, so GnuCash can still open the book read-only.
 
 **Releasing it,** on `book.close`, when a session turns out read-only, and on drop (unwinding included), on every exit
-path, error paths included: in one transaction, `DELETE FROM gnclock WHERE Hostname = ? AND PID = ?`, which must
-delete one row. GnuCash deletes every row once it finds its own (`:192-219`); red-ale deletes only its own. If its row
+path, error paths included: in one transaction, `DELETE FROM gnclock WHERE rowid = ? AND Hostname = ? AND PID = ?`,
+with the `rowid` of the row it inserted, which must delete one row. GnuCash deletes every row once it finds its own (`:192-219`); red-ale deletes only its own. If its row
 is gone (the lock was broken) it deletes nothing and the close still succeeds. A failed save rolls back and leaves the
 lock held; the session goes on.
 
@@ -607,9 +627,11 @@ Then the rows:
   `invoices|4`, `jobs|1`, `orders|1`, `taxtables|2`, `taxtable_entries|3`, `vendors|1`;
 - the `books` row, then the Book's slot rows: the same empty Book `book.create` makes for XML, with the ISO-dates
   feature, which GnuCash would add on its first open (implication 16 of the note);
-- the root account (`Root Account`, `ROOT`, no commodity, `commodity_scu` 0, `non_std_scu` 0, `hidden` and
-  `placeholder` 0) and the template root (`Template Root`), as GnuCash's `sync` writes the two trees
-  (`5.17:libgnucash/backend/sql/gnc-sql-backend.cpp:393-405`);
+- the root account (`Root Account`, `ROOT`, no commodity, `commodity_scu` 0, `non_std_scu` 0, `code` and
+  `description` `''`, `hidden` and `placeholder` 0) and the template root (`Template Root`, likewise;
+  `5.17:libgnucash/engine/SX-book.cpp:121`), as GnuCash's `sync` writes the two trees
+  (`5.17:libgnucash/backend/sql/gnc-sql-backend.cpp:393-405`); an oracle test compares both rows, but for their GUIDs,
+  with those of a book GnuCash 5.17 creates;
 - red-ale's lock row.
 
 No `PRAGMA` is set: the bundled SQLite's defaults are what GnuCash's books have (page size 4096, UTF-8, no
@@ -654,9 +676,15 @@ As [`testing.md`](testing.md) sets out, on copies in temporary directories, neve
   92–95.
 - **Edits.** For each entity kind, an addition, an edit and a deletion are saved, then opened by GnuCash 5.17 with its
   log captured: nothing is logged at warning or above, the Book GnuCash reads equals red-ale's, and every row of every
-  table and column red-ale doesn't model, and every orphan row, is unchanged.
+  table and column red-ale doesn't model, and every orphan row, is unchanged. In
+  `crates/red-ale-testkit/tests/oracle_sqlite_write.rs`: every fixture written whole into a new book (every kind
+  added), every entity of every fixture changed (a column and a slot) and every one removed, edits through the API,
+  and an orphan slot row kept with every row an edit doesn't touch. A table or column red-ale doesn't model makes the
+  book read-only (§1), so it is never written.
 - **Writing as GnuCash writes.** The oracle makes the same edit to a second copy, and the two dumps are equal once
-  slot `id`s and frame GUIDs are numbered in order of appearance: the same rows changed, with the same values.
+  slot `id`s and frame GUIDs are numbered in order of appearance: the same rows changed, with the same values. (Not
+  yet written; `crates/red-ale-sql/tests/encode.rs` checks each row red-ale encodes against GnuCash's for every row of
+  every fixture.)
 - **Save atomicity.** A test hook in `red-ale-sql` fails the n-th statement of a save, for every n, and the file's
   rows are unchanged afterwards; a mismatched read-back (a corrupting hook) is refused with `save-verification`.
 - **One book, two formats.** The XML and SQLite copies of each fixture read to equal Books, down to denominators and
@@ -680,13 +708,15 @@ As [`testing.md`](testing.md) sets out, on copies in temporary directories, neve
   writer's parse, and that the text equals C's `%.18g` (Python's `'%.18g' %`, which needs no GnuCash).
 - **Backups.** The backup holds the rows before the save and no lock row, opens in GnuCash 5.17 unlocked, is made
   once per session, and is deleted by retention like an XML backup.
-- **Creating.** A created book's `sqlite_master` and `versions` equal those of the oracle's E1 book, its pragmas are
-  GnuCash's, and GnuCash 5.17 opens it with nothing logged.
+- **Creating.** A created book's `sqlite_master`, `versions` and root account rows equal those of a book the oracle
+  creates in the test, its pragmas are GnuCash's, and GnuCash 5.17 opens it with nothing logged and no row changed.
 - **Scale.** The 100,000-transaction book as SQLite within [`milestone3.md`](milestone3.md)'s memory budgets, and a
-  one-transaction save of it writing only that transaction's rows.
+  one-transaction save of it writing only that transaction's rows. (Not yet written; a save writing only the changed
+  row is tested on the fixtures.)
 - **Fuzzing.** An SQLite file is outside input. `sql_rows` feeds arbitrary cells (NULL, INTEGER, REAL, TEXT, BLOB)
   to every table's row decoder, the decoded slot rows to the Frame builder and arbitrary `versions` rows to the
-  version check; `sql_file` (not yet written) opens mutated copies of the fixtures read-only. Neither may panic, and every refusal is a finding or an error.
+  version check; `sql_file` opens the fuzzer's bytes read-only as a book, seeded with copies of the SQLite fixtures.
+  Neither may panic, and every refusal is a finding or an error.
 
 ## 10. Dependencies
 
