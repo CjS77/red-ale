@@ -166,7 +166,13 @@ impl Writer<'_, '_> {
     }
 
     /// Insert an owner's dependent rows (recurrences, budget amounts, tax-table entries) and check they read back.
-    fn insert_dependents(&mut self, table: &'static Table, column: &'static str, owner: Guid, rows: Vec<Vec<Cell>>) -> Result<(), SqlError> {
+    fn insert_dependents(
+        &mut self,
+        table: &'static Table,
+        column: &'static str,
+        owner: Guid,
+        rows: Vec<Vec<Cell>>,
+    ) -> Result<(), SqlError> {
         rows.iter().try_for_each(|r| self.st.expect(&insert(table), r, 1))?;
         self.checks.push(Check::Dependents(table, column, owner, rows));
         Ok(())
@@ -249,7 +255,10 @@ impl Writer<'_, '_> {
         found.into_iter().filter(|(was, _)| *was).try_for_each(|(_, table)| {
             match table {
                 None => self.delete_slot_tree(key).map(drop),
-                Some((table, column)) => self.st.run(&format!("DELETE FROM \"{}\" WHERE \"{column}\" = ?1", table.name), &[guid(key)]).map(drop),
+                Some((table, column)) => {
+                    let sql = format!("DELETE FROM \"{}\" WHERE \"{column}\" = ?1", table.name);
+                    self.st.run(&sql, &[guid(key)]).map(drop)
+                }
             }
         })
     }
@@ -263,7 +272,8 @@ impl Writer<'_, '_> {
         let found: Option<Commodity> = self.book.commodities.get(id).map(|c| (**c).clone()).or_else(|| {
             id.is_currency().then(|| iso_currency(&id.mnemonic)).flatten().map(red_ale_core::currencies::IsoCurrency::to_commodity)
         });
-        let commodity = found.ok_or_else(|| SqlError::Unstorable(format!("commodity {id} is used but is neither in the book nor a currency")))?;
+        let commodity =
+            found.ok_or_else(|| SqlError::Unstorable(format!("commodity {id} is used but is neither in the book nor a currency")))?;
         let row = self.env.new_guid();
         self.residue.commodities.insert(id.clone(), row);
         self.insert_row(&tables::COMMODITIES, encode::commodity(row, &commodity))?;
@@ -311,7 +321,9 @@ impl Writer<'_, '_> {
     /// Mark every lot a written split entered, left or changed in as `is_closed` unknown, so GnuCash recomputes it.
     fn mark_touched_lots(&mut self) -> Result<(), SqlError> {
         let lots: Vec<Guid> = self.touched_lots.difference(&self.written_lots).copied().collect();
-        lots.into_iter().filter_map(|g| self.book.lots.get(&g).cloned()).try_for_each(|lot| self.update_row(&tables::LOTS, encode::lot(&lot)))
+        lots.into_iter()
+            .filter_map(|g| self.book.lots.get(&g).cloned())
+            .try_for_each(|lot| self.update_row(&tables::LOTS, encode::lot(&lot)))
     }
 
     /// Change one written cell behind the save's back, for the read-back to find ([`Faults::corrupt`]).

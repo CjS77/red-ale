@@ -86,12 +86,19 @@ impl Check<'_> {
         };
         let columns = written_columns(table);
         stored.iter().zip(encoded).zip(&columns).filter(|((s, e), _)| s != e).for_each(|((s, e), c)| {
-            self.failures.push(format!("{}: {}.{c} of {}: stored {}, encoded {}", self.name, table.name, show(&encoded[0]), show(s), show(e)));
+            let (name, table, key) = (&self.name, table.name, show(&encoded[0]));
+            self.failures.push(format!("{name}: {table}.{c} of {key}: stored {}, encoded {}", show(s), show(e)));
         });
     }
 }
 
-fn check_book(name: String, conn: &rusqlite::Connection, book: &Book, guids: &indexmap::IndexMap<red_ale_core::CommodityRef, Guid>, failures: &mut Vec<String>) {
+fn check_book(
+    name: String,
+    conn: &rusqlite::Connection,
+    book: &Book,
+    guids: &indexmap::IndexMap<red_ale_core::CommodityRef, Guid>,
+    failures: &mut Vec<String>,
+) {
     let refs = Refs { commodities: guids };
     let mut c = Check { name, failures };
     let stored = by_key(rows(conn, &tables::COMMODITIES));
@@ -127,7 +134,10 @@ fn check_book(name: String, conn: &rusqlite::Connection, book: &Book, guids: &in
         .chain(book.scheduled.values().flat_map(|s| s.schedule.iter().map(|r| encode::recurrence(s.guid, r))))
         .collect();
     let stored = rows(conn, &tables::RECURRENCES);
-    recurrences.iter().for_each(|e| c.same(&tables::RECURRENCES, stored.iter().find(|s| s == &e).or(stored.iter().find(|s| s[0] == e[0])), e));
+    recurrences.iter().for_each(|e| {
+        let found = stored.iter().find(|s| s == &e).or(stored.iter().find(|s| s[0] == e[0]));
+        c.same(&tables::RECURRENCES, found, e);
+    });
     check_business(&mut c, conn, book, refs);
     check_slots(&mut c, conn, book, guids);
     check_budget_amounts(&mut c, conn, book);
@@ -156,7 +166,8 @@ fn check_business(c: &mut Check<'_>, conn: &rusqlite::Connection, book: &Book, r
     let s = t(&tables::VENDORS);
     biz.vendors.values().for_each(|x| c.same(&tables::VENDORS, s.get(&key(x.guid)), &b::vendor(x, refs)));
     let mut stored = rows(conn, &tables::TAXTABLE_ENTRIES);
-    let mut encoded: Vec<Vec<Cell>> = biz.tax_tables.values().flat_map(|x| x.entries.iter().map(|e| b::tax_table_entry(x.guid, e))).collect();
+    let mut encoded: Vec<Vec<Cell>> =
+        biz.tax_tables.values().flat_map(|x| x.entries.iter().map(|e| b::tax_table_entry(x.guid, e))).collect();
     let by_table = |r: &Vec<Cell>| show(&r[0]);
     stored.sort_by_key(by_table);
     encoded.sort_by_key(by_table);

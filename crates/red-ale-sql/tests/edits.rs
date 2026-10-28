@@ -152,7 +152,10 @@ fn a_renamed_commodity_gets_a_new_row_and_its_users_follow() {
         let mut renamed = (*c).clone();
         renamed.id = CommodityRef::new("NYSE", "ACME");
         b.commodities.insert(renamed.id.clone(), Arc::new(renamed.clone()));
-        b.accounts.values_mut().filter(|a| a.commodity.as_ref() == Some(&old)).for_each(|a| Arc::make_mut(a).commodity = Some(renamed.id.clone()));
+        b.accounts
+            .values_mut()
+            .filter(|a| a.commodity.as_ref() == Some(&old))
+            .for_each(|a| Arc::make_mut(a).commodity = Some(renamed.id.clone()));
         b.prices.values_mut().filter(|p| p.commodity == old).for_each(|p| Arc::make_mut(p).commodity = renamed.id.clone());
     });
     assert_eq!(read, edited);

@@ -5,7 +5,8 @@
 //! (`5.17:libgnucash/engine/gncEntry.h:43-47`); bill term types by name (`5.17:libgnucash/engine/gncBillTerm.h:115-126`).
 
 use red_ale_core::business::{
-    Address, AmountType, BillTerm, BillTermKind, Customer, Employee, Entry, Invoice, Job, Order, OwnerRef, PaymentType, TaxIncluded, TaxTable,
+    Address, AmountType, BillTerm, BillTermKind, Customer, Employee, Entry, Invoice, Job, Order, OwnerRef, PaymentType, TaxIncluded,
+    TaxTable,
     TaxTableEntry, Vendor,
 };
 use red_ale_core::{Guid, Numeric};

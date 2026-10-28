@@ -82,7 +82,9 @@ fn refusal(item: &Item<'_>) -> Option<String> {
         });
         match rows {
             Err(e) => return Some(format!("{what}: {e}")),
-            Ok(rows) if rows.iter().flatten().any(has_nul) => return Some(format!("{what}: a slot holds a NUL character, which GnuCash would cut short")),
+            Ok(rows) if rows.iter().flatten().any(has_nul) => {
+                return Some(format!("{what}: a slot holds a NUL character, which GnuCash would cut short"));
+            }
             Ok(_) => {}
         }
     }
@@ -92,7 +94,10 @@ fn refusal(item: &Item<'_>) -> Option<String> {
     times
         .iter()
         .find(|t| !time_in_range(**t))
-        .map(|t| format!("{what}: the time {} is outside the range GnuCash can store in an SQLite book, which it would read back as 1970", t.0))
+        .map(|t| {
+            let t = t.0;
+            format!("{what}: the time {t} is outside the range GnuCash can store in an SQLite book, which it would read back as 1970")
+        })
 }
 
 /// An entity with no times of its own.
@@ -108,7 +113,8 @@ fn has_nul(c: &Cell) -> bool {
 pub(crate) fn unstorable(before: &Book, after_book: &Book) -> Option<String> {
     if let Some(sx) = changes(&before.scheduled, &after_book.scheduled).iter().filter_map(Change::after).find(|s| !s.deferred.is_empty()) {
         return Some(format!(
-            "scheduled transaction {} would have postponed instances, which an SQLite book has no place for (GnuCash's SQL backend drops them)",
+            "scheduled transaction {} would have postponed instances, which an SQLite book has no place for \
+             (GnuCash's SQL backend drops them)",
             sx.guid
         ));
     }
@@ -127,15 +133,19 @@ fn items<'a>(before: &'a Book, book: &'a Book) -> Vec<Item<'a>> {
         push("the book".into(), Vec::new(), Some((Some(&before.slots), &book.slots)), Vec::new());
     }
     btree_changes(&before.commodities, &book.commodities).iter().filter_map(after).for_each(|(o, n)| {
-        push(format!("commodity {}", n.id), encode::commodity(red_ale_core::Guid::NULL, n), Some((o.map(|o| &o.slots), &n.slots)), Vec::new());
+        let cells = encode::commodity(red_ale_core::Guid::NULL, n);
+        push(format!("commodity {}", n.id), cells, Some((o.map(|o| &o.slots), &n.slots)), Vec::new());
     });
-    let accounts = changes(&before.accounts, &book.accounts).into_iter().chain(changes(&before.templates.accounts, &book.templates.accounts));
+    let accounts =
+        changes(&before.accounts, &book.accounts).into_iter().chain(changes(&before.templates.accounts, &book.templates.accounts));
     accounts.filter_map(|c| after(&c)).for_each(|(o, n)| {
         push(format!("account {}", n.guid), encode::account(n, refs), Some((o.map(|o| &o.slots), &n.slots)), Vec::new());
     });
-    let transactions = changes(&before.transactions, &book.transactions).into_iter().chain(changes(&before.templates.transactions, &book.templates.transactions));
+    let templates = changes(&before.templates.transactions, &book.templates.transactions);
+    let transactions = changes(&before.transactions, &book.transactions).into_iter().chain(templates);
     transactions.filter_map(|c| after(&c)).for_each(|(o, n)| {
-        push(format!("transaction {}", n.guid), encode::transaction(n, refs), Some((o.map(|o| &o.slots), &n.slots)), vec![n.date_posted, n.date_entered]);
+        let slots = Some((o.map(|o| &o.slots), &n.slots));
+        push(format!("transaction {}", n.guid), encode::transaction(n, refs), slots, vec![n.date_posted, n.date_entered]);
         n.splits.iter().for_each(|s| {
             let old = o.and_then(|o| o.split(s.guid)).map(|s| &s.slots);
             push(format!("split {}", s.guid), encode::split(n.guid, s), Some((old, &s.slots)), s.reconcile_date.into_iter().collect());
@@ -169,7 +179,9 @@ fn items<'a>(before: &'a Book, book: &'a Book) -> Vec<Item<'a>> {
         std::iter::once(x.opened).chain(x.posted).collect::<Vec<_>>()
     });
     business!(jobs, "job", biz::job, no_times);
-    business!(orders, "order", biz::order, |x: &red_ale_core::business::Order| std::iter::once(x.opened).chain(x.closed).collect::<Vec<_>>());
+    business!(orders, "order", biz::order, |x: &red_ale_core::business::Order| {
+        std::iter::once(x.opened).chain(x.closed).collect::<Vec<_>>()
+    });
     business!(tax_tables, "tax table", biz::tax_table, no_times);
     business!(vendors, "vendor", |x| biz::vendor(x, refs), no_times);
     out

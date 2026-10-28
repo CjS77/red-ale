@@ -201,7 +201,8 @@ impl Writer<'_, '_> {
                 }
             };
         }
-        self.entities(&kind!(BillTerm, tables::BILLTERMS, |x, _| biz::bill_term(x), none), &btree_changes(&old.bill_terms, &new.bill_terms))?;
+        let bill_terms = btree_changes(&old.bill_terms, &new.bill_terms);
+        self.entities(&kind!(BillTerm, tables::BILLTERMS, |x, _| biz::bill_term(x), none), &bill_terms)?;
         self.entities(&kind!(Customer, tables::CUSTOMERS, biz::customer, customer_uses), &btree_changes(&old.customers, &new.customers))?;
         self.entities(&kind!(Employee, tables::EMPLOYEES, biz::employee, employee_uses), &btree_changes(&old.employees, &new.employees))?;
         self.entities(&kind!(Entry, tables::ENTRIES, |x, _| biz::entry(x), none), &btree_changes(&old.entries, &new.entries))?;

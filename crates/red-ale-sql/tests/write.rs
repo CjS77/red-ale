@@ -151,7 +151,8 @@ fn a_created_book_has_gnucash_s_schema_versions_and_pragmas() {
     let (read_back, _, findings) = open_read_only(&path).unwrap();
     assert!(findings.is_empty(), "{findings:?}");
     assert_eq!(read_back, book);
-    let names: Vec<String> = std::fs::read_dir(dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    let names: Vec<String> =
+        std::fs::read_dir(dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
     assert_eq!(names, ["new.gnucash"]);
 }
 
