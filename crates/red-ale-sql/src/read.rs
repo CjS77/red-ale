@@ -226,7 +226,7 @@ impl<'c> Reader<'c> {
             .filter(|r| !main.contains(&r.account.guid) && !template.contains(&r.account.guid))
             .for_each(|r| {
                 self.findings
-                    .push(format!("accounts: {} is reachable from neither root", r.account.guid))
+                    .push(format!("accounts: {} is reachable from neither root", r.account.guid));
             });
         let pick = |set: &HashSet<Guid>| -> IndexMap<Guid, Arc<Account>> {
             rows.iter()

@@ -208,6 +208,16 @@ fn items<'a>(before: &'a Book, book: &'a Book) -> Vec<Item<'a>> {
                 Vec::new(),
             );
         });
+    out.extend(business_items(before, book, refs));
+    out
+}
+
+/// Every added or changed business object, with what the checks need.
+fn business_items<'a>(before: &'a Book, book: &'a Book, refs: Refs<'_>) -> Vec<Item<'a>> {
+    let mut out = Vec::new();
+    let mut push = |what: String, row: Vec<Cell>, slots: Option<(Option<&'a Frame>, &'a Frame)>, times: Vec<Time64>| {
+        out.push(Item { what, row, slots, times });
+    };
     let (b, a) = (&before.business, &book.business);
     macro_rules! business {
         ($field:ident, $what:literal, $encode:expr, $times:expr) => {

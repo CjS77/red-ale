@@ -117,7 +117,7 @@ fn check_book(
             &tables::COMMODITIES,
             stored.get(&key(*g)),
             &encode::commodity(*g, &book.commodities[id]),
-        )
+        );
     });
     let stored = by_key(rows(conn, &tables::ACCOUNTS));
     book.accounts

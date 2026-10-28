@@ -330,7 +330,7 @@ fn a_template_that_provably_does_not_balance_is_refused() {
     fields.templates.as_mut().unwrap()[0].splits[1].credit_formula = Some("700".into());
     match make(&mut f, fields).unwrap_err() {
         ScheduledError::Domain(DomainError::Unbalanced { imbalance, currency }) => {
-            assert_eq!((imbalance.as_str(), currency.as_str()), ("50/1", "USD"))
+            assert_eq!((imbalance.as_str(), currency.as_str()), ("50/1", "USD"));
         }
         other => panic!("{other:?}"),
     }

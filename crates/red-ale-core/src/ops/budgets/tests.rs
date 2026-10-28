@@ -207,7 +207,7 @@ fn bad_cells_refuse_the_whole_call() {
         assert!(
             matches!(set_amounts(&mut f.book, g, edits), Err(DomainError::Invalid(_))),
             "{edits:?}"
-        )
+        );
     });
     let unknown = [cell(Guid::from_bytes([9; 16]), 0)];
     assert!(matches!(

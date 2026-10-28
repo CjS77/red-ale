@@ -210,7 +210,7 @@ fn book_create_makes_sqlite_books_when_asked() {
             d.call("book.create", params.clone()).unwrap_err().code,
             codes::INVALID_PARAMS,
             "{params}"
-        )
+        );
     });
     assert!(!std::path::Path::new(&path).exists());
     let info = d.call("book.create", json!({ "path": path, "format": "sqlite" })).unwrap();

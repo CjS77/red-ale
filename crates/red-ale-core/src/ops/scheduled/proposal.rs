@@ -245,7 +245,7 @@ fn template_problems(book: &Book, sx: &ScheduledTransaction, format: NumberForma
         .filter_map(|(t, s)| check_account(book, sx, t, s).err());
     accounts.for_each(|e| {
         if !errors.contains(&e) {
-            errors.push(e)
+            errors.push(e);
         }
     });
     (names, errors)
