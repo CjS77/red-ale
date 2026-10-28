@@ -261,5 +261,5 @@ fn harnesses_are_found_by_their_config_directory() {
         assert!(harness.detect(&env), "{id} is found by {dir}");
     });
     assert!(harness("opencode").unwrap().detect(&env), "opencode is on PATH");
-    assert!(harness("codex").is_none(), "set up through its own CLI, not yet supported");
+    assert!(harness("notepad").is_none(), "not a harness");
 }

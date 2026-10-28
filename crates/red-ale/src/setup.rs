@@ -47,12 +47,11 @@ pub struct SetupArgs {
     list: bool,
 }
 
-/// One selected Harness: its id, its name, whether `--only` named it, and its adapter if this version has one.
+/// One selected Harness: its id, whether `--only` named it, and its adapter.
 struct Selected {
     id: &'static str,
-    name: &'static str,
     named: bool,
-    harness: Option<Box<dyn Harness>>,
+    harness: Box<dyn Harness>,
 }
 
 /// Run `setup`; the exit status (`design/setup.md`, "Command line"): 0 when every selected Harness is set up, 1 when
@@ -100,13 +99,13 @@ fn select(args: &SetupArgs) -> Vec<Selected> {
         .iter()
         .filter(|(id, _)| args.only.is_empty() || args.only.iter().any(|o| o == id))
         .filter(|(id, _)| !args.skip.iter().any(|s| s == id))
-        .map(|&(id, name)| Selected { id, name, named: !args.only.is_empty(), harness: red_ale_setup::harness(id) })
+        .filter_map(|&(id, _)| red_ale_setup::harness(id).map(|harness| Selected { id, named: !args.only.is_empty(), harness }))
         .collect()
 }
 
-/// The plan for one Harness; `None` for one that isn't installed or supported and wasn't named with `--only`.
+/// The plan for one Harness; `None` for one that isn't installed and wasn't named with `--only`.
 fn plan(env: &Env, scope: &Scope, entry: Option<&Entry>, selected: &Selected) -> Option<Result<Plan, String>> {
-    let Some(harness) = &selected.harness else { return selected.named.then(|| Err("not yet supported".to_owned())) };
+    let harness = &selected.harness;
     if !harness.detect(env) {
         return selected.named.then(|| Err("not installed".to_owned()));
     }
@@ -128,7 +127,7 @@ fn show(rows: &[(&Selected, Result<Plan, String>)], dry_run: bool) {
                 action => println!("  {:<15} {:<8} {config}", selected.id, verb(action)),
             }
             let diff = match (&plan.action, dry_run) {
-                (_, true) => plan.file_diff(),
+                (_, true) => plan.exact_change(),
                 (Action::Update { diff }, false) => Some(diff.clone()),
                 _ => None,
             };
@@ -157,8 +156,9 @@ fn confirm() -> Result<bool> {
 
 /// Apply one Harness's plan and report it; whether it ended set up.
 fn apply(env: &Env, selected: &Selected, plan: Result<Plan, String>) -> bool {
-    let (Ok(plan), Some(harness)) = (plan, &selected.harness) else {
-        println!("  {:<15} failed   {} is not set up", selected.id, selected.name);
+    let harness = &selected.harness;
+    let Ok(plan) = plan else {
+        println!("  {:<15} failed   {} is not set up", selected.id, harness.name());
         return false;
     };
     match harness.apply(env, plan) {
@@ -185,10 +185,7 @@ fn apply(env: &Env, selected: &Selected, plan: Result<Plan, String>) -> bool {
 fn list(env: &Env, scope: &Scope) {
     println!("{:<15} {:<10} {:<14} Harness config", "harness", "installed", "red-ale entry");
     FIRST_RELEASE.iter().for_each(|&(id, _)| {
-        let Some(harness) = red_ale_setup::harness(id) else {
-            println!("{id:<15} {:<10} {:<14} not yet supported", "-", "-");
-            return;
-        };
+        let Some(harness) = red_ale_setup::harness(id) else { return };
         let installed = if harness.detect(env) { "yes" } else { "no" };
         let (has_entry, config) = match (harness.read_entry(env, scope), harness.config(env, scope)) {
             (Ok(found), Ok(config)) => (if found.is_some() { "yes" } else { "no" }, config.display().to_string()),

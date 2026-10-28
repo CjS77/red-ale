@@ -74,6 +74,8 @@ similar = { version = "2.7.0", default-features = false, features = ["text"] }
 tempfile = "3.24"
 thiserror = "2.0"
 tokio = { version = "1.49", features = ["macros", "rt-multi-thread", "signal"] }
+# Codex's config.toml, read only by `red-ale setup` to plan.
+toml = { version = "1.1.8", default-features = false, features = ["std", "parse", "serde"] }
 writeable = "0.6"
 
 red-ale-core = { path = "crates/red-ale-core" }

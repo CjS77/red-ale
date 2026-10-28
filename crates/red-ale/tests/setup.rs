@@ -88,7 +88,8 @@ fn list_shows_every_harness() {
     let line = |id: &str| text.lines().find(|l| l.starts_with(&format!("{id} "))).unwrap_or_else(|| panic!("{id}: {text}")).to_owned();
     assert!(line("cursor").contains(&format!("yes        no             {}", home.path().join(".cursor/mcp.json").display())), "{text}");
     assert!(line("zed").starts_with("zed             no"), "{text}");
-    assert!(line("claude-code").ends_with("not yet supported"), "{text}");
+    assert!(line("claude-code").ends_with(&format!("{}", home.path().join(".claude.json").display())), "{text}");
+    assert!(line("codex").starts_with("codex           no         no"), "{text}");
     assert_eq!(text.lines().count(), 12, "a header and the eleven first-release harnesses: {text}");
 }
 

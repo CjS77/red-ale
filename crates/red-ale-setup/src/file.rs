@@ -51,7 +51,7 @@ pub(crate) fn read_entry(location: &Location) -> Result<Option<Value>, Error> {
 
 /// The action and edit that make the file at `location` hold what `change` asks.
 pub(crate) fn plan(location: &Location, change: &Change) -> Result<(Action, Edit), Error> {
-    let (path, before, document) = read(location)?;
+    let (path, before, mut document) = read(location)?;
     let current = document.entry(location.keys).map_err(|e| doc_error(location, e))?;
     let wanted = match change {
         Change::Set(entry) => Some((location.render)(entry)),
@@ -108,7 +108,7 @@ fn doc_error(location: &Location, error: DocError) -> Error {
     }
 }
 
-fn entry_diff(old: &Value, new: &Value) -> String {
+pub(crate) fn entry_diff(old: &Value, new: &Value) -> String {
     let pretty = |v: &Value| serde_json::to_string_pretty(v).map(|s| s + "\n").unwrap_or_default();
     let (old, new) = (pretty(old), pretty(new));
     similar::TextDiff::from_lines(&old, &new).unified_diff().header("red-ale entry now", "red-ale entry after").to_string()

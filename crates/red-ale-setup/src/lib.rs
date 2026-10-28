@@ -13,6 +13,7 @@
 #![forbid(unsafe_code)]
 
 mod adapters;
+mod cli;
 mod env;
 mod file;
 mod json;
@@ -41,8 +42,7 @@ pub const FIRST_RELEASE: [(&str, &str); 11] = [
     ("zed", "Zed"),
 ];
 
-/// The adapter for a Harness id, or `None` for one of [`FIRST_RELEASE`] that is set up through its own CLI, which
-/// this version does not do yet.
+/// The adapter for a Harness id of [`FIRST_RELEASE`]; `None` for any other id.
 pub fn harness(id: &str) -> Option<Box<dyn Harness>> {
     adapters::by_id(id)
 }
@@ -127,7 +127,18 @@ pub struct Plan {
     pub config: Option<PathBuf>,
     scope: Scope,
     change: Change,
-    edit: Option<file::Edit>,
+    work: Work,
+}
+
+/// How a plan is carried out.
+#[derive(Debug)]
+enum Work {
+    /// Nothing to carry out.
+    Nothing,
+    /// Write this change to the Harness config.
+    File(file::Edit),
+    /// Run these Harness CLI commands, in order.
+    Cli(Vec<cli::Invocation>),
 }
 
 impl Plan {
@@ -138,13 +149,19 @@ impl Plan {
             config,
             scope: scope.clone(),
             change: change.clone(),
-            edit: None,
+            work: Work::Nothing,
         }
     }
 
-    /// The exact change to the Harness config as a unified diff, for `--dry-run`; `None` when nothing changes.
-    pub fn file_diff(&self) -> Option<String> {
-        self.edit.as_ref().filter(|_| self.action.changes()).map(file::Edit::diff)
+    /// The exact change, for `--dry-run`: a unified diff of the Harness config, or the Harness CLI commands that
+    /// will run. `None` when nothing changes.
+    pub fn exact_change(&self) -> Option<String> {
+        match &self.work {
+            _ if !self.action.changes() => None,
+            Work::Nothing => None,
+            Work::File(edit) => Some(edit.diff()),
+            Work::Cli(commands) => Some(commands.iter().map(|c| format!("$ {c}")).collect::<Vec<_>>().join("\n") + "\n"),
+        }
     }
 }
 
@@ -233,9 +250,20 @@ pub enum Error {
     /// Claude Desktop is running, and would write back its own copy of the file over the change.
     #[error("quit Claude Desktop and run `red-ale setup` again")]
     ClaudeDesktopRunning,
-    /// The Harness has no project config.
-    #[error("{0} has no project config")]
+    /// The Harness has no project config that `setup` can write.
+    #[error("{0} has no project config that setup can write")]
     NoProjectScope(&'static str),
+    /// The Harness's CLI, which `setup` runs to change its config, isn't installed.
+    #[error("`{0}` is not on PATH")]
+    NotOnPath(&'static str),
+    /// A Harness CLI command failed.
+    #[error("`{command}` failed: {message}")]
+    Cli {
+        /// The command line.
+        command: String,
+        /// What it printed on standard error, or how it exited.
+        message: String,
+    },
     /// opencode's major version, which decides its layout, is unknown.
     #[error("can't tell which major version of opencode is installed: {0}")]
     OpencodeVersion(String),

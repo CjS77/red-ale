@@ -143,9 +143,30 @@ impl Env {
 
     /// The first `name` on `PATH`.
     pub(crate) fn which(&self, name: &str) -> Option<PathBuf> {
+        self.which_all(name).next()
+    }
+
+    /// Every `name` on `PATH`, in order.
+    pub(crate) fn which_all(&self, name: &str) -> impl Iterator<Item = PathBuf> {
         let file = if self.os == Os::Windows { format!("{name}.exe") } else { name.to_owned() };
-        let path = self.vars.get("PATH")?;
-        std::env::split_paths(path).map(|dir| dir.join(&file)).find(|p| p.is_file())
+        let dirs: Vec<PathBuf> = self.vars.get("PATH").map(|p| std::env::split_paths(p).collect()).unwrap_or_default();
+        dirs.into_iter().map(move |dir| dir.join(&file)).filter(|p| p.is_file())
+    }
+
+    /// Run a Harness CLI with this environment's variables only, so it changes the config this environment names.
+    /// Its standard error, or how it exited, when it fails.
+    pub(crate) fn run(&self, program: &Path, args: &[String], dir: Option<&Path>) -> Result<(), String> {
+        let mut command = Command::new(program);
+        command.args(args).env_clear().envs(&self.vars).stdin(Stdio::null()).stdout(Stdio::null());
+        if let Some(dir) = dir {
+            command.current_dir(dir);
+        }
+        let output = command.output().map_err(|e| e.to_string())?;
+        if output.status.success() {
+            return Ok(());
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        Err(if stderr.is_empty() { format!("it exited with {}", output.status) } else { stderr })
     }
 
     /// Whether any of `names` is on `PATH`.
