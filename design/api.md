@@ -125,7 +125,7 @@ is used only for protocol errors.
 | 1001   | `book-already-open` | A book is already open in this server.                                    |
 | 1002   | `book-locked`       | Another program holds the book's lock (`data.path` is the lock file).     |
 | 1003   | `cannot-lock`       | The lock file could not be created.                                       |
-| 1004   | `sql-book`          | The book is an SQL book (SQLite file or database URI); v0.1 refuses it before touching it. |
+| 1004   | `sql-book`          | The book is a database server's (`mysql://`, `postgres://`, `postgresql://`; v0.7), or `book.create` was asked for an SQLite book, which red-ale cannot write yet; refused before anything is touched. |
 | 1005   | `unsupported-uri`   | A URI scheme other than a path, `file://` or `xml://`.                    |
 | 1006   | `read-only`         | The book is open read-only (`data.reason`).                               |
 | 1007   | `file-exists`       | `book.create` on an existing file.                                        |
@@ -152,7 +152,7 @@ is used only for protocol errors.
 
 | Method               | Effect | Does                                                                                   |
 |----------------------|--------|----------------------------------------------------------------------------------------|
-| `book.open`          | read   | Open an XML book (`path`, `readOnly`). Takes the `.LCK` lock unless read-only.         |
+| `book.open`          | read   | Open a book (`path`, `readOnly`): XML, or SQLite (a file or `sqlite3://`), read-only for now. Takes an XML book's `.LCK` lock unless read-only. |
 | `book.create`        | write  | Create an empty book (root account only) and open it; gzip-compressed unless `compressed: false`. |
 | `book.info`          | read   | Path, GUIDs, read-only state and reasons, dirty, compression, journal, Book features, `options` (`useTradingAccounts`), counts. |
 | `book.save`          | write  | Back up the previous file, write the book (atomically), rotate the journal, apply retention. `compressed` changes the file's compression. |
@@ -164,7 +164,9 @@ is used only for protocol errors.
 
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
 feature red-ale does not implement (`unsupported-features`), holds content red-ale can keep but not edit safely
-(`unrecognised-content`), or the caller asked (`requested`). A read-only book is never locked and never written.
+(`unrecognised-content`), its SQL schema is not GnuCash 5.17's (`schema-version`), its format can't be written
+yet (`writing-not-supported`: SQLite books, until saving them lands), or the caller asked (`requested`). A read-only
+book is never locked and never written.
 Since v0.2 the num field source (and its Book feature `Number Field Source`) and an auto read-only threshold no longer
 make a book read-only; the threshold makes old transactions read-only instead
 ([`api/book-options.md`](api/book-options.md)), and the reason `auto-read-only` is no longer given. Nor do trading

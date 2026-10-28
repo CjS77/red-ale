@@ -15,7 +15,7 @@ pub fn methods() -> Vec<Method> {
     vec![
         method(
             "book.open",
-            "Open an XML book. SQL books are refused; some books open read-only (see readOnlyReasons).",
+            "Open an XML or SQLite book. SQLite books open read-only for now, and some XML books do too (see readOnlyReasons).",
             Effect::Read,
             open,
         ),
@@ -46,7 +46,7 @@ pub fn methods() -> Vec<Method> {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct OpenParams {
-    /// A path or `xml://` URI.
+    /// A path, or an `xml://`, `sqlite3://` or `file://` URI.
     pub path: String,
     /// Open without taking the lock; nothing can be changed.
     #[serde(default)]
@@ -119,7 +119,7 @@ pub struct ReplayResult {
 /// Why a book is read-only.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct ReadOnlyInfo {
-    /// `requested`, `unsupported-features` or `unrecognised-content`.
+    /// `requested`, `unsupported-features`, `unrecognised-content`, `schema-version` or `writing-not-supported`.
     pub code: &'static str,
     /// Explanation.
     pub message: String,

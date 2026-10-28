@@ -49,8 +49,7 @@ fn errors_exit_with_code_2_and_save_nothing() {
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(json(&out.stderr)["error"]["code"], -32601);
     assert_eq!(std::fs::read(&book).unwrap(), before);
-    let sql = copy(dir.path(), "piecash/simple_sample.sqlite.gnucash");
-    let out = run(&["exec", "--book", &sql, "book.info"]);
+    let out = run(&["exec", "--book", "mysql://user@host/db", "book.info"]);
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(json(&out.stderr)["error"]["code"], 1004);
     let out = run(&["exec", "--book", &book, "book.open", "novalue"]);

@@ -14,8 +14,10 @@ use red_ale_xml::XmlResidue;
 use crate::error::ServiceError;
 use crate::session::{ReadOnlyReason, Settings};
 
+mod sql;
 mod xml;
 
+pub use sql::SqliteBackend;
 pub use xml::XmlBackend;
 
 /// The format of a book file.
@@ -23,15 +25,41 @@ pub use xml::XmlBackend;
 pub enum Format {
     /// GnuCash's XML, gzipped or plain (`red-ale-xml`).
     Xml,
-    /// An SQLite database. No Backend opens it yet.
+    /// An SQLite database (`red-ale-sql`), read-only for now.
     Sqlite,
 }
 
 impl Format {
-    /// The format the file's first bytes say, as GnuCash decides
-    /// (`5.17:libgnucash/backend/dbi/gnc-backend-dbi.cpp:1029-1068`). URI schemes are handled before this by
-    /// [`crate::session::resolve_path`].
-    pub fn of(path: &Path) -> Result<Self, ServiceError> {
+    /// The format of the book `spec` names, at `path` ([`crate::session::resolve_path`]). The file's first bytes say,
+    /// as GnuCash decides for a path or `file://` (`5.17:libgnucash/backend/dbi/gnc-backend-dbi.cpp:1029-1068`). An
+    /// `xml://` or `sqlite3://` URI chooses one backend, whose type check must still accept the file
+    /// (`5.17:libgnucash/engine/qofsession.cpp:181-187`), so a scheme the content contradicts is an error.
+    pub fn of(spec: &str, path: &Path) -> Result<Self, ServiceError> {
+        let found = Self::sniff(path)?;
+        match Self::of_scheme(spec) {
+            Some(declared) if declared != found => Err(ServiceError::WrongFormat {
+                path: path.to_owned(),
+                declared,
+                found,
+            }),
+            _ => Ok(found),
+        }
+    }
+
+    /// The format a URI scheme names: `xml://` or `sqlite3://`. `file://` and plain paths name none.
+    pub fn of_scheme(spec: &str) -> Option<Self> {
+        let lower = spec.to_ascii_lowercase();
+        if lower.starts_with("xml://") {
+            Some(Self::Xml)
+        } else if lower.starts_with("sqlite3://") {
+            Some(Self::Sqlite)
+        } else {
+            None
+        }
+    }
+
+    /// The format the file's first bytes say.
+    fn sniff(path: &Path) -> Result<Self, ServiceError> {
         const MAGIC: &[u8] = b"SQLite format 3\0";
         let mut start = Vec::with_capacity(MAGIC.len());
         File::open(path)
@@ -41,6 +69,14 @@ impl Format {
                 source,
             })?;
         Ok(if start == MAGIC { Self::Sqlite } else { Self::Xml })
+    }
+
+    /// The format's name, for messages.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Xml => "XML",
+            Self::Sqlite => "SQLite",
+        }
     }
 }
 
@@ -73,25 +109,18 @@ pub struct Opened {
 pub fn open(path: &Path, format: Format, access: Access, rule: ReadOnlyRule<'_>) -> Result<Opened, ServiceError> {
     match format {
         Format::Xml => XmlBackend::open(path, access, rule),
-        Format::Sqlite => Err(sql_book(path)),
+        Format::Sqlite => SqliteBackend::open(path, access, rule),
     }
 }
 
 /// Create a new, empty book and lock it for writing. The file may not be written yet: the Session saves the new
-/// Book at once, which writes it.
+/// Book at once, which writes it. SQLite books cannot be created yet.
 pub fn create(path: &Path, format: Format, settings: &Settings, env: &mut dyn Env) -> Result<Opened, ServiceError> {
     match format {
         Format::Xml => XmlBackend::create(path, settings, env),
-        Format::Sqlite => Err(sql_book(path)),
+        Format::Sqlite => Err(ServiceError::SqliteCreate { path: path.to_owned() }),
     }
 }
-
-fn sql_book(path: &Path) -> ServiceError {
-    ServiceError::SqlBook {
-        path: path.display().to_string(),
-    }
-}
-
 
 /// What a save may change about the file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
