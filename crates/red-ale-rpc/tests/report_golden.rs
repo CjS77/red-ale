@@ -11,6 +11,13 @@
 //!
 //! The test runs the same exports now, once with no `locale` param (the Configuration's default, C) and once with
 //! `"locale": "C"`, and compares. On a mismatch the HTML is written to a temporary directory for diffing.
+//!
+//! Reports added since keep their own record, `tests/report_golden/v0.4.txt`: every v0.4 report on every book,
+//! `budget` included, written when the report was translated and checked against its tests:
+//!
+//! ```text
+//! RED_ALE_GOLDEN_WRITE_V04=/tmp/v0.4.txt cargo test -p red-ale-rpc --test report_golden
+//! ```
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -21,9 +28,10 @@ use std::fmt::Write as _;
 use report_runs::Fixture;
 use serde_json::json;
 
-const BOOKS: [&str; 10] = [
+const BOOKS: [&str; 11] = [
     "average-balance",
     "balsheet-pnl",
+    "budget",
     "category-average",
     "category-daily",
     "category-liability",
@@ -35,6 +43,13 @@ const BOOKS: [&str; 10] = [
 ];
 
 const DATE_FORMATS: [&str; 2] = ["us", "locale"];
+
+/// The books and reports v0.2 had, which `v0.2.txt` covers.
+const V02_BOOKS: usize = 10;
+const V02_REPORTS: usize = 19;
+
+/// The built-in reports added in v0.4, which `v0.4.txt` covers.
+const V04_REPORTS: [&str; 1] = ["Budget Report"];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -87,15 +102,17 @@ fn lines(exports: &[(String, String, Option<String>)]) -> String {
 }
 
 fn golden() -> Vec<(String, String)> {
-    include_str!("report_golden/v0.2.txt")
-        .lines()
+    recorded(include_str!("report_golden/v0.2.txt"))
+}
+
+fn recorded(text: &str) -> Vec<(String, String)> {
+    text.lines()
         .map(|l| l.split_once('\t').unwrap())
         .map(|(k, v)| (k.to_owned(), v.to_owned()))
         .collect()
 }
 
-fn assert_as_v02(label: &str, now: &[(String, String, Option<String>)]) {
-    let expected = golden();
+fn assert_as_recorded(label: &str, expected: &[(String, String)], now: &[(String, String, Option<String>)]) {
     let dir = std::env::temp_dir().join(format!("red-ale-report-golden-{label}"));
     let differ: Vec<&str> = expected
         .iter()
@@ -118,7 +135,7 @@ fn assert_as_v02(label: &str, now: &[(String, String, Option<String>)]) {
         .collect();
     assert!(
         differ.is_empty(),
-        "{label}: {} of {} exports differ from v0.2 (HTML in {}): {differ:#?}",
+        "{label}: {} of {} exports differ from the record (HTML in {}): {differ:#?}",
         differ.len(),
         expected.len(),
         dir.display()
@@ -132,11 +149,29 @@ fn every_v02_report_gives_the_same_bytes_under_the_c_locale() {
         return;
     }
     let expected = golden();
-    assert_eq!(expected.len(), BOOKS.len() * DATE_FORMATS.len() * 19, "19 reports in v0.2");
+    assert_eq!(expected.len(), V02_BOOKS * DATE_FORMATS.len() * V02_REPORTS, "19 reports in v0.2");
     assert!(
         expected.iter().filter(|(_, o)| !o.starts_with("error")).count() > expected.len() / 2,
         "most exports succeed"
     );
-    assert_as_v02("default", &exports(None));
-    assert_as_v02("c", &exports(Some("C")));
+    assert_as_recorded("default", &expected, &exports(None));
+    assert_as_recorded("c", &expected, &exports(Some("C")));
+}
+
+/// The exports of the v0.4 reports among `all`.
+fn v04(all: Vec<(String, String, Option<String>)>) -> Vec<(String, String, Option<String>)> {
+    all.into_iter()
+        .filter(|(key, ..)| V04_REPORTS.iter().any(|r| key.ends_with(&format!(" {r}"))))
+        .collect()
+}
+
+#[test]
+fn every_v04_report_gives_its_recorded_bytes() {
+    if let Ok(path) = std::env::var("RED_ALE_GOLDEN_WRITE_V04") {
+        std::fs::write(path, lines(&v04(exports(None)))).unwrap();
+        return;
+    }
+    let expected = recorded(include_str!("report_golden/v0.4.txt"));
+    assert_eq!(expected.len(), BOOKS.len() * DATE_FORMATS.len() * V04_REPORTS.len());
+    assert_as_recorded("v0.4", &expected, &v04(exports(None)));
 }

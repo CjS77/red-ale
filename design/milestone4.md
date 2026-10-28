@@ -268,7 +268,7 @@ Rounding is half up to significant digits, never left of the decimal point, and 
 
 | Status | Report                                | Source (GUID)                                                                         |
 |:------:|---------------------------------------|---------------------------------------------------------------------------------------|
-|        | Budget Report                         | `standard/budget.scm` (`810ed4b25ef0486ea43bbd3dddb32b11`)                            |
+|   ✅   | Budget Report                         | `standard/budget.scm` (`810ed4b25ef0486ea43bbd3dddb32b11`)                            |
 |        | Budget Balance Sheet                  | `standard/budget-balance-sheet.scm` (`ecc35ea9dbfa4e20ba389fc85d59cb69`)              |
 |        | Budget Income Statement               | `standard/budget-income-statement.scm` (`583c313fcc484efc974c4c844404f454`)           |
 |        | Budget Profit & Loss                  | the same file (`e5fa5ce805e840ecbeca4dba3fa4ead9`), under the Budget Income Statement row |

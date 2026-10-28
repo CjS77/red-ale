@@ -31,7 +31,25 @@ pub(super) fn table(t: &Table, look: &Look) -> String {
     let body = std::iter::once("<tbody>".to_owned()).chain(rows).chain(["</tbody>".to_owned()]);
     let open = std::iter::once("<table class=\"report-table\">".to_owned());
     let parts = open.chain(caption).chain(head).chain(body).chain(["</table>".to_owned()]);
-    parts.collect::<Vec<_>>().join("\n")
+    parts.chain(footnote_list(&t.footnotes)).collect::<Vec<_>>().join("\n")
+}
+
+/// The table's footnotes as an ordered list after it, as GnuCash's footnote collector lists them
+/// (`5.17:gnucash/report/reports/standard/budget.scm:246-251`); nothing when there are none.
+fn footnote_list(notes: &[String]) -> Option<String> {
+    (!notes.is_empty()).then(|| {
+        let items: Vec<String> = notes.iter().map(|n| format!("<li>{}</li>", escape_lines(n))).collect();
+        format!("<ol class=\"footnotes\">{}</ol>", items.concat())
+    })
+}
+
+/// A cell's footnote mark: a space and the note's number as a superscript, titled with the note
+/// (`5.17:gnucash/report/reports/standard/budget.scm:253-259`).
+fn footnote_mark(cell: &Cell, notes: &[String]) -> String {
+    let note = |n: u32| usize::try_from(n).ok().and_then(|n| n.checked_sub(1)).and_then(|i| notes.get(i));
+    cell.footnote
+        .and_then(|n| note(n).map(|text| format!(" <sup class=\"footnote\" title=\"{}\">{n}</sup>", escape(text))))
+        .unwrap_or_default()
 }
 
 fn align_of(c: &Column) -> Align {
@@ -137,17 +155,17 @@ fn cells(t: &Table, row: &Row, widths: &[usize], look: &Look) -> String {
                 format!(
                     "{}{}{}",
                     "<td></td>".repeat(before),
-                    td(cell, column, row, look, 1),
+                    td(cell, column, row, look, 1, &t.footnotes),
                     "<td></td>".repeat(level)
                 )
             } else {
-                td(cell, column, row, look, (start..start + span).map(width).sum())
+                td(cell, column, row, look, (start..start + span).map(width).sum(), &t.footnotes)
             }
         })
         .collect()
 }
 
-fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize) -> String {
+fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize, notes: &[String]) -> String {
     let content = cell.content();
     let total = is_total(row.role);
     let label_column = column.is_some_and(|c| c.role == ColumnRole::Label);
@@ -183,9 +201,10 @@ fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize)
         .unwrap_or_default();
     let data = data_attributes(cell, look);
     format!(
-        "<td class=\"{class}\"{}{depth}{data}>{}</td>",
+        "<td class=\"{class}\"{}{depth}{data}>{}{}</td>",
         colspan(span),
-        linked(cell, look, content_html(cell, &look.numbers))
+        linked(cell, look, content_html(cell, &look.numbers)),
+        footnote_mark(cell, notes)
     )
 }
 

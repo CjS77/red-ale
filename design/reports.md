@@ -516,6 +516,7 @@ The run context `ctx` gives time and formatting, all in the local time zone of t
 | `ctx.print_date(t)`, `ctx.print_date_interval(from, to)` | `qof-print-date`, `gnc-date-interval-format`, under `reports.dateFormat` |
 | `ctx.print_time_iso(t)` | `gnc-print-time64` with the ISO format, for CSV dates: `YYYY-MM-DD HH:MM:SS` in local time |
 | `ctx.print_date_iso(t)` | `gnc-print-time64` with `QOF-DATE-FORMAT-ISO`'s date format, for the charts' CSV dates: `YYYY-MM-DD` in local time (v0.3) |
+| `ctx.print_timestamp(t)` | none: the wire form of a Timestamp (RFC 3339, UTC), so a report link can set an absolute date option to an exact time, as the Budget Report's links to the Transaction Report do (`standard/budget.scm:381-382`) (v0.4) |
 | `ctx.export_type()` | The `export-type` GnuCash passes to an export thunk (`5.17:gnucash/report/report-core.scm:722`): `"csv"` when the run is for `report.exportCsv`, else `()` (v0.3) |
 | `ctx.accounting_period()` | `#{ start, end }` as Time64: `gnc-accounting-period-fiscal-start`/`-end` |
 | `ctx.report_currency()`, `ctx.week_start()` | the settings of section 4; the week starts on day 1 (Sunday) to 7, numbered as `weekday` |
@@ -761,8 +762,13 @@ A `commodities` cell is GnuCash's nested commodity table for an account holding 
 commodity, the native amount and its value in the report currency (`report/html-acct-table.scm:925-948`).
 
 Any cell may also have `account` (a GUID: the cell names or links to that account), `link` (below), `rule: true` (an
-accounting rule above the figure, the "Show accounting-style rules" option, `report/html-acct-table.scm:901-906`) and
-`span` (columns it covers, default 1).
+accounting rule above the figure, the "Show accounting-style rules" option, `report/html-acct-table.scm:901-906`),
+`span` (columns it covers, default 1) and `footnote` (v0.4).
+
+**Footnotes** (v0.4). A table may have `footnotes`, notes numbered from 1, and a cell's `footnote` is the number of
+the one it refers to. The renderer writes the number as a superscript after the cell's content, titled with the note,
+and lists the notes after the table: GnuCash's footnote collector, which the Budget Report uses for budget notes
+(`standard/budget.scm:240-259`). A number outside the table's notes is a `report-result` error.
 
 ### Links
 
@@ -1070,6 +1076,7 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | | Securities (Security Piechart) | `e9418ff64f2c11e5b61d1c7508d793ed` | Assets & Liabilities | |
 | | Liabilities (Liability Piechart) | `3fe6dce77da24c66bdc8f8efdea7f9ac` | Assets & Liabilities | |
 | `standard/price-scatter.rhai` | Price Scatterplot | `1d241609fd4644caad765c95be20ff4c` | Assets & Liabilities | `standard/price-scatter.scm:281-288` |
+| `standard/budget.rhai` (v0.4) | Budget Report | `810ed4b25ef0486ea43bbd3dddb32b11` | Budget | `standard/budget.scm:763-769` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
 scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary
@@ -1226,6 +1233,7 @@ can be re-run to check it.
 | `reports/charts-daily.gnucash` | book A and the 101 daily transactions of `standard/test/test-charts.scm:148-200` | Net Worth Barchart, Income/Expense Chart |
 | `reports/net-days.gnucash` | `standard/test/test-standard-net-barchart.scm:58-311` (the line chart test uses the same books, `test-standard-net-linechart.scm:55-198`) | the net charts, day steps |
 | `reports/category-daily.gnucash`, `-average`, `-multi`, `-liability` | `single-txn-test` (which `asset-test` builds identically), `single-txn-test-average`, `multi-acct-test` and `liability-test` of `standard/test/test-standard-category-report.scm:81-318` | the category bar charts |
+| `reports/budget.gnucash` (v0.4) | `create-test-data` and `gnc:create-budget-and-transactions` (`5.17:bindings/guile/test/test-engine-extras.scm:851-884`), as `standard/test/test-budget.scm:66-69` builds them; the budget made through ctypes on `libgnc-engine.so`, its recurrence monthly from 2024-03-01 (the first of the pinned now's month) | the Budget Report; the Budget Income Statement and Budget Balance Sheet |
 
 GUIDs are fixed and readable (`a000…0001` for the first account made, and so on), entered dates and void times are
 the pinned now plus one second per transaction, and books are written uncompressed, so a script gives the same bytes
@@ -1246,6 +1254,7 @@ GnuCash reads and the exact expected strings, with the test line (see `fixtures/
 | Category bar charts | `standard/test/test-standard-category-report.scm:107-113` (daily amounts), `:149-207` (averages for every step and averaging pair), `:241-259` (depth, percentages), `:290-300` (assets), `:330-343` (credit-card liability) | stacking, "Maximum Bars" and the "Other" series, the sort methods, two currencies |
 | Account pie charts | none: `test-charts.scm` and `test-stress-options.scm` only check that they render | every template on `test-data` and `balsheet-pnl`: slices, "Other" with "Maximum Slices" 2, percentages, totals, averaging, Securities by commodity |
 | Price Scatterplot | none: the tests only reach the "Identical commodities" warning (`standard/test/test-charts.scm:35`, `:148-190`) | FUNDS in USD on `balsheet-pnl` for the three price sources, inverted, and each warning |
+| Budget Report (v0.4) | `standard/test/test-budget.scm:66-161`: text counts, the Bank, Income and Expenses rows and the footnotes, with every column, `current`..`next`, `last`..`last`, manual 2-4 uncollapsed and accumulated | the defaults; notes without the budget column; collapsed titles; `previous`; relative periods before and after the budget; truncated exact periods; a total with no periods failing as in GnuCash; accumulated columns of each kind; reversed accounts; zero accounts omitted; sub-accounts and flattening; the Transaction Report links; both warnings |
 
 Every check of a figure also runs with `report.export` and checks that the HTML has the same display string.
 
@@ -1286,7 +1295,7 @@ drops it and needs nothing from budgets.
 | Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting under the Locale | No script; deterministic bytes |
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
 | Title of the account pie charts | None: the document keeps its empty title (`report/html-document.scm:131`); the chart's title and the warnings' heading name the report | The report name, with its averaging suffix | A result has a title, and its warning blocks leave out the heading that names the report |
-| Average Balance and Price Scatterplot titles | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`) | Titled with the "Report name" option | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
+| Average Balance and Price Scatterplot titles, and the Budget Report's warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`) | Titled with the "Report name" option (the Budget Report's warnings: with its name) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |
 | Name sorting | Locale collation | Bytewise | As v0.1 |
 | Date interval in titles under the `locale` format and the C locale | ICU's interval form for en_US_POSIX (`1/1/2026 – 12/31/2026`) | `<from> to <to>` | Output under C stays as it was before Locales |

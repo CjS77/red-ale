@@ -24,11 +24,16 @@ pub struct Fixture {
 impl Fixture {
     /// `fixtures/reports/<name>.gnucash`, with `reports.dateFormat` set to `date_format`.
     pub fn open(name: &str, date_format: &str, read_only: bool) -> Self {
+        Self::open_reversing(name, date_format, read_only, "none")
+    }
+
+    /// As [`Fixture::open`], with `reports.reverseBalancedAccounts` set to `reverse`.
+    pub fn open_reversing(name: &str, date_format: &str, read_only: bool, reverse: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("reports")).unwrap();
         let config = json!({
             "accountingPeriod": { "start": "today", "end": "today" },
-            "reports": { "directory": "reports", "reverseBalancedAccounts": "none", "dateFormat": date_format },
+            "reports": { "directory": "reports", "reverseBalancedAccounts": reverse, "dateFormat": date_format },
         });
         std::fs::write(dir.path().join("config.json"), config.to_string()).unwrap();
         let book = dir.path().join("book.gnucash");

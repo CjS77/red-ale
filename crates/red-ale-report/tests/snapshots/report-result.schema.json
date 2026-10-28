@@ -212,6 +212,13 @@
               "items": {
                 "$ref": "#/$defs/Row"
               }
+            },
+            "footnotes": {
+              "description": "Notes that cells mark with a `footnote` number, numbered from 1 and listed after the table: GnuCash's footnote\ncollector (`5.17:gnucash/report/reports/standard/budget.scm:240-259`).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           "additionalProperties": false,
@@ -689,6 +696,15 @@
         },
         "span": {
           "description": "Columns the cell covers, default 1.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "footnote": {
+          "description": "The number of the table's footnote this cell refers to, shown as a superscript after the content.",
           "type": [
             "integer",
             "null"

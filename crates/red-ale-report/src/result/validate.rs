@@ -73,10 +73,23 @@ fn table(t: &Table, path: &str, stage: Stage) -> Check {
         }
     })?;
     let levels = t.columns.iter().filter_map(|c| c.levels).max();
-    t.rows
-        .iter()
-        .enumerate()
-        .try_for_each(|(i, r)| row(r, t.columns.len(), levels, &format!("{path}.rows[{i}]"), stage))
+    t.rows.iter().enumerate().try_for_each(|(i, r)| {
+        let at = format!("{path}.rows[{i}]");
+        row(r, t.columns.len(), levels, &at, stage)?;
+        footnotes(r, t.footnotes.len(), &at)
+    })
+}
+
+/// Every footnote mark of a row names one of the table's footnotes, counted from 1.
+fn footnotes(r: &Row, count: usize, path: &str) -> Check {
+    r.cells.iter().enumerate().try_for_each(|(i, c)| {
+        let mark = c.as_ref().and_then(|c| c.footnote);
+        ensure(
+            mark.is_none_or(|n| n >= 1 && usize::try_from(n).is_ok_and(|n| n <= count)),
+            &format!("{path}.cells[{i}].footnote"),
+            format!("the table has {count} footnotes, numbered from 1"),
+        )
+    })
 }
 
 fn row(r: &Row, width: usize, levels: Option<u32>, path: &str, stage: Stage) -> Check {

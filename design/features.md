@@ -298,7 +298,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 
 | Status | Name                    | Short description                             | Introduced | Ported |
 |:------:|-------------------------|-----------------------------------------------|:----------:|:------:|
-|        | Budget Report           | Budget against actual, per account and period |    2.0     |        |
+|   ✅   | Budget Report           | Budget against actual, per account and period |    2.0     |  0.4   |
 |        | Budget Balance Sheet    | Balance sheet projected from a budget         |    2.4     |        |
 |        | Budget Income Statement | Income statement from a budget                |    2.4     |        |
 |        | Budget Flow             | Budgeted against actual flow for one period   |    2.4     |        |

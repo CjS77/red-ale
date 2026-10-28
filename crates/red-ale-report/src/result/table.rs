@@ -18,6 +18,10 @@ pub struct Table {
     pub columns: Vec<Column>,
     /// The rows; each has one cell per column, counting spans.
     pub rows: Vec<Row>,
+    /// Notes that cells mark with a `footnote` number, numbered from 1 and listed after the table: GnuCash's footnote
+    /// collector (`5.17:gnucash/report/reports/standard/budget.scm:240-259`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub footnotes: Vec<String>,
 }
 
 /// A column.
@@ -165,6 +169,9 @@ pub struct Cell {
     /// Columns the cell covers, default 1.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub span: Option<u32>,
+    /// The number of the table's footnote this cell refers to, shown as a superscript after the content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub footnote: Option<u32>,
 }
 
 /// The content of a cell, borrowed.

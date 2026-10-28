@@ -11,6 +11,7 @@ use rhai::{Dynamic, Engine, INT, Map};
 use super::run::RunContext as HostContext;
 use crate::query::{BookHandle, Fallible, Snapshot, script_error, time_arg};
 use crate::settings::{ReportSettings, WeekStart};
+use crate::wire::Timestamp;
 
 /// What a run knows about time and preferences: the context handed to a template's `render` as `ctx` (Rhai type
 /// `Context`).
@@ -104,6 +105,13 @@ pub(super) fn register(engine: &mut Engine) {
     });
     engine.register_fn("print_date_iso", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         Ok(c.date(time_arg(&t)?)?.to_file_string())
+    });
+    // The wire form of a Timestamp, so a report link can set an absolute date option to an exact time.
+    engine.register_fn("print_timestamp", |_: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
+        let t = time_arg(&t)?;
+        Timestamp(t)
+            .to_rfc3339()
+            .ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))
     });
     engine.register_fn("export_type", |c: &mut ContextHandle| {
         c.0.export.clone().map_or(Dynamic::UNIT, Dynamic::from)

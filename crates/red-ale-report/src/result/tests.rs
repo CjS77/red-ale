@@ -192,7 +192,7 @@ fn mismatches_name_their_path() {
 #[test]
 fn validation_checks_what_the_schema_cannot() {
     // Each case edits block `n` of the draft at a path below it, and names the path the error must give.
-    let cases: [(usize, &str, Value, &str); 16] = [
+    let cases: [(usize, &str, Value, &str); 17] = [
         (1, "/rows/0/cells", json!([null]), "rows[0].cells"),
         (1, "/rows/1/level", json!(3), "rows[1].level"),
         (1, "/rows/0/cells/1", json!({ "text": "a", "number": "1" }), "rows[0].cells[1]"),
@@ -202,6 +202,7 @@ fn validation_checks_what_the_schema_cannot() {
         (1, "/rows/0/cells/0/places", json!(2), "rows[0].cells[0]"),
         (1, "/rows/2/cells/1/places", json!(19), "rows[2].cells[1].places"),
         (1, "/columns/0/levels", json!(2), "columns[0].levels"),
+        (1, "/rows/2/cells/1/footnote", json!(1), "rows[2].cells[1].footnote"),
         (2, "/series/0/values", json!(["1"]), "series[0].values"),
         (2, "/series/0/colors", json!(["#000000"]), "series[0].colors"),
         (2, "/yAxis/commodity", Value::Null, "yAxis.commodity"),
@@ -222,6 +223,18 @@ fn validation_checks_what_the_schema_cannot() {
         });
         assert_eq!(e.path, format!("sections[0].blocks[{block}].{path}"));
     });
+}
+
+/// A footnote mark names one of the table's footnotes, numbered from 1.
+#[test]
+fn footnotes_are_numbered_from_one() {
+    let mut v = draft_json();
+    v["sections"][0]["blocks"][1]["footnotes"] = json!(["a note"]);
+    v["sections"][0]["blocks"][1]["rows"][1]["cells"][1]["footnote"] = json!(1);
+    assert!(ReportDraft::from_json(&v).unwrap().validate().is_ok());
+    v["sections"][0]["blocks"][1]["rows"][1]["cells"][1]["footnote"] = json!(0);
+    let e = ReportDraft::from_json(&v).unwrap().validate().unwrap_err();
+    assert_eq!(e.path, "sections[0].blocks[1].rows[1].cells[1].footnote");
 }
 
 #[test]
