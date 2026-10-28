@@ -1077,6 +1077,7 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | | Liabilities (Liability Piechart) | `3fe6dce77da24c66bdc8f8efdea7f9ac` | Assets & Liabilities | |
 | `standard/price-scatter.rhai` | Price Scatterplot | `1d241609fd4644caad765c95be20ff4c` | Assets & Liabilities | `standard/price-scatter.scm:281-288` |
 | `standard/budget.rhai` (v0.4) | Budget Report | `810ed4b25ef0486ea43bbd3dddb32b11` | Budget | `standard/budget.scm:763-769` |
+| `standard/budget-balance-sheet.rhai` (v0.4) | Budget Balance Sheet | `ecc35ea9dbfa4e20ba389fc85d59cb69` | Budget | `standard/budget-balance-sheet.scm:785-791` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
 scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary
@@ -1255,8 +1256,16 @@ GnuCash reads and the exact expected strings, with the test line (see `fixtures/
 | Account pie charts | none: `test-charts.scm` and `test-stress-options.scm` only check that they render | every template on `test-data` and `balsheet-pnl`: slices, "Other" with "Maximum Slices" 2, percentages, totals, averaging, Securities by commodity |
 | Price Scatterplot | none: the tests only reach the "Identical commodities" warning (`standard/test/test-charts.scm:35`, `:148-190`) | FUNDS in USD on `balsheet-pnl` for the three price sources, inverted, and each warning |
 | Budget Report (v0.4) | `standard/test/test-budget.scm:66-161`: text counts, the Bank, Income and Expenses rows and the footnotes, with every column, `current`..`next`, `last`..`last`, manual 2-4 uncollapsed and accumulated | the defaults; notes without the budget column; collapsed titles; `previous`; relative periods before and after the budget; truncated exact periods; a total with no periods failing as in GnuCash; accumulated columns of each kind; reversed accounts; zero accounts omitted; sub-accounts and flattening; the Transaction Report links; both warnings |
+| Budget Balance Sheet (v0.4) | `standard/test/test-budget.scm:186-253`: the text count and the existing, allocated and unallocated assets, total assets, existing, new and total liabilities, existing and new retained earnings, unrealized losses, existing, new and total equity, and total liabilities and equity | the sheet at the budget's start; moving the start; retained losses and the totals alone without new/existing lines; zero retained earnings and gains left out; liability lines signed by the first liability account; the two-column form and rates; both warnings |
 
 Every check of a figure also runs with `report.export` and checks that the HTML has the same display string.
+
+GnuCash's text counts (`(sxml->table-row-col sxml 1 #f #f)`) read a text more than once when it sits in nested tables:
+Guile's `sxpath` applies the rest of the path `// (table 1) // tr // td // *text*` to each node a step selects, and
+every table that is its parent's first is selected, so a text inside *k* nested tables is read once for each table,
+row below it and cell below that row on its way down, k(k+1)(k+2)/6 times. A foreign account's commodity table is one
+table down (`report/html-acct-table.scm:925-948`), and the Budget Income Statement's layout table adds one more
+(`standard/budget-income-statement.scm:541-564`). The tests count the result's texts the same way.
 
 ### The budget module in `test-average-balance.scm`
 
@@ -1295,7 +1304,7 @@ drops it and needs nothing from budgets.
 | Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting under the Locale | No script; deterministic bytes |
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
 | Title of the account pie charts | None: the document keeps its empty title (`report/html-document.scm:131`); the chart's title and the warnings' heading name the report | The report name, with its averaging suffix | A result has a title, and its warning blocks leave out the heading that names the report |
-| Average Balance and Price Scatterplot titles, and the Budget Report's warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`) | Titled with the "Report name" option (the Budget Report's warnings: with its name) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
+| Average Balance and Price Scatterplot titles, and the budget reports' warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`, `standard/budget-balance-sheet.scm:361-371`) | Titled with the "Report name" option (the budget reports' warnings: with the name the warning gives) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |
 | Name sorting | Locale collation | Bytewise | As v0.1 |
 | Date interval in titles under the `locale` format and the C locale | ICU's interval form for en_US_POSIX (`1/1/2026 – 12/31/2026`) | `<from> to <to>` | Output under C stays as it was before Locales |

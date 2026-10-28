@@ -171,7 +171,6 @@
       "lines": "186-253",
       "template": "Budget Balance Sheet",
       "templateGuid": "ecc35ea9dbfa4e20ba389fc85d59cb69",
-      "translated": false,
       "options": {},
       "checks": [
         { "name": "basic test", "line": 195, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 52, "meaning": "Text nodes of the first table" },

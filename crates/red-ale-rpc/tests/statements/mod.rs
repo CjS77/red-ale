@@ -348,6 +348,33 @@ pub fn assert_rows_at(result: &Value, rows: &[(&str, u32, &str)], offset: u32) {
     });
 }
 
+/// The texts GnuCash's test reads from a row with `sxml->table-row-col` (`5.17:gnucash/report/test/
+/// test-report-extras.scm:96-109`): the label, then the amount's display strings.
+pub fn row_texts(table: &Value, row: &Value) -> Vec<String> {
+    let label = cell_text(&row["cells"][label_column(table)]);
+    let amount = displays(&row["cells"][amount_column(table)]);
+    std::iter::once(label).filter(|l| !l.is_empty()).chain(amount).collect()
+}
+
+/// How many text nodes `(sxml->table-row-col sxml 1 #f #f)` counts in `tables`, statement tables GnuCash nests
+/// `depth` tables deep in its page, a foreign account's commodity table one deeper (`5.17:gnucash/report/
+/// html-acct-table.scm:925-948`). Guile's `sxpath` applies the rest of a path to each node a step selects
+/// (`map-union`, Guile 3.0 `sxml/xpath.scm`), and every table that is its parent's first is selected, so the path
+/// `// (table 1) // tr // td // *text*` reaches a text inside `k` nested tables once for each table, row below it
+/// and cell below that row on the way down: k(k+1)(k+2)/6 times, 1 at the top, 4 one table down, 10 two down.
+pub fn gnucash_text_count(tables: &[&Value], depth: usize) -> usize {
+    let reads = |k: usize| k * (k + 1) * (k + 2) / 6;
+    tables
+        .iter()
+        .flat_map(|t| t["rows"].as_array().unwrap().iter().map(move |r| (*t, r)))
+        .map(|(t, r)| {
+            let amount = &r["cells"][amount_column(t)];
+            let nested = if amount["commodities"].is_array() { displays(amount).len() } else { 0 };
+            (row_texts(t, r).len() - nested) * reads(depth) + nested * reads(depth + 1)
+        })
+        .sum()
+}
+
 /// The rows of the exchange-rates table: `[amount, price]` display strings.
 pub fn rates(result: &Value) -> Vec<String> {
     let rates: Vec<&Value> = tables(result).into_iter().filter(|t| is_rates_table(t)).collect();
