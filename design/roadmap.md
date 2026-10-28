@@ -247,12 +247,11 @@ may adapt the books' text; code stays GPL-3.0-or-later. What that asks of the Ma
 | §8 Tax reports      | US income tax (TXF), German income tax, Income and GST Statement                                                                                                                            |
 | §8 Report system    | PDF export                                                                                                                                                                                  |
 
-To settle:
-
 - **eguile.** Tax invoice and Receipt are eguile templates (`5.17:gnucash/report/reports/support/taxinvoice.eguile.scm`,
-  `receipt.eguile.scm`): HTML with embedded Scheme. red-ale needs a template form for them (a Rhai template, or a
-  report result with a fixed layout) before they can be translated.
+  `receipt.eguile.scm`): HTML with embedded Scheme. These must be translated into Rhai templates.
 - **TXF export.** The US tax report writes a TXF file. That is export, so it follows the v0.3 export design.
+
+To settle:
 - **PDF without a browser.** GnuCash exports PDF by printing its WebKit report view
   (`5.17:gnucash/gnome/gnc-plugin-page-report.cpp:2021`). red-ale needs a pure-Rust way from the report result to
   PDF that keeps the no-floats and same-bytes rules, or the row becomes ❌ with HTML as the export.
@@ -282,10 +281,9 @@ v1.0 is reached when every row of `features.md` is ✅ or ❌. The rows still op
 than more work:
 
 - **Online banking: FinTS/HBCI, SEPA transfers, SEPA direct debits.** GnuCash uses AqBanking, a C library. A Rust
-  FinTS client is a project of its own, with bank-specific testing red-ale can't do from fixtures. Proposed: ❌,
-  unless a maintained Rust FinTS crate exists by then.
+  FinTS client is a project of its own, with bank-specific testing red-ale can't do from fixtures. Won't do.
 - **Interactive charts.** v0.2 chose static SVG ([`open-questions.md`](open-questions.md), "Charts are static SVG").
-  Proposed: ❌ for the Chart.js row, keeping static SVG as red-ale's chart feature.
+  Mark the Chart.js row "Won't do".
 
 Also for v1.0:
 
