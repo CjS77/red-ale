@@ -5,8 +5,8 @@
 //! rewritten, so their compact timestamps, NULL-versus-empty strings, slot `id`s and frame GUIDs need no keeping, and
 //! a double's eight bytes and its `%.18g` text are in one-to-one correspondence ([`crate::double`]).
 
-use std::collections::BTreeSet;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use indexmap::IndexMap;
 use red_ale_core::{CommodityRef, Guid};

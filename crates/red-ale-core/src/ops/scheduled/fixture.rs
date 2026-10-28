@@ -78,7 +78,8 @@ impl Fixture {
         let mut env = FixedEnv::new(Time64(1_767_225_600), 1); // 2026-01-01 00:00:00 UTC
         let mut book = Book::new_empty(&mut env);
         let acme = CommodityRef::new("NASDAQ", "ACME");
-        book.commodities.insert(acme.clone(), Arc::new(Commodity::new(acme.clone(), None, 10_000)));
+        book.commodities
+            .insert(acme.clone(), Arc::new(Commodity::new(acme.clone(), None, 10_000)));
         let mut f = Self {
             bank: Guid::default(),
             food: Guid::default(),
@@ -118,10 +119,13 @@ impl Fixture {
             self.book.templates.transactions.insert(t.guid, Arc::new(t));
         });
         let guid = sx.guid;
-        self.book.scheduled.insert(guid, Arc::new(ScheduledTransaction {
-            template_account: Some(account),
-            ..sx
-        }));
+        self.book.scheduled.insert(
+            guid,
+            Arc::new(ScheduledTransaction {
+                template_account: Some(account),
+                ..sx
+            }),
+        );
         guid
     }
 

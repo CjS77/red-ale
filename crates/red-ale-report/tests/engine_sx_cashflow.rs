@@ -39,7 +39,10 @@ fn rich(edit: impl Fn(String) -> String) -> Book {
 
 /// `book.sx_cashflow(from, to)` for each range, as `account=amount` pairs in GUID order, one range per line.
 fn flows(book: Book, zone: TimeZone, ranges: &[(i64, i64)]) -> Vec<String> {
-    let calls: Vec<String> = ranges.iter().map(|(from, to)| format!("show(book.sx_cashflow({from}, {to}))")).collect();
+    let calls: Vec<String> = ranges
+        .iter()
+        .map(|(from, to)| format!("show(book.sx_cashflow({from}, {to}))"))
+        .collect();
     let body = format!(
         "let lines = [{}];\n#{{ title: lines.reduce(|a, b| a + \"|\" + b, \"\"), sections: [] }}",
         calls.join(", ")
@@ -66,7 +69,13 @@ fn counts_match_gnucash() {
     let got = flows(
         rich(|t| t),
         TimeZone::utc(),
-        &[(SEP_1, DEC_31), (AUG_1, SEP_30), (NOV_29, NOV_29), (DEC_1, DEC_31), (JAN_1_2025, DEC_31_2026)],
+        &[
+            (SEP_1, DEC_31),
+            (AUG_1, SEP_30),
+            (NOV_29, NOV_29),
+            (DEC_1, DEC_31),
+            (JAN_1_2025, DEC_31_2026),
+        ],
     );
     assert_eq!(got, [both(3, 456), String::new(), both(1, 456), String::new(), both(7, 456)]);
 }
@@ -76,8 +85,16 @@ fn counts_match_gnucash() {
 #[test]
 fn a_formula_variable_counts_as_zero() {
     let formula = |t: String| {
-        t.replacen("<slot:value type=\"string\">456</slot:value>", "<slot:value type=\"string\">rent * 2 + 10</slot:value>", 1)
-            .replacen("<slot:value type=\"numeric\">456/1</slot:value>", "<slot:value type=\"numeric\">0/1</slot:value>", 1)
+        t.replacen(
+            "<slot:value type=\"string\">456</slot:value>",
+            "<slot:value type=\"string\">rent * 2 + 10</slot:value>",
+            1,
+        )
+        .replacen(
+            "<slot:value type=\"numeric\">456/1</slot:value>",
+            "<slot:value type=\"numeric\">0/1</slot:value>",
+            1,
+        )
     };
     assert_eq!(flows(rich(formula), TimeZone::utc(), &[(SEP_1, DEC_31)]), [both(3, 10)]);
 }

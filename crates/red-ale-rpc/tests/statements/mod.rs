@@ -369,7 +369,11 @@ pub fn gnucash_text_count(tables: &[&Value], depth: usize) -> usize {
         .flat_map(|t| t["rows"].as_array().unwrap().iter().map(move |r| (*t, r)))
         .map(|(t, r)| {
             let amount = &r["cells"][amount_column(t)];
-            let nested = if amount["commodities"].is_array() { displays(amount).len() } else { 0 };
+            let nested = if amount["commodities"].is_array() {
+                displays(amount).len()
+            } else {
+                0
+            };
             (row_texts(t, r).len() - nested) * reads(depth) + nested * reads(depth + 1)
         })
         .sum()

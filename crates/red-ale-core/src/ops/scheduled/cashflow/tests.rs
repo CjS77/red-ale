@@ -22,7 +22,10 @@ fn test_basic_counts() {
     let mut s = daily(today.add_days(-1));
     s.end = Some(today.add_days(1));
     let count = |a: i64, b: i64| occurrences_in_range(&s, today.add_days(a), today.add_days(b)).unwrap();
-    assert_eq!([count(-2, -2), count(0, 0), count(0, 1), count(-1, 1), count(1, 1), count(2, 2)], [0, 1, 2, 3, 1, 0]);
+    assert_eq!(
+        [count(-2, -2), count(0, 0), count(0, 1), count(-1, 1), count(1, 1), count(2, 2)],
+        [0, 1, 2, 3, 1, 0]
+    );
 }
 
 /// `SchedXaction.cpp:756-760`, `:805-808`: the last occurrence is never counted again; a limit counts its last
@@ -46,10 +49,17 @@ fn counting_starts_after_the_last_occurrence() {
 fn h10_cash_flow() {
     let mut f = Fixture::new();
     let (food, bank, euro) = (f.food, f.bank, f.euro);
-    f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "nonsense +", ""), T(bank, "", "100")]]);
+    f.add(
+        monthly(date(2026, 1, 1)),
+        &usd(),
+        &[&[T(food, "nonsense +", ""), T(bank, "", "100")]],
+    );
     let template = f.book.templates.transactions[0].guid;
     let t = Arc::make_mut(&mut f.book.templates.transactions[&template]);
-    t.splits[0].slots.set_in(&[crate::scheduled::SPLIT_FRAME, "debit-numeric"], SlotValue::Numeric(Numeric::new(10000, 100)));
+    t.splits[0].slots.set_in(
+        &[crate::scheduled::SPLIT_FRAME, "debit-numeric"],
+        SlotValue::Numeric(Numeric::new(10000, 100)),
+    );
     let mut variables = monthly(date(2026, 1, 15));
     variables.guid = Guid::from_bytes([7; 16]);
     f.add(variables, &usd(), &[&[T(food, "amt + i + 5", ""), T(bank, "", "5")]]);
@@ -76,9 +86,16 @@ fn h10_cash_flow() {
 fn failures_count_as_zero() {
     let mut f = Fixture::new();
     let (food, bank) = (f.food, f.bank);
-    f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "1 / i", ""), T(Guid::from_bytes([1; 16]), "", "5"), T(bank, "", "5")]]);
+    f.add(
+        monthly(date(2026, 1, 1)),
+        &usd(),
+        &[&[T(food, "1 / i", ""), T(Guid::from_bytes([1; 16]), "", "5"), T(bank, "", "5")]],
+    );
     let got = flow(&f, date(2026, 1, 1), date(2026, 1, 31));
     assert_eq!(got.amounts.get(&food).copied(), Some(Numeric::ZERO));
     assert!(!got.amounts.contains_key(&bank));
-    assert!(matches!(&got.errors[..], [CashFlowError::Formula { side: Side::Debit, .. }, CashFlowError::Account(_)]));
+    assert!(matches!(
+        &got.errors[..],
+        [CashFlowError::Formula { side: Side::Debit, .. }, CashFlowError::Account(_)]
+    ));
 }

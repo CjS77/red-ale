@@ -50,7 +50,13 @@ fn splits(f: &Fixture, sx: Guid) -> Vec<Row> {
         .map(|s| {
             let t = TemplateSplit::of(s).unwrap();
             let text = |x: Option<&str>| x.map(str::to_owned);
-            (t.account().unwrap(), s.memo.clone(), s.action.clone(), text(t.debit_formula()), text(t.credit_formula()))
+            (
+                t.account().unwrap(),
+                s.memo.clone(),
+                s.action.clone(),
+                text(t.debit_formula()),
+                text(t.credit_formula()),
+            )
         })
         .collect()
 }
@@ -65,17 +71,32 @@ fn the_dialogs_defaults() {
     let before = f.book.transactions[&t].clone();
     let edited = from_transaction(&mut f.book, &mut f.env, request(t, Frequency::Daily), NumberFormat::default()).unwrap();
     let sx = &f.book.scheduled[&edited.guid];
-    assert_eq!((sx.name.as_str(), sx.start, sx.instance_count, sx.last), ("Groceries", date(2026, 1, 16), 1, None));
-    assert_eq!(sx.schedule, [Recurrence::new(1, PeriodType::Day, date(2026, 1, 16), WeekendAdjust::None).unwrap()]);
-    assert_eq!((sx.end, sx.occurrences, sx.auto_create, sx.auto_create_notify), (None, None, false, false));
+    assert_eq!(
+        (sx.name.as_str(), sx.start, sx.instance_count, sx.last),
+        ("Groceries", date(2026, 1, 16), 1, None)
+    );
+    assert_eq!(
+        sx.schedule,
+        [Recurrence::new(1, PeriodType::Day, date(2026, 1, 16), WeekendAdjust::None).unwrap()]
+    );
+    assert_eq!(
+        (sx.end, sx.occurrences, sx.auto_create, sx.auto_create_notify),
+        (None, None, false, false)
+    );
     let template = template_transactions(&f.book, sx)[0];
-    assert_eq!((template.description.as_deref(), template.num.as_deref(), template.notes()), (Some("Groceries"), Some("42"), Some("weekly shop")));
+    assert_eq!(
+        (template.description.as_deref(), template.num.as_deref(), template.notes()),
+        (Some("Groceries"), Some("42"), Some("weekly shop"))
+    );
     assert_eq!(template.currency, usd());
     let text = |s: &str| Some(s.to_owned());
-    assert_eq!(splits(&f, edited.guid), [
-        (f.food, text("food"), text("Buy"), text("1234.50"), text("")),
-        (f.bank, text("card"), None, text(""), text("1234.50")),
-    ]);
+    assert_eq!(
+        splits(&f, edited.guid),
+        [
+            (f.food, text("food"), text("Buy"), text("1234.50"), text("")),
+            (f.bank, text("card"), None, text(""), text("1234.50")),
+        ]
+    );
     let numeric = TemplateSplit::of(&template.splits[0]).unwrap().debit_numeric();
     assert_eq!(numeric, Some(numeric_of("1234.50", NumberFormat::default())));
     assert_eq!(f.book.transactions[&t], before, "the transaction is not changed");
@@ -100,7 +121,10 @@ fn frequencies_and_their_first_occurrences() {
         let edited = from_transaction(&mut f.book, &mut f.env, r, NumberFormat::default()).unwrap();
         let sx = &f.book.scheduled[&edited.guid];
         assert_eq!(sx.start, start, "{frequency:?}");
-        assert_eq!(sx.schedule, [Recurrence::new(mult, period_type, start, WeekendAdjust::None).unwrap()]);
+        assert_eq!(
+            sx.schedule,
+            [Recurrence::new(mult, period_type, start, WeekendAdjust::None).unwrap()]
+        );
     });
 }
 
@@ -122,7 +146,10 @@ fn the_locale_the_end_and_the_preferences() {
     let edited = from_transaction(&mut f.book, &mut f.env, r, de).unwrap();
     assert_eq!(splits(&f, edited.guid)[0].3.as_deref(), Some("1234,50"));
     let sx = &f.book.scheduled[&edited.guid];
-    assert_eq!((sx.start, sx.auto_create, sx.auto_create_notify, sx.advance_create_days), (date(2026, 3, 1), true, true, 2));
+    assert_eq!(
+        (sx.start, sx.auto_create, sx.auto_create_notify, sx.advance_create_days),
+        (date(2026, 3, 1), true, true, 2)
+    );
     assert_eq!(sx.occurrences.map(|o| (o.total, o.remaining)), Some((6, 6)));
     assert!(matches!(
         from_transaction(&mut f.book, &mut f.env, request(Guid::from_bytes([9; 16]), Frequency::Daily), de),

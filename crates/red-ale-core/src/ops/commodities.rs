@@ -572,7 +572,9 @@ pub fn delete_commodity(book: &mut Book, id: &CommodityRef, delete_prices: bool)
         )));
     }
     if templates_use(book, &id) {
-        return Err(DomainError::conflict(format!("{id} is in use by template transactions of scheduled transactions")));
+        return Err(DomainError::conflict(format!(
+            "{id} is in use by template transactions of scheduled transactions"
+        )));
     }
     if used.prices > 0 && !delete_prices {
         return Err(DomainError::conflict(format!(
@@ -597,7 +599,9 @@ pub fn delete_commodity(book: &mut Book, id: &CommodityRef, delete_prices: bool)
 /// of the Account tree.
 fn templates_use(book: &Book, id: &CommodityRef) -> bool {
     let t = &book.templates;
-    t.accounts.values().any(|a| a.commodity.as_ref().is_some_and(|c| canonical(c) == *id))
+    t.accounts
+        .values()
+        .any(|a| a.commodity.as_ref().is_some_and(|c| canonical(c) == *id))
         || t.transactions.values().any(|x| canonical(&x.currency) == *id)
 }
 

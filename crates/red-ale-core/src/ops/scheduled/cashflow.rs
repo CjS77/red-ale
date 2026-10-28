@@ -11,7 +11,8 @@ use super::occurrences::{TemporalState, advance, has_occurrence_limit, remaining
 use super::template::{formulas, site, split_account, template_account, template_transactions};
 use crate::formula::{FormulaError, NumberFormat, Variables, evaluate, free_variables};
 use crate::{
-    Book, CommodityRef, DENOM_AUTO, Date, Guid, How, Numeric, RecurrenceError, Round, ScheduledTransaction, Split, TemplateSplit, Transaction,
+    Book, CommodityRef, DENOM_AUTO, Date, Guid, How, Numeric, RecurrenceError, Round, ScheduledTransaction, Split, TemplateSplit,
+    Transaction,
 };
 
 /// How many occurrences of a scheduled transaction fall in `start..=end`, counting on from its last occurrence, which
@@ -30,9 +31,7 @@ pub fn occurrences_in_range(sx: &ScheduledTransaction, start: Date, end: Date) -
             return Ok(0);
         }
     }
-    let in_range = |s: &TemporalState| {
-        s.last.is_some_and(|l| l <= end && sx.end.is_none_or(|e| l <= e)) && (!limit || s.remaining >= 0)
-    };
+    let in_range = |s: &TemporalState| s.last.is_some_and(|l| l <= end && sx.end.is_none_or(|e| l <= e)) && (!limit || s.remaining >= 0);
     let mut count = 0u32;
     while in_range(&state) {
         count += 1;
@@ -86,13 +85,18 @@ pub struct CashFlow {
 /// valid and not zero, else its Formula with every variable, `i` too, at 0 (`_get_sx_formula_value`, `:1087-1148`).
 pub fn cash_flow(book: &Book, start: Date, end: Date, format: NumberFormat) -> Result<CashFlow, RecurrenceError> {
     let mut flow = CashFlow::default();
-    book.scheduled.values().filter(|sx| sx.enabled && template_account(book, sx).is_some()).try_for_each(|sx| {
-        let count = occurrences_in_range(sx, start, end)?;
-        if count > 0 {
-            template_transactions(book, sx).into_iter().for_each(|t| add_transaction(book, sx, t, count, format, &mut flow));
-        }
-        Ok(())
-    })?;
+    book.scheduled
+        .values()
+        .filter(|sx| sx.enabled && template_account(book, sx).is_some())
+        .try_for_each(|sx| {
+            let count = occurrences_in_range(sx, start, end)?;
+            if count > 0 {
+                template_transactions(book, sx)
+                    .into_iter()
+                    .for_each(|t| add_transaction(book, sx, t, count, format, &mut flow));
+            }
+            Ok(())
+        })?;
     Ok(flow)
 }
 
@@ -148,7 +152,11 @@ fn side(split: &Split, wanted: Side, at: Site, format: NumberFormat, flow: &mut 
     match free_variables(text, format).and_then(|names| evaluate(text, format, &zeroes(names))) {
         Ok(n) => n,
         Err(error) => {
-            flow.errors.push(CashFlowError::Formula { site: at, side: wanted, error });
+            flow.errors.push(CashFlowError::Formula {
+                site: at,
+                side: wanted,
+                error,
+            });
             Numeric::ZERO
         }
     }

@@ -52,14 +52,22 @@ fn each_row(conn: &Connection, table: &Table, mut f: impl FnMut(Row)) -> Result<
     let columns: Vec<String> = table
         .columns
         .iter()
-        .map(|c| if existing.iter().any(|e| e == c) { format!("\"{c}\"") } else { "NULL".to_owned() })
+        .map(|c| {
+            if existing.iter().any(|e| e == c) {
+                format!("\"{c}\"")
+            } else {
+                "NULL".to_owned()
+            }
+        })
         .collect();
     let sql = format!("SELECT rowid, {} FROM \"{}\" ORDER BY rowid", columns.join(", "), table.name);
     let mut stmt = conn.prepare(&sql)?;
     let mut rows = stmt.query([])?;
     while let Some(r) = rows.next()? {
         let rowid = r.get(0)?;
-        let cells = (1..=table.columns.len()).map(|i| r.get_ref(i).map(cell)).collect::<Result<_, _>>()?;
+        let cells = (1..=table.columns.len())
+            .map(|i| r.get_ref(i).map(cell))
+            .collect::<Result<_, _>>()?;
         f(Row { rowid, cells });
     }
     Ok(())
@@ -100,7 +108,10 @@ pub(crate) fn read(conn: &Connection) -> Result<(Book, SqlResidue, Findings), Sq
 type Entities<T> = IndexMap<Guid, Arc<T>>;
 
 /// The Book's commodities, and each one's row GUID in `rowid` order.
-type CommodityRows = (std::collections::BTreeMap<CommodityRef, Arc<Commodity>>, IndexMap<CommodityRef, Guid>);
+type CommodityRows = (
+    std::collections::BTreeMap<CommodityRef, Arc<Commodity>>,
+    IndexMap<CommodityRef, Guid>,
+);
 
 /// Builds the Book table by table.
 struct Reader<'c> {
@@ -177,7 +188,10 @@ impl<'c> Reader<'c> {
         if books.len() > 1 {
             self.findings.push(format!("books has {} rows; GnuCash reads one", books.len()));
         }
-        books.into_iter().next().ok_or_else(|| SqlError::NotABook("the books table has no row".into()))
+        books
+            .into_iter()
+            .next()
+            .ok_or_else(|| SqlError::NotABook("the books table has no row".into()))
     }
 
     fn commodities(&mut self) -> Result<CommodityRows, SqlError> {
@@ -200,7 +214,9 @@ impl<'c> Reader<'c> {
     /// new root the row doesn't name. An XML book writes the root only with children (`Templates::has_descendants`).
     fn accounts(&mut self, ids: &BookRow) -> Result<Trees, SqlError> {
         let lookup = self.lookup.clone();
-        let rows = decode_all(self.conn, &tables::ACCOUNTS, &mut self.findings, |row, f| rows::account(row, &lookup, f))?;
+        let rows = decode_all(self.conn, &tables::ACCOUNTS, &mut self.findings, |row, f| {
+            rows::account(row, &lookup, f)
+        })?;
         let main = reachable(&rows, ids.root);
         let template = reachable(&rows, ids.template_root);
         if !main.contains(&ids.root) {
@@ -208,7 +224,10 @@ impl<'c> Reader<'c> {
         }
         rows.iter()
             .filter(|r| !main.contains(&r.account.guid) && !template.contains(&r.account.guid))
-            .for_each(|r| self.findings.push(format!("accounts: {} is reachable from neither root", r.account.guid)));
+            .for_each(|r| {
+                self.findings
+                    .push(format!("accounts: {} is reachable from neither root", r.account.guid))
+            });
         let pick = |set: &HashSet<Guid>| -> IndexMap<Guid, Arc<Account>> {
             rows.iter()
                 .filter(|r| set.contains(&r.account.guid))
@@ -227,7 +246,10 @@ impl<'c> Reader<'c> {
             .filter(|lot| {
                 let known = trees.accounts.contains_key(&lot.account);
                 if !known {
-                    self.findings.push(format!("lots: {} is in account {}, which is not in the Account tree", lot.guid, lot.account));
+                    self.findings.push(format!(
+                        "lots: {} is in account {}, which is not in the Account tree",
+                        lot.guid, lot.account
+                    ));
                 }
                 known
             })
@@ -243,7 +265,9 @@ impl<'c> Reader<'c> {
         lots: &IndexMap<Guid, Arc<Lot>>,
     ) -> Result<(Entities<Transaction>, Entities<Transaction>), SqlError> {
         let lookup = self.lookup.clone();
-        let read = decode_all(self.conn, &tables::TRANSACTIONS, &mut self.findings, |row, f| rows::transaction(row, &lookup, f))?;
+        let read = decode_all(self.conn, &tables::TRANSACTIONS, &mut self.findings, |row, f| {
+            rows::transaction(row, &lookup, f)
+        })?;
         let mut all: IndexMap<Guid, Transaction> = read.into_iter().map(|t| (t.guid, t)).collect();
         let splits = decode_all(self.conn, &tables::SPLITS, &mut self.findings, rows::split)?;
         for (tx, split) in splits {
@@ -266,7 +290,9 @@ impl<'c> Reader<'c> {
                 &mut template
             } else {
                 if t.splits.iter().any(in_templates) {
-                    self.findings.push(format!("transactions: {guid} has splits in both the Account tree and the template accounts"));
+                    self.findings.push(format!(
+                        "transactions: {guid} has splits in both the Account tree and the template accounts"
+                    ));
                 }
                 &mut main
             };
@@ -277,18 +303,25 @@ impl<'c> Reader<'c> {
 
     fn check_splits(&mut self, t: &Transaction, trees: &Trees, lots: &IndexMap<Guid, Arc<Lot>>) {
         for s in &t.splits {
-            if let Some(a) = s.account.filter(|a| !trees.accounts.contains_key(a) && !trees.templates.contains_key(a)) {
-                self.findings.push(format!("splits: {} refers to account {a}, which has no row in either tree", s.guid));
+            if let Some(a) = s
+                .account
+                .filter(|a| !trees.accounts.contains_key(a) && !trees.templates.contains_key(a))
+            {
+                self.findings
+                    .push(format!("splits: {} refers to account {a}, which has no row in either tree", s.guid));
             }
             if let Some(l) = s.lot.filter(|l| !lots.contains_key(l)) {
-                self.findings.push(format!("splits: {} refers to lot {l}, which has no row", s.guid));
+                self.findings
+                    .push(format!("splits: {} refers to lot {l}, which has no row", s.guid));
             }
         }
     }
 
     fn prices(&mut self) -> Result<IndexMap<Guid, Arc<Price>>, SqlError> {
         let lookup = self.lookup.clone();
-        let read = decode_all(self.conn, &tables::PRICES, &mut self.findings, |row, f| rows::price(row, &lookup, f))?;
+        let read = decode_all(self.conn, &tables::PRICES, &mut self.findings, |row, f| {
+            rows::price(row, &lookup, f)
+        })?;
         Ok(read.into_iter().map(|p| (p.guid, Arc::new(p))).collect())
     }
 
@@ -310,7 +343,8 @@ impl<'c> Reader<'c> {
             .filter_map(|b| {
                 let found = recurrences.shift_remove(&b.guid).unwrap_or_default();
                 if found.len() != 1 {
-                    self.findings.push(format!("budgets: {} has {} recurrences; GnuCash reads one", b.guid, found.len()));
+                    self.findings
+                        .push(format!("budgets: {} has {} recurrences; GnuCash reads one", b.guid, found.len()));
                 }
                 let recurrence = found.into_iter().next()?;
                 let budget = Budget {
@@ -337,7 +371,8 @@ impl<'c> Reader<'c> {
             .map(|mut sx| {
                 sx.schedule = recurrences.shift_remove(&sx.guid).unwrap_or_default();
                 if let Some(a) = sx.template_account.filter(|a| !trees.templates.contains_key(a)) {
-                    self.findings.push(format!("schedxactions: {} names template account {a}, which has no row", sx.guid));
+                    self.findings
+                        .push(format!("schedxactions: {} names template account {a}, which has no row", sx.guid));
                 }
                 (sx.guid, Arc::new(sx))
             })
@@ -351,14 +386,26 @@ impl<'c> Reader<'c> {
         set_children(&mut terms, |t| t.guid, |t| t.parent, |t, c| t.child = Some(c));
         let mut b = Business {
             bill_terms: keyed(terms, |t| t.guid),
-            customers: keyed(decode_all(conn, &tables::CUSTOMERS, f, |r, f| business::customer(r, &lookup, f))?, |c| c.guid),
-            employees: keyed(decode_all(conn, &tables::EMPLOYEES, f, |r, f| business::employee(r, &lookup, f))?, |e| e.guid),
+            customers: keyed(
+                decode_all(conn, &tables::CUSTOMERS, f, |r, f| business::customer(r, &lookup, f))?,
+                |c| c.guid,
+            ),
+            employees: keyed(
+                decode_all(conn, &tables::EMPLOYEES, f, |r, f| business::employee(r, &lookup, f))?,
+                |e| e.guid,
+            ),
             entries: keyed(decode_all(conn, &tables::ENTRIES, f, business::entry)?, |e| e.guid),
-            invoices: keyed(decode_all(conn, &tables::INVOICES, f, |r, f| business::invoice(r, &lookup, f))?, |i| i.guid),
+            invoices: keyed(
+                decode_all(conn, &tables::INVOICES, f, |r, f| business::invoice(r, &lookup, f))?,
+                |i| i.guid,
+            ),
             jobs: keyed(decode_all(conn, &tables::JOBS, f, business::job)?, |j| j.guid),
             orders: keyed(decode_all(conn, &tables::ORDERS, f, business::order)?, |o| o.guid),
             tax_tables: std::collections::BTreeMap::new(),
-            vendors: keyed(decode_all(conn, &tables::VENDORS, f, |r, f| business::vendor(r, &lookup, f))?, |v| v.guid),
+            vendors: keyed(
+                decode_all(conn, &tables::VENDORS, f, |r, f| business::vendor(r, &lookup, f))?,
+                |v| v.guid,
+            ),
         };
         let mut tax_tables = decode_all(conn, &tables::TAXTABLES, f, business::tax_table)?;
         let entries = decode_all(conn, &tables::TAXTABLE_ENTRIES, f, business::tax_table_entry)?;
@@ -459,10 +506,13 @@ impl Reader<'_> {
     fn check_flags(&mut self, book: &Book, rows: &[AccountRow]) {
         for r in rows {
             let guid = r.account.guid;
-            let Some(account) = book.accounts.get(&guid).or_else(|| book.templates.accounts.get(&guid)) else { continue };
+            let Some(account) = book.accounts.get(&guid).or_else(|| book.templates.accounts.get(&guid)) else {
+                continue;
+            };
             for (name, column) in [("hidden", r.hidden), ("placeholder", r.placeholder)] {
                 if column.unwrap_or(false) != slot_truth(&account.slots, name) {
-                    self.findings.push(format!("accounts: {guid}'s {name} column disagrees with its {name} Slot"));
+                    self.findings
+                        .push(format!("accounts: {guid}'s {name} column disagrees with its {name} Slot"));
                 }
             }
         }
@@ -476,7 +526,10 @@ impl Reader<'_> {
         let mut stored: HashMap<Guid, BTreeSet<(Guid, i64, i64, i64)>> = HashMap::new();
         for r in &rows {
             if book.budgets.contains_key(&r.budget) {
-                stored.entry(r.budget).or_default().insert((r.account, r.period, r.amount.num(), r.amount.denom()));
+                stored
+                    .entry(r.budget)
+                    .or_default()
+                    .insert((r.account, r.period, r.amount.num(), r.amount.denom()));
             } else {
                 self.orphans.budget_amounts.insert(r.budget);
             }
@@ -484,10 +537,15 @@ impl Reader<'_> {
         let accounts = book.descendants(book.root);
         for budget in book.budgets.values() {
             let set = |a: Guid, p: u32| budget.amount(a, p).map(|n| (a, i64::from(p), n.num(), n.denom()));
-            let expected: BTreeSet<(Guid, i64, i64, i64)> =
-                accounts.iter().flat_map(|a| (0..budget.num_periods).filter_map(move |p| set(a.guid, p))).collect();
+            let expected: BTreeSet<(Guid, i64, i64, i64)> = accounts
+                .iter()
+                .flat_map(|a| (0..budget.num_periods).filter_map(move |p| set(a.guid, p)))
+                .collect();
             if stored.remove(&budget.guid).unwrap_or_default() != expected {
-                self.findings.push(format!("budget_amounts: the rows of budget {} disagree with its amount Slots", budget.guid));
+                self.findings.push(format!(
+                    "budget_amounts: the rows of budget {} disagree with its amount Slots",
+                    budget.guid
+                ));
             }
         }
         Ok(())
@@ -504,8 +562,22 @@ fn entity_guids(book: &Book, commodity_guids: &IndexMap<CommodityRef, Guid>) -> 
         .chain(book.lots.keys().copied())
         .chain(transactions.flat_map(|t| std::iter::once(t.guid).chain(t.splits.iter().map(|s| s.guid))))
         .chain(book.budgets.keys().chain(book.scheduled.keys()).copied())
-        .chain(b.bill_terms.keys().chain(b.customers.keys()).chain(b.employees.keys()).chain(b.entries.keys()).copied())
-        .chain(b.invoices.keys().chain(b.jobs.keys()).chain(b.orders.keys()).chain(b.tax_tables.keys()).copied())
+        .chain(
+            b.bill_terms
+                .keys()
+                .chain(b.customers.keys())
+                .chain(b.employees.keys())
+                .chain(b.entries.keys())
+                .copied(),
+        )
+        .chain(
+            b.invoices
+                .keys()
+                .chain(b.jobs.keys())
+                .chain(b.orders.keys())
+                .chain(b.tax_tables.keys())
+                .copied(),
+        )
         .chain(b.vendors.keys().copied())
         .collect()
 }
@@ -518,16 +590,22 @@ fn assign_slots(book: &mut Book, commodity_guids: &IndexMap<CommodityRef, Guid>,
             Arc::make_mut(c).slots = take(*g);
         }
     }
-    book.accounts.values_mut().chain(book.templates.accounts.values_mut()).for_each(|a| {
-        let a = Arc::make_mut(a);
-        a.slots = take(a.guid);
-    });
+    book.accounts
+        .values_mut()
+        .chain(book.templates.accounts.values_mut())
+        .for_each(|a| {
+            let a = Arc::make_mut(a);
+            a.slots = take(a.guid);
+        });
     book.lots.values_mut().for_each(|l| Arc::make_mut(l).slots = take(l.guid));
-    book.transactions.values_mut().chain(book.templates.transactions.values_mut()).for_each(|t| {
-        let t = Arc::make_mut(t);
-        t.slots = take(t.guid);
-        t.splits.iter_mut().for_each(|s| s.slots = take(s.guid));
-    });
+    book.transactions
+        .values_mut()
+        .chain(book.templates.transactions.values_mut())
+        .for_each(|t| {
+            let t = Arc::make_mut(t);
+            t.slots = take(t.guid);
+            t.splits.iter_mut().for_each(|s| s.slots = take(s.guid));
+        });
     book.budgets.values_mut().for_each(|x| Arc::make_mut(x).slots = take(x.guid));
     book.scheduled.values_mut().for_each(|x| Arc::make_mut(x).slots = take(x.guid));
     let b = &mut book.business;

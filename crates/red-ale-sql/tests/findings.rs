@@ -53,22 +53,43 @@ fn an_older_schema_version_names_its_table() {
 #[test]
 fn versions_changed_down_and_up_are_named() {
     let cases = [
-        ("UPDATE versions SET table_version = 19921 WHERE table_name = 'Gnucash-Resave'", "Gnucash-Resave is version 19921"),
-        ("UPDATE versions SET table_version = 19919 WHERE table_name = 'Gnucash'", "Gnucash is 19919"),
-        ("UPDATE versions SET table_version = 5000018 WHERE table_name = 'Gnucash'", "Gnucash is 5000018"),
-        ("UPDATE versions SET table_version = 1 WHERE table_name = 'prices'", "prices is version 1"),
-        ("UPDATE versions SET table_version = 6 WHERE table_name = 'splits'", "splits is version 6"),
+        (
+            "UPDATE versions SET table_version = 19921 WHERE table_name = 'Gnucash-Resave'",
+            "Gnucash-Resave is version 19921",
+        ),
+        (
+            "UPDATE versions SET table_version = 19919 WHERE table_name = 'Gnucash'",
+            "Gnucash is 19919",
+        ),
+        (
+            "UPDATE versions SET table_version = 5000018 WHERE table_name = 'Gnucash'",
+            "Gnucash is 5000018",
+        ),
+        (
+            "UPDATE versions SET table_version = 1 WHERE table_name = 'prices'",
+            "prices is version 1",
+        ),
+        (
+            "UPDATE versions SET table_version = 6 WHERE table_name = 'splits'",
+            "splits is version 6",
+        ),
     ];
     cases.iter().for_each(|(sql, named)| {
         let (_dir, path) = rich_with(sql);
         let f = findings(&path);
-        assert!(f.schema_versions.len() == 1 && f.schema_versions[0].starts_with(named), "{sql}: {f:?}");
+        assert!(
+            f.schema_versions.len() == 1 && f.schema_versions[0].starts_with(named),
+            "{sql}: {f:?}"
+        );
     });
 }
 
 #[test]
 fn unknown_tables_columns_and_indexes_are_named() {
-    assert_eq!(unrecognised("CREATE TABLE zz_custom (x)"), ["table zz_custom is not in GnuCash 5.17's schema"]);
+    assert_eq!(
+        unrecognised("CREATE TABLE zz_custom (x)"),
+        ["table zz_custom is not in GnuCash 5.17's schema"]
+    );
     assert_eq!(
         unrecognised("ALTER TABLE transactions ADD COLUMN zz_extra text"),
         ["table transactions has column zz_extra that GnuCash 5.17 does not"]
@@ -87,7 +108,10 @@ fn unknown_tables_columns_and_indexes_are_named() {
     );
     assert_eq!(unrecognised("DROP TABLE jobs"), ["GnuCash 5.17's table jobs is missing"]);
     assert_eq!(unrecognised("DROP TABLE gnclock"), ["GnuCash 5.17's table gnclock is missing"]);
-    assert_eq!(unrecognised("DROP INDEX slots_guid_index"), ["GnuCash 5.17's index slots_guid_index is missing"]);
+    assert_eq!(
+        unrecognised("DROP INDEX slots_guid_index"),
+        ["GnuCash 5.17's index slots_guid_index is missing"]
+    );
 }
 
 #[test]
@@ -107,7 +131,10 @@ fn a_column_of_another_declared_type_is_named() {
 fn budget_amounts_must_agree_with_the_budget_s_slots() {
     let budget = "budget_amounts: the rows of budget 0123456789abcdef0123456789abcdef disagree with its amount Slots";
     assert_eq!(unrecognised("UPDATE budget_amounts SET amount_num = 101 WHERE id = 1"), [budget]);
-    assert_eq!(unrecognised("UPDATE budget_amounts SET amount_num = 200, amount_denom = 2 WHERE id = 1"), [budget]);
+    assert_eq!(
+        unrecognised("UPDATE budget_amounts SET amount_num = 200, amount_denom = 2 WHERE id = 1"),
+        [budget]
+    );
     assert_eq!(unrecognised("DELETE FROM budget_amounts WHERE id = 2"), [budget]);
     let orphan = "INSERT INTO budget_amounts(budget_guid, account_guid, period_num, amount_num, amount_denom) \
                   VALUES ('00000000000000000000000000000009', '1feca2abf92347288c268ebf93753ec4', 0, 1, 1)";
@@ -173,7 +200,10 @@ fn slot_rows_that_are_not_a_tree_are_named() {
         ["slots row 7, column slot_type: 7 is not a slot type GnuCash 5.17 reads"]
     );
     let price_slot = "INSERT INTO slots(obj_guid, name, slot_type, string_val) VALUES ('8318eee98d264a3e85b01e608ef2026f', 'x', 4, 'y')";
-    assert_eq!(unrecognised(price_slot), ["slots row 80: owned by 8318eee98d264a3e85b01e608ef2026f, which has no Slots in red-ale"]);
+    assert_eq!(
+        unrecognised(price_slot),
+        ["slots row 80: owned by 8318eee98d264a3e85b01e608ef2026f, which has no Slots in red-ale"]
+    );
 }
 
 #[test]
@@ -185,8 +215,14 @@ fn orphan_rows_are_kept_in_the_residue_not_reported() {
     let (_, opened, f) = open_read_only(&path).unwrap();
     assert!(f.is_empty(), "{f:?}");
     let orphans = &opened.residue().orphans;
-    assert_eq!(orphans.slots.iter().map(ToString::to_string).collect::<Vec<_>>(), ["00000000000000000000000000000007"]);
-    assert_eq!(orphans.splits.iter().map(ToString::to_string).collect::<Vec<_>>(), ["00000000000000000000000000000006"]);
+    assert_eq!(
+        orphans.slots.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        ["00000000000000000000000000000007"]
+    );
+    assert_eq!(
+        orphans.splits.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        ["00000000000000000000000000000006"]
+    );
 }
 
 #[test]
@@ -207,7 +243,9 @@ fn a_hot_journal_is_refused_and_left_alone() {
     let (dir, path) = copy("sqlite/synthetic/rich.gnucash");
     let writer = Connection::open(&path).unwrap();
     writer.pragma_update(None, "cache_size", 1).unwrap();
-    writer.execute_batch("BEGIN; UPDATE slots SET string_val = string_val || 'x'; UPDATE accounts SET name = name || 'x';").unwrap();
+    writer
+        .execute_batch("BEGIN; UPDATE slots SET string_val = string_val || 'x'; UPDATE accounts SET name = name || 'x';")
+        .unwrap();
     let crashed = dir.path().join("crashed.gnucash");
     std::fs::copy(&path, &crashed).unwrap();
     std::fs::copy(dir.path().join("book.gnucash-journal"), dir.path().join("crashed.gnucash-journal")).unwrap();

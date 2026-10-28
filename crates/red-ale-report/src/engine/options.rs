@@ -345,7 +345,10 @@ fn widget_callback(callback: &Dynamic) -> Fallible<()> {
     if callback.is_unit() || callback.is_fnptr() {
         Ok(())
     } else {
-        Err(script_error(format!("an option's callback is a function or (), got {}", callback.type_name())))
+        Err(script_error(format!(
+            "an option's callback is a function or (), got {}",
+            callback.type_name()
+        )))
     }
 }
 
@@ -358,7 +361,16 @@ fn complex_boolean(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d:
 
 /// `gnc-register-multichoice-callback-option`: a multichoice with a widget callback.
 #[allow(clippy::too_many_arguments)]
-fn multichoice_callback(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic, c: Array, callback: Dynamic) -> Fallible<()> {
+fn multichoice_callback(
+    o: &mut OptionBuilder,
+    s: &str,
+    n: &str,
+    k: &str,
+    h: &str,
+    d: Dynamic,
+    c: Array,
+    callback: Dynamic,
+) -> Fallible<()> {
     widget_callback(&callback)?;
     let (d, c) = (choice_key(&d)?, choices(&c)?);
     declare(o.db.borrow_mut().multichoice(classifier(s, n, k, h), d, c))

@@ -22,7 +22,11 @@ fn a_one_transaction_save_of_the_synthetic_book_writes_only_that_transactions_ro
     ["transactions", "splits", "slots"].iter().for_each(|table| {
         let rows = &changed[*table];
         assert!(rows.gone.is_empty(), "{table}: {:?}", rows.gone);
-        assert!(rows.new.iter().all(|r| r.contains(&owned)), "{table}: a row not of {owned:?}: {:?}", rows.new);
+        assert!(
+            rows.new.iter().all(|r| r.contains(&owned)),
+            "{table}: a row not of {owned:?}: {:?}",
+            rows.new
+        );
     });
     // The slot row's `id` is `AUTOINCREMENT`: inserting it moves the `slots` row of SQLite's own sequence table on.
     let sequence = &changed["sqlite_sequence"];

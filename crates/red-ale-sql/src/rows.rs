@@ -12,8 +12,8 @@ use std::collections::HashMap;
 use red_ale_core::budget::DEFAULT_NUM_PERIODS;
 use red_ale_core::commodity::CURRENCY_NAMESPACE;
 use red_ale_core::{
-    Account, AccountType, Commodity, CommodityRef, Guid, Lot, Numeric, Occurrences, Price, ReconcileState, Recurrence, ScheduledTransaction,
-    SlotValue, Split, Time64, Transaction, WeekendAdjust,
+    Account, AccountType, Commodity, CommodityRef, Guid, Lot, Numeric, Occurrences, Price, ReconcileState, Recurrence,
+    ScheduledTransaction, SlotValue, Split, Time64, Transaction, WeekendAdjust,
 };
 
 use crate::cell::{Cells, Row};
@@ -89,7 +89,11 @@ pub fn commodity(row: &Row, findings: &mut Vec<String>) -> Option<(Guid, Commodi
     }
     let mut c = Commodity::new(id, Some(cells.text("fullname").unwrap_or_default()), fraction);
     // The XML writer writes an exchange code only when it is not empty, and none for a currency, whose ISO entry has one.
-    c.cusip = if currency { Some(cells.text("cusip").unwrap_or_default()) } else { cells.nonempty_text("cusip") };
+    c.cusip = if currency {
+        Some(cells.text("cusip").unwrap_or_default())
+    } else {
+        cells.nonempty_text("cusip")
+    };
     c.quote_flag = cells.req_bool("quote_flag");
     // Quote source and time zone are written only for a commodity with quotes on (`:97-107`).
     if c.quote_flag {
@@ -381,7 +385,9 @@ pub fn slot(row: &Row, findings: &mut Vec<String>) -> Option<SlotRow> {
     let slot_type = cells.req_int("slot_type");
     let cell = match slot_type {
         1 => cells.int("int64_val").map(SlotValue::Integer).map(SlotCell::Value),
-        2 => cells.real("double_val").map(|d| SlotCell::Value(SlotValue::Double(format_double(d.to_bits())))),
+        2 => cells
+            .real("double_val")
+            .map(|d| SlotCell::Value(SlotValue::Double(format_double(d.to_bits())))),
         3 => cells.numeric("numeric_val").map(SlotValue::Numeric).map(SlotCell::Value),
         4 => cells.text("string_val").map(SlotValue::String).map(SlotCell::Value),
         5 => cells.guid("guid_val").map(SlotValue::Guid).map(SlotCell::Value),
@@ -461,7 +467,10 @@ mod tests {
         };
         let mut findings = Vec::new();
         let a = account(&row, &Lookup::default(), &mut findings).unwrap();
-        assert_eq!((a.account.commodity_scu, a.account.non_standard_scu, a.account.code), (None, false, None));
+        assert_eq!(
+            (a.account.commodity_scu, a.account.non_standard_scu, a.account.code),
+            (None, false, None)
+        );
         assert!(findings.is_empty(), "{findings:?}");
     }
 
@@ -483,6 +492,9 @@ mod tests {
         let mut lookup = Lookup::default();
         lookup.commodities.insert(H.parse().unwrap(), CommodityRef::currency("USD"));
         let t = transaction(&row, &lookup, &mut Vec::new()).unwrap();
-        assert_eq!((t.num, t.description.as_deref(), t.date_posted), (None, Some(""), Time64(1_717_412_340)));
+        assert_eq!(
+            (t.num, t.description.as_deref(), t.date_posted),
+            (None, Some(""), Time64(1_717_412_340))
+        );
     }
 }

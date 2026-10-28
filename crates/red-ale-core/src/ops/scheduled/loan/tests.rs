@@ -63,7 +63,12 @@ fn templates(f: &Fixture, sx: Guid) -> Vec<Template> {
                 .map(|s| {
                     let x = TemplateSplit::of(s).unwrap();
                     let text = |v: Option<&str>| v.unwrap_or_default().to_owned();
-                    (x.account().unwrap(), s.memo.clone().unwrap_or_default(), text(x.debit_formula()), text(x.credit_formula()))
+                    (
+                        x.account().unwrap(),
+                        s.memo.clone().unwrap_or_default(),
+                        text(x.debit_formula()),
+                        text(x.credit_formula()),
+                    )
                 })
                 .collect();
             (t.description.clone().unwrap_or_default(), splits)
@@ -91,14 +96,25 @@ fn a_thirty_year_loan_has_gnucashs_formulas() {
     let created = run(&mut f, &loan).unwrap();
     let sx = created.edited.guid;
     let s = |account, memo: &str, debit: &str, credit: &str| (account, memo.to_owned(), debit.to_owned(), credit.to_owned());
-    assert_eq!(templates(&f, sx), [("Loan - Payment".to_owned(), vec![
-        s(f.bank, "Loan - Payment", "", PMT),
-        s(a.mortgage, "Loan - Principal", PPMT, ""),
-        s(a.interest, "Loan - Interest", IPMT, ""),
-    ])]);
+    assert_eq!(
+        templates(&f, sx),
+        [(
+            "Loan - Payment".to_owned(),
+            vec![
+                s(f.bank, "Loan - Payment", "", PMT),
+                s(a.mortgage, "Loan - Principal", PPMT, ""),
+                s(a.interest, "Loan - Interest", IPMT, ""),
+            ]
+        )]
+    );
     let t = template_transactions(&f.book, &f.book.scheduled[&sx])[0];
     assert_eq!(t.currency, usd());
-    let numerics: Vec<_> = t.splits.iter().map(|s| TemplateSplit::of(s).unwrap()).map(|x| (x.debit_numeric(), x.credit_numeric())).collect();
+    let numerics: Vec<_> = t
+        .splits
+        .iter()
+        .map(|s| TemplateSplit::of(s).unwrap())
+        .map(|x| (x.debit_numeric(), x.credit_numeric()))
+        .collect();
     let zero = Some(Numeric::new(0, 1));
     assert_eq!(numerics, [(zero, Some(created.payment)), (zero, zero), (zero, zero)]);
 }
@@ -112,23 +128,41 @@ fn the_loans_formulas_give_the_hand_worked_figures() {
     let a = accounts(&mut f);
     let loan = thirty_years(&f, &a);
     let created = run(&mut f, &loan).unwrap();
-    assert!(created.payment.same_value(Numeric::new(599_550_525_153, 1_000_000_000)), "{}", created.payment);
+    assert!(
+        created.payment.same_value(Numeric::new(599_550_525_153, 1_000_000_000)),
+        "{}",
+        created.payment
+    );
     assert!(at(PMT, 1).same_value(created.payment));
     assert!(at(IPMT, 1).same_value(Numeric::from_int(500)));
     assert!(at(PPMT, 1).same_value(Numeric::new(995_505_251_528, 10_000_000_000)));
     assert!(at(IPMT, 360).same_value(Numeric::new(298_283_843_360, 100_000_000_000)));
     assert!(at(PPMT, 360).same_value(Numeric::new(596_567_686_719, 1_000_000_000)));
     let i = Variables::from([("i".to_owned(), Numeric::from_int(1))]);
-    let made = create_instance(&mut f.book, &mut f.env, created.edited.guid, date(2026, 1, 1), &i, NumberFormat::default()).unwrap();
+    let made = create_instance(
+        &mut f.book,
+        &mut f.env,
+        created.edited.guid,
+        date(2026, 1, 1),
+        &i,
+        NumberFormat::default(),
+    )
+    .unwrap();
     let t = &f.book.transactions[&made[0].transaction];
     let mut values: Vec<(Option<Guid>, Numeric)> = t.splits.iter().map(|s| (s.account, s.value)).collect();
     values.sort_by_key(|(_, v)| v.num());
-    assert_eq!(values, [
-        (Some(f.bank), Numeric::new(-59955, 100)),
-        (Some(a.mortgage), Numeric::new(9955, 100)),
-        (Some(a.interest), Numeric::new(50000, 100)),
-    ]);
-    assert!(made[0].imbalance.is_none(), "the cents balance (the note's defect 6 does not show here)");
+    assert_eq!(
+        values,
+        [
+            (Some(f.bank), Numeric::new(-59955, 100)),
+            (Some(a.mortgage), Numeric::new(9955, 100)),
+            (Some(a.interest), Numeric::new(50000, 100)),
+        ]
+    );
+    assert!(
+        made[0].imbalance.is_none(),
+        "the cents balance (the note's defect 6 does not show here)"
+    );
 }
 
 /// The schedule `AL:2850-2865` sets: start on the loan's start; last occurrence a month before the first repayment;
@@ -142,9 +176,18 @@ fn the_schedule_and_the_instance_count() {
     loan.start = Some(date(2025, 1, 1));
     let created = run(&mut f, &loan).unwrap();
     let sx = &f.book.scheduled[&created.edited.guid];
-    assert_eq!((sx.start, sx.last, sx.end, sx.instance_count), (date(2025, 1, 1), Some(date(2024, 12, 1)), Some(date(2053, 12, 1)), 13));
-    assert_eq!(sx.schedule, [Recurrence::new(1, PeriodType::Month, date(2025, 1, 1), WeekendAdjust::None).unwrap()]);
-    assert_eq!((sx.enabled, sx.auto_create, sx.advance_create_days, sx.occurrences), (true, false, 0, None));
+    assert_eq!(
+        (sx.start, sx.last, sx.end, sx.instance_count),
+        (date(2025, 1, 1), Some(date(2024, 12, 1)), Some(date(2053, 12, 1)), 13)
+    );
+    assert_eq!(
+        sx.schedule,
+        [Recurrence::new(1, PeriodType::Month, date(2025, 1, 1), WeekendAdjust::None).unwrap()]
+    );
+    assert_eq!(
+        (sx.enabled, sx.auto_create, sx.advance_create_days, sx.occurrences),
+        (true, false, 0, None)
+    );
 
     loan.name = Some("House".into());
     loan.months_remaining = Some(300);
@@ -152,8 +195,14 @@ fn the_schedule_and_the_instance_count() {
     loan.repayment.frequency = Some((1, PeriodType::EndOfMonth, WeekendAdjust::Back));
     let created = run(&mut f, &loan).unwrap();
     let sx = &f.book.scheduled[&created.edited.guid];
-    assert_eq!((sx.name.as_str(), sx.last, sx.end, sx.instance_count), ("House", Some(date(2025, 2, 28)), Some(date(2050, 2, 28)), 61));
-    assert_eq!(sx.schedule, [Recurrence::new(1, PeriodType::EndOfMonth, date(2025, 3, 31), WeekendAdjust::Back).unwrap()]);
+    assert_eq!(
+        (sx.name.as_str(), sx.last, sx.end, sx.instance_count),
+        ("House", Some(date(2025, 2, 28)), Some(date(2050, 2, 28)), 61)
+    );
+    assert_eq!(
+        sx.schedule,
+        [Recurrence::new(1, PeriodType::EndOfMonth, date(2025, 3, 31), WeekendAdjust::Back).unwrap()]
+    );
 }
 
 /// With escrow (`AL:2903-2935`) the first template moves the payment into escrow, the second out of it; taxes via
@@ -188,20 +237,29 @@ fn escrow_and_other_payments() {
     let plus = |x: &str| format!("{PMT} + {x}");
     let mut got = templates(&f, created.edited.guid);
     got.sort();
-    assert_eq!(got, [
-        ("Loan - Escrow Payment".to_owned(), vec![
-            s(f.bank, "Loan", "", &format!("{} + 40.00", plus("250.75"))),
-            s(a.escrow, "Loan", &plus("250.75"), ""),
-            s(f.food, "Gardener", "40.00", ""),
-        ]),
-        ("Loan - Payment".to_owned(), vec![
-            s(a.escrow, "Loan - Payment", "", PMT),
-            s(a.mortgage, "Loan - Principal", PPMT, ""),
-            s(a.interest, "Loan - Interest", IPMT, ""),
-            s(a.escrow, "Tax Payment", "", "250.75"),
-            s(a.taxes, "Tax Payment", "250.75", ""),
-        ]),
-    ]);
+    assert_eq!(
+        got,
+        [
+            (
+                "Loan - Escrow Payment".to_owned(),
+                vec![
+                    s(f.bank, "Loan", "", &format!("{} + 40.00", plus("250.75"))),
+                    s(a.escrow, "Loan", &plus("250.75"), ""),
+                    s(f.food, "Gardener", "40.00", ""),
+                ]
+            ),
+            (
+                "Loan - Payment".to_owned(),
+                vec![
+                    s(a.escrow, "Loan - Payment", "", PMT),
+                    s(a.mortgage, "Loan - Principal", PPMT, ""),
+                    s(a.interest, "Loan - Interest", IPMT, ""),
+                    s(a.escrow, "Tax Payment", "", "250.75"),
+                    s(a.taxes, "Tax Payment", "250.75", ""),
+                ]
+            ),
+        ]
+    );
     loan.escrow = None;
     loan.other_payments.truncate(1);
     loan.other_payments[0].via_escrow = Some(true);
@@ -210,7 +268,10 @@ fn escrow_and_other_payments() {
     loan.other_payments[0].from = Some(a.escrow);
     let created = run(&mut f, &loan).unwrap();
     let got = templates(&f, created.edited.guid);
-    assert_eq!(got[0].1[3..], [s(a.escrow, "Tax Payment", "", "250.75"), s(a.taxes, "Tax Payment", "250.75", "")]);
+    assert_eq!(
+        got[0].1[3..],
+        [s(a.escrow, "Tax Payment", "", "250.75"), s(a.taxes, "Tax Payment", "250.75", "")]
+    );
 }
 
 /// A change to a loan, given the Food account.
@@ -233,7 +294,10 @@ fn rate_types_frequencies_and_the_locale() {
     let mut loan = thirty_years(&f, &a);
     loan.repayment.frequency = Some((3, PeriodType::Week, WeekendAdjust::None));
     let created = run(&mut f, &loan).unwrap();
-    assert_eq!(templates(&f, created.edited.guid)[0].1[0].3, "pmt( 0.06000 / ( 52 / 3 ) : 520.00 : 100000.00 : 0 : 0 )");
+    assert_eq!(
+        templates(&f, created.edited.guid)[0].1[0].3,
+        "pmt( 0.06000 / ( 52 / 3 ) : 520.00 : 100000.00 : 0 : 0 )"
+    );
     loan.repayment.frequency = None;
     loan.rate_type = RateType::AprMonthly;
     loan.rate = Numeric::new(4125, 1000);
@@ -242,7 +306,10 @@ fn rate_types_frequencies_and_the_locale() {
         group_separator: '.',
     };
     let created = super::loan(&mut f.book, &mut f.env, &loan, de).unwrap();
-    assert_eq!(templates(&f, created.edited.guid)[0].1[0].3, "pmt( 0,04125 / 12,00 : 360,00 : 100000,00 : 0 : 0 )");
+    assert_eq!(
+        templates(&f, created.edited.guid)[0].1[0].3,
+        "pmt( 0,04125 / 12,00 : 360,00 : 100000,00 : 0 : 0 )"
+    );
     loan.rate_type = RateType::AprDaily;
     assert_eq!(reason(&run(&mut f, &loan).unwrap_err()), "non-integer-power");
 }
@@ -264,7 +331,10 @@ fn the_assistants_limits() {
         (|l, _| l.principal = Numeric::ZERO, "principal"),
         (|l, _| l.length = Length::Months(0), "length"),
         (|l, _| l.months_remaining = Some(361), "months-remaining"),
-        (|l, _| l.repayment.frequency = Some((0, PeriodType::Once, WeekendAdjust::None)), "frequency"),
+        (
+            |l, _| l.repayment.frequency = Some((0, PeriodType::Once, WeekendAdjust::None)),
+            "frequency",
+        ),
     ];
     cases.into_iter().for_each(|(change, expected)| {
         let mut loan = base.clone();

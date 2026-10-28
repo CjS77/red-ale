@@ -115,12 +115,23 @@ fn default_options() {
     assert_eq!(result["title"], " Budget Income Statement for Budget test budget");
     let ts = tables(&result);
     assert_eq!(labels(ts[0]), ["Revenues", "Income", "Income-GBP", "Total Revenue"]);
-    assert_eq!(labels(ts[1]), ["Expenses", "Expenses", "Total Expenses", "Net income for Budget test budget"]);
+    assert_eq!(
+        labels(ts[1]),
+        ["Expenses", "Expenses", "Total Expenses", "Net income for Budget test budget"]
+    );
     assert_eq!(amount_of(&result, "Total Revenue"), ["-$195.00"]);
-    assert_eq!(amount_of(&result, "Income-GBP"), ["£0.00", "$0.00"], "a foreign account's commodity table (HAT:1035-1039)");
+    assert_eq!(
+        amount_of(&result, "Income-GBP"),
+        ["£0.00", "$0.00"],
+        "a foreign account's commodity table (HAT:1035-1039)"
+    );
     assert_eq!(amount_of(&result, "Total Expenses"), ["$90.00"]);
     let net = &ts[1]["rows"][3];
-    assert_eq!((net["role"].as_str(), net["level"].as_u64()), (Some("grandTotal"), Some(0)), "the rightmost level (BIS:524-527)");
+    assert_eq!(
+        (net["role"].as_str(), net["level"].as_u64()),
+        (Some("grandTotal"), Some(0)),
+        "the rightmost level (BIS:524-527)"
+    );
 }
 
 /// The Budget Profit & Loss is the Budget Income Statement under another name (BIS:577-609): the same statement,
@@ -135,7 +146,10 @@ fn profit_and_loss_is_the_income_statement_renamed() {
         let is = s.run(INCOME_STATEMENT, options);
         assert_eq!(pnl["sections"], is["sections"]);
         assert_eq!(pnl["report"]["guid"], "e5fa5ce805e840ecbeca4dba3fa4ead9");
-        assert_eq!(pnl["title"], is["title"].as_str().unwrap().replace(INCOME_STATEMENT, PROFIT_AND_LOSS));
+        assert_eq!(
+            pnl["title"],
+            is["title"].as_str().unwrap().replace(INCOME_STATEMENT, PROFIT_AND_LOSS)
+        );
     });
     let mut s = Setup::new_book(&test_settings("locale"));
     let result = s.run(PROFIT_AND_LOSS, &json!({}));
@@ -154,15 +168,33 @@ fn plan_book() -> Setup {
     s.account("Food", "EXPENSE", None, "CURRENCY::USD");
     s.account("Rent", "EXPENSE", None, "CURRENCY::USD");
     [("2024-01-01", "1.10"), ("2024-02-01", "1.30")].iter().for_each(|(date, value)| {
-        s.call("price.add", json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": value, "date": date }));
+        s.call(
+            "price.add",
+            json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": value, "date": date }),
+        );
     });
     let recurrence = json!({ "mult": 1, "periodType": "month", "start": "2024-01-01" });
-    let budget = s.call("budget.create", json!({ "name": "Plan", "numPeriods": 3, "recurrence": recurrence }))["guid"].clone();
+    let budget = s.call(
+        "budget.create",
+        json!({ "name": "Plan", "numPeriods": 3, "recurrence": recurrence }),
+    )["guid"]
+        .clone();
     let cells = [
-        ("Salary", 0, "-400"), ("Salary", 1, "-400"), ("Salary", 2, "-400"), ("Consulting", 0, "-100"), ("Consulting", 1, "-100"),
-        ("Food", 0, "150"), ("Food", 2, "100"), ("Rent", 0, "500"), ("Rent", 1, "500"), ("Rent", 2, "500"),
+        ("Salary", 0, "-400"),
+        ("Salary", 1, "-400"),
+        ("Salary", 2, "-400"),
+        ("Consulting", 0, "-100"),
+        ("Consulting", 1, "-100"),
+        ("Food", 0, "150"),
+        ("Food", 2, "100"),
+        ("Rent", 0, "500"),
+        ("Rent", 1, "500"),
+        ("Rent", 2, "500"),
     ];
-    let amounts: Vec<Value> = cells.iter().map(|(a, p, v)| json!({ "account": a, "period": p, "amount": v })).collect();
+    let amounts: Vec<Value> = cells
+        .iter()
+        .map(|(a, p, v)| json!({ "account": a, "period": p, "amount": v }))
+        .collect();
     s.call("budget.setAmounts", json!({ "budget": budget, "amounts": amounts }));
     s
 }
@@ -189,8 +221,14 @@ fn period_range() {
     assert_eq!(result["title"], " Budget Income Statement for Budget Plan");
     assert_eq!(
         figures(&result, &rows),
-        ["Consulting: €200.00 $220.00", "Salary: $1,200.00", "Total Revenue: -$1,420.00", "Food: $250.00", "Rent: $1,500.00",
-         "Total Expenses: $1,750.00"]
+        [
+            "Consulting: €200.00 $220.00",
+            "Salary: $1,200.00",
+            "Total Revenue: -$1,420.00",
+            "Food: $250.00",
+            "Rent: $1,500.00",
+            "Total Expenses: $1,750.00"
+        ]
     );
     assert_eq!(amount_of(&result, "Net loss for Budget Plan"), ["$330.00"]);
 
@@ -198,14 +236,23 @@ fn period_range() {
     assert_eq!(result["title"], " Budget Income Statement for Budget Plan Period 2");
     assert_eq!(
         figures(&result, &rows),
-        ["Consulting: €100.00 $130.00", "Salary: $400.00", "Total Revenue: -$530.00", "Food: $0.00", "Rent: $500.00",
-         "Total Expenses: $500.00"]
+        [
+            "Consulting: €100.00 $130.00",
+            "Salary: $400.00",
+            "Total Revenue: -$530.00",
+            "Food: $0.00",
+            "Rent: $500.00",
+            "Total Expenses: $500.00"
+        ]
     );
     assert_eq!(amount_of(&result, "Net income for Budget Plan Period 2"), ["$30.00"]);
 
     let result = s.run(INCOME_STATEMENT, &ranged(json!(1), json!(2)));
     assert_eq!(result["title"], " Budget Income Statement for Budget Plan Periods 1 - 2");
-    assert_eq!(figures(&result, &["Total Revenue", "Total Expenses"]), ["Total Revenue: -$1,020.00", "Total Expenses: $1,150.00"]);
+    assert_eq!(
+        figures(&result, &["Total Revenue", "Total Expenses"]),
+        ["Total Revenue: -$1,020.00", "Total Expenses: $1,150.00"]
+    );
     assert_eq!(amount_of(&result, "Net loss for Budget Plan Periods 1 - 2"), ["$130.00"]);
 }
 
@@ -216,19 +263,37 @@ fn range_truncation_and_errors() {
     let mut s = fixture();
     let result = s.run(INCOME_STATEMENT, &ranged(json!("2.9"), json!("3.9")));
     assert_eq!(result["title"], " Budget Income Statement for Budget test budget Periods 2 - 3");
-    assert_eq!(amount_of(&result, "Income"), ["$65.00"], "period 2 as the user counts them has no amount; period 3 has -$65");
-    let warning = |result: &Value| (result["title"].clone(), blocks(result)[0]["title"].clone(), blocks(result)[0]["text"].clone());
+    assert_eq!(
+        amount_of(&result, "Income"),
+        ["$65.00"],
+        "period 2 as the user counts them has no amount; period 3 has -$65"
+    );
+    let warning = |result: &Value| {
+        (
+            result["title"].clone(),
+            blocks(result)[0]["title"].clone(),
+            blocks(result)[0]["text"].clone(),
+        )
+    };
     let result = s.run(INCOME_STATEMENT, &ranged(json!(3), json!(2)));
     assert_eq!(
         warning(&result),
-        (json!(INCOME_STATEMENT), json!("Budget Income Statement:"), json!("Reporting range end period cannot be less than start period."))
+        (
+            json!(INCOME_STATEMENT),
+            json!("Budget Income Statement:"),
+            json!("Reporting range end period cannot be less than start period.")
+        )
     );
     let mut options = ranged(json!(1), json!(7));
     options["General"]["Report Title"] = json!("Plan");
     let result = s.run(INCOME_STATEMENT, &options);
     assert_eq!(
         warning(&result),
-        (json!("Plan"), json!("Plan:"), json!("Reporting range end period cannot exceed number of periods in budget"))
+        (
+            json!("Plan"),
+            json!("Plan:"),
+            json!("Reporting range end period cannot exceed number of periods in budget")
+        )
     );
 }
 
@@ -242,8 +307,16 @@ fn reversed_accounts() {
     let mut s = Setup::fixture("budget.gnucash", &settings);
     let result = s.run(INCOME_STATEMENT, &json!({}));
     assert_eq!(
-        figures(&result, &["Income", "Total Revenue", "Total Expenses", "Net income for Budget test budget"]),
-        ["Income: $195.00", "Total Revenue: $195.00", "Total Expenses: $90.00", "Net income for Budget test budget: $105.00"]
+        figures(
+            &result,
+            &["Income", "Total Revenue", "Total Expenses", "Net income for Budget test budget"]
+        ),
+        [
+            "Income: $195.00",
+            "Total Revenue: $195.00",
+            "Total Expenses: $90.00",
+            "Net income for Budget test budget: $105.00"
+        ]
     );
 }
 
@@ -258,7 +331,10 @@ fn layouts() {
         let result = s.run(INCOME_STATEMENT, &json!({ "Display": display }));
         let grouped = result["sections"][0]["blocks"][0]["kind"] == "group";
         let firsts: Vec<String> = tables(&result).iter().map(|t| labels(t)[0].clone()).collect();
-        let net_in = tables(&result).iter().position(|t| labels(t).last().unwrap().starts_with("Net income")).unwrap();
+        let net_in = tables(&result)
+            .iter()
+            .position(|t| labels(t).last().unwrap().starts_with("Net income"))
+            .unwrap();
         (grouped, firsts, net_in)
     };
     let (rev, exp) = ("Revenues".to_owned(), "Expenses".to_owned());

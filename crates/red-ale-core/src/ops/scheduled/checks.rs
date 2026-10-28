@@ -47,9 +47,9 @@ fn check_split(book: &Book, sx: &ScheduledTransaction, t: &Transaction, split: &
         });
     }
     split_account(book, sx, t, split)?;
-    formulas(split).into_iter().try_for_each(|(side, text)| {
-        check_formula(text, format).map_err(|e| ScheduledError::formula(site(sx, t, split), side, text, e))
-    })
+    formulas(split)
+        .into_iter()
+        .try_for_each(|(side, text)| check_formula(text, format).map_err(|e| ScheduledError::formula(site(sx, t, split), side, text, e)))
 }
 
 fn check_formula(text: &str, format: NumberFormat) -> Result<(), FormulaError> {
@@ -74,7 +74,10 @@ fn check_balance(book: &Book, sx: &ScheduledTransaction, t: &Transaction, format
         .iter()
         .flat_map(|s| formulas(s).into_iter().map(move |(side, text)| (s, side, text)))
         .collect();
-    if entries.iter().any(|(_, _, text)| !free_variables(text, format).is_ok_and(|v| v.is_empty())) {
+    if entries
+        .iter()
+        .any(|(_, _, text)| !free_variables(text, format).is_ok_and(|v| v.is_empty()))
+    {
         return Ok(());
     }
     let total = entries.iter().try_fold(Numeric::ZERO, |total, (split, side, text)| {
@@ -97,16 +100,29 @@ fn check_balance(book: &Book, sx: &ScheduledTransaction, t: &Transaction, format
 }
 
 /// The commodities of the accounts the templates' splits name, those it can find.
-fn commodities<'a>(book: &'a Book, sx: &ScheduledTransaction, templates: impl IntoIterator<Item = &'a Transaction>) -> BTreeSet<&'a CommodityRef> {
+fn commodities<'a>(
+    book: &'a Book,
+    sx: &ScheduledTransaction,
+    templates: impl IntoIterator<Item = &'a Transaction>,
+) -> BTreeSet<&'a CommodityRef> {
     templates
         .into_iter()
-        .flat_map(|t| t.splits.iter().filter_map(move |s| split_account(book, sx, t, s).ok().map(|(_, c)| c)))
+        .flat_map(|t| {
+            t.splits
+                .iter()
+                .filter_map(move |s| split_account(book, sx, t, s).ok().map(|(_, c)| c))
+        })
         .collect()
 }
 
 /// Auto-create is refused with variables other than `i`, with more than one commodity, or with no template split
 /// (`gnc_sxed_check_autocreate`, `dialog-sx-editor.c:617-648`).
-fn check_auto_create(book: &Book, sx: &ScheduledTransaction, templates: &[&Transaction], format: NumberFormat) -> Result<(), ScheduledError> {
+fn check_auto_create(
+    book: &Book,
+    sx: &ScheduledTransaction,
+    templates: &[&Transaction],
+    format: NumberFormat,
+) -> Result<(), ScheduledError> {
     if !sx.auto_create {
         return Ok(());
     }

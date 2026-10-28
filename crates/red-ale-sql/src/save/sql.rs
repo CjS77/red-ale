@@ -51,13 +51,22 @@ pub(crate) fn insert(table: &Table) -> String {
 /// (`5.17:libgnucash/backend/sql/gnc-sql-backend.cpp:932-964`). The key is the last parameter.
 pub(crate) fn update(table: &Table) -> String {
     let columns = written_columns(table);
-    let sets = columns.iter().enumerate().map(|(i, c)| format!("\"{c}\" = ?{}", i + 1)).collect::<Vec<_>>().join(", ");
+    let sets = columns
+        .iter()
+        .enumerate()
+        .map(|(i, c)| format!("\"{c}\" = ?{}", i + 1))
+        .collect::<Vec<_>>()
+        .join(", ");
     format!("UPDATE \"{}\" SET {sets} WHERE \"guid\" = ?{}", table.name, columns.len() + 1)
 }
 
 /// `SELECT` of every written column of the rows whose `column` is a value, in `rowid` order.
 pub(crate) fn select(table: &Table, column: &str) -> String {
-    format!("SELECT {} FROM \"{}\" WHERE \"{column}\" = ?1 ORDER BY rowid", quoted(written_columns(table)), table.name)
+    format!(
+        "SELECT {} FROM \"{}\" WHERE \"{column}\" = ?1 ORDER BY rowid",
+        quoted(written_columns(table)),
+        table.name
+    )
 }
 
 /// What a test can make a save do wrong, to show a failed save writes nothing (`design/sql-fidelity.md` §9, "Save
@@ -99,7 +108,9 @@ impl<'c> Statements<'c> {
         if changed == rows {
             Ok(())
         } else {
-            Err(SqlError::Verification(format!("{sql:?} changed {changed} rows where {rows} were expected; nothing was written")))
+            Err(SqlError::Verification(format!(
+                "{sql:?} changed {changed} rows where {rows} were expected; nothing was written"
+            )))
         }
     }
 
@@ -107,7 +118,9 @@ impl<'c> Statements<'c> {
     pub(crate) fn rows(&self, sql: &str, params: &[Cell]) -> Result<Vec<Vec<Cell>>, SqlError> {
         let mut stmt = self.conn.prepare(sql).map_err(SqlError::from_sqlite)?;
         let n = stmt.column_count();
-        let rows = stmt.query_map(params_from_iter(params), |r| (0..n).map(|i| r.get_ref(i).map(cell)).collect::<Result<Vec<_>, _>>())?;
+        let rows = stmt.query_map(params_from_iter(params), |r| {
+            (0..n).map(|i| r.get_ref(i).map(cell)).collect::<Result<Vec<_>, _>>()
+        })?;
         rows.collect::<Result<_, _>>().map_err(SqlError::from_sqlite)
     }
 

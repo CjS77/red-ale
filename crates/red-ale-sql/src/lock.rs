@@ -25,7 +25,10 @@ pub struct LockOwner {
 impl LockOwner {
     /// The owner with its host name cut to GnuCash's 255 bytes, at a character boundary.
     pub fn new(hostname: &str, pid: i64) -> Self {
-        let end = (0..=hostname.len().min(HOST_NAME_MAX)).rev().find(|i| hostname.is_char_boundary(*i)).unwrap_or(0);
+        let end = (0..=hostname.len().min(HOST_NAME_MAX))
+            .rev()
+            .find(|i| hostname.is_char_boundary(*i))
+            .unwrap_or(0);
         Self {
             hostname: hostname[..end].to_owned(),
             pid,
@@ -42,8 +45,12 @@ pub(crate) struct HeldLock {
 
 /// True when the book has a `gnclock` table. A book without one opens read-only (§1): red-ale never creates it.
 fn has_table(conn: &Connection) -> rusqlite::Result<bool> {
-    conn.query_row("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'gnclock'", [], |r| r.get::<_, i64>(0))
-        .map(|n| n > 0)
+    conn.query_row(
+        "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'gnclock'",
+        [],
+        |r| r.get::<_, i64>(0),
+    )
+    .map(|n| n > 0)
 }
 
 /// Refuse a book whose `gnclock` holds a row, naming the first holder.
@@ -65,8 +72,11 @@ pub(crate) fn check_free(conn: &Connection) -> Result<(), SqlError> {
 /// Insert `owner`'s row, inside the caller's transaction. Binding the host name, where GnuCash splices it into the SQL
 /// unescaped, gives the same row.
 pub(crate) fn insert(conn: &Connection, owner: &LockOwner) -> Result<HeldLock, SqlError> {
-    conn.execute("INSERT INTO gnclock (Hostname, PID) VALUES (?1, ?2)", params![owner.hostname, owner.pid])
-        .map_err(SqlError::from_write)?;
+    conn.execute(
+        "INSERT INTO gnclock (Hostname, PID) VALUES (?1, ?2)",
+        params![owner.hostname, owner.pid],
+    )
+    .map_err(SqlError::from_write)?;
     Ok(HeldLock {
         owner: owner.clone(),
         rowid: conn.last_insert_rowid(),
@@ -94,7 +104,9 @@ pub(crate) fn release(conn: &mut Connection, held: &HeldLock) -> Result<(), SqlE
         )
         .map_err(SqlError::from_write)?;
     if deleted > 1 {
-        return Err(SqlError::NotABook(format!("releasing the lock would delete {deleted} gnclock rows")));
+        return Err(SqlError::NotABook(format!(
+            "releasing the lock would delete {deleted} gnclock rows"
+        )));
     }
     tx.commit().map_err(SqlError::from_write)
 }

@@ -66,7 +66,10 @@ fn every_sqlite_fixture_reads_as_gnucash_reads_it() {
             let gnucash = oracle::dump(&uri(&book.path)).unwrap_or_else(|e| panic!("{name}: {e}"));
             let ours = model::dump(&read(&book.path));
             let ignore: Vec<&str> = model::NOT_YET_COMPUTED.iter().chain(&LOAD_INFLATED).copied().collect();
-            diff(&gnucash, &ours, &ignore).into_iter().take(10).map(move |d| format!("{name}: {d}"))
+            diff(&gnucash, &ours, &ignore)
+                .into_iter()
+                .take(10)
+                .map(move |d| format!("{name}: {d}"))
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
@@ -92,7 +95,10 @@ fn the_fixtures_are_what_the_build_script_makes() {
         .filter_map(|name| {
             let committed = TempBook::copy(name);
             let rebuilt = out.path().join(name.trim_start_matches("sqlite/"));
-            let (a, b) = (without_childless_template_root(read(&committed.path)), without_childless_template_root(read(&rebuilt)));
+            let (a, b) = (
+                without_childless_template_root(read(&committed.path)),
+                without_childless_template_root(read(&rebuilt)),
+            );
             (format!("{a:?}") != format!("{b:?}")).then(|| name.clone())
         })
         .collect();
@@ -149,5 +155,8 @@ fn splits_load_in_rowid_order_then_sorted_as_in_gnucash() {
         .collect();
     assert_eq!(gnucash, ours);
     let moved = gnucash.iter().filter(|(tx, splits)| by_rowid.get(*tx) != Some(splits)).count();
-    assert!(moved > 0, "no transaction's GnuCash order differs from its rowid order, so the sort went untested");
+    assert!(
+        moved > 0,
+        "no transaction's GnuCash order differs from its rowid order, so the sort went untested"
+    );
 }

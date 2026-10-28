@@ -61,5 +61,10 @@ fn memory_on_an_sqlite_book_stays_within_budget() {
         .filter(|(_, used, budget)| used > budget)
         .map(|(name, used, budget)| format!("{name}: {used} hundredths of the XML file, budget {budget}"))
         .collect();
-    assert!(over.is_empty(), "over budget for a {xml}-byte XML file ({}-byte SQLite):\n{}", m.file, over.join("\n"));
+    assert!(
+        over.is_empty(),
+        "over budget for a {xml}-byte XML file ({}-byte SQLite):\n{}",
+        m.file,
+        over.join("\n")
+    );
 }

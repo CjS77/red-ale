@@ -110,7 +110,10 @@ pub(crate) fn btree_changes<'a, K: Ord, T: PartialEq>(old: &'a BTreeMap<K, Arc<T
         Some(o) if !Arc::ptr_eq(o, n) && **o != **n => Some(Change::Changed(&**o, &**n)),
         Some(_) => None,
     });
-    let removed = old.iter().filter(|(k, _)| !new.contains_key(*k)).map(|(_, o)| Change::Removed(&**o));
+    let removed = old
+        .iter()
+        .filter(|(k, _)| !new.contains_key(*k))
+        .map(|(_, o)| Change::Removed(&**o));
     changed.chain(removed).collect()
 }
 
@@ -237,7 +240,9 @@ impl Writer<'_, '_> {
                 _ => None,
             })
             .collect();
-        let nested = children.into_iter().try_fold(0, |n, child| Ok::<_, SqlError>(n + self.delete_slot_tree(child)?))?;
+        let nested = children
+            .into_iter()
+            .try_fold(0, |n, child| Ok::<_, SqlError>(n + self.delete_slot_tree(child)?))?;
         Ok(nested + self.st.run("DELETE FROM slots WHERE obj_guid = ?1", &[guid(owner)])?)
     }
 
@@ -252,13 +257,11 @@ impl Writer<'_, '_> {
             (orphans.taxtable_entries.remove(&key), Some((&tables::TAXTABLE_ENTRIES, "taxtable"))),
             (orphans.splits.remove(&key), Some((&tables::SPLITS, "tx_guid"))),
         ];
-        found.into_iter().filter(|(was, _)| *was).try_for_each(|(_, table)| {
-            match table {
-                None => self.delete_slot_tree(key).map(drop),
-                Some((table, column)) => {
-                    let sql = format!("DELETE FROM \"{}\" WHERE \"{column}\" = ?1", table.name);
-                    self.st.run(&sql, &[guid(key)]).map(drop)
-                }
+        found.into_iter().filter(|(was, _)| *was).try_for_each(|(_, table)| match table {
+            None => self.delete_slot_tree(key).map(drop),
+            Some((table, column)) => {
+                let sql = format!("DELETE FROM \"{}\" WHERE \"{column}\" = ?1", table.name);
+                self.st.run(&sql, &[guid(key)]).map(drop)
             }
         })
     }
@@ -270,7 +273,10 @@ impl Writer<'_, '_> {
             return Ok(());
         }
         let found: Option<Commodity> = self.book.commodities.get(id).map(|c| (**c).clone()).or_else(|| {
-            id.is_currency().then(|| iso_currency(&id.mnemonic)).flatten().map(red_ale_core::currencies::IsoCurrency::to_commodity)
+            id.is_currency()
+                .then(|| iso_currency(&id.mnemonic))
+                .flatten()
+                .map(red_ale_core::currencies::IsoCurrency::to_commodity)
         });
         let commodity =
             found.ok_or_else(|| SqlError::Unstorable(format!("commodity {id} is used but is neither in the book nor a currency")))?;
@@ -306,7 +312,9 @@ impl Writer<'_, '_> {
     /// A commodity added or changed: updated if it has a row, else inserted with a new GUID. A renamed commodity is a
     /// removal and an addition, so its new row has a new GUID.
     fn write_commodity(&mut self, old: Option<&Commodity>, new: &Commodity) -> Result<(), SqlError> {
-        let Some(row) = self.residue.commodities.get(&new.id).copied() else { return self.ensure(&new.id) };
+        let Some(row) = self.residue.commodities.get(&new.id).copied() else {
+            return self.ensure(&new.id);
+        };
         let empty = Frame::new();
         let (old_cells, old_slots) = old.map_or((Vec::new(), &empty), |o| (encode::commodity(row, o), &o.slots));
         self.update_if_changed(&tables::COMMODITIES, &old_cells, encode::commodity(row, new))?;
@@ -328,7 +336,9 @@ impl Writer<'_, '_> {
 
     /// Change one written cell behind the save's back, for the read-back to find ([`Faults::corrupt`]).
     fn corrupt(&mut self) -> Result<(), SqlError> {
-        let Some(Check::Row(table, cells)) = self.checks.iter().find(|c| matches!(c, Check::Row(..))) else { return Ok(()) };
+        let Some(Check::Row(table, cells)) = self.checks.iter().find(|c| matches!(c, Check::Row(..))) else {
+            return Ok(());
+        };
         let column = sql::written_columns(table).get(1).copied().unwrap_or("guid");
         let sql = format!("UPDATE \"{}\" SET \"{column}\" = 'corrupted' WHERE guid = ?1", table.name);
         let key = cells[0].clone();
@@ -341,7 +351,11 @@ impl Writer<'_, '_> {
     }
 
     fn verify_one(&self, check: &Check) -> Result<(), SqlError> {
-        let mismatch = |what: String| Err(SqlError::Verification(format!("{what} did not read back as written; the save was rolled back")));
+        let mismatch = |what: String| {
+            Err(SqlError::Verification(format!(
+                "{what} did not read back as written; the save was rolled back"
+            )))
+        };
         match check {
             Check::Row(table, cells) => {
                 let found = self.st.rows(&select(table, "guid"), &cells[..1])?;

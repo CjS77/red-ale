@@ -30,7 +30,9 @@ fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
 /// The schema, the rows of an empty book and the lock row, in one transaction.
 fn fill(conn: &mut Connection, book: &Book, template_root: Guid, owner: &LockOwner, env: &mut dyn Env) -> Result<HeldLock, SqlError> {
     let tx = conn.transaction().map_err(SqlError::from_write)?;
-    ddl().try_for_each(|statement| tx.execute_batch(statement)).map_err(SqlError::from_write)?;
+    ddl()
+        .try_for_each(|statement| tx.execute_batch(statement))
+        .map_err(SqlError::from_write)?;
     VERSIONS
         .iter()
         .try_for_each(|(name, version)| tx.execute("INSERT INTO versions VALUES (?1, ?2)", params![name, version]).map(drop))
@@ -44,9 +46,13 @@ fn fill(conn: &mut Connection, book: &Book, template_root: Guid, owner: &LockOwn
     let refs = encode::Refs {
         commodities: &no_commodities,
     };
-    let root = book.account(book.root).ok_or_else(|| SqlError::NotABook("the new book has no root account".into()))?;
+    let root = book
+        .account(book.root)
+        .ok_or_else(|| SqlError::NotABook("the new book has no root account".into()))?;
     let template = Account::new(template_root, TEMPLATE_ROOT, AccountType::Root, None, None);
-    [root, &template].iter().try_for_each(|a| st.expect(&insert(&tables::ACCOUNTS), &encode::account(a, refs), 1))?;
+    [root, &template]
+        .iter()
+        .try_for_each(|a| st.expect(&insert(&tables::ACCOUNTS), &encode::account(a, refs), 1))?;
     let held = lock::insert(&tx, owner)?;
     tx.commit().map_err(SqlError::from_write)?;
     Ok(held)
@@ -91,14 +97,21 @@ pub fn create(path: &Path, book: &Book, owner: &LockOwner, env: &mut dyn Env) ->
 fn count_slots(conn: &Connection, book: Guid) -> Result<std::collections::BTreeMap<Guid, usize>, SqlError> {
     let rows: i64 = conn.query_row("SELECT count(*) FROM slots", [], |r| r.get(0))?;
     let rows = usize::try_from(rows).unwrap_or(0);
-    Ok(if rows == 0 { std::collections::BTreeMap::new() } else { [(book, rows)].into() })
+    Ok(if rows == 0 {
+        std::collections::BTreeMap::new()
+    } else {
+        [(book, rows)].into()
+    })
 }
 
 impl SqliteBook {
     /// Copy the database to `dest`, a new file, with SQLite's online backup API in one step, so the copy is one
     /// consistent state; then delete this session's lock row from the copy, so it opens in GnuCash unlocked.
     pub fn backup_to(&self, dest: &Path) -> Result<(), SqlError> {
-        let conn = self.conn.as_ref().ok_or_else(|| SqlError::NotABook("the book is not open for writing".into()))?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SqlError::NotABook("the book is not open for writing".into()))?;
         let mut copy = connection::create(dest)?;
         {
             let backup = rusqlite::backup::Backup::new(conn, &mut copy)?;

@@ -40,7 +40,12 @@ fn chart<'a>(result: &'a Value, account: &str) -> &'a Value {
 
 /// A chart's labels, then its "Actual" and "Budget" values.
 fn figures(chart: &Value) -> (Vec<String>, Vec<String>, Vec<String>) {
-    let labels = chart["labels"].as_array().unwrap().iter().map(|l| l.as_str().unwrap().to_owned()).collect();
+    let labels = chart["labels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l.as_str().unwrap().to_owned())
+        .collect();
     (labels, values(&chart["series"][0]), values(&chart["series"][1]))
 }
 
@@ -97,8 +102,21 @@ fn budget_against_actual_per_account() {
         ]
     );
     let bank = chart(&result, "Bank");
-    assert_eq!(figures(bank), (strings(&["2024-03-01", "2024-04-01"]), strings(&["35", "15"]), strings(&["20", "60"])));
-    let series = |c: &Value, i: usize| (c["series"][i]["label"].clone(), c["series"][i]["color"].clone(), c["series"][i]["fill"].clone());
+    assert_eq!(
+        figures(bank),
+        (
+            strings(&["2024-03-01", "2024-04-01"]),
+            strings(&["35", "15"]),
+            strings(&["20", "60"])
+        )
+    );
+    let series = |c: &Value, i: usize| {
+        (
+            c["series"][i]["label"].clone(),
+            c["series"][i]["color"].clone(),
+            c["series"][i]["fill"].clone(),
+        )
+    };
     assert_eq!(series(bank, 0), (json!("Actual"), json!("#ff4136"), json!(true)));
     assert_eq!(series(bank, 1), (json!("Budget"), json!("#0074d9"), json!(true)));
     let usd_axis = json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" });
@@ -120,7 +138,14 @@ fn running_sum_off() {
     let result = s.run(TEMPLATE, &json!({ "Display": { "Running Sum": false } }));
     let bank = chart(&result, "Bank");
     assert_eq!(bank["title"], json!(["Bank"]));
-    assert_eq!(figures(bank), (strings(&["2024-03-01", "2024-04-01"]), strings(&["35", "-20"]), strings(&["20", "40"])));
+    assert_eq!(
+        figures(bank),
+        (
+            strings(&["2024-03-01", "2024-04-01"]),
+            strings(&["35", "-20"]),
+            strings(&["20", "40"])
+        )
+    );
 }
 
 /// "Line Chart" draws lines, unfilled (BC:175, :199, :204); the figures are the same as the bars'.
@@ -132,7 +157,11 @@ fn bar_and_line() {
     let (bar, line) = (chart(&bars, "Bank"), chart(&lines, "Bank"));
     assert_eq!(line["type"], "line");
     let filled = |c: &Value, i: usize| c["series"][i]["fill"].as_bool().unwrap_or(false);
-    assert_eq!((filled(line, 0), filled(line, 1)), (false, false), "a false flag is left out of the result");
+    assert_eq!(
+        (filled(line, 0), filled(line, 1)),
+        (false, false),
+        "a false flag is left out of the result"
+    );
     assert_eq!(figures(line), figures(bar));
 }
 
@@ -143,28 +172,41 @@ fn bar_and_line() {
 #[test]
 fn a_period_range() {
     let mut s = fixture();
-    let manual = |start: Value, end: Value| {
-        json!({ "Range start": "manual", "Exact start period": start, "Range end": "manual", "Exact end period": end })
-    };
+    let manual = |start: Value, end: Value| json!({ "Range start": "manual", "Exact start period": start, "Range end": "manual", "Exact end period": end });
     let april_to_june = strings(&["2024-04-01", "2024-05-01", "2024-06-01"]);
     let result = s.run(TEMPLATE, &general(manual(json!(2), json!(4))));
-    assert_eq!(figures(chart(&result, "Bank")), (april_to_june.clone(), strings(&["15", "82", "159"]), strings(&["60", "60", "120"])));
+    assert_eq!(
+        figures(chart(&result, "Bank")),
+        (april_to_june.clone(), strings(&["15", "82", "159"]), strings(&["60", "60", "120"]))
+    );
 
     let mut options = general(manual(json!(2), json!(4)));
     options["Display"] = json!({ "Running Sum": false });
     let result = s.run(TEMPLATE, &options);
-    assert_eq!(figures(chart(&result, "Bank")), (april_to_june.clone(), strings(&["-20", "67", "77"]), strings(&["40", "0", "60"])));
+    assert_eq!(
+        figures(chart(&result, "Bank")),
+        (april_to_june.clone(), strings(&["-20", "67", "77"]), strings(&["40", "0", "60"]))
+    );
 
     let result = s.run(TEMPLATE, &general(json!({ "Range start": "first", "Range end": "last" })));
     let (labels, actual, budget) = figures(chart(&result, "Bank"));
     assert_eq!(labels.len(), 6);
-    assert_eq!((actual, budget), (strings(&["35", "15", "82", "159", "159", "159"]), strings(&["20", "60", "60", "120", "120", "120"])));
+    assert_eq!(
+        (actual, budget),
+        (
+            strings(&["35", "15", "82", "159", "159", "159"]),
+            strings(&["20", "60", "60", "120", "120", "120"])
+        )
+    );
 
     let result = s.run(TEMPLATE, &general(manual(json!("2.5"), json!("3.5"))));
     assert_eq!(figures(chart(&result, "Bank")).0, april_to_june);
 
     let result = s.run(TEMPLATE, &general(json!({ "Range start": "previous", "Range end": "current" })));
-    assert_eq!(figures(chart(&result, "Bank")), (strings(&["2024-03-01"]), strings(&["35"]), strings(&["20"])));
+    assert_eq!(
+        figures(chart(&result, "Bank")),
+        (strings(&["2024-03-01"]), strings(&["35"]), strings(&["20"]))
+    );
 }
 
 /// A book with a Checking account and two budgets of three monthly periods, $10 a period each: "Future" from
@@ -175,7 +217,9 @@ fn two_budgets() -> (Setup, Value, Value) {
     let mut budget = |name: &str, start: &str| {
         let recurrence = json!({ "mult": 1, "periodType": "month", "start": start });
         let guid = s.call("budget.create", json!({ "name": name, "numPeriods": 3, "recurrence": recurrence }))["guid"].clone();
-        let amounts: Vec<Value> = (0..3).map(|p| json!({ "account": "Checking", "period": p, "amount": "10" })).collect();
+        let amounts: Vec<Value> = (0..3)
+            .map(|p| json!({ "account": "Checking", "period": p, "amount": "10" }))
+            .collect();
         s.call("budget.setAmounts", json!({ "budget": guid, "amounts": amounts }));
         guid
     };
@@ -190,12 +234,18 @@ fn two_budgets() -> (Setup, Value, Value) {
 fn relative_periods_outside_the_budget() {
     let (mut s, future, past) = two_budgets();
     let result = s.run(TEMPLATE, &general(json!({ "Budget": future })));
-    assert_eq!(figures(chart(&result, "Checking")), (strings(&["2024-07-01"]), strings(&["0"]), strings(&["20"])));
+    assert_eq!(
+        figures(chart(&result, "Checking")),
+        (strings(&["2024-07-01"]), strings(&["0"]), strings(&["20"]))
+    );
     let result = s.run(TEMPLATE, &general(json!({ "Budget": past })));
     let checking = chart(&result, "Checking");
     assert_eq!(checking["title"], json!(["Checking", "Bgt: $30.00 Act: $0.00"]));
     assert_eq!(figures(checking), (vec![], vec![], vec![]));
-    assert!(s.export(TEMPLATE, &general(json!({ "Budget": past }))).contains("Bgt: $30.00 Act: $0.00"));
+    assert!(
+        s.export(TEMPLATE, &general(json!({ "Budget": past })))
+            .contains("Bgt: $30.00 Act: $0.00")
+    );
 }
 
 /// "Levels of Subaccounts" (BC:304-312): an account at the limit gets a chart whatever its children, a leaf above it
@@ -214,7 +264,10 @@ fn relative_periods_outside_the_budget() {
 fn levels_and_rolled_up_budgets() {
     let mut s = fixture();
     let run = |s: &mut Setup, accounts: &[&str], depth: Value| {
-        s.run(TEMPLATE, &json!({ "Accounts": { "Accounts": accounts, "Levels of Subaccounts": depth } }))
+        s.run(
+            TEMPLATE,
+            &json!({ "Accounts": { "Accounts": accounts, "Levels of Subaccounts": depth } }),
+        )
     };
     let result = run(&mut s, &["Root", "Root:Asset"], json!(2));
     assert_eq!(charts(&result).len(), 1);

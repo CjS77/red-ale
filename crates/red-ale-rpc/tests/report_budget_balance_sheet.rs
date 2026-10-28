@@ -119,12 +119,29 @@ fn plan_book(settings: &Value) -> Setup {
     s.transfer("2023-12-10", "Groceries", "Card", "Food", "50.00");
     s.transfer("2023-12-20", "December pay", "Salary", "Checking", "300.00");
     s.transfer("2024-01-10", "January pay", "Salary", "Checking", "200.00");
-    s.call("price.add", json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.20", "date": "2023-12-31" }));
+    s.call(
+        "price.add",
+        json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.20", "date": "2023-12-31" }),
+    );
     let recurrence = json!({ "mult": 1, "periodType": "month", "start": "2024-01-01" });
-    let budget = s.call("budget.create", json!({ "name": "Plan", "numPeriods": 3, "recurrence": recurrence }))["guid"].clone();
-    let cells = [("Checking", 0, "100"), ("Checking", 1, "50"), ("Card", 0, "-20"), ("Salary", 0, "-400"), ("Salary", 1, "-400"),
-                 ("Food", 0, "150"), ("Food", 2, "100")];
-    let amounts: Vec<Value> = cells.iter().map(|(a, p, v)| json!({ "account": a, "period": p, "amount": v })).collect();
+    let budget = s.call(
+        "budget.create",
+        json!({ "name": "Plan", "numPeriods": 3, "recurrence": recurrence }),
+    )["guid"]
+        .clone();
+    let cells = [
+        ("Checking", 0, "100"),
+        ("Checking", 1, "50"),
+        ("Card", 0, "-20"),
+        ("Salary", 0, "-400"),
+        ("Salary", 1, "-400"),
+        ("Food", 0, "150"),
+        ("Food", 2, "100"),
+    ];
+    let amounts: Vec<Value> = cells
+        .iter()
+        .map(|(a, p, v)| json!({ "account": a, "period": p, "amount": v }))
+        .collect();
     s.call("budget.setAmounts", json!({ "budget": budget, "amounts": amounts }));
     s
 }
@@ -134,7 +151,9 @@ fn figures(result: &Value, rows: &[&str]) -> Vec<(String, Vec<String>)> {
 }
 
 fn want(rows: &[(&str, &[&str])]) -> Vec<(String, Vec<String>)> {
-    rows.iter().map(|(l, a)| ((*l).to_owned(), a.iter().map(|s| (*s).to_owned()).collect())).collect()
+    rows.iter()
+        .map(|(l, a)| ((*l).to_owned(), a.iter().map(|s| (*s).to_owned()).collect()))
+        .collect()
 }
 
 /// The plan book with the defaults, worked from BBS:423-576 at the budget's start, 2024-01-01:
@@ -159,15 +178,48 @@ fn the_sheet_at_the_budget_start() {
     assert_eq!(
         labels(table),
         [
-            "Assets", "Checking", "Euro", "Existing Assets", "Allocated Assets", "Unallocated Assets", "Total Assets", "Liabilities",
-            "Card", "Existing Liabilities", "New Liabilities", "Total Liabilities", "Equity", "Opening", "Existing Retained Earnings",
-            "New Retained Earnings", "Unrealized Gains", "Existing Equity", "New Equity", "Total Equity", "Total Liabilities & Equity",
+            "Assets",
+            "Checking",
+            "Euro",
+            "Existing Assets",
+            "Allocated Assets",
+            "Unallocated Assets",
+            "Total Assets",
+            "Liabilities",
+            "Card",
+            "Existing Liabilities",
+            "New Liabilities",
+            "Total Liabilities",
+            "Equity",
+            "Opening",
+            "Existing Retained Earnings",
+            "New Retained Earnings",
+            "Unrealized Gains",
+            "Existing Equity",
+            "New Equity",
+            "Total Equity",
+            "Total Liabilities & Equity",
         ]
     );
     let rows = [
-        "Checking", "Euro", "Existing Assets", "Allocated Assets", "Unallocated Assets", "Total Assets", "Card", "Existing Liabilities",
-        "New Liabilities", "Total Liabilities", "Opening", "Existing Retained Earnings", "New Retained Earnings", "Unrealized Gains",
-        "Existing Equity", "New Equity", "Total Equity", "Total Liabilities & Equity",
+        "Checking",
+        "Euro",
+        "Existing Assets",
+        "Allocated Assets",
+        "Unallocated Assets",
+        "Total Assets",
+        "Card",
+        "Existing Liabilities",
+        "New Liabilities",
+        "Total Liabilities",
+        "Opening",
+        "Existing Retained Earnings",
+        "New Retained Earnings",
+        "Unrealized Gains",
+        "Existing Equity",
+        "New Equity",
+        "Total Equity",
+        "Total Liabilities & Equity",
     ];
     assert_eq!(
         figures(&result, &rows),
@@ -193,7 +245,12 @@ fn the_sheet_at_the_budget_start() {
         ])
     );
     let rows = table["rows"].as_array().unwrap();
-    let rules: Vec<usize> = rows.iter().enumerate().filter(|(_, r)| r["role"] == "rule").map(|(i, _)| i).collect();
+    let rules: Vec<usize> = rows
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r["role"] == "rule")
+        .map(|(i, _)| i)
+        .collect();
     // Two rules after the assets, one after the liabilities and one after the equity (BBS:647-650, :680, :743).
     assert_eq!(rules, [7, 8, 14, 23]);
 }
@@ -209,7 +266,16 @@ fn the_budget_start_dates_the_sheet() {
     s.call("budget.update", json!({ "budget": budget, "recurrence": recurrence }));
     let result = s.run(TEMPLATE, &json!({}));
     assert_eq!(
-        figures(&result, &["Checking", "Existing Assets", "Existing Retained Earnings", "Total Assets", "Total Liabilities & Equity"]),
+        figures(
+            &result,
+            &[
+                "Checking",
+                "Existing Assets",
+                "Existing Retained Earnings",
+                "Total Assets",
+                "Total Liabilities & Equity"
+            ]
+        ),
         want(&[
             ("Checking", &["$1,540.00"]),
             ("Existing Assets", &["$1,510.00"]),
@@ -231,7 +297,15 @@ fn retained_losses_and_totals_alone() {
     let accounts = json!(["Checking", "Euro", "Card", "Opening", "Food"]);
     let result = s.run(TEMPLATE, &json!({ "Accounts": { "Accounts": accounts } }));
     assert_eq!(
-        figures(&result, &["Existing Retained Losses", "New Retained Losses", "Unallocated Assets", "Total Assets"]),
+        figures(
+            &result,
+            &[
+                "Existing Retained Losses",
+                "New Retained Losses",
+                "Unallocated Assets",
+                "Total Assets"
+            ]
+        ),
         want(&[
             ("Existing Retained Losses", &["$50.00"]),
             ("New Retained Losses", &["$250.00"]),
@@ -239,12 +313,27 @@ fn retained_losses_and_totals_alone() {
             ("Total Assets", &["$1,080.00"]),
         ])
     );
-    let result = s.run(TEMPLATE, &json!({ "Accounts": { "Accounts": accounts }, "Display": { "Include new/existing totals": false } }));
+    let result = s.run(
+        TEMPLATE,
+        &json!({ "Accounts": { "Accounts": accounts }, "Display": { "Include new/existing totals": false } }),
+    );
     assert_eq!(
         labels(tables(&result)[0]),
         [
-            "Assets", "Checking", "Euro", "Unallocated Assets", "Total Assets", "Liabilities", "Card", "Total Liabilities", "Equity",
-            "Opening", "Total Retained Losses", "Unrealized Gains", "Total Equity", "Total Liabilities & Equity",
+            "Assets",
+            "Checking",
+            "Euro",
+            "Unallocated Assets",
+            "Total Assets",
+            "Liabilities",
+            "Card",
+            "Total Liabilities",
+            "Equity",
+            "Opening",
+            "Total Retained Losses",
+            "Unrealized Gains",
+            "Total Equity",
+            "Total Liabilities & Equity",
         ]
     );
     assert_eq!(amount_of(&result, "Total Retained Losses"), ["$300.00"]);
@@ -260,13 +349,34 @@ fn zero_retained_earnings_and_gains_are_left_out() {
     assert_eq!(
         labels(tables(&result)[0]),
         [
-            "Assets", "Checking", "Existing Assets", "Allocated Assets", "Unallocated Assets", "Total Assets", "Liabilities",
-            "Existing Liabilities", "New Liabilities", "Total Liabilities", "Equity", "Opening", "Existing Equity", "New Equity",
-            "Total Equity", "Total Liabilities & Equity",
+            "Assets",
+            "Checking",
+            "Existing Assets",
+            "Allocated Assets",
+            "Unallocated Assets",
+            "Total Assets",
+            "Liabilities",
+            "Existing Liabilities",
+            "New Liabilities",
+            "Total Liabilities",
+            "Equity",
+            "Opening",
+            "Existing Equity",
+            "New Equity",
+            "Total Equity",
+            "Total Liabilities & Equity",
         ]
     );
     assert_eq!(
-        figures(&result, &["Unallocated Assets", "Total Assets", "Total Liabilities", "Total Liabilities & Equity"]),
+        figures(
+            &result,
+            &[
+                "Unallocated Assets",
+                "Total Assets",
+                "Total Liabilities",
+                "Total Liabilities & Equity"
+            ]
+        ),
         want(&[
             ("Unallocated Assets", &["-$150.00"]),
             ("Total Assets", &["$1,190.00"]),
@@ -286,7 +396,17 @@ fn liability_lines_follow_the_first_liability_account() {
     let mut s = plan_book(&settings);
     let result = s.run(TEMPLATE, &json!({}));
     assert_eq!(
-        figures(&result, &["Card", "Existing Liabilities", "New Liabilities", "Total Liabilities", "Opening", "Total Equity"]),
+        figures(
+            &result,
+            &[
+                "Card",
+                "Existing Liabilities",
+                "New Liabilities",
+                "Total Liabilities",
+                "Opening",
+                "Total Equity"
+            ]
+        ),
         want(&[
             ("Card", &["$70.00"]),
             ("Existing Liabilities", &["$50.00"]),

@@ -195,7 +195,9 @@ pub(crate) fn create_with(
     if fields.schedule.is_none() {
         return Err(no_schedule());
     }
-    let today = env.today().ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
+    let today = env
+        .today()
+        .ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
     let guid = env.new_guid();
     let mut sx = ScheduledTransaction {
         guid,
@@ -245,11 +247,14 @@ pub fn unsaved(start: Date, schedule: Vec<RecurrenceSpec>, end: End) -> Result<S
         deferred: Vec::new(),
         slots: Frame::new(),
     };
-    apply_fields(&mut sx, Fields {
-        schedule: Some(schedule),
-        end: Some(end),
-        ..Fields::default()
-    })?;
+    apply_fields(
+        &mut sx,
+        Fields {
+            schedule: Some(schedule),
+            end: Some(end),
+            ..Fields::default()
+        },
+    )?;
     Ok(sx)
 }
 
@@ -361,7 +366,10 @@ fn set_auto_create(sx: &mut ScheduledTransaction, auto_create: Option<bool>, not
 
 fn days(given: Option<i32>, current: i32) -> Result<i32, ScheduledError> {
     match given {
-        Some(d) if d < 0 => Err(ScheduledError::invalid("advance-days", format!("days in advance can't be negative ({d})"))),
+        Some(d) if d < 0 => Err(ScheduledError::invalid(
+            "advance-days",
+            format!("days in advance can't be negative ({d})"),
+        )),
         Some(d) => Ok(d),
         None => Ok(current),
     }

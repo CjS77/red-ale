@@ -62,7 +62,10 @@ impl Token<'_> {
     /// An operand, which may not directly follow another (`check_expression_grammar_error`, `:1083-1096`); red-ale
     /// adds `(`, which GnuCash refuses later or, inside a call's arguments, skips.
     fn starts_operand(self) -> bool {
-        matches!(self, Token::Num(_) | Token::Name(_) | Token::Func(_) | Token::Str(_) | Token::Op('('))
+        matches!(
+            self,
+            Token::Num(_) | Token::Name(_) | Token::Func(_) | Token::Str(_) | Token::Op('(')
+        )
     }
 }
 

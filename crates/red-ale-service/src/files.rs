@@ -95,7 +95,9 @@ pub fn backup(book: &Path) -> Result<Option<PathBuf>, ServiceError> {
 /// connection (`design/sql-fidelity.md` §6).
 pub fn backup_with(book: &Path, copy: impl FnOnce(&Path) -> Result<(), ServiceError>) -> Result<PathBuf, ServiceError> {
     let tmp = temp_path(book);
-    let made = copy(&tmp).and_then(|()| keep_owner(&tmp, fs::metadata(book).ok().as_ref())).and_then(|()| link_backup(book, &tmp));
+    let made = copy(&tmp)
+        .and_then(|()| keep_owner(&tmp, fs::metadata(book).ok().as_ref()))
+        .and_then(|()| link_backup(book, &tmp));
     let _ = fs::remove_file(&tmp);
     made
 }

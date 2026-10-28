@@ -54,15 +54,28 @@ fn a_plain_instance_copies_the_template() {
     assert_eq!(created.len(), 1);
     assert!(created[0].imbalance.is_none());
     let t = &f.book.transactions[&created[0].transaction];
-    assert_eq!((t.num.as_deref(), t.description.as_deref(), t.notes()), (Some("CHK"), Some("Rent"), Some("monthly")));
+    assert_eq!(
+        (t.num.as_deref(), t.description.as_deref(), t.notes()),
+        (Some("CHK"), Some("Rent"), Some("monthly"))
+    );
     assert_eq!(t.date_posted.to_file_string(), "2026-02-01 10:59:00 +0000");
     assert_eq!(t.slots.get(slot_paths::DATE_POSTED), Some(&SlotValue::Date(date(2026, 2, 1))));
     assert_eq!(t.date_entered, f.env.now);
     assert_eq!(t.slots.get(FROM_SCHEDULED), Some(&SlotValue::Guid(g)));
     assert_eq!(t.slots.iter().count(), 3, "date-posted, notes and from-sched-xaction only");
-    assert_eq!(values(&f, &created[0]), [(food, n(10000, 100), n(10000, 100)), (bank, n(-10000, 100), n(-10000, 100))]);
-    assert_eq!((t.splits[0].action.as_deref(), t.splits[1].memo.as_deref()), (Some("Buy"), Some("from bank")));
-    assert!(t.splits.iter().all(|s| s.slots.is_empty() && s.lot.is_none() && s.reconcile_state == ReconcileState::New));
+    assert_eq!(
+        values(&f, &created[0]),
+        [(food, n(10000, 100), n(10000, 100)), (bank, n(-10000, 100), n(-10000, 100))]
+    );
+    assert_eq!(
+        (t.splits[0].action.as_deref(), t.splits[1].memo.as_deref()),
+        (Some("Buy"), Some("from bank"))
+    );
+    assert!(
+        t.splits
+            .iter()
+            .all(|s| s.slots.is_empty() && s.lot.is_none() && s.reconcile_state == ReconcileState::New)
+    );
 }
 
 /// H6 "variables": `amt * 2 + i` with `amt` = 12.5 is 26 for the first instance and 27 for the second; with
@@ -71,7 +84,11 @@ fn a_plain_instance_copies_the_template() {
 fn variables_and_i_enter_the_formulas() {
     let mut f = Fixture::new();
     let (food, bank) = (f.food, f.bank);
-    let g = f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "amt * 2 + i", ""), T(bank, "", "amt * 2 + i")]]);
+    let g = f.add(
+        monthly(date(2026, 1, 1)),
+        &usd(),
+        &[&[T(food, "amt * 2 + i", ""), T(bank, "", "amt * 2 + i")]],
+    );
     let amt = n(125, 10);
     [(1, 2600), (2, 2700), (0, 2500)].into_iter().for_each(|(count, cents)| {
         let created = create(&mut f, g, &with(i(count), "amt", amt)).unwrap();
@@ -94,7 +111,10 @@ fn rounding_leaves_an_imbalance_split() {
     assert_eq!(f.book.account(imbalance.account).map(|a| a.name.as_str()), Some("Imbalance-USD"));
     let t = &f.book.transactions[&created[0].transaction];
     assert!(t.is_balanced());
-    assert_eq!(t.splits.iter().map(|s| s.value).collect::<Vec<_>>(), [n(101, 100), n(-100, 100), n(-1, 100)]);
+    assert_eq!(
+        t.splits.iter().map(|s| s.value).collect::<Vec<_>>(),
+        [n(101, 100), n(-100, 100), n(-1, 100)]
+    );
 }
 
 /// H6 "thirds" (10/3 each side gives 3.33 and -3.33, balanced) and "marker" (a split with no formula is created with
@@ -103,12 +123,23 @@ fn rounding_leaves_an_imbalance_split() {
 fn thirds_balance_and_markers_are_zero() {
     let mut f = Fixture::new();
     let (food, bank, euro) = (f.food, f.bank, f.euro);
-    let g = f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "10/3", ""), T(bank, "", "10/3"), T(euro, "", "")]]);
+    let g = f.add(
+        monthly(date(2026, 1, 1)),
+        &usd(),
+        &[&[T(food, "10/3", ""), T(bank, "", "10/3"), T(euro, "", "")]],
+    );
     let created = create(&mut f, g, &i(1)).unwrap();
     assert!(created[0].imbalance.is_none());
     let got = values(&f, &created[0]);
-    assert_eq!([got[0], got[2]], [(food, n(333, 100), n(333, 100)), (bank, n(-333, 100), n(-333, 100))]);
-    assert_eq!((got[1].0, got[1].1.is_zero(), got[1].2.is_zero()), (euro, true, true), "debits first, zero counted as one");
+    assert_eq!(
+        [got[0], got[2]],
+        [(food, n(333, 100), n(333, 100)), (bank, n(-333, 100), n(-333, 100))]
+    );
+    assert_eq!(
+        (got[1].0, got[1].1.is_zero(), got[1].2.is_zero()),
+        (euro, true, true),
+        "debits first, zero counted as one"
+    );
 }
 
 /// H6 "EUR": 100 USD into EUR at `EUR -> USD` = 0.9 is value -100.00 and amount -90.00 EUR; "stock": 100 USD of ACME
@@ -117,7 +148,14 @@ fn thirds_balance_and_markers_are_zero() {
 fn other_commodities_take_the_exchange_rate() {
     let mut f = Fixture::new();
     let (food, euro, shares, bank) = (f.food, f.euro, f.shares, f.bank);
-    let g = f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "100", ""), T(euro, "", "100")], &[T(shares, "100", ""), T(bank, "", "100")]]);
+    let g = f.add(
+        monthly(date(2026, 1, 1)),
+        &usd(),
+        &[
+            &[T(food, "100", ""), T(euro, "", "100")],
+            &[T(shares, "100", ""), T(bank, "", "100")],
+        ],
+    );
     let bindings = with(with(i(1), "EUR -> USD", n(9, 10)), "ACME -> USD", Numeric::from_int(3));
     let created = create(&mut f, g, &bindings).unwrap();
     assert_eq!(values(&f, &created[0])[1], (euro, n(-10000, 100), n(-9000, 100)));
@@ -132,7 +170,13 @@ fn a_zero_rate_is_refused_and_a_missing_one_is_one() {
     let (food, euro) = (f.food, f.euro);
     let g = f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "100", ""), T(euro, "", "100")]]);
     let zero = with(i(1), "EUR -> USD", Numeric::ZERO);
-    assert!(matches!(create(&mut f, g, &zero), Err(ScheduledError::Refused { reason: Refusal::ZeroRate, .. })));
+    assert!(matches!(
+        create(&mut f, g, &zero),
+        Err(ScheduledError::Refused {
+            reason: Refusal::ZeroRate,
+            ..
+        })
+    ));
     let created = create(&mut f, g, &i(1)).unwrap();
     assert_eq!(values(&f, &created[0])[1].2, n(-10000, 100));
 }
@@ -143,7 +187,11 @@ fn a_zero_rate_is_refused_and_a_missing_one_is_one() {
 fn a_failing_formula_creates_nothing() {
     let mut f = Fixture::new();
     let (food, bank) = (f.food, f.bank);
-    let g = f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "1 / 0", ""), T(bank, "", "nosuch(1)")]]);
+    let g = f.add(
+        monthly(date(2026, 1, 1)),
+        &usd(),
+        &[&[T(food, "1 / 0", ""), T(bank, "", "nosuch(1)")]],
+    );
     let err = create(&mut f, g, &i(1)).unwrap_err();
     let ScheduledError::Formula(failure) = err else { panic!("{err:?}") };
     assert_eq!((failure.side, failure.formula.as_str()), (Side::Debit, "1 / 0"));
@@ -182,7 +230,13 @@ fn the_transaction_currency_comes_from_the_splits() {
     s.guid = Guid::from_bytes([9; 16]);
     let stock = f.add(s, &eur, &[&[T(shares, "5", ""), T(shares, "", "5")]]);
     let err = build_instance(&f.book, f.sx(stock), &i(1), NumberFormat::default()).unwrap_err();
-    assert!(matches!(err, ScheduledError::Refused { reason: Refusal::NotACurrency, .. }));
+    assert!(matches!(
+        err,
+        ScheduledError::Refused {
+            reason: Refusal::NotACurrency,
+            ..
+        }
+    ));
 }
 
 /// `test_auto_create_transactions` (`test-sx.cpp:225-336`): "123"/"123", "0"/"0", ""/"" and ""/"" with the template
@@ -190,17 +244,19 @@ fn the_transaction_currency_comes_from_the_splits() {
 /// the transaction's (`gnc-sx-instance-model.c:1300-1307`).
 #[test]
 fn every_test_sx_template_creates_one_transaction() {
-    [("123", "123", false), ("0", "0", false), ("", "", false), ("", "", true)].into_iter().for_each(|(debit, credit, txcurr)| {
-        let mut f = Fixture::new();
-        let (food, bank) = (f.food, f.bank);
-        let currency = if txcurr { usd() } else { crate::CommodityRef::currency("EUR") };
-        let g = f.add(monthly(date(2026, 1, 1)), &currency, &[&[T(food, debit, ""), T(bank, "", credit)]]);
-        let created = create(&mut f, g, &i(1)).unwrap();
-        assert_eq!(created.len(), 1, "{debit:?}/{credit:?}");
-        let t = &f.book.transactions[&created[0].transaction];
-        assert!(t.is_balanced());
-        assert_eq!(t.currency, if debit.is_empty() { currency } else { usd() });
-    });
+    [("123", "123", false), ("0", "0", false), ("", "", false), ("", "", true)]
+        .into_iter()
+        .for_each(|(debit, credit, txcurr)| {
+            let mut f = Fixture::new();
+            let (food, bank) = (f.food, f.bank);
+            let currency = if txcurr { usd() } else { crate::CommodityRef::currency("EUR") };
+            let g = f.add(monthly(date(2026, 1, 1)), &currency, &[&[T(food, debit, ""), T(bank, "", credit)]]);
+            let created = create(&mut f, g, &i(1)).unwrap();
+            assert_eq!(created.len(), 1, "{debit:?}/{credit:?}");
+            let t = &f.book.transactions[&created[0].transaction];
+            assert!(t.is_balanced());
+            assert_eq!(t.currency, if debit.is_empty() { currency } else { usd() });
+        });
 }
 
 /// With trading accounts on, the commit gives a two-currency instance its trading splits, as every commit does.

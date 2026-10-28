@@ -77,7 +77,8 @@ pub(crate) fn open_read_write(path: &Path) -> Result<Connection, SqlError> {
 /// The data version: SQLite changes it when another connection commits to the database
 /// (`PRAGMA data_version`), which is how a save finds that another program wrote the book.
 pub(crate) fn data_version(conn: &Connection) -> Result<i64, SqlError> {
-    conn.query_row("PRAGMA data_version", [], |r| r.get(0)).map_err(SqlError::from_sqlite)
+    conn.query_row("PRAGMA data_version", [], |r| r.get(0))
+        .map_err(SqlError::from_sqlite)
 }
 
 /// Create a database file for a new book: it must not exist (`design/sql-fidelity.md` §7).

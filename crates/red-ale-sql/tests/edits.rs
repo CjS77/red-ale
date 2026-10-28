@@ -23,9 +23,18 @@ fn rows(path: &Path, table: &str) -> Vec<String> {
         .unwrap()
         .map(Result::unwrap)
         .collect();
-    let quoted = columns.iter().map(|c| format!("quote(\"{c}\")")).collect::<Vec<_>>().join(" || '|' || ");
+    let quoted = columns
+        .iter()
+        .map(|c| format!("quote(\"{c}\")"))
+        .collect::<Vec<_>>()
+        .join(" || '|' || ");
     let sql = format!("SELECT rowid || '|' || {quoted} FROM \"{table}\" ORDER BY rowid");
-    conn.prepare(&sql).unwrap().query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect()
+    conn.prepare(&sql)
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect()
 }
 
 const TABLES: [&str; 23] = [
@@ -72,7 +81,12 @@ fn save_after(name: &str, setup: &str, edit: impl FnOnce(&mut Book)) -> (Book, B
     edit(&mut edited);
     opened.save(&book, &edited, &mut FixedEnv::new(Time64(0), 99)).unwrap();
     drop(opened);
-    let changed = TABLES.iter().zip(&before).filter(|(t, b)| &rows(&path, t) != *b).map(|(t, _)| *t).collect();
+    let changed = TABLES
+        .iter()
+        .zip(&before)
+        .filter(|(t, b)| &rows(&path, t) != *b)
+        .map(|(t, _)| *t)
+        .collect();
     let (read, _, findings) = open_read_only(&path).unwrap();
     assert!(findings.is_empty(), "{findings:?}");
     (edited, read, changed)
@@ -83,7 +97,12 @@ fn tx(book: &mut Book, i: usize) -> &mut Transaction {
 }
 
 fn split(guid: u8, account: Guid, value: i64) -> Split {
-    Split::new(Guid::from_bytes([guid; 16]), account, Numeric::new(value, 100), Numeric::new(value, 100))
+    Split::new(
+        Guid::from_bytes([guid; 16]),
+        account,
+        Numeric::new(value, 100),
+        Numeric::new(value, 100),
+    )
 }
 
 #[test]
@@ -93,7 +112,10 @@ fn a_split_moved_to_another_transaction_keeps_its_slots() {
         tx(b, 0).splits.push(moved);
     });
     assert_eq!(read, edited);
-    assert!(changed.contains(&"splits") && changed.iter().all(|t| ["splits", "lots"].contains(t)), "{changed:?}");
+    assert!(
+        changed.contains(&"splits") && changed.iter().all(|t| ["splits", "lots"].contains(t)),
+        "{changed:?}"
+    );
 }
 
 #[test]
@@ -111,7 +133,11 @@ fn a_split_added_before_the_others_rewrites_the_transaction_s_splits_in_order() 
 #[test]
 fn a_removed_split_takes_its_slot_rows_with_it() {
     let (edited, read, changed) = save("synthetic/rich.gnucash", |b| {
-        let i = b.transactions.values().position(|t| t.splits.iter().any(|s| !s.slots.is_empty())).unwrap();
+        let i = b
+            .transactions
+            .values()
+            .position(|t| t.splits.iter().any(|s| !s.slots.is_empty()))
+            .unwrap();
         let t = tx(b, i);
         let at = t.splits.iter().position(|s| !s.slots.is_empty()).unwrap();
         t.splits.remove(at);
@@ -156,10 +182,16 @@ fn a_renamed_commodity_gets_a_new_row_and_its_users_follow() {
             .values_mut()
             .filter(|a| a.commodity.as_ref() == Some(&old))
             .for_each(|a| Arc::make_mut(a).commodity = Some(renamed.id.clone()));
-        b.prices.values_mut().filter(|p| p.commodity == old).for_each(|p| Arc::make_mut(p).commodity = renamed.id.clone());
+        b.prices
+            .values_mut()
+            .filter(|p| p.commodity == old)
+            .for_each(|p| Arc::make_mut(p).commodity = renamed.id.clone());
     });
     assert_eq!(read, edited);
-    assert!(changed.iter().all(|t| ["commodities", "accounts", "prices", "slots"].contains(t)), "{changed:?}");
+    assert!(
+        changed.iter().all(|t| ["commodities", "accounts", "prices", "slots"].contains(t)),
+        "{changed:?}"
+    );
 }
 
 #[test]
@@ -167,7 +199,9 @@ fn budget_amounts_are_rewritten_with_its_slots() {
     let (edited, read, changed) = save("synthetic/rich.gnucash", |b| {
         let account = b.accounts.values().find(|a| a.parent.is_some()).unwrap().guid;
         let budget = Arc::make_mut(b.budgets.get_index_mut(0).unwrap().1);
-        budget.slots.set(&format!("{account}/3"), SlotValue::Numeric(Numeric::new(12_345, 100)));
+        budget
+            .slots
+            .set(&format!("{account}/3"), SlotValue::Numeric(Numeric::new(12_345, 100)));
     });
     assert_eq!(read, edited);
     assert_eq!(changed, ["budget_amounts", "slots"]);
@@ -197,13 +231,22 @@ fn business_edits_write_their_rows() {
         biz.jobs.remove(&first);
     });
     assert_eq!(read, edited);
-    assert!(changed.iter().all(|t| ["customers", "taxtable_entries", "jobs", "slots"].contains(t)), "{changed:?}");
+    assert!(
+        changed
+            .iter()
+            .all(|t| ["customers", "taxtable_entries", "jobs", "slots"].contains(t)),
+        "{changed:?}"
+    );
 }
 
 #[test]
 fn a_split_changed_in_a_lot_marks_the_lot_unknown() {
     let (edited, read, changed) = save_after("synthetic/rich.gnucash", "UPDATE lots SET is_closed = 0", |b| {
-        let i = b.transactions.values().position(|t| t.splits.iter().any(|s| s.lot.is_some())).unwrap();
+        let i = b
+            .transactions
+            .values()
+            .position(|t| t.splits.iter().any(|s| s.lot.is_some()))
+            .unwrap();
         let s = tx(b, i).splits.iter_mut().find(|s| s.lot.is_some()).unwrap();
         s.memo = Some("in a lot".into());
     });

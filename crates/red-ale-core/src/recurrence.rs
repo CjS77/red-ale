@@ -211,6 +211,9 @@ mod tests {
             Err(RecurrenceError::ZeroMultiplier(PeriodType::Month))
         );
         let r = Recurrence::new(3, PeriodType::EndOfMonth, start, WeekendAdjust::Back).unwrap();
-        assert_eq!((r.mult(), r.period_type(), r.start(), r.weekend_adjust()), (3, PeriodType::EndOfMonth, start, WeekendAdjust::Back));
+        assert_eq!(
+            (r.mult(), r.period_type(), r.start(), r.weekend_adjust()),
+            (3, PeriodType::EndOfMonth, start, WeekendAdjust::Back)
+        );
     }
 }

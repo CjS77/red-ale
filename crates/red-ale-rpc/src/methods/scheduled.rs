@@ -27,8 +27,18 @@ pub fn methods() -> Vec<Method> {
             Effect::Write,
             create,
         ),
-        method("scheduledTransaction.get", "One scheduled transaction with its template transactions.", Effect::Read, get),
-        method("scheduledTransaction.list", "Scheduled transactions in book order.", Effect::Read, list),
+        method(
+            "scheduledTransaction.get",
+            "One scheduled transaction with its template transactions.",
+            Effect::Read,
+            get,
+        ),
+        method(
+            "scheduledTransaction.list",
+            "Scheduled transactions in book order.",
+            Effect::Read,
+            list,
+        ),
         method(
             "scheduledTransaction.update",
             "Change a scheduled transaction's fields, Schedule, end or template transactions.",

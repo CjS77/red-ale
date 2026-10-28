@@ -378,7 +378,11 @@ impl<S: Sink> Reader<S> {
             "gnc:schedxaction" => {
                 kept.enter(Section::ScheduledTransactions);
                 let sx = parse_scheduled(el, &mut kept.notices)?;
-                keep(&mut kept.originals.scheduled, sx.guid, original_if_needed(el, Some(&scheduled_el(&sx)), 0));
+                keep(
+                    &mut kept.originals.scheduled,
+                    sx.guid,
+                    original_if_needed(el, Some(&scheduled_el(&sx)), 0),
+                );
                 self.sink.scheduled(sx);
             }
             "gnc:budget" => {
@@ -437,7 +441,9 @@ impl<S: Sink> Reader<S> {
                 self.sink.template_transaction(t);
             }
             other => {
-                kept.notices.unrecognised.push(format!("unknown element {other} in gnc:template-transactions"));
+                kept.notices
+                    .unrecognised
+                    .push(format!("unknown element {other} in gnc:template-transactions"));
                 kept.unknown.push((Section::Templates, el.clone()));
             }
         }
@@ -674,7 +680,13 @@ impl<'a> Verify<'a> {
                 let accounts = expected.templates.accounts.keys().filter(|_| templates_written);
                 first_missing("template account", accounts, &self.seen.template_accounts)
             })
-            .or_else(|| first_missing("template transaction", expected.templates.transactions.keys(), &self.seen.template_transactions))
+            .or_else(|| {
+                first_missing(
+                    "template transaction",
+                    expected.templates.transactions.keys(),
+                    &self.seen.template_transactions,
+                )
+            })
             .or_else(|| first_missing("scheduled transaction", expected.scheduled.keys(), &self.seen.scheduled))
             .or_else(|| {
                 (business_count(&expected.business) != self.seen.business.len()).then(|| "business objects differ after writing".into())

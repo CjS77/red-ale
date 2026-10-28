@@ -453,8 +453,10 @@ impl EndWire {
                 total,
                 remaining: remaining.unwrap_or(total),
             }),
-            _ => Err(RpcError::invalid("give one end: { never: true }, { date } or { occurrences, remaining? }")
-                .with_data(serde_json::json!({ "reason": "end" }))),
+            _ => Err(
+                RpcError::invalid("give one end: { never: true }, { date } or { occurrences, remaining? }")
+                    .with_data(serde_json::json!({ "reason": "end" })),
+            ),
         }
     }
 }

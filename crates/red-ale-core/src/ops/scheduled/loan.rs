@@ -159,7 +159,9 @@ struct Formulas {
 /// started on the loan's start, last occurrence one month before the first repayment, ending `months remaining − 1`
 /// months after it, with Instance count `length in months − months remaining + 1` (`AL:2853-2865`).
 pub fn loan(book: &mut Book, env: &mut dyn Env, loan: &Loan, format: NumberFormat) -> Result<LoanCreated, ScheduledError> {
-    let today = env.today().ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
+    let today = env
+        .today()
+        .ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
     let currency = check_accounts(book, loan)?;
     check_figures(loan)?;
     let start = loan.start.unwrap_or(today);
@@ -167,9 +169,14 @@ pub fn loan(book: &mut Book, env: &mut dyn Env, loan: &Loan, format: NumberForma
         Length::Months(m) => m,
         Length::Years(y) => y.saturating_mul(12),
     };
-    let remaining = loan.months_remaining.map_or_else(|| default_remaining(start, today, months), i64::from);
+    let remaining = loan
+        .months_remaining
+        .map_or_else(|| default_remaining(start, today, months), i64::from);
     if !(1..=i64::from(months)).contains(&remaining) {
-        return Err(ScheduledError::invalid("months-remaining", format!("months remaining must be 1 to {months}, not {remaining}")));
+        return Err(ScheduledError::invalid(
+            "months-remaining",
+            format!("months remaining must be 1 to {months}, not {remaining}"),
+        ));
     }
     let remaining = i32::try_from(remaining).unwrap_or(i32::MAX);
     let (mult, period_type, weekend_adjust) = loan.repayment.frequency.unwrap_or((1, PeriodType::Month, WeekendAdjust::None));
@@ -201,7 +208,9 @@ pub fn loan(book: &mut Book, env: &mut dyn Env, loan: &Loan, format: NumberForma
 /// The length in months less the months from `start` to today, counted by adding a month until reaching today, as
 /// `loan_info_calc_update_cb` counts them (`AL:1011-1034`).
 fn default_remaining(start: Date, today: Date, months: u32) -> i64 {
-    let elapsed = std::iter::successors(Some(start), |d| Some(d.add_months(1))).take_while(|d| *d < today).count();
+    let elapsed = std::iter::successors(Some(start), |d| Some(d.add_months(1)))
+        .take_while(|d| *d < today)
+        .count();
     i64::from(months) - i64::try_from(elapsed).unwrap_or(i64::MAX)
 }
 
@@ -216,7 +225,10 @@ fn of_type(book: &Book, guid: Guid, role: &str, allowed: &[AccountType]) -> Resu
     if allowed.contains(&ty) {
         Ok(())
     } else {
-        Err(ScheduledError::invalid("account-type", format!("the {role} account can't be of type {}", ty.as_str())))
+        Err(ScheduledError::invalid(
+            "account-type",
+            format!("the {role} account can't be of type {}", ty.as_str()),
+        ))
     }
 }
 
@@ -247,9 +259,15 @@ fn check_figures(loan: &Loan) -> Result<(), ScheduledError> {
     if !loan.principal.is_positive() {
         return Err(ScheduledError::invalid("principal", "the principal must be more than 0"));
     }
-    let thousandths = loan.rate.mul(Numeric::from_int(1000), crate::DENOM_AUTO, crate::How::EXACT)?.reduce();
+    let thousandths = loan
+        .rate
+        .mul(Numeric::from_int(1000), crate::DENOM_AUTO, crate::How::EXACT)?
+        .reduce();
     if thousandths.denom() != 1 || !(1..=100_000).contains(&thousandths.num()) {
-        return Err(ScheduledError::invalid("rate", "the rate must be 0.001 to 100 percent, with at most 3 decimals"));
+        return Err(ScheduledError::invalid(
+            "rate",
+            "the rate must be 0.001 to 100 percent, with at most 3 decimals",
+        ));
     }
     let (Length::Months(n) | Length::Years(n)) = loan.length;
     if (1..=9999).contains(&n) {
@@ -304,7 +322,10 @@ fn formulas(
     } else {
         format!("( {} / {} )", ppy.num(), ppy.denom())
     };
-    let (n, pv) = (formula_number(periods, 2, format), formula_number(loan.principal, places.max(2), format));
+    let (n, pv) = (
+        formula_number(periods, 2, format),
+        formula_number(loan.principal, places.max(2), format),
+    );
     Ok(Formulas {
         pmt: format!("pmt( {r} / {ppy} : {n} : {pv} : 0 : 0 )"),
         ppmt: format!("ppmt( {r} / {ppy} : i : {n} : {pv} : 0 : 0 )"),
@@ -333,7 +354,13 @@ fn debit(account: Guid, memo: String, formula: &str) -> SplitSpec {
 
 /// The templates `loan_create_sxes` builds (`AL:2870-2985`): without escrow one, `<name> - Payment`; with escrow
 /// `<name> - Escrow Payment` into escrow, then `<name> - Payment` out of it. Then each other payment.
-fn templates(loan: &Loan, name: &str, currency: &CommodityRef, f: &Formulas, format: NumberFormat) -> Result<Vec<TemplateSpec>, ScheduledError> {
+fn templates(
+    loan: &Loan,
+    name: &str,
+    currency: &CommodityRef,
+    f: &Formulas,
+    format: NumberFormat,
+) -> Result<Vec<TemplateSpec>, ScheduledError> {
     let template = |description: String, splits| TemplateSpec {
         description: Some(description),
         currency: Some(currency.clone()),
@@ -352,7 +379,10 @@ fn templates(loan: &Loan, name: &str, currency: &CommodityRef, f: &Formulas, for
         Some(escrow) => vec![
             template(
                 format!("{name} - Escrow Payment"),
-                vec![credit(loan.repayment.from, name.to_owned(), &f.pmt), debit(escrow, name.to_owned(), &f.pmt)],
+                vec![
+                    credit(loan.repayment.from, name.to_owned(), &f.pmt),
+                    debit(escrow, name.to_owned(), &f.pmt),
+                ],
             ),
             template(format!("{name} - Payment"), payment),
         ],
@@ -378,7 +408,13 @@ fn append(formula: &mut Option<String>, amount: &str) {
 /// paying split's credit, or a new credit split in `from` when it is not the repayment's; a debit to `to`; via
 /// escrow, the deposit into escrow in the first template and the transfer to `to` in the second. The amount is
 /// written exactly, where GnuCash rounds it to two significant figures (`AL:2686-2699`).
-fn add_other_payment(loan: &Loan, templates: &mut [TemplateSpec], p: &OtherPayment, places: u32, format: NumberFormat) -> Result<(), ScheduledError> {
+fn add_other_payment(
+    loan: &Loan,
+    templates: &mut [TemplateSpec],
+    p: &OtherPayment,
+    places: u32,
+    format: NumberFormat,
+) -> Result<(), ScheduledError> {
     let via_escrow = p.via_escrow.unwrap_or(loan.escrow.is_some() && p.kind != PaymentKind::Other);
     let escrow = match (via_escrow, loan.escrow) {
         (true, None) => return Err(ScheduledError::invalid("escrow", "a payment via escrow needs an escrow account")),
@@ -388,14 +424,20 @@ fn add_other_payment(loan: &Loan, templates: &mut [TemplateSpec], p: &OtherPayme
     let amount = formula_number(p.amount, places, format);
     let memo = p.memo.clone().unwrap_or_else(|| p.kind.memo().to_owned());
     let from = p.from.filter(|f| *f != loan.repayment.from);
-    let (main, rest) = templates.split_first_mut().ok_or_else(|| DomainError::invalid("the loan has no template"))?;
+    let (main, rest) = templates
+        .split_first_mut()
+        .ok_or_else(|| DomainError::invalid("the loan has no template"))?;
     if let Some(escrow) = escrow {
         if let Some(s) = find(&mut main.splits, escrow) {
             append(&mut s.debit_formula, &amount);
         }
-        let second = rest.first_mut().ok_or_else(|| DomainError::invalid("the escrow template is missing"))?;
+        let second = rest
+            .first_mut()
+            .ok_or_else(|| DomainError::invalid("the escrow template is missing"))?;
         match from {
-            Some(_) => find(&mut second.splits, escrow).into_iter().for_each(|s| append(&mut s.credit_formula, &amount)),
+            Some(_) => find(&mut second.splits, escrow)
+                .into_iter()
+                .for_each(|s| append(&mut s.credit_formula, &amount)),
             None => second.splits.push(credit(escrow, memo.clone(), &amount)),
         }
     }

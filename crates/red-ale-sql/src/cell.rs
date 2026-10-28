@@ -354,7 +354,9 @@ mod tests {
         assert_eq!(parse_date("20240229"), Ok(Date::from_ymd(2024, 2, 29)));
         assert_eq!(parse_date(""), Ok(None));
         assert_eq!(parse_date("00000000"), Ok(None));
-        ["2024-02-29", "20230229", "2024022", "2024a229"].iter().for_each(|d| assert_eq!(parse_date(d), Err(()), "{d}"));
+        ["2024-02-29", "20230229", "2024022", "2024a229"]
+            .iter()
+            .for_each(|d| assert_eq!(parse_date(d), Err(()), "{d}"));
     }
 
     #[test]

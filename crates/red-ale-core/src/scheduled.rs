@@ -87,7 +87,9 @@ pub struct Templates {
 impl Templates {
     /// Every split of every template transaction, with its transaction.
     pub fn splits(&self) -> impl Iterator<Item = (&Transaction, &Split)> {
-        self.transactions.values().flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s)))
+        self.transactions
+            .values()
+            .flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s)))
     }
 
     /// Whether any template account sits under the template root. GnuCash's XML writer writes the template block,
@@ -109,7 +111,11 @@ pub struct TemplateSplit<'a> {
 impl<'a> TemplateSplit<'a> {
     /// The split's `sched-xaction` Frame, if it has one.
     pub fn of(split: &'a Split) -> Option<Self> {
-        split.slots.get_key(SPLIT_FRAME).and_then(SlotValue::as_frame).map(|frame| Self { frame })
+        split
+            .slots
+            .get_key(SPLIT_FRAME)
+            .and_then(SlotValue::as_frame)
+            .map(|frame| Self { frame })
     }
 
     /// The Account the created split goes to.
@@ -148,10 +154,10 @@ impl Book {
     /// one whose GUID is its name, as GnuCash finds it (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:378-388`).
     pub fn scheduled_of_template_account(&self, account: Guid) -> Option<&ScheduledTransaction> {
         let name = self.templates.accounts.get(&account).map(|a| a.name.as_str());
-        self.scheduled
-            .values()
-            .map(AsRef::as_ref)
-            .find(|sx| sx.template_account.map_or_else(|| name.is_some_and(|n| n == sx.guid.to_string()), |g| g == account))
+        self.scheduled.values().map(AsRef::as_ref).find(|sx| {
+            sx.template_account
+                .map_or_else(|| name.is_some_and(|n| n == sx.guid.to_string()), |g| g == account)
+        })
     }
 }
 
@@ -161,7 +167,12 @@ mod tests {
     use crate::AccountType;
 
     fn template_split(frame: Frame) -> Split {
-        let mut split = Split::new(Guid::from_bytes([3; 16]), Guid::from_bytes([2; 16]), Numeric::new(0, 100), Numeric::new(0, 1));
+        let mut split = Split::new(
+            Guid::from_bytes([3; 16]),
+            Guid::from_bytes([2; 16]),
+            Numeric::new(0, 100),
+            Numeric::new(0, 1),
+        );
         split.slots.insert_key(SPLIT_FRAME, SlotValue::Frame(frame));
         split
     }

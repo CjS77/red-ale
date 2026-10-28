@@ -45,9 +45,27 @@ fn exec_creates_opens_and_reports() {
 fn exec_reaches_the_budget_methods() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("home.gnucash").display().to_string();
-    let out = run(&["exec", "--create", "--book", &book, "account.create", "name=Expenses", "type=EXPENSE", "commodity=USD"]);
+    let out = run(&[
+        "exec",
+        "--create",
+        "--book",
+        &book,
+        "account.create",
+        "name=Expenses",
+        "type=EXPENSE",
+        "commodity=USD",
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-    run(&["exec", "--book", &book, "account.create", "name=Groceries", "type=EXPENSE", "commodity=USD", "parent=Expenses"]);
+    run(&[
+        "exec",
+        "--book",
+        &book,
+        "account.create",
+        "name=Groceries",
+        "type=EXPENSE",
+        "commodity=USD",
+        "parent=Expenses",
+    ]);
     let recurrence = r#"recurrence:={"mult": 1, "periodType": "month", "start": "2025-01-01"}"#;
     let out = run(&["exec", "--book", &book, "budget.create", "name=2025", recurrence]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
@@ -56,7 +74,10 @@ fn exec_reaches_the_budget_methods() {
     let out = run(&["exec", "--book", &book, "budget.setAmounts", &format!("budget={guid}"), amounts]);
     assert_eq!(json(&out.stdout)["set"], 1, "{}", String::from_utf8_lossy(&out.stderr));
     let out = run(&["exec", "--book", &book, "budget.get", &format!("budget={guid}")]);
-    assert_eq!(json(&out.stdout)["amounts"][0]["amount"], serde_json::json!({ "num": "45000", "denom": "100" }));
+    assert_eq!(
+        json(&out.stdout)["amounts"][0]["amount"],
+        serde_json::json!({ "num": "45000", "denom": "100" })
+    );
 }
 
 /// The `scheduledTransaction.create` example of `design/api/scheduled-transactions.md`, "CLI", with a start date (it
@@ -69,13 +90,34 @@ fn exec_reaches_the_scheduled_transaction_methods() {
     let templates = r#"templateTransactions:=[{"description": "Rent", "splits": [
         {"account": "Expenses:Food", "debitFormula": "750.00"},
         {"account": "Assets:Cash", "creditFormula": "750.00"}]}]"#;
-    let out = run(&["exec", "--book", &book, "scheduledTransaction.create", "name=Rent", "startDate=2025-01-01", schedule, templates]);
+    let out = run(&[
+        "exec",
+        "--book",
+        &book,
+        "scheduledTransaction.create",
+        "name=Rent",
+        "startDate=2025-01-01",
+        schedule,
+        templates,
+    ]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let created = json(&out.stdout);
     assert_eq!(created["templateTransactions"][0]["splits"][0]["debitFormula"], "750.00");
     let guid = created["guid"].as_str().unwrap().to_owned();
-    let out = run(&["exec", "--book", &book, "scheduledTransaction.occurrences", &format!("scheduledTransaction={guid}"), "count:=2"]);
-    assert_eq!(json(&out.stdout)["occurrences"][1]["date"], "2025-02-01", "{}", String::from_utf8_lossy(&out.stderr));
+    let out = run(&[
+        "exec",
+        "--book",
+        &book,
+        "scheduledTransaction.occurrences",
+        &format!("scheduledTransaction={guid}"),
+        "count:=2",
+    ]);
+    assert_eq!(
+        json(&out.stdout)["occurrences"][1]["date"],
+        "2025-02-01",
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 #[test]
@@ -103,7 +145,11 @@ fn a_script_runs_since_last_run_and_applies_it() {
     let book = copy(dir.path(), "synthetic/rich.gnucash");
     let script = dir.path().join("slr.txt");
     let apply = r#"{"proposal": "slr-1", "choices": [{"index": 0, "state": "ignored"}]}"#;
-    std::fs::write(&script, format!("scheduledTransaction.sinceLastRun\nscheduledTransaction.apply {apply}\n")).unwrap();
+    std::fs::write(
+        &script,
+        format!("scheduledTransaction.sinceLastRun\nscheduledTransaction.apply {apply}\n"),
+    )
+    .unwrap();
     let out = run(&["exec", "--book", &book, "--script", &script.display().to_string()]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let results = json(&out.stdout);

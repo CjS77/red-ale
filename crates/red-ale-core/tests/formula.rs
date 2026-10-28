@@ -11,8 +11,8 @@
 
 use red_ale_core::Numeric;
 use red_ale_core::formula::{
-    Argument, FormulaError, FunctionError, Functions, MAX_DEPTH, NumberFormat, Variables, evaluate, evaluate_arithmetic,
-    evaluate_with, free_variables,
+    Argument, FormulaError, FunctionError, Functions, MAX_DEPTH, NumberFormat, Variables, evaluate, evaluate_arithmetic, evaluate_with,
+    free_variables,
 };
 
 /// The procedures `test-exp-parser.c` defines in Scheme (`:195`, `:206`, `:216-220`, `:227`).
@@ -50,7 +50,10 @@ fn n(num: i64, denom: i64) -> Numeric {
 /// `gnc_exp_parser_parse`: every unknown name is 0 (`expression_parser.c:677-705`), which red-ale's caller asks for by
 /// binding the formula's variables to 0.
 fn gnucash_parse(text: &str) -> Result<Numeric, FormulaError> {
-    let zeros: Variables = free_variables(text, NumberFormat::default())?.into_iter().map(|v| (v, Numeric::ZERO)).collect();
+    let zeros: Variables = free_variables(text, NumberFormat::default())?
+        .into_iter()
+        .map(|v| (v, Numeric::ZERO))
+        .collect();
     evaluate_with(text, NumberFormat::default(), &zeros, &TestFunctions)
 }
 
@@ -110,7 +113,16 @@ fn gnucash_failures() {
     .iter()
     .for_each(|t| fail(t));
     // :178-183
-    ["AUD $1.23", "AUD $0.0", "AUD 1.23", "AUD 0.0", "AUD 1.2 + CAN 2.3", "AUD $1.2 + CAN $2.3"].iter().for_each(|t| fail(t));
+    [
+        "AUD $1.23",
+        "AUD $0.0",
+        "AUD 1.23",
+        "AUD 0.0",
+        "AUD 1.2 + CAN 2.3",
+        "AUD $1.2 + CAN $2.3",
+    ]
+    .iter()
+    .for_each(|t| fail(t));
 }
 
 #[test]
@@ -186,7 +198,11 @@ fn variables_are_bound_by_the_caller_and_unbound_reads_are_named() {
     assert_eq!(eval("x = 5", &Variables::new()), Ok(n(5, 1)), "an assignment needs no value first");
     assert_eq!(eval("x += 5", &Variables::new()), Err(FormulaError::Unbound("x".into())));
     let unset = bind(&[("x", Numeric::new(1, 0))]);
-    assert_eq!(eval("x", &unset), Err(FormulaError::Unbound("x".into())), "an invalid Numeric is GnuCash's unset variable");
+    assert_eq!(
+        eval("x", &unset),
+        Err(FormulaError::Unbound("x".into())),
+        "an invalid Numeric is GnuCash's unset variable"
+    );
 }
 
 #[test]
@@ -201,7 +217,9 @@ fn assignments_and_compound_assignments() {
     assert_eq!(eval("b = c = 3", &vars), Ok(n(3, 1)), "right-associative");
     assert_eq!(eval("1 = 2", &vars), Err(FormulaError::NotAVariable));
     assert_eq!(eval("a + 1 = 2", &vars), Err(FormulaError::NotAVariable));
-    ["a == 1", "(= 1", "a := 1"].iter().for_each(|t| assert!(eval(t, &vars).is_err(), "{t:?}"));
+    ["a == 1", "(= 1", "a := 1"]
+        .iter()
+        .for_each(|t| assert!(eval(t, &vars).is_err(), "{t:?}"));
 }
 
 #[test]
@@ -219,7 +237,7 @@ fn grammar_errors() {
     let vars = bind(&[("a", n(1, 1))]);
     [
         "pmt (0.005 : 360 : 100000 : 0 : 0)", // note §3.1: a variable then a parenthesis
-        "pmt(0.005, 360, 100000, 0, 0)",       // H4: `,` is not the separator
+        "pmt(0.005, 360, 100000, 0, 0)",      // H4: `,` is not the separator
         "foobar(1 (2))",
         "foobar(1 :)",
         "foobar(1",
@@ -253,7 +271,10 @@ fn numbers_in_the_locale() {
         group_separator: '.',
     };
     assert_eq!(evaluate("1.234,5 * 2", french, &Variables::new()), Ok(n(2469, 1)));
-    assert_eq!(evaluate("pmt(0,005 : 360 : 100.000 : 0 : 0)", french, &Variables::new()), Ok(n(599_550_525_153, 1_000_000_000)));
+    assert_eq!(
+        evaluate("pmt(0,005 : 360 : 100.000 : 0 : 0)", french, &Variables::new()),
+        Ok(n(599_550_525_153, 1_000_000_000))
+    );
 }
 
 #[test]
@@ -262,8 +283,16 @@ fn free_variables_in_order_of_first_appearance() {
     let names = |t: &str| free_variables(t, f).map(|v| v.join(","));
     assert_eq!(names("b + a * b - c"), Ok("b,a,c".into()));
     assert_eq!(names("x = 5"), Ok("x".into()), "assigned variables are variables (note §3.5)");
-    assert_eq!(names("ppmt( 0.06 / 12 : i : 360 : 100000 : 0 : 0 )"), Ok("i".into()), "function names are not variables");
-    assert_eq!(names("sub( a = 42 : nosuch( b ) ) + a"), Ok("a,b".into()), "calls are not evaluated");
+    assert_eq!(
+        names("ppmt( 0.06 / 12 : i : 360 : 100000 : 0 : 0 )"),
+        Ok("i".into()),
+        "function names are not variables"
+    );
+    assert_eq!(
+        names("sub( a = 42 : nosuch( b ) ) + a"),
+        Ok("a,b".into()),
+        "calls are not evaluated"
+    );
     assert_eq!(names("x / y"), Ok("x,y".into()), "nor is arithmetic");
     assert_eq!(names("100"), Ok(String::new()));
     assert!(names("a b").is_err());
@@ -275,8 +304,16 @@ fn arithmetic_mode_refuses_what_formulas_add() {
     ["a", "a = 1", "foobar(1)", "\"x\"", "1 : 2"].iter().for_each(|t| {
         assert!(matches!(evaluate_arithmetic(t, f), Err(FormulaError::Unexpected(_))), "{t:?}");
     });
-    assert_eq!(evaluate_arithmetic("(5)", f), Ok(n(-5, 1)), "(n) alone is negative in business numbers too, as in GnuCash");
-    assert_eq!(evaluate_arithmetic("2 3", f), Err(FormulaError::Unexpected(String::new())), "v0.3's message");
+    assert_eq!(
+        evaluate_arithmetic("(5)", f),
+        Ok(n(-5, 1)),
+        "(n) alone is negative in business numbers too, as in GnuCash"
+    );
+    assert_eq!(
+        evaluate_arithmetic("2 3", f),
+        Err(FormulaError::Unexpected(String::new())),
+        "v0.3's message"
+    );
 }
 
 #[test]
@@ -312,7 +349,10 @@ fn h3_ipmt_and_ppmt() {
     assert_repr("ipmt(0.005 : 400 : 360 : 100000 : 0 : 0)", n(298_283_843_360, 100_000_000_000));
     // the loan assistant's formulas, with i bound (assistant-loan.cpp:2510-2528)
     let vars = bind(&[("i", n(1, 1))]);
-    assert_eq!(eval("ppmt( 0.06 / 12 : i : 360 : 100000 : 0 : 0 )", &vars), Ok(n(995_505_251_528, 10_000_000_000)));
+    assert_eq!(
+        eval("ppmt( 0.06 / 12 : i : 360 : 100000 : 0 : 0 )", &vars),
+        Ok(n(995_505_251_528, 10_000_000_000))
+    );
 }
 
 #[test]
@@ -339,20 +379,38 @@ fn h5_other_functions() {
     assert_repr("periodic_rate(0.06 : 1 : 12)", n(123_355_623_729, 2_000_000_000_000));
     assert_repr("foobar(1 / 3)", n(333_333_333_333, 1_000_000_000_000));
     // The note's example: 5 % compounded semi-annually, paid monthly, is a sixth power: refused.
-    assert_eq!(function_error("periodic_rate(0.05 : 12 : 2)"), FunctionError::NotWhole("ycomp / yper"));
+    assert_eq!(
+        function_error("periodic_rate(0.05 : 12 : 2)"),
+        FunctionError::NotWhole("ycomp / yper")
+    );
     // cpd_* and amort_* round to the cent with Scheme's round on doubles (fin.scm:152-184, :300-366): refused, even
     // where the power is whole.
-    ["cpd_pmt(0.06 : 12 : 12 : 360 : 100000 : 0 : 0)", "amort_ipmt(12 : 2 : 0.05 : 100000 : 4385 : 9 : 2)"]
-        .iter()
-        .for_each(|t| assert!(matches!(function_error(t), FunctionError::Inexact(_)), "{t:?}"));
+    [
+        "cpd_pmt(0.06 : 12 : 12 : 360 : 100000 : 0 : 0)",
+        "amort_ipmt(12 : 2 : 0.05 : 100000 : 4385 : 9 : 2)",
+    ]
+    .iter()
+    .for_each(|t| assert!(matches!(function_error(t), FunctionError::Inexact(_)), "{t:?}"));
 }
 
 #[test]
 fn powers_that_are_not_whole_are_refused() {
-    assert_eq!(function_error("pmt(0.005 : 360.5 : 100000 : 0 : 0)"), FunctionError::NotWhole("nper"));
-    assert_eq!(function_error("ipmt(0.005 : 1.5 : 360 : 100000 : 0 : 0)"), FunctionError::NotWhole("per"));
-    assert_eq!(function_error("futureValue(1000 : 0.05 : 12 : 0.01)"), FunctionError::NotWhole("n × t"));
-    assert_eq!(function_error("computeInterestIncrement(1 : 0.06 : 12 : 2.5)"), FunctionError::NotWhole("period"));
+    assert_eq!(
+        function_error("pmt(0.005 : 360.5 : 100000 : 0 : 0)"),
+        FunctionError::NotWhole("nper")
+    );
+    assert_eq!(
+        function_error("ipmt(0.005 : 1.5 : 360 : 100000 : 0 : 0)"),
+        FunctionError::NotWhole("per")
+    );
+    assert_eq!(
+        function_error("futureValue(1000 : 0.05 : 12 : 0.01)"),
+        FunctionError::NotWhole("n × t")
+    );
+    assert_eq!(
+        function_error("computeInterestIncrement(1 : 0.06 : 12 : 2.5)"),
+        FunctionError::NotWhole("period")
+    );
     // per past nper is not a power, so it need not be whole (fin.scm:37)
     assert_repr("ipmt(0.005 : 400.5 : 360 : 100000 : 0 : 0)", n(298_283_843_360, 100_000_000_000));
 }
@@ -361,7 +419,10 @@ fn powers_that_are_not_whole_are_refused() {
 fn arguments_and_ranges() {
     assert_eq!(function_error("pmt(0.005 : 360 : 100000 : 0)"), FunctionError::Arity(5));
     assert_eq!(function_error("pmt()"), FunctionError::Arity(5));
-    assert!(matches!(function_error("pmt(0.005 : 1000000 : 100000 : 0 : 0)"), FunctionError::TooLarge(_)));
+    assert!(matches!(
+        function_error("pmt(0.005 : 1000000 : 100000 : 0 : 0)"),
+        FunctionError::TooLarge(_)
+    ));
     // 1.5^36000 is past a double's range, where Guile's infinity makes NaN.
     assert_eq!(function_error("pmt(0.5 : 36000 : 100000 : 0 : 0)"), FunctionError::Range);
     // Past 10^18, GncNumeric(double) refuses (gnc-numeric.cpp:89-95).

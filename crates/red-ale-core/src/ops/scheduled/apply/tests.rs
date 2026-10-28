@@ -51,7 +51,10 @@ fn creating_the_due_instances_advances_the_schedule() {
     let g = rent(&mut f, monthly(date(2026, 1, 1)));
     let p = propose(&f, date(2026, 3, 15));
     let applied = run(&mut f, &p, &[]).unwrap();
-    assert_eq!(applied.created.iter().map(|c| c.date).collect::<Vec<_>>(), [date(2026, 1, 1), date(2026, 2, 1), date(2026, 3, 1)]);
+    assert_eq!(
+        applied.created.iter().map(|c| c.date).collect::<Vec<_>>(),
+        [date(2026, 1, 1), date(2026, 2, 1), date(2026, 3, 1)]
+    );
     assert_eq!(f.book.transactions.len(), 3);
     assert_eq!(temporal(&f, g), (Some(date(2026, 3, 1)), 4, None, 0));
     assert_eq!(applied.schedules, [g]);
@@ -68,13 +71,24 @@ fn a_postponement_proposes_no_duplicates() {
     let p = propose(&f, date(2026, 2, 15));
     run(&mut f, &p, &[state(0, Postponed)]).unwrap();
     assert_eq!(temporal(&f, g), (Some(date(2026, 2, 1)), 3, None, 1));
-    assert_eq!(f.sx(g).deferred[0], DeferredInstance { last: Some(Date::EPOCH), remaining: 0, instance_count: 1 });
+    assert_eq!(
+        f.sx(g).deferred[0],
+        DeferredInstance {
+            last: Some(Date::EPOCH),
+            remaining: 0,
+            instance_count: 1
+        }
+    );
 
     let p = propose(&f, date(2026, 3, 15));
     assert_eq!(shown(&p), [(date(2026, 1, 1), Postponed, 1), (date(2026, 3, 1), ToCreate, 3)]);
     let applied = run(&mut f, &p, &[]).unwrap();
     assert_eq!((applied.postponed.as_slice(), applied.created.len()), ([0].as_slice(), 1));
-    assert_eq!(temporal(&f, g), (Some(date(2026, 3, 1)), 4, None, 1), "a postponed instance left postponed changes nothing");
+    assert_eq!(
+        temporal(&f, g),
+        (Some(date(2026, 3, 1)), 4, None, 1),
+        "a postponed instance left postponed changes nothing"
+    );
 
     let p = propose(&f, date(2026, 4, 15));
     assert_eq!(shown(&p), [(date(2026, 1, 1), Postponed, 1), (date(2026, 4, 1), ToCreate, 4)]);
@@ -121,9 +135,15 @@ fn two_recurrences_create_in_date_order() {
     let mut f = Fixture::new();
     let (first, fifteenth) = (date(2026, 1, 1), date(2026, 1, 15));
     let every = |d| Recurrence::new(1, PeriodType::Month, d, WeekendAdjust::None).unwrap();
-    let g = rent(&mut f, crate::ops::scheduled::fixture::sx(first, vec![every(first), every(fifteenth)]));
+    let g = rent(
+        &mut f,
+        crate::ops::scheduled::fixture::sx(first, vec![every(first), every(fifteenth)]),
+    );
     let p = propose(&f, date(2026, 2, 10));
-    assert_eq!(shown(&p), [(first, ToCreate, 1), (fifteenth, ToCreate, 2), (date(2026, 2, 1), ToCreate, 3)]);
+    assert_eq!(
+        shown(&p),
+        [(first, ToCreate, 1), (fifteenth, ToCreate, 2), (date(2026, 2, 1), ToCreate, 3)]
+    );
     run(&mut f, &p, &[]).unwrap();
     assert_eq!(temporal(&f, g), (Some(date(2026, 2, 1)), 4, None, 0));
 }
@@ -140,11 +160,21 @@ fn postponing_consumes_an_occurrence_and_creating_it_another() {
     let p = propose(&f, date(2026, 1, 10));
     assert_eq!(shown(&p), [(date(2026, 1, 1), ToCreate, 3), (date(2026, 2, 1), Reminder, 4)]);
     let applied = run(&mut f, &p, &[state(0, Postponed)]).unwrap();
-    assert_eq!((applied.postponed.as_slice(), applied.reminders.as_slice()), ([0].as_slice(), [1].as_slice()));
+    assert_eq!(
+        (applied.postponed.as_slice(), applied.reminders.as_slice()),
+        ([0].as_slice(), [1].as_slice())
+    );
     assert_eq!(temporal(&f, g), (Some(date(2026, 1, 1)), 4, Some(4), 1));
 
     let p = propose(&f, date(2026, 1, 20));
-    assert_eq!(shown(&p), [(date(2026, 1, 1), Postponed, 3), (date(2026, 2, 1), Reminder, 4), (date(2026, 3, 1), Reminder, 5)]);
+    assert_eq!(
+        shown(&p),
+        [
+            (date(2026, 1, 1), Postponed, 3),
+            (date(2026, 2, 1), Reminder, 4),
+            (date(2026, 3, 1), Reminder, 5)
+        ]
+    );
     run(&mut f, &p, &[state(0, ToCreate)]).unwrap();
     assert_eq!(temporal(&f, g), (Some(date(2026, 1, 1)), 4, Some(3), 0));
     assert_eq!(f.book.transactions.len(), 1);
@@ -163,7 +193,10 @@ fn a_postponed_instance_set_to_reminder_is_dropped() {
     let applied = run(&mut f, &p, &[state(0, Reminder)]).unwrap();
     assert_eq!(applied.reminders, [0, 1, 2]);
     assert_eq!(temporal(&f, g), (Some(date(2026, 1, 1)), 2, None, 0));
-    assert_eq!(shown(&propose(&f, date(2026, 1, 20))), [(date(2026, 2, 1), Reminder, 2), (date(2026, 3, 1), Reminder, 3)]);
+    assert_eq!(
+        shown(&propose(&f, date(2026, 1, 20))),
+        [(date(2026, 2, 1), Reminder, 2), (date(2026, 3, 1), Reminder, 3)]
+    );
 }
 
 /// `test_state_changes` (`test-sx.cpp:152-223`): four daily instances to create. Choosing to create one, or to postpone
@@ -178,7 +211,14 @@ fn the_reminder_rule_is_checked_not_applied() {
     let p = propose(&f, today.add_days(3));
     assert_eq!(p.summary().to_create, 4);
     let mut postponed = f.book.clone();
-    let applied = apply(&mut postponed, &mut f.env.clone(), &p, &[state(2, ToCreate), state(1, Postponed)], ApplyOptions::default()).unwrap();
+    let applied = apply(
+        &mut postponed,
+        &mut f.env.clone(),
+        &p,
+        &[state(2, ToCreate), state(1, Postponed)],
+        ApplyOptions::default(),
+    )
+    .unwrap();
     assert_eq!((applied.created.len(), applied.postponed.as_slice()), (3, [1].as_slice()));
     let err = run(&mut f, &p, &[state(1, Reminder)]).unwrap_err();
     assert!(matches!(err, ScheduledError::Refused { reason: Refusal::ReminderFirst, ref indexes, .. } if indexes == &[1, 2, 3]));
@@ -213,7 +253,13 @@ fn bad_choices_are_refused() {
         ..ApplyOptions::default()
     };
     let err = apply(&mut f.book, &mut f.env, &p, &[state(0, Postponed)], sql).unwrap_err();
-    assert!(matches!(err, ScheduledError::Refused { reason: Refusal::SqlDeferredInstances, .. }));
+    assert!(matches!(
+        err,
+        ScheduledError::Refused {
+            reason: Refusal::SqlDeferredInstances,
+            ..
+        }
+    ));
     assert!(f.book.transactions.is_empty());
     let applied = run(&mut f, &p, &[value("amt", Numeric::new(4250, 100))]).unwrap();
     let t = &f.book.transactions[&applied.created[0].transactions[0].transaction];
@@ -254,7 +300,13 @@ fn auto_create_only_acts_on_auto_create_schedules() {
         ..ApplyOptions::default()
     };
     let err = apply(&mut f.book, &mut f.env, &p, &[state(0, Ignored)], options).unwrap_err();
-    assert!(matches!(err, ScheduledError::Refused { reason: Refusal::NotAutoCreate, .. }));
+    assert!(matches!(
+        err,
+        ScheduledError::Refused {
+            reason: Refusal::NotAutoCreate,
+            ..
+        }
+    ));
     let applied = apply(&mut f.book, &mut f.env, &p, &[], options).unwrap();
     assert_eq!((applied.created.len(), applied.schedules.as_slice()), (1, [auto].as_slice()));
     assert_eq!(temporal(&f, manual), (None, 1, None, 0));
@@ -285,32 +337,48 @@ fn reminders_touch_nothing_and_empty_templates_still_advance() {
 /// `gnc_sx_add_defer_instance` keeps the deferred list sorted by date, a new one before an equal one.
 #[test]
 fn deferred_instances_stay_sorted() {
-    let at = |d: Option<Date>| DeferredInstance { last: d, remaining: 0, instance_count: 0 };
-    let state = |d: Option<Date>| TemporalState { last: d, remaining: 0, instance_count: 1 };
+    let at = |d: Option<Date>| DeferredInstance {
+        last: d,
+        remaining: 0,
+        instance_count: 0,
+    };
+    let state = |d: Option<Date>| TemporalState {
+        last: d,
+        remaining: 0,
+        instance_count: 1,
+    };
     let mut list = vec![at(Some(date(2026, 1, 1))), at(Some(date(2026, 3, 1)))];
     add_deferred(&mut list, state(Some(date(2026, 2, 1))));
     add_deferred(&mut list, state(Some(date(2026, 3, 1))));
     let order: Vec<_> = list.iter().map(|d| (d.last, d.instance_count)).collect();
-    assert_eq!(order, [
-        (Some(date(2026, 1, 1)), 0),
-        (Some(date(2026, 2, 1)), 1),
-        (Some(date(2026, 3, 1)), 1),
-        (Some(date(2026, 3, 1)), 0)
-    ]);
+    assert_eq!(
+        order,
+        [
+            (Some(date(2026, 1, 1)), 0),
+            (Some(date(2026, 2, 1)), 1),
+            (Some(date(2026, 3, 1)), 1),
+            (Some(date(2026, 3, 1)), 0)
+        ]
+    );
     remove_deferred(&mut list, Some(date(2026, 3, 1)));
     assert_eq!(list[2].instance_count, 0, "the first equal one goes");
 }
 
 fn schedule() -> impl Strategy<Value = ScheduledTransaction> {
-    let types = prop::sample::select(vec![PeriodType::Day, PeriodType::Week, PeriodType::Month, PeriodType::EndOfMonth, PeriodType::Year]);
-    (1u16..=3, types, 0i64..400, 0i32..10, 0i32..20, prop::option::of(1i32..8))
-        .prop_map(|(mult, pt, start, create, remind, count)| {
-            let start = date(2025, 1, 1).add_days(start);
-            let mut s = crate::ops::scheduled::fixture::sx(start, vec![Recurrence::normalised(mult, pt, start, WeekendAdjust::Back)]);
-            s.advance_create_days = create;
-            s.advance_remind_days = remind;
-            limited(s, count.unwrap_or(0), count.unwrap_or(0))
-        })
+    let types = prop::sample::select(vec![
+        PeriodType::Day,
+        PeriodType::Week,
+        PeriodType::Month,
+        PeriodType::EndOfMonth,
+        PeriodType::Year,
+    ]);
+    (1u16..=3, types, 0i64..400, 0i32..10, 0i32..20, prop::option::of(1i32..8)).prop_map(|(mult, pt, start, create, remind, count)| {
+        let start = date(2025, 1, 1).add_days(start);
+        let mut s = crate::ops::scheduled::fixture::sx(start, vec![Recurrence::normalised(mult, pt, start, WeekendAdjust::Back)]);
+        s.advance_create_days = create;
+        s.advance_remind_days = remind;
+        limited(s, count.unwrap_or(0), count.unwrap_or(0))
+    })
 }
 
 proptest! {

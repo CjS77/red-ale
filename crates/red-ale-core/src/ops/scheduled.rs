@@ -26,9 +26,9 @@ pub use apply::{Applied, ApplyOptions, Choice, CreatedInstance, apply};
 pub use cashflow::{CashFlow, CashFlowError, cash_flow, occurrences_in_range};
 pub use create::{BuiltSplit, BuiltTransaction, Created, FROM_SCHEDULED, ImbalanceSplit, build_instance, create_built, create_instance};
 pub use edit::{Edited, End, Fields, RecurrenceSpec, SplitSpec, TemplateSpec, Warning, create, delete, get, unsaved, update};
+pub use error::{AccountProblem, FormulaFailure, Refusal, ScheduledError, Side, Site};
 pub use from_transaction::{Frequency, FromTransaction, from_transaction};
 pub use loan::{Length, Loan, LoanCreated, OtherPayment, PaymentKind, RateType, Repayment, loan};
-pub use error::{AccountProblem, FormulaFailure, Refusal, ScheduledError, Side, Site};
 pub use occurrences::{Occurrence, TemporalState, Upcoming, advance, has_occurrence_limit, next_instance, occurrences};
 pub use proposal::{Instance, InstanceState, Proposal, ScheduleInstances, Summary, Variable, since_last_run};
 pub use template::{

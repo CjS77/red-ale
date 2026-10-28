@@ -12,7 +12,17 @@ pub const BOOKS: Table = Table {
 /// `commodities`.
 pub const COMMODITIES: Table = Table {
     name: "commodities",
-    columns: &["guid", "namespace", "mnemonic", "fullname", "cusip", "fraction", "quote_flag", "quote_source", "quote_tz"],
+    columns: &[
+        "guid",
+        "namespace",
+        "mnemonic",
+        "fullname",
+        "cusip",
+        "fraction",
+        "quote_flag",
+        "quote_source",
+        "quote_tz",
+    ],
 };
 
 /// `accounts`.
@@ -48,7 +58,16 @@ pub const BUDGET_AMOUNTS: Table = Table {
 /// `prices`.
 pub const PRICES: Table = Table {
     name: "prices",
-    columns: &["guid", "commodity_guid", "currency_guid", "date", "source", "type", "value_num", "value_denom"],
+    columns: &[
+        "guid",
+        "commodity_guid",
+        "currency_guid",
+        "date",
+        "source",
+        "type",
+        "value_num",
+        "value_denom",
+    ],
 };
 
 /// `transactions`.
@@ -293,7 +312,17 @@ pub const JOBS: Table = Table {
 /// `orders`.
 pub const ORDERS: Table = Table {
     name: "orders",
-    columns: &["guid", "id", "notes", "reference", "active", "date_opened", "date_closed", "owner_type", "owner_guid"],
+    columns: &[
+        "guid",
+        "id",
+        "notes",
+        "reference",
+        "active",
+        "date_opened",
+        "date_closed",
+        "owner_type",
+        "owner_guid",
+    ],
 };
 
 /// `taxtables`.

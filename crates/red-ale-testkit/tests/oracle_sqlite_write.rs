@@ -183,12 +183,36 @@ fn edit(d: &mut red_ale_rpc::Dispatcher) {
     ]);
     let rent = json!({ "datePosted": "2024-06-20", "num": "102", "description": "Rent", "notes": "June", "splits": splits });
     call(d, "transaction.post", &rent);
-    call(d, "transaction.update", &json!({ "guid": TO_EURO, "description": "To the euro account" }));
-    call(d, "transaction.void", &json!({ "guid": "439480360f6342f9abfd6df6f40cc5e9", "reason": "duplicate" }));
-    call(d, "account.create", &json!({ "name": "Savings", "type": "BANK", "parent": "Assets", "commodity": "EUR" }));
-    call(d, "commodity.create", &json!({ "namespace": "NYSE", "mnemonic": "IBM", "fullname": "Intl Business Machines", "fraction": 100 }));
-    call(d, "price.add", &json!({ "commodity": "NYSE::IBM", "currency": "USD", "value": "171.25", "date": "2024-06-08" }));
-    call(d, "customer.create", &json!({ "name": "Widget Co", "currency": "EUR", "notes": "new" }));
+    call(
+        d,
+        "transaction.update",
+        &json!({ "guid": TO_EURO, "description": "To the euro account" }),
+    );
+    call(
+        d,
+        "transaction.void",
+        &json!({ "guid": "439480360f6342f9abfd6df6f40cc5e9", "reason": "duplicate" }),
+    );
+    call(
+        d,
+        "account.create",
+        &json!({ "name": "Savings", "type": "BANK", "parent": "Assets", "commodity": "EUR" }),
+    );
+    call(
+        d,
+        "commodity.create",
+        &json!({ "namespace": "NYSE", "mnemonic": "IBM", "fullname": "Intl Business Machines", "fraction": 100 }),
+    );
+    call(
+        d,
+        "price.add",
+        &json!({ "commodity": "NYSE::IBM", "currency": "USD", "value": "171.25", "date": "2024-06-08" }),
+    );
+    call(
+        d,
+        "customer.create",
+        &json!({ "name": "Widget Co", "currency": "EUR", "notes": "new" }),
+    );
 }
 
 /// Edits through the API and a save give a book GnuCash opens with nothing logged, and reads as red-ale does.
@@ -215,11 +239,20 @@ fn every_sqlite_fixture_edited_and_saved_reads_the_same_in_gnucash() {
             let mut d = dispatcher();
             let info = call(&mut d, "book.open", &json!({ "path": book.path_str() }));
             assert_eq!(info["readOnly"], false, "{name}: {info}");
-            call(&mut d, "account.create", &json!({ "name": "red-ale probe", "type": "EQUITY", "commodity": "USD", "placeholder": true }));
+            call(
+                &mut d,
+                "account.create",
+                &json!({ "name": "red-ale probe", "type": "EQUITY", "commodity": "USD", "placeholder": true }),
+            );
             call(&mut d, "book.close", &json!({ "save": true }));
             let logged = opened(&book.path);
             let logged = (logged != clean()).then(|| format!("{name}: GnuCash logged {logged}"));
-            differences(&book.path).into_iter().take(10).map(|d| format!("{name}: {d}")).chain(logged).collect::<Vec<_>>()
+            differences(&book.path)
+                .into_iter()
+                .take(10)
+                .map(|d| format!("{name}: {d}"))
+                .chain(logged)
+                .collect::<Vec<_>>()
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
@@ -239,7 +272,12 @@ fn every_sqlite_fixture_written_whole_by_red_ale_reads_in_gnucash_as_the_origina
             let actual = oracle::dump(&uri(&rebuilt.path)).unwrap();
             let logged = opened(&rebuilt.path);
             let logged = (logged != clean()).then(|| format!("{name}: GnuCash logged {logged}"));
-            diff(&expected, &actual, &[]).into_iter().take(10).map(|d| format!("{name}: {d}")).chain(logged).collect::<Vec<_>>()
+            diff(&expected, &actual, &[])
+                .into_iter()
+                .take(10)
+                .map(|d| format!("{name}: {d}"))
+                .chain(logged)
+                .collect::<Vec<_>>()
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
@@ -277,14 +315,24 @@ fn rows_red_ale_does_not_model_or_change_are_kept() {
     let mut d = dispatcher();
     let info = call(&mut d, "book.open", &json!({ "path": book.path_str() }));
     assert_eq!(info["readOnly"], false, "{info}");
-    call(&mut d, "transaction.update", &json!({ "guid": TO_EURO, "description": "To the euro account" }));
+    call(
+        &mut d,
+        "transaction.update",
+        &json!({ "guid": TO_EURO, "description": "To the euro account" }),
+    );
     call(&mut d, "book.close", &json!({ "save": true }));
     let after = rows(&book.path);
 
     let changed: Vec<&String> = before.keys().filter(|t| before[*t] != after[*t]).collect();
     assert_eq!(changed, ["transactions"]);
-    let gone: Vec<&String> = before["transactions"].iter().filter(|r| !after["transactions"].contains(r)).collect();
-    let new: Vec<&String> = after["transactions"].iter().filter(|r| !before["transactions"].contains(r)).collect();
+    let gone: Vec<&String> = before["transactions"]
+        .iter()
+        .filter(|r| !after["transactions"].contains(r))
+        .collect();
+    let new: Vec<&String> = after["transactions"]
+        .iter()
+        .filter(|r| !before["transactions"].contains(r))
+        .collect();
     assert_eq!((gone.len(), new.len()), (1, 1), "{gone:?} {new:?}");
     assert_eq!(gone[0].replace("'To euro account'", "'To the euro account'"), *new[0]);
     assert!(after["slots"].iter().any(|r| r.contains("nobody/owns") && r.contains("'kept'")));
@@ -325,13 +373,21 @@ fn a_save_after_gnucash_broke_the_lock_is_refused() {
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
     oracle::check_version().unwrap();
     oracle::run_code(BREAK_AND_EDIT, &[&book.path_str(), TO_EURO]).unwrap();
-    call(&mut d, "transaction.update", &json!({ "guid": TO_EURO, "description": "Edited by red-ale" }));
+    call(
+        &mut d,
+        "transaction.update",
+        &json!({ "guid": TO_EURO, "description": "Edited by red-ale" }),
+    );
     let before = rows(&book.path);
     let err = call_err(&mut d, "book.save", &json!({}));
     assert_eq!(err.code, codes::BOOK_CHANGED, "{err}");
     assert_eq!(rows(&book.path), before, "nothing was written");
     call(&mut d, "book.close", &json!({ "discard": true }));
-    let descriptions: Vec<String> = read(&book.path).transactions.values().filter_map(|t| t.description.clone()).collect();
+    let descriptions: Vec<String> = read(&book.path)
+        .transactions
+        .values()
+        .filter_map(|t| t.description.clone())
+        .collect();
     assert!(descriptions.iter().any(|d| d == "Changed by GnuCash"), "{descriptions:?}");
     assert!(!descriptions.iter().any(|d| d == "Edited by red-ale"));
 }
@@ -358,7 +414,12 @@ fn schema(path: &Path) -> (Vec<String>, Vec<String>) {
     let mut all = rows(path);
     let mut master = all.remove("sqlite_master").unwrap();
     master.sort();
-    let mut versions: Vec<String> = all.remove("versions").unwrap().iter().map(|r| r.split_once(", ").unwrap().1.to_owned()).collect();
+    let mut versions: Vec<String> = all
+        .remove("versions")
+        .unwrap()
+        .iter()
+        .map(|r| r.split_once(", ").unwrap().1.to_owned())
+        .collect();
     versions.sort();
     (master, versions)
 }
@@ -429,21 +490,38 @@ fn mark(slots: &mut Frame) -> &'static str {
 fn touch_all(book: &Book) -> Book {
     let mut b = book.clone();
     b.slots.set("red-ale/probe", probe());
-    b.commodities.values_mut().map(Arc::make_mut).filter(|c| !c.id.is_currency() && c.id.namespace != TEMPLATE_NAMESPACE).for_each(|c| {
-        let tail = mark(&mut c.slots);
-        c.fullname = Some(format!("{}{tail}", c.fullname.clone().unwrap_or_default()));
-    });
+    b.commodities
+        .values_mut()
+        .map(Arc::make_mut)
+        .filter(|c| !c.id.is_currency() && c.id.namespace != TEMPLATE_NAMESPACE)
+        .for_each(|c| {
+            let tail = mark(&mut c.slots);
+            c.fullname = Some(format!("{}{tail}", c.fullname.clone().unwrap_or_default()));
+        });
     let root = b.root;
-    b.accounts.values_mut().filter(|a| a.guid != root).map(Arc::make_mut).for_each(touch_account);
+    b.accounts
+        .values_mut()
+        .filter(|a| a.guid != root)
+        .map(Arc::make_mut)
+        .for_each(touch_account);
     b.templates.accounts.values_mut().map(Arc::make_mut).for_each(touch_account);
     b.transactions.values_mut().map(Arc::make_mut).for_each(touch_transaction);
     b.templates.transactions.values_mut().map(Arc::make_mut).for_each(touch_transaction);
-    b.prices.values_mut().map(Arc::make_mut).for_each(|p| p.source = Some("user:price-editor".into()));
+    b.prices
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|p| p.source = Some("user:price-editor".into()));
     b.lots.values_mut().map(Arc::make_mut).for_each(|l| {
         mark(&mut l.slots);
     });
-    b.budgets.values_mut().map(Arc::make_mut).for_each(|x| x.description.push_str(mark(&mut x.slots)));
-    b.scheduled.values_mut().map(Arc::make_mut).for_each(|x| x.name.push_str(mark(&mut x.slots)));
+    b.budgets
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.description.push_str(mark(&mut x.slots)));
+    b.scheduled
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.name.push_str(mark(&mut x.slots)));
     touch_business(&mut b.business);
     b
 }
@@ -463,14 +541,38 @@ fn touch_transaction(t: &mut red_ale_core::Transaction) {
 }
 
 fn touch_business(b: &mut red_ale_core::business::Business) {
-    b.customers.values_mut().map(Arc::make_mut).for_each(|x| x.notes.push_str(mark(&mut x.slots)));
-    b.vendors.values_mut().map(Arc::make_mut).for_each(|x| x.notes.push_str(mark(&mut x.slots)));
-    b.employees.values_mut().map(Arc::make_mut).for_each(|x| x.username.push_str(mark(&mut x.slots)));
-    b.jobs.values_mut().map(Arc::make_mut).for_each(|x| x.name.push_str(mark(&mut x.slots)));
-    b.orders.values_mut().map(Arc::make_mut).for_each(|x| x.notes.push_str(mark(&mut x.slots)));
-    b.invoices.values_mut().map(Arc::make_mut).for_each(|x| x.notes.push_str(mark(&mut x.slots)));
-    b.entries.values_mut().map(Arc::make_mut).for_each(|x| x.description.push_str(mark(&mut x.slots)));
-    b.bill_terms.values_mut().map(Arc::make_mut).for_each(|x| x.description.push_str(mark(&mut x.slots)));
+    b.customers
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.notes.push_str(mark(&mut x.slots)));
+    b.vendors
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.notes.push_str(mark(&mut x.slots)));
+    b.employees
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.username.push_str(mark(&mut x.slots)));
+    b.jobs
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.name.push_str(mark(&mut x.slots)));
+    b.orders
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.notes.push_str(mark(&mut x.slots)));
+    b.invoices
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.notes.push_str(mark(&mut x.slots)));
+    b.entries
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.description.push_str(mark(&mut x.slots)));
+    b.bill_terms
+        .values_mut()
+        .map(Arc::make_mut)
+        .for_each(|x| x.description.push_str(mark(&mut x.slots)));
     b.tax_tables.values_mut().map(Arc::make_mut).for_each(|x| x.name.push_str(" 2"));
 }
 
@@ -482,7 +584,8 @@ fn remove_all(book: &Book) -> Book {
     let root = b.root;
     b.accounts.retain(|g, _| *g == root);
     let kept = b.accounts.get(&root).and_then(|a| a.commodity.clone());
-    b.commodities.retain(|id, _| Some(id) == kept.as_ref() || id.namespace == TEMPLATE_NAMESPACE);
+    b.commodities
+        .retain(|id, _| Some(id) == kept.as_ref() || id.namespace == TEMPLATE_NAMESPACE);
     b.transactions.clear();
     b.prices.clear();
     b.lots.clear();
@@ -518,10 +621,15 @@ fn every_kind_edited_or_removed_reads_the_same_in_gnucash() {
                 let gnucash = oracle::dump(&uri(&book.path)).unwrap();
                 let skip: Vec<&str> = LOAD_INFLATED.iter().chain(ignore).copied().collect();
                 let diffs = diff(&gnucash, &model::dump(&saved), &skip);
-                diffs.into_iter().take(10).map(move |d| format!("{name} {what}: {d}")).chain(back).chain(logged).collect::<Vec<_>>()
+                diffs
+                    .into_iter()
+                    .take(10)
+                    .map(move |d| format!("{name} {what}: {d}"))
+                    .chain(back)
+                    .chain(logged)
+                    .collect::<Vec<_>>()
             })
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
-

@@ -54,8 +54,8 @@ pub struct ChangedRows {
 /// that differ in neither direction are left out. SQLite compares the rows, so only the differing rows are read into
 /// memory, whatever the books' size.
 pub fn changed_rows(before: &Path, after: &Path) -> BTreeMap<String, ChangedRows> {
-    let conn = Connection::open_with_flags(after, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .unwrap_or_else(|e| panic!("opening {}: {e}", after.display()));
+    let conn =
+        Connection::open_with_flags(after, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap_or_else(|e| panic!("opening {}: {e}", after.display()));
     conn.execute("ATTACH DATABASE ?1 AS before", [before.display().to_string()])
         .unwrap_or_else(|e| panic!("attaching {}: {e}", before.display()));
     let tables: Vec<String> = conn

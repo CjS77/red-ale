@@ -55,9 +55,19 @@ pub fn dump(path: &Path) -> Vec<String> {
             .unwrap()
             .map(Result::unwrap)
             .collect();
-        let quoted = columns.iter().map(|c| format!("quote(\"{c}\")")).collect::<Vec<_>>().join(" || '|' || ");
+        let quoted = columns
+            .iter()
+            .map(|c| format!("quote(\"{c}\")"))
+            .collect::<Vec<_>>()
+            .join(" || '|' || ");
         let sql = format!("SELECT '{t}|' || rowid || '|' || {quoted} FROM \"{t}\" ORDER BY rowid");
-        out.extend(conn.prepare(&sql).unwrap().query_map([], |r| r.get::<_, String>(0)).unwrap().map(Result::unwrap));
+        out.extend(
+            conn.prepare(&sql)
+                .unwrap()
+                .query_map([], |r| r.get::<_, String>(0))
+                .unwrap()
+                .map(Result::unwrap),
+        );
     });
     out
 }
@@ -81,4 +91,3 @@ pub fn read(path: &Path) -> Book {
     assert!(findings.is_empty(), "{findings:?}");
     book
 }
-

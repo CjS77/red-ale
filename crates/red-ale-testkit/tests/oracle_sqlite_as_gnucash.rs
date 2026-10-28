@@ -137,7 +137,12 @@ type RedAleEdit = fn(&mut Dispatcher, &Value);
 fn red_ale_edit(path: &Path, edit: RedAleEdit, targets: &Value) {
     let mut d = dispatcher();
     let info = call(&mut d, "book.open", &json!({ "path": path.display().to_string() }));
-    assert_eq!(json!([info["format"], info["readOnly"]]), json!(["sqlite", false]), "{}", path.display());
+    assert_eq!(
+        json!([info["format"], info["readOnly"]]),
+        json!(["sqlite", false]),
+        "{}",
+        path.display()
+    );
     edit(&mut d, targets);
     call(&mut d, "book.close", &json!({ "save": true }));
 }
@@ -157,7 +162,11 @@ fn edit_transaction(d: &mut Dispatcher, t: &Value) {
         .iter()
         .map(|s| json!({ "guid": s["guid"], "value": rational(&s["value"], 2), "amount": rational(&s["amount"], 2) }))
         .collect();
-    call(d, "transaction.update", &json!({ "guid": pair["tx"], "description": "Edited description", "changeSplits": splits }));
+    call(
+        d,
+        "transaction.update",
+        &json!({ "guid": pair["tx"], "description": "Edited description", "changeSplits": splits }),
+    );
 }
 
 fn add_transaction(d: &mut Dispatcher, t: &Value) {
@@ -228,8 +237,15 @@ fn is_container(row: &[Value]) -> bool {
 fn normalise(mut book: Rows, original: &BTreeSet<String>) -> Rows {
     book.get_mut("splits").into_iter().for_each(|splits| load_order(splits));
     let slots = book.remove("slots").unwrap_or_default();
-    let frames = slots.iter().filter(|r| is_container(r)).filter_map(|r| r[SLOT_GUID].as_str()).map(|g| (g.to_owned(), None));
-    let mut names = Names { frames: frames.collect(), ..Names::default() };
+    let frames = slots
+        .iter()
+        .filter(|r| is_container(r))
+        .filter_map(|r| r[SLOT_GUID].as_str())
+        .map(|g| (g.to_owned(), None));
+    let mut names = Names {
+        frames: frames.collect(),
+        ..Names::default()
+    };
     book.values_mut().flatten().flatten().for_each(|cell| names.entity(cell, original));
     let slots = group_slots(slots, &names)
         .into_iter()
@@ -239,7 +255,11 @@ fn normalise(mut book: Rows, original: &BTreeSet<String>) -> Rows {
         })
         .collect();
     book.insert("slots".into(), slots);
-    book.get_mut("sqlite_sequence").into_iter().flatten().filter(|r| r[1] == "slots").for_each(|r| r[2] = Value::Null);
+    book.get_mut("sqlite_sequence")
+        .into_iter()
+        .flatten()
+        .filter(|r| r[1] == "slots")
+        .for_each(|r| r[2] = Value::Null);
     book
 }
 
@@ -260,7 +280,10 @@ const SPLIT_VALUE_NUM: usize = 8;
 /// within each sign.
 fn load_order(splits: &mut [Vec<Value>]) {
     let mut places: BTreeMap<String, Vec<usize>> = BTreeMap::new();
-    splits.iter().enumerate().for_each(|(i, r)| places.entry(r[SPLIT_TX].to_string()).or_default().push(i));
+    splits
+        .iter()
+        .enumerate()
+        .for_each(|(i, r)| places.entry(r[SPLIT_TX].to_string()).or_default().push(i));
     places.into_values().for_each(|at| {
         let mut rows: Vec<Vec<Value>> = at.iter().map(|&i| splits[i].clone()).collect();
         rows.sort_by_key(|r| r[SPLIT_VALUE_NUM].as_i64().is_some_and(i64::is_negative));
@@ -282,7 +305,9 @@ struct Names {
 impl Names {
     /// A GUID the original book doesn't hold becomes `new-<n>`.
     fn entity(&mut self, cell: &mut Value, original: &BTreeSet<String>) {
-        let Some(text) = cell.as_str().filter(|s| is_guid(s) && !original.contains(*s)) else { return };
+        let Some(text) = cell.as_str().filter(|s| is_guid(s) && !original.contains(*s)) else {
+            return;
+        };
         let next = format!("new-{}", self.entities.len() + 1);
         *cell = Value::String(self.entities.entry(text.to_owned()).or_insert(next).clone());
     }
@@ -290,7 +315,9 @@ impl Names {
     /// A frame or list GUID becomes `frame-<n>`.
     fn frame(&mut self, cell: &mut Value) {
         let numbered = self.frames.values().flatten().count();
-        let Some(slot) = cell.as_str().and_then(|text| self.frames.get_mut(text)) else { return };
+        let Some(slot) = cell.as_str().and_then(|text| self.frames.get_mut(text)) else {
+            return;
+        };
         *cell = Value::String(slot.get_or_insert_with(|| format!("frame-{}", numbered + 1)).clone());
     }
 
@@ -334,7 +361,13 @@ fn group_slots(slots: Vec<Vec<Value>>, names: &Names) -> Vec<Vec<Value>> {
 
 /// Every GUID-shaped string in the book.
 fn guids(book: &Rows) -> BTreeSet<String> {
-    book.values().flatten().flatten().filter_map(Value::as_str).filter(|s| is_guid(s)).map(str::to_owned).collect()
+    book.values()
+        .flatten()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter(|s| is_guid(s))
+        .map(str::to_owned)
+        .collect()
 }
 
 /// Where two normalised books differ: per table, the rows only GnuCash wrote and the rows only red-ale wrote, or
@@ -347,7 +380,10 @@ fn row_differences(gnucash: &Rows, red_ale: &Rows) -> Vec<String> {
         .flat_map(|t| {
             let (a, b) = (gnucash.get(t).unwrap_or(&empty), red_ale.get(t).unwrap_or(&empty));
             let only = |x: &Vec<Vec<Value>>, y: &Vec<Vec<Value>>, who: &str| -> Vec<String> {
-                x.iter().filter(|r| !y.contains(r)).map(|r| format!("{t}: only {who} wrote {}", Value::from(r.clone()))).collect()
+                x.iter()
+                    .filter(|r| !y.contains(r))
+                    .map(|r| format!("{t}: only {who} wrote {}", Value::from(r.clone())))
+                    .collect()
             };
             let mut out = only(a, b, "GnuCash");
             out.extend(only(b, a, "red-ale"));

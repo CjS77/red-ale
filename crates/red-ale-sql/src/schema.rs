@@ -155,7 +155,8 @@ fn objects(conn: &Connection) -> rusqlite::Result<Vec<Object>> {
 type Column = (String, String, i64, Option<String>, i64, i64);
 
 fn columns(conn: &Connection, table: &str) -> rusqlite::Result<Vec<Column>> {
-    let mut stmt = conn.prepare("SELECT name, lower(type), \"notnull\", dflt_value, pk, hidden FROM pragma_table_xinfo(?1) ORDER BY cid")?;
+    let mut stmt =
+        conn.prepare("SELECT name, lower(type), \"notnull\", dflt_value, pk, hidden FROM pragma_table_xinfo(?1) ORDER BY cid")?;
     stmt.query_map([table], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?
         .collect()
 }
@@ -188,7 +189,9 @@ pub(crate) fn check(conn: &Connection) -> Result<Vec<String>, SqlError> {
             .map(|e| format!("GnuCash 5.17's {} {} is missing", e.kind, e.name)),
     );
     for e in &expected {
-        let Some(a) = actual.iter().find(|a| a.kind == e.kind && a.name == e.name) else { continue };
+        let Some(a) = actual.iter().find(|a| a.kind == e.kind && a.name == e.name) else {
+            continue;
+        };
         if let Some(difference) = compare(&expected_db, conn, e, a)? {
             findings.push(difference);
         }
@@ -216,14 +219,23 @@ fn compare(expected_db: &Connection, conn: &Connection, e: &Object, a: &Object) 
     let (want, have) = (columns(expected_db, name)?, columns(conn, name)?);
     let column = |c: &Column| c.0.clone();
     if let Some(extra) = have.iter().find(|h| !want.iter().any(|w| w.0 == h.0)) {
-        return Ok(Some(format!("table {name} has column {} that GnuCash 5.17 does not", column(extra))));
+        return Ok(Some(format!(
+            "table {name} has column {} that GnuCash 5.17 does not",
+            column(extra)
+        )));
     }
     if let Some(missing) = want.iter().find(|w| !have.iter().any(|h| h.0 == w.0)) {
         return Ok(Some(format!("table {name} lacks GnuCash 5.17's column {}", column(missing))));
     }
     if want != have {
-        let differs = want.iter().zip(&have).find(|(w, h)| w != h).map_or_else(String::new, |(w, _)| w.0.clone());
-        return Ok(Some(format!("table {name}, column {differs}: not declared as GnuCash 5.17 declares it")));
+        let differs = want
+            .iter()
+            .zip(&have)
+            .find(|(w, h)| w != h)
+            .map_or_else(String::new, |(w, _)| w.0.clone());
+        return Ok(Some(format!(
+            "table {name}, column {differs}: not declared as GnuCash 5.17 declares it"
+        )));
     }
     Ok((autoincrement(&e.sql) != autoincrement(&a.sql)).then(|| format!("table {name}: AUTOINCREMENT differs from GnuCash 5.17's")))
 }
@@ -284,7 +296,11 @@ mod tests {
 
     fn rows(changes: &[(&str, i64)]) -> Vec<Row> {
         (1..)
-            .zip(VERSIONS.iter().map(|(n, v)| changes.iter().find(|(c, _)| c == n).copied().unwrap_or((*n, *v))))
+            .zip(
+                VERSIONS
+                    .iter()
+                    .map(|(n, v)| changes.iter().find(|(c, _)| c == n).copied().unwrap_or((*n, *v))),
+            )
             .map(|(i, (n, v))| version_row(i, n, v))
             .collect()
     }
@@ -296,7 +312,10 @@ mod tests {
     #[test]
     fn gnucash_5_17_s_rows_pass() {
         assert!(differ(&[]).is_empty());
-        assert!(differ(&[("Gnucash", 4_000_005)]).is_empty(), "an older release that last wrote the whole book");
+        assert!(
+            differ(&[("Gnucash", 4_000_005)]).is_empty(),
+            "an older release that last wrote the whole book"
+        );
         assert!(differ(&[("Gnucash", RESAVE_VERSION)]).is_empty());
     }
 
@@ -304,7 +323,10 @@ mod tests {
     fn every_other_row_is_named() {
         assert_eq!(differ(&[("splits", 4)]), ["splits is version 4, GnuCash 5.17's is 5"]);
         assert_eq!(differ(&[("splits", 6)]), ["splits is version 6, GnuCash 5.17's is 5"]);
-        assert_eq!(differ(&[("Gnucash-Resave", 19_921)]), ["Gnucash-Resave is version 19921, GnuCash 5.17's is 19920"]);
+        assert_eq!(
+            differ(&[("Gnucash-Resave", 19_921)]),
+            ["Gnucash-Resave is version 19921, GnuCash 5.17's is 19920"]
+        );
         assert_eq!(differ(&[("Gnucash", 19_919)]), ["Gnucash is 19919, outside 19920 to 5000017"]);
         assert_eq!(differ(&[("Gnucash", 5_000_018)]), ["Gnucash is 5000018, outside 19920 to 5000017"]);
         let mut extra = rows(&[]);

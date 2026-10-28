@@ -4,9 +4,9 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
+use red_ale_core::formula::NumberFormat;
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd, book_fiscal_year_end, period_bounds};
 use red_ale_core::time::PeriodBounds;
-use red_ale_core::formula::NumberFormat;
 use red_ale_core::{Book, Guid, Time64, TimeZone};
 use red_ale_locale::{Conventions, Locale};
 use rhai::{AST, Dynamic, Engine};

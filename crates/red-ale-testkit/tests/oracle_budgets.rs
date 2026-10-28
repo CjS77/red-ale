@@ -24,20 +24,34 @@ fn budgets_red_ale_saved_read_back_in_gnucash_unchanged() {
     script(&["make", &book.path_str()]);
     let expected = gnucash_budgets(&book);
     let plan = &expected["00000000000000000000000000b0d6e7"];
-    assert_eq!(plan["amounts"]["1feca2abf92347288c268ebf93753ec4"], json!({ "0": "1234/100", "1": "0/1" }));
+    assert_eq!(
+        plan["amounts"]["1feca2abf92347288c268ebf93753ec4"],
+        json!({ "0": "1234/100", "1": "0/1" })
+    );
     assert_eq!(plan["recurrence"]["weekendAdjust"], "forward");
     assert_eq!(plan["amounts"]["a8cf578f585b4708856fdf5b8928e552"], json!({ "11": "-5/3" }));
-    assert_eq!(plan["notes"]["1feca2abf92347288c268ebf93753ec4"], json!({ "2": "Groceries & <more>" }));
+    assert_eq!(
+        plan["notes"]["1feca2abf92347288c268ebf93753ec4"],
+        json!({ "2": "Groceries & <more>" })
+    );
     let existing = &expected["0123456789abcdef0123456789abcdef"]["notes"]["1feca2abf92347288c268ebf93753ec4"];
     assert_eq!(*existing, json!({ "0": "January food", "11": "December" }));
 
     let (read, residue) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
     assert_eq!(read.budgets.len(), 2);
-    assert_eq!(residue.originals_kept(), 0, "red-ale generates GnuCash's budgets as GnuCash wrote them");
+    assert_eq!(
+        residue.originals_kept(),
+        0,
+        "red-ale generates GnuCash's budgets as GnuCash wrote them"
+    );
 
     let mut d = dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-    call(&mut d, "account.update", &json!({ "account": "Assets:Cash", "description": "petty" }));
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Assets:Cash", "description": "petty" }),
+    );
     call(&mut d, "book.close", &json!({ "save": true }));
     let (text, _) = red_ale_xml::book::decode(&std::fs::read(&book.path).unwrap()).unwrap();
     assert!(text.contains("<act:description>petty</act:description>"), "the book was rewritten");
@@ -92,7 +106,11 @@ fn a_budget_red_ale_created_filled_and_estimated_reads_back_in_gnucash() {
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
     call(&mut d, "budget.scrubSigns", &json!({}));
     let monthly = json!({ "mult": 1, "periodType": "month", "start": "2024-01-31" });
-    let plan = call(&mut d, "budget.create", &json!({ "name": "Plan", "description": "d", "numPeriods": 6, "recurrence": monthly }));
+    let plan = call(
+        &mut d,
+        "budget.create",
+        &json!({ "name": "Plan", "description": "d", "numPeriods": 6, "recurrence": monthly }),
+    );
     let plan_guid = plan["guid"].as_str().unwrap().to_owned();
     let amounts = json!([
         { "account": "Expenses:Food", "period": 0, "amount": "12.34" },
@@ -123,18 +141,30 @@ fn a_budget_red_ale_created_filled_and_estimated_reads_back_in_gnucash() {
     ours.iter().for_each(|info| {
         let theirs = &gnucash[info["guid"].as_str().unwrap()];
         let (amounts, notes) = as_dumped(info);
-        assert_eq!(theirs["amounts"], amounts, "{}: amounts with their stored denominators", info["name"]);
+        assert_eq!(
+            theirs["amounts"], amounts,
+            "{}: amounts with their stored denominators",
+            info["name"]
+        );
         assert_eq!(theirs["notes"], notes, "{}", info["name"]);
         let fields = |b: &Value| (b["name"].clone(), b["description"].clone(), b["numPeriods"].clone());
         assert_eq!(fields(theirs), fields(info));
-        assert_eq!(theirs["recurrence"]["periodStarts"], period_starts(info), "{}: period dates", info["name"]);
+        assert_eq!(
+            theirs["recurrence"]["periodStarts"],
+            period_starts(info),
+            "{}: period dates",
+            info["name"]
+        );
     });
     assert_eq!(
         gnucash[&plan_guid]["amounts"]["1feca2abf92347288c268ebf93753ec4"],
         json!({ "0": "1234/100", "1": "0/100" })
     );
     let features = gnucash_features(&book);
-    assert_eq!(features, json!({ "naturalSigns": true, "extraColumns": false, "unknown": null, "default": plan_guid }));
+    assert_eq!(
+        features,
+        json!({ "naturalSigns": true, "extraColumns": false, "unknown": null, "default": plan_guid })
+    );
 }
 
 #[test]
@@ -192,7 +222,11 @@ fn actuals_are_gnucashs() {
             (a.guid.to_string(), json!(figures))
         })
         .collect();
-    assert_eq!(Value::Object(ours), gnucash, "every account's actual in every period, past the count too");
+    assert_eq!(
+        Value::Object(ours),
+        gnucash,
+        "every account's actual in every period, past the count too"
+    );
 }
 
 #[test]
@@ -232,11 +266,17 @@ fn the_feature_comes_with_the_first_budget_and_goes_with_the_last() {
     let g = call(&mut d, "budget.create", &json!({}))["guid"].as_str().unwrap().to_owned();
     call(&mut d, "book.close", &json!({ "save": true }));
     let f = gnucash_features(&book);
-    assert_eq!(f, json!({ "naturalSigns": true, "extraColumns": false, "unknown": null, "default": g }));
+    assert_eq!(
+        f,
+        json!({ "naturalSigns": true, "extraColumns": false, "unknown": null, "default": g })
+    );
     let mut d = dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
     assert_eq!(call(&mut d, "budget.delete", &json!({ "budget": g }))["featureUnset"], true);
     call(&mut d, "book.close", &json!({ "save": true }));
     let f = gnucash_features(&book);
-    assert_eq!(f, json!({ "naturalSigns": false, "extraColumns": false, "unknown": null, "default": null }));
+    assert_eq!(
+        f,
+        json!({ "naturalSigns": false, "extraColumns": false, "unknown": null, "default": null })
+    );
 }

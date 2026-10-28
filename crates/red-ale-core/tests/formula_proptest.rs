@@ -47,8 +47,11 @@ fn expr() -> impl Strategy<Value = Expr> {
     let leaf = prop_oneof![(-1000_i64..1000).prop_map(Expr::Int), (0..3_usize).prop_map(Expr::Var)];
     leaf.prop_recursive(4, 24, 2, |inner| {
         prop_oneof![
-            (inner.clone(), prop::sample::select(vec!['+', '-', '*', '/']), inner.clone())
-                .prop_map(|(l, op, r)| Expr::Op(Box::new(l), op, Box::new(r))),
+            (inner.clone(), prop::sample::select(vec!['+', '-', '*', '/']), inner.clone()).prop_map(|(l, op, r)| Expr::Op(
+                Box::new(l),
+                op,
+                Box::new(r)
+            )),
             inner.prop_map(|e| Expr::Neg(Box::new(e))),
         ]
     })
@@ -113,8 +116,34 @@ fn formula_text() -> impl Strategy<Value = String> {
     prop::collection::vec(
         prop_oneof![
             prop::sample::select(vec![
-                "pmt(", "ipmt(", "ppmt(", "futureValue(", "periodic_rate(", "computeInterestIncrement(", "foobar(", "a", "i", "x",
-                "=", "+=", "*=", ":", "(", ")", "+", "-", "*", "/", "\"s\"", " ", "0", "1", "12", "360", "0.005", "1,234.5",
+                "pmt(",
+                "ipmt(",
+                "ppmt(",
+                "futureValue(",
+                "periodic_rate(",
+                "computeInterestIncrement(",
+                "foobar(",
+                "a",
+                "i",
+                "x",
+                "=",
+                "+=",
+                "*=",
+                ":",
+                "(",
+                ")",
+                "+",
+                "-",
+                "*",
+                "/",
+                "\"s\"",
+                " ",
+                "0",
+                "1",
+                "12",
+                "360",
+                "0.005",
+                "1,234.5",
                 "9223372036854775807",
             ])
             .prop_map(str::to_owned),

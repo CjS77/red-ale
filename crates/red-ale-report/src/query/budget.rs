@@ -67,11 +67,17 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_get("description", |b: &mut BudgetHandle| -> Fallible<String> {
         Ok(b.get()?.description.clone())
     });
-    engine.register_get("numPeriods", |b: &mut BudgetHandle| -> Fallible<INT> { Ok(INT::from(b.get()?.num_periods)) });
+    engine.register_get("numPeriods", |b: &mut BudgetHandle| -> Fallible<INT> {
+        Ok(INT::from(b.get()?.num_periods))
+    });
     // `gnc-budget-get-period-start-date`, `-end-date` (`gnc-budget.cpp:647-659`): local 00:00:00 of the period's
     // first day and 23:59:59 of its last.
-    engine.register_fn("period_start_date", |b: &mut BudgetHandle, p: INT| -> Fallible<INT> { Ok(b.bounds(p)?.start.0) });
-    engine.register_fn("period_end_date", |b: &mut BudgetHandle, p: INT| -> Fallible<INT> { Ok(b.bounds(p)?.end.0) });
+    engine.register_fn("period_start_date", |b: &mut BudgetHandle, p: INT| -> Fallible<INT> {
+        Ok(b.bounds(p)?.start.0)
+    });
+    engine.register_fn("period_end_date", |b: &mut BudgetHandle, p: INT| -> Fallible<INT> {
+        Ok(b.bounds(p)?.end.0)
+    });
     engine.register_fn("account_period_value", account_period_value);
     engine.register_fn(
         "is_account_period_value_set",

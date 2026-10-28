@@ -45,7 +45,11 @@ pub fn changes<'a, T: PartialEq>(old: &'a IndexMap<Guid, Arc<T>>, new: &'a Index
         Some(o) => changed(o, n),
     });
     // Entries before `aligned` are in both maps, so only the old map's tail can hold removals.
-    let removed = old.iter().skip(aligned).filter(|(guid, _)| !new.contains_key(*guid)).map(|(_, o)| Change::Removed(&**o));
+    let removed = old
+        .iter()
+        .skip(aligned)
+        .filter(|(guid, _)| !new.contains_key(*guid))
+        .map(|(_, o)| Change::Removed(&**o));
     in_step.chain(rest).chain(removed).collect()
 }
 
@@ -72,7 +76,10 @@ mod tests {
             None => Some(Change::Added(&**n)),
             Some(o) => changed(o, n),
         });
-        let removed = old.iter().filter(|(g, _)| !new.contains_key(*g)).map(|(_, o)| Change::Removed(&**o));
+        let removed = old
+            .iter()
+            .filter(|(g, _)| !new.contains_key(*g))
+            .map(|(_, o)| Change::Removed(&**o));
         changed.chain(removed).collect()
     }
 

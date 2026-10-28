@@ -41,7 +41,11 @@ fn copy(from: &Path) -> (tempfile::TempDir, PathBuf) {
 }
 
 fn listing(dir: &Path) -> Vec<String> {
-    let mut names: Vec<String> = std::fs::read_dir(dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
     names.sort();
     names
 }
@@ -101,13 +105,22 @@ fn as_sql_holds_it(mut xml: Book) -> Book {
     // (`5.17:libgnucash/backend/sql/gnc-sql-backend.cpp:884-893` and its callers); the template commodity, which
     // every book has, the reader adds.
     let used = used_commodities(&xml);
-    xml.commodities.retain(|id, _| id.namespace == red_ale_core::commodity::TEMPLATE_NAMESPACE || used.contains(id));
+    xml.commodities
+        .retain(|id, _| id.namespace == red_ale_core::commodity::TEMPLATE_NAMESPACE || used.contains(id));
     xml
 }
 
 fn used_commodities(book: &Book) -> std::collections::BTreeSet<red_ale_core::CommodityRef> {
-    let accounts = book.accounts.values().chain(book.templates.accounts.values()).filter_map(|a| a.commodity.clone());
-    let transactions = book.transactions.values().chain(book.templates.transactions.values()).map(|t| t.currency.clone());
+    let accounts = book
+        .accounts
+        .values()
+        .chain(book.templates.accounts.values())
+        .filter_map(|a| a.commodity.clone());
+    let transactions = book
+        .transactions
+        .values()
+        .chain(book.templates.transactions.values())
+        .map(|t| t.currency.clone());
     let prices = book.prices.values().flat_map(|p| [p.commodity.clone(), p.currency.clone()]);
     let b = &book.business;
     let business = b
@@ -132,7 +145,8 @@ fn without_iso_dates_feature(mut sql: Book) -> Book {
 /// Commodities the XML reader does not see: currencies GnuCash's XML writer leaves out (no quotes, no Slots), which
 /// the SQL backend writes because something uses them.
 fn without_unwritten_currencies(mut sql: Book) -> Book {
-    sql.commodities.retain(|_, c| !c.is_currency() || c.quote_flag || !c.slots.is_empty());
+    sql.commodities
+        .retain(|_, c| !c.is_currency() || c.quote_flag || !c.slots.is_empty());
     sql
 }
 
@@ -161,7 +175,10 @@ fn differences(xml: &Book, sql: &Book) -> Vec<String> {
         let other = sql.commodities.get(k);
         check(&format!("commodity {k}: {v:?} / {other:?}"), other == Some(v));
     });
-    sql.commodities.keys().filter(|k| !xml.commodities.contains_key(*k)).for_each(|k| check(&format!("extra commodity {k}"), false));
+    sql.commodities
+        .keys()
+        .filter(|k| !xml.commodities.contains_key(*k))
+        .for_each(|k| check(&format!("extra commodity {k}"), false));
     macro_rules! map {
         ($field:ident $(. $sub:ident)*) => {
             xml.$field$(.$sub)*.iter().for_each(|(k, v)| {
@@ -211,10 +228,13 @@ fn every_fixture_reads_to_the_book_of_its_xml_original() {
             let (xml, _) = red_ale_xml::read_book(&std::fs::read(fixtures().join(name)).unwrap()).unwrap();
             assert!(sql.slots.get_in(&["features", ISO_DATES]).is_some(), "{name}: no ISO-dates feature");
             let xml = without_iso_dates_feature(as_sql_holds_it(xml));
-            differences(&xml, &without_childless_template_root(without_iso_dates_feature(without_unwritten_currencies(sql))))
-                .into_iter()
-                .map(move |d| format!("{name}: {d}"))
-                .collect::<Vec<_>>()
+            differences(
+                &xml,
+                &without_childless_template_root(without_iso_dates_feature(without_unwritten_currencies(sql))),
+            )
+            .into_iter()
+            .map(move |d| format!("{name}: {d}"))
+            .collect::<Vec<_>>()
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));

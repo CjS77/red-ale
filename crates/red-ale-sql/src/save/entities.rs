@@ -84,7 +84,9 @@ impl Writer<'_, '_> {
         let book = self.book;
         let template_root = self.residue.template_root;
         if book.templates.root.is_some_and(|r| r != template_root) {
-            return Err(SqlError::Unstorable(format!("the book's template root is not {template_root}, the one its books row names")));
+            return Err(SqlError::Unstorable(format!(
+                "the book's template root is not {template_root}, the one its books row names"
+            )));
         }
         let mut all = changes(&saved.accounts, &book.accounts);
         all.extend(changes(&saved.templates.accounts, &book.templates.accounts));
@@ -203,12 +205,30 @@ impl Writer<'_, '_> {
         }
         let bill_terms = btree_changes(&old.bill_terms, &new.bill_terms);
         self.entities(&kind!(BillTerm, tables::BILLTERMS, |x, _| biz::bill_term(x), none), &bill_terms)?;
-        self.entities(&kind!(Customer, tables::CUSTOMERS, biz::customer, customer_uses), &btree_changes(&old.customers, &new.customers))?;
-        self.entities(&kind!(Employee, tables::EMPLOYEES, biz::employee, employee_uses), &btree_changes(&old.employees, &new.employees))?;
-        self.entities(&kind!(Entry, tables::ENTRIES, |x, _| biz::entry(x), none), &btree_changes(&old.entries, &new.entries))?;
-        self.entities(&kind!(Invoice, tables::INVOICES, biz::invoice, invoice_uses), &btree_changes(&old.invoices, &new.invoices))?;
-        self.entities(&kind!(Job, tables::JOBS, |x, _| biz::job(x), none), &btree_changes(&old.jobs, &new.jobs))?;
-        self.entities(&kind!(Order, tables::ORDERS, |x, _| biz::order(x), none), &btree_changes(&old.orders, &new.orders))?;
+        self.entities(
+            &kind!(Customer, tables::CUSTOMERS, biz::customer, customer_uses),
+            &btree_changes(&old.customers, &new.customers),
+        )?;
+        self.entities(
+            &kind!(Employee, tables::EMPLOYEES, biz::employee, employee_uses),
+            &btree_changes(&old.employees, &new.employees),
+        )?;
+        self.entities(
+            &kind!(Entry, tables::ENTRIES, |x, _| biz::entry(x), none),
+            &btree_changes(&old.entries, &new.entries),
+        )?;
+        self.entities(
+            &kind!(Invoice, tables::INVOICES, biz::invoice, invoice_uses),
+            &btree_changes(&old.invoices, &new.invoices),
+        )?;
+        self.entities(
+            &kind!(Job, tables::JOBS, |x, _| biz::job(x), none),
+            &btree_changes(&old.jobs, &new.jobs),
+        )?;
+        self.entities(
+            &kind!(Order, tables::ORDERS, |x, _| biz::order(x), none),
+            &btree_changes(&old.orders, &new.orders),
+        )?;
         let tax_tables = btree_changes(&old.tax_tables, &new.tax_tables);
         self.entities(&kind!(TaxTable, tables::TAXTABLES, |x, _| biz::tax_table(x), none), &tax_tables)?;
         tax_tables.iter().try_for_each(|c| {
@@ -221,7 +241,10 @@ impl Writer<'_, '_> {
             let rows = new_entries.into_iter().flatten().map(|e| biz::tax_table_entry(key, e)).collect();
             self.insert_dependents(&tables::TAXTABLE_ENTRIES, "taxtable", key, rows)
         })?;
-        self.entities(&kind!(Vendor, tables::VENDORS, biz::vendor, vendor_uses), &btree_changes(&old.vendors, &new.vendors))
+        self.entities(
+            &kind!(Vendor, tables::VENDORS, biz::vendor, vendor_uses),
+            &btree_changes(&old.vendors, &new.vendors),
+        )
     }
 }
 

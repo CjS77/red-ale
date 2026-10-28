@@ -109,12 +109,13 @@ fn policy(budget: &Budget, accounts: &[(Guid, Option<AccountType>)]) -> SignPoli
             .iter()
             .filter(|(_, t)| *t == Some(kind))
             .map(|(g, _)| {
-                Numeric::sum_fixed(set_amounts(budget, *g).into_iter().map(|(_, n)| n))
-                    .map_or(0, |sum| match sum.cmp_value(Numeric::ZERO) {
+                Numeric::sum_fixed(set_amounts(budget, *g).into_iter().map(|(_, n)| n)).map_or(0, |sum| {
+                    match sum.cmp_value(Numeric::ZERO) {
                         std::cmp::Ordering::Less => -1,
                         std::cmp::Ordering::Equal => 0,
                         std::cmp::Ordering::Greater => 1,
-                    })
+                    }
+                })
             })
             .sum()
     };

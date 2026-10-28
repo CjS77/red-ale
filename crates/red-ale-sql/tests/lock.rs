@@ -10,7 +10,12 @@ use red_ale_sql::{SqlError, open};
 
 #[test]
 fn a_normal_open_and_close_leaves_every_row_as_it_was() {
-    for name in ["synthetic/rich.gnucash", "synthetic/business.gnucash", "gnucash/sample1.gnucash", "piecash/book_schtx.gnucash"] {
+    for name in [
+        "synthetic/rich.gnucash",
+        "synthetic/business.gnucash",
+        "gnucash/sample1.gnucash",
+        "piecash/book_schtx.gnucash",
+    ] {
         let (_dir, path) = copy(name);
         let before = dump(&path);
         let (_, mut opened, findings) = open(&path, &me(), &writable).unwrap();
@@ -39,7 +44,10 @@ fn a_row_gnucash_holds_refuses_the_open_and_stays() {
     drop(conn);
     let before = dump(&path);
     let err = open(&path, &me(), &writable).unwrap_err();
-    assert!(matches!(&err, SqlError::Locked(h) if h.hostname == "otherhost" && h.pid == 99), "{err}");
+    assert!(
+        matches!(&err, SqlError::Locked(h) if h.hostname == "otherhost" && h.pid == 99),
+        "{err}"
+    );
     assert_eq!(dump(&path), before);
     // A read-only open works while it is held.
     read(&path);
@@ -58,7 +66,10 @@ fn a_book_that_turns_out_read_only_is_never_written() {
 #[test]
 fn a_book_without_gnclock_takes_no_lock() {
     let (_dir, path) = copy("synthetic/rich.gnucash");
-    rusqlite::Connection::open(&path).unwrap().execute("DROP TABLE gnclock", []).unwrap();
+    rusqlite::Connection::open(&path)
+        .unwrap()
+        .execute("DROP TABLE gnclock", [])
+        .unwrap();
     let (_, opened, findings) = open(&path, &me(), &writable).unwrap();
     assert!(findings.unrecognised.iter().any(|f| f.contains("gnclock")), "{findings:?}");
     assert!(!opened.holds_lock());
@@ -70,8 +81,8 @@ fn only_red_ales_own_row_is_released() {
     let (_, mut opened, _) = open(&path, &me(), &writable).unwrap();
     // GnuCash's "Open Anyway" deletes every row and inserts its own.
     let conn = rusqlite::Connection::open(&path).unwrap();
-    conn.execute_batch("DELETE FROM gnclock; INSERT INTO gnclock VALUES ('otherhost', 99);").unwrap();
+    conn.execute_batch("DELETE FROM gnclock; INSERT INTO gnclock VALUES ('otherhost', 99);")
+        .unwrap();
     opened.release_lock().unwrap();
     assert_eq!(gnclock(&path), [("otherhost".to_owned(), 99)]);
 }
-

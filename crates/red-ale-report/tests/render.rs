@@ -228,7 +228,10 @@ fn a_zero_point_radius_hides_markers_but_keeps_hover_labels() {
         let mut line = income_line();
         line["series"][1]["pointRadius"] = json!(radius);
         let html = page(&chart(&line), None);
-        (html.matches("<g opacity=\"0\"><rect").count(), html.matches("Expense : 7.00%").count())
+        (
+            html.matches("<g opacity=\"0\"><rect").count(),
+            html.matches("Expense : 7.00%").count(),
+        )
     };
     assert_eq!(markers("0"), (4, 1));
     assert_eq!(markers("3"), (0, 1));

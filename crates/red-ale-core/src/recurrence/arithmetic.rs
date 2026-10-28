@@ -31,7 +31,11 @@ impl Recurrence {
             PeriodType::NthWeekday if (start.day() - 1) / 7 == 4 => (PeriodType::LastWeekday, start),
             _ => (period_type, start),
         };
-        let weekend_adjust = if adjusts_for_weekend(period_type) { weekend_adjust } else { WeekendAdjust::None };
+        let weekend_adjust = if adjusts_for_weekend(period_type) {
+            weekend_adjust
+        } else {
+            WeekendAdjust::None
+        };
         Self {
             mult,
             period_type,
@@ -101,8 +105,8 @@ impl Recurrence {
     /// (`Recurrence.cpp:235-318`, `:337-371`).
     fn next_by_months(self, after: Date, mult: u32) -> Result<Date> {
         let stepped = self.step_months(after, mult)?;
-        let months = 12 * (i64::from(stepped.year()) - i64::from(self.start.year())) + i64::from(stepped.month())
-            - i64::from(self.start.month());
+        let months =
+            12 * (i64::from(stepped.year()) - i64::from(self.start.year())) + i64::from(stepped.month()) - i64::from(self.start.month());
         // GnuCash holds the count in a `guint` (`:343-347`): a step landing before the start's month would wrap.
         let wrapped = u32::try_from(months.rem_euclid(1 << 32)).map_err(|_| RecurrenceError::OutOfRange(stepped))?;
         let in_phase = plus_months(stepped, -i64::from(wrapped % mult))?;
@@ -161,7 +165,11 @@ impl Recurrence {
             return plus_days(in_phase, nth_weekday_compare(self.start, in_phase, pt));
         }
         let dim = days_in_month(in_phase.year(), in_phase.month());
-        let day = if pt == PeriodType::EndOfMonth || self.start.day() >= dim { dim } else { self.start.day() };
+        let day = if pt == PeriodType::EndOfMonth || self.start.day() >= dim {
+            dim
+        } else {
+            self.start.day()
+        };
         Date::from_ymd(in_phase.year(), in_phase.month(), day).ok_or(RecurrenceError::OutOfRange(in_phase))
     }
 }
@@ -172,7 +180,9 @@ impl Recurrence {
 pub fn next_instance_of_list(list: &[Recurrence], after: Date) -> Result<Option<Date>> {
     list.iter()
         .filter_map(|r| r.next_instance(after).transpose())
-        .try_fold(None, |earliest: Option<Date>, next| next.map(|d| Some(earliest.map_or(d, |e| e.min(d)))))
+        .try_fold(None, |earliest: Option<Date>, next| {
+            next.map(|d| Some(earliest.map_or(d, |e| e.min(d))))
+        })
 }
 
 /// `recurrenceSet`'s last-weekday phase (`Recurrence.cpp:111-118`): forward by weeks while a week remains in the month.
@@ -224,7 +234,11 @@ fn is_last_of_month(d: Date) -> bool {
 
 /// A date `GDate` can hold.
 fn in_range(d: Date) -> Result<Date> {
-    if (1..=65535).contains(&d.year()) { Ok(d) } else { Err(RecurrenceError::OutOfRange(d)) }
+    if (1..=65535).contains(&d.year()) {
+        Ok(d)
+    } else {
+        Err(RecurrenceError::OutOfRange(d))
+    }
 }
 
 fn plus_days(d: Date, days: i64) -> Result<Date> {

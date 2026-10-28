@@ -177,9 +177,20 @@ mod tests {
         assert!(store.current(&id, 4).is_ok());
         assert!(matches!(
             store.current(&id, 5),
-            Err(ServiceError::StaleProposal { kind: ProposalKind::SinceLastRun, proposal_revision: 4, book_revision: 5, .. })
+            Err(ServiceError::StaleProposal {
+                kind: ProposalKind::SinceLastRun,
+                proposal_revision: 4,
+                book_revision: 5,
+                ..
+            })
         ));
         assert!(store.discard(&id).is_ok());
-        assert!(matches!(store.discard(&id), Err(ServiceError::ProposalNotFound { kind: ProposalKind::SinceLastRun, .. })));
+        assert!(matches!(
+            store.discard(&id),
+            Err(ServiceError::ProposalNotFound {
+                kind: ProposalKind::SinceLastRun,
+                ..
+            })
+        ));
     }
 }

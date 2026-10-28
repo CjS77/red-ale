@@ -108,7 +108,9 @@ mod tests {
     use crate::dom::parse_document;
 
     fn recurrence_text(mult: u16, period: &str, weekend: Option<&str>) -> String {
-        let weekend = weekend.map(|w| format!("\n    <recurrence:weekend_adj>{w}</recurrence:weekend_adj>")).unwrap_or_default();
+        let weekend = weekend
+            .map(|w| format!("\n    <recurrence:weekend_adj>{w}</recurrence:weekend_adj>"))
+            .unwrap_or_default();
         format!(
             "  <bgt:recurrence version=\"1.0.0\">
     <recurrence:mult>{mult}</recurrence:mult>
@@ -197,8 +199,16 @@ mod tests {
         let (budget, _) = read(&budget_text(&recurrence_text(1, "month", None)));
         let food = red_ale_core::Guid::parse("1feca2abf92347288c268ebf93753ec4").unwrap();
         assert_eq!(budget.name, "Plan & more");
-        assert!(budget.amount(food, 0).is_some_and(|n| n.same_repr(red_ale_core::Numeric::new(1234, 100))));
-        assert!(budget.amount(food, 1).is_some_and(|n| n.same_repr(red_ale_core::Numeric::new(0, 1))));
+        assert!(
+            budget
+                .amount(food, 0)
+                .is_some_and(|n| n.same_repr(red_ale_core::Numeric::new(1234, 100)))
+        );
+        assert!(
+            budget
+                .amount(food, 1)
+                .is_some_and(|n| n.same_repr(red_ale_core::Numeric::new(0, 1)))
+        );
         assert_eq!(budget.amount(food, 2), None);
         assert_eq!(budget.amount(food, 15), None, "kept, but past the last period");
         assert_eq!(budget.note(food, 0), Some("January food"));
@@ -224,6 +234,8 @@ mod tests {
         assert!(refused(&recurrence_text(1, "fortnight", None)).contains("unknown recurrence period type"));
         assert!(refused(&recurrence_text(0, "month", None)).contains("never repeats"));
         assert!(refused(&recurrence_text(1, "month", Some("sideways"))).contains("unknown weekend adjustment"));
-        assert!(refused(&recurrence_text(1, "month", None).replace("<recurrence:mult>1", "<recurrence:mult>65536")).contains("out of range"));
+        assert!(
+            refused(&recurrence_text(1, "month", None).replace("<recurrence:mult>1", "<recurrence:mult>65536")).contains("out of range")
+        );
     }
 }

@@ -21,11 +21,11 @@ pub mod error;
 mod lock;
 mod read;
 pub mod residue;
-mod save;
-mod storable;
 pub mod rows;
+mod save;
 pub mod schema;
 pub mod slots;
+mod storable;
 pub mod tables;
 
 use std::path::{Path, PathBuf};
@@ -34,8 +34,8 @@ use red_ale_core::{Book, Env};
 
 use rusqlite::{Connection, TransactionBehavior};
 
-pub use error::SqlError;
 pub use create::create;
+pub use error::SqlError;
 pub use lock::LockOwner;
 pub use residue::SqlResidue;
 
@@ -107,9 +107,13 @@ impl SqliteBook {
         let (Some(conn), Some(held)) = (self.conn.as_mut(), self.lock.as_ref()) else {
             return Err(SqlError::NotABook("the book is not open for writing".into()));
         };
-        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate).map_err(SqlError::from_write)?;
+        let tx = conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(SqlError::from_write)?;
         if !lock::is_held(&tx, held)? {
-            return Err(SqlError::BookChanged("its gnclock row is not red-ale's alone: the lock was broken".into()));
+            return Err(SqlError::BookChanged(
+                "its gnclock row is not red-ale's alone: the lock was broken".into(),
+            ));
         }
         if connection::data_version(&tx)? != self.data_version {
             return Err(SqlError::BookChanged("another connection wrote it".into()));
@@ -137,7 +141,10 @@ impl SqliteBook {
     /// another program already deleted is not an error.
     pub fn release_lock(&mut self) -> Result<(), SqlError> {
         let Some(held) = self.lock.take() else { return Ok(()) };
-        let mut conn = self.conn.take().ok_or_else(|| SqlError::NotABook("the lock is held without a connection".into()))?;
+        let mut conn = self
+            .conn
+            .take()
+            .ok_or_else(|| SqlError::NotABook("the lock is held without a connection".into()))?;
         lock::release(&mut conn, &held)
     }
 }
@@ -172,13 +179,11 @@ pub fn open_read_only(path: &Path) -> Result<(Book, SqliteBook, Findings), SqlEr
 /// `owner`'s lock row only if `writable` agrees, then commit (`design/sql-fidelity.md` §5). The existence check, the
 /// read and the insert are atomic, and a book that turns out read-only is never written at all: its transaction is
 /// rolled back and its connection closed.
-pub fn open(
-    path: &Path,
-    owner: &LockOwner,
-    writable: &dyn Fn(&Book, &Findings) -> bool,
-) -> Result<(Book, SqliteBook, Findings), SqlError> {
+pub fn open(path: &Path, owner: &LockOwner, writable: &dyn Fn(&Book, &Findings) -> bool) -> Result<(Book, SqliteBook, Findings), SqlError> {
     let mut conn = connection::open_read_write(path)?;
-    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate).map_err(SqlError::from_write)?;
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(SqlError::from_write)?;
     lock::check_free(&tx)?;
     let (book, residue, findings) = read::read(&tx)?;
     let lock = if writable(&book, &findings) {

@@ -118,7 +118,10 @@ impl Writer<'_> {
 
 /// The rows of `owner`'s Slots, in GnuCash's order, with a new GUID from `new_guid` for each frame and list.
 pub fn rows(owner: Guid, frame: &Frame, new_guid: &mut dyn FnMut() -> Guid) -> Result<Vec<SlotCells>, SqlError> {
-    let mut w = Writer { new_guid, rows: Vec::new() };
+    let mut w = Writer {
+        new_guid,
+        rows: Vec::new(),
+    };
     w.frame(owner, None, frame)?;
     Ok(w.rows)
 }
@@ -137,7 +140,10 @@ mod tests {
         let mut frame = Frame::new();
         frame.insert_key("a/b", SlotValue::String("x".into()));
         frame.insert_key("Zupper", SlotValue::Double("0.100000000000000006".into()));
-        frame.insert_key("l", SlotValue::List(vec![SlotValue::Integer(3), SlotValue::Frame(inner), SlotValue::List(Vec::new())]));
+        frame.insert_key(
+            "l",
+            SlotValue::List(vec![SlotValue::Integer(3), SlotValue::Frame(inner), SlotValue::List(Vec::new())]),
+        );
         frame.insert_key("f", SlotValue::Frame(Frame::new()));
         let owner = Guid::from_bytes([1; 16]);
         let mut n = 1_u8;
@@ -154,10 +160,20 @@ mod tests {
             .enumerate()
             .filter_map(|(i, mut c)| {
                 c.insert(0, int(i64::try_from(i).unwrap()));
-                slot(&Row { rowid: i64::try_from(i).unwrap(), cells: c }, &mut findings)
+                slot(
+                    &Row {
+                        rowid: i64::try_from(i).unwrap(),
+                        cells: c,
+                    },
+                    &mut findings,
+                )
             })
             .collect();
-        let built = build(&decoded, &|g| if g == owner { Owner::Entity } else { Owner::Unknown }, &mut findings);
+        let built = build(
+            &decoded,
+            &|g| if g == owner { Owner::Entity } else { Owner::Unknown },
+            &mut findings,
+        );
         assert!(findings.is_empty(), "{findings:?}");
         assert_eq!(built.frames[&owner], frame);
         assert_eq!(built.rows[&owner], 8);

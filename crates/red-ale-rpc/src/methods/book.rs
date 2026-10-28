@@ -1,8 +1,8 @@
 //! Methods: opening, creating, saving and closing a book, and what the book declares about itself.
 
 use red_ale_core::book_options::{GNUCASH_FEATURES, features};
-use red_ale_service::session::SUPPORTED_FEATURES;
 use red_ale_service::backend::Format;
+use red_ale_service::session::SUPPORTED_FEATURES;
 use red_ale_service::{ReadOnlyReason, Session};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,12 @@ pub fn methods() -> Vec<Method> {
             Effect::Read,
             open,
         ),
-        method("book.create", "Create a new, empty XML or SQLite book and open it.", Effect::Write, create),
+        method(
+            "book.create",
+            "Create a new, empty XML or SQLite book and open it.",
+            Effect::Write,
+            create,
+        ),
         method(
             "book.info",
             "Describe the open book: path, read-only state, features and counts.",
@@ -273,9 +278,14 @@ pub fn describe(session: &Session) -> BookInfo {
         dirty: session.is_dirty(),
         compressed: session.compressed().unwrap_or(false),
         format: session.format().into(),
-        versions: session
-            .versions()
-            .map(|rows| rows.iter().map(|(table, version)| VersionInfo { table: table.clone(), version: *version }).collect()),
+        versions: session.versions().map(|rows| {
+            rows.iter()
+                .map(|(table, version)| VersionInfo {
+                    table: table.clone(),
+                    version: *version,
+                })
+                .collect()
+        }),
         journal: session.journal_path().map(|p| p.display().to_string()),
         features: features(book)
             .into_iter()
@@ -316,7 +326,10 @@ fn create_format(p: &CreateParams) -> Result<Format, RpcError> {
     let scheme = Format::of_scheme(&p.path);
     let format = match (p.format.map(Format::from), scheme) {
         (Some(asked), Some(named)) if asked != named => {
-            return Err(RpcError::new(codes::INVALID_PARAMS, format!("format {} contradicts the path's URI scheme", asked.name())));
+            return Err(RpcError::new(
+                codes::INVALID_PARAMS,
+                format!("format {} contradicts the path's URI scheme", asked.name()),
+            ));
         }
         (asked, named) => asked.or(named).unwrap_or(Format::Xml),
     };

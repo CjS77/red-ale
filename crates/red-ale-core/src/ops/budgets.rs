@@ -84,7 +84,11 @@ pub fn needs_sign_scrub(book: &Book) -> bool {
 }
 
 fn check_signs(book: &Book) -> DomainResult<()> {
-    if needs_sign_scrub(book) { Err(DomainError::NaturalSigns) } else { Ok(()) }
+    if needs_sign_scrub(book) {
+        Err(DomainError::NaturalSigns)
+    } else {
+        Ok(())
+    }
 }
 
 /// The Budget with this GUID.
@@ -105,7 +109,9 @@ fn get_mut(book: &mut Book, guid: Guid) -> DomainResult<&mut Budget> {
 /// book order.
 pub fn create(book: &mut Book, env: &mut dyn Env, fields: BudgetFields) -> DomainResult<Guid> {
     check_signs(book)?;
-    let today = env.today().ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
+    let today = env
+        .today()
+        .ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
     let first = Date::from_ymd(today.year(), today.month(), 1).unwrap_or(today);
     let mut budget = Budget {
         guid: env.new_guid(),
@@ -148,7 +154,9 @@ fn check_num_periods(n: u32) -> DomainResult<u32> {
     if (1..=MAX_NUM_PERIODS).contains(&n) {
         Ok(n)
     } else {
-        Err(DomainError::invalid(format!("a budget has 1 to {MAX_NUM_PERIODS} periods, not {n}")))
+        Err(DomainError::invalid(format!(
+            "a budget has 1 to {MAX_NUM_PERIODS} periods, not {n}"
+        )))
     }
 }
 
@@ -257,7 +265,10 @@ fn check_cells(book: &Book, budget: &Budget, cells: impl Iterator<Item = Cell>) 
             )));
         }
         if !seen.insert(cell) {
-            return Err(DomainError::invalid(format!("the cell {}/{} is given twice", cell.account, cell.period)));
+            return Err(DomainError::invalid(format!(
+                "the cell {}/{} is given twice",
+                cell.account, cell.period
+            )));
         }
         Ok(())
     })
@@ -268,7 +279,11 @@ pub fn check_account(book: &Book, account: Guid) -> DomainResult<()> {
     if account == book.root {
         return Err(DomainError::invalid("the root account has no budget amounts"));
     }
-    if in_tree(book, account) { Ok(()) } else { Err(DomainError::not_found("account", &account)) }
+    if in_tree(book, account) {
+        Ok(())
+    } else {
+        Err(DomainError::not_found("account", &account))
+    }
 }
 
 fn in_tree(book: &Book, account: Guid) -> bool {
@@ -338,15 +353,22 @@ pub fn notes<'a>(book: &Book, budget: &'a Budget) -> Vec<(Cell, &'a str)> {
 /// count, or for GUIDs that name no account in the tree.
 pub fn kept_slots(book: &Book, budget: &Budget) -> KeptSlots {
     let count = |prefix: &[&str], is_entry: fn(&SlotValue) -> bool| {
-        let frame = if prefix.is_empty() { Some(&budget.slots) } else { budget.slots.get_in(prefix).and_then(SlotValue::as_frame) };
-        frame.into_iter().flat_map(Frame::iter).fold((0, 0), |(hidden, orphaned), (key, _)| {
-            let entries = period_slots(budget, prefix, key).filter(|(_, v)| is_entry(v));
-            match Guid::parse(key).ok().filter(|g| g.to_string() == *key) {
-                Some(g) if in_tree(book, g) => (hidden + entries.filter(|(p, _)| *p >= budget.num_periods).count(), orphaned),
-                Some(_) => (hidden, orphaned + entries.count()),
-                None => (hidden, orphaned),
-            }
-        })
+        let frame = if prefix.is_empty() {
+            Some(&budget.slots)
+        } else {
+            budget.slots.get_in(prefix).and_then(SlotValue::as_frame)
+        };
+        frame
+            .into_iter()
+            .flat_map(Frame::iter)
+            .fold((0, 0), |(hidden, orphaned), (key, _)| {
+                let entries = period_slots(budget, prefix, key).filter(|(_, v)| is_entry(v));
+                match Guid::parse(key).ok().filter(|g| g.to_string() == *key) {
+                    Some(g) if in_tree(book, g) => (hidden + entries.filter(|(p, _)| *p >= budget.num_periods).count(), orphaned),
+                    Some(_) => (hidden, orphaned + entries.count()),
+                    None => (hidden, orphaned),
+                }
+            })
     };
     let (hidden_amounts, orphaned_amounts) = count(&[], |v| v.as_numeric().is_some());
     let (hidden_notes, orphaned_notes) = count(&[NOTES], |v| v.as_str().is_some_and(|s| !s.is_empty()));

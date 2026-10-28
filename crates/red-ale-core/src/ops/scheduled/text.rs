@@ -21,7 +21,11 @@ pub fn formula_number(value: Numeric, min_places: u32, format: NumberFormat) -> 
         return format!("{num} / {denom}");
     };
     let scaled = num * (10_i128.pow(places) / denom);
-    let digits = format!("{:0>width$}", scaled.unsigned_abs(), width = usize::try_from(places).unwrap_or(0) + 1);
+    let digits = format!(
+        "{:0>width$}",
+        scaled.unsigned_abs(),
+        width = usize::try_from(places).unwrap_or(0) + 1
+    );
     let (whole, fraction) = digits.split_at(digits.len() - usize::try_from(places).unwrap_or(0));
     let sign = if scaled < 0 { "-" } else { "" };
     if fraction.is_empty() {
@@ -34,9 +38,7 @@ pub fn formula_number(value: Numeric, min_places: u32, format: NumberFormat) -> 
 /// The decimal places of a currency's fraction: 2 for 1/100, 0 for 1; at least 2 when the fraction is not a power of
 /// ten.
 pub fn places_of(fraction: i64) -> u32 {
-    (0..=MAX_PLACES)
-        .find(|k| 10_i64.checked_pow(*k) == Some(fraction))
-        .unwrap_or(2)
+    (0..=MAX_PLACES).find(|k| 10_i64.checked_pow(*k) == Some(fraction)).unwrap_or(2)
 }
 
 #[cfg(test)]

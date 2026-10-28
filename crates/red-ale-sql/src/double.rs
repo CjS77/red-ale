@@ -45,7 +45,11 @@ impl Big {
 /// The exact decimal digits of `mantissa × 2^exp2` and the power of ten of their first digit.
 fn exact_digits(mantissa: u64, exp2: i32) -> (Vec<u8>, i64) {
     let mut big = Big::from_u64(mantissa);
-    let (factor, steps) = if exp2 >= 0 { (2, exp2.unsigned_abs()) } else { (5, exp2.unsigned_abs()) };
+    let (factor, steps) = if exp2 >= 0 {
+        (2, exp2.unsigned_abs())
+    } else {
+        (5, exp2.unsigned_abs())
+    };
     (0..steps).for_each(|_| big.mul_small(factor));
     let digits: Vec<u8> = big.to_decimal().bytes().map(|b| b - b'0').collect();
     // mantissa × 5^k / 10^k when the exponent is negative: the point moves k places left.
@@ -139,7 +143,9 @@ mod tests {
 
     #[test]
     fn matches_printf() {
-        PRINTF.iter().for_each(|(bits, text)| assert_eq!(format_double(*bits), *text, "{bits:#018x}"));
+        PRINTF
+            .iter()
+            .for_each(|(bits, text)| assert_eq!(format_double(*bits), *text, "{bits:#018x}"));
     }
 
     proptest! {

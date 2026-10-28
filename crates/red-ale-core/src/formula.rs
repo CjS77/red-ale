@@ -227,7 +227,10 @@ pub fn check_calls(text: &str, format: NumberFormat, functions: &dyn Functions) 
             Err(e) => e,
             Ok(_) => return Ok(()),
         };
-        Err(FormulaError::Function { name: name.to_owned(), error })
+        Err(FormulaError::Function {
+            name: name.to_owned(),
+            error,
+        })
     })
 }
 
@@ -320,7 +323,12 @@ impl<'a> Semantics<'a> for Eval<'a, '_> {
 
     fn negate(&mut self, v: Value<'a>) -> Result<Value<'a>, FormulaError> {
         let n = self.read(&v)?;
-        let negated = n.num().checked_neg().map(|num| Numeric::new(num, n.denom())).ok_or(NumericError::Overflow).map_err(arithmetic)?;
+        let negated = n
+            .num()
+            .checked_neg()
+            .map(|num| Numeric::new(num, n.denom()))
+            .ok_or(NumericError::Overflow)
+            .map_err(arithmetic)?;
         Ok(match v {
             Value::Var(name) => {
                 self.assigned.insert(name, negated);
@@ -344,10 +352,13 @@ impl<'a> Semantics<'a> for Eval<'a, '_> {
 
     fn call(&mut self, name: &'a str, args: Vec<Value<'a>>) -> Result<Value<'a>, FormulaError> {
         let args = args.iter().map(|a| self.argument(a)).collect::<Result<Vec<_>, _>>()?;
-        self.functions.call(name, &args).map(Value::Num).map_err(|error| FormulaError::Function {
-            name: name.to_owned(),
-            error,
-        })
+        self.functions
+            .call(name, &args)
+            .map(Value::Num)
+            .map_err(|error| FormulaError::Function {
+                name: name.to_owned(),
+                error,
+            })
     }
 }
 

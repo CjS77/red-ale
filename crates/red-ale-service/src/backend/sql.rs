@@ -148,7 +148,9 @@ impl Backend for SqliteBackend {
     /// Add the ISO-dates feature when the book lacks it, as GnuCash's load does; the save writes it with the Book's
     /// slot rows (`design/sql-fidelity.md` §4, "The ISO-dates Book feature").
     fn prepare_save(&self, book: &Book) -> Option<Book> {
-        let declared = red_ale_core::book_options::features(book).iter().any(|(name, _)| name == ISO_DATES_FEATURE);
+        let declared = red_ale_core::book_options::features(book)
+            .iter()
+            .any(|(name, _)| name == ISO_DATES_FEATURE);
         (!declared).then(|| {
             let mut prepared = book.clone();
             set_feature_used(&mut prepared, ISO_DATES_FEATURE);

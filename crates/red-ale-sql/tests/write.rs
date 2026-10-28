@@ -32,14 +32,20 @@ fn a_save_writes_only_the_changed_row_and_reads_back() {
     let after = dump(&path);
     let changed: Vec<_> = after.iter().filter(|r| !before.contains(r)).collect();
     assert_eq!(changed.len(), 1, "{changed:?}");
-    assert!(changed[0].starts_with("transactions|1|") && changed[0].contains("'Edited'"), "{changed:?}");
+    assert!(
+        changed[0].starts_with("transactions|1|") && changed[0].contains("'Edited'"),
+        "{changed:?}"
+    );
     drop(opened);
     assert_eq!(read(&path), edited);
 }
 
 #[test]
 fn another_writer_or_a_broken_lock_refuses_the_save_and_writes_nothing() {
-    for breaker in ["DELETE FROM gnclock", "UPDATE transactions SET description = 'GnuCash' WHERE rowid = 2"] {
+    for breaker in [
+        "DELETE FROM gnclock",
+        "UPDATE transactions SET description = 'GnuCash' WHERE rowid = 2",
+    ] {
         let (_dir, path) = copy("synthetic/rich.gnucash");
         let (book, mut opened, _) = open(&path, &me(), &writable).unwrap();
         rusqlite::Connection::open(&path).unwrap().execute(breaker, []).unwrap();
@@ -87,7 +93,13 @@ fn a_failure_at_any_statement_leaves_every_row_as_it_was() {
 
 /// The lines of two debug dumps that differ, for a readable failure.
 fn differing(a: &str, b: &str) -> Vec<String> {
-    a.lines().zip(b.lines()).enumerate().filter(|(_, (x, y))| x != y).take(12).map(|(i, (x, y))| format!("{i}: {x} | {y}")).collect()
+    a.lines()
+        .zip(b.lines())
+        .enumerate()
+        .filter(|(_, (x, y))| x != y)
+        .take(12)
+        .map(|(i, (x, y))| format!("{i}: {x} | {y}"))
+        .collect()
 }
 
 /// The fixture's Book written into a new book, from its root alone: every row of every entity is inserted.
@@ -116,7 +128,11 @@ fn every_fixture_written_whole_into_a_new_book_reads_back_the_same() {
     let root = fixture("");
     let mut names: Vec<String> = ["gnucash", "piecash", "reports", "synthetic"]
         .iter()
-        .flat_map(|d| std::fs::read_dir(root.join(d)).unwrap().map(move |e| format!("{d}/{}", e.unwrap().file_name().to_string_lossy())))
+        .flat_map(|d| {
+            std::fs::read_dir(root.join(d))
+                .unwrap()
+                .map(move |e| format!("{d}/{}", e.unwrap().file_name().to_string_lossy()))
+        })
         .filter(|n| n.ends_with(".gnucash"))
         .collect();
     names.sort();
@@ -144,17 +160,37 @@ fn a_created_book_has_gnucash_s_schema_versions_and_pragmas() {
     assert!(matches!(create(&path, &book, &me(), &mut env), Err(SqlError::Io(_))));
     drop(made);
     let conn = rusqlite::Connection::open(&path).unwrap();
-    let pragma = |p: &str| conn.query_row(&format!("PRAGMA {p}"), [], |r| r.get::<_, rusqlite::types::Value>(0)).unwrap();
+    let pragma = |p: &str| {
+        conn.query_row(&format!("PRAGMA {p}"), [], |r| r.get::<_, rusqlite::types::Value>(0))
+            .unwrap()
+    };
     assert_eq!(
-        ["page_size", "encoding", "auto_vacuum", "journal_mode", "user_version", "application_id"].map(pragma),
-        [Integer(4096), Text("UTF-8".into()), Integer(0), Text("delete".into()), Integer(0), Integer(0)]
+        [
+            "page_size",
+            "encoding",
+            "auto_vacuum",
+            "journal_mode",
+            "user_version",
+            "application_id"
+        ]
+        .map(pragma),
+        [
+            Integer(4096),
+            Text("UTF-8".into()),
+            Integer(0),
+            Text("delete".into()),
+            Integer(0),
+            Integer(0)
+        ]
     );
     drop(conn);
     let (read_back, _, findings) = open_read_only(&path).unwrap();
     assert!(findings.is_empty(), "{findings:?}");
     assert_eq!(read_back, book);
-    let names: Vec<String> =
-        std::fs::read_dir(dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    let names: Vec<String> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
     assert_eq!(names, ["new.gnucash"]);
 }
 

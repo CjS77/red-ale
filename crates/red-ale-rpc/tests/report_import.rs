@@ -57,10 +57,7 @@ fn imports_saved_configurations() {
     let mut c = Charts::new("iso");
     let result = import_reports(&mut c, false);
     assert_eq!(result["dryRun"], false);
-    assert_eq!(
-        skipped(&result),
-        pairs(&[("Transactions this month", "untranslated")])
-    );
+    assert_eq!(skipped(&result), pairs(&[("Transactions this month", "untranslated")]));
     let imported = result["imported"].as_array().unwrap();
     assert_eq!(imported.len(), 3);
 
@@ -81,7 +78,10 @@ fn imports_saved_configurations() {
 
     let budget = &imported[1];
     assert_eq!(budget["configuration"]["name"], "Household budget");
-    assert_eq!(budget["options"], json!({ "General": { "Budget": "b0000000000000000000000000000001" } }));
+    assert_eq!(
+        budget["options"],
+        json!({ "General": { "Budget": "b0000000000000000000000000000001" } })
+    );
 
     let sheet = &imported[2];
     assert_eq!(sheet["configuration"]["guid"], BALANCE_SHEET_SAVED);

@@ -184,9 +184,15 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     ["budget.get", "budget.list"]
         .iter()
         .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
-    ["budget.create", "budget.update", "budget.copy", "budget.setAmounts", "budget.setNotes"]
-        .iter()
-        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
+    [
+        "budget.create",
+        "budget.update",
+        "budget.copy",
+        "budget.setAmounts",
+        "budget.setNotes",
+    ]
+    .iter()
+    .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
     // And for Since Last Run (`design/api/scheduled-transactions.md`, "Methods and MCP").
     ["scheduledTransaction.sinceLastRun", "scheduledTransaction.discard"]
         .iter()
@@ -194,9 +200,13 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     assert_eq!(tool("scheduledTransaction.apply")["annotations"], expected_hints("write"));
     // And for the rest of the scheduled transaction methods.
     assert_eq!(tool("scheduledTransaction.delete")["annotations"], expected_hints("destructive"));
-    ["scheduledTransaction.get", "scheduledTransaction.list", "scheduledTransaction.occurrences"]
-        .iter()
-        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
+    [
+        "scheduledTransaction.get",
+        "scheduledTransaction.list",
+        "scheduledTransaction.occurrences",
+    ]
+    .iter()
+    .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
     [
         "scheduledTransaction.create",
         "scheduledTransaction.update",

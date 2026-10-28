@@ -234,9 +234,7 @@ impl From<ServiceError> for RpcError {
             ServiceError::Xml { path: p, .. }
             | ServiceError::Sql { path: p, .. }
             | ServiceError::WrongFormat { path: p, .. }
-            | ServiceError::Journal { path: p, .. } => {
-                Self::new(codes::FILE_FORMAT, message).with_data(path(&p))
-            }
+            | ServiceError::Journal { path: p, .. } => Self::new(codes::FILE_FORMAT, message).with_data(path(&p)),
             ServiceError::ReadOnly { reason } => Self::new(codes::READ_ONLY, message).with_data(json!({ "reason": reason })),
             ServiceError::Exists { path: p } => Self::new(codes::FILE_EXISTS, message).with_data(path(&p)),
             ServiceError::Verification { detail } => Self::new(codes::SAVE_VERIFICATION, message).with_data(json!({ "detail": detail })),

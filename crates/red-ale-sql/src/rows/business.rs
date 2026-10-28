@@ -22,7 +22,9 @@ use crate::tables::{ADDRESS, BILLTERMS, CUSTOMERS, EMPLOYEES, ENTRIES, INVOICES,
 /// An address from its `<prefix>_*` columns; NULL reads as empty, as the XML reader gives a missing element. SQL books
 /// have no place for an address's Slots.
 fn address(cells: &mut Cells<'_>, prefix: &str) -> Address {
-    let mut parts = ADDRESS.iter().map(|part| cells.text(&format!("{prefix}_{part}")).unwrap_or_default());
+    let mut parts = ADDRESS
+        .iter()
+        .map(|part| cells.text(&format!("{prefix}_{part}")).unwrap_or_default());
     let mut next = || parts.next().unwrap_or_default();
     Address {
         name: next(),

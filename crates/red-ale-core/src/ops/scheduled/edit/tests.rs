@@ -8,7 +8,7 @@ use super::*;
 use crate::formula::{FormulaError, Variables};
 use crate::ops::scheduled::fixture::{Fixture, date, usd};
 use crate::ops::scheduled::{AccountProblem, create_instance, numeric_of, template_transactions};
-use crate::scheduled::{SPLIT_FRAME, Templates, TemplateSplit};
+use crate::scheduled::{SPLIT_FRAME, TemplateSplit, Templates};
 use crate::transaction::slot_paths;
 use crate::{AccountType, Numeric, SlotValue};
 
@@ -73,7 +73,13 @@ fn frames(f: &Fixture, guid: Guid) -> Vec<FrameRow> {
         .map(|s| {
             let t = TemplateSplit::of(s).unwrap();
             let text = |f: Option<&str>| f.map(str::to_owned);
-            (t.account(), text(t.debit_formula()), t.debit_numeric(), text(t.credit_formula()), t.credit_numeric())
+            (
+                t.account(),
+                text(t.debit_formula()),
+                t.debit_numeric(),
+                text(t.credit_formula()),
+                t.credit_numeric(),
+            )
         })
         .collect()
 }
@@ -93,11 +99,17 @@ fn a_new_scheduled_transaction_has_the_editors_defaults() {
     let edited = make_rent(&mut f, "750").unwrap();
     assert!(edited.warnings.is_empty(), "{:?}", edited.warnings);
     let sx = &f.book.scheduled[&edited.guid];
-    assert_eq!((sx.name.as_str(), sx.enabled, sx.auto_create, sx.auto_create_notify), ("Rent", true, false, false));
+    assert_eq!(
+        (sx.name.as_str(), sx.enabled, sx.auto_create, sx.auto_create_notify),
+        ("Rent", true, false, false)
+    );
     assert_eq!((sx.advance_create_days, sx.advance_remind_days, sx.instance_count), (0, 0, 1));
     assert_eq!((sx.last, sx.end, sx.occurrences), (None, None, None));
     assert!(sx.deferred.is_empty());
-    assert_eq!(sx.schedule, vec![Recurrence::normalised(1, PeriodType::Month, date(2026, 1, 1), WeekendAdjust::None)]);
+    assert_eq!(
+        sx.schedule,
+        vec![Recurrence::normalised(1, PeriodType::Month, date(2026, 1, 1), WeekendAdjust::None)]
+    );
     assert_eq!(f.book.scheduled.keys().last(), Some(&edited.guid));
 }
 
@@ -110,11 +122,17 @@ fn the_template_account_is_named_by_the_guid_under_a_new_template_root() {
     let edited = make_rent(&mut f, "750").unwrap();
     let root = f.book.templates.root.unwrap();
     let r = &f.book.templates.accounts[&root];
-    assert_eq!((r.name.as_str(), r.account_type, r.commodity.as_ref(), r.parent), ("Template Root", AccountType::Root, None, None));
+    assert_eq!(
+        (r.name.as_str(), r.account_type, r.commodity.as_ref(), r.parent),
+        ("Template Root", AccountType::Root, None, None)
+    );
     let account = f.book.scheduled[&edited.guid].template_account.unwrap();
     let a = &f.book.templates.accounts[&account];
     assert_eq!(a.name, edited.guid.to_string());
-    assert_eq!((a.account_type, a.parent, a.commodity_scu, a.non_standard_scu), (AccountType::Bank, Some(root), Some(1), false));
+    assert_eq!(
+        (a.account_type, a.parent, a.commodity_scu, a.non_standard_scu),
+        (AccountType::Bank, Some(root), Some(1), false)
+    );
     assert_eq!(a.commodity.as_ref().map(ToString::to_string).as_deref(), Some("template::template"));
     assert!(f.book.account(account).is_none(), "template accounts are not in the account tree");
 }
@@ -140,24 +158,41 @@ fn template_transactions_are_written_as_the_register_writes_them() {
     let edited = make(&mut f, fields).unwrap();
     let sx = &f.book.scheduled[&edited.guid];
     let t = template_transactions(&f.book, sx)[0];
-    assert_eq!((t.description.as_deref(), t.num.as_deref(), t.notes(), &t.currency), (Some("Rent"), Some("CHK"), Some("monthly"), &usd()));
+    assert_eq!(
+        (t.description.as_deref(), t.num.as_deref(), t.notes(), &t.currency),
+        (Some("Rent"), Some("CHK"), Some("monthly"), &usd())
+    );
     assert_eq!(t.slots.get(slot_paths::DATE_POSTED), Some(&SlotValue::Date(date(2026, 1, 1))));
     assert_eq!(t.date_entered, f.env.now);
-    assert!(t.splits.iter().all(|s| s.value.same_repr(Numeric::new(0, 100)) && s.amount.same_repr(Numeric::new(0, 1))));
+    assert!(
+        t.splits
+            .iter()
+            .all(|s| s.value.same_repr(Numeric::new(0, 100)) && s.amount.same_repr(Numeric::new(0, 1)))
+    );
     assert!(t.splits.iter().all(|s| s.account == sx.template_account));
-    assert_eq!((t.splits[2].memo.as_deref(), t.splits[2].action.as_deref()), (Some("marker"), Some("Pay")));
+    assert_eq!(
+        (t.splits[2].memo.as_deref(), t.splits[2].action.as_deref()),
+        (Some("marker"), Some("Pay"))
+    );
     let zero = Some(Numeric::new(0, 1));
     let text = |s: &str| Some(s.to_owned());
-    assert_eq!(frames(&f, edited.guid), vec![
-        (Some(f.food), text("rent * 2"), zero, text(""), zero),
-        (Some(f.bank), text(""), zero, text("rent * 2"), zero),
-        (Some(f.bank), text(""), zero, text(""), zero),
-        (Some(f.food), text("(5)"), Some(Numeric::new(-5, 1)), text(""), zero),
-        (Some(f.bank), text(""), zero, text("-5"), Some(Numeric::new(-5, 1))),
-    ]);
+    assert_eq!(
+        frames(&f, edited.guid),
+        vec![
+            (Some(f.food), text("rent * 2"), zero, text(""), zero),
+            (Some(f.bank), text(""), zero, text("rent * 2"), zero),
+            (Some(f.bank), text(""), zero, text(""), zero),
+            (Some(f.food), text("(5)"), Some(Numeric::new(-5, 1)), text(""), zero),
+            (Some(f.bank), text(""), zero, text("-5"), Some(Numeric::new(-5, 1))),
+        ]
+    );
     let frame = t.splits[0].slots.get_key(SPLIT_FRAME).and_then(SlotValue::as_frame).unwrap();
     let keys: Vec<&str> = frame.iter().map(|(k, _)| k.as_str()).collect();
-    assert_eq!(keys, ["account", "credit-formula", "credit-numeric", "debit-formula", "debit-numeric"], "no `shares`");
+    assert_eq!(
+        keys,
+        ["account", "credit-formula", "credit-numeric", "debit-formula", "debit-numeric"],
+        "no `shares`"
+    );
 }
 
 /// A constant formula's numeric is its value, reduced as the parser leaves it (`gnc-exp-parser.c:546`): `1,234.50`
@@ -196,10 +231,13 @@ fn recurrences_are_normalised_and_start_on_the_start_date() {
         },
     ]);
     let edited = make(&mut f, fields).unwrap();
-    assert_eq!(f.book.scheduled[&edited.guid].schedule, vec![
-        Recurrence::new(1, PeriodType::EndOfMonth, date(2026, 1, 31), WeekendAdjust::Back).unwrap(),
-        Recurrence::new(2, PeriodType::Week, date(2026, 1, 3), WeekendAdjust::None).unwrap(),
-    ]);
+    assert_eq!(
+        f.book.scheduled[&edited.guid].schedule,
+        vec![
+            Recurrence::new(1, PeriodType::EndOfMonth, date(2026, 1, 31), WeekendAdjust::Back).unwrap(),
+            Recurrence::new(2, PeriodType::Week, date(2026, 1, 3), WeekendAdjust::None).unwrap(),
+        ]
+    );
 }
 
 /// The editor refuses an empty name (`dialog-sx-editor.c:504-515`), an occurrence count of 0 or fewer remaining than
@@ -222,7 +260,10 @@ fn the_editors_refusals() {
         (|x| x.end = Some(End::Date(date(2025, 12, 31))), "end"),
         (|x| x.notify = Some(true), "notify"),
         (|x| x.advance_remind_days = Some(-1), "advance-days"),
-        (|x| x.templates.as_mut().unwrap()[0].currency = Some(crate::CommodityRef::new("NASDAQ", "ACME")), "currency"),
+        (
+            |x| x.templates.as_mut().unwrap()[0].currency = Some(crate::CommodityRef::new("NASDAQ", "ACME")),
+            "currency",
+        ),
     ];
     cases.into_iter().for_each(|(c, expected)| {
         let fields = with(c, &f);
@@ -237,14 +278,17 @@ fn the_editors_refusals() {
 fn template_split_accounts_are_checked() {
     let mut f = Fixture::new();
     Arc::make_mut(f.book.accounts.get_mut(&f.food).unwrap()).set_placeholder(true);
-    let problem = |f: &mut Fixture, account: Guid| match make(f, Fields {
-        templates: Some(vec![TemplateSpec {
-            currency: Some(usd()),
-            splits: vec![split(account, "1", ""), split(f.bank, "", "1")],
-            ..TemplateSpec::default()
-        }]),
-        ..rent(f, "1")
-    }) {
+    let problem = |f: &mut Fixture, account: Guid| match make(
+        f,
+        Fields {
+            templates: Some(vec![TemplateSpec {
+                currency: Some(usd()),
+                splits: vec![split(account, "1", ""), split(f.bank, "", "1")],
+                ..TemplateSpec::default()
+            }]),
+            ..rent(f, "1")
+        },
+    ) {
         Err(ScheduledError::Account { problem, .. }) => problem,
         other => panic!("{other:?}"),
     };
@@ -259,7 +303,14 @@ fn template_split_accounts_are_checked() {
 #[test]
 fn formulas_must_parse_and_be_computable() {
     let mut f = Fixture::new();
-    let reasons = ["1 +", "nosuch(rent)", "cpd_pmt(rate : 12 : 2 : 360 : 100000 : 0 : 0)", "pmt(rent : 360)", "pmt(0 : 12 : 1200 : 0 : 0)"].map(|text| {
+    let reasons = [
+        "1 +",
+        "nosuch(rent)",
+        "cpd_pmt(rate : 12 : 2 : 360 : 100000 : 0 : 0)",
+        "pmt(rent : 360)",
+        "pmt(0 : 12 : 1200 : 0 : 0)",
+    ]
+    .map(|text| {
         let mut fields = rent(&f, "750");
         fields.templates.as_mut().unwrap()[0].splits[1].credit_formula = Some(text.into());
         match make(&mut f, fields) {
@@ -278,7 +329,9 @@ fn a_template_that_provably_does_not_balance_is_refused() {
     let mut fields = rent(&f, "750");
     fields.templates.as_mut().unwrap()[0].splits[1].credit_formula = Some("700".into());
     match make(&mut f, fields).unwrap_err() {
-        ScheduledError::Domain(DomainError::Unbalanced { imbalance, currency }) => assert_eq!((imbalance.as_str(), currency.as_str()), ("50/1", "USD")),
+        ScheduledError::Domain(DomainError::Unbalanced { imbalance, currency }) => {
+            assert_eq!((imbalance.as_str(), currency.as_str()), ("50/1", "USD"))
+        }
         other => panic!("{other:?}"),
     }
     let mut fields = rent(&f, "750");
@@ -323,10 +376,14 @@ fn the_editors_questions_are_warnings() {
     let first = make_rent(&mut f, "750").unwrap();
     let second = make_rent(&mut f, "750").unwrap();
     assert_eq!(second.warnings, [Warning::DuplicateName("Rent".into())]);
-    let renamed = change(&mut f, first.guid, Fields {
-        enabled: Some(false),
-        ..Fields::default()
-    })
+    let renamed = change(
+        &mut f,
+        first.guid,
+        Fields {
+            enabled: Some(false),
+            ..Fields::default()
+        },
+    )
     .unwrap();
     assert!(renamed.warnings.is_empty(), "the name did not change");
     let mut once = rent(&f, "750");
@@ -345,7 +402,10 @@ fn the_editors_questions_are_warnings() {
     let mut ends = rent(&f, "750");
     ends.name = Some("Ends".into());
     ends.end = Some(End::Date(date(2026, 1, 1)));
-    assert!(make(&mut f, ends.clone()).unwrap().warnings.is_empty(), "the start is an occurrence");
+    assert!(
+        make(&mut f, ends.clone()).unwrap().warnings.is_empty(),
+        "the start is an occurrence"
+    );
     ends.name = Some("Ends early".into());
     ends.start = Some(date(2026, 1, 2));
     ends.schedule.as_mut().unwrap()[0].start = Some(date(2026, 1, 1));
@@ -361,18 +421,28 @@ fn an_update_keeps_one_end_and_the_temporal_state() {
     let g = make_rent(&mut f, "750").unwrap().guid;
     Arc::make_mut(f.book.scheduled.get_mut(&g).unwrap()).last = Some(date(2026, 2, 1));
     let end = |f: &mut Fixture, end| {
-        change(f, g, Fields {
-            end: Some(end),
-            ..Fields::default()
-        })
+        change(
+            f,
+            g,
+            Fields {
+                end: Some(end),
+                ..Fields::default()
+            },
+        )
         .unwrap();
         let sx = &f.book.scheduled[&g];
         (sx.end, sx.occurrences, sx.last, sx.instance_count)
     };
     let last = Some(date(2026, 2, 1));
     let occurrences = Some(Occurrences { total: 12, remaining: 10 });
-    assert_eq!(end(&mut f, End::Date(date(2026, 12, 31))), (Some(date(2026, 12, 31)), None, last, 1));
-    assert_eq!(end(&mut f, End::Occurrences { total: 12, remaining: 10 }), (None, occurrences, last, 1));
+    assert_eq!(
+        end(&mut f, End::Date(date(2026, 12, 31))),
+        (Some(date(2026, 12, 31)), None, last, 1)
+    );
+    assert_eq!(
+        end(&mut f, End::Occurrences { total: 12, remaining: 10 }),
+        (None, occurrences, last, 1)
+    );
     assert_eq!(end(&mut f, End::Never), (None, None, last, 1));
 }
 
@@ -391,7 +461,9 @@ fn an_update_replaces_the_templates_keeping_the_guids_given() {
     let kept_split = f.book.templates.transactions[&kept].splits[0].guid;
     let stale = Numeric::new(1, 1);
     let t = Arc::make_mut(f.book.templates.transactions.get_mut(&kept).unwrap());
-    let SlotValue::Frame(frame) = t.splits[0].slots.get_key(SPLIT_FRAME).cloned().unwrap() else { panic!() };
+    let SlotValue::Frame(frame) = t.splits[0].slots.get_key(SPLIT_FRAME).cloned().unwrap() else {
+        panic!()
+    };
     let mut frame = frame;
     frame.insert_key("debit-numeric", SlotValue::Numeric(stale));
     frame.insert_key("shares", SlotValue::String("(x + y)/42".into()));
@@ -413,25 +485,40 @@ fn an_update_replaces_the_templates_keeping_the_guids_given() {
         splits: vec![split(f.food, "5", ""), split(f.bank, "", "5")],
         ..TemplateSpec::default()
     };
-    change(&mut f, g, Fields {
-        templates: Some(vec![new, replaced]),
-        ..Fields::default()
-    })
+    change(
+        &mut f,
+        g,
+        Fields {
+            templates: Some(vec![new, replaced]),
+            ..Fields::default()
+        },
+    )
     .unwrap();
     let after: Vec<Guid> = f.book.templates.transactions.keys().copied().collect();
-    assert_eq!((after.len(), after[0]), (2, kept), "the first is deleted, the kept one stays in its place");
+    assert_eq!(
+        (after.len(), after[0]),
+        (2, kept),
+        "the first is deleted, the kept one stays in its place"
+    );
     let t = &f.book.templates.transactions[&kept];
-    assert_eq!((t.description.as_deref(), t.num.as_deref(), t.notes()), (Some("Rent, kept"), None, None));
+    assert_eq!(
+        (t.description.as_deref(), t.num.as_deref(), t.notes()),
+        (Some("Rent, kept"), None, None)
+    );
     assert_eq!(t.splits[0].guid, kept_split);
     let template = TemplateSplit::of(&t.splits[0]).unwrap();
     assert_eq!((template.debit_numeric(), template.shares()), (Some(stale), Some("(x + y)/42")));
-    let e = change(&mut f, g, Fields {
-        templates: Some(vec![TemplateSpec {
-            guid: Some(before[0]),
-            ..TemplateSpec::default()
-        }]),
-        ..Fields::default()
-    })
+    let e = change(
+        &mut f,
+        g,
+        Fields {
+            templates: Some(vec![TemplateSpec {
+                guid: Some(before[0]),
+                ..TemplateSpec::default()
+            }]),
+            ..Fields::default()
+        },
+    )
     .unwrap_err();
     assert_eq!(reason(&e), "template-guid");
 }
@@ -465,7 +552,10 @@ fn since_last_run_creates_from_a_new_template() {
     let created = create_instance(&mut f.book, &mut f.env, g, date(2026, 1, 1), &i, NumberFormat::default()).unwrap();
     let t = &f.book.transactions[&created[0].transaction];
     let values: Vec<(Option<Guid>, Numeric)> = t.splits.iter().map(|s| (s.account, s.value)).collect();
-    assert_eq!(values, [(Some(f.food), Numeric::new(75000, 100)), (Some(f.bank), Numeric::new(-75000, 100))]);
+    assert_eq!(
+        values,
+        [(Some(f.food), Numeric::new(75000, 100)), (Some(f.bank), Numeric::new(-75000, 100))]
+    );
     assert_eq!(t.description.as_deref(), Some("Rent"));
 }
 
@@ -474,7 +564,9 @@ fn a_formula_error_names_the_split() {
     let mut f = Fixture::new();
     let mut fields = rent(&f, "750");
     fields.templates.as_mut().unwrap()[0].splits[0].debit_formula = Some("1 2".into());
-    let Err(ScheduledError::Formula(failure)) = make(&mut f, fields) else { panic!() };
+    let Err(ScheduledError::Formula(failure)) = make(&mut f, fields) else {
+        panic!()
+    };
     assert_eq!((failure.side, failure.formula.as_str()), (super::super::Side::Debit, "1 2"));
     assert!(matches!(failure.error, FormulaError::Unexpected(_)));
 }

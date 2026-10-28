@@ -59,7 +59,15 @@ fn in_phase(diff: i64, mult: i64, wadj: WeekendAdjust, phase: Phase) -> bool {
 
 /// `check_valid` (`test-recurrence.c:33-202`): the next date is strictly after the reference and in the start's phase,
 /// allowing the weekend moves.
-fn check_valid(next: Option<Date>, reference: Date, start: Date, mult: u16, pt: PeriodType, wadj: WeekendAdjust, phase: Phase) -> Result<(), String> {
+fn check_valid(
+    next: Option<Date>,
+    reference: Date,
+    start: Date,
+    mult: u16,
+    pt: PeriodType,
+    wadj: WeekendAdjust,
+    phase: Phase,
+) -> Result<(), String> {
     let expect_none = pt == P::Once && start <= reference;
     let Some(next) = next else {
         return if expect_none { Ok(()) } else { Err("incorrectly invalid".into()) };
@@ -72,7 +80,10 @@ fn check_valid(next: Option<Date>, reference: Date, start: Date, mult: u16, pt: 
     let start_to_next = start.days_until(next);
     let mult = i64::from(mult);
     match pt {
-        P::Day | P::Week => ensure(start_to_next % (if pt == P::Week { 7 * mult } else { mult }) == 0, "week or day period phase wrong"),
+        P::Day | P::Week => ensure(
+            start_to_next % (if pt == P::Week { 7 * mult } else { mult }) == 0,
+            "week or day period phase wrong",
+        ),
         P::Once => ensure(start_to_next == 0, "period once not on start date"),
         _ => check_month_phase(next, start, mult, pt, wadj, phase).map_err(|e| format!("{e}: next {next}")),
     }
@@ -84,7 +95,11 @@ fn check_month_phase(next: Date, start: Date, mult: i64, pt: PeriodType, wadj: W
     let mut mult = mult;
     if pt == P::Year {
         let diff = i64::from(next.year()) - i64::from(start.year());
-        let ok = if phase == Phase::GnuCash { diff % mult == 0 } else { in_phase(diff, mult, wadj, phase) };
+        let ok = if phase == Phase::GnuCash {
+            diff % mult == 0
+        } else {
+            in_phase(diff, mult, wadj, phase)
+        };
         ensure(ok, "year period phase wrong")?;
         mult *= 12;
     }
@@ -105,7 +120,10 @@ fn check_month_phase(next: Date, start: Date, mult: i64, pt: PeriodType, wadj: W
         ensure(next.weekday() == start.weekday(), "weekday phase wrong")?;
         let (sweek, nweek) = ((start.day() - 1) / 7, (next.day() - 1) / 7);
         let short = sweek == 4 && nweek == 3 && next.day() + 7 > days_in_month(next.year(), next.month());
-        return ensure(sweek == nweek || short || (sweek == 3 && nweek == 4 && pt == P::LastWeekday), "week of month phase wrong");
+        return ensure(
+            sweek == nweek || short || (sweek == 3 && nweek == 4 && pt == P::LastWeekday),
+            "week of month phase wrong",
+        );
     }
     let (day_start, day_next, weekday) = (start.day(), next.day(), next.weekday());
     let weekday_ok = weekday != SATURDAY && weekday != SUNDAY;
@@ -118,7 +136,10 @@ fn check_month_phase(next: Date, start: Date, mult: i64, pt: PeriodType, wadj: W
         };
         ensure(ok, "dom don't match")
     } else if pt != P::EndOfMonth && wadj == W::None {
-        ensure(day_start == day_next || is_last_of_month(next), "dom don't match and next is not eom")
+        ensure(
+            day_start == day_next || is_last_of_month(next),
+            "dom don't match and next is not eom",
+        )
     } else {
         Ok(())
     }
@@ -168,7 +189,11 @@ fn gnucash_test_some() {
 /// `test_all`'s check on one start and reference (`test-recurrence.c:223-247`): every period type, weekend adjustment
 /// and multiplier 0-9 through `recurrenceSet`, then `check_valid` against the normalised fields.
 fn check_all_types(start: Date, reference: Date, phase: Phase) -> Result<(), String> {
-    let combos = P::ALL.into_iter().flat_map(|pt| [W::None, W::Back, W::Forward].into_iter().flat_map(move |w| (0..10).map(move |m| (pt, w, m))));
+    let combos = P::ALL.into_iter().flat_map(|pt| {
+        [W::None, W::Back, W::Forward]
+            .into_iter()
+            .flat_map(move |w| (0..10).map(move |m| (pt, w, m)))
+    });
     combos.into_iter().try_for_each(|(pt, wadj, mult)| {
         let r = Recurrence::normalised(mult, pt, start, wadj);
         let next = r.next_instance(reference).map_err(|e| e.to_string())?;
@@ -197,10 +222,12 @@ proptest! {
 
 /// Occurrences from the day before the start, as a scheduled transaction asks (`5.17:libgnucash/engine/SchedXaction.cpp:885-926`).
 fn first(r: Recurrence, count: usize) -> Vec<String> {
-    std::iter::successors(r.next_instance(r.start().add_days(-1)).unwrap(), |prev| r.next_instance(*prev).unwrap())
-        .take(count)
-        .map(Date::to_file_string)
-        .collect()
+    std::iter::successors(r.next_instance(r.start().add_days(-1)).unwrap(), |prev| {
+        r.next_instance(*prev).unwrap()
+    })
+    .take(count)
+    .map(Date::to_file_string)
+    .collect()
 }
 
 fn dates(list: &str) -> Vec<String> {
@@ -212,22 +239,54 @@ fn dates(list: &str) -> Vec<String> {
 fn worked_sequences() {
     let set = |mult, pt, start, wadj| Recurrence::normalised(mult, pt, d(start), wadj);
     let month_31 = first(set(1, P::Month, "2025-01-31", W::None), 14);
-    assert_eq!(month_31[..6], dates("2025-01-31 2025-02-28 2025-03-31 2025-04-30 2025-05-31 2025-06-30"));
+    assert_eq!(
+        month_31[..6],
+        dates("2025-01-31 2025-02-28 2025-03-31 2025-04-30 2025-05-31 2025-06-30")
+    );
     assert_eq!(month_31[13], "2026-02-28");
     let cases = [
-        (set(2, P::Month, "2025-01-31", W::None), "2025-01-31 2025-03-31 2025-05-31 2025-07-31 2025-09-30 2025-11-30 2026-01-31"),
-        (set(1, P::EndOfMonth, "2025-01-15", W::None), "2025-01-31 2025-02-28 2025-03-31 2025-04-30"),
-        (set(1, P::NthWeekday, "2025-01-08", W::None), "2025-01-08 2025-02-12 2025-03-12 2025-04-09 2025-05-14"),
-        (set(1, P::NthWeekday, "2025-01-29", W::None), "2025-01-29 2025-02-26 2025-03-26 2025-04-30 2025-05-28"),
-        (set(1, P::NthWeekday, "2025-01-28", W::None), "2025-01-28 2025-02-25 2025-03-25 2025-04-22 2025-05-27"),
-        (set(1, P::LastWeekday, "2025-01-10", W::None), "2025-01-31 2025-02-28 2025-03-28 2025-04-25 2025-05-30"),
-        (set(1, P::Month, "2025-03-01", W::Back), "2025-04-01 2025-05-01 2025-05-30 2025-07-01"),
-        (set(1, P::Month, "2025-03-01", W::Forward), "2025-03-03 2025-04-01 2025-05-01 2025-06-02"),
-        (set(2, P::Week, "2025-01-01", W::None), "2025-01-01 2025-01-15 2025-01-29 2025-02-12"),
+        (
+            set(2, P::Month, "2025-01-31", W::None),
+            "2025-01-31 2025-03-31 2025-05-31 2025-07-31 2025-09-30 2025-11-30 2026-01-31",
+        ),
+        (
+            set(1, P::EndOfMonth, "2025-01-15", W::None),
+            "2025-01-31 2025-02-28 2025-03-31 2025-04-30",
+        ),
+        (
+            set(1, P::NthWeekday, "2025-01-08", W::None),
+            "2025-01-08 2025-02-12 2025-03-12 2025-04-09 2025-05-14",
+        ),
+        (
+            set(1, P::NthWeekday, "2025-01-29", W::None),
+            "2025-01-29 2025-02-26 2025-03-26 2025-04-30 2025-05-28",
+        ),
+        (
+            set(1, P::NthWeekday, "2025-01-28", W::None),
+            "2025-01-28 2025-02-25 2025-03-25 2025-04-22 2025-05-27",
+        ),
+        (
+            set(1, P::LastWeekday, "2025-01-10", W::None),
+            "2025-01-31 2025-02-28 2025-03-28 2025-04-25 2025-05-30",
+        ),
+        (
+            set(1, P::Month, "2025-03-01", W::Back),
+            "2025-04-01 2025-05-01 2025-05-30 2025-07-01",
+        ),
+        (
+            set(1, P::Month, "2025-03-01", W::Forward),
+            "2025-03-03 2025-04-01 2025-05-01 2025-06-02",
+        ),
+        (
+            set(2, P::Week, "2025-01-01", W::None),
+            "2025-01-01 2025-01-15 2025-01-29 2025-02-12",
+        ),
         (set(3, P::Day, "2025-01-30", W::None), "2025-01-30 2025-02-02 2025-02-05"),
         (set(0, P::Once, "2025-03-15", W::None), "2025-03-15"),
     ];
-    cases.iter().for_each(|(r, expected)| assert_eq!(first(*r, 20)[..dates(expected).len()], dates(expected), "{r:?}"));
+    cases
+        .iter()
+        .for_each(|(r, expected)| assert_eq!(first(*r, 20)[..dates(expected).len()], dates(expected), "{r:?}"));
     assert_eq!(first(set(0, P::Once, "2025-03-15", W::None), 20).len(), 1);
     let eom_back = first(set(1, P::EndOfMonth, "2025-01-31", W::Back), 8);
     assert_eq!(eom_back[4..8], dates("2025-05-30 2025-06-30 2025-07-31 2025-08-29"));
@@ -243,11 +302,23 @@ fn worked_sequences() {
 #[test]
 fn stored_fields_are_not_normalised() {
     let raw = |mult, pt, start, wadj| Recurrence::new(mult, pt, d(start), wadj).unwrap();
-    assert_eq!(first(raw(1, P::EndOfMonth, "2025-01-15", W::None), 3), dates("2025-01-15 2025-01-31 2025-02-28"));
+    assert_eq!(
+        first(raw(1, P::EndOfMonth, "2025-01-15", W::None), 3),
+        dates("2025-01-15 2025-01-31 2025-02-28")
+    );
     assert_eq!(first(raw(1, P::NthWeekday, "2025-01-29", W::None), 4)[3], "2025-04-23");
-    assert_eq!(first(raw(1, P::LastWeekday, "2025-01-10", W::None), 4), dates("2025-01-10 2025-01-17 2025-02-14 2025-03-14"));
-    assert_eq!(first(raw(1, P::Week, "2025-03-01", W::Back), 3), first(raw(1, P::Week, "2025-03-01", W::None), 3));
-    assert_eq!(raw(1, P::Month, "2025-01-15", W::None).next_instance(d("2025-06-20")), Ok(Some(d("2025-07-15"))));
+    assert_eq!(
+        first(raw(1, P::LastWeekday, "2025-01-10", W::None), 4),
+        dates("2025-01-10 2025-01-17 2025-02-14 2025-03-14")
+    );
+    assert_eq!(
+        first(raw(1, P::Week, "2025-03-01", W::Back), 3),
+        first(raw(1, P::Week, "2025-03-01", W::None), 3)
+    );
+    assert_eq!(
+        raw(1, P::Month, "2025-01-15", W::None).next_instance(d("2025-06-20")),
+        Ok(Some(d("2025-07-15")))
+    );
 }
 
 #[test]
@@ -258,11 +329,26 @@ fn normalisation_follows_recurrence_set() {
     };
     assert_eq!(set(0, P::Month, "2025-01-15", W::Back), (1, P::Month, "2025-01-15".into(), W::Back));
     assert_eq!(set(5, P::Once, "2025-01-15", W::Back), (0, P::Once, "2025-01-15".into(), W::None));
-    assert_eq!(set(1, P::EndOfMonth, "2024-02-10", W::Forward), (1, P::EndOfMonth, "2024-02-29".into(), W::Forward));
-    assert_eq!(set(1, P::LastWeekday, "2025-01-03", W::Back), (1, P::LastWeekday, "2025-01-31".into(), W::None));
-    assert_eq!(set(1, P::NthWeekday, "2025-01-29", W::None), (1, P::LastWeekday, "2025-01-29".into(), W::None));
-    assert_eq!(set(1, P::NthWeekday, "2025-01-28", W::None), (1, P::NthWeekday, "2025-01-28".into(), W::None));
-    assert_eq!(set(2, P::Week, "2025-01-04", W::Forward), (2, P::Week, "2025-01-04".into(), W::None));
+    assert_eq!(
+        set(1, P::EndOfMonth, "2024-02-10", W::Forward),
+        (1, P::EndOfMonth, "2024-02-29".into(), W::Forward)
+    );
+    assert_eq!(
+        set(1, P::LastWeekday, "2025-01-03", W::Back),
+        (1, P::LastWeekday, "2025-01-31".into(), W::None)
+    );
+    assert_eq!(
+        set(1, P::NthWeekday, "2025-01-29", W::None),
+        (1, P::LastWeekday, "2025-01-29".into(), W::None)
+    );
+    assert_eq!(
+        set(1, P::NthWeekday, "2025-01-28", W::None),
+        (1, P::NthWeekday, "2025-01-28".into(), W::None)
+    );
+    assert_eq!(
+        set(2, P::Week, "2025-01-04", W::Forward),
+        (2, P::Week, "2025-01-04".into(), W::None)
+    );
 }
 
 /// `design/notes/engine-budgets.md` §1.4: periods 0-2 as (first day, last day), in UTC.
@@ -291,10 +377,19 @@ fn budget_periods() {
     assert_eq!(periods(1, P::Month, "2024-03-02", W::Back), dates(back));
     let forward = "2024-03-02..2024-03-03 2024-03-04..2024-04-01 2024-04-02..2024-05-01";
     assert_eq!(periods(1, P::Month, "2024-03-02", W::Forward), dates(forward));
-    let b = Recurrence::normalised(1, P::Month, d("2024-01-31"), W::None).period_bounds(0, &utc).unwrap().unwrap();
-    assert_eq!((b.start.to_file_string(), b.end.to_file_string()), ("2024-01-31 00:00:00 +0000".into(), "2024-02-28 23:59:59 +0000".into()));
+    let b = Recurrence::normalised(1, P::Month, d("2024-01-31"), W::None)
+        .period_bounds(0, &utc)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (b.start.to_file_string(), b.end.to_file_string()),
+        ("2024-01-31 00:00:00 +0000".into(), "2024-02-28 23:59:59 +0000".into())
+    );
     let once = Recurrence::normalised(0, P::Once, d("2024-01-31"), W::None);
-    assert_eq!((once.nth_instance(0), once.nth_instance(3), once.period_bounds(0, &utc)), (Ok(Some(d("2024-01-31"))), Ok(None), Ok(None)));
+    assert_eq!(
+        (once.nth_instance(0), once.nth_instance(3), once.period_bounds(0, &utc)),
+        (Ok(Some(d("2024-01-31"))), Ok(None), Ok(None))
+    );
 }
 
 #[test]
@@ -316,7 +411,10 @@ fn dates_outside_gdate_are_errors() {
     let last = dmy(31, 12, 65535);
     assert_eq!(r.next_instance(last), Err(RecurrenceError::OutOfRange(dmy(31, 1, 65536))));
     let ancient = Recurrence::new(1, P::Day, Date::from_ymd(0, 6, 1).unwrap(), W::None).unwrap();
-    assert!(matches!(ancient.next_instance(d("2024-01-01")), Err(RecurrenceError::OutOfRange(_))));
+    assert!(matches!(
+        ancient.next_instance(d("2024-01-01")),
+        Err(RecurrenceError::OutOfRange(_))
+    ));
     let big = Recurrence::new(u16::MAX, P::Year, dmy(1, 1, 2000), W::None).unwrap();
     assert!(matches!(big.next_instance(dmy(1, 1, 2000)), Err(RecurrenceError::OutOfRange(_))));
 }

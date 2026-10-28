@@ -52,7 +52,10 @@ impl Built {
     /// `cents` from `from` to `to`, posted at `at` (seconds into the UTC day `d`).
     fn post(&mut self, currency: &str, to: Guid, from: Guid, cents: i64, d: Date, at: i64) {
         let mut t = NewTransaction::new(CommodityRef::currency(currency), d);
-        t.splits = vec![NewSplit::new(to, Numeric::new(cents, 100)), NewSplit::new(from, Numeric::new(-cents, 100))];
+        t.splits = vec![
+            NewSplit::new(to, Numeric::new(cents, 100)),
+            NewSplit::new(from, Numeric::new(-cents, 100)),
+        ];
         let g = add_transaction(&mut self.book, &mut self.env, t).unwrap();
         let posted = TimeZone::utc().day_start(d).0 + at;
         Arc::make_mut(self.book.transactions.get_mut(&g).unwrap()).date_posted = Time64(posted);
@@ -260,14 +263,22 @@ fn budget_and_callback_options() {
     let template = reg.find(GUID).unwrap();
     let db = reg.options(template, &host.ctx()).unwrap();
     let types: Vec<(String, String)> = db.describe().into_iter().skip(3).map(|i| (i.name, i.option_type)).collect();
-    let want = [("Budget", "budget"), ("Report for range of budget periods", "boolean"), ("Range start", "multichoice")];
+    let want = [
+        ("Budget", "budget"),
+        ("Report for range of budget periods", "boolean"),
+        ("Range start", "multichoice"),
+    ];
     assert_eq!(types, want.map(|(n, t)| (n.to_owned(), t.to_owned())));
     assert_eq!(host.run(&reg, GUID, &json!({})).unwrap().title, "Plan false current");
     let other = book(false).budgets.keys().nth(1).copied().unwrap();
     let options = json!({ "General": { "Budget": other.to_string(), "Range start": "first" } });
     assert_eq!(host.run(&reg, GUID, &options).unwrap().title, "Other false first");
     let unknown = json!({ "General": { "Budget": "00000000000000000000000000000001" } });
-    assert_eq!(host.run(&reg, GUID, &unknown).unwrap().title, "none false current", "a deleted budget reads as none");
+    assert_eq!(
+        host.run(&reg, GUID, &unknown).unwrap().title,
+        "none false current",
+        "a deleted budget reads as none"
+    );
     let empty = Host::new(common::empty_book());
     assert_eq!(empty.run(&reg, GUID, &json!({})).unwrap().title, "none false current");
 

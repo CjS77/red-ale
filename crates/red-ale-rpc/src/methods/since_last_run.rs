@@ -34,7 +34,12 @@ pub fn methods() -> Vec<Method> {
             Effect::Write,
             apply,
         ),
-        method("scheduledTransaction.discard", "Drop a held Since Last Run proposal.", Effect::Read, discard),
+        method(
+            "scheduledTransaction.discard",
+            "Drop a held Since Last Run proposal.",
+            Effect::Read,
+            discard,
+        ),
     ]
 }
 
@@ -286,7 +291,10 @@ impl InstanceWire {
                 .collect(),
             read_only_by_date: i.read_only_by_date,
             errors: i.errors.iter().cloned().map(|e| InstanceError::from(RpcError::from(e))).collect(),
-            transactions: i.transactions.as_ref().map(|ts| ts.iter().map(|t| TransactionPreview::new(book, t)).collect()),
+            transactions: i
+                .transactions
+                .as_ref()
+                .map(|ts| ts.iter().map(|t| TransactionPreview::new(book, t)).collect()),
         }
     }
 }
@@ -425,7 +433,10 @@ impl RunApplied {
             .iter()
             .map(|s| RunWarning {
                 code: "imbalance",
-                message: format!("instance {}: transaction {} was balanced with an Imbalance split of {}", s.index, s.transaction.0, s.value.0),
+                message: format!(
+                    "instance {}: transaction {} was balanced with an Imbalance split of {}",
+                    s.index, s.transaction.0, s.value.0
+                ),
                 index: s.index,
             })
             .chain(a.created.iter().filter(|c| c.read_only_by_date).map(|c| RunWarning {

@@ -105,7 +105,10 @@ pub fn one_transaction_save(path: &Path) -> (String, BTreeMap<String, ChangedRow
     });
     let mut d = dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-    let posted = call(&mut d, "transaction.post", &posting())["guid"].as_str().map(str::to_owned).unwrap_or_default();
+    let posted = call(&mut d, "transaction.post", &posting())["guid"]
+        .as_str()
+        .map(str::to_owned)
+        .unwrap_or_default();
     call(&mut d, "book.save", &json!({}));
     call(&mut d, "book.close", &json!({ "save": false }));
     (posted, changed_rows(&before, &book.path))

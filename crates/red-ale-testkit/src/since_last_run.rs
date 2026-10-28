@@ -92,19 +92,27 @@ pub fn run(path: &Path, heap: Option<&dyn HeapCounter>) -> Run {
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
     let at_rest = held(heap, base);
     let before = transactions(&mut d);
-    let ((proposal, propose), peak_propose) = step(heap, base, || timed(|| call(&mut d, "scheduledTransaction.sinceLastRun", &json!({}))));
-    let to_create = proposal["summary"]["toCreate"].as_u64().map_or(0, |n| usize::try_from(n).unwrap_or(0));
+    let ((proposal, propose), peak_propose) = step(heap, base, || {
+        timed(|| call(&mut d, "scheduledTransaction.sinceLastRun", &json!({})))
+    });
+    let to_create = proposal["summary"]["toCreate"]
+        .as_u64()
+        .map_or(0, |n| usize::try_from(n).unwrap_or(0));
     let params = json!({ "proposal": proposal["id"], "choices": [] });
     let first_revision = proposal["bookRevision"].as_u64().unwrap_or(u64::MAX);
     drop(proposal);
     let ((applied, apply), peak_apply) = step(heap, base, || timed(|| call(&mut d, "scheduledTransaction.apply", &params)));
-    let created = applied["created"].as_array().map_or(0, |c| c.iter().map(|i| i["transactions"].as_array().map_or(0, Vec::len)).sum());
+    let created = applied["created"]
+        .as_array()
+        .map_or(0, |c| c.iter().map(|i| i["transactions"].as_array().map_or(0, Vec::len)).sum());
     drop(applied);
     let after_apply = held(heap, base);
     let after = transactions(&mut d);
     let journal = call(&mut d, "book.info", &json!({}))["journal"].as_str().map(str::to_owned);
     let (journal_records, journal_transactions) = journal.map_or((0, 0), |p| journal_counts(Path::new(&p)));
-    let second_revision = call(&mut d, "scheduledTransaction.sinceLastRun", &json!({}))["bookRevision"].as_u64().unwrap_or(u64::MAX);
+    let second_revision = call(&mut d, "scheduledTransaction.sinceLastRun", &json!({}))["bookRevision"]
+        .as_u64()
+        .unwrap_or(u64::MAX);
     let ((_, save), peak_save) = step(heap, base, || timed(|| call(&mut d, "book.save", &json!({}))));
     call(&mut d, "book.close", &json!({ "save": false }));
     Run {

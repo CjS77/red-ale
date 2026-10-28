@@ -77,7 +77,12 @@ pub struct FromTransaction {
 /// account and its value as a formula: a positive value as the debit formula, any other as the credit formula of its
 /// negation, written as [`formula_number`] writes it with at least the currency's decimal places. The transaction is
 /// not changed. The checks of [`create`] apply.
-pub fn from_transaction(book: &mut Book, env: &mut dyn Env, request: FromTransaction, format: NumberFormat) -> Result<Edited, ScheduledError> {
+pub fn from_transaction(
+    book: &mut Book,
+    env: &mut dyn Env,
+    request: FromTransaction,
+    format: NumberFormat,
+) -> Result<Edited, ScheduledError> {
     let t = book
         .transaction(request.transaction)
         .ok_or_else(|| DomainError::not_found("transaction", &request.transaction))?;
@@ -92,7 +97,11 @@ pub fn from_transaction(book: &mut Book, env: &mut dyn Env, request: FromTransac
         num: t.num.clone(),
         notes: t.notes().map(str::to_owned),
         currency: Some(t.currency.clone()),
-        splits: t.splits.iter().map(|s| template_split(s, places, format)).collect::<Result<_, _>>()?,
+        splits: t
+            .splits
+            .iter()
+            .map(|s| template_split(s, places, format))
+            .collect::<Result<_, _>>()?,
     };
     let fields = Fields {
         name: Some(request.name.unwrap_or_else(|| t.description.clone().unwrap_or_default())),

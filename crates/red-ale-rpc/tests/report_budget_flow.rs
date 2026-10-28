@@ -111,9 +111,14 @@ fn a_single_period() {
         (&json!("account"), &json!(BANK), &json!(BANK))
     );
     let html = s.export(TEMPLATE, &json!({}));
-    ["Budget Flow: test budget - 2024-03-01", "Root:Asset:Bank", "-$35.00", "Trading Accounts"]
-        .iter()
-        .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
+    [
+        "Budget Flow: test budget - 2024-03-01",
+        "Root:Asset:Bank",
+        "-$35.00",
+        "Trading Accounts",
+    ]
+    .iter()
+    .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
 }
 
 /// Budgeted against actual in periods 2 and 3, as the user counts them (`(1- period)`, BF:131-136). Period 2: Bank's
@@ -189,14 +194,29 @@ fn plan_book() -> Setup {
     ]
     .iter()
     .for_each(|(name, kind, parent, commodity)| s.account(name, kind, *parent, commodity));
-    [("2024-01-20", "1.10"), ("2024-02-25", "1.30"), ("2024-06-01", "1.50")].iter().for_each(|(date, value)| {
-        let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": value, "date": date });
-        s.call("price.add", price);
-    });
+    [("2024-01-20", "1.10"), ("2024-02-25", "1.30"), ("2024-06-01", "1.50")]
+        .iter()
+        .for_each(|(date, value)| {
+            let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": value, "date": date });
+            s.call("price.add", price);
+        });
     let recurrence = json!({ "mult": 1, "periodType": "month", "start": "2024-01-01" });
-    let budget = s.call("budget.create", json!({ "name": "Plan", "numPeriods": 3, "recurrence": recurrence }))["guid"].clone();
-    let cells = [("Savings", "50"), ("Salary", "-400"), ("Consulting", "-100"), ("Expenses", "999"), ("Expenses:Food", "150")];
-    let amounts: Vec<Value> = cells.iter().map(|(a, v)| json!({ "account": a, "period": 0, "amount": v })).collect();
+    let budget = s.call(
+        "budget.create",
+        json!({ "name": "Plan", "numPeriods": 3, "recurrence": recurrence }),
+    )["guid"]
+        .clone();
+    let cells = [
+        ("Savings", "50"),
+        ("Salary", "-400"),
+        ("Consulting", "-100"),
+        ("Expenses", "999"),
+        ("Expenses:Food", "150"),
+    ];
+    let amounts: Vec<Value> = cells
+        .iter()
+        .map(|(a, v)| json!({ "account": a, "period": 0, "amount": v }))
+        .collect();
     s.call("budget.setAmounts", json!({ "budget": budget, "amounts": amounts }));
     s.transfer("2024-01-15", "Salary", "Salary", "Checking", "400");
     s.transfer("2024-01-16", "Food", "Checking", "Expenses:Food", "120");
@@ -260,7 +280,10 @@ fn selected_accounts() {
     let mut s = plan_book();
     let shown = rows(&s.run(TEMPLATE, &json!({ "Accounts": { "Account": ["Expenses", "Expenses:Food"] } })));
     assert_eq!(shown[..3], ["Total: | $0.00 | $0.00", "---", "Total: | $0.00 | $0.00"]);
-    assert_eq!(shown.iter().filter(|r| r.contains("Food")).collect::<Vec<_>>(), ["Expenses:Food | $150.00 | $120.00"]);
+    assert_eq!(
+        shown.iter().filter(|r| r.contains("Food")).collect::<Vec<_>>(),
+        ["Expenses:Food | $150.00 | $120.00"]
+    );
     assert_eq!(shown.last().unwrap(), "Total: | $150.00 | $120.00");
 }
 
@@ -275,7 +298,9 @@ fn warnings_and_a_fractional_period() {
     assert_eq!(blocks(&result)[0]["title"], "No accounts selected");
 
     let mut s = fixture();
-    let err = s.d.call("report.run", json!({ "report": TEMPLATE, "options": period(json!("1.5")) })).unwrap_err();
+    let err =
+        s.d.call("report.run", json!({ "report": TEMPLATE, "options": period(json!("1.5")) }))
+            .unwrap_err();
     assert_eq!(err.code, red_ale_rpc::codes::REPORT_SCRIPT);
 
     let mut s = Setup::fixture("test-data.gnucash", &test_settings("iso"));

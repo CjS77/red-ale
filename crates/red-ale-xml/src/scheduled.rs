@@ -89,7 +89,11 @@ pub fn parse_scheduled(el: &Element, notices: &mut Notices) -> Result<ScheduledT
             .filter(|c| c.name == "sx:deferredInstance")
             .map(|d| parse_deferred(d, notices))
             .collect::<Result<_, _>>()?,
-        slots: el.find("sx:slots").map(|s| parse_slots(s, notices)).transpose()?.unwrap_or_default(),
+        slots: el
+            .find("sx:slots")
+            .map(|s| parse_slots(s, notices))
+            .transpose()?
+            .unwrap_or_default(),
         name,
     })
 }
@@ -152,7 +156,9 @@ pub fn scheduled_el(sx: &ScheduledTransaction) -> Element {
         .child(gdate_el("sx:start", sx.start))
         .child_opt(sx.last.map(|d| gdate_el("sx:last", d)));
     limit.into_iter().for_each(|c| el.push(c));
-    el = el.child_opt(sx.template_account.map(|g| guid_el("sx:templ-acct", g))).child(schedule);
+    el = el
+        .child_opt(sx.template_account.map(|g| guid_el("sx:templ-acct", g)))
+        .child(schedule);
     sx.deferred.iter().for_each(|d| el.push(deferred_el(d)));
     el.child_opt(slots_el("sx:slots", &sx.slots))
 }
@@ -200,7 +206,9 @@ pub fn parse_template_account(el: &Element, root: &mut Option<Guid>, notices: &m
         }
         (None, _) => match *root {
             Some(r) => account.parent = Some(r),
-            None => notices.unrecognised.push(format!("template account {guid} has no parent and no template root")),
+            None => notices
+                .unrecognised
+                .push(format!("template account {guid} has no parent and no template root")),
         },
     }
     Ok(account)
@@ -298,7 +306,17 @@ LIMIT
             remaining: 9,
             instance_count: 4,
         };
-        assert_eq!(sx.deferred, [deferred, DeferredInstance { last: None, remaining: 8, instance_count: 5 }]);
+        assert_eq!(
+            sx.deferred,
+            [
+                deferred,
+                DeferredInstance {
+                    last: None,
+                    remaining: 8,
+                    instance_count: 5
+                }
+            ]
+        );
         assert_eq!(sx.slots.get_key("note"), Some(&SlotValue::String("kept".into())));
         let sx = regenerates(&SX.replace("LIMIT", END));
         assert_eq!((sx.end, sx.occurrences), (Date::from_ymd(2025, 1, 31), None));
@@ -309,7 +327,9 @@ LIMIT
         let schedule_start = SX.find("  <sx:schedule>").unwrap();
         let schedule_end = SX.find("  <sx:deferredInstance>").unwrap();
         let bare = format!("{}  <sx:schedule/>\n{}", &SX[..schedule_start], &SX[schedule_end..]);
-        let bare = bare.replace("LIMIT\n", "").replace("  <sx:last>\n    <gdate>2024-05-31</gdate>\n  </sx:last>\n", "");
+        let bare = bare
+            .replace("LIMIT\n", "")
+            .replace("  <sx:last>\n    <gdate>2024-05-31</gdate>\n  </sx:last>\n", "");
         let deferred = bare.find("  <sx:deferredInstance>").unwrap();
         let bare = format!("{}</gnc:schedxaction>", &bare[..deferred]).replace("<sx:name>Rent &amp; rates", "<sx:name>");
         let sx = regenerates(&bare);
@@ -322,26 +342,35 @@ LIMIT
         let (sx, _) = read(&SX.replace("LIMIT", &format!("{COUNT}\n{END}")));
         assert_eq!(sx.end, Date::from_ymd(2025, 1, 31));
         assert_eq!(sx.occurrences, Some(Occurrences { total: 12, remaining: 7 }));
-        assert_eq!(scheduled_el(&sx).dump(0), SX.replace("LIMIT", COUNT), "GnuCash writes only the count");
+        assert_eq!(
+            scheduled_el(&sx).dump(0),
+            SX.replace("LIMIT", COUNT),
+            "GnuCash writes only the count"
+        );
     }
 
     #[test]
     fn a_legacy_frequency_spec_is_reported_and_unknown_children_too() {
-        let freqspec = SX
-            .replace("LIMIT", END)
-            .replace("version=\"2.0.0\"", "version=\"1.0.0\"")
-            .replacen("  <sx:schedule>", "  <sx:freqspec>\n    <gnc:freqspec version=\"1.0.0\"/>\n  </sx:freqspec>\n  <sx:schedule>", 1);
+        let freqspec = SX.replace("LIMIT", END).replace("version=\"2.0.0\"", "version=\"1.0.0\"").replacen(
+            "  <sx:schedule>",
+            "  <sx:freqspec>\n    <gnc:freqspec version=\"1.0.0\"/>\n  </sx:freqspec>\n  <sx:schedule>",
+            1,
+        );
         let (sx, notices) = read(&freqspec);
         assert_eq!(notices.unrecognised.len(), 1);
         assert!(notices.unrecognised[0].contains("legacy frequency spec"), "{notices:?}");
         assert_ne!(scheduled_el(&sx).dump(0), freqspec);
-        let extra = SX.replace("LIMIT", END).replacen("  <sx:slots>", "  <sx:colour>red</sx:colour>\n  <sx:slots>", 1);
+        let extra = SX
+            .replace("LIMIT", END)
+            .replacen("  <sx:slots>", "  <sx:colour>red</sx:colour>\n  <sx:slots>", 1);
         assert_eq!(read(&extra).1.unrecognised, ["unknown element sx:colour in gnc:schedxaction"]);
     }
 
     #[test]
     fn out_of_range_counts_are_refused() {
-        let text = SX.replace("LIMIT", END).replace("<sx:instanceCount>7", "<sx:instanceCount>2147483648");
+        let text = SX
+            .replace("LIMIT", END)
+            .replace("<sx:instanceCount>7", "<sx:instanceCount>2147483648");
         let error = parse_scheduled(&parse_document(&text).unwrap(), &mut Notices::default()).unwrap_err();
         assert!(error.to_string().contains("out of range"), "{error}");
     }
@@ -410,7 +439,10 @@ LIMIT
         assert_eq!(transaction_el(&t).dump(0), FORMULA_TRANSACTION);
         let split = red_ale_core::TemplateSplit::of(&t.splits[0]).unwrap();
         assert_eq!(split.debit_formula(), Some("ipmt( rate / 12 : i : 360 : -principal : 0 : 0 )"));
-        assert_eq!((split.credit_formula(), split.debit_numeric()), (Some(""), Some(Numeric::new(0, 1))));
+        assert_eq!(
+            (split.credit_formula(), split.debit_numeric()),
+            (Some(""), Some(Numeric::new(0, 1)))
+        );
         assert_eq!(split.shares(), Some("(x + y)/42"));
         assert!(t.splits[0].value.same_repr(Numeric::new(0, 100)) && t.splits[0].amount.same_repr(Numeric::new(0, 1)));
     }
@@ -424,7 +456,9 @@ LIMIT
         } else {
             ""
         };
-        let parent = parent.map(|p| format!("  <act:parent type=\"guid\">{p}</act:parent>\n")).unwrap_or_default();
+        let parent = parent
+            .map(|p| format!("  <act:parent type=\"guid\">{p}</act:parent>\n"))
+            .unwrap_or_default();
         let guid = format!("{name:0>32}");
         let head = format!("<gnc:account version=\"2.0.0\">\n  <act:name>{name}</act:name>\n  <act:id type=\"guid\">{guid}</act:id>\n");
         format!("{head}  <act:type>{account_type}</act:type>\n{commodity}{parent}</gnc:account>")
@@ -444,7 +478,10 @@ LIMIT
         let child = read(&bare, &mut root);
         assert_eq!(child.parent, Some(r.guid), "a parentless account goes under the template root");
         assert_eq!(child.commodity, Some(CommodityRef::new("template", "template")));
-        assert_eq!(account_el(&child, &[]).dump(0), template_account("c3", "BANK", Some(&r.guid.to_string()), true));
+        assert_eq!(
+            account_el(&child, &[]).dump(0),
+            template_account("c3", "BANK", Some(&r.guid.to_string()), true)
+        );
         read(&template_account("d4", "ROOT", None, true), &mut root);
         assert_eq!(notices.unrecognised.len(), 2, "{notices:?}");
         assert!(notices.unrecognised[0].contains("no parent and no template root"));

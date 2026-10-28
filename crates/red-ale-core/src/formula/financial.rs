@@ -89,7 +89,9 @@ fn pmt(a: &[Exact]) -> Result<Exact, FunctionError> {
 
 /// `gnc:ipmt` (`fin.scm:34-39`): `rate · principal(pv, calc-pmt, rate, min(per, nper) - 1)`.
 fn ipmt(a: &[Exact]) -> Result<Exact, FunctionError> {
-    let [rate, per, nper, pv, fv, kind] = a else { return Err(FunctionError::Arity(6)) };
+    let [rate, per, nper, pv, fv, kind] = a else {
+        return Err(FunctionError::Arity(6));
+    };
     interest(rate, per, nper, pv, &calc_pmt(rate, nper, pv, fv, kind)?)
 }
 
@@ -102,21 +104,27 @@ fn interest(rate: &Exact, per: &Exact, nper: &Exact, pv: &Exact, payment: &Exact
 
 /// `gnc:ppmt` (`fin.scm:42-46`): `-(calc-pmt + ipmt)`.
 fn ppmt(a: &[Exact]) -> Result<Exact, FunctionError> {
-    let [rate, per, nper, pv, fv, kind] = a else { return Err(FunctionError::Arity(6)) };
+    let [rate, per, nper, pv, fv, kind] = a else {
+        return Err(FunctionError::Arity(6));
+    };
     let payment = calc_pmt(rate, nper, pv, fv, kind)?;
     Ok(payment.add(&interest(rate, per, nper, pv, &payment)?).neg())
 }
 
 /// `gnc:futureValue` (`fin.scm:56-64`): `a·(1 + r/n)^(n·t)`.
 fn future_value(a: &[Exact]) -> Result<Exact, FunctionError> {
-    let [amount, rate, n, t] = a else { return Err(FunctionError::Arity(4)) };
+    let [amount, rate, n, t] = a else {
+        return Err(FunctionError::Arity(4));
+    };
     let power = n.mul(t).whole("n × t")?;
     Ok(amount.mul(&Exact::int(1).add(&rate.div(n)?).pow(power)?))
 }
 
 /// `gnc:computeInterestIncrement` (`fin.scm:66-68`): `(r/c)·pv·(1 + r/c)^(period - 1)`.
 fn interest_increment(a: &[Exact]) -> Result<Exact, FunctionError> {
-    let [pv, ann_rate, compounds, period] = a else { return Err(FunctionError::Arity(4)) };
+    let [pv, ann_rate, compounds, period] = a else {
+        return Err(FunctionError::Arity(4));
+    };
     let rate = ann_rate.div(compounds)?;
     let power = period.sub(&Exact::int(1)).whole("period")?;
     Ok(rate.mul(&pv.mul(&Exact::int(1).add(&rate).pow(power)?)))
@@ -140,7 +148,10 @@ impl From<Numeric> for Exact {
     fn from(n: Numeric) -> Self {
         let (num, den) = (BigInt::from(n.num()), BigInt::from(n.denom()));
         match den.sign() {
-            Sign::Minus => Self { num: num * -den, den: BigInt::from(1) },
+            Sign::Minus => Self {
+                num: num * -den,
+                den: BigInt::from(1),
+            },
             _ => Self { num, den },
         }
     }
@@ -148,11 +159,17 @@ impl From<Numeric> for Exact {
 
 impl Exact {
     fn int(i: i64) -> Self {
-        Self { num: BigInt::from(i), den: BigInt::from(1) }
+        Self {
+            num: BigInt::from(i),
+            den: BigInt::from(1),
+        }
     }
 
     fn add(&self, o: &Self) -> Self {
-        Self { num: &self.num * &o.den + &o.num * &self.den, den: &self.den * &o.den }
+        Self {
+            num: &self.num * &o.den + &o.num * &self.den,
+            den: &self.den * &o.den,
+        }
     }
 
     fn sub(&self, o: &Self) -> Self {
@@ -160,18 +177,30 @@ impl Exact {
     }
 
     fn mul(&self, o: &Self) -> Self {
-        Self { num: &self.num * &o.num, den: &self.den * &o.den }
+        Self {
+            num: &self.num * &o.num,
+            den: &self.den * &o.den,
+        }
     }
 
     fn neg(&self) -> Self {
-        Self { num: -&self.num, den: self.den.clone() }
+        Self {
+            num: -&self.num,
+            den: self.den.clone(),
+        }
     }
 
     fn div(&self, o: &Self) -> Result<Self, FunctionError> {
         match o.num.sign() {
             Sign::NoSign => Err(FunctionError::DivisionByZero),
-            Sign::Plus => Ok(Self { num: &self.num * &o.den, den: &self.den * &o.num }),
-            Sign::Minus => Ok(Self { num: -(&self.num * &o.den), den: -(&self.den * &o.num) }),
+            Sign::Plus => Ok(Self {
+                num: &self.num * &o.den,
+                den: &self.den * &o.num,
+            }),
+            Sign::Minus => Ok(Self {
+                num: -(&self.num * &o.den),
+                den: -(&self.den * &o.num),
+            }),
         }
     }
 
@@ -182,7 +211,10 @@ impl Exact {
     /// `self^e` for a whole `e`, refusing a result past a double's range, where GnuCash's infinity fails.
     fn pow(&self, e: i64) -> Result<Self, FunctionError> {
         let n = u32::try_from(e.unsigned_abs()).map_err(|_| FunctionError::TooLarge("the power"))?;
-        let x = Self { num: self.num.pow(n), den: self.den.pow(n) };
+        let x = Self {
+            num: self.num.pow(n),
+            den: self.den.pow(n),
+        };
         let x = if e < 0 { Self::int(1).div(&x)? } else { x };
         if x.num.bits() > x.den.bits() + 1024 {
             return Err(FunctionError::Range);
@@ -196,13 +228,20 @@ impl Exact {
         if r.sign() != Sign::NoSign {
             return Err(FunctionError::NotWhole(what));
         }
-        i64::try_from(q).ok().filter(|q| q.abs() <= MAX_POWER).ok_or(FunctionError::TooLarge(what))
+        i64::try_from(q)
+            .ok()
+            .filter(|q| q.abs() <= MAX_POWER)
+            .ok_or(FunctionError::TooLarge(what))
     }
 
     /// `floor(self)`.
     fn floor(&self) -> BigInt {
         let q = &self.num / &self.den;
-        if self.num.sign() == Sign::Minus && &q * &self.den != self.num { q - 1 } else { q }
+        if self.num.sign() == Sign::Minus && &q * &self.den != self.num {
+            q - 1
+        } else {
+            q
+        }
     }
 
     /// The Numeric GnuCash makes of the result: `GncNumeric(double)` takes `floor(d·10^k) / 10^k` with the largest
@@ -214,8 +253,14 @@ impl Exact {
             return Err(FunctionError::Range);
         }
         let limit = BigInt::from(i64::MAX) * &self.den;
-        let k = (1..=18_u32).rev().find(|k| (&self.num * ten.pow(*k)).magnitude() <= limit.magnitude()).unwrap_or(1);
-        let scaled = Self { num: &self.num * ten.pow(k), den: self.den.clone() };
+        let k = (1..=18_u32)
+            .rev()
+            .find(|k| (&self.num * ten.pow(*k)).magnitude() <= limit.magnitude())
+            .unwrap_or(1);
+        let scaled = Self {
+            num: &self.num * ten.pow(k),
+            den: self.den.clone(),
+        };
         let num = i64::try_from(scaled.floor()).map_err(|_| FunctionError::Range)?;
         let den = 10_i64.pow(k);
         Numeric::new(num, den)

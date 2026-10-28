@@ -84,7 +84,9 @@ pub fn estimate(book: &mut Book, guid: Guid, e: &Estimate, zone: &TimeZone) -> D
         return Err(DomainError::invalid("You must select at least one account to estimate."));
     }
     if !(1..=MAX_SIGNIFICANT_DIGITS).contains(&e.significant_digits) {
-        return Err(DomainError::invalid(format!("significant digits are 1 to {MAX_SIGNIFICANT_DIGITS}")));
+        return Err(DomainError::invalid(format!(
+            "significant digits are 1 to {MAX_SIGNIFICANT_DIGITS}"
+        )));
     }
     e.accounts.iter().try_for_each(|a| check_account(book, *a))?;
     let budget = get(book, guid)?;
@@ -110,7 +112,15 @@ pub fn estimate(book: &mut Book, guid: Guid, e: &Estimate, zone: &TimeZone) -> D
 
 fn estimate_account(book: &Book, account: Guid, bounds: &[PeriodBounds], average: bool, how: How) -> DomainResult<Vec<(Cell, Numeric)>> {
     let change = |from, to| balance_change(book, account, from, to, Total::Noclosing, true);
-    let cell = |period: usize, n| (Cell { account, period: u32::try_from(period).unwrap_or(u32::MAX) }, n);
+    let cell = |period: usize, n| {
+        (
+            Cell {
+                account,
+                period: u32::try_from(period).unwrap_or(u32::MAX),
+            },
+            n,
+        )
+    };
     match (average, bounds.first(), bounds.last()) {
         (true, Some(first), Some(last)) => {
             let count = i64::try_from(bounds.len()).map_err(|_| crate::NumericError::Overflow)?;

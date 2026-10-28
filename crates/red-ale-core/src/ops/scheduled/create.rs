@@ -10,8 +10,8 @@ use crate::formula::{NumberFormat, Variables, evaluate};
 use crate::ops::commit::{commodity_fraction, currency_fraction, set_date_posted, set_notes, sort_splits};
 use crate::ops::scrub::{Repair, Scope, scrub_imbalance};
 use crate::{
-    Account, Book, CommodityRef, Date, DomainError, Env, Frame, Guid, How, Numeric, ReconcileState, Round, ScheduledTransaction, SlotValue, Split, Time64,
-    Transaction,
+    Account, Book, CommodityRef, Date, DomainError, Env, Frame, Guid, How, Numeric, ReconcileState, Round, ScheduledTransaction, SlotValue,
+    Split, Time64, Transaction,
 };
 
 /// The Slot of a created transaction holding the GUID of the scheduled transaction it came from (`GNC_SX_FROM`,
@@ -107,7 +107,10 @@ fn build_transaction(
 ) -> Result<BuiltTransaction, ScheduledError> {
     let currency = transaction_currency(book, sx, t)?;
     if !currency.is_currency() {
-        let message = format!("scheduled transaction {} would create a transaction in {currency}, which is not a currency", sx.name);
+        let message = format!(
+            "scheduled transaction {} would create a transaction in {currency}, which is not a currency",
+            sx.name
+        );
         return Err(ScheduledError::refused(Refusal::NotACurrency, Vec::new(), message));
     }
     let fraction = currency_fraction(book, &currency)?;
@@ -146,7 +149,10 @@ fn build_split(
     let amount = if commodity == currency {
         amount_as_value(split.amount, value, scu.min(fraction))?.to_denom(scu, Round::HalfUp)?
     } else {
-        let rate = bindings.get(&exchange_rate_variable(commodity, currency)).copied().unwrap_or(Numeric::ONE);
+        let rate = bindings
+            .get(&exchange_rate_variable(commodity, currency))
+            .copied()
+            .unwrap_or(Numeric::ONE);
         exchanged(book, sx, split.amount, difference, rate, commodity)?.to_denom(scu, Round::HalfUp)?
     };
     Ok(BuiltSplit {
@@ -194,9 +200,12 @@ fn formula_difference(
     format: NumberFormat,
 ) -> Result<Numeric, ScheduledError> {
     let side = |wanted: Side| -> Result<Numeric, ScheduledError> {
-        formulas(split).into_iter().find(|(s, _)| *s == wanted).map_or(Ok(Numeric::ZERO), |(side, text)| {
-            evaluate(text, format, bindings).map_err(|e| ScheduledError::formula(site(sx, t, split), side, text, e))
-        })
+        formulas(split)
+            .into_iter()
+            .find(|(s, _)| *s == wanted)
+            .map_or(Ok(Numeric::ZERO), |(side, text)| {
+                evaluate(text, format, bindings).map_err(|e| ScheduledError::formula(site(sx, t, split), side, text, e))
+            })
     };
     Ok(side(Side::Debit)?.sub_fixed(side(Side::Credit)?)?)
 }
@@ -229,7 +238,10 @@ fn exchanged(
         if difference.is_zero() {
             return Ok(template);
         }
-        let message = format!("scheduled transaction {} has an exchange rate of 0 for {}", sx.name, commodity.mnemonic);
+        let message = format!(
+            "scheduled transaction {} has an exchange rate of 0 for {}",
+            sx.name, commodity.mnemonic
+        );
         return Err(ScheduledError::refused(Refusal::ZeroRate, Vec::new(), message));
     }
     let half_up = How::round(Round::HalfUp);
@@ -302,7 +314,10 @@ fn create_one(book: &mut Book, env: &mut dyn Env, scheduled: Guid, date: Date, b
         }),
         _ => None,
     });
-    Ok(Created { transaction: guid, imbalance })
+    Ok(Created {
+        transaction: guid,
+        imbalance,
+    })
 }
 
 /// Create the transactions of the instance of `scheduled` on `date` with `bindings`: [`build_instance`], then
@@ -315,7 +330,10 @@ pub fn create_instance(
     bindings: &Variables,
     format: NumberFormat,
 ) -> Result<Vec<Created>, ScheduledError> {
-    let sx = book.scheduled.get(&scheduled).ok_or_else(|| DomainError::not_found("scheduledTransaction", &scheduled))?;
+    let sx = book
+        .scheduled
+        .get(&scheduled)
+        .ok_or_else(|| DomainError::not_found("scheduledTransaction", &scheduled))?;
     let built = build_instance(book, sx, bindings, format)?;
     create_built(book, env, scheduled, date, built)
 }

@@ -53,7 +53,9 @@ pub fn build(rows: &[SlotRow], owner: &dyn Fn(Guid) -> Owner, findings: &mut Vec
         reached: BTreeSet::new(),
         findings,
     };
-    rows.iter().enumerate().for_each(|(i, r)| b.by_owner.entry(r.owner).or_default().push(i));
+    rows.iter()
+        .enumerate()
+        .for_each(|(i, r)| b.by_owner.entry(r.owner).or_default().push(i));
     b.index_containers();
     let mut built = Built::default();
     let owners: Vec<Guid> = b.by_owner.keys().copied().collect();
@@ -85,9 +87,12 @@ impl Builder<'_> {
     /// Each frame and list GUID with the row that declares it; a GUID declared twice is a finding.
     fn index_containers(&mut self) {
         for (i, row) in self.rows.iter().enumerate() {
-            let (SlotCell::Frame(g) | SlotCell::List(g)) = row.cell else { continue };
+            let (SlotCell::Frame(g) | SlotCell::List(g)) = row.cell else {
+                continue;
+            };
             if self.containers.insert(g, i).is_some() {
-                self.findings.push(format!("slots row {}: frame or list {g} is owned twice", row.rowid));
+                self.findings
+                    .push(format!("slots row {}: frame or list {g} is owned twice", row.rowid));
             }
         }
     }
@@ -174,7 +179,13 @@ mod tests {
     }
 
     fn entity(owners: &'static [u8]) -> impl Fn(Guid) -> Owner {
-        move |g| if owners.iter().any(|o| guid(*o) == g) { Owner::Entity } else { Owner::Unknown }
+        move |g| {
+            if owners.iter().any(|o| guid(*o) == g) {
+                Owner::Entity
+            } else {
+                Owner::Unknown
+            }
+        }
     }
 
     #[test]
@@ -199,7 +210,11 @@ mod tests {
         let inner: Frame = [("k".to_owned(), SlotValue::Integer(4))].into_iter().collect();
         assert_eq!(
             f.get_key("l"),
-            Some(&SlotValue::List(vec![SlotValue::Integer(3), SlotValue::Frame(inner), SlotValue::List(Vec::new())]))
+            Some(&SlotValue::List(vec![
+                SlotValue::Integer(3),
+                SlotValue::Frame(inner),
+                SlotValue::List(Vec::new())
+            ]))
         );
         assert_eq!(built.rows[&guid(1)], 8);
         assert_eq!(built.orphans, BTreeSet::from([guid(9)]));
@@ -236,7 +251,10 @@ mod tests {
 
     #[test]
     fn a_cycle_ends() {
-        let rows = [row(1, 1, "a", SlotCell::Frame(guid(10))), row(2, 10, "a/b", SlotCell::Frame(guid(10)))];
+        let rows = [
+            row(1, 1, "a", SlotCell::Frame(guid(10))),
+            row(2, 10, "a/b", SlotCell::Frame(guid(10))),
+        ];
         let mut findings = Vec::new();
         build(&rows, &entity(&[1]), &mut findings);
         assert!(findings.iter().any(|f| f.contains("owned twice")), "{findings:?}");

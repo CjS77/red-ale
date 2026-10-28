@@ -6,8 +6,7 @@
 
 use red_ale_core::business::{
     Address, AmountType, BillTerm, BillTermKind, Customer, Employee, Entry, Invoice, Job, Order, OwnerRef, PaymentType, TaxIncluded,
-    TaxTable,
-    TaxTableEntry, Vendor,
+    TaxTable, TaxTableEntry, Vendor,
 };
 use red_ale_core::{Guid, Numeric};
 
@@ -106,7 +105,14 @@ fn payment(p: PaymentType) -> Cell {
 
 /// An `entries` row.
 pub fn entry(e: &Entry) -> Vec<Cell> {
-    let mut cells = vec![guid(e.guid), time(e.date), time(e.entered), text(&e.description), text(&e.action), text(&e.notes)];
+    let mut cells = vec![
+        guid(e.guid),
+        time(e.date),
+        time(e.entered),
+        text(&e.description),
+        text(&e.action),
+        text(&e.notes),
+    ];
     cells.extend(numeric(e.quantity));
     cells.push(opt_guid(e.i_account));
     cells.extend(numeric(e.i_price));
@@ -146,7 +152,13 @@ pub fn invoice(i: &Invoice, refs: Refs<'_>) -> Vec<Cell> {
         refs.commodity(i.currency.as_ref()),
     ];
     cells.extend(owner(Some(i.owner)));
-    cells.extend([opt_guid(i.terms), text(&i.billing_id), opt_guid(i.post_txn), opt_guid(i.post_lot), opt_guid(i.post_acc)]);
+    cells.extend([
+        opt_guid(i.terms),
+        text(&i.billing_id),
+        opt_guid(i.post_txn),
+        opt_guid(i.post_lot),
+        opt_guid(i.post_acc),
+    ]);
     cells.extend(owner(i.bill_to));
     cells.extend(numeric(i.charge_amount));
     cells
@@ -176,7 +188,13 @@ pub fn order(o: &Order) -> Vec<Cell> {
 
 /// A `taxtables` row.
 pub fn tax_table(t: &TaxTable) -> Vec<Cell> {
-    vec![guid(t.guid), text(&t.name), int(t.refcount), boolean(t.invisible), opt_guid(t.parent)]
+    vec![
+        guid(t.guid),
+        text(&t.name),
+        int(t.refcount),
+        boolean(t.invisible),
+        opt_guid(t.parent),
+    ]
 }
 
 /// A `taxtable_entries` row of tax table `table`, without its `id`.

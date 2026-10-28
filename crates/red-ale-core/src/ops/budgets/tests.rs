@@ -112,7 +112,11 @@ fn create_takes_gnucash_defaults_and_sets_the_feature() {
     let g = f.create(BudgetFields::default());
     let b = f.budget(g);
     assert_eq!((b.name.as_str(), b.description.as_str(), b.num_periods), ("Unnamed Budget", "", 12));
-    assert_eq!(b.recurrence, monthly(day(2026, 10, 1)), "monthly from the first of the current month");
+    assert_eq!(
+        b.recurrence,
+        monthly(day(2026, 10, 1)),
+        "monthly from the first of the current month"
+    );
     assert!(uses_natural_signs(&f.book));
     assert_eq!(
         f.book.slots.get_in(&[FEATURES, NATURAL_SIGNS_FEATURE]).and_then(SlotValue::as_str),
@@ -122,7 +126,11 @@ fn create_takes_gnucash_defaults_and_sets_the_feature() {
         name: Some("Two".into()),
         ..BudgetFields::default()
     });
-    assert_eq!(f.book.budgets.keys().copied().collect::<Vec<_>>(), [g, second], "new budgets go last");
+    assert_eq!(
+        f.book.budgets.keys().copied().collect::<Vec<_>>(),
+        [g, second],
+        "new budgets go last"
+    );
 }
 
 #[test]
@@ -167,7 +175,11 @@ fn amounts_are_stored_as_given_and_unset_is_not_zero() {
         (Cell { account: food, period: 2 }, Some(n(0, 100))),
         (Cell { account: food, period: 3 }, None),
     ];
-    assert_eq!(set_amounts(&mut f.book, g, &edits), Ok((3, 0)), "unsetting an unset cell does nothing");
+    assert_eq!(
+        set_amounts(&mut f.book, g, &edits),
+        Ok((3, 0)),
+        "unsetting an unset cell does nothing"
+    );
     let b = f.budget(g);
     assert!(b.amount(food, 0).unwrap().same_repr(n(1234, 100)), "not reduced");
     assert!(b.amount(food, 1).unwrap().same_repr(n(0, 1)), "an explicit zero is set");
@@ -191,11 +203,17 @@ fn bad_cells_refuse_the_whole_call() {
         vec![cell(food, 0), cell(food, 0)],
         vec![cell(food, 0), cell(root, 0)],
     ];
-    refusals
-        .iter()
-        .for_each(|edits| assert!(matches!(set_amounts(&mut f.book, g, edits), Err(DomainError::Invalid(_))), "{edits:?}"));
+    refusals.iter().for_each(|edits| {
+        assert!(
+            matches!(set_amounts(&mut f.book, g, edits), Err(DomainError::Invalid(_))),
+            "{edits:?}"
+        )
+    });
     let unknown = [cell(Guid::from_bytes([9; 16]), 0)];
-    assert!(matches!(set_amounts(&mut f.book, g, &unknown), Err(DomainError::NotFound { kind: "account", .. })));
+    assert!(matches!(
+        set_amounts(&mut f.book, g, &unknown),
+        Err(DomainError::NotFound { kind: "account", .. })
+    ));
     assert!(matches!(
         set_amounts(&mut f.book, Guid::from_bytes([8; 16]), &[cell(food, 0)]),
         Err(DomainError::NotFound { kind: "budget", .. })
@@ -279,7 +297,10 @@ fn copy_is_gnucash_clone_without_notes() {
     update(&mut f.book, g, lower).unwrap();
     let c = copy(&mut f.book, &mut f.env, g).unwrap();
     let (src, cp) = (f.budget(g), f.budget(c));
-    assert_eq!((cp.name.as_str(), cp.description.as_str(), cp.num_periods), ("Copy of Plan", "d", 10));
+    assert_eq!(
+        (cp.name.as_str(), cp.description.as_str(), cp.num_periods),
+        ("Copy of Plan", "d", 10)
+    );
     assert_eq!(cp.recurrence, src.recurrence);
     assert!(cp.amount(food, 3).unwrap().same_repr(n(1234, 100)));
     assert!(notes(&f.book, cp).is_empty(), "notes are not copied");
@@ -313,7 +334,10 @@ fn the_default_budget_option_is_a_guid_slot() {
     set_default_budget(&mut f.book, b).unwrap();
     assert_eq!(f.book.slots.get("options/Budgeting/Default Budget"), Some(&SlotValue::Guid(b)));
     assert_eq!(default_budget(&f.book), Some((b, DefaultFrom::Option)));
-    assert!(matches!(set_default_budget(&mut f.book, Guid::from_bytes([3; 16])), Err(DomainError::NotFound { .. })));
+    assert!(matches!(
+        set_default_budget(&mut f.book, Guid::from_bytes([3; 16])),
+        Err(DomainError::NotFound { .. })
+    ));
 }
 
 #[test]
@@ -360,19 +384,42 @@ fn the_scrub_guesses_three_policies() {
         let b = f.book.budget(g).unwrap().clone();
         (report.budgets[0], b)
     };
-    let (s, b) = run(&[(food, 0, n(-100, 1)), (salary, 0, n(500, 1)), (card, 0, n(50, 1)), (bank, 0, n(10, 1))]);
+    let (s, b) = run(&[
+        (food, 0, n(-100, 1)),
+        (salary, 0, n(500, 1)),
+        (card, 0, n(50, 1)),
+        (bank, 0, n(10, 1)),
+    ]);
     assert_eq!((s.policy, s.flipped), (SignPolicy::IncomeExpense, 2));
-    assert_eq!([b.amount(food, 0), b.amount(salary, 0), b.amount(card, 0)], [Some(n(100, 1)), Some(n(-500, 1)), Some(n(50, 1))]);
+    assert_eq!(
+        [b.amount(food, 0), b.amount(salary, 0), b.amount(card, 0)],
+        [Some(n(100, 1)), Some(n(-500, 1)), Some(n(50, 1))]
+    );
     let (s, b) = run(&[(food, 0, n(100, 1)), (salary, 0, n(-500, 1)), (card, 0, n(50, 1))]);
     assert_eq!((s.policy, s.flipped, b.amount(card, 0)), (SignPolicy::None, 0, Some(n(50, 1))));
-    let (s, b) = run(&[(food, 0, n(100, 1)), (salary, 0, n(500, 1)), (card, 0, n(50, 1)), (equity, 1, n(7, 1)), (bank, 2, n(-3, 1))]);
+    let (s, b) = run(&[
+        (food, 0, n(100, 1)),
+        (salary, 0, n(500, 1)),
+        (card, 0, n(50, 1)),
+        (equity, 1, n(7, 1)),
+        (bank, 2, n(-3, 1)),
+    ]);
     assert_eq!((s.policy, s.flipped), (SignPolicy::CreditAccounts, 3));
     assert_eq!(
-        [b.amount(food, 0), b.amount(salary, 0), b.amount(card, 0), b.amount(equity, 1), b.amount(bank, 2)],
+        [
+            b.amount(food, 0),
+            b.amount(salary, 0),
+            b.amount(card, 0),
+            b.amount(equity, 1),
+            b.amount(bank, 2)
+        ],
         [Some(n(100, 1)), Some(n(-500, 1)), Some(n(-50, 1)), Some(n(-7, 1)), Some(n(-3, 1))]
     );
     let (s, b) = run(&[(food, 0, n(0, 1)), (salary, 0, n(0, 1))]);
-    assert_eq!((s.policy, b.amount(salary, 0), b.amount(food, 1)), (SignPolicy::CreditAccounts, Some(n(0, 1)), None));
+    assert_eq!(
+        (s.policy, b.amount(salary, 0), b.amount(food, 1)),
+        (SignPolicy::CreditAccounts, Some(n(0, 1)), None)
+    );
     // An overflowing sum compares as 0 (gnc-numeric.cpp:837-842), so the negative expenses go unseen.
     let (s, _) = run(&[(food, 0, n(-i64::MAX, 1)), (food, 1, n(-i64::MAX, 1)), (salary, 0, n(5, 1))]);
     assert_eq!(s.policy, SignPolicy::CreditAccounts);
@@ -395,7 +442,11 @@ fn period_dates_clamp_to_the_month_end() {
     let dates = period_dates(&monthly(day(2024, 1, 31)), 3).unwrap();
     assert_eq!(
         dates,
-        [(day(2024, 1, 31), day(2024, 2, 28)), (day(2024, 2, 29), day(2024, 3, 30)), (day(2024, 3, 31), day(2024, 4, 29))]
+        [
+            (day(2024, 1, 31), day(2024, 2, 28)),
+            (day(2024, 2, 29), day(2024, 3, 30)),
+            (day(2024, 3, 31), day(2024, 4, 29))
+        ]
     );
     let year = period_dates(&monthly(day(2012, 1, 1)), 12).unwrap();
     assert_eq!(year[1], (day(2012, 2, 1), day(2012, 2, 29)));
@@ -436,7 +487,10 @@ fn actuals_follow_the_engine_with_strict_bounds_and_converted_children() {
     let zone = TimeZone::utc();
     let b = f.budget(g);
     let actuals: Vec<Numeric> = (0..3).map(|p| actual(&f.book, b, exp, p, &zone).unwrap()).collect();
-    assert!(actuals[0].same_repr(n(1366, 100)), "10.00 + EUR 3.33 at 1.10; the 23:59:59 split is in no period");
+    assert!(
+        actuals[0].same_repr(n(1366, 100)),
+        "10.00 + EUR 3.33 at 1.10; the 23:59:59 split is in no period"
+    );
     assert!(actuals[1].same_repr(n(200, 100)), "{:?}", actuals[1]);
     assert!(actuals[2].is_zero());
 }
@@ -455,7 +509,11 @@ fn estimate_reads_balances_converted_at_each_bound() {
     let cells = estimate(&mut f.book, g, &e, &zone).unwrap();
     let raw: Vec<Numeric> = cells.iter().map(|(_, v)| *v).collect();
     assert!(raw[0].same_repr(n(136_600, 10_000)), "{:?}", raw[0]);
-    assert!(raw[1].same_repr(n(267_000, 100_000)), "the child's revaluation counts: {:?}", raw[1]);
+    assert!(
+        raw[1].same_repr(n(267_000, 100_000)),
+        "the child's revaluation counts: {:?}",
+        raw[1]
+    );
     assert!(raw[2].same_repr(n(0, 1)), "a zero change is a set zero");
     assert_eq!(f.budget(g).amount(exp, 5), Some(n(0, 1)));
     e.significant_digits = 1;

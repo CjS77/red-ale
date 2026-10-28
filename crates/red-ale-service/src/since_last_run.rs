@@ -70,9 +70,8 @@ pub fn apply(session: &mut Session, id: &str, choices: &[Choice], auto_create_on
         can_postpone: session.format() != Format::Sqlite,
         format: held.proposal.format,
     };
-    let applied = session.try_mutate(|book, env| {
-        scheduled::apply(book, env, &held.proposal.proposal, choices, options).map_err(ServiceError::from)
-    })?;
+    let applied = session
+        .try_mutate(|book, env| scheduled::apply(book, env, &held.proposal.proposal, choices, options).map_err(ServiceError::from))?;
     session.runs().remove(id);
     Ok(applied)
 }

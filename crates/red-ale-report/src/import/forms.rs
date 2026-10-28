@@ -344,8 +344,12 @@ fn literal(value: &Datum) -> Option<&Datum> {
 /// (`5.17:bindings/guile/options.scm:150-160`).
 pub(super) fn budget_lookup(value: &Datum) -> Option<&str> {
     let [lookup, guid, book] = value.as_list()? else { return None };
-    let current_book = book.as_list().is_some_and(|b| matches!(b, [f] if f.is_symbol("gnc-get-current-book")));
-    (lookup.is_symbol("gnc-budget-lookup") && current_book).then(|| guid.as_str()).flatten()
+    let current_book = book
+        .as_list()
+        .is_some_and(|b| matches!(b, [f] if f.is_symbol("gnc-get-current-book")));
+    (lookup.is_symbol("gnc-budget-lookup") && current_book)
+        .then(|| guid.as_str())
+        .flatten()
 }
 
 /// A datum's text, cut short for a message.
@@ -454,7 +458,13 @@ mod tests {
         let options = saved_report(&first(&budget)).unwrap().options.unwrap();
         assert_eq!(budget_lookup(&options[0].value), Some("0123456789abcdef0123456789abcdef"));
         let other_book = budget.replace("(gnc-get-current-book)", "(gnc-get-other-book)");
-        assert!(saved_report(&first(&other_book)).unwrap().options.unwrap_err().contains("not a literal value"));
+        assert!(
+            saved_report(&first(&other_book))
+                .unwrap()
+                .options
+                .unwrap_err()
+                .contains("not a literal value")
+        );
     }
 
     #[test]

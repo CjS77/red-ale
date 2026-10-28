@@ -22,22 +22,42 @@ pub fn methods() -> Vec<Method> {
             create,
         ),
         method("budget.get", "One budget with its periods, amounts and notes.", Effect::Read, get),
-        method("budget.list", "Every budget in book order, and which is the default.", Effect::Read, list),
+        method(
+            "budget.list",
+            "Every budget in book order, and which is the default.",
+            Effect::Read,
+            list,
+        ),
         method(
             "budget.update",
             "Change a budget's name, description, number of periods or recurrence.",
             Effect::Write,
             update,
         ),
-        method("budget.copy", "Copy a budget as GnuCash's Copy Budget does (notes are not copied).", Effect::Write, copy),
+        method(
+            "budget.copy",
+            "Copy a budget as GnuCash's Copy Budget does (notes are not copied).",
+            Effect::Write,
+            copy,
+        ),
         method(
             "budget.delete",
             "Delete a budget; the last unsets the Book feature for natural signs.",
             Effect::Destructive,
             delete,
         ),
-        method("budget.setAmounts", "Set or unset many budget amounts, atomically.", Effect::Write, set_amounts),
-        method("budget.setNotes", "Set or delete many budget notes, atomically.", Effect::Write, set_notes),
+        method(
+            "budget.setAmounts",
+            "Set or unset many budget amounts, atomically.",
+            Effect::Write,
+            set_amounts,
+        ),
+        method(
+            "budget.setNotes",
+            "Set or delete many budget notes, atomically.",
+            Effect::Write,
+            set_notes,
+        ),
         method(
             "budget.estimate",
             "Overwrite accounts' budget amounts with figures from past transactions, as GnuCash's Estimate dialog does.",
@@ -527,7 +547,11 @@ fn set_amounts(ctx: &mut Context, p: SetAmountsParams) -> Result<SetAmountsResul
             .map(|a| Ok((cell(book, &a.account, a.period)?, a.amount.map(|x| x.0))))
             .collect::<Result<Vec<_>, RpcError>>()?;
         let (set, unset) = ops::set_amounts(book, p.budget.0, &edits)?;
-        Ok(SetAmountsResult { budget: p.budget, set, unset })
+        Ok(SetAmountsResult {
+            budget: p.budget,
+            set,
+            unset,
+        })
     })
 }
 
@@ -539,7 +563,11 @@ fn set_notes(ctx: &mut Context, p: SetNotesParams) -> Result<SetNotesResult, Rpc
             .map(|n| Ok((cell(book, &n.account, n.period)?, n.note)))
             .collect::<Result<Vec<_>, RpcError>>()?;
         let (set, deleted) = ops::set_notes(book, p.budget.0, &edits)?;
-        Ok(SetNotesResult { budget: p.budget, set, deleted })
+        Ok(SetNotesResult {
+            budget: p.budget,
+            set,
+            deleted,
+        })
     })
 }
 

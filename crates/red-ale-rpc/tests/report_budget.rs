@@ -78,7 +78,11 @@ fn table(f: &mut Fixture, options: &Value) -> Value {
     let result = f.run(TEMPLATE, options);
     let table = only(&result, "table").clone();
     let html = f.export(TEMPLATE, options);
-    assert_eq!(html_table(&html, 0), shown_cells(&table), "the exported table shows the run's cells");
+    assert_eq!(
+        html_table(&html, 0),
+        shown_cells(&table),
+        "the exported table shows the run's cells"
+    );
     let notes: Vec<String> = table["footnotes"]
         .as_array()
         .map(|n| n.iter().map(|n| format!("<li>{}</li>", n.as_str().unwrap())).collect())
@@ -139,24 +143,24 @@ fn test_budget_basic() {
     assert_eq!(
         row_texts(row(&t, "Bank")),
         strings(&[
-            "Bank", "$20.00", "$35.00", "-$15.00", "$40.00", "-$20.00", "$60.00", ".", "$67.00", "-$67.00", "$60.00", "$77.00",
-            "-$17.00", ".", "$0.00", ".", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00",
+            "Bank", "$20.00", "$35.00", "-$15.00", "$40.00", "-$20.00", "$60.00", ".", "$67.00", "-$67.00", "$60.00", "$77.00", "-$17.00",
+            ".", "$0.00", ".", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00",
         ])
     );
     // TB:99 "income".
     assert_eq!(
         row_texts(row(&t, "Income")),
         strings(&[
-            "Income", "-$55.00 ", "1", "-$55.00", "$0.00", ".", "$0.00", ".", "-$65.00", "-$67.00", "$2.00", "-$75.00",
-            "-$77.00", "$2.00", ".", "$0.00", ".", ".", "$0.00", ".", "-$195.00", "-$199.00", "$4.00",
+            "Income", "-$55.00 ", "1", "-$55.00", "$0.00", ".", "$0.00", ".", "-$65.00", "-$67.00", "$2.00", "-$75.00", "-$77.00", "$2.00",
+            ".", "$0.00", ".", ".", "$0.00", ".", "-$195.00", "-$199.00", "$4.00",
         ])
     );
     // TB:104 "expense".
     assert_eq!(
         row_texts(row(&t, "Expenses")),
         strings(&[
-            "Expenses", ".", "$20.00", "-$20.00", "$30.00 ", "2", "$20.00", "$10.00", "$20.00", "$0.00", "$20.00", "$40.00",
-            "$0.00", "$40.00", ".", "$0.00", ".", ".", "$0.00", ".", "$90.00", "$40.00", "$50.00",
+            "Expenses", ".", "$20.00", "-$20.00", "$30.00 ", "2", "$20.00", "$10.00", "$20.00", "$0.00", "$20.00", "$40.00", "$0.00",
+            "$40.00", ".", "$0.00", ".", ".", "$0.00", ".", "$90.00", "$40.00", "$50.00",
         ])
     );
     // TB:109 "budget notes".
@@ -174,8 +178,8 @@ fn test_budget_only_next_period() {
     assert_eq!(
         row_texts(row(&t, "Bank")),
         strings(&[
-            "Bank", "$20.00", "$35.00", "-$15.00", "$40.00", "-$20.00", "$60.00", "$60.00", "$144.00", "-$84.00", "$120.00",
-            "$159.00", "-$39.00",
+            "Bank", "$20.00", "$35.00", "-$15.00", "$40.00", "-$20.00", "$60.00", "$60.00", "$144.00", "-$84.00", "$120.00", "$159.00",
+            "-$39.00",
         ])
     );
 }
@@ -190,7 +194,9 @@ fn test_budget_only_last_period() {
     // TB:134 "only last period - bank".
     assert_eq!(
         row_texts(row(&t, "Bank")),
-        strings(&["Bank", "$120.00", "$159.00", "-$39.00", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00"])
+        strings(&[
+            "Bank", "$120.00", "$159.00", "-$39.00", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00"
+        ])
     );
 }
 
@@ -229,8 +235,8 @@ fn test_budget_use_accumulated_amounts() {
     assert_eq!(
         row_texts(row(&t, "Bank")),
         strings(&[
-            "Bank", "$60.00", "$15.00", "$45.00", "$60.00", "$82.00", "-$22.00", "$120.00", "$159.00", "-$39.00", "$120.00",
-            "$159.00", "-$39.00",
+            "Bank", "$60.00", "$15.00", "$45.00", "$60.00", "$82.00", "-$22.00", "$120.00", "$159.00", "-$39.00", "$120.00", "$159.00",
+            "-$39.00",
         ])
     );
 }
@@ -275,18 +281,13 @@ fn options_are_gnucash_s() {
 fn defaults_come_from_the_book() {
     let mut f = fixture();
     let described = f.call("report.options", &json!({ "report": TEMPLATE }));
-    let option = |name: &str| {
-        described["options"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|o| o["name"] == name)
-            .unwrap()["default"]
-            .clone()
-    };
+    let option = |name: &str| described["options"].as_array().unwrap().iter().find(|o| o["name"] == name).unwrap()["default"].clone();
     assert_eq!(option("Budget"), json!("f0000000000000000000000000000000"));
     // In display order: Root, Asset, Bank, GBP Bank, Wallet, Liabilities, Income, Income-GBP, Expenses.
-    let accounts: Vec<String> = [1, 2, 3, 4, 5, 9, 6, 7, 8].iter().map(|n| format!("a000000000000000000000000000000{n}")).collect();
+    let accounts: Vec<String> = [1, 2, 3, 4, 5, 9, 6, 7, 8]
+        .iter()
+        .map(|n| format!("a000000000000000000000000000000{n}"))
+        .collect();
     assert_eq!(option("Account"), json!(accounts));
 }
 
@@ -310,7 +311,9 @@ fn default_options() {
     assert_eq!(row_texts(&rows[1]), ["Bgt", "Act"].repeat(6));
     assert_eq!(
         row_texts(row(t, "Asset")),
-        ["Asset", "$20.00", "$35.00", "$40.00", "-$20.00", ".", "$67.00", "$60.00", "$77.00", ".", "$0.00", ".", "$0.00"]
+        [
+            "Asset", "$20.00", "$35.00", "$40.00", "-$20.00", ".", "$67.00", "$60.00", "$77.00", ".", "$0.00", ".", "$0.00"
+        ]
     );
     assert_eq!(t["columns"].as_array().unwrap().len(), 13);
 }
@@ -339,10 +342,7 @@ fn collapsed_columns_are_titled_by_their_periods_starts() {
     let mut f = fixture();
     let options = with_general(&json!({ "Report for range of budget periods": true, "Range start": "current", "Range end": "next" }));
     let t = table(&mut f, &options);
-    assert_eq!(
-        row_texts(&t["rows"][0]),
-        ["03/01/24", "04/01/24", "05/01/24 to 08/01/24", "Total"]
-    );
+    assert_eq!(row_texts(&t["rows"][0]), ["03/01/24", "04/01/24", "05/01/24 to 08/01/24", "Total"]);
 }
 
 /// "previous" on the first period stays on it (`(max 0 …)`, BR:534), so previous to current is period 0 alone, with
@@ -356,7 +356,9 @@ fn previous_period_is_kept_within_the_budget() {
     assert_eq!(t["footnotes"], json!(["income-0 -$60"]));
     assert_eq!(
         row_texts(row(&t, "Bank")),
-        ["Bank", "$20.00", "$35.00", "-$15.00", "$100.00", "$124.00", "-$24.00", "$120.00", "$159.00", "-$39.00"]
+        [
+            "Bank", "$20.00", "$35.00", "-$15.00", "$100.00", "$124.00", "-$24.00", "$120.00", "$159.00", "-$39.00"
+        ]
     );
 }
 
@@ -374,7 +376,10 @@ fn relative_periods_outside_the_budget() {
         only(&result, "table").clone()
     };
     let before = run(&mut f, "2023-06-01T00:00:00Z");
-    assert_eq!(row_texts(&before["rows"][0]), ["03/01/24", "04/01/24", "05/01/24 to 08/01/24", "Total"]);
+    assert_eq!(
+        row_texts(&before["rows"][0]),
+        ["03/01/24", "04/01/24", "05/01/24 to 08/01/24", "Total"]
+    );
     let after = run(&mut f, "2025-01-01T00:00:00Z");
     assert_eq!(
         row_texts(&after["rows"][0]),
@@ -382,7 +387,9 @@ fn relative_periods_outside_the_budget() {
     );
     assert_eq!(
         row_texts(row(&after, "Bank")),
-        ["Bank", "$120.00", "$159.00", "-$39.00", ".", "$0.00", ".", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00"]
+        [
+            "Bank", "$120.00", "$159.00", "-$39.00", ".", "$0.00", ".", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00"
+        ]
     );
 }
 
@@ -422,8 +429,10 @@ fn accumulated_amounts_in_every_kind_of_column() {
     let t = only(&result, "table");
     assert_eq!(
         row_texts(row(t, "Bank")),
-        ["Bank", "$20.00", "$35.00", "-$15.00", "$60.00", "$15.00", "$45.00", "$60.00", "$144.00", "-$84.00", "$120.00", "$159.00",
-         "-$39.00"]
+        [
+            "Bank", "$20.00", "$35.00", "-$15.00", "$60.00", "$15.00", "$45.00", "$60.00", "$144.00", "-$84.00", "$120.00", "$159.00",
+            "-$39.00"
+        ]
     );
     // Period 0's column is still one period, so its note is marked; Expenses' period 1 is now periods 0-1 (BR:422-424).
     assert_eq!(t["footnotes"], json!(["income-0 -$60"]));
@@ -466,7 +475,13 @@ fn sub_accounts_and_flattening() {
     assert_eq!(labels(&t), ["Asset", "Bank", "GBP Bank", "Wallet"]);
     let flat = json!({ "Accounts": { "Account Display Depth": 1, "Flatten list to depth limit": true } });
     let t = table(&mut f, &flat);
-    let depths: Vec<&Value> = t["rows"].as_array().unwrap().iter().filter(|r| r["role"] == "account").map(|r| &r["depth"]).collect();
+    let depths: Vec<&Value> = t["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["role"] == "account")
+        .map(|r| &r["depth"])
+        .collect();
     assert_eq!(labels(&t).len(), 9);
     assert!(depths.iter().all(|d| **d == json!(0)), "every account at the top level: {depths:?}");
 }
@@ -509,10 +524,16 @@ fn warnings() {
     let mut f = Fixture::open("test-data", "locale", true);
     let result = f.run(TEMPLATE, &json!({}));
     assert_eq!(result["title"], TEMPLATE);
-    assert_eq!(only(&result, "warning")["text"], "No budgets exist. You must create at least one budget.");
+    assert_eq!(
+        only(&result, "warning")["text"],
+        "No budgets exist. You must create at least one budget."
+    );
     let dir = tempfile::tempdir().unwrap();
     f.call("book.close", &json!({}));
-    f.call("book.create", &json!({ "path": dir.path().join("new.gnucash").display().to_string() }));
+    f.call(
+        "book.create",
+        &json!({ "path": dir.path().join("new.gnucash").display().to_string() }),
+    );
     let result = f.run(TEMPLATE, &json!({}));
     assert_eq!(only(&result, "warning")["title"], "No accounts selected");
 }
@@ -526,9 +547,18 @@ fn a_saved_configuration_whose_budget_was_deleted_runs_with_none() {
     f.call("budget.scrubSigns", &json!({}));
     let spare = f.call("budget.create", &json!({ "name": "Spare", "numPeriods": 3 }))["guid"].clone();
     let options = json!({ "General": { "Budget": spare } });
-    let saved = f.call("report.saveConfiguration", &json!({ "name": "Spare budget", "report": TEMPLATE, "options": options }));
-    assert!(blocks_of(&f.call("report.run", &json!({ "report": saved["guid"] })), "warning").is_empty(), "the budget runs");
+    let saved = f.call(
+        "report.saveConfiguration",
+        &json!({ "name": "Spare budget", "report": TEMPLATE, "options": options }),
+    );
+    assert!(
+        blocks_of(&f.call("report.run", &json!({ "report": saved["guid"] })), "warning").is_empty(),
+        "the budget runs"
+    );
     f.call("budget.delete", &json!({ "budget": spare }));
     let result = f.call("report.run", &json!({ "report": saved["guid"] }));
-    assert_eq!(only(&result, "warning")["text"], "No budgets exist. You must create at least one budget.");
+    assert_eq!(
+        only(&result, "warning")["text"],
+        "No budgets exist. You must create at least one budget."
+    );
 }

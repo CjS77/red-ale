@@ -35,7 +35,10 @@ fn a_daily_schedule_from_yesterday_has_three_to_create_up_to_tomorrow() {
     assert_eq!(p.schedules.len(), 1);
     let states: Vec<_> = p.instances().map(|(_, i)| (i.date, i.state)).collect();
     let to_create = |d: Date| (d, InstanceState::ToCreate);
-    assert_eq!(states, [to_create(today.add_days(-1)), to_create(today), to_create(today.add_days(1))]);
+    assert_eq!(
+        states,
+        [to_create(today.add_days(-1)), to_create(today), to_create(today.add_days(1))]
+    );
 }
 
 /// `test_once` (`test-sx.cpp:103-145`): a once-only schedule, within a year either way, asked for up to a year ahead,
@@ -62,11 +65,14 @@ fn days_in_advance_create_then_remind() {
     s.advance_remind_days = 30;
     rent(&mut f, s);
     let p = propose(&f, date(2026, 1, 29));
-    assert_eq!(shown(&p), [
-        (0, date(2026, 1, 1), InstanceState::ToCreate, 1),
-        (1, date(2026, 2, 1), InstanceState::ToCreate, 2),
-        (2, date(2026, 3, 1), InstanceState::Reminder, 3),
-    ]);
+    assert_eq!(
+        shown(&p),
+        [
+            (0, date(2026, 1, 1), InstanceState::ToCreate, 1),
+            (1, date(2026, 2, 1), InstanceState::ToCreate, 2),
+            (2, date(2026, 3, 1), InstanceState::Reminder, 3),
+        ]
+    );
 }
 
 /// Deviation (a) (`design/api/scheduled-transactions.md`, "Deviations in Since Last Run", 1), against the note's §9.2
@@ -86,7 +92,13 @@ fn instances_after_a_postponed_one_come_from_the_schedules_own_state() {
     }];
     rent(&mut f, s);
     let p = propose(&f, date(2025, 3, 15));
-    assert_eq!(shown(&p), [(0, date(2025, 1, 1), InstanceState::Postponed, 1), (1, date(2025, 3, 1), InstanceState::ToCreate, 3)]);
+    assert_eq!(
+        shown(&p),
+        [
+            (0, date(2025, 1, 1), InstanceState::Postponed, 1),
+            (1, date(2025, 3, 1), InstanceState::ToCreate, 3)
+        ]
+    );
     assert_eq!(p.instances().next().map(|(_, i)| i.before.remaining), Some(6));
 }
 
@@ -116,13 +128,19 @@ fn variables_are_unbound_but_i() {
     let p = propose(&f, date(2026, 2, 1));
     let first = &p.schedules[0].instances[0];
     let names: Vec<_> = first.variables.iter().map(|v| (v.name.as_str(), v.value, v.editable)).collect();
-    assert_eq!(names, [
-        ("EUR -> USD", None, true),
-        ("amt", None, true),
-        ("i", Some(Numeric::from_int(0)), false),
-        ("x", None, true),
-    ]);
-    assert_eq!(p.schedules[0].instances[1].bindings(), Variables::from([("i".to_owned(), Numeric::from_int(1))]));
+    assert_eq!(
+        names,
+        [
+            ("EUR -> USD", None, true),
+            ("amt", None, true),
+            ("i", Some(Numeric::from_int(0)), false),
+            ("x", None, true),
+        ]
+    );
+    assert_eq!(
+        p.schedules[0].instances[1].bindings(),
+        Variables::from([("i".to_owned(), Numeric::from_int(1))])
+    );
     assert_eq!(first.unbound().collect::<Vec<_>>(), ["EUR -> USD", "amt", "x"]);
     assert_eq!(exchange_rate_variable(&crate::CommodityRef::currency("EUR"), &usd()), "EUR -> USD");
 }
@@ -133,7 +151,11 @@ fn variables_are_unbound_but_i() {
 fn markers_name_no_rate_and_bad_formulas_are_reported() {
     let mut f = Fixture::new();
     let (food, euro, bank) = (f.food, f.euro, f.bank);
-    let g = f.add(monthly(date(2026, 1, 1)), &usd(), &[&[T(food, "a +", ""), T(euro, "", ""), T(bank, "", "b")]]);
+    let g = f.add(
+        monthly(date(2026, 1, 1)),
+        &usd(),
+        &[&[T(food, "a +", ""), T(euro, "", ""), T(bank, "", "b")]],
+    );
     let (names, errors) = variables(&f.book, f.sx(g), NumberFormat::default());
     assert_eq!(names.into_iter().collect::<Vec<_>>(), ["b", "i"]);
     assert!(matches!(&errors[..], [crate::ops::scheduled::ScheduledError::Formula(e)] if e.formula == "a +"));
@@ -161,9 +183,16 @@ fn indexes_run_across_schedules() {
     second.guid = Guid::from_bytes([8; 16]);
     rent(&mut f, second);
     let p = propose(&f, date(2026, 2, 1));
-    let indexes: Vec<_> = p.schedules.iter().map(|s| s.instances.iter().map(|i| i.index).collect::<Vec<_>>()).collect();
+    let indexes: Vec<_> = p
+        .schedules
+        .iter()
+        .map(|s| s.instances.iter().map(|i| i.index).collect::<Vec<_>>())
+        .collect();
     assert_eq!(indexes, [vec![0, 1], vec![2]]);
-    assert_eq!(p.instance(2).map(|(s, i)| (s.scheduled, i.date)), Some((Guid::from_bytes([8; 16]), date(2026, 1, 15))));
+    assert_eq!(
+        p.instance(2).map(|(s, i)| (s.scheduled, i.date)),
+        Some((Guid::from_bytes([8; 16]), date(2026, 1, 15)))
+    );
 }
 
 /// The template account is found by name under the template root (`gnc-sx-instance-model.c:378-388`); its
@@ -179,6 +208,10 @@ fn template_transactions_come_in_split_order() {
     assert_eq!(order.len(), 2);
     assert_eq!(order[1], first);
     let mut renamed = f.book.clone();
-    renamed.templates.accounts.values_mut().for_each(|a| std::sync::Arc::make_mut(a).name = "other".into());
+    renamed
+        .templates
+        .accounts
+        .values_mut()
+        .for_each(|a| std::sync::Arc::make_mut(a).name = "other".into());
     assert!(template_transactions(&renamed, f.sx(g)).is_empty());
 }

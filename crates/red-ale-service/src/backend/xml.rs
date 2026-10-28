@@ -129,8 +129,8 @@ impl Backend for XmlBackend {
     fn save(&mut self, _saved: &Book, book: &Book, options: &SaveOptions, _env: &mut dyn Env) -> Result<Saved, ServiceError> {
         let compressed = options.compress.unwrap_or(self.residue.compressed);
         let write = |file: &mut File| {
-            let out = write_book_to(book, &self.residue, compressed, BufWriter::with_capacity(IO_BUFFER, file))
-                .map_err(|e| self.xml_error(e))?;
+            let out =
+                write_book_to(book, &self.residue, compressed, BufWriter::with_capacity(IO_BUFFER, file)).map_err(|e| self.xml_error(e))?;
             out.into_inner().map(drop).map_err(|e| self.xml_error(e.into_error().into()))
         };
         let check = |tmp: &Path| {
@@ -174,7 +174,10 @@ mod tests {
 
     fn new_book(dir: &Path) -> PathBuf {
         let path = dir.join("b.gnucash");
-        Session::create(path.to_str().unwrap(), Settings::default()).unwrap().close(false).unwrap();
+        Session::create(path.to_str().unwrap(), Settings::default())
+            .unwrap()
+            .close(false)
+            .unwrap();
         path
     }
 

@@ -134,7 +134,13 @@ pub fn apply(
 fn resolve<'a>(proposal: &'a Proposal, choices: &[Choice], options: ApplyOptions) -> Result<Vec<Vec<Resolved<'a>>>, ScheduledError> {
     let mut by_index: BTreeMap<usize, &Choice> = BTreeMap::new();
     choices.iter().try_for_each(|c| {
-        let refuse = |reason, message: &str| Err(ScheduledError::refused(reason, vec![c.index], format!("instance {}: {message}", c.index)));
+        let refuse = |reason, message: &str| {
+            Err(ScheduledError::refused(
+                reason,
+                vec![c.index],
+                format!("instance {}: {message}", c.index),
+            ))
+        };
         let Some((schedule, instance)) = proposal.instance(c.index) else {
             return refuse(Refusal::Index, "no such instance");
         };
@@ -151,12 +157,14 @@ fn resolve<'a>(proposal: &'a Proposal, choices: &[Choice], options: ApplyOptions
         if new_postponement && !options.can_postpone {
             return refuse(Refusal::SqlDeferredInstances, "this book can't hold postponed instances");
         }
-        c.variables.iter().try_for_each(|(name, value)| match instance.variables.iter().find(|v| v.name == *name) {
-            None => refuse(Refusal::UnknownVariable, &format!("{name} is not one of its variables")),
-            Some(v) if !v.editable || name == INSTANCE_COUNT_VARIABLE => refuse(Refusal::NotEditable, &format!("{name} can't be set")),
-            Some(_) if !value.is_valid() => refuse(Refusal::UnboundVariable, &format!("{name} has no valid value")),
-            Some(_) => Ok(()),
-        })
+        c.variables
+            .iter()
+            .try_for_each(|(name, value)| match instance.variables.iter().find(|v| v.name == *name) {
+                None => refuse(Refusal::UnknownVariable, &format!("{name} is not one of its variables")),
+                Some(v) if !v.editable || name == INSTANCE_COUNT_VARIABLE => refuse(Refusal::NotEditable, &format!("{name} can't be set")),
+                Some(_) if !value.is_valid() => refuse(Refusal::UnboundVariable, &format!("{name} has no valid value")),
+                Some(_) => Ok(()),
+            })
     })?;
     Ok(proposal
         .schedules
@@ -184,20 +192,35 @@ fn resolve<'a>(proposal: &'a Proposal, choices: &[Choice], options: ApplyOptions
 fn check(instances: &[Resolved<'_>]) -> Result<(), ScheduledError> {
     let first_reminder = instances.iter().position(|r| r.state == InstanceState::Reminder);
     if let Some(first) = first_reminder {
-        let later: Vec<usize> = instances[first..].iter().filter(|r| r.state != InstanceState::Reminder).map(|r| r.instance.index).collect();
+        let later: Vec<usize> = instances[first..]
+            .iter()
+            .filter(|r| r.state != InstanceState::Reminder)
+            .map(|r| r.instance.index)
+            .collect();
         if !later.is_empty() {
             let reminder = instances[first].instance.index;
             let message = format!("reminder {reminder} comes before instances {later:?} in another state, and reminders are not recorded");
-            return Err(ScheduledError::refused(Refusal::ReminderFirst, [vec![reminder], later].concat(), message));
+            return Err(ScheduledError::refused(
+                Refusal::ReminderFirst,
+                [vec![reminder], later].concat(),
+                message,
+            ));
         }
     }
     instances.iter().filter(|r| r.state == InstanceState::ToCreate).try_for_each(|r| {
         let index = r.instance.index;
         if let Some(name) = r.instance.variables.iter().map(|v| &v.name).find(|n| !r.bindings.contains_key(*n)) {
-            return Err(ScheduledError::refused(Refusal::UnboundVariable, vec![index], format!("instance {index} needs a value for {name}")));
+            return Err(ScheduledError::refused(
+                Refusal::UnboundVariable,
+                vec![index],
+                format!("instance {index} needs a value for {name}"),
+            ));
         }
         if r.instance.read_only_by_date && !r.chosen {
-            let message = format!("instance {index} is dated {}, before the read-only threshold: choose toCreate to create it", r.instance.date);
+            let message = format!(
+                "instance {index} is dated {}, before the read-only threshold: choose toCreate to create it",
+                r.instance.date
+            );
             return Err(ScheduledError::refused(Refusal::ReadOnlyByDate, vec![index], message));
         }
         Ok(())
@@ -205,8 +228,16 @@ fn check(instances: &[Resolved<'_>]) -> Result<(), ScheduledError> {
 }
 
 /// Every `toCreate` instance of one schedule built, in instance order.
-fn build_all(book: &Book, scheduled: Guid, instances: &[Resolved<'_>], format: NumberFormat) -> Result<Vec<Vec<BuiltTransaction>>, ScheduledError> {
-    let sx = book.scheduled.get(&scheduled).ok_or_else(|| DomainError::not_found("scheduledTransaction", &scheduled))?;
+fn build_all(
+    book: &Book,
+    scheduled: Guid,
+    instances: &[Resolved<'_>],
+    format: NumberFormat,
+) -> Result<Vec<Vec<BuiltTransaction>>, ScheduledError> {
+    let sx = book
+        .scheduled
+        .get(&scheduled)
+        .ok_or_else(|| DomainError::not_found("scheduledTransaction", &scheduled))?;
     instances
         .iter()
         .filter(|r| r.state == InstanceState::ToCreate)
@@ -242,7 +273,11 @@ fn advance_schedule(
     built: Vec<Vec<BuiltTransaction>>,
     applied: &mut Applied,
 ) -> Result<(), ScheduledError> {
-    let before = book.scheduled.get(&scheduled).ok_or_else(|| DomainError::not_found("scheduledTransaction", &scheduled))?.clone();
+    let before = book
+        .scheduled
+        .get(&scheduled)
+        .ok_or_else(|| DomainError::not_found("scheduledTransaction", &scheduled))?
+        .clone();
     let mut sx = ScheduledTransaction::clone(&before);
     let mut progress = Progress {
         last: sx.last,
@@ -258,7 +293,8 @@ fn advance_schedule(
         }
         match r.state {
             InstanceState::ToCreate => {
-                let transactions = create_built(book, env, scheduled, instance.date, built.next().unwrap_or_default()).map_err(|e| e.at(index))?;
+                let transactions =
+                    create_built(book, env, scheduled, instance.date, built.next().unwrap_or_default()).map_err(|e| e.at(index))?;
                 applied.created.push(CreatedInstance {
                     index,
                     scheduled,

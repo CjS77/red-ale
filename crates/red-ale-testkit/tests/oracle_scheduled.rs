@@ -26,14 +26,21 @@ fn gnucash_scheduled(book: &TempBook) -> Value {
 /// red-ale reads the same fields GnuCash reads.
 fn assert_red_ale_reads(book: &TempBook, expected: &Value) {
     let (read, residue) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
-    assert_eq!(residue.originals_kept(), 0, "red-ale generates GnuCash's scheduled transactions as GnuCash wrote them");
+    assert_eq!(
+        residue.originals_kept(),
+        0,
+        "red-ale generates GnuCash's scheduled transactions as GnuCash wrote them"
+    );
     assert_eq!(read.scheduled.len(), 2);
     let loan = &read.scheduled[&Guid::parse(LOAN).unwrap()];
     let g = &expected[LOAN];
     assert_eq!(json!(loan.name), g["name"]);
     let flags = json!([g["enabled"], g["autoCreate"], g["autoCreateNotify"]]);
     assert_eq!(json!([loan.enabled, loan.auto_create, loan.auto_create_notify]), flags);
-    assert_eq!(json!([loan.advance_create_days, loan.advance_remind_days, loan.instance_count]), json!([3, 2, 7]));
+    assert_eq!(
+        json!([loan.advance_create_days, loan.advance_remind_days, loan.instance_count]),
+        json!([3, 2, 7])
+    );
     let occurrences = loan.occurrences.map(|o| [o.total, o.remaining]);
     assert_eq!(json!(occurrences), g["occurrences"]);
     assert_eq!(json!(loan.last.map(red_ale_core::Date::to_file_string)), g["last"]);
@@ -88,7 +95,11 @@ fn scheduled_transactions_red_ale_saved_read_back_in_gnucash_unchanged() {
 
     let mut d = dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-    call(&mut d, "account.update", &json!({ "account": "Assets:Cash", "description": "petty" }));
+    call(
+        &mut d,
+        "account.update",
+        &json!({ "account": "Assets:Cash", "description": "petty" }),
+    );
     call(&mut d, "book.close", &json!({ "save": true }));
     let (text, _) = red_ale_xml::book::decode(&std::fs::read(&book.path).unwrap()).unwrap();
     assert!(text.contains("<act:description>petty</act:description>"), "the book was rewritten");
@@ -148,11 +159,28 @@ fn next_instances_agree_with_gnucash() {
             gnucash
         })
         .collect();
-    assert_eq!(gnucash[1]["0000000000000000000000000000ca04"]["deferred"], json!(["2025-01-01"]), "the note's §9.2 Defer");
-    assert_eq!(gnucash[1]["0000000000000000000000000000ca01"]["null"], "2025-06-30", "the note's Fact 11");
+    assert_eq!(
+        gnucash[1]["0000000000000000000000000000ca04"]["deferred"],
+        json!(["2025-01-01"]),
+        "the note's §9.2 Defer"
+    );
+    assert_eq!(
+        gnucash[1]["0000000000000000000000000000ca01"]["null"], "2025-06-30",
+        "the note's Fact 11"
+    );
     let rent = &gnucash[0][RENT]["ranges"];
-    let exp6 = ["2024-09-01..2024-12-31", "2024-08-01..2024-09-30", "2024-11-29..2024-11-29", "2024-12-01..2024-12-31", "2025-01-01..2026-12-31"];
-    assert_eq!(exp6.map(|k| rent[k].clone()), [3, 0, 1, 0, 7].map(|n| json!(n)), "the engine-budgets note's exp6");
+    let exp6 = [
+        "2024-09-01..2024-12-31",
+        "2024-08-01..2024-09-30",
+        "2024-11-29..2024-11-29",
+        "2024-12-01..2024-12-31",
+        "2025-01-01..2026-12-31",
+    ];
+    assert_eq!(
+        exp6.map(|k| rent[k].clone()),
+        [3, 0, 1, 0, 7].map(|n| json!(n)),
+        "the engine-budgets note's exp6"
+    );
 }
 
 /// Since Last Run on the fixture's rent (monthly from 2024-08-01 adjusted back, last 2024-09-01, Instance count 2, a
@@ -176,7 +204,11 @@ fn gnucash_reads_back_the_instances_red_ale_applied() {
         .instances()
         .map(|(_, i)| json!([i.date.to_file_string(), i.state.as_str(), i.instance_count()]))
         .collect();
-    let expected = [json!(["2024-10-01", "postponed", 3]), json!(["2024-10-01", "toCreate", 2]), json!(["2024-11-01", "toCreate", 3])];
+    let expected = [
+        json!(["2024-10-01", "postponed", 3]),
+        json!(["2024-10-01", "toCreate", 2]),
+        json!(["2024-11-01", "toCreate", 3]),
+    ];
     assert_eq!(shown, expected);
     let choice = |index, state| Choice {
         index,
@@ -193,12 +225,18 @@ fn gnucash_reads_back_the_instances_red_ale_applied() {
 
     let rent = &gnucash_scheduled(&book)[RENT];
     assert_eq!(json!([rent["last"], rent["instanceCount"]]), json!(["2024-11-01", 4]));
-    assert_eq!(rent["deferred"], json!([{ "last": "2024-10-01", "remOccur": 0, "instanceCount": 3 }]));
+    assert_eq!(
+        rent["deferred"],
+        json!([{ "last": "2024-10-01", "remOccur": 0, "instanceCount": 3 }])
+    );
     let transactions: Value = serde_json::from_str(&script(&["created", &book.path_str()])).unwrap();
     assert_eq!(transactions.as_object().map(serde_json::Map::len), Some(1));
     let t = &transactions[&created];
     assert_eq!(t["scheduledTransaction"], RENT);
-    assert_eq!(json!([t["description"], t["num"], t["notes"], t["currency"]]), json!(["Rent", "", null, "CURRENCY::USD"]));
+    assert_eq!(
+        json!([t["description"], t["num"], t["notes"], t["currency"]]),
+        json!(["Rent", "", null, "CURRENCY::USD"])
+    );
     let dates = json!([t["datePosted"], t["datePostedGDate"], t["dateEntered"]]);
     assert_eq!(dates, json!([1_727_780_340, "2024-10-01", 1_731_672_000]));
     let split = |account: &str, value: &str| json!({ "account": account, "memo": "", "action": "", "value": value, "amount": value });
@@ -208,7 +246,10 @@ fn gnucash_reads_back_the_instances_red_ale_applied() {
     let gnucash = oracle::dump(&book.path).unwrap();
     let (ours, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
     let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
-    assert_eq!(red_ale_testkit::diff(&gnucash, &red_ale_testkit::model::dump(&ours), &skip), Vec::<String>::new());
+    assert_eq!(
+        red_ale_testkit::diff(&gnucash, &red_ale_testkit::model::dump(&ours), &skip),
+        Vec::<String>::new()
+    );
 }
 
 /// Since Last Run over JSON-RPC on the rent with its 456 made a variable `rent` (and its numerics 0, as GnuCash's
@@ -221,8 +262,14 @@ fn gnucash_reads_the_instances_since_last_run_created_over_rpc() {
     let book = TempBook::copy("synthetic/rich.gnucash");
     let text = std::fs::read_to_string(&book.path)
         .unwrap()
-        .replace("<slot:value type=\"string\">456</slot:value>", "<slot:value type=\"string\">rent</slot:value>")
-        .replace("<slot:value type=\"numeric\">456/1</slot:value>", "<slot:value type=\"numeric\">0/1</slot:value>");
+        .replace(
+            "<slot:value type=\"string\">456</slot:value>",
+            "<slot:value type=\"string\">rent</slot:value>",
+        )
+        .replace(
+            "<slot:value type=\"numeric\">456/1</slot:value>",
+            "<slot:value type=\"numeric\">0/1</slot:value>",
+        );
     std::fs::write(&book.path, text).unwrap();
     let mut d = red_ale_rpc::Dispatcher::new(red_ale_service::Settings::default());
     let nov_28 = red_ale_core::Time64(1_732_795_200);
@@ -235,7 +282,11 @@ fn gnucash_reads_the_instances_since_last_run_created_over_rpc() {
         { "index": 1, "variables": { "rent": "456.10" } },
         { "index": 2, "variables": { "rent": "470.05" } },
     ]);
-    let applied = call(&mut d, "scheduledTransaction.apply", &json!({ "proposal": proposal["id"], "choices": choices }));
+    let applied = call(
+        &mut d,
+        "scheduledTransaction.apply",
+        &json!({ "proposal": proposal["id"], "choices": choices }),
+    );
     assert_eq!(applied["reminders"], json!([3]));
     let created: Vec<String> = applied["created"]
         .as_array()
@@ -246,12 +297,20 @@ fn gnucash_reads_the_instances_since_last_run_created_over_rpc() {
     call(&mut d, "book.close", &json!({ "save": true }));
 
     let rent = &gnucash_scheduled(&book)[RENT];
-    assert_eq!(json!([rent["last"], rent["instanceCount"], rent["deferred"]]), json!(["2024-11-01", 4, []]));
+    assert_eq!(
+        json!([rent["last"], rent["instanceCount"], rent["deferred"]]),
+        json!(["2024-11-01", 4, []])
+    );
     let transactions: Value = serde_json::from_str(&script(&["created", &book.path_str()])).unwrap();
     assert_eq!(transactions.as_object().map(serde_json::Map::len), Some(2));
     let read = |guid: &str| {
         let t = &transactions[guid];
-        json!([t["scheduledTransaction"], t["datePostedGDate"], t["splits"][0]["value"], t["splits"][1]["amount"]])
+        json!([
+            t["scheduledTransaction"],
+            t["datePostedGDate"],
+            t["splits"][0]["value"],
+            t["splits"][1]["amount"]
+        ])
     };
     assert_eq!(read(&created[0]), json!([RENT, "2024-10-01", "45610/100", "-45610/100"]));
     assert_eq!(read(&created[1]), json!([RENT, "2024-11-01", "47005/100", "-47005/100"]));
@@ -259,7 +318,10 @@ fn gnucash_reads_the_instances_since_last_run_created_over_rpc() {
     let gnucash = oracle::dump(&book.path).unwrap();
     let (ours, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
     let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
-    assert_eq!(red_ale_testkit::diff(&gnucash, &red_ale_testkit::model::dump(&ours), &skip), Vec::<String>::new());
+    assert_eq!(
+        red_ale_testkit::diff(&gnucash, &red_ale_testkit::model::dump(&ours), &skip),
+        Vec::<String>::new()
+    );
 }
 
 /// What `scheduled.py dump` prints for a scheduled transaction but its splits, built from red-ale's
@@ -320,27 +382,39 @@ fn gnucash_reads_the_scheduled_transactions_red_ale_made() {
     let book = TempBook::copy("synthetic/rich.gnucash");
     let mut d = dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-    let made = call(&mut d, "scheduledTransaction.create", &json!({
-        "name": "Groceries & more", "startDate": "2024-07-31", "end": { "occurrences": 6, "remaining": 5 }, "advanceRemindDays": 3,
-        "schedule": [{ "mult": 1, "periodType": "endOfMonth", "weekendAdjust": "back" }, { "mult": 2, "periodType": "week" }],
-        "templateTransactions": [{
-            "description": "Shop", "num": "7", "notes": "weekly",
-            "splits": [
-                { "account": "Expenses:Food", "memo": "food", "debitFormula": "amount * 2 + i" },
-                { "account": "Assets:Cash", "creditFormula": "amount * 2 + i" },
-                { "account": "Assets:Cash", "memo": "marker" },
-            ],
-        }],
-    }));
-    let from = call(&mut d, "scheduledTransaction.fromTransaction", &json!({
-        "transaction": "f485efcd743943ddb6eede20c1d22c05", "frequency": "quarterly", "end": { "date": "2026-06-30" },
-    }));
-    let loan = call(&mut d, "scheduledTransaction.loan", &json!({
-        "name": "House", "loanAccount": "Liabilities", "principal": "100000", "rate": "6", "startDate": "2024-01-01",
-        "length": { "years": 30 }, "monthsRemaining": 354, "escrow": "Assets:NonStd",
-        "repayment": { "from": "Assets:Cash", "interestTo": "Expenses:Fees", "start": "2024-07-01" },
-        "otherPayments": [{ "kind": "taxes", "amount": "250.75", "to": "Expenses:Fees" }],
-    }))["scheduledTransaction"]
+    let made = call(
+        &mut d,
+        "scheduledTransaction.create",
+        &json!({
+            "name": "Groceries & more", "startDate": "2024-07-31", "end": { "occurrences": 6, "remaining": 5 }, "advanceRemindDays": 3,
+            "schedule": [{ "mult": 1, "periodType": "endOfMonth", "weekendAdjust": "back" }, { "mult": 2, "periodType": "week" }],
+            "templateTransactions": [{
+                "description": "Shop", "num": "7", "notes": "weekly",
+                "splits": [
+                    { "account": "Expenses:Food", "memo": "food", "debitFormula": "amount * 2 + i" },
+                    { "account": "Assets:Cash", "creditFormula": "amount * 2 + i" },
+                    { "account": "Assets:Cash", "memo": "marker" },
+                ],
+            }],
+        }),
+    );
+    let from = call(
+        &mut d,
+        "scheduledTransaction.fromTransaction",
+        &json!({
+            "transaction": "f485efcd743943ddb6eede20c1d22c05", "frequency": "quarterly", "end": { "date": "2026-06-30" },
+        }),
+    );
+    let loan = call(
+        &mut d,
+        "scheduledTransaction.loan",
+        &json!({
+            "name": "House", "loanAccount": "Liabilities", "principal": "100000", "rate": "6", "startDate": "2024-01-01",
+            "length": { "years": 30 }, "monthsRemaining": 354, "escrow": "Assets:NonStd",
+            "repayment": { "from": "Assets:Cash", "interestTo": "Expenses:Fees", "start": "2024-07-01" },
+            "otherPayments": [{ "kind": "taxes", "amount": "250.75", "to": "Expenses:Fees" }],
+        }),
+    )["scheduledTransaction"]
         .clone();
     let ours: Vec<Value> = [&made, &from, &loan]
         .iter()
@@ -351,16 +425,28 @@ fn gnucash_reads_the_scheduled_transactions_red_ale_made() {
     let (read, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
     let core = |info: &Value| &read.scheduled[&Guid::parse(info["guid"].as_str().unwrap()).unwrap()];
     let gnucash = gnucash_scheduled(&book);
-    assert_eq!(gnucash.as_object().map(serde_json::Map::len), Some(4), "the rent and the three made");
+    assert_eq!(
+        gnucash.as_object().map(serde_json::Map::len),
+        Some(4),
+        "the rent and the three made"
+    );
     ours.iter().for_each(|info| {
         let mut fields = gnucash[info["guid"].as_str().unwrap()].clone();
         let splits = fields.as_object_mut().unwrap().remove("splits").unwrap();
         assert_eq!(fields, as_gnucash_dumps(info, core(info)), "{}", info["name"]);
-        let read: std::collections::BTreeMap<String, Value> =
-            splits.as_array().unwrap().iter().map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone())).collect();
+        let read: std::collections::BTreeMap<String, Value> = splits
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone()))
+            .collect();
         assert_eq!(read, template_splits(info), "{}", info["name"]);
     });
-    assert_eq!(gnucash[loan["guid"].as_str().unwrap()]["splits"].as_array().map(Vec::len), Some(7), "two templates");
+    assert_eq!(
+        gnucash[loan["guid"].as_str().unwrap()]["splits"].as_array().map(Vec::len),
+        Some(7),
+        "two templates"
+    );
 
     let next: Value = serde_json::from_str(&script(&["next", &book.path_str()])).unwrap();
     ours.iter().for_each(|info| {
@@ -369,11 +455,18 @@ fn gnucash_reads_the_scheduled_transactions_red_ale_made() {
         assert_eq!(red_ale_next(sx, &expected["ranges"]), *expected, "{}", sx.name);
         assert_eq!(expected["steps"][0][0], info["nextOccurrence"], "{}", sx.name);
     });
-    assert_eq!(next[loan["guid"].as_str().unwrap()]["steps"][0], json!(["2024-07-01", 7, 0]), "six payments made");
+    assert_eq!(
+        next[loan["guid"].as_str().unwrap()]["steps"][0],
+        json!(["2024-07-01", 7, 0]),
+        "six payments made"
+    );
 
     let whole = oracle::dump(&book.path).unwrap();
     let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
-    assert_eq!(red_ale_testkit::diff(&whole, &red_ale_testkit::model::dump(&read), &skip), Vec::<String>::new());
+    assert_eq!(
+        red_ale_testkit::diff(&whole, &red_ale_testkit::model::dump(&read), &skip),
+        Vec::<String>::new()
+    );
 }
 
 /// The first scheduled transaction of a book that had none: red-ale makes the template root as GnuCash does, with no
@@ -385,16 +478,20 @@ fn gnucash_reads_the_first_scheduled_transaction_of_a_book() {
     std::fs::write(&book.path, red_ale_testkit::synthetic::synthetic_book_text(10)).unwrap();
     let mut d = dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
-    let made = call(&mut d, "scheduledTransaction.create", &json!({
-        "name": "Daily", "startDate": "2024-06-01", "schedule": [{ "mult": 1, "periodType": "day" }], "end": { "occurrences": 5 },
-        "templateTransactions": [{
-            "description": "Scheduled",
-            "splits": [
-                { "account": "Expenses:Expenses 0000", "debitFormula": "12.34" },
-                { "account": "Assets:Assets 0000", "creditFormula": "12.34" },
-            ],
-        }],
-    }));
+    let made = call(
+        &mut d,
+        "scheduledTransaction.create",
+        &json!({
+            "name": "Daily", "startDate": "2024-06-01", "schedule": [{ "mult": 1, "periodType": "day" }], "end": { "occurrences": 5 },
+            "templateTransactions": [{
+                "description": "Scheduled",
+                "splits": [
+                    { "account": "Expenses:Expenses 0000", "debitFormula": "12.34" },
+                    { "account": "Assets:Assets 0000", "creditFormula": "12.34" },
+                ],
+            }],
+        }),
+    );
     let info = call(&mut d, "scheduledTransaction.get", &json!({ "scheduledTransaction": made["guid"] }));
     call(&mut d, "book.close", &json!({ "save": true }));
 
@@ -404,12 +501,19 @@ fn gnucash_reads_the_first_scheduled_transaction_of_a_book() {
     let mut fields = gnucash[guid].clone();
     let splits = fields.as_object_mut().unwrap().remove("splits").unwrap();
     assert_eq!(fields, as_gnucash_dumps(&info, &read.scheduled[&Guid::parse(guid).unwrap()]));
-    let splits: std::collections::BTreeMap<String, Value> =
-        splits.as_array().unwrap().iter().map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone())).collect();
+    let splits: std::collections::BTreeMap<String, Value> = splits
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone()))
+        .collect();
     assert_eq!(splits, template_splits(&info));
     let whole = oracle::dump(&book.path).unwrap();
     let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
-    assert_eq!(red_ale_testkit::diff(&whole, &red_ale_testkit::model::dump(&read), &skip), Vec::<String>::new());
+    assert_eq!(
+        red_ale_testkit::diff(&whole, &red_ale_testkit::model::dump(&read), &skip),
+        Vec::<String>::new()
+    );
 }
 
 /// The first scheduled transaction of a new SQLite book goes under the template root its `books` row names
@@ -420,18 +524,30 @@ fn gnucash_reads_the_first_scheduled_transaction_of_a_new_sqlite_book() {
     let book = TempBook::new_path();
     let mut d = dispatcher();
     call(&mut d, "book.create", &json!({ "path": book.path_str(), "format": "sqlite" }));
-    call(&mut d, "account.create", &json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "CURRENCY::USD" }));
-    call(&mut d, "account.create", &json!({ "name": "Assets", "type": "ASSET", "commodity": "CURRENCY::USD" }));
-    let made = call(&mut d, "scheduledTransaction.create", &json!({
-        "name": "Daily", "startDate": "2024-06-01", "schedule": [{ "mult": 1, "periodType": "day" }], "end": { "occurrences": 5 },
-        "templateTransactions": [{
-            "description": "Scheduled",
-            "splits": [
-                { "account": "Expenses", "debitFormula": "12.34" },
-                { "account": "Assets", "creditFormula": "12.34" },
-            ],
-        }],
-    }));
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "CURRENCY::USD" }),
+    );
+    call(
+        &mut d,
+        "account.create",
+        &json!({ "name": "Assets", "type": "ASSET", "commodity": "CURRENCY::USD" }),
+    );
+    let made = call(
+        &mut d,
+        "scheduledTransaction.create",
+        &json!({
+            "name": "Daily", "startDate": "2024-06-01", "schedule": [{ "mult": 1, "periodType": "day" }], "end": { "occurrences": 5 },
+            "templateTransactions": [{
+                "description": "Scheduled",
+                "splits": [
+                    { "account": "Expenses", "debitFormula": "12.34" },
+                    { "account": "Assets", "creditFormula": "12.34" },
+                ],
+            }],
+        }),
+    );
     let info = call(&mut d, "scheduledTransaction.get", &json!({ "scheduledTransaction": made["guid"] }));
     call(&mut d, "book.close", &json!({ "save": true }));
 
@@ -442,7 +558,11 @@ fn gnucash_reads_the_first_scheduled_transaction_of_a_new_sqlite_book() {
     let mut fields = gnucash[guid].clone();
     let splits = fields.as_object_mut().unwrap().remove("splits").unwrap();
     assert_eq!(fields, as_gnucash_dumps(&info, &read.scheduled[&Guid::parse(guid).unwrap()]));
-    let splits: std::collections::BTreeMap<String, Value> =
-        splits.as_array().unwrap().iter().map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone())).collect();
+    let splits: std::collections::BTreeMap<String, Value> = splits
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone()))
+        .collect();
     assert_eq!(splits, template_splits(&info));
 }

@@ -44,7 +44,10 @@ fn account(f: &mut Fixture, name: &str, kind: &str, parent: Option<&str>) {
 
 fn transfer(f: &mut Fixture, date: &str, from: &str, to: &str, value: &str) {
     let splits = json!([{ "account": from, "value": format!("-{value}") }, { "account": to, "value": value }]);
-    f.call("transaction.post", &json!({ "datePosted": date, "description": "real", "splits": splits }));
+    f.call(
+        "transaction.post",
+        &json!({ "datePosted": date, "description": "real", "splits": splits }),
+    );
 }
 
 /// A scheduled transaction moving `formula` from `from` to `to` on `schedule`, with `extra` fields.
@@ -75,20 +78,62 @@ fn book() -> Fixture {
     account(&mut f, "Income", "INCOME", None);
     account(&mut f, "Salary", "INCOME", Some("Income"));
     account(&mut f, "Expenses", "EXPENSE", None);
-    ["Rent", "Gym", "Utilities"].iter().for_each(|n| account(&mut f, n, "EXPENSE", Some("Expenses")));
+    ["Rent", "Gym", "Utilities"]
+        .iter()
+        .for_each(|n| account(&mut f, n, "EXPENSE", Some("Expenses")));
     account(&mut f, "Equity", "EQUITY", None);
     account(&mut f, "Opening", "EQUITY", Some("Equity"));
     transfer(&mut f, "2024-01-02", "Equity:Opening", "Assets:Checking", "1000");
     transfer(&mut f, "2024-01-02", "Equity:Opening", "Assets:Cash", "50");
     transfer(&mut f, "2024-04-15", "Assets:Checking", "Expenses:Utilities", "100");
-    scheduled(&mut f, "Rent", every("month", 1, "2024-01-01"), "Assets:Checking", "Expenses:Rent", "2000", json!({}));
-    scheduled(&mut f, "Salary", every("week", 2, "2024-03-22"), "Income:Salary", "Assets:Checking", "900", json!({}));
+    scheduled(
+        &mut f,
+        "Rent",
+        every("month", 1, "2024-01-01"),
+        "Assets:Checking",
+        "Expenses:Rent",
+        "2000",
+        json!({}),
+    );
+    scheduled(
+        &mut f,
+        "Salary",
+        every("week", 2, "2024-03-22"),
+        "Income:Salary",
+        "Assets:Checking",
+        "900",
+        json!({}),
+    );
     let gym_end = json!({ "end": { "date": "2024-05-05" } });
-    scheduled(&mut f, "Gym", every("month", 1, "2024-04-10"), "Assets:Cash", "Expenses:Gym", "20", gym_end);
+    scheduled(
+        &mut f,
+        "Gym",
+        every("month", 1, "2024-04-10"),
+        "Assets:Cash",
+        "Expenses:Gym",
+        "20",
+        gym_end,
+    );
     let utilities = every("month", 1, "2024-04-20");
-    scheduled(&mut f, "Utilities", utilities, "Assets:Checking", "Expenses:Utilities", "power * 2 + 30", json!({}));
+    scheduled(
+        &mut f,
+        "Utilities",
+        utilities,
+        "Assets:Checking",
+        "Expenses:Utilities",
+        "power * 2 + 30",
+        json!({}),
+    );
     let holiday = every("month", 1, "2024-04-01");
-    scheduled(&mut f, "Holiday", holiday, "Assets:Cash", "Expenses:Gym", "999", json!({ "enabled": false }));
+    scheduled(
+        &mut f,
+        "Holiday",
+        holiday,
+        "Assets:Cash",
+        "Expenses:Gym",
+        "999",
+        json!({ "enabled": false }),
+    );
     run_rent_since_last_run(&mut f);
     f
 }
@@ -97,12 +142,19 @@ fn book() -> Fixture {
 fn run_rent_since_last_run(f: &mut Fixture) {
     let p = f.call("scheduledTransaction.sinceLastRun", &json!({}));
     let schedules = p["schedules"].as_array().unwrap();
-    let dates: Vec<&Value> = schedules.iter().flat_map(|s| s["instances"].as_array().unwrap()).map(|i| &i["date"]).collect();
+    let dates: Vec<&Value> = schedules
+        .iter()
+        .flat_map(|s| s["instances"].as_array().unwrap())
+        .map(|i| &i["date"])
+        .collect();
     assert_eq!(dates, [&json!("2024-01-01"), &json!("2024-02-01"), &json!("2024-03-01")]);
     let choices = json!([{ "index": 0, "state": "ignored" }, { "index": 1, "state": "ignored" }, { "index": 2, "state": "postponed" }]);
     let applied = f.call("scheduledTransaction.apply", &json!({ "proposal": p["id"], "choices": choices }));
     let rent = &applied["schedules"][0];
-    assert_eq!(json!([rent["lastOccurrence"], rent["deferredInstances"][0]["lastOccurrence"]]), json!(["2024-03-01", "2024-02-01"]));
+    assert_eq!(
+        json!([rent["lastOccurrence"], rent["deferredInstances"][0]["lastOccurrence"]]),
+        json!(["2024-03-01", "2024-02-01"])
+    );
 }
 
 /// The FSTS options for `from` to `to`, with `display` options.
@@ -122,7 +174,9 @@ fn summary(result: &Value) -> Vec<String> {
         .iter()
         .map(|r| {
             let cells = &r["cells"];
-            let shown = cells[amount]["display"].as_str().map_or_else(|| cells[amount].to_string(), str::to_owned);
+            let shown = cells[amount]["display"]
+                .as_str()
+                .map_or_else(|| cells[amount].to_string(), str::to_owned);
             format!("{}: {shown}", cells[label]["text"].as_str().unwrap_or_default())
         })
         .collect()
@@ -147,7 +201,10 @@ fn april_and_may() {
     let mut f = book();
     let options = range("2024-04-01", "2024-05-31", json!({}));
     let result = f.run(FSTS, &options);
-    assert_eq!(result["title"], " Future Scheduled Transactions Summary For Period Covering 04/01/24 to 05/31/24");
+    assert_eq!(
+        result["title"],
+        " Future Scheduled Transactions Summary For Period Covering 04/01/24 to 05/31/24"
+    );
     let expected = [
         "Assets: $0.00",
         "Cash: -$20.00",
@@ -163,7 +220,10 @@ fn april_and_may() {
     ];
     assert_eq!(summary(&result), strings(&expected));
     let html = f.export(FSTS, &options);
-    assert!(html.contains("$4,000.00") && html.contains("-$4,500.00"), "the page shows the figures");
+    assert!(
+        html.contains("$4,000.00") && html.contains("-$4,500.00"),
+        "the page shows the figures"
+    );
 }
 
 /// With recursive parent balances the account table adds the children's cash flows to each parent (HAT:661-669):
@@ -171,13 +231,19 @@ fn april_and_may() {
 #[test]
 fn parents_add_their_children() {
     let mut f = book();
-    let result = f.run(FSTS, &range("2024-04-01", "2024-05-31", json!({ "Parent account balances": "recursive-bal" })));
+    let result = f.run(
+        FSTS,
+        &range("2024-04-01", "2024-05-31", json!({ "Parent account balances": "recursive-bal" })),
+    );
     let parents = ["Assets", "Income", "Expenses", "Equity"];
     let rows: Vec<String> = summary(&result)
         .into_iter()
         .filter(|r| parents.iter().any(|p| r.starts_with(&format!("{p}:"))))
         .collect();
-    assert_eq!(rows, strings(&["Assets: $420.00", "Income: -$4,500.00", "Expenses: $4,080.00", "Equity: $0.00"]));
+    assert_eq!(
+        rows,
+        strings(&["Assets: $420.00", "Income: -$4,500.00", "Expenses: $4,080.00", "Equity: $0.00"])
+    );
 }
 
 /// Both ends of the range count (SX:777, :792): 1 April holds Rent's occurrence, 31 May Salary's.
@@ -208,13 +274,33 @@ fn the_deferred_instance_and_the_last_occurrence_are_left_out() {
 fn test_account_summary_fsts() {
     let mut f = Fixture::open("test-data", "locale", true);
     let result = f.run(FSTS, &json!({}));
-    assert_eq!(result["title"], " Future Scheduled Transactions Summary For Period Covering 03/15/24 to 03/15/24");
-    let names = ["Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity"];
+    assert_eq!(
+        result["title"],
+        " Future Scheduled Transactions Summary For Period Covering 03/15/24 to 03/15/24"
+    );
+    let names = [
+        "Root",
+        "Asset",
+        "Bank",
+        "GBP Bank",
+        "Wallet",
+        "Liabilities",
+        "Income",
+        "Income-GBP",
+        "Expenses",
+        "Equity",
+    ];
     assert_eq!(summary(&result), names.map(|n| format!("{n}: $0.00")), "fsts col 2 and col 3");
     let options = report_runs::described_options(FSTS);
-    let dates: Vec<&String> = options.iter().filter(|o| o.starts_with("General/") && o.contains(" Date ")).collect();
+    let dates: Vec<&String> = options
+        .iter()
+        .filter(|o| o.starts_with("General/") && o.contains(" Date "))
+        .collect();
     assert_eq!(dates.len(), 2, "{options:#?}");
-    assert!(dates[0].starts_with("General/Start Date \"ca\"") && dates[1].starts_with("General/End Date \"cb\""), "{dates:?}");
+    assert!(
+        dates[0].starts_with("General/Start Date \"ca\"") && dates[1].starts_with("General/End Date \"cb\""),
+        "{dates:?}"
+    );
 }
 
 // The Balance Forecast (`standard/balance-forecast.rhai`, from `5.17:gnucash/report/reports/standard/balance-forecast.scm`,
@@ -232,7 +318,12 @@ fn forecast(from: &str, to: &str, interval: &str, display: Value) -> Value {
 /// The chart's labels and each series as `label: values`.
 fn lines(result: &Value) -> (Vec<String>, Vec<String>) {
     let chart = only(result, "chart");
-    let labels = chart["labels"].as_array().unwrap().iter().map(|l| l.as_str().unwrap().to_owned()).collect();
+    let labels = chart["labels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l.as_str().unwrap().to_owned())
+        .collect();
     let fraction = |v: &Value| format!("{}/{}", v["num"].as_str().unwrap(), v["denom"].as_str().unwrap());
     let series = chart["series"]
         .as_array()
@@ -278,7 +369,10 @@ fn april_to_june_by_month() {
     let chart = only(&result, "chart");
     assert_eq!(chart["type"], "line");
     assert_eq!(chart["title"], json!(["Balance Forecast", "04/01/24 to 06/30/24"]));
-    assert_eq!(chart["yAxis"], json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" }));
+    assert_eq!(
+        chart["yAxis"],
+        json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" })
+    );
     let colors: Vec<&Value> = chart["series"].as_array().unwrap().iter().map(|s| &s["color"]).collect();
     assert_eq!(colors, [&json!("#00aaaa"), &json!("#00aa00"), &json!("#ffff00"), &json!("#ff0000")]);
     let balance = &chart["series"][1];
@@ -296,7 +390,10 @@ fn defaults_show_the_balance_alone() {
     let options = forecast("2024-04-01", "2024-06-30", "MonthDelta", json!({}));
     let result = f.run(FORECAST, &options);
     assert_eq!(lines(&result).1, strings(&["Balance: -400/1 270/1 40/1"]));
-    assert_eq!(only(&result, "chart")["series"][0]["pointRadius"], json!({ "num": "0", "denom": "1" }));
+    assert_eq!(
+        only(&result, "chart")["series"][0]["pointRadius"],
+        json!({ "num": "0", "denom": "1" })
+    );
     let html = f.export(FORECAST, &options);
     assert!(html.contains("<g opacity=\"0\">"), "markers are hidden but keep their hover labels");
 }
@@ -330,13 +427,20 @@ fn an_occurrence_on_the_start_date_counts_twice() {
 #[test]
 fn foreign_accounts_are_exchanged_at_each_interval_end() {
     let mut f = book();
-    let euro = |f: &mut Fixture, name: &str, kind: &str| {
-        f.call("account.create", &json!({ "name": name, "type": kind, "commodity": "EUR" }))
-    };
+    let euro =
+        |f: &mut Fixture, name: &str, kind: &str| f.call("account.create", &json!({ "name": name, "type": kind, "commodity": "EUR" }));
     euro(&mut f, "Euro Cash", "CASH");
     euro(&mut f, "Euro Opening", "EQUITY");
     transfer(&mut f, "2024-01-02", "Euro Opening", "Euro Cash", "100");
-    scheduled(&mut f, "Top-up", every("month", 1, "2024-04-15"), "Euro Opening", "Euro Cash", "10", json!({}));
+    scheduled(
+        &mut f,
+        "Top-up",
+        every("month", 1, "2024-04-15"),
+        "Euro Opening",
+        "Euro Cash",
+        "10",
+        json!({}),
+    );
     let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.10", "date": "2024-04-01" });
     f.call("price.add", &price);
     let mut options = forecast("2024-04-01", "2024-05-31", "MonthDelta", json!({}));

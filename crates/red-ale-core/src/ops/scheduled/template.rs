@@ -41,7 +41,12 @@ pub fn template_transactions<'a>(book: &'a Book, sx: &ScheduledTransaction) -> V
         .templates
         .transactions
         .values()
-        .flat_map(|t| t.splits.iter().filter(move |s| s.account == Some(account)).map(move |s| (t.as_ref(), s)))
+        .flat_map(|t| {
+            t.splits
+                .iter()
+                .filter(move |s| s.account == Some(account))
+                .map(move |s| (t.as_ref(), s))
+        })
         .collect();
     splits.sort_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, num_action));
     let mut seen = BTreeSet::new();
@@ -78,8 +83,13 @@ pub(crate) fn split_account<'a>(
         problem,
         index: None,
     };
-    let account = named.and_then(|g| book.account(g)).ok_or_else(|| problem(AccountProblem::Missing(named)))?;
-    let commodity = account.commodity.as_ref().ok_or_else(|| problem(AccountProblem::NoCommodity(account.guid)))?;
+    let account = named
+        .and_then(|g| book.account(g))
+        .ok_or_else(|| problem(AccountProblem::Missing(named)))?;
+    let commodity = account
+        .commodity
+        .as_ref()
+        .ok_or_else(|| problem(AccountProblem::NoCommodity(account.guid)))?;
     Ok((account, commodity))
 }
 
@@ -120,10 +130,12 @@ pub fn variables(book: &Book, sx: &ScheduledTransaction, format: NumberFormat) -
     template_transactions(book, sx).into_iter().for_each(|t| {
         let currency = transaction_currency(book, sx, t);
         t.splits.iter().for_each(|split| {
-            formulas(split).into_iter().for_each(|(side, text)| match free_variables(text, format) {
-                Ok(found) => names.extend(found),
-                Err(error) => errors.push(ScheduledError::formula(site(sx, t, split), side, text, error)),
-            });
+            formulas(split)
+                .into_iter()
+                .for_each(|(side, text)| match free_variables(text, format) {
+                    Ok(found) => names.extend(found),
+                    Err(error) => errors.push(ScheduledError::formula(site(sx, t, split), side, text, error)),
+                });
             match (split_account(book, sx, t, split), &currency) {
                 (Ok((_, c)), Ok(currency)) if c != currency && !is_marker(split) => {
                     names.insert(exchange_rate_variable(c, currency));

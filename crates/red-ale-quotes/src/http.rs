@@ -85,9 +85,9 @@ impl Client {
     /// told apart from the rest of a URL that may hold a key.
     fn allow(&self, uri: &Uri) -> Result<(), HttpError> {
         match self.hosts {
-            Hosts::Loopback if !uri.host().is_some_and(is_loopback) => {
-                Err(HttpError("refused: this client asks only loopback hosts (127.0.0.0/8, ::1, localhost)".to_owned()))
-            }
+            Hosts::Loopback if !uri.host().is_some_and(is_loopback) => Err(HttpError(
+                "refused: this client asks only loopback hosts (127.0.0.0/8, ::1, localhost)".to_owned(),
+            )),
             _ => Ok(()),
         }
     }
@@ -114,7 +114,14 @@ mod tests {
     #[test]
     fn loopback_hosts_are_told_from_others() {
         let allowed = ["127.0.0.1", "127.5.5.5", "[::1]", "localhost", "LocalHost", "[::ffff:127.0.0.1]"];
-        let refused = ["example.com", "10.0.0.1", "192.0.2.1", "[2001:db8::1]", "localhost.example", "127.0.0.1.example"];
+        let refused = [
+            "example.com",
+            "10.0.0.1",
+            "192.0.2.1",
+            "[2001:db8::1]",
+            "localhost.example",
+            "127.0.0.1.example",
+        ];
         assert!(allowed.iter().all(|h| is_loopback(h)), "{allowed:?}");
         assert!(!refused.iter().any(|h| is_loopback(h)), "{refused:?}");
     }
@@ -125,6 +132,9 @@ mod tests {
         let client = Client::new(Hosts::Loopback).unwrap();
         let err = runtime.block_on(client.get("http://192.0.2.1/quote?apikey=SECRET")).unwrap_err();
         assert!(err.to_string().starts_with("refused:"), "{err}");
-        assert!(!err.to_string().contains("192.0.2.1") && !err.to_string().contains("SECRET"), "{err}");
+        assert!(
+            !err.to_string().contains("192.0.2.1") && !err.to_string().contains("SECRET"),
+            "{err}"
+        );
     }
 }

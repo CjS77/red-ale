@@ -225,7 +225,13 @@ fn testkit_fetches_reach_loopback_hosts_only() {
     ["NYSE::HPE", "CURRENCY::EUR"].iter().for_each(|c| {
         let item = entry(&status, c);
         assert_eq!(item["reason"], "service-error", "{item}");
-        assert!(item["message"].as_str().unwrap().contains("refused: this client asks only loopback hosts"), "{item}");
+        assert!(
+            item["message"]
+                .as_str()
+                .unwrap()
+                .contains("refused: this client asks only loopback hosts"),
+            "{item}"
+        );
     });
     assert_eq!(entry(&status, "CURRENCY::EUR")["service"], "frankfurter");
 }

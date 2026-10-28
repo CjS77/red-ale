@@ -27,7 +27,11 @@ pub(super) fn read_order(st: &Statements<'_>, tx: &Transaction) -> Result<Vec<Gu
 /// `order`, the GUIDs of `tx`'s splits as stored, as GnuCash's load sorts them.
 fn sorted(tx: &Transaction, order: &[Guid]) -> Vec<Guid> {
     let mut t = tx.clone();
-    t.splits = order.iter().filter_map(|g| tx.splits.iter().find(|s| s.guid == *g)).cloned().collect();
+    t.splits = order
+        .iter()
+        .filter_map(|g| tx.splits.iter().find(|s| s.guid == *g))
+        .cloned()
+        .collect();
     sort_splits(&mut t);
     t.splits.iter().map(|s| s.guid).collect()
 }
@@ -65,7 +69,11 @@ impl Writer<'_, '_> {
         self.gone(&tables::SPLITS, "tx_guid", old.guid);
         old.splits.iter().try_for_each(|s| {
             self.touched_lots.extend(s.lot);
-            if moved.contains_key(&s.guid) { Ok(()) } else { self.delete_slots(s.guid) }
+            if moved.contains_key(&s.guid) {
+                Ok(())
+            } else {
+                self.delete_slots(s.guid)
+            }
         })
     }
 
@@ -81,7 +89,11 @@ impl Writer<'_, '_> {
                 vec![guid(s.guid), guid(old.guid)],
             ));
             self.touched_lots.extend(s.lot);
-            if moved.contains_key(&s.guid) { Ok(()) } else { self.delete_slots(s.guid) }
+            if moved.contains_key(&s.guid) {
+                Ok(())
+            } else {
+                self.delete_slots(s.guid)
+            }
         })
     }
 
@@ -90,7 +102,9 @@ impl Writer<'_, '_> {
         self.adopt(new.guid)?;
         self.insert_row(&tables::TRANSACTIONS, encode::transaction(new, self.refs()))?;
         self.insert_slots(new.guid, &new.slots)?;
-        new.splits.iter().try_for_each(|s| self.add_split(new.guid, s, moved.get(&s.guid).copied()))?;
+        new.splits
+            .iter()
+            .try_for_each(|s| self.add_split(new.guid, s, moved.get(&s.guid).copied()))?;
         self.checks.push(super::Check::SplitOrder(new.clone()));
         Ok(())
     }
@@ -115,7 +129,12 @@ impl Writer<'_, '_> {
         self.rewrite_slots(new.guid, &old.slots, &new.slots)?;
         let before = splits_by_guid(old);
         let stored = read_stored(&self.st, new.guid)?;
-        let added: Vec<Guid> = new.splits.iter().filter(|s| !before.contains_key(&s.guid)).map(|s| s.guid).collect();
+        let added: Vec<Guid> = new
+            .splits
+            .iter()
+            .filter(|s| !before.contains_key(&s.guid))
+            .map(|s| s.guid)
+            .collect();
         let predicted: Vec<Guid> = stored.iter().chain(&added).copied().collect();
         if sorted(new, &predicted) == new.splits.iter().map(|s| s.guid).collect::<Vec<_>>() {
             new.splits.iter().try_for_each(|s| match before.get(&s.guid) {

@@ -43,7 +43,10 @@ fn rows(conn: &rusqlite::Connection, table: &Table) -> Vec<Vec<Cell>> {
     let sql = format!("SELECT {} FROM {} ORDER BY rowid", columns.join(", "), table.name);
     let mut stmt = conn.prepare(&sql).unwrap();
     let n = columns.len();
-    stmt.query_map([], |r| Ok((0..n).map(|i| cell(r.get_ref(i).unwrap())).collect())).unwrap().map(Result::unwrap).collect()
+    stmt.query_map([], |r| Ok((0..n).map(|i| cell(r.get_ref(i).unwrap())).collect()))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect()
 }
 
 /// The columns a row is written with: all but the `id` of an `AUTOINCREMENT` table, which is its first.
@@ -81,14 +84,21 @@ struct Check<'a> {
 impl Check<'_> {
     fn same(&mut self, table: &Table, stored: Option<&Vec<Cell>>, encoded: &[Cell]) {
         let Some(stored) = stored else {
-            self.failures.push(format!("{}: {} has no row for {}", self.name, table.name, show(&encoded[0])));
+            self.failures
+                .push(format!("{}: {} has no row for {}", self.name, table.name, show(&encoded[0])));
             return;
         };
         let columns = written_columns(table);
-        stored.iter().zip(encoded).zip(&columns).filter(|((s, e), _)| s != e).for_each(|((s, e), c)| {
-            let (name, table, key) = (&self.name, table.name, show(&encoded[0]));
-            self.failures.push(format!("{name}: {table}.{c} of {key}: stored {}, encoded {}", show(s), show(e)));
-        });
+        stored
+            .iter()
+            .zip(encoded)
+            .zip(&columns)
+            .filter(|((s, e), _)| s != e)
+            .for_each(|((s, e), c)| {
+                let (name, table, key) = (&self.name, table.name, show(&encoded[0]));
+                self.failures
+                    .push(format!("{name}: {table}.{c} of {key}: stored {}, encoded {}", show(s), show(e)));
+            });
     }
 }
 
@@ -102,7 +112,13 @@ fn check_book(
     let refs = Refs { commodities: guids };
     let mut c = Check { name, failures };
     let stored = by_key(rows(conn, &tables::COMMODITIES));
-    guids.iter().for_each(|(id, g)| c.same(&tables::COMMODITIES, stored.get(&key(*g)), &encode::commodity(*g, &book.commodities[id])));
+    guids.iter().for_each(|(id, g)| {
+        c.same(
+            &tables::COMMODITIES,
+            stored.get(&key(*g)),
+            &encode::commodity(*g, &book.commodities[id]),
+        )
+    });
     let stored = by_key(rows(conn, &tables::ACCOUNTS));
     book.accounts
         .values()
@@ -110,10 +126,15 @@ fn check_book(
         .for_each(|a| c.same(&tables::ACCOUNTS, stored.get(&key(a.guid)), &encode::account(a, refs)));
     let stored = by_key(rows(conn, &tables::TRANSACTIONS));
     let splits = by_key(rows(conn, &tables::SPLITS));
-    book.transactions.values().chain(book.templates.transactions.values()).for_each(|t| {
-        c.same(&tables::TRANSACTIONS, stored.get(&key(t.guid)), &encode::transaction(t, refs));
-        t.splits.iter().for_each(|s| c.same(&tables::SPLITS, splits.get(&key(s.guid)), &encode::split(t.guid, s)));
-    });
+    book.transactions
+        .values()
+        .chain(book.templates.transactions.values())
+        .for_each(|t| {
+            c.same(&tables::TRANSACTIONS, stored.get(&key(t.guid)), &encode::transaction(t, refs));
+            t.splits
+                .iter()
+                .for_each(|s| c.same(&tables::SPLITS, splits.get(&key(s.guid)), &encode::split(t.guid, s)));
+        });
     let stored = by_key(rows(conn, &tables::LOTS));
     book.lots.values().for_each(|l| {
         let mut e = encode::lot(l);
@@ -122,16 +143,26 @@ fn check_book(
         c.same(&tables::LOTS, stored.get(&key(l.guid)), &e);
     });
     let stored = by_key(rows(conn, &tables::PRICES));
-    book.prices.values().for_each(|p| c.same(&tables::PRICES, stored.get(&key(p.guid)), &encode::price(p, refs)));
+    book.prices
+        .values()
+        .for_each(|p| c.same(&tables::PRICES, stored.get(&key(p.guid)), &encode::price(p, refs)));
     let stored = by_key(rows(conn, &tables::BUDGETS));
-    book.budgets.values().for_each(|b| c.same(&tables::BUDGETS, stored.get(&key(b.guid)), &encode::budget(b)));
+    book.budgets
+        .values()
+        .for_each(|b| c.same(&tables::BUDGETS, stored.get(&key(b.guid)), &encode::budget(b)));
     let stored = by_key(rows(conn, &tables::SCHEDXACTIONS));
-    book.scheduled.values().for_each(|s| c.same(&tables::SCHEDXACTIONS, stored.get(&key(s.guid)), &encode::scheduled(s)));
+    book.scheduled
+        .values()
+        .for_each(|s| c.same(&tables::SCHEDXACTIONS, stored.get(&key(s.guid)), &encode::scheduled(s)));
     let recurrences: Vec<Vec<Cell>> = book
         .budgets
         .values()
         .map(|b| encode::recurrence(b.guid, &b.recurrence))
-        .chain(book.scheduled.values().flat_map(|s| s.schedule.iter().map(|r| encode::recurrence(s.guid, r))))
+        .chain(
+            book.scheduled
+                .values()
+                .flat_map(|s| s.schedule.iter().map(|r| encode::recurrence(s.guid, r))),
+        )
         .collect();
     let stored = rows(conn, &tables::RECURRENCES);
     recurrences.iter().for_each(|e| {
@@ -148,31 +179,53 @@ fn check_business(c: &mut Check<'_>, conn: &rusqlite::Connection, book: &Book, r
     let biz = &book.business;
     let t = |table: &Table| by_key(rows(conn, table));
     let s = t(&tables::BILLTERMS);
-    biz.bill_terms.values().for_each(|x| c.same(&tables::BILLTERMS, s.get(&key(x.guid)), &b::bill_term(x)));
+    biz.bill_terms
+        .values()
+        .for_each(|x| c.same(&tables::BILLTERMS, s.get(&key(x.guid)), &b::bill_term(x)));
     let s = t(&tables::CUSTOMERS);
-    biz.customers.values().for_each(|x| c.same(&tables::CUSTOMERS, s.get(&key(x.guid)), &b::customer(x, refs)));
+    biz.customers
+        .values()
+        .for_each(|x| c.same(&tables::CUSTOMERS, s.get(&key(x.guid)), &b::customer(x, refs)));
     let s = t(&tables::EMPLOYEES);
-    biz.employees.values().for_each(|x| c.same(&tables::EMPLOYEES, s.get(&key(x.guid)), &b::employee(x, refs)));
+    biz.employees
+        .values()
+        .for_each(|x| c.same(&tables::EMPLOYEES, s.get(&key(x.guid)), &b::employee(x, refs)));
     let s = t(&tables::ENTRIES);
-    biz.entries.values().for_each(|x| c.same(&tables::ENTRIES, s.get(&key(x.guid)), &b::entry(x)));
+    biz.entries
+        .values()
+        .for_each(|x| c.same(&tables::ENTRIES, s.get(&key(x.guid)), &b::entry(x)));
     let s = t(&tables::INVOICES);
-    biz.invoices.values().for_each(|x| c.same(&tables::INVOICES, s.get(&key(x.guid)), &b::invoice(x, refs)));
+    biz.invoices
+        .values()
+        .for_each(|x| c.same(&tables::INVOICES, s.get(&key(x.guid)), &b::invoice(x, refs)));
     let s = t(&tables::JOBS);
-    biz.jobs.values().for_each(|x| c.same(&tables::JOBS, s.get(&key(x.guid)), &b::job(x)));
+    biz.jobs
+        .values()
+        .for_each(|x| c.same(&tables::JOBS, s.get(&key(x.guid)), &b::job(x)));
     let s = t(&tables::ORDERS);
-    biz.orders.values().for_each(|x| c.same(&tables::ORDERS, s.get(&key(x.guid)), &b::order(x)));
+    biz.orders
+        .values()
+        .for_each(|x| c.same(&tables::ORDERS, s.get(&key(x.guid)), &b::order(x)));
     let s = t(&tables::TAXTABLES);
-    biz.tax_tables.values().for_each(|x| c.same(&tables::TAXTABLES, s.get(&key(x.guid)), &b::tax_table(x)));
+    biz.tax_tables
+        .values()
+        .for_each(|x| c.same(&tables::TAXTABLES, s.get(&key(x.guid)), &b::tax_table(x)));
     let s = t(&tables::VENDORS);
-    biz.vendors.values().for_each(|x| c.same(&tables::VENDORS, s.get(&key(x.guid)), &b::vendor(x, refs)));
+    biz.vendors
+        .values()
+        .for_each(|x| c.same(&tables::VENDORS, s.get(&key(x.guid)), &b::vendor(x, refs)));
     let mut stored = rows(conn, &tables::TAXTABLE_ENTRIES);
-    let mut encoded: Vec<Vec<Cell>> =
-        biz.tax_tables.values().flat_map(|x| x.entries.iter().map(|e| b::tax_table_entry(x.guid, e))).collect();
+    let mut encoded: Vec<Vec<Cell>> = biz
+        .tax_tables
+        .values()
+        .flat_map(|x| x.entries.iter().map(|e| b::tax_table_entry(x.guid, e)))
+        .collect();
     let by_table = |r: &Vec<Cell>| show(&r[0]);
     stored.sort_by_key(by_table);
     encoded.sort_by_key(by_table);
     if stored != encoded {
-        c.failures.push(format!("{}: taxtable_entries: stored {stored:?}, encoded {encoded:?}", c.name));
+        c.failures
+            .push(format!("{}: taxtable_entries: stored {stored:?}, encoded {encoded:?}", c.name));
     }
 }
 
@@ -216,7 +269,12 @@ fn check_slots(c: &mut Check<'_>, conn: &rusqlite::Connection, book: &Book, guid
     let transactions = book.transactions.values().chain(book.templates.transactions.values());
     let owners: Vec<(Guid, &red_ale_core::Frame)> = std::iter::once((book.guid, &book.slots))
         .chain(commodities)
-        .chain(book.accounts.values().chain(book.templates.accounts.values()).map(|a| (a.guid, &a.slots)))
+        .chain(
+            book.accounts
+                .values()
+                .chain(book.templates.accounts.values())
+                .map(|a| (a.guid, &a.slots)),
+        )
         .chain(book.lots.values().map(|l| (l.guid, &l.slots)))
         .chain(transactions.flat_map(|t| std::iter::once((t.guid, &t.slots)).chain(t.splits.iter().map(|s| (s.guid, &s.slots)))))
         .chain(book.budgets.values().map(|x| (x.guid, &x.slots)))
@@ -233,7 +291,8 @@ fn check_slots(c: &mut Check<'_>, conn: &rusqlite::Connection, book: &Book, guid
         flatten(&key(owner), &stored, &mut want);
         flatten(&key(owner), &written, &mut got);
         if want != got {
-            c.failures.push(format!("{}: slots of {owner}: stored {want:?}, encoded {got:?}", c.name));
+            c.failures
+                .push(format!("{}: slots of {owner}: stored {want:?}, encoded {got:?}", c.name));
         }
     });
 }
@@ -251,7 +310,8 @@ fn check_budget_amounts(c: &mut Check<'_>, conn: &rusqlite::Connection, book: &B
         })
         .collect();
     if stored != encoded {
-        c.failures.push(format!("{}: budget_amounts: stored {stored:?}, encoded {encoded:?}", c.name));
+        c.failures
+            .push(format!("{}: budget_amounts: stored {stored:?}, encoded {encoded:?}", c.name));
     }
 }
 
@@ -264,5 +324,10 @@ fn every_row_gnucash_wrote_is_what_the_encoders_write() {
         let conn = rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
         check_book(name, &conn, &book, &opened.residue().commodities, &mut failures);
     }
-    assert!(failures.is_empty(), "{} differences:\n{}", failures.len(), failures.iter().take(60).cloned().collect::<Vec<_>>().join("\n"));
+    assert!(
+        failures.is_empty(),
+        "{} differences:\n{}",
+        failures.len(),
+        failures.iter().take(60).cloned().collect::<Vec<_>>().join("\n")
+    );
 }

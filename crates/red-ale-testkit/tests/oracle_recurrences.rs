@@ -39,7 +39,12 @@ fn recurrence(made: &Value, normalised: bool) -> Recurrence {
 }
 
 fn fields(r: Recurrence) -> Value {
-    json!([r.period_type().as_str(), r.mult(), r.start().to_file_string(), r.weekend_adjust().as_str()])
+    json!([
+        r.period_type().as_str(),
+        r.mult(),
+        r.start().to_file_string(),
+        r.weekend_adjust().as_str()
+    ])
 }
 
 fn first_instances(r: Recurrence, count: usize) -> Value {
@@ -84,13 +89,24 @@ fn recurrence_arithmetic_matches_gnucash() {
     let expected = gnucash();
     let cases = expected["recurrences"].as_array().unwrap();
     let pairs: usize = cases.iter().map(|c| c["next"].as_object().unwrap().len()).sum();
-    assert!(cases.len() > 4000 && pairs > 100_000, "{} recurrences, {pairs} (recurrence, reference) pairs", cases.len());
+    assert!(
+        cases.len() > 4000 && pairs > 100_000,
+        "{} recurrences, {pairs} (recurrence, reference) pairs",
+        cases.len()
+    );
     let wrong: Vec<(Value, Value)> = cases
         .iter()
         .map(|c| (c.clone(), red_ale_case(c)))
         .filter(|(gnucash, red_ale)| gnucash != red_ale)
         .collect();
-    assert!(wrong.is_empty(), "{} of {} differ; the first:\nGnuCash {}\nred-ale {}", wrong.len(), cases.len(), wrong[0].0, wrong[0].1);
+    assert!(
+        wrong.is_empty(),
+        "{} of {} differ; the first:\nGnuCash {}\nred-ale {}",
+        wrong.len(),
+        cases.len(),
+        wrong[0].0,
+        wrong[0].1
+    );
 
     expected["lists"].as_array().unwrap().iter().for_each(|list| {
         let recs: Vec<Recurrence> = list["made"].as_array().unwrap().iter().map(|m| recurrence(m, true)).collect();

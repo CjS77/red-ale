@@ -66,7 +66,11 @@ fn main() {
         ["rows", path] => rows(Path::new(path)),
         ["schedule", schedules, occurrences, from, to] => {
             std::fs::copy(from, to).unwrap_or_else(|e| panic!("copying {from}: {e}"));
-            add_daily_schedules(Path::new(to), schedules.parse().expect("a count"), occurrences.parse().expect("a count"));
+            add_daily_schedules(
+                Path::new(to),
+                schedules.parse().expect("a count"),
+                occurrences.parse().expect("a count"),
+            );
         }
         ["since-last-run", path] => since_last_run(Path::new(path)),
         _ => panic!(
@@ -114,7 +118,10 @@ fn since_last_run(path: &Path) {
     println!("created        {}", r.created);
     println!("transactions   {} => {}", r.transactions.0, r.transactions.1);
     println!("book revision  {} => {}", r.revisions.0, r.revisions.1);
-    println!("journal        {} records naming {} transactions", r.journal_records, r.journal_transactions);
+    println!(
+        "journal        {} records naming {} transactions",
+        r.journal_records, r.journal_transactions
+    );
     println!("open, at rest  {}", megabytes(r.at_rest));
     println!("peak, propose  {} in {:.2?}", megabytes(r.peak_propose), r.propose);
     println!("peak, apply    {} in {:.2?}", megabytes(r.peak_apply), r.apply);

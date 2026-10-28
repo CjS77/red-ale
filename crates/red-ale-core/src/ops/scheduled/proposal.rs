@@ -3,9 +3,9 @@
 
 use std::collections::BTreeSet;
 
-use super::occurrences::{TemporalState, Upcoming, next_instance};
 use super::create::{BuiltTransaction, build_instance, check_account};
 use super::error::ScheduledError;
+use super::occurrences::{TemporalState, Upcoming, next_instance};
 use super::template::{INSTANCE_COUNT_VARIABLE, template_transactions, variables};
 use crate::book_options::auto_readonly_threshold;
 use crate::formula::{NumberFormat, Variables};
@@ -186,7 +186,11 @@ pub fn since_last_run(book: &Book, today: Date, format: NumberFormat) -> Result<
         .map(|sx| schedule_instances(book, sx, today, threshold, format, &mut next_index))
         .filter(|s| s.as_ref().map_or(true, |s| !s.instances.is_empty()))
         .collect::<Result<_, _>>()?;
-    Ok(Proposal { today, threshold, schedules })
+    Ok(Proposal {
+        today,
+        threshold,
+        schedules,
+    })
 }
 
 fn schedule_instances(
@@ -198,7 +202,11 @@ fn schedule_instances(
     next_index: &mut usize,
 ) -> Result<ScheduleInstances, RecurrenceError> {
     let due = due(sx, today)?;
-    let (names, problems) = if due.is_empty() { (BTreeSet::new(), Vec::new()) } else { template_problems(book, sx, format) };
+    let (names, problems) = if due.is_empty() {
+        (BTreeSet::new(), Vec::new())
+    } else {
+        template_problems(book, sx, format)
+    };
     let instances = due
         .into_iter()
         .map(|(date, state, before)| {
@@ -235,7 +243,11 @@ fn template_problems(book: &Book, sx: &ScheduledTransaction, format: NumberForma
         .into_iter()
         .flat_map(|t| t.splits.iter().map(move |s| (t, s)))
         .filter_map(|(t, s)| check_account(book, sx, t, s).err());
-    accounts.for_each(|e| if !errors.contains(&e) { errors.push(e) });
+    accounts.for_each(|e| {
+        if !errors.contains(&e) {
+            errors.push(e)
+        }
+    });
     (names, errors)
 }
 
@@ -255,13 +267,19 @@ fn due(sx: &ScheduledTransaction, today: Date) -> Result<Vec<(Date, InstanceStat
     let creation_end = today.add_days(i64::from(sx.advance_create_days));
     let remind_end = creation_end.add_days(i64::from(sx.advance_remind_days));
     let postponed = sx.deferred.iter().map(TemporalState::of_deferred).filter_map(|before| {
-        next_instance(sx, Some(&before)).map(|date| date.map(|d| (d, InstanceState::Postponed, before))).transpose()
+        next_instance(sx, Some(&before))
+            .map(|date| date.map(|d| (d, InstanceState::Postponed, before)))
+            .transpose()
     });
     let coming = Upcoming::after(sx, TemporalState::of(sx))
         .take_while(|o| o.as_ref().map_or(true, |o| o.date <= creation_end.max(remind_end)))
         .map(|o| {
             o.map(|o| {
-                let state = if o.date <= creation_end { InstanceState::ToCreate } else { InstanceState::Reminder };
+                let state = if o.date <= creation_end {
+                    InstanceState::ToCreate
+                } else {
+                    InstanceState::Reminder
+                };
                 (o.date, state, o.before)
             })
         });

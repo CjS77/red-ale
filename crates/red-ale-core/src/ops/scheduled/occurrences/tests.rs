@@ -25,7 +25,10 @@ fn the_start_is_the_first_occurrence() {
 #[test]
 fn a_weekend_start_adjusted_back_skips_the_first_occurrence() {
     let start = date(2025, 5, 31);
-    let s = sx(start, vec![Recurrence::new(1, PeriodType::Month, start, WeekendAdjust::Back).unwrap()]);
+    let s = sx(
+        start,
+        vec![Recurrence::new(1, PeriodType::Month, start, WeekendAdjust::Back).unwrap()],
+    );
     assert_eq!(next_instance(&s, None).unwrap(), Some(date(2025, 6, 30)));
     assert_eq!(next_instance(&s, Some(&TemporalState::of(&s))).unwrap(), Some(date(2025, 6, 30)));
 }
@@ -68,7 +71,10 @@ fn a_deferred_instance_steps_from_its_own_state() {
     };
     assert_eq!(next_instance(&s, None).unwrap(), Some(date(2025, 1, 1)));
     assert_eq!(next_instance(&s, Some(&TemporalState::of(&s))).unwrap(), Some(date(2025, 3, 1)));
-    assert_eq!(next_instance(&s, Some(&TemporalState::of_deferred(&deferred))).unwrap(), Some(date(2025, 1, 1)));
+    assert_eq!(
+        next_instance(&s, Some(&TemporalState::of_deferred(&deferred))).unwrap(),
+        Some(date(2025, 1, 1))
+    );
     let left = occurrences(&s, 10, None).unwrap();
     assert_eq!(left.len(), 4, "the remaining count, not the total");
     assert_eq!(left.last().map(|o| (o.date, o.instance_count)), Some((date(2025, 6, 1), 6)));
@@ -110,7 +116,10 @@ fn a_once_only_schedule_occurs_once() {
 #[test]
 fn two_recurrences_interleave() {
     let (first, fifteenth) = (date(2025, 1, 1), date(2025, 1, 15));
-    let s = sx(first, vec![every(1, PeriodType::Month, first), every(1, PeriodType::Month, fifteenth)]);
+    let s = sx(
+        first,
+        vec![every(1, PeriodType::Month, first), every(1, PeriodType::Month, fifteenth)],
+    );
     assert_eq!(dates(&s, 4), [first, fifteenth, date(2025, 2, 1), date(2025, 2, 15)]);
     assert!(dates(&sx(first, Vec::new()), 3).is_empty());
 }
@@ -119,7 +128,10 @@ fn two_recurrences_interleave() {
 fn after_skips_earlier_occurrences_and_keeps_their_count() {
     let s = monthly(date(2025, 1, 10));
     let later = occurrences(&s, 2, Some(date(2025, 3, 10))).unwrap();
-    assert_eq!(later.iter().map(|o| (o.date, o.instance_count)).collect::<Vec<_>>(), [(date(2025, 4, 10), 4), (date(2025, 5, 10), 5)]);
+    assert_eq!(
+        later.iter().map(|o| (o.date, o.instance_count)).collect::<Vec<_>>(),
+        [(date(2025, 4, 10), 4), (date(2025, 5, 10), 5)]
+    );
 }
 
 #[test]
@@ -132,7 +144,11 @@ fn advance_steps_as_the_iterator_does() {
     advance(&s, &mut state).unwrap();
     assert_eq!((state.last, state.remaining, state.instance_count), (Some(date(2025, 3, 10)), 0, 4));
     advance(&s, &mut state).unwrap();
-    assert_eq!((state.last, state.remaining, state.instance_count), (None, -1, 5), "past the end, as GnuCash steps");
+    assert_eq!(
+        (state.last, state.remaining, state.instance_count),
+        (None, -1, 5),
+        "past the end, as GnuCash steps"
+    );
 }
 
 fn period_type() -> impl Strategy<Value = PeriodType> {

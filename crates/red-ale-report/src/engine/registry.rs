@@ -198,7 +198,12 @@ impl Registry {
 
     /// Compile `name` and read its `templates()`. A script without one is a module other scripts import.
     fn templates_of(&self, name: &str) -> Declared {
-        let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0), TimeZone::utc(), NumberFormat::default());
+        let snap = Snapshot::new(
+            &Book::new_empty(&mut FixedEnv::new(Time64(0), 0)),
+            Time64(0),
+            TimeZone::utc(),
+            NumberFormat::default(),
+        );
         let log = Log::new(self.limits.get_usize(Limit::StringSize));
         let conventions = red_ale_locale::Locale::c().conventions();
         let setup = Setup {

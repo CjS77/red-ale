@@ -2,8 +2,10 @@
 //! and mortgage and loan assistant, each one call (`design/api/scheduled-transactions.md`, "Schedule from
 //! transaction" and "The loan assistant").
 
-use red_ale_core::ops::scheduled::{self as ops, End, Frequency, FromTransaction, Length, Loan, OtherPayment, PaymentKind, RateType, Repayment};
 use red_ale_core::Book;
+use red_ale_core::ops::scheduled::{
+    self as ops, End, Frequency, FromTransaction, Length, Loan, OtherPayment, PaymentKind, RateType, Repayment,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -290,7 +292,11 @@ fn loan_of(book: &Book, p: LoanParams) -> Result<Loan, RpcError> {
             frequency: r.frequency.map(|f| (f.mult, f.period_type.to_core(), f.weekend_adjust.to_core())),
         },
         escrow: p.escrow.map(|a| a.resolve(book)).transpose()?,
-        other_payments: p.other_payments.into_iter().map(|o| other_payment(book, o)).collect::<Result<_, _>>()?,
+        other_payments: p
+            .other_payments
+            .into_iter()
+            .map(|o| other_payment(book, o))
+            .collect::<Result<_, _>>()?,
     })
 }
 

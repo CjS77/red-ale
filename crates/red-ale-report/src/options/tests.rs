@@ -533,13 +533,20 @@ fn budget_options_round_trip_by_guid() {
     assert_eq!(again, db);
     let unknown = json!({ "General": { "Budget": guid(9).to_string() } });
     db.apply(&unknown, &ctx_with(Some(&book), &zone)).unwrap();
-    assert_eq!(value_of(&db, "General", "Budget"), json!(guid(9).to_string()), "a deleted budget's GUID is kept");
+    assert_eq!(
+        value_of(&db, "General", "Budget"),
+        json!(guid(9).to_string()),
+        "a deleted budget's GUID is kept"
+    );
     let malformed = json!({ "General": { "Budget": "Plan" } });
     assert!(db.apply(&malformed, &ctx_with(Some(&book), &zone)).is_err());
     db.apply(&spare, &ctx_with(Some(&book), &zone)).unwrap();
     let info = &db.describe()[0];
     assert_eq!((info.option_type.as_str(), &info.default), ("budget", &json!(guid(7).to_string())));
-    assert_eq!(db.params_schema()["properties"]["General"]["properties"]["Budget"]["type"], json!("string"));
+    assert_eq!(
+        db.params_schema()["properties"]["General"]["properties"]["Budget"]["type"],
+        json!("string")
+    );
     let rows = db.summary(&DisplayContext {
         book: &book,
         zone: &zone,

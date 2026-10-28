@@ -13,10 +13,10 @@ use red_ale_xml::XmlResidue;
 use crate::backend::{self, Access, Backend, Format, Opened, SaveOptions};
 use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files};
-use crate::proposals::{ProposalKind, ProposalStore};
-use crate::since_last_run::HeldRun;
 use crate::journal::{Journal, RecordKind, record_lines};
+use crate::proposals::{ProposalKind, ProposalStore};
 use crate::replay::{ReplayReport, replay};
+use crate::since_last_run::HeldRun;
 
 /// Book features red-ale can edit safely: their data lives in slots or files red-ale keeps unchanged, or red-ale
 /// follows them (`Number Field Source`, `Credit Notes`).
@@ -152,10 +152,7 @@ pub fn resolve_path(spec: &str) -> Result<PathBuf, ServiceError> {
     let lower = spec.to_ascii_lowercase();
     let path = if ["xml://", "sqlite3://", "file://"].iter().any(|s| lower.starts_with(s)) {
         &spec[spec.find("://").map_or(0, |i| i + 3)..]
-    } else if ["postgres://", "postgresql://", "mysql://"]
-        .iter()
-        .any(|s| lower.starts_with(s))
-    {
+    } else if ["postgres://", "postgresql://", "mysql://"].iter().any(|s| lower.starts_with(s)) {
         return Err(ServiceError::SqlBook { path: spec.to_owned() });
     } else if spec.contains("://") {
         return Err(ServiceError::UnsupportedUri { uri: spec.to_owned() });

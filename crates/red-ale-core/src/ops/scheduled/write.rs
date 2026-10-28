@@ -93,7 +93,10 @@ pub(crate) fn set_templates(
 
 /// The scheduled transaction's template account, made if it has none.
 fn template_account_for(book: &mut Book, env: &mut dyn Env, guid: Guid) -> Result<Guid, ScheduledError> {
-    let sx = book.scheduled.get(&guid).ok_or_else(|| DomainError::not_found("scheduledTransaction", &guid))?;
+    let sx = book
+        .scheduled
+        .get(&guid)
+        .ok_or_else(|| DomainError::not_found("scheduledTransaction", &guid))?;
     if let Some(account) = account_of(book, sx) {
         return Ok(account);
     }
@@ -105,13 +108,24 @@ fn template_account_for(book: &mut Book, env: &mut dyn Env, guid: Guid) -> Resul
 }
 
 /// Each GUID a spec keeps is one of this scheduled transaction's, given once.
-fn check_kept(specs: &[TemplateSpec], old: &BTreeMap<Guid, Arc<Transaction>>, old_splits: &BTreeMap<Guid, &Split>) -> Result<(), ScheduledError> {
+fn check_kept(
+    specs: &[TemplateSpec],
+    old: &BTreeMap<Guid, Arc<Transaction>>,
+    old_splits: &BTreeMap<Guid, &Split>,
+) -> Result<(), ScheduledError> {
     let mut seen = BTreeSet::new();
     let transactions = specs.iter().filter_map(|t| t.guid).map(|g| (g, old.contains_key(&g)));
-    let splits = specs.iter().flat_map(|t| &t.splits).filter_map(|s| s.guid).map(|g| (g, old_splits.contains_key(&g)));
+    let splits = specs
+        .iter()
+        .flat_map(|t| &t.splits)
+        .filter_map(|s| s.guid)
+        .map(|g| (g, old_splits.contains_key(&g)));
     transactions.chain(splits).try_for_each(|(g, known)| {
         if !known {
-            return Err(ScheduledError::invalid("template-guid", format!("{g} is not a template transaction or split of this scheduled transaction")));
+            return Err(ScheduledError::invalid(
+                "template-guid",
+                format!("{g} is not a template transaction or split of this scheduled transaction"),
+            ));
         }
         if !seen.insert(g) {
             return Err(ScheduledError::invalid("template-guid", format!("{g} is given twice")));
@@ -151,7 +165,9 @@ fn build(
 }
 
 fn new_transaction(env: &mut dyn Env, currency: CommodityRef) -> Result<Transaction, ScheduledError> {
-    let today = env.today().ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
+    let today = env
+        .today()
+        .ok_or_else(|| DomainError::invalid("the clock is outside the calendar"))?;
     let mut t = Transaction {
         guid: env.new_guid(),
         currency,
@@ -169,7 +185,12 @@ fn new_transaction(env: &mut dyn Env, currency: CommodityRef) -> Result<Transact
 /// The spec's currency, else its first split's account commodity when that is a currency, as `transaction.post`
 /// defaults it.
 fn currency(book: &Book, spec: &TemplateSpec) -> Result<CommodityRef, ScheduledError> {
-    let first = || spec.splits.first().and_then(|s| book.account(s.account)).and_then(|a| a.commodity.clone());
+    let first = || {
+        spec.splits
+            .first()
+            .and_then(|s| book.account(s.account))
+            .and_then(|a| a.commodity.clone())
+    };
     let currency = spec
         .currency
         .clone()
@@ -190,7 +211,12 @@ fn build_split(env: &mut dyn Env, account: Guid, fraction: i64, spec: SplitSpec,
     split.account = Some(account);
     split.memo = spec.memo.filter(|m| !m.is_empty());
     split.action = spec.action.filter(|a| !a.is_empty());
-    let mut frame = split.slots.get_key(SPLIT_FRAME).and_then(SlotValue::as_frame).cloned().unwrap_or_default();
+    let mut frame = split
+        .slots
+        .get_key(SPLIT_FRAME)
+        .and_then(SlotValue::as_frame)
+        .cloned()
+        .unwrap_or_default();
     frame.insert_key("account", SlotValue::Guid(spec.account));
     set_formula(&mut frame, "credit", spec.credit_formula.unwrap_or_default(), format);
     set_formula(&mut frame, "debit", spec.debit_formula.unwrap_or_default(), format);
