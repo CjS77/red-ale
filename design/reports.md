@@ -116,11 +116,17 @@ maps, logic and integer arithmetic; its time and float functions are compiled ou
   of a script error. It holds at most the string-length limit in bytes of text; past that one last entry says the
   log was cut.
 - `set_module_resolver` with red-ale's resolver (below).
-- The types and functions of sections 3, 5 and 6 are registered, and `memo()`; nothing else is. A `Memo` is a
-  table from integers to values that every copy shares, so a value a function stores is there for the next call:
-  Rhai's arrays and maps are copied on assignment, and GnuCash's memoised closures (`case-exchange-time-fn`,
-  `report/commodity-utilities.scm:829-887`) need a cache that outlives one call. `m.get(k)` (`()` when absent),
-  `m.contains(k)`, `m.set(k, v)` and `m.len()`; it holds at most the map-size limit of entries (`map-size`).
+- The types and functions of sections 3, 5 and 6 are registered, and `memo()` and `make_regexp()`; nothing else
+  is. A `Memo` is a table from integers to values that every copy shares, so a value a function stores is there for
+  the next call: Rhai's arrays and maps are copied on assignment, and GnuCash's memoised closures
+  (`case-exchange-time-fn`, `report/commodity-utilities.scm:829-887`) need a cache that outlives one call.
+  `m.get(k)` (`()` when absent), `m.contains(k)`, `m.set(k, v)` and `m.len()`; it holds at most the map-size limit
+  of entries (`map-size`).
+- `make_regexp(pattern)` and `make_regexp(pattern, icase)` (v0.5) are Guile's `make-regexp`, with `regexp/icase`
+  when `icase`: a `Regexp`, or `()` when the pattern does not compile, where Guile raises
+  `regular-expression-syntax`. `re.is_match(text)` is `regexp-exec` finding a match anywhere. The patterns are Rust
+  `regex` patterns, as `transaction.find` compiles them (section 14). The Transaction Report engine's account and
+  transaction filters use them (`report/trep-engine.scm:2210-2254`).
 - The limits below are set, and `on_progress` stops the run once the run time limit passes.
 
 ### Limits and their errors
@@ -1234,7 +1240,7 @@ and complains (`report/report-core.scm:219-220`).
 
 Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.scm`, OU
 `report/options-utilities.scm`, HAT `report/html-acct-table.scm`, HU `report/html-utilities.scm`, DU
-`5.17:bindings/guile/date-utilities.scm`.
+`5.17:bindings/guile/date-utilities.scm`, TE `report/trep-engine.scm`.
 
 | Report file | Templates | Helpers it uses | Book data and features |
 |-------------|-----------|-----------------|------------------------|
@@ -1251,6 +1257,7 @@ Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.
 | `standard/trial-balance.scm` (v0.5) | Trial Balance | OU: date-interval, account-levels, currency, price-source. RU: decompose-accountlist, account-is-inc-exp?, account-get-trans-type-splits-interval, account-get-comm-balance-at-date, collector+ and collector-, commodity-collector-get-negated, commodity-collector-allzero?, monetaries-add. CU: case-exchange-fn (`average-cost` too, for the unrealized gains), case-price-fn, sum-collector-commodity, uniform-commodity?. HAT: make-html-acct-table/env/accts (flattened, every account shown, no subtotals), gnc-commodity-table. HU: make-rates-table, no-account warning. DU: time64-previous-day, time64-end-day-time. Its own `double-col`, `sum-account-splits` and the work sheet's cells (`standard/trial-balance.scm:138-167`, `:598-660`, `:723-778`), the account table's `get-cell`/`set-cell!` (HAT:830-841) being a per-row array | The adjusting- and closing-entries patterns and closing transactions; the merchandising options' gross adjustment and income summary accounts; prices for foreign commodities; company name. TRADING accounts get no row, though the rates table lists their commodities |
 | `standard/cash-flow.scm` (v0.5) | Cash Flow | OU: date-interval, currency, price-source, account-selection. RU: account-full-name<?, accounts-get-children-depth, accounts-get-commodities, account-get-trans-type-splits-interval (through the calculation), collector-. CU: case-exchange-fn, case-exchange-time-fn, case-price-fn, sum-collector-commodity. HU: make-rates-table, no-account warning, `gnc:html-markup-ul` (a `list` block). DU: time64-start/end-day-time. `cash-flow-calc-money-in-out` (`lib/cash-flow-calc`) | Every split of each transaction that touches a selected account in the period, void ones not found, closing ones counted; prices at each split's posted date |
 | `standard/cashflow-barchart.scm` (v0.5) | Cash Flow Barchart | OU: date-interval, interval-choice, currency, price-source, plot-size. RU: accounts-get-commodities, not-all-zeros, monetary+. CU: case-exchange-fn, case-exchange-time-fn, sum-collector-commodity. DU: make-date-interval-list, deltasym-to-delta, time64-start/end-day-time. HU: make-report-anchor (`make_report_anchor`), no-account and empty-data warnings. `cash-flow-calc-money-in-out` per interval | As the Cash Flow, per interval |
+| `report/trep-engine.scm` (v0.5) | none: the library module `lib/trep-engine`, which the Transaction Report, General Ledger and Reconciliation Report are built on (`notes/report-transaction-engine.md`) | OU: date-interval, currency, price-source. DU: time64-start/end-day-time, date-get-week, date-get-week-year-string, the month, quarter and year strings. HU: no-account and generic warnings, split, invoice and document-link anchors. RU: the commodity collectors, accounts-get-commodities. CU: case-exchange-time-fn, exchange-by-pricedb-nearest. Guile's `make-regexp` (section 2) | The split query with reconcile states, closing match, the QOF sort keys and one split per transaction; the reads of section 5 marked v0.5 (other split, corresponding account name and code, void former amount, lot and invoice, document link, debit and credit labels, the num field source); reconcile and entered dates; prices for foreign commodities |
 
 No report needs a Book feature (`features` slot); all only read. The last column lists the Book data their figures
 depend on.
@@ -1273,6 +1280,7 @@ keeps its source's header and licence (GPL-2.0-or-later, checked at 5.17). Funct
 | `lib/budget` (v0.4) | RU:727-856 | `budget_get_start_date`, `budget_get_end_date`, `budget_account_get_net`, `budget_accountlist_get_net`, `budget_account_get_initial_balance`, `budget_accountlist_get_initial_balance`, `get_account_period_rolledup_budget_value`, `budget_account_get_rolledup_net` (the last two take the Book first, for the price database) |
 | `lib/html-utilities` | HU:168-381 | `assign_colors` (GnuCash's 18-colour palette), `make_rates_table` (a result table), `make_generic_warning`, `make_generic_simple_warning`, `make_generic_budget_warning`, `make_generic_options_warning`, `make_no_account_warning`, `make_empty_data_warning` (warning blocks); `make_report_anchor` (v0.5), a report link copying the options both templates have, which the caller names besides the three General options every report has, then setting the given ones |
 | `lib/cash-flow-calc` (v0.5) | `5.17:gnucash/report/reports/cash-flow-calc.scm:33-106` | `cash_flow_calc_money_in_out`: the money into and out of the selected accounts by other account, as GnuCash's alists of collectors, and the two totals; the trading option works backwards as in 5.17 |
+| `lib/trep-engine` (v0.5) | TE:149-1012, :2179-2594 | The options and the first half of the renderer: `trep_options_generator`; `trep_splits(book, opts, ctx, hooks)`, returning `#{ parameters, report_title, subtotal_table, splits, warning, export_error }`, with `trep_hooks` naming the renderer's keyword arguments; the keylists `sortkey_list`, `date_subtotal_list`, `reconcile_list`, `sign_reverse_list`, `date_sorting_types`, `sortkey_informal_headers`; `sortkey_sortkey`, `sortkey_split_sortvalue`, `sortkey_renderer_fn`, `date_sortvalue`, `date_subtotal_renderer_fn`, `subtotal_enabled`, `custom_sorting`, and `apply_split_sortvalue` and `apply_renderer_fn` to call the renderer-fn and split-sortvalue the parameters hold |
 
 Notes for the translators:
 
@@ -1324,6 +1332,19 @@ Notes for the translators:
   trailing zeros, computed with integers only (`number/flonum.rs`; checked against Guile 3.0.9 on 40,000 random
   rationals). A run that gives no rows (no accounts, no figures) is GnuCash's "No exportable data"
   (`net-charts.scm:456-457`).
+- **The Transaction Report engine** (v0.5). `gnc:trep-renderer`'s keyword arguments are the keys of a `hooks` map
+  (`trep_hooks()`); an unknown key is a `report-script` error. Its function values (`custom_split_filter`,
+  `split_to_date`) are the caller's closures or function pointers, which the module calls. The keylists' lambdas
+  (`sortkey-list`, `date-subtotal-list`, TE:166-349) are functions of the key, and the renderer-fn and
+  split-sortvalue a parameter holds (`primary_key_renderer_fn`, …, TE:2393-2424) are one map
+  `#{ key, date_subtotal, split_action }`, or `()` for #f, called with `apply_renderer_fn` and
+  `apply_split_sortvalue`: a key's two functions are #f together. Parameters keep GnuCash's names with `-` and `/`
+  as `_` (`common_currency_original`); GnuCash's `(and flag value)` is `false` or the value. The custom sort
+  computes each split's value once and sorts the pairs with Rhai's stable sort, as `stable-sort!` with
+  `generic-less?` orders them (TE:2448-2472, :2591-2594); GnuCash's first sort, by date with no date subtotal,
+  never orders two splits (the note's fact 4) and is left out, as is a sort by a key whose value is #f. The query's
+  sort keys are `book.split_query`'s (section 5). Before the query, `splits` is `()`; after it, `[]` when nothing
+  matched, so the table knows which warning it has.
 
 ### Floating point in GnuCash, exact in red-ale
 
@@ -1454,6 +1475,8 @@ drops it and needs nothing from budgets.
 | A script's `set-default-value` or `make-internal` on an option that does not exist | Ignored (`5.17:bindings/guile/gnc-optiondb.i:1500-1503`; `5.17:libgnucash/engine/gnc-optiondb.cpp:266-272`); the General Ledger and Reconciliation Report rely on it | `report-script` error; the translations leave those calls out | A misspelt name in a user script is found; the figures are the same |
 | A split query's description pattern that is not a regular expression | The criterion is dropped (`qof_query_string_predicate` returns null, `5.17:libgnucash/engine/qofquerycore.cpp:319-334`) | `report-script` error | A typo never matches every transaction |
 | A split query's regular expressions and case folding | POSIX extended expressions; `g_utf8_casefold` | Rust `regex`; lowercase, as `transaction.find` | Same results for patterns both dialects read alike |
+| The Transaction Report engine's account and transaction filters (v0.5) | POSIX extended expressions (`make-regexp`, with `regexp/icase` when case-insensitive), `string-contains-ci` (`report/trep-engine.scm:2210-2254`, `:2439-2446`) | Rust `regex` through `make_regexp` (section 2); case-insensitive substrings compare lowercased | As the split query's row |
+| Name comparisons in the Transaction Report engine's sorts (v0.5) | Locale collation: `gnc:string-locale<?` of whole full names in the custom sort (`report/trep-engine.scm:2467-2468`), `g_utf8_collate` per path level in the query's account-name sort (`5.17:libgnucash/engine/Split.cpp:1687-1709`) | Bytewise, whole full names in the custom sort and per path level in the query's (`notes/report-transaction-engine.md`, fact 5) | As "Name sorting" |
 | A split query sorted with no first key (the Transaction Report's Primary Key "None") | Not sorted: hash order (`5.17:libgnucash/engine/qofquery.cpp:492-497`, `:792-797`) | Split order | Determinism; GnuCash's order is undefined |
 | A split query's splits equal at every sort level | The order the query collected them in, hash order (a stable merge sort, `qofquery.cpp:792-797`) | Split order | Determinism; the Transaction Report always sorts by split order third, so its splits never tie |
 | Split order with the num field source on | `xaccSplitOrder` is not a total order: two splits of one transaction compare by memo, then action (`5.17:libgnucash/engine/Split.cpp:1559-1597`), splits of different transactions by their actions as nums (`:1548-1556`), so splits A1 < A2 of one transaction by memo, with A2's action below A1's, form a cycle with a split B of another transaction on the same day whose action falls between (A2 < B by date entered, B < A1 by action); the sort's result follows hash order, and Rust's sorts may panic on such a comparator | Two splits of one transaction compare their actions as nums first, then as GnuCash does: a total order (`ops::transactions::order::split_order`). Splits of different transactions, and two of one transaction whose actions are equal as nums, are ordered as GnuCash orders them | A user's book never crashes a sort; the num field source is about ordering across transactions, which is kept |

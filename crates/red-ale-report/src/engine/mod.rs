@@ -25,6 +25,7 @@ mod numbers;
 // The builder's functions mirror `gnc-register-*-option`: section, name, key and help, then the default.
 #[allow(clippy::needless_pass_by_value, clippy::many_single_char_names)]
 mod options;
+mod regexp;
 mod registry;
 mod resolver;
 mod run;
@@ -33,6 +34,7 @@ mod setup;
 pub use context::ContextHandle;
 pub use memo::Memo;
 pub use options::{OptionBuilder, OptionsHandle};
+pub use regexp::Regexp;
 pub(crate) use registry::BUILTIN_DIRS;
 pub use registry::{EXPORT_CSV, Lookup, Registry, ScriptSource, TemplateInfo, TemplateKind};
 pub use run::RunContext;

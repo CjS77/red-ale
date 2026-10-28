@@ -15,6 +15,7 @@ num-rational.workspace = true
 num-traits.workspace = true
 red-ale-core.workspace = true
 red-ale-locale.workspace = true
+regex.workspace = true
 rhai.workspace = true
 schemars.workspace = true
 serde.workspace = true
@@ -24,9 +25,11 @@ thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+red-ale-sql.workspace = true
 red-ale-xml.workspace = true
 # Lists the functions a script can call, to check none hands out the Book.
 rhai = { workspace = true, features = ["metadata"] }
+tempfile.workspace = true
 
 [lints]
 workspace = true
