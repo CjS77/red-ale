@@ -1,4 +1,4 @@
-//! Errors from opening and reading SQLite books.
+//! Errors from opening, reading and writing SQLite books.
 
 use thiserror::Error;
 
@@ -25,6 +25,12 @@ pub enum SqlError {
     /// The database is an SQLite file but not a GnuCash book that can be built.
     #[error("not a GnuCash SQL book: {0}")]
     NotABook(String),
+    /// Another program holds the book's lock: its `gnclock` row (`design/sql-fidelity.md` §5).
+    #[error("the book is locked by {} (process {}); close it there first", .0.hostname, .0.pid)]
+    Locked(crate::LockOwner),
+    /// red-ale may not write the file or the directory it is in, so it cannot take the lock.
+    #[error("cannot write the book to lock it: {0}")]
+    CannotWrite(String),
     /// The Book holds something an SQLite book cannot store (`design/sql-fidelity.md` §8).
     #[error("{0}")]
     Unstorable(String),
@@ -40,6 +46,16 @@ impl SqlError {
             Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked) => Self::Busy,
             Some(rusqlite::ErrorCode::NotADatabase) => Self::NotADatabase(e.to_string()),
             _ => Self::Sqlite(e),
+        }
+    }
+
+    /// [`SqlError::from_sqlite`] for a write, where a file or directory red-ale may not write is its own error.
+    pub(crate) fn from_write(e: rusqlite::Error) -> Self {
+        match e.sqlite_error_code() {
+            Some(rusqlite::ErrorCode::ReadOnly | rusqlite::ErrorCode::CannotOpen | rusqlite::ErrorCode::PermissionDenied) => {
+                Self::CannotWrite(e.to_string())
+            }
+            _ => Self::from_sqlite(e),
         }
     }
 }
