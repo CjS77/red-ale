@@ -1,0 +1,154 @@
+# Builds red-ale for the six supported platforms.
+#
+# - A pushed tag `vX.Y.Z` builds every target and attaches the archives to a GitHub Release. The tag must match the
+#   workspace version in Cargo.toml.
+# - Running the workflow by hand (workflow_dispatch) builds every target without releasing anything and keeps the
+#   archives as workflow artifacts, to check a build before tagging it.
+#
+# Asset names are the download contract the install scripts will rely on; changing them breaks every installer:
+#
+#   red-ale-<target>.tar.gz   (zip on Windows: red-ale-<target>.zip)
+#   red-ale-<target>.sha256   (checksum of that archive)
+#
+# red-ale is not pure Rust: rusqlite builds the bundled SQLite and ring has C and assembly, so every runner needs a
+# C compiler for its target. macOS has Xcode's clang and Windows has MSVC; the musl jobs install musl-gcc, and the
+# Windows ARM job needs clang for ring.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # A release's tag and the version the binary reports must agree.
+  check-version:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches the workspace version
+        shell: bash
+        run: |
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version *= *"\(.*\)"/\1/p' Cargo.toml)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match workspace version $version"
+            exit 1
+          fi
+
+  # upload-rust-binary-action only uploads assets; the release must already exist.
+  create-release:
+    if: github.event_name == 'push'
+    needs: check-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          changelog: CHANGELOG.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    needs: create-release
+    # On workflow_dispatch create-release is skipped; build anyway.
+    if: ${{ !cancelled() && (needs.create-release.result == 'success' || github.event_name == 'workflow_dispatch') }}
+    permissions:
+      contents: write # upload release assets
+      id-token: write # provenance attestation (sigstore signing)
+      attestations: write # provenance attestation (store the bundle)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Static musl binaries, so no coupling to the host's glibc version. Each runs on its own architecture, so
+          # nothing is cross-compiled and every binary can be run as a smoke test.
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          # Free for public repositories only.
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install musl-gcc
+        if: contains(matrix.target, 'linux-musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          # cc-rs would look for <arch>-linux-musl-gcc; musl-tools ships musl-gcc for the host architecture.
+          echo "CC_${TARGET//-/_}=musl-gcc" >> "$GITHUB_ENV"
+        env:
+          TARGET: ${{ matrix.target }}
+
+      # ring needs clang on Windows ARM (its BUILDING.md). Use the LLVM that ships with Visual Studio if the image has
+      # it, otherwise install LLVM.
+      - name: Put clang on the PATH
+        if: matrix.target == 'aarch64-pc-windows-msvc'
+        shell: pwsh
+        run: |
+          if (Get-Command clang -ErrorAction SilentlyContinue) { exit 0 }
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $llvm = Join-Path $vs 'VC\Tools\Llvm\ARM64\bin'
+          if (Test-Path $llvm) {
+            Add-Content $env:GITHUB_PATH $llvm
+          } else {
+            winget install --id LLVM.LLVM --silent --accept-source-agreements --accept-package-agreements
+            Add-Content $env:GITHUB_PATH "$env:ProgramFiles\LLVM\bin"
+          }
+
+      - uses: taiki-e/upload-rust-binary-action@v1
+        id: upload
+        with:
+          bin: red-ale
+          target: ${{ matrix.target }}
+          # Every job builds for its own architecture, so plain cargo, never `cross` (docker).
+          build-tool: cargo
+          locked: true
+          archive: $bin-$target
+          checksum: sha256
+          # GPL-3.0: the licence travels with the binary.
+          include: LICENSE,README.md,CHANGELOG.md
+          dry-run: ${{ github.event_name != 'push' }}
+          dry-run-intended: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          exe=target/${{ matrix.target }}/release/red-ale
+          [ -f "$exe.exe" ] && exe="$exe.exe"
+          "$exe" --version
+
+      # Ties each released archive to this workflow run (verify: `gh attestation verify <asset> -R CjS77/red-ale`).
+      - uses: actions/attest-build-provenance@v4
+        if: github.event_name == 'push'
+        with:
+          subject-path: ${{ steps.upload.outputs.zip || steps.upload.outputs.tar }}
+
+      - name: Keep the archive as a workflow artifact
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: red-ale-${{ matrix.target }}
+          path: |
+            ${{ steps.upload.outputs.zip || steps.upload.outputs.tar }}
+            ${{ steps.upload.outputs.sha256 }}
+          if-no-files-found: error
