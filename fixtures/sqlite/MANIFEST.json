@@ -36,6 +36,10 @@
       "source": "piecash/simple_sample.gnucash",
       "sourceSha256": "86a114184490004a55ad26b2fb8259d4dc10cfd0dd81a8f54f1fc47a2e4ab18a"
     },
+    "reports/adjusting-entries.gnucash": {
+      "source": "reports/adjusting-entries.gnucash",
+      "sourceSha256": "f40b5021930e13a99739006818517dc7dd9525d8ff2d8b7d30bd9fc46e7ed994"
+    },
     "reports/average-balance.gnucash": {
       "source": "reports/average-balance.gnucash",
       "sourceSha256": "ced109b84eb370d2fff37ffd469f5602d998b03a3ac5d131ee9bf330628643bc"

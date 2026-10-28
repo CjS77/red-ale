@@ -1,4 +1,4 @@
-//! `lib/dates` (`5.17:bindings/guile/date-utilities.scm:176-493`, DU): calendar arithmetic, the date fractions, the
+//! `lib/dates` (`5.17:bindings/guile/date-utilities.scm:176-499`, DU): calendar arithmetic, the date fractions, the
 //! deltas, stepping by days and months, and date lists. Times are made and printed in UTC, the zone of GnuCash's own
 //! report tests, except where a zone is the point.
 
@@ -209,4 +209,48 @@ fn local_days_follow_the_zone() {
     ",
     );
     check(&got, &["2024-03-16 00:00:00 1710496800", "20165/31"]);
+}
+
+/// gnc:time64-previous-day and gnc:time64-next-day (DU:495-499) step one local day with `decdate` and `incdate`,
+/// across month, leap-day and year ends; the Equity Statement's start bound is the previous day's 23:59:59
+/// (`5.17:gnucash/report/reports/standard/equity-statement.scm:205-206`).
+#[test]
+fn previous_and_next_day() {
+    let got = run(
+        &Host::new(empty_book()),
+        r"
+        print(`previous=${isos.call([dates::time64_previous_day(ctx, t.call(2024, 3, 1)),
+                                      dates::time64_previous_day(ctx, t.call(2024, 1, 1)),
+                                      dates::time64_previous_day(ctx, t.call(2023, 3, 1))])}`);
+        print(`next=${isos.call([dates::time64_next_day(ctx, t.call(2024, 2, 28)), dates::time64_next_day(ctx, t.call(2024, 2, 29)),
+                                  dates::time64_next_day(ctx, t.call(2024, 12, 31))])}`);
+        print(`start-bound=${iso.call(dates::time64_end_day_time(ctx, dates::time64_previous_day(ctx, t.call(1970, 1, 1))))}`);
+    ",
+    );
+    check(
+        &got,
+        &[
+            r#"previous=["2024-02-29 10:59:00", "2023-12-31 10:59:00", "2023-02-28 10:59:00"]"#,
+            r#"next=["2024-02-29 10:59:00", "2024-03-01 10:59:00", "2025-01-01 10:59:00"]"#,
+            "start-bound=1969-12-31 23:59:59",
+        ],
+    );
+}
+
+/// A day is a local day, not 86,400 seconds: across New York's change to summer time on 10 March 2024 the step is
+/// 23 hours, and across its end on 3 November 25, as `gnc-mktime` with `isdst` -1 gives (DU:276-287).
+#[test]
+fn a_day_step_keeps_the_local_time_across_daylight_saving() {
+    let mut host = Host::new(empty_book());
+    host.zone = TimeZone::from_gnucash_posix("EST-5EDT,M3.2.0,M11.1.0").unwrap();
+    let got = run(
+        &host,
+        r"
+        let spring = t.call(2024, 3, 10);
+        let autumn = t.call(2024, 11, 2);
+        print(`${iso.call(dates::time64_previous_day(ctx, spring))} ${spring - dates::time64_previous_day(ctx, spring)}`);
+        print(`${iso.call(dates::time64_next_day(ctx, autumn))} ${dates::time64_next_day(ctx, autumn) - autumn}`);
+    ",
+    );
+    check(&got, &["2024-03-09 10:59:00 82800", "2024-11-03 10:59:00 90000"]);
 }

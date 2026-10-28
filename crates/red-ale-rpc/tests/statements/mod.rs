@@ -50,8 +50,18 @@ impl Setup {
 
     /// A copy of `fixtures/reports/<name>`, opened read-only.
     pub fn fixture(name: &str, config: &Value) -> Self {
+        Self::fixture_in("reports", name, config)
+    }
+
+    /// A copy of `fixtures/sqlite/reports/<name>`, the SQLite copy GnuCash 5.17 saved of `fixtures/reports/<name>`
+    /// (`fixtures/sqlite/README.md`), opened read-only.
+    pub fn sqlite_fixture(name: &str, config: &Value) -> Self {
+        Self::fixture_in("sqlite/reports", name, config)
+    }
+
+    fn fixture_in(dir: &str, name: &str, config: &Value) -> Self {
         let mut s = Self::with_config(config);
-        std::fs::copy(format!("{}/../../fixtures/reports/{name}", env!("CARGO_MANIFEST_DIR")), s.book()).unwrap();
+        std::fs::copy(format!("{}/../../fixtures/{dir}/{name}", env!("CARGO_MANIFEST_DIR")), s.book()).unwrap();
         let book = s.book().display().to_string();
         s.call("book.open", json!({ "path": book, "readOnly": true }));
         s

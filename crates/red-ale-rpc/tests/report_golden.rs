@@ -19,11 +19,20 @@
 //! ```text
 //! RED_ALE_GOLDEN_WRITE_V04=/tmp/v0.4.txt cargo test -p red-ale-rpc --test report_golden
 //! ```
+//!
+//! The v0.5 reports keep `tests/report_golden/v0.5.txt` the same way, on every book of `BOOKS` and of `V05_BOOKS`.
+//! Translating a report adds its name to `V05_REPORTS`; the writer then writes only the lines `v0.5.txt` does not
+//! have yet, which are appended to it as the report's block:
+//!
+//! ```text
+//! RED_ALE_GOLDEN_WRITE_V05=/tmp/new.txt cargo test -p red-ale-rpc --test report_golden v05 && cat /tmp/new.txt >> …/v0.5.txt
+//! ```
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 mod report_runs;
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use report_runs::Fixture;
@@ -61,6 +70,12 @@ const V04_REPORTS: [&str; 8] = [
     "Balance Forecast",
 ];
 
+/// The built-in reports added in v0.5, which `v0.5.txt` covers. A translated report appends its name.
+const V05_REPORTS: &[&str] = &["Equity Statement"];
+
+/// The fixture books added in v0.5, on which `v0.5.txt` records the v0.5 reports besides `BOOKS`.
+const V05_BOOKS: &[&str] = &["adjusting-entries"];
+
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
 fn fnv1a(bytes: &[u8]) -> u64 {
     bytes
@@ -68,9 +83,15 @@ fn fnv1a(bytes: &[u8]) -> u64 {
         .fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
 }
 
-/// One line per export: `book date-format report <tab> outcome`, and the outcomes' HTML by key.
+/// One line per export of every built-in report on every book of `BOOKS`: `book date-format report <tab> outcome`,
+/// and the outcomes' HTML by key.
 fn exports(locale: Option<&str>) -> Vec<(String, String, Option<String>)> {
-    BOOKS
+    exports_of(&BOOKS, locale, |_| true)
+}
+
+/// The exports of the built-in reports `wanted` picks by name, on `books`.
+fn exports_of(books: &[&str], locale: Option<&str>, wanted: impl Fn(&str) -> bool) -> Vec<(String, String, Option<String>)> {
+    books
         .iter()
         .flat_map(|book| DATE_FORMATS.iter().map(move |format| (*book, *format)))
         .flat_map(|(book, format)| {
@@ -82,6 +103,7 @@ fn exports(locale: Option<&str>) -> Vec<(String, String, Option<String>)> {
                 .iter()
                 .filter(|r| r["kind"] == "builtin")
                 .map(|r| r["name"].as_str().unwrap().to_owned())
+                .filter(|name| wanted(name))
                 .collect();
             names
                 .into_iter()
@@ -184,4 +206,28 @@ fn every_v04_report_gives_its_recorded_bytes() {
     let expected = recorded(include_str!("report_golden/v0.4.txt"));
     assert_eq!(expected.len(), BOOKS.len() * DATE_FORMATS.len() * V04_REPORTS.len());
     assert_as_recorded("v0.4", &expected, &v04(exports(None)));
+}
+
+/// The exports of the v0.5 reports on `BOOKS` and `V05_BOOKS`.
+fn v05() -> Vec<(String, String, Option<String>)> {
+    let books: Vec<&str> = BOOKS.iter().chain(V05_BOOKS).copied().collect();
+    exports_of(&books, None, |name| V05_REPORTS.contains(&name))
+}
+
+#[test]
+fn every_v05_report_gives_its_recorded_bytes() {
+    let expected = recorded(include_str!("report_golden/v0.5.txt"));
+    let now = v05();
+    if let Ok(path) = std::env::var("RED_ALE_GOLDEN_WRITE_V05") {
+        let new: Vec<_> = now.into_iter().filter(|(key, ..)| !expected.iter().any(|(k, _)| k == key)).collect();
+        std::fs::write(path, lines(&new)).unwrap();
+        return;
+    }
+    let keys = |ks: Vec<&String>| ks.into_iter().cloned().collect::<BTreeSet<String>>();
+    assert_eq!(
+        keys(expected.iter().map(|(k, _)| k).collect()),
+        keys(now.iter().map(|(k, ..)| k).collect()),
+        "v0.5.txt records every v0.5 report on every book, and nothing else"
+    );
+    assert_as_recorded("v0.5", &expected, &now);
 }
