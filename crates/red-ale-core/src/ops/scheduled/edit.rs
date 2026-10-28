@@ -223,6 +223,36 @@ pub(crate) fn create_with(
     finish(book, guid, true, format)
 }
 
+/// A scheduled transaction not saved, as never run (instance count 1): what the editor's and the Schedule from
+/// transaction dialog's example calendars show (`gnc_sxed_update_cal`, `dialog-sx-editor.c:1651`). The Schedule and
+/// the end are checked as `create` checks them.
+pub fn unsaved(start: Date, schedule: Vec<RecurrenceSpec>, end: End) -> Result<ScheduledTransaction, ScheduledError> {
+    let mut sx = ScheduledTransaction {
+        guid: Guid::default(),
+        name: String::new(),
+        enabled: true,
+        auto_create: false,
+        auto_create_notify: false,
+        advance_create_days: 0,
+        advance_remind_days: 0,
+        instance_count: Progress::NEW.instance_count,
+        start,
+        last: None,
+        end: None,
+        occurrences: None,
+        template_account: None,
+        schedule: Vec::new(),
+        deferred: Vec::new(),
+        slots: Frame::new(),
+    };
+    apply_fields(&mut sx, Fields {
+        schedule: Some(schedule),
+        end: Some(end),
+        ..Fields::default()
+    })?;
+    Ok(sx)
+}
+
 /// Change a scheduled transaction as the editor saves it. Its last occurrence, Instance count and Deferred instances
 /// are left alone: only Since Last Run moves them.
 pub fn update(book: &mut Book, env: &mut dyn Env, guid: Guid, mut fields: Fields, format: NumberFormat) -> Result<Edited, ScheduledError> {

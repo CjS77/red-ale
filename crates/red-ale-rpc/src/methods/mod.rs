@@ -22,6 +22,7 @@ pub mod prices;
 pub mod quotes;
 pub mod reconcile;
 pub mod reports;
+pub mod scheduled;
 pub mod scrub;
 pub mod since_last_run;
 pub mod transactions;
@@ -50,6 +51,7 @@ pub fn all() -> Vec<Method> {
         reports::methods(),
         import::methods(),
         import_map::methods(),
+        scheduled::methods(),
         since_last_run::methods(),
         export::methods(),
     ]

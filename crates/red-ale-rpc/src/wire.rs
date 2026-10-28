@@ -6,6 +6,7 @@ use std::borrow::Cow;
 use std::fmt;
 
 use chrono::{DateTime, SecondsFormat, Utc};
+use red_ale_core::ops::scheduled::End;
 use red_ale_core::{
     Book, CommodityRef, Date, DeferredInstance, Guid, Numeric, PeriodType, Recurrence, ScheduledTransaction, Time64, WeekendAdjust,
 };
@@ -367,6 +368,38 @@ impl RecurrenceWire {
     }
 }
 
+impl PeriodTypeWire {
+    /// The core period type.
+    pub fn to_core(self) -> PeriodType {
+        core_of(&PERIOD_TYPES, self, PeriodType::Once)
+    }
+}
+
+impl WeekendAdjustWire {
+    /// The core weekend adjustment.
+    pub fn to_core(self) -> WeekendAdjust {
+        core_of(&WEEKEND_ADJUSTS, self, WeekendAdjust::None)
+    }
+}
+
+/// A Recurrence of a scheduled transaction's Schedule as a caller gives it: as [`RecurrenceWire`], but the start may
+/// be left out to start on the scheduled transaction's start date, and a `mult` of 0 is stored as 1 (except for
+/// `once`), as `recurrenceSet` stores it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RecurrenceParam {
+    /// How many steps apart occurrences are.
+    pub mult: u16,
+    /// The step.
+    pub period_type: PeriodTypeWire,
+    /// The first occurrence; the scheduled transaction's start date when absent.
+    #[serde(default)]
+    pub start: Option<Day>,
+    /// Where occurrences on a weekend move to; `none` when absent.
+    #[serde(default)]
+    pub weekend_adjust: WeekendAdjustWire,
+}
+
 impl From<Recurrence> for RecurrenceWire {
     fn from(r: Recurrence) -> Self {
         Self {
@@ -379,9 +412,10 @@ impl From<Recurrence> for RecurrenceWire {
 }
 
 /// A scheduled transaction's end (`design/api/scheduled-transactions.md`, "The model on the wire"): `{ never: true }`,
-/// `{ date }`, `{ occurrences, remaining }`, or, when a file holds both, `{ date, occurrences, remaining }`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+/// `{ date }`, `{ occurrences, remaining }`, or, when a file holds both, `{ date, occurrences, remaining }`. As a
+/// param, one of the first three; `remaining` defaults to `occurrences`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 #[schemars(rename = "End")]
 pub struct EndWire {
     /// True when there is no end.
@@ -407,6 +441,20 @@ impl EndWire {
             date: sx.end.map(Day),
             occurrences: sx.occurrences.map(|o| o.total),
             remaining: sx.occurrences.map(|o| o.remaining),
+        }
+    }
+
+    /// The end a caller gives: exactly one of `never: true`, `date` and `occurrences`.
+    pub fn to_core(self) -> Result<End, RpcError> {
+        match (self.never, self.date, self.occurrences, self.remaining) {
+            (Some(true), None, None, None) => Ok(End::Never),
+            (None, Some(date), None, None) => Ok(End::Date(date.0)),
+            (None, None, Some(total), remaining) => Ok(End::Occurrences {
+                total,
+                remaining: remaining.unwrap_or(total),
+            }),
+            _ => Err(RpcError::invalid("give one end: { never: true }, { date } or { occurrences, remaining? }")
+                .with_data(serde_json::json!({ "reason": "end" }))),
         }
     }
 }

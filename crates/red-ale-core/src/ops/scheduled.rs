@@ -25,7 +25,7 @@ mod write;
 pub use apply::{Applied, ApplyOptions, Choice, CreatedInstance, apply};
 pub use cashflow::{CashFlow, CashFlowError, cash_flow, occurrences_in_range};
 pub use create::{BuiltSplit, BuiltTransaction, Created, FROM_SCHEDULED, ImbalanceSplit, build_instance, create_built, create_instance};
-pub use edit::{Edited, End, Fields, RecurrenceSpec, SplitSpec, TemplateSpec, Warning, create, delete, get, update};
+pub use edit::{Edited, End, Fields, RecurrenceSpec, SplitSpec, TemplateSpec, Warning, create, delete, get, unsaved, update};
 pub use from_transaction::{Frequency, FromTransaction, from_transaction};
 pub use loan::{Length, Loan, LoanCreated, OtherPayment, PaymentKind, RateType, Repayment, loan};
 pub use error::{AccountProblem, FormulaFailure, Refusal, ScheduledError, Side, Site};
