@@ -210,3 +210,54 @@ fn gnucash_reads_back_the_instances_red_ale_applied() {
     let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
     assert_eq!(red_ale_testkit::diff(&gnucash, &red_ale_testkit::model::dump(&ours), &skip), Vec::<String>::new());
 }
+
+/// Since Last Run over JSON-RPC on the rent with its 456 made a variable `rent` (and its numerics 0, as GnuCash's
+/// register writes them for a formula with a variable), on 2024-11-28: the deferred instance ignored, October and
+/// November created with their own `rent`, the reminder for November 29th left alone; then saved. GnuCash 5.17 reads
+/// the two created transactions with the amounts given, the scheduled transaction advanced past November with its
+/// deferred list emptied, and the whole book as red-ale does.
+#[test]
+fn gnucash_reads_the_instances_since_last_run_created_over_rpc() {
+    let book = TempBook::copy("synthetic/rich.gnucash");
+    let text = std::fs::read_to_string(&book.path)
+        .unwrap()
+        .replace("<slot:value type=\"string\">456</slot:value>", "<slot:value type=\"string\">rent</slot:value>")
+        .replace("<slot:value type=\"numeric\">456/1</slot:value>", "<slot:value type=\"numeric\">0/1</slot:value>");
+    std::fs::write(&book.path, text).unwrap();
+    let mut d = red_ale_rpc::Dispatcher::new(red_ale_service::Settings::default());
+    let nov_28 = red_ale_core::Time64(1_732_795_200);
+    d.set_env_factory(Box::new(move || Box::new(red_ale_core::FixedEnv::new(nov_28, 0x51 << 100))));
+    call(&mut d, "book.open", &json!({ "path": book.path_str() }));
+    let proposal = call(&mut d, "scheduledTransaction.sinceLastRun", &json!({}));
+    assert_eq!(proposal["summary"]["needVariables"], 2);
+    let choices = json!([
+        { "index": 0, "state": "ignored" },
+        { "index": 1, "variables": { "rent": "456.10" } },
+        { "index": 2, "variables": { "rent": "470.05" } },
+    ]);
+    let applied = call(&mut d, "scheduledTransaction.apply", &json!({ "proposal": proposal["id"], "choices": choices }));
+    assert_eq!(applied["reminders"], json!([3]));
+    let created: Vec<String> = applied["created"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["transactions"][0].as_str().unwrap().to_owned())
+        .collect();
+    call(&mut d, "book.close", &json!({ "save": true }));
+
+    let rent = &gnucash_scheduled(&book)[RENT];
+    assert_eq!(json!([rent["last"], rent["instanceCount"], rent["deferred"]]), json!(["2024-11-01", 4, []]));
+    let transactions: Value = serde_json::from_str(&script(&["created", &book.path_str()])).unwrap();
+    assert_eq!(transactions.as_object().map(serde_json::Map::len), Some(2));
+    let read = |guid: &str| {
+        let t = &transactions[guid];
+        json!([t["scheduledTransaction"], t["datePostedGDate"], t["splits"][0]["value"], t["splits"][1]["amount"]])
+    };
+    assert_eq!(read(&created[0]), json!([RENT, "2024-10-01", "45610/100", "-45610/100"]));
+    assert_eq!(read(&created[1]), json!([RENT, "2024-11-01", "47005/100", "-47005/100"]));
+
+    let gnucash = oracle::dump(&book.path).unwrap();
+    let (ours, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
+    let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
+    assert_eq!(red_ale_testkit::diff(&gnucash, &red_ale_testkit::model::dump(&ours), &skip), Vec::<String>::new());
+}

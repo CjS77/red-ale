@@ -15,7 +15,9 @@ listed at the end.
 
 Code (planned): `red-ale-core::schedule` (the entity, Recurrences, temporal state), `red-ale-core::formula` (the
 expression parser moved from `red-ale-import`, with the financial functions), `red-ale-core::ops::scheduled`
-(the Mutations, Since Last Run, the loan), `red-ale-rpc::methods::scheduled`.
+(the Mutations, Since Last Run, the loan), `red-ale-rpc::methods::scheduled`. Since Last Run on the wire:
+`red-ale-service::since_last_run` (the held proposals, beside the Import ones in `red-ale-service::proposals`) and
+`red-ale-rpc::methods::since_last_run`.
 
 ## Contents
 
@@ -322,10 +324,14 @@ hand-worked cases of the note §9.3 (H2–H5) are the test table (the note §7.4
   `i` included, at 0 ([`../notes/engine-budgets.md`](../notes/engine-budgets.md) §4.10). Not an API method.
 
 Formula errors carry `data`: `{ reason, formula, position, scheduledTransaction, templateTransaction, split, side,
-index }`, `side` being `debit` or `credit`, `position` a character offset (or null), and `index` the instance's in a
-Since Last Run proposal (or null). Reasons: `syntax`, `unknown-function`, `non-integer-power`, `string-argument`,
-`division-by-zero`, `overflow`. A missing variable value is not a formula error: `apply` refuses it first, as
-`invalid`. GnuCash reports a failed call as "Stack underflow" (the note §3.4); red-ale names the cause.
+index }`, `side` being `debit` or `credit`, `position` a character offset (or null; the parser does not report one
+yet, so it is always null in 0.4.0), and `index` the instance's in a Since Last Run proposal (or null). Reasons
+(`FormulaError::reason`): `syntax` (also too deep a nesting, or an assignment to a non-variable), `unknown-function`,
+`inexact` (a function red-ale knows but can't compute exactly), `arguments` (a call with the wrong number of
+arguments), `non-integer-power`, `string-argument`, `division-by-zero`, `overflow` (also a number with too many
+digits). A missing variable value is not a formula error: `apply` refuses it first, as `invalid`
+(`unbound-variable`); the reason `unbound-variable` is kept for a formula read with no bindings. GnuCash reports a
+failed call as "Stack underflow" (the note §3.4); red-ale names the cause.
 
 ## Since Last Run
 
@@ -403,8 +409,8 @@ Each instance:
 | `instanceCount` | Its `i` |
 | `variables` | `[{ name, value, editable }]`: every variable, `value` null while unbound; `i` has its value and `editable: false` |
 | `readOnlyByDate` | True when `date` is before `thresholdDate`: creating it needs the caller's explicit choice (see "Deviations in Since Last Run", 3) |
-| `errors` | `[FormulaError]` and template errors (`missing-account`, `placeholder`) found without the caller's values: creating it as it stands would fail |
-| `transactions` | When every variable has a value: the transactions creating it would make, as "The transactions created" builds them, each `{ templateTransaction, currency, description, num, splits: [{ account, accountName, value, amount, memo, action }], imbalance }`, `imbalance` being `{ value, currency, account }` of the `Imbalance-<CUR>` split creation would add, or null. Otherwise null |
+| `errors` | What creating it as it stands would fail on, found without the caller's values, each `{ code, message, data }` as the error `apply` would return: a `formula` (6000) error, or an `invalid` template error (`data.reason` `missing-account`, `placeholder`, `root`, `no-commodity`, `not-a-currency`, `zero-rate`). A problem of the template is listed on every instance of its scheduled transaction |
+| `transactions` | When every variable has a value: the transactions creating it would make, as "The transactions created" builds them, each `{ templateTransaction, currency, description, num, splits: [{ account, accountName, value, amount, memo, action }], imbalance }`, `imbalance` being `{ value, currency, account }` of the `Imbalance-<CUR>` split creation would add, `account` its full name (`Imbalance-USD`, made at the top level if the Book has none), or null. Otherwise null |
 
 ### `scheduledTransaction.apply` (write)
 
@@ -416,7 +422,9 @@ Each instance:
 
 Instances not named keep the proposal's state and bindings.
 
-**Checks, before anything changes** (each `invalid` with `data.reason` and `data.index`, unless it says otherwise):
+**Checks, before anything changes** (each `invalid` with `data.reason`, `data.index` (the first instance named) and
+`data.indexes` (every instance named), unless it says otherwise; also `index` for an index out of range,
+`created-state`, `duplicate-choice` for two choices naming one instance, and `not-auto-create`):
 
 - every `toCreate` instance has a value for each variable (`unbound-variable`); `i` and unknown names can't be set
   (`not-editable`, `unknown-variable`);
@@ -449,19 +457,23 @@ Instances not named keep the proposal's state and bindings.
 |-------|---------|
 | `created` | `[{ index, scheduledTransaction, date, transactions: [GUID] }]` |
 | `postponed`, `ignored`, `reminders` | Indexes |
-| `schedules` | `[{ scheduledTransaction, lastOccurrence, instanceCount, end, deferredInstances }]` after the apply |
+| `schedules` | `[{ scheduledTransaction, lastOccurrence, instanceCount, end, deferredInstances }]` after the apply, for each scheduled transaction the apply changed, in book order; `deferredInstances` as in `ScheduledTransactionInfo`, each `{ lastOccurrence, remainingOccurrences, instanceCount }` |
 | `imbalanceSplits` | `[{ index, transaction, split, account, value }]`: every `Imbalance-<CUR>` split made |
-| `warnings` | Every Imbalance split again, and every transaction created read-only by date |
+| `warnings` | `[{ code, message, index }]`: every Imbalance split again (`imbalance`), and every instance created read-only by date (`read-only-by-date`) |
 
 Errors: `no-book`, `read-only`, `not-found` (`data.kind: "sinceLastRunProposal"`: unknown, applied, discarded, pushed
 out, or from before the book was opened), `conflict` (`data.reason: "book-revision"`, with `data.proposalRevision` and
 `data.bookRevision`), `invalid` (above, and an index out of range or the state `created`), `formula`. A proposal stays
-held after a failed apply.
+held after a failed apply. Proposal IDs are `slr-<n>`, numbered across the process, never reused.
 
 ### `scheduledTransaction.discard` (read)
 
 `{ proposal }` → `{ discarded: true }`. Drops a held proposal. Its effect is `read`, as `import.discard`'s: it changes
-neither the Book nor the Configuration. `not-found` for an unknown ID.
+neither the Book nor the Configuration. `not-found` (`data.kind: "sinceLastRunProposal"`) for an unknown ID.
+
+The Formulas are read in the number format of the Configuration's Locale (its monetary decimal point and group
+separator) when the proposal is made, and the apply reads them in the same format even if the Locale changes in
+between.
 
 ### The transactions created
 
@@ -735,6 +747,9 @@ red-ale call scheduledTransaction.sinceLastRun
 red-ale call scheduledTransaction.apply proposal=slr-2 'choices:=[{"index": 0, "state": "postponed"}]'
 ```
 
+`exec` runs one method per process, so a proposal made by one `exec` is gone by the next; run both calls in one
+`exec --script`, or against a server with `call`.
+
 ## Deviations from GnuCash
 
 | What | GnuCash 5.17 | red-ale | Why |
@@ -773,7 +788,8 @@ that need it are hand-worked from the 5.17 source, each citing the lines it foll
   fuzzing of formulas with variables: no input panics.
 - **Since Last Run**: `5.17:libgnucash/app-utils/test/test-sx.cpp` (`test_basic`, the once-only case,
   `test_state_changes`, auto-create), H6–H8 by hand; run twice on the same day it creates nothing; a stale proposal is
-  `conflict`; a failing formula creates nothing; a postponement in an SQLite book is refused; 5,000 transactions in
+  `conflict`; a failing formula creates nothing; a postponement in an SQLite book is refused (in 0.4.0 only in the
+engine's own tests: no Backend opens SQLite books yet); 5,000 transactions in
   one Mutation within the memory budgets of [`../milestone3.md`](../milestone3.md).
 - **The loan**: hand-worked repayments matching GnuCash's to the SCU (the note §9.3, H2–H3); the formula text for
   each rate type and locale.

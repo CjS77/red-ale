@@ -6,7 +6,9 @@ use std::borrow::Cow;
 use std::fmt;
 
 use chrono::{DateTime, SecondsFormat, Utc};
-use red_ale_core::{Book, CommodityRef, Date, Guid, Numeric, PeriodType, Recurrence, Time64, WeekendAdjust};
+use red_ale_core::{
+    Book, CommodityRef, Date, DeferredInstance, Guid, Numeric, PeriodType, Recurrence, ScheduledTransaction, Time64, WeekendAdjust,
+};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize, Serializer};
@@ -372,6 +374,62 @@ impl From<Recurrence> for RecurrenceWire {
             period_type: wire_of(&PERIOD_TYPES, r.period_type(), PeriodTypeWire::Once),
             start: Day(r.start()),
             weekend_adjust: wire_of(&WEEKEND_ADJUSTS, r.weekend_adjust(), WeekendAdjustWire::None),
+        }
+    }
+}
+
+/// A scheduled transaction's end (`design/api/scheduled-transactions.md`, "The model on the wire"): `{ never: true }`,
+/// `{ date }`, `{ occurrences, remaining }`, or, when a file holds both, `{ date, occurrences, remaining }`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(rename = "End")]
+pub struct EndWire {
+    /// True when there is no end.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub never: Option<bool>,
+    /// No occurrence after this date.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<Day>,
+    /// At most this many occurrences in all.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub occurrences: Option<i32>,
+    /// This many still to come.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining: Option<i32>,
+}
+
+impl EndWire {
+    /// The end of `sx` as stored.
+    pub fn of(sx: &ScheduledTransaction) -> Self {
+        let never = (sx.end.is_none() && sx.occurrences.is_none()).then_some(true);
+        Self {
+            never,
+            date: sx.end.map(Day),
+            occurrences: sx.occurrences.map(|o| o.total),
+            remaining: sx.occurrences.map(|o| o.remaining),
+        }
+    }
+}
+
+/// A Deferred instance: the temporal state saved before a postponed instance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(rename = "DeferredInstance")]
+pub struct DeferredInstanceWire {
+    /// The last occurrence before the postponed one, or null.
+    pub last_occurrence: Option<Day>,
+    /// Occurrences remaining then.
+    pub remaining_occurrences: i32,
+    /// The Instance count then.
+    pub instance_count: i32,
+}
+
+impl From<&DeferredInstance> for DeferredInstanceWire {
+    fn from(d: &DeferredInstance) -> Self {
+        Self {
+            last_occurrence: d.last.map(Day),
+            remaining_occurrences: d.remaining,
+            instance_count: d.instance_count,
         }
     }
 }
