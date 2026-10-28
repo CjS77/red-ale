@@ -275,7 +275,7 @@ Rounding is half up to significant digits, never left of the decimal point, and 
 |        | Budget Flow                           | `standard/budget-flow.scm` (`e6e34fa3b6e748debde3cb3bc76d3e53`)                       |
 |        | Budget Chart                          | `standard/budget-barchart.scm` (`415cd38d39054d9e9c4040455290c2b1`)                   |
 |   ✅   | Future Scheduled Transactions Summary | `standard/account-summary.scm:430-435` (`47f45d7d6d57b68518481c1fc8d4e4ba`)           |
-|        | Balance Forecast                      | `standard/balance-forecast.scm` (`321d940d487d4ccbb4bd0467ffbadbf2`)                  |
+|   ✅   | Balance Forecast                      | `standard/balance-forecast.scm` (`321d940d487d4ccbb4bd0467ffbadbf2`)                  |
 
 All are translated from GnuCash's Scheme into Rhai, on the v0.2 engine, as [`reports.md`](reports.md) sets out. The
 report library needs what [`notes/engine-budgets.md`](notes/engine-budgets.md) §4.11 lists: budget reads (periods,

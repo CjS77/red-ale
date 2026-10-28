@@ -373,15 +373,18 @@ fn line(chart: &Chart, l: &Line, slots: &Slots, at: &impl Fn(&Rational) -> Hu) -
             stroke_width(s)
         )
     });
+    // A radius of 0 hides the markers as Chart.js does, but they keep their hover labels.
+    let hidden = s.point_radius.as_ref().is_some_and(Rational::is_zero);
     let markers = points.iter().enumerate().filter_map(|(i, p)| {
         p.map(|(x, _, top)| {
-            marker(
+            let shown = marker(
                 s.marker.unwrap_or(Marker::Circle),
                 x,
                 top,
                 color_of(s, i),
                 &hover(chart, i, l.series),
-            )
+            );
+            if hidden { format!("<g opacity=\"0\">{shown}</g>") } else { shown }
         })
     });
     fills.chain(strokes).chain(markers).collect::<Vec<_>>().join("\n")

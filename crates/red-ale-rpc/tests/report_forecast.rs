@@ -1,6 +1,6 @@
 //! The two reports that read the scheduled transactions' cash flow, through `report.run` and `report.export`: the
 //! Future Scheduled Transactions Summary (`standard/account-summary.rhai` with `sx`, from
-//! `5.17:gnucash/report/reports/standard/account-summary.scm`, cited as AS).
+//! `5.17:gnucash/report/reports/standard/account-summary.scm`, cited as AS) and the Balance Forecast (below).
 //!
 //! GnuCash has no test for either with scheduled transactions, and computing GnuCash's figures would need Guile, which
 //! red-ale never runs, so every expected figure here is worked by hand from the 5.17 source:
@@ -96,7 +96,8 @@ fn book() -> Fixture {
 /// Since Last Run on the pinned now proposes only Rent's three instances; ignore two and postpone the third.
 fn run_rent_since_last_run(f: &mut Fixture) {
     let p = f.call("scheduledTransaction.sinceLastRun", &json!({}));
-    let dates: Vec<&Value> = p["schedules"].as_array().unwrap().iter().flat_map(|s| s["instances"].as_array().unwrap()).map(|i| &i["date"]).collect();
+    let schedules = p["schedules"].as_array().unwrap();
+    let dates: Vec<&Value> = schedules.iter().flat_map(|s| s["instances"].as_array().unwrap()).map(|i| &i["date"]).collect();
     assert_eq!(dates, [&json!("2024-01-01"), &json!("2024-02-01"), &json!("2024-03-01")]);
     let choices = json!([{ "index": 0, "state": "ignored" }, { "index": 1, "state": "ignored" }, { "index": 2, "state": "postponed" }]);
     let applied = f.call("scheduledTransaction.apply", &json!({ "proposal": p["id"], "choices": choices }));
@@ -214,4 +215,173 @@ fn test_account_summary_fsts() {
     let dates: Vec<&String> = options.iter().filter(|o| o.starts_with("General/") && o.contains(" Date ")).collect();
     assert_eq!(dates.len(), 2, "{options:#?}");
     assert!(dates[0].starts_with("General/Start Date \"ca\"") && dates[1].starts_with("General/End Date \"cb\""), "{dates:?}");
+}
+
+// The Balance Forecast (`standard/balance-forecast.rhai`, from `5.17:gnucash/report/reports/standard/balance-forecast.scm`,
+// cited as BF). Its accounts default to the BANK and CASH ones, Cash and Checking, whose real balances are $50 and
+// $1,000 until 15 April and $50 and $900 after (`gnc:account-get-balances-at-dates`, BF:171-175). Every point adds
+// what the scheduled transactions move from the earliest split, 2 January, to the interval's end (BF:194-232).
+
+const FORECAST: &str = "Balance Forecast";
+
+fn forecast(from: &str, to: &str, interval: &str, display: Value) -> Value {
+    let general = json!({ "Start Date": { "absolute": from }, "End Date": { "absolute": to }, "Interval": interval });
+    json!({ "General": general, "Display": display })
+}
+
+/// The chart's labels and each series as `label: values`.
+fn lines(result: &Value) -> (Vec<String>, Vec<String>) {
+    let chart = only(result, "chart");
+    let labels = chart["labels"].as_array().unwrap().iter().map(|l| l.as_str().unwrap().to_owned()).collect();
+    let fraction = |v: &Value| format!("{}/{}", v["num"].as_str().unwrap(), v["denom"].as_str().unwrap());
+    let series = chart["series"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| {
+            let values: Vec<String> = s["values"].as_array().unwrap().iter().map(fraction).collect();
+            format!("{}: {}", s["label"].as_str().unwrap(), values.join(" "))
+        })
+        .collect();
+    (labels, series)
+}
+
+/// April to June by month (BF:163-164; DU:323-349 steps months from the start date, each interval ending a second
+/// before the next). The opening sum, 2 January to 1 April, holds Rent's 1 April occurrence (its last, 1 March, is
+/// not counted again, SX:805-808) and Salary's 22 March: Checking −$2,000 + $900. Then:
+///
+/// - April: Rent 1 April again (both cash-flow ranges include the start day), Salary 5 and 19 April, Utilities
+///   $30 (`power` as 0), Gym $20 from Cash. Checking −$1,100 − $2,000 + $1,800 − $30 = −$1,330, Cash −$20; with the
+///   real $900 and $50, −$400.
+/// - May: Rent, Salary 3, 17 and 31 May, Utilities; Gym has ended. Checking −$1,330 + $670 = −$660: $270.
+/// - June: Rent, Salary 14 and 28 June, Utilities: −$660 − $230 = −$890: $40.
+///
+/// The future minimum is each point's least of itself and the later ones (BF:239-241): −$400, $40, $40. The
+/// Target is the reserve plus the target, $350, and the Reserve $100 (BF:254-271); the series come in that order
+/// (BF:235-271), points labelled with the intervals' ends in ISO form (BF:284-287).
+#[test]
+fn april_to_june_by_month() {
+    let mut f = book();
+    let display = json!({ "Show future minimum": true, "Show reserve line": true, "Reserve amount": "100",
+                          "Show target line": true, "Target amount above reserve": "250", "Data markers?": true });
+    let options = forecast("2024-04-01", "2024-06-30", "MonthDelta", display);
+    let result = f.run(FORECAST, &options);
+    let (labels, series) = lines(&result);
+    assert_eq!(labels, strings(&["2024-04-30", "2024-05-31", "2024-06-30"]));
+    let expected = [
+        "Minimum: -400/1 40/1 40/1",
+        "Balance: -400/1 270/1 40/1",
+        "Target: 350/1 350/1 350/1",
+        "Reserve: 100/1 100/1 100/1",
+    ];
+    assert_eq!(series, strings(&expected));
+    let chart = only(&result, "chart");
+    assert_eq!(chart["type"], "line");
+    assert_eq!(chart["title"], json!(["Balance Forecast", "04/01/24 to 06/30/24"]));
+    assert_eq!(chart["yAxis"], json!({ "label": "USD", "format": "currency", "commodity": "CURRENCY::USD" }));
+    let colors: Vec<&Value> = chart["series"].as_array().unwrap().iter().map(|s| &s["color"]).collect();
+    assert_eq!(colors, [&json!("#00aaaa"), &json!("#00aa00"), &json!("#ffff00"), &json!("#ff0000")]);
+    let balance = &chart["series"][1];
+    let look = json!([balance["fill"], balance["lineWidth"], balance["pointRadius"]]);
+    assert_eq!(look, json!([null, { "num": "3", "denom": "2" }, { "num": "3", "denom": "1" }]));
+    assert_eq!(balance["displays"], json!(["-$400.00", "$270.00", "$40.00"]));
+    let html = f.export(FORECAST, &options);
+    assert!(html.contains("<svg ") && !html.contains("<g opacity=\"0\">"), "markers are drawn");
+}
+
+/// The defaults show the Balance line alone, without markers (BF:101-123): its points have radius 0.
+#[test]
+fn defaults_show_the_balance_alone() {
+    let mut f = book();
+    let options = forecast("2024-04-01", "2024-06-30", "MonthDelta", json!({}));
+    let result = f.run(FORECAST, &options);
+    assert_eq!(lines(&result).1, strings(&["Balance: -400/1 270/1 40/1"]));
+    assert_eq!(only(&result, "chart")["series"][0]["pointRadius"], json!({ "num": "0", "denom": "1" }));
+    let html = f.export(FORECAST, &options);
+    assert!(html.contains("<g opacity=\"0\">"), "markers are hidden but keep their hover labels");
+}
+
+/// Weeks from Monday 1 April to Saturday 20 April: 1-7, 8-14 and a shorter last interval, 15-20 (DU:331-349). The
+/// first adds Rent's 1 April and Salary's 5 April to the opening −$1,100: $1,050 − $2,200 = −$1,150; the second Gym's
+/// 10 April from Cash: −$1,170; the third Salary's 19 April and Utilities' 20 April, with the real Checking down to
+/// $900 on 15 April: $950 − $1,330 − $20 = −$400, as at the end of April by month.
+#[test]
+fn weeks_end_with_a_shorter_interval() {
+    let mut f = book();
+    let (labels, series) = lines(&f.run(FORECAST, &forecast("2024-04-01", "2024-04-20", "WeekDelta", json!({}))));
+    assert_eq!(labels, strings(&["2024-04-07", "2024-04-14", "2024-04-20"]));
+    assert_eq!(series, strings(&["Balance: -1150/1 -1170/1 -400/1"]));
+}
+
+/// An occurrence on the start date is counted twice, by the opening sum and by the first interval, as both of
+/// GnuCash's cash-flow ranges include it (BF:202, :217-218; `5.17:bindings/guile/expressions.i:27-32`). From
+/// 2 April, Rent's 1 April occurrence is in the opening sum only: the end of April shows $2,000 more than from
+/// 1 April, $1,600.
+#[test]
+fn an_occurrence_on_the_start_date_counts_twice() {
+    let mut f = book();
+    let (_, series) = lines(&f.run(FORECAST, &forecast("2024-04-02", "2024-04-30", "MonthDelta", json!({}))));
+    assert_eq!(series, strings(&["Balance: 1600/1"]));
+}
+
+/// A euro account's points are exchanged into the report currency at each interval's end (BF:166-169, :227-231),
+/// here at the one price, $1.10: €100 since 2 January and €10 on the 15th of each month from April by schedule give
+/// €110, $121.00, at the end of April and €120, $132.00, at the end of May.
+#[test]
+fn foreign_accounts_are_exchanged_at_each_interval_end() {
+    let mut f = book();
+    let euro = |f: &mut Fixture, name: &str, kind: &str| {
+        f.call("account.create", &json!({ "name": name, "type": kind, "commodity": "EUR" }))
+    };
+    euro(&mut f, "Euro Cash", "CASH");
+    euro(&mut f, "Euro Opening", "EQUITY");
+    transfer(&mut f, "2024-01-02", "Euro Opening", "Euro Cash", "100");
+    scheduled(&mut f, "Top-up", every("month", 1, "2024-04-15"), "Euro Opening", "Euro Cash", "10", json!({}));
+    let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.10", "date": "2024-04-01" });
+    f.call("price.add", &price);
+    let mut options = forecast("2024-04-01", "2024-05-31", "MonthDelta", json!({}));
+    options["Accounts"] = json!({ "Accounts": ["Euro Cash"] });
+    assert_eq!(lines(&f.run(FORECAST, &options)).1, strings(&["Balance: 121/1 132/1"]));
+}
+
+/// The warnings (BF:177-188): no accounts, here a new book with no BANK or CASH account to default to; and accounts
+/// whose real balances are all zero, whatever the scheduled transactions add to them: Salary never has a split,
+/// though Salary's schedule moves $900 out of it every two weeks.
+#[test]
+fn warnings_for_no_accounts_and_no_real_balances() {
+    let mut empty = Fixture::create("locale");
+    let options = forecast("2024-04-01", "2024-06-30", "MonthDelta", json!({}));
+    assert_eq!(only(&empty.run(FORECAST, &options), "warning")["title"], "No accounts selected");
+    let mut f = book();
+    let mut salary = options.clone();
+    salary["Accounts"] = json!({ "Accounts": ["Income:Salary"] });
+    let result = f.run(FORECAST, &salary);
+    assert_eq!(only(&result, "warning")["title"], "No data");
+    assert!(report_runs::blocks_of(&result, "chart").is_empty());
+}
+
+/// Every option with GnuCash's section, name, key and default (BF:73-126), after the three General options every
+/// report has.
+#[test]
+fn options_keep_gnucash_keys_and_defaults() {
+    let expected = [
+        r#"Accounts/Accounts "a" "accountList" []"#,
+        r#"Display/Plot Width "aa" "plotSize" {"percent":100}"#,
+        r#"Display/Plot Height "ab" "plotSize" {"percent":100}"#,
+        r#"Display/Data markers? "b" "boolean" false"#,
+        r#"Display/Show reserve line "c" "boolean" false"#,
+        r#"Display/Reserve amount "d" "numberRange" 0"#,
+        r#"Display/Show target line "e" "boolean" false"#,
+        r#"Display/Target amount above reserve "f" "numberRange" 0"#,
+        r#"Display/Show future minimum "g" "boolean" false"#,
+        r#"General/Report name "0a" "string" "Balance Forecast""#,
+        r#"General/Stylesheet "0b" "multichoice" "Default""#,
+        r#"General/Add options summary "0c" "multichoice" "never""#,
+        r#"General/Start Date "aa" "date" {"relative":"start-accounting-period"}"#,
+        r#"General/End Date "ab" "date" {"relative":"end-accounting-period"}"#,
+        r#"General/Interval "b" "multichoice" "DayDelta""#,
+        r#"General/Report's currency "c" "currency" "CURRENCY::USD""#,
+        r#"General/Price Source "d" "multichoice" "pricedb-nearest""#,
+    ];
+    assert_eq!(report_runs::described_options(FORECAST), strings(&expected));
 }

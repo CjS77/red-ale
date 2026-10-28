@@ -196,6 +196,10 @@ pub struct Series {
     /// The point marker.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub marker: Option<Marker>,
+    /// The points' radius, GnuCash's `pointRadius` (`5.17:gnucash/report/reports/standard/balance-forecast.scm:153-154`):
+    /// 0 hides a line's markers, which keep their hover labels; any other radius draws them as usual.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub point_radius: Option<Rational>,
     /// Host: each value as its hover label shows it, under the y axis's format.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub displays: Option<Vec<Option<String>>>,

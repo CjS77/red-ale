@@ -220,6 +220,20 @@ fn charts_render_as_inline_svg() {
     golden("chart-scatter", &page(&chart(&price_scatter()), None));
 }
 
+/// A line with `pointRadius` 0 draws its markers transparent, so their hover labels stay; any other radius draws
+/// them as before.
+#[test]
+fn a_zero_point_radius_hides_markers_but_keeps_hover_labels() {
+    let markers = |radius: &str| {
+        let mut line = income_line();
+        line["series"][1]["pointRadius"] = json!(radius);
+        let html = page(&chart(&line), None);
+        (html.matches("<g opacity=\"0\"><rect").count(), html.matches("Expense : 7.00%").count())
+    };
+    assert_eq!(markers("0"), (4, 1));
+    assert_eq!(markers("3"), (0, 1));
+}
+
 #[test]
 fn staircase_amounts_take_the_column_of_their_level() {
     let html = page(&balance_sheet(), None);

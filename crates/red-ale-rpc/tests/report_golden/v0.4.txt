@@ -42,3 +42,25 @@ net-days us Future Scheduled Transactions Summary	9516 ca5932c63cfda1a5
 net-days locale Future Scheduled Transactions Summary	9508 50a7f113f3df6f75
 test-data us Future Scheduled Transactions Summary	7034 1d4b058f391a2e31
 test-data locale Future Scheduled Transactions Summary	7026 bb7df0147b9034c1
+average-balance us Balance Forecast	3619 a351be7997a99ea0
+average-balance locale Balance Forecast	3619 a351be7997a99ea0
+balsheet-pnl us Balance Forecast	3619 a351be7997a99ea0
+balsheet-pnl locale Balance Forecast	3619 a351be7997a99ea0
+budget us Balance Forecast	3619 a351be7997a99ea0
+budget locale Balance Forecast	3619 a351be7997a99ea0
+category-average us Balance Forecast	3619 a351be7997a99ea0
+category-average locale Balance Forecast	3619 a351be7997a99ea0
+category-daily us Balance Forecast	3619 a351be7997a99ea0
+category-daily locale Balance Forecast	3619 a351be7997a99ea0
+category-liability us Balance Forecast	3619 a351be7997a99ea0
+category-liability locale Balance Forecast	3619 a351be7997a99ea0
+category-multi us Balance Forecast	3619 a351be7997a99ea0
+category-multi locale Balance Forecast	3619 a351be7997a99ea0
+charts-daily us Balance Forecast	3619 a351be7997a99ea0
+charts-daily locale Balance Forecast	3619 a351be7997a99ea0
+charts-net us Balance Forecast	3619 a351be7997a99ea0
+charts-net locale Balance Forecast	3619 a351be7997a99ea0
+net-days us Balance Forecast	3619 a351be7997a99ea0
+net-days locale Balance Forecast	3619 a351be7997a99ea0
+test-data us Balance Forecast	3619 a351be7997a99ea0
+test-data locale Balance Forecast	3619 a351be7997a99ea0

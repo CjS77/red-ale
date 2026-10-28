@@ -819,6 +819,8 @@ the same stack name stack together; GnuCash's `stack` key), `kind` (`bar` or `li
 series) or `links` (one per value). A `scatter` series has `points: [{ x: Rational, y: Rational, label }]` instead of
 `values`, and `line` (`#rrggbb` or `null`): the price chart joins its points with a line of another colour
 (`standard/price-scatter.scm:269-274`). `marker` is `circle`, `square`, `diamond`, `cross` or `plus`.
+`pointRadius` (Rational, v0.4) is GnuCash's key of that name (`standard/balance-forecast.scm:153-154`): 0 draws a
+line's markers transparent, so they keep their hover labels; any other radius draws them as usual.
 
 These cover every chart in scope:
 
@@ -830,6 +832,7 @@ These cover every chart in scope:
 | Account pie charts | `pie`: one series, a value and colour per slice (`standard/account-piecharts.scm:472-558`) |
 | Price Scatterplot | `scatter` with a `linear` x axis in steps since the start date (`standard/price-scatter.scm:166-274`) |
 | Average Balance | `bar`: Average, Profit, Gain and Loss series (`example/average-balance.scm:386-451`) |
+| Balance Forecast (v0.4) | `line`: Minimum, Balance, Target and Reserve, unfilled, `lineWidth` 1.5, `pointRadius` 3 or 0 (`standard/balance-forecast.scm:234-293`) |
 
 ### Hover labels
 
@@ -1080,6 +1083,7 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | | Liabilities (Liability Piechart) | `3fe6dce77da24c66bdc8f8efdea7f9ac` | Assets & Liabilities | |
 | `standard/price-scatter.rhai` | Price Scatterplot | `1d241609fd4644caad765c95be20ff4c` | Assets & Liabilities | `standard/price-scatter.scm:281-288` |
 | `standard/budget.rhai` (v0.4) | Budget Report | `810ed4b25ef0486ea43bbd3dddb32b11` | Budget | `standard/budget.scm:763-769` |
+| `standard/balance-forecast.rhai` (v0.4) | Balance Forecast | `321d940d487d4ccbb4bd0467ffbadbf2` | Assets & Liabilities | `standard/balance-forecast.scm:300-306` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
 scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary is the
@@ -1113,6 +1117,7 @@ Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.
 | `standard/category-barchart.scm` | the four "Over Time" charts | As net-charts, plus OU: account-levels, sort-method; RU: get-current-account-tree-depth; CU: sum-collector-commodity; DU: date-get-fraction-func and the fraction functions; HU: assign-colors | |
 | `standard/account-piecharts.scm` | the five pie charts | OU: report-date or date-interval, currency, price-source, account-levels, plot-size, sort-method. RU: account-get-comm-balance-interval, account-get-comm-balance-at-date, filter-accountlist-type, get-current-account-tree-depth, monetary->string. CU: case-exchange-fn, sum-collector-commodity. DU: fraction functions. HU: assign-colors, warnings | Securities: account commodities and prices |
 | `standard/price-scatter.scm` | Price Scatterplot | OU: date-interval, interval-choice, currency, plot-size. RU: account-has-shares?, monetary->string. CU: get-commodity-inst-prices, get-commodity-totalavg-prices, and the euro conversion | STOCK, MUTUAL and CURRENCY accounts with cross-commodity splits; the price database (forward prices only) |
+| `standard/balance-forecast.scm` (v0.4) | Balance Forecast | OU: date-interval, interval-choice, currency, price-source, plot-size. RU: filter-accountlist-type, accounts-get-commodities, account-get-balances-at-dates, the commodity collector. CU: case-exchange-time-fn, sum-collector-commodity. DU: make-date-interval-list, deltasym-to-delta, time64-start/end-day-time. HU: no-account and empty-data warnings | `book.sx_cashflow`; each account's first split (`gnc-account-get-earliest-date`, read as the first of `a.splits()`); prices for foreign commodities |
 
 No report needs a Book feature (`features` slot); all only read. The last column lists the Book data their figures
 depend on.
@@ -1195,6 +1200,7 @@ Notes for the translators:
 | Price chart tooltip x | `~2,2F` (`standard/price-scatter.scm:260-267`) | `fixed(r, 2, 2)` |
 | Category chart percentage cells | `double-to-gnc-numeric` to 1/100 (`report/html-style-info.scm:233-236`) | exact, banker's rounding to 1/100 |
 | Chart values | JSON doubles (`5.17:borrowed/guile-json/json/builder.scm:121-124`) | exact Rationals in the result; integer SVG coordinates |
+| Balance Forecast's "Reserve amount" and "Target amount above reserve" | Doubles of number-range options (`standard/balance-forecast.scm:109-120`), the Target line their double sum | exact Rationals, the Target line their exact sum |
 
 ## 13. Testing reports
 
