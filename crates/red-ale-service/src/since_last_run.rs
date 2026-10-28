@@ -84,7 +84,7 @@ pub fn discard(session: &mut Session, id: &str) -> Result<(), ServiceError> {
 
 /// The Locale's monetary decimal point and group separator, with `gnc_localeconv`'s defaults, which GnuCash's
 /// expression parser reads numbers in (`5.17:libgnucash/app-utils/gnc-exp-parser.c:362-381`).
-fn number_format(locale: &Locale) -> NumberFormat {
+pub fn number_format(locale: &Locale) -> NumberFormat {
     let monetary = locale.monetary();
     let first = |s: &str, default: char| s.chars().next().unwrap_or(default);
     NumberFormat {

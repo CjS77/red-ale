@@ -59,6 +59,25 @@ fn exec_reaches_the_budget_methods() {
     assert_eq!(json(&out.stdout)["amounts"][0]["amount"], serde_json::json!({ "num": "45000", "denom": "100" }));
 }
 
+/// The `scheduledTransaction.create` example of `design/api/scheduled-transactions.md`, "CLI", with a start date (it
+/// starts today without one), then its occurrences.
+#[test]
+fn exec_reaches_the_scheduled_transaction_methods() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = copy(dir.path(), "synthetic/rich.gnucash");
+    let schedule = r#"schedule:=[{"mult": 1, "periodType": "month", "start": "2025-01-01"}]"#;
+    let templates = r#"templateTransactions:=[{"description": "Rent", "splits": [
+        {"account": "Expenses:Food", "debitFormula": "750.00"},
+        {"account": "Assets:Cash", "creditFormula": "750.00"}]}]"#;
+    let out = run(&["exec", "--book", &book, "scheduledTransaction.create", "name=Rent", "startDate=2025-01-01", schedule, templates]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let created = json(&out.stdout);
+    assert_eq!(created["templateTransactions"][0]["splits"][0]["debitFormula"], "750.00");
+    let guid = created["guid"].as_str().unwrap().to_owned();
+    let out = run(&["exec", "--book", &book, "scheduledTransaction.occurrences", &format!("scheduledTransaction={guid}"), "count:=2"]);
+    assert_eq!(json(&out.stdout)["occurrences"][1]["date"], "2025-02-01", "{}", String::from_utf8_lossy(&out.stderr));
+}
+
 #[test]
 fn errors_exit_with_code_2_and_save_nothing() {
     let dir = tempfile::tempdir().unwrap();

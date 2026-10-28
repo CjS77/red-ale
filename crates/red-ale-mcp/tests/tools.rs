@@ -192,6 +192,19 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
         .iter()
         .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
     assert_eq!(tool("scheduledTransaction.apply")["annotations"], expected_hints("write"));
+    // And for the rest of the scheduled transaction methods.
+    assert_eq!(tool("scheduledTransaction.delete")["annotations"], expected_hints("destructive"));
+    ["scheduledTransaction.get", "scheduledTransaction.list", "scheduledTransaction.occurrences"]
+        .iter()
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
+    [
+        "scheduledTransaction.create",
+        "scheduledTransaction.update",
+        "scheduledTransaction.fromTransaction",
+        "scheduledTransaction.loan",
+    ]
+    .iter()
+    .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
     let schema_tool = tool("api.schema");
     assert_eq!(schema_tool["annotations"], expected_hints("read"));
     assert_eq!(schema_tool["inputSchema"]["type"], "object");

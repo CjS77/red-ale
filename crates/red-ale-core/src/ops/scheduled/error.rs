@@ -166,6 +166,15 @@ pub enum ScheduledError {
         /// What to tell the caller.
         message: String,
     },
+    /// A scheduled transaction as created or changed is refused, as GnuCash's editor refuses to save it.
+    #[error("{message}")]
+    Invalid {
+        /// The API's `data.reason`: `name`, `schedule`, `end`, `advance-days`, `notify`, `auto-create`, `currency`,
+        /// `template-guid`, `frequency` or `rate-type`.
+        reason: &'static str,
+        /// What to tell the caller.
+        message: String,
+    },
     /// The schedule can't be computed.
     #[error(transparent)]
     Recurrence(#[from] RecurrenceError),
@@ -197,6 +206,14 @@ impl ScheduledError {
 }
 
 impl ScheduledError {
+    /// A scheduled transaction refused for `reason`.
+    pub fn invalid(reason: &'static str, message: impl Into<String>) -> Self {
+        Self::Invalid {
+            reason,
+            message: message.into(),
+        }
+    }
+
     /// A Formula's failure.
     pub fn formula(at: Site, side: Side, formula: &str, error: FormulaError) -> Self {
         Self::Formula(Box::new(FormulaFailure {

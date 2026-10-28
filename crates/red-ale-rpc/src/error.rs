@@ -288,6 +288,7 @@ impl From<ScheduledError> for RpcError {
             ScheduledError::Refused { reason, indexes, .. } => Self::new(codes::INVALID, message).with_data(json!({
                 "reason": reason.reason(), "index": indexes.first(), "indexes": indexes,
             })),
+            ScheduledError::Invalid { reason, .. } => Self::new(codes::INVALID, message).with_data(json!({ "reason": reason })),
             ScheduledError::Recurrence(_) => Self::new(codes::INVALID, message).with_data(json!({ "reason": "recurrence" })),
             ScheduledError::Domain(d) => d.into(),
         }

@@ -13,9 +13,10 @@ what users' books hold, and red-ale follows it. Each GUI dialog becomes one or t
 params. Where GnuCash's behaviour can damage a book silently, red-ale refuses or flags instead, and the deviation is
 listed at the end.
 
-Code (planned): `red-ale-core::schedule` (the entity, Recurrences, temporal state), `red-ale-core::formula` (the
-expression parser moved from `red-ale-import`, with the financial functions), `red-ale-core::ops::scheduled`
-(the Mutations, Since Last Run, the loan), `red-ale-rpc::methods::scheduled`. Since Last Run on the wire:
+Code: `red-ale-core::scheduled` (the entity and its template), `red-ale-core::recurrence`, `red-ale-core::formula`
+(the expression parser moved from `red-ale-import`, with the financial functions), `red-ale-core::ops::scheduled`
+(the Mutations: `edit`, `checks` and `write` for create, update and delete, `from_transaction`, `loan`, and Since
+Last Run), `red-ale-rpc::methods::scheduled`. Since Last Run on the wire:
 `red-ale-service::since_last_run` (the held proposals, beside the Import ones in `red-ale-service::proposals`) and
 `red-ale-rpc::methods::since_last_run`.
 
@@ -80,10 +81,11 @@ A split with neither formula is a *marker split*: it is still created, with valu
 
 As `xaccSchedXactionInit` and `xaccSchedXactionSetTemplateTrans` make them (the note §1.2):
 
-- a **Template root** (type ROOT, named `Template Root`, commodity `template:template`) if the book has none
-  (`5.17:libgnucash/engine/SX-book.cpp:113-125`);
+- a **Template root** (type ROOT, named `Template Root`, no commodity) if the book has none
+  (`5.17:libgnucash/engine/SX-book.cpp:113-125`; 5.17 writes it with no `act:commodity`, as the oracle shows; older
+  files hold one as `template:template`, kept as read);
 - a **template account** per scheduled transaction, named by its GUID in 32 hex digits, type BANK, commodity
-  `template:template`, under the Template root (`SchedXaction.cpp:393-406`);
+  `template:template` with that commodity's fraction 1 as its SCU, under the Template root (`SchedXaction.cpp:393-406`);
 - **template transactions** with the given description, num, notes and currency, posted now (`:1015`); each template
   split in the template account with value and amount zero, as the register writes them
   (`5.17:gnucash/register/ledger-core/split-register-model-save.c:731-733`), its memo and action, and the
@@ -95,7 +97,7 @@ As `xaccSchedXactionInit` and `xaccSchedXactionSetTemplateTrans` make them (the 
 when it parses and names no variable, else `0/1` (`save_cell`, `split-register-model-save.c:687-713`). That is also
 what GnuCash's open-time scrub would set (`gnc_sx_scrub_split_numerics`, `gnc-sx-instance-model.c:113-174`), so
 opening the book in GnuCash changes nothing. Numerics read from a file are kept as read, even stale ones (the note
-Fact 12): red-ale never scrubs on open.
+Fact 12): red-ale never scrubs on open, and an `update` that gives a formula's text unchanged keeps its numeric.
 
 ## Methods
 
@@ -130,7 +132,8 @@ and is refused on a read-only book.
 | `advanceCreateDays`, `advanceRemindDays` | integer ≥ 0 | 0, 0 | |
 | `templateTransactions` | `[{ description?, num?, notes?, currency?, splits: [{ account, memo?, action?, debitFormula?, creditFormula? }] }]` | `[]` | |
 
-→ `ScheduledTransactionInfo`, with `warnings`.
+→ `ScheduledTransactionInfo`, with `warnings`: `[{ code, message }]`, each code below. Only the methods that write
+return `warnings`; `get` and `list` leave the field out.
 
 - **Instance count 1**, as the editor sets for a new scheduled transaction (`dialog-sx-editor.c:1546-1549`), so the
   first instance has `i` = 1. No last occurrence, no deferred instances.
@@ -155,7 +158,15 @@ and is refused on a read-only book.
   `dialog-sx-editor.c:617-648`). `notify: true` without `autoCreate` is refused: the editor disables it
   (`update_sensitivity`, `:1031-1043`).
 - **Warnings**, not refusals, where the editor asks: `duplicate-name` ("A Scheduled Transaction with the name "%s"
-  already exists.", `:536-545`) and `never-runs` (no occurrence at all, or none before the end date, `:594-611`).
+  already exists.", `:536-545`), when the name is new or changed; and `never-runs` (no occurrence at all, or none
+  by the end date, `:594-611`), not asked of a scheduled transaction that ends after a count, as the editor returns
+  before it asks (`:561-586`).
+- **Refusals** are `invalid` with `data.reason`: `name`, `schedule` (none), `end` (a count below 1, a remaining
+  count outside 0 to the count, an end date before the start, `SchedXaction.cpp:625-648`, or not exactly one kind of
+  end given), `advance-days` (negative), `notify`, `auto-create`, `currency` (none given and none to default to, or
+  not a currency), `template-guid` (a GUID that is not one of this scheduled transaction's template transactions or
+  splits, or one given twice); a template split's account as `missing-account`, `placeholder`, `root` or
+  `no-commodity`, with `data.account`, `data.templateTransaction` and `data.split`.
 
 ### `scheduledTransaction.get`, `scheduledTransaction.list` (read)
 
@@ -176,7 +187,11 @@ Absent params are left alone; the checks are `create`'s, applied to the result. 
 - `end` sets one end and clears the other: an end date clears the count, a count clears the end date, `never`
   clears both. A new count sets the remaining occurrences to `remaining`, default the count.
 - `templateTransactions` replaces the whole list. An entry or split carrying the `guid` of an existing template
-  transaction or split keeps that GUID; the others are new. Template transactions left out are deleted.
+  transaction or split keeps that GUID, its place in the file, and (for a transaction) its dates and other Slots or
+  (for a split) its other `sched-xaction` keys such as `shares`; fields the entry leaves out are cleared, as in
+  `create`. The others are new. Template transactions left out are deleted.
+- `notify` follows `autoCreate`: turning auto-create on turns notify on unless `notify: false` is given; turning it
+  off turns notify off.
 - The last occurrence, instance count and deferred instances are not changed by `update`: only Since Last Run moves
   them, as in GnuCash.
 
@@ -195,7 +210,7 @@ it stays, enabled, with no next occurrence.
 | Param | Type | Meaning |
 |-------|------|---------|
 | `scheduledTransaction` | GUID | Its occurrences from its current state |
-| or `schedule`, `startDate`, `end` | as in `create` | A Schedule not yet saved, as never run: the editor's and the Schedule-from-transaction dialog's example calendars (`gnc_sxed_update_cal`, `dialog-sx-editor.c:1651`; `sxftd_update_example_cal`, `5.17:gnucash/gnome/dialog-sx-from-trans.cpp:108`) |
+| or `schedule`, `startDate`, `end` | as in `create`; `startDate` default today | A Schedule not yet saved, as never run (`scheduledTransaction` with `startDate` or `end`, or with `schedule`, is `invalid-params`): the editor's and the Schedule-from-transaction dialog's example calendars (`gnc_sxed_update_cal`, `dialog-sx-editor.c:1651`; `sxftd_update_example_cal`, `5.17:gnucash/gnome/dialog-sx-from-trans.cpp:108`) |
 | `count` | integer, 1–1000 | How many, default 10 |
 | `after` | Date? | Only occurrences after this date |
 
@@ -583,8 +598,9 @@ SQLite can't hold".)
   notes and currency; per split, in order, its memo, its action, its account and **its value as a formula**: a
   positive value as the debit formula, otherwise (zero included) its negation as the credit formula.
 - **The formula text** is the value in red-ale's Locale's decimal form **without grouping**, with at least the
-  currency's decimal places and never rounded: `1234.50` under the default `C` locale, `1234,50` under `de_DE`; a
-  value whose denominator is not a power of ten is written `num / denom`, which the parser reads exactly. GnuCash
+  currency's decimal places and never rounded: `1234.50` under the default `C` locale, `1234,50` under `de_DE`,
+  `0.125` for 1/8; a value with no finite decimal form (a denominator with a prime factor other than 2 and 5) is
+  written `num / denom`, which the parser reads exactly. GnuCash
   writes `xaccPrintAmount` with the locale's grouping (`1,234.50` in `en_US`, `:227-256`;
   `5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-859`). Grouping is left out because GnuCash skips a group separator
   wherever it appears before the decimal point: `1.234,50` written in one locale reads as 1.23450 or 123450 in
@@ -612,7 +628,7 @@ computes the same repayments from it. Defects the note records (§6.3) are not c
 | `name` | string | `Loan` | the repayment name (`AL:923`) |
 | `loanAccount` | AccountRef, type LIABILITY | required | `AL:566-567`, `:598`, `:1060-1063` |
 | `principal` | Amount, > 0 | required | in the loan account's commodity (`AL:1066-1075`) |
-| `rate` | decimal string, percent, 0.001–100, at most 3 decimals | required | the spin box (`AL:194`, `:698-703`) |
+| `rate` | Amount, percent, 0.001–100, at most 3 decimals | required | the spin box (`AL:194`, `:698-703`) |
 | `rateType` | `simple`, `aprDaily`, `aprWeekly`, `aprMonthly`, `aprQuarterly`, `aprSemiAnnually`, `aprAnnually` | `simple` | `IRateType` (`AL:166-175`); `simple` is "Interest Rate" |
 | `startDate` | Date | today | `AL:912-914` |
 | `length` | `{ months }` or `{ years }`, 1–9999 | required | `AL:1011-1034` |
@@ -631,7 +647,13 @@ computes the same repayments from it. Defects the note records (§6.3) are not c
   without `escrow`. `to` is required; `from` defaults to `repayment.from`.
 
 → `{ scheduledTransaction: ScheduledTransactionInfo, payment }`, `payment` being the `pmt` formula's value (12
-significant figures).
+significant figures, an Amount).
+
+Refusals are `invalid` with `data.reason`: `account-type` (an account of a type the assistant's selector does not
+offer), `currency` (a loan account whose commodity is not a currency), `principal`, `rate`, `length`,
+`months-remaining` (given or computed outside 1 to the length), `frequency` (`once`), `escrow` (`viaEscrow` without
+`escrow`) and `non-integer-power` (below); the checks of `create` apply to what is built. An unknown account is
+`not-found`.
 
 ### What it builds
 
@@ -659,7 +681,9 @@ Both dates are counted in months whatever the payment frequency, as in GnuCash.
 Each other payment adds its amount as `ld_setup_repayment_sx` does for a payment that is part of the payment
 transaction (`AL:2615-2819`): ` + <amount>` on the paying split's credit formula, or a new credit split in `from` when
 it differs from `repayment.from`; a debit of the amount to `to` with the option's memo; and, via escrow, the deposit
-into escrow in the first template and the escrow-to-`to` transfer in the second.
+into escrow in the first template (` + <amount>` on its escrow debit) and the escrow-to-`to` transfer in the second
+(a new escrow credit split, or ` + <amount>` on the escrow credit when `from` is given). The amount is written in the
+Locale's decimal form with at least the currency's decimal places: `250.75`, `40.00`.
 
 **Formula text** (`AL:2440-2528`), the shapes of GnuCash's "Interest Rate" templates:
 
@@ -670,7 +694,7 @@ ipmt( {r} / {ppy} : i : {n} : {pv} : 0 : 0 )
 ```
 
 `{r}` is `rate ÷ 100` to 5 decimals (exact, since `rate` has at most 3), `{n}` the periods to 2 decimals, and `{pv}`
-the principal with at least 2 decimals, never rounded. `{ppy}`, the payments per year, is written to 2 decimals when
+the principal with at least 2 decimals (more if the currency has more), never rounded. `{ppy}`, the payments per year, is written to 2 decimals when
 that is exact, and otherwise as a parenthesised division (`( 52 / 3 )` for every three weeks), where GnuCash prints
 `17.33`. Payments per year are
 GnuCash's (`AL:2403-2430`): `year` 1/mult, `week` 52/mult, the month types 12/mult, `day` 365/mult truncated to an
@@ -748,7 +772,8 @@ red-ale call scheduledTransaction.apply proposal=slr-2 'choices:=[{"index": 0, "
 ```
 
 `exec` runs one method per process, so a proposal made by one `exec` is gone by the next; run both calls in one
-`exec --script`, or against a server with `call`.
+`exec --script`, or against a server with `call`. With no `startDate` the scheduled transaction starts today, so the
+rent above first occurs on the first of the month on or after today, whatever its Recurrence's own start.
 
 ## Deviations from GnuCash
 

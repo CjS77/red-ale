@@ -127,12 +127,12 @@ source names and the `Finance::Quote` price source, so GnuCash reads the prices 
 
 | Status | Name                        | Short description                                                         | Introduced | Ported |
 |:------:|-----------------------------|---------------------------------------------------------------------------|:----------:|:------:|
-|        | Scheduled transactions      | Template transactions that recur on a schedule                            |    1.8     |        |
-|        | Recurrence rules            | Daily, weekly, semi-monthly, monthly, yearly and end-of-month schedules   |    2.0     |        |
-|        | Formulas and variables      | Template amounts as formulas, with variables filled in at creation        |    1.8     |        |
-|        | Since Last Run              | Creates or reminds about the instances due since the book was last opened |    1.8     |        |
-|        | Schedule from transaction   | Makes a scheduled transaction from an existing one                        |    1.8     |        |
-|        | Mortgage and loan assistant | Builds the scheduled repayments for a loan                                |    1.8     |        |
+|   ✅   | Scheduled transactions      | Template transactions that recur on a schedule                            |    1.8     |  0.4   |
+|   ✅   | Recurrence rules            | Daily, weekly, semi-monthly, monthly, yearly and end-of-month schedules   |    2.0     |  0.4   |
+|   ✅   | Formulas and variables      | Template amounts as formulas, with variables filled in at creation        |    1.8     |  0.4   |
+|   ✅   | Since Last Run              | Creates or reminds about the instances due since the book was last opened |    1.8     |  0.4   |
+|   ✅   | Schedule from transaction   | Makes a scheduled transaction from an existing one                        |    1.8     |  0.4   |
+|   ✅   | Mortgage and loan assistant | Builds the scheduled repayments for a loan                                |    1.8     |  0.4   |
 
 ## 5. Budgets
 
