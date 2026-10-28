@@ -8,7 +8,8 @@ use serde_json::{Value, json};
 
 use crate::file::{self, Committed, Location};
 use crate::json::Dialect;
-use crate::{Action, Applied, Change, Entry, Env, Error, Harness, Os, Plan, Scope};
+use crate::cli::{Cli, Devin};
+use crate::{Action, Applied, Change, Entry, Env, Error, Harness, Os, Plan, Scope, Work};
 
 /// How many times a plan is made again when the Harness changed its config meanwhile (`design/setup.md`, "Not
 /// changed underneath").
@@ -22,8 +23,11 @@ pub(crate) fn by_id(id: &str) -> Option<Box<dyn Harness>> {
         "cursor" => Box::new(Cursor),
         "vscode" => Box::new(VsCode),
         "antigravity" => Box::new(Antigravity),
-        // The CLI form, when `devin` is on `PATH`, wraps this one (`design/setup.md`, "First release").
-        "devin" => Box::new(DevinFile),
+        "devin" => Box::new(Devin),
+        "claude-code" => Box::new(Cli(crate::cli::ClaudeCode)),
+        "codex" => Box::new(Cli(crate::cli::Codex)),
+        "copilot-cli" => Box::new(Cli(crate::cli::CopilotCli)),
+        "gemini" => Box::new(Cli(crate::cli::Gemini)),
         "zed" => Box::new(Zed),
         _ => return None,
     };
@@ -98,7 +102,7 @@ fn plan_file(adapter: &impl FileAdapter, env: &Env, scope: &Scope, change: &Chan
                 config,
                 scope: scope.clone(),
                 change: change.clone(),
-                edit: Some(edit),
+                work: Work::File(edit),
             },
         },
     }
@@ -107,11 +111,11 @@ fn plan_file(adapter: &impl FileAdapter, env: &Env, scope: &Scope, change: &Chan
 /// Apply a plan, planning again while the Harness changes its config underneath.
 fn apply_file(adapter: &impl FileAdapter, env: &Env, mut plan: Plan) -> Result<Applied, Error> {
     for _ in 0..=REPLANS {
-        let Plan { action, config, scope, change, edit } = plan;
+        let Plan { action, config, scope, change, work } = plan;
         let config = config.unwrap_or_default();
-        let (action, edit) = match (action, edit) {
+        let (action, edit) = match (action, work) {
             (Action::Skip(e), _) => return Err(e),
-            (action, Some(edit)) if action.changes() => (action, edit),
+            (action, Work::File(edit)) if action.changes() => (action, edit),
             (action, _) => return Ok(Applied { action, config, backup: None }),
         };
         if let Some(blocker) = adapter.blocker(env) {
@@ -126,7 +130,7 @@ fn apply_file(adapter: &impl FileAdapter, env: &Env, mut plan: Plan) -> Result<A
 }
 
 /// `{command, args}`: the entry Claude Desktop, Antigravity, Devin and Zed share (§5, §8, §9, "Google Antigravity").
-fn plain(entry: &Entry) -> Value {
+pub(crate) fn plain(entry: &Entry) -> Value {
     json!({ "command": entry.command, "args": entry.args })
 }
 
@@ -279,13 +283,14 @@ impl FileAdapter for Antigravity {
     }
 }
 
-/// Devin Desktop and Devin CLI, in file form: `$XDG_CONFIG_HOME/devin/mcp_config.json` (`%APPDATA%\devin\` on
-/// Windows), `mcpServers`, no `type`; project `.devin/mcp_config.json`, the file `devin mcp add -s project` writes
-/// (§8 "Locations", "Entry"). The old `~/.codeium/windsurf/` file is only imported now, and never written.
+/// Devin Desktop and Devin CLI, in file form, used when `devin` is not on `PATH` (`cli::Devin`):
+/// `$XDG_CONFIG_HOME/devin/mcp_config.json` (`%APPDATA%\devin\` on Windows), `mcpServers`, no `type`; project
+/// `.devin/mcp_config.json`, the file `devin mcp add -s project` writes (§8 "Locations", "Entry"). The old
+/// `~/.codeium/windsurf/` file is only imported now, and never written.
 pub(crate) struct DevinFile;
 
 impl DevinFile {
-    fn dir(env: &Env) -> Result<PathBuf, Error> {
+    pub(crate) fn dir(env: &Env) -> Result<PathBuf, Error> {
         match env.os() {
             Os::Windows => env.path_var("APPDATA").map(|d| d.join("devin")).ok_or(Error::NoHome),
             Os::Linux | Os::MacOs => Ok(env.xdg_config()?.join("devin")),

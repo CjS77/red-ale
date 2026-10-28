@@ -2,8 +2,8 @@
 //! other keys, their order, comments, blank lines and trailing commas (`design/setup.md`, "Editing a Harness config").
 
 use jsonc_parser::ParseOptions;
-use jsonc_parser::cst::{CstInputValue, CstObject, CstRootNode};
-use serde_json::Value;
+use jsonc_parser::cst::{CstContainerNode, CstInputValue, CstNode, CstObject, CstRootNode};
+use serde_json::{Map, Value};
 
 use crate::NAME;
 
@@ -55,12 +55,13 @@ pub(crate) enum DocError {
 /// A parsed Harness config. An empty file is a document with no value, which an edit makes an object.
 pub(crate) struct Document {
     root: CstRootNode,
+    dialect: Dialect,
 }
 
 impl Document {
     pub(crate) fn parse(text: &str, dialect: Dialect) -> Result<Self, DocError> {
         let root = CstRootNode::parse(text, &dialect.options()).map_err(|e| DocError::Parse(e.to_string()))?;
-        let document = Self { root };
+        let document = Self { root, dialect };
         document.top()?;
         Ok(document)
     }
@@ -95,8 +96,12 @@ impl Document {
     }
 
     /// Make the red-ale entry under `keys` `value`, creating the objects on the way.
-    pub(crate) fn set(&self, keys: &[&str], value: &Value) -> Result<(), DocError> {
+    pub(crate) fn set(&mut self, keys: &[&str], value: &Value) -> Result<(), DocError> {
         self.servers(keys)?;
+        if let Some(text) = self.set_inline(keys, value) {
+            *self = Self::parse(&text, self.dialect)?;
+            return Ok(());
+        }
         let top = self.root.object_value_or_create().ok_or_else(|| DocError::NotAnObject(String::new()))?;
         let servers = keys.iter().enumerate().try_fold(top, |object, (depth, key)| {
             object.object_value_or_create(key).ok_or_else(|| DocError::NotAnObject(keys[..=depth].join(".")))
@@ -106,6 +111,28 @@ impl Document {
             None => drop(servers.append(NAME, input(value))),
         }
         Ok(())
+    }
+
+    /// The text with the red-ale entry set by splicing it in on one line, when the object it goes into is written
+    /// on one line and is not empty. The syntax tree would spread such an object over several lines, changing bytes
+    /// outside the entry.
+    fn set_inline(&self, keys: &[&str], value: &Value) -> Option<String> {
+        let depth = (0..=keys.len()).rev().find(|&d| self.servers(&keys[..d]).ok().flatten().is_some())?;
+        let object = self.servers(&keys[..depth]).ok()??;
+        if object.to_string().contains('\n') {
+            return None;
+        }
+        let text = self.text();
+        if let Some(value_node) = object.get(NAME).and_then(|p| p.value()).filter(|_| depth == keys.len()) {
+            let start = offset(&value_node);
+            return Some(splice(&text, start..start + value_node.to_string().len(), &compact(value)));
+        }
+        let last = CstNode::Container(CstContainerNode::ObjectProp(object.properties().pop()?));
+        let (key, nested) = keys[depth..].iter().rev().fold((NAME, value.clone()), |(key, inner), outer| {
+            (*outer, Value::Object(Map::from_iter([(key.to_owned(), inner)])))
+        });
+        let end = offset(&last) + last.to_string().len();
+        Some(splice(&text, end..end, &format!(", {}: {}", Value::from(key), compact(&nested))))
     }
 
     /// Remove the red-ale entry under `keys`, and then each object on the way that it leaves empty, so removing
@@ -129,6 +156,28 @@ impl Document {
     }
 }
 
+/// Where a node starts in the document's text.
+fn offset(node: &CstNode) -> usize {
+    let before: usize = node.previous_siblings().map(|s| s.to_string().len()).sum();
+    before + node.parent().map_or(0, |parent| offset(&CstNode::Container(parent)))
+}
+
+fn splice(text: &str, range: std::ops::Range<usize>, with: &str) -> String {
+    [&text[..range.start], with, &text[range.end..]].concat()
+}
+
+/// A value on one line, spaced as people write it: `{ "command": "x", "args": ["mcp"] }`.
+fn compact(value: &Value) -> String {
+    match value {
+        Value::Object(map) if !map.is_empty() => {
+            let fields: Vec<String> = map.iter().map(|(k, v)| format!("{}: {}", Value::from(k.as_str()), compact(v))).collect();
+            format!("{{ {} }}", fields.join(", "))
+        }
+        Value::Array(items) => format!("[{}]", items.iter().map(compact).collect::<Vec<_>>().join(", ")),
+        other => other.to_string(),
+    }
+}
+
 fn input(value: &Value) -> CstInputValue {
     match value {
         Value::Null => CstInputValue::Null,
@@ -148,9 +197,9 @@ mod tests {
 
     const KEYS: &[&str] = &["mcp", "servers"];
 
-    fn edited(text: &str, edit: impl Fn(&Document)) -> String {
-        let document = Document::parse(text, Dialect::Jsonc).unwrap();
-        edit(&document);
+    fn edited(text: &str, edit: impl Fn(&mut Document)) -> String {
+        let mut document = Document::parse(text, Dialect::Jsonc).unwrap();
+        edit(&mut document);
         document.text()
     }
 
@@ -174,8 +223,31 @@ mod tests {
     }
 
     #[test]
+    fn one_line_objects_stay_on_one_line() {
+        let cases = [
+            (r#"{"a": 1}"#, r#"{"a": 1, "mcp": { "servers": { "red-ale": { "type": "local" } } }}"#),
+            ("{ \"mcp\": { \"x\": 1 } }\n", "{ \"mcp\": { \"x\": 1, \"servers\": { \"red-ale\": { \"type\": \"local\" } } } }\n"),
+            (
+                r#"{"mcp": {"servers": {"x": {}, /* c */ }}}"#,
+                r#"{"mcp": {"servers": {"x": {}, "red-ale": { "type": "local" }, /* c */ }}}"#,
+            ),
+            (
+                r#"{"mcp": {"servers": {"red-ale": {"old": 1}, "x": 2}}}"#,
+                r#"{"mcp": {"servers": {"red-ale": { "type": "local" }, "x": 2}}}"#,
+            ),
+        ];
+        cases.iter().for_each(|(original, expected)| {
+            let added = edited(original, |d| d.set(KEYS, &json!({ "type": "local" })).unwrap());
+            assert_eq!(added, *expected);
+            if !original.contains("old") {
+                assert_eq!(edited(&added, |d| d.remove(KEYS).unwrap()), *original, "removing gives back {original}");
+            }
+        });
+    }
+
+    #[test]
     fn a_key_that_is_not_an_object_is_refused() {
-        let document = Document::parse("{\"mcp\": {\"servers\": []}}", Dialect::Jsonc).unwrap();
+        let mut document = Document::parse("{\"mcp\": {\"servers\": []}}", Dialect::Jsonc).unwrap();
         assert!(matches!(document.entry(KEYS), Err(DocError::NotAnObject(k)) if k == "mcp.servers"));
         assert!(matches!(document.set(KEYS, &json!({})), Err(DocError::NotAnObject(_))));
         assert!(matches!(Document::parse("[1]", Dialect::Jsonc), Err(DocError::NotAnObject(k)) if k.is_empty()));
