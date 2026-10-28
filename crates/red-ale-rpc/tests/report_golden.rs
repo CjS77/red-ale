@@ -81,6 +81,7 @@ const V05_REPORTS: &[&str] = &[
     "Transaction Report",
     "General Ledger",
     "Reconciliation Report",
+    "General Journal",
 ];
 
 /// The fixture books added in v0.5, on which `v0.5.txt` records the v0.5 reports besides `BOOKS`.

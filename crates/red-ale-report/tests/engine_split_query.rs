@@ -133,19 +133,21 @@ fn lots_name_their_invoices() {
     let body = r"
         let in_lots = book.accounts().map(|a| a.splits()).reduce(|a, b| a + b, []).filter(|s| s.lot != ());
         let lots = #{};
-        for s in in_lots { lots[s.lot.guid] = s.lot.invoice; }
+        let titles = #{};
+        for s in in_lots { lots[s.lot.guid] = s.lot.invoice; titles[s.lot.guid] = s.lot.title; }
         print(`splits=${in_lots.len()} lots=${lots.len()} ${in_lots[0].lot == in_lots[1].lot}`);
-        for g in lots.keys() { print(`${g}=${lots[g].id} ${lots[g].guid}`); }
+        for g in lots.keys() { print(`${g}=${lots[g].id} ${lots[g].guid} ${titles[g]}`); }
     ";
     // Three lots, one per posted document: an invoice (posted and paid), a bill and an expense voucher, each the
-    // first of its kind; `invoice` is the document the lot's `gncInvoice/invoice-guid` slot names.
+    // first of its kind; `invoice` is the document the lot's `gncInvoice/invoice-guid` slot names, and `title` the
+    // lot's title, which posting gives it (`gnc-lot-get-title`).
     assert_eq!(
         log(&host, body),
         [
             "splits=4 lots=3 true",
-            "1a037a7010ce434eb82e5416259910e4=000001 6193d3b14af34c25b389fc13ac14d277",
-            "5fd1c24abee14dbd8c884729a0cadd7a=000001 fc2cd829ac2442269c964a2ee27244cc",
-            "990068d856184ff2966e0d91c987124a=000001 35ad2d2ebe3847ea9a415e7cc53cc09f",
+            "1a037a7010ce434eb82e5416259910e4=000001 6193d3b14af34c25b389fc13ac14d277 Expense 000001",
+            "5fd1c24abee14dbd8c884729a0cadd7a=000001 fc2cd829ac2442269c964a2ee27244cc Bill 000001",
+            "990068d856184ff2966e0d91c987124a=000001 35ad2d2ebe3847ea9a415e7cc53cc09f Invoice 000001",
         ]
     );
 }

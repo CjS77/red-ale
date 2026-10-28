@@ -79,7 +79,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 | Status | Report                            | Source (GUID)                                                                                                      |      Lines | GnuCash's test               |
 |:------:|-----------------------------------|--------------------------------------------------------------------------------------------------------------------|-----------:|------------------------------|
 |   ✅   | Transaction Report                | `standard/transaction.scm` (`2fe3b9833af044abb929a88d5a59620f`), on `trep-engine.scm`                              | 36 + 2,645 | `test-transaction.scm`       |
-|        | General Journal                   | `standard/general-journal.scm` (`25455562bd234dd0b048ecc5a8af9e43`), on `register.scm`'s renderer ("Decided", 5) |        125 |                              |
+|   ✅   | General Journal                   | `standard/general-journal.scm` (`25455562bd234dd0b048ecc5a8af9e43`), on `register.scm`'s renderer ("Decided", 5) |        125 |                              |
 |   ✅   | General Ledger                    | `standard/general-ledger.scm` (`2e22929e5c5b4b769f615a815ef0c20f`)                                                 |        159 |                              |
 |   ✅   | Reconciliation Report             | `standard/reconcile-report.scm` (`e45218c6d76f11e7b5ef0800277ef320`)                                               |        115 | `test-transaction.scm`       |
 |        | Transaction Breakdown             | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine |        260 |                              |

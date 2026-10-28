@@ -182,6 +182,10 @@ fn lot(engine: &mut Engine) {
     engine.register_fn("!=", |a: &mut LotHandle, b: LotHandle| a.guid != b.guid);
     engine.register_fn("to_string", |l: &mut LotHandle| format!("Lot({})", l.guid));
     engine.register_get("guid", |l: &mut LotHandle| l.guid.to_string());
+    // `gnc-lot-get-title`: the `title` slot, `""` when the lot has none.
+    engine.register_get("title", |l: &mut LotHandle| {
+        text(l.snap.book().lot(l.guid).and_then(red_ale_core::Lot::title))
+    });
     // `gncInvoiceGetInvoiceFromLot`: the invoice the lot's `gncInvoice/invoice-guid` slot names.
     engine.register_get("invoice", |l: &mut LotHandle| -> Dynamic {
         lot_invoice(l.snap.book(), l.guid).map_or(Dynamic::UNIT, |i| {
