@@ -48,6 +48,14 @@
       "source": "reports/average-balance.gnucash",
       "sourceSha256": "ced109b84eb370d2fff37ffd469f5602d998b03a3ac5d131ee9bf330628643bc"
     },
+    "reports/balsheet-pnl-extras-trading.gnucash": {
+      "source": "reports/balsheet-pnl-extras-trading.gnucash",
+      "sourceSha256": "015a6ce2f6dfeec216c0a8fa89be3d986788900c3b4aee305c5f81488cef2b8e"
+    },
+    "reports/balsheet-pnl-extras.gnucash": {
+      "source": "reports/balsheet-pnl-extras.gnucash",
+      "sourceSha256": "b280b4e79cc5c1db7c0987aca8509dd8c1b15ad31f2ea261450179cf8e52f3d1"
+    },
     "reports/balsheet-pnl.gnucash": {
       "source": "reports/balsheet-pnl.gnucash",
       "sourceSha256": "42eeb6cf8e81620bd2a8c5d92914e4ff38c53866fb53c2db3d067dae47c00aa3"
@@ -55,6 +63,14 @@
     "reports/budget.gnucash": {
       "source": "reports/budget.gnucash",
       "sourceSha256": "eae009815d1e7907ef4e11d00fd4e79791d11bf5690b79bddc07263bb561cce9"
+    },
+    "reports/cash-flow.gnucash": {
+      "source": "reports/cash-flow.gnucash",
+      "sourceSha256": "5dd7c4fe1d0e395bf1c53c972bc91aed470a22137a337f04cac8cb534db28369"
+    },
+    "reports/cashflow-barchart.gnucash": {
+      "source": "reports/cashflow-barchart.gnucash",
+      "sourceSha256": "45ac686dd812cc02d0b77dc14b3a3f6a8d97cbb1cf4bafe8c659ce0399cb4286"
     },
     "reports/category-average.gnucash": {
       "source": "reports/category-average.gnucash",
@@ -80,9 +96,41 @@
       "source": "reports/charts-net.gnucash",
       "sourceSha256": "ee571e6afbd675b2b54c3d9bce8330366732543ba6b2eb311981ba907d4e5bed"
     },
+    "reports/ifrs-cost-basis.gnucash": {
+      "source": "reports/ifrs-cost-basis.gnucash",
+      "sourceSha256": "397440789d22dbbb66880d9786c0c642265abf97eb405fa713a3cbf73de0cf5f"
+    },
+    "reports/investment-lots.gnucash": {
+      "source": "reports/investment-lots.gnucash",
+      "sourceSha256": "d09e5ec67c871a8c81da9ef1eaec792cc9127c94f9f89e04939b26016ce497a7"
+    },
+    "reports/lots-baseline.gnucash": {
+      "source": "reports/lots-baseline.gnucash",
+      "sourceSha256": "543f7ae27f293f8ca2ae27ba19e71ebc00600c2e1e00e654eda7bf20e6a9c4a6"
+    },
+    "reports/lots-postsplit-baseline.gnucash": {
+      "source": "reports/lots-postsplit-baseline.gnucash",
+      "sourceSha256": "4e854fd6b084acd8c8579d27cf354f2e9d9e75b80966b94a381e72332b4eaea8"
+    },
+    "reports/lots-reverse-split-sale.gnucash": {
+      "source": "reports/lots-reverse-split-sale.gnucash",
+      "sourceSha256": "cbb28b944a56d5f0118947380f2390facf6821bc745180ba52f804fe80c38a1e"
+    },
+    "reports/lots-reverse-split.gnucash": {
+      "source": "reports/lots-reverse-split.gnucash",
+      "sourceSha256": "3cb66405493ec79cd63206ab26548f24980e3dda36333e71a5927691dbddb6b4"
+    },
     "reports/net-days.gnucash": {
       "source": "reports/net-days.gnucash",
       "sourceSha256": "299c7785a44a6a7ec0041048f75b622ea002edda5a5c72b42fdab033cca21951"
+    },
+    "reports/reconcile.gnucash": {
+      "source": "reports/reconcile.gnucash",
+      "sourceSha256": "9adc239f01cb7a518815d6960f0793fce5306efdb38574ff916dd5f067e2d68d"
+    },
+    "reports/stock-test-data.gnucash": {
+      "source": "reports/stock-test-data.gnucash",
+      "sourceSha256": "fa24a4d37fba89da50b608fdf0e623e4b7a317183e75ba2ed363fb0fe1d3f3dc"
     },
     "reports/test-data.gnucash": {
       "source": "reports/test-data.gnucash",

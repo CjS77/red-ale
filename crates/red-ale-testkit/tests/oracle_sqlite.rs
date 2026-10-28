@@ -58,7 +58,7 @@ const LOAD_INFLATED: [&str; 2] = ["business.billTerms.*.refcount", "business.tax
 #[test]
 fn every_sqlite_fixture_reads_as_gnucash_reads_it() {
     let names = sqlite_fixtures();
-    assert_eq!(names.len(), 25);
+    assert_eq!(names.len(), 37);
     let failures: Vec<String> = names
         .iter()
         .flat_map(|name| {

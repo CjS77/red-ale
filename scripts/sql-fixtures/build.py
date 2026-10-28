@@ -39,6 +39,11 @@ assert _sw_core_utils.gnc_version() == "5.17", "the oracle must be GnuCash 5.17"
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.normpath(os.path.join(HERE, "..", "..", "fixtures"))
 
+# Books GnuCash 5.17 cannot save as SQLite. An open order keeps its close date as INT64_MAX
+# (5.17:libgnucash/engine/gncOrder.c:101), which the SQL backend writes as NULL into a NOT NULL column
+# (5.17:libgnucash/backend/sql/gnc-order-sql.cpp:68): "NOT NULL constraint failed: orders.date_closed".
+UNSAVABLE = {"reports/transaction.gnucash"}
+
 # The canonical books of fixtures/README.md: GnuCash 5.17 loads and saves each back byte for byte.
 SOURCES = [
     "gnucash/sample1.gnucash",
@@ -51,6 +56,7 @@ SOURCES = [
     for d in ("piecash", "reports")
     for p in glob.glob(os.path.join(FIXTURES, d, "*.gnucash"))
     if not open(p, "rb").read(16).startswith(b"SQLite format 3\0")
+    and os.path.relpath(p, FIXTURES) not in UNSAVABLE
 )
 
 ENGINE = ctypes.CDLL(os.path.join(BINDINGS, "..", "..", "libgnc-engine.so"))
