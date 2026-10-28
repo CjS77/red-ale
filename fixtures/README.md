@@ -55,6 +55,9 @@ made, `c…` transactions, `d…` splits, `e…` prices, `f…` budgets), so a r
 | `net-days` | `net_barchart.py` | `standard/test/test-standard-net-barchart.scm:58-311`; its first three groups are the book of `test-standard-net-linechart.scm` | GPL-2.0-or-later (notice kept) |
 | `category-daily`, `-average`, `-multi`, `-liability` | `category_report.py` | `standard/test/test-standard-category-report.scm:81-318` | GPL-2.0-or-later (notice kept) |
 | `budget` | `budget.py` | `standard/test/test-budget.scm:66-69`: `create-test-data` and `gnc:create-budget-and-transactions` (`bindings/guile/test/test-engine-extras.scm:851-884`), the budget made through ctypes on `libgnc-engine.so` (the bindings do not wrap it), GUID `f…0` | GPL-2.0-or-later (notice kept) |
+| `adjusting-entries`, `-fx` | `adjusting_entries.py` | `create-test-data`, GBP's `#` and the three 2003 transfers of `standard/test/test-trial-balance.scm:54-76` (= `test-equity-statement.scm:54-75`); `-fx` adds the two foreign transfers of `test-trial-balance.scm:170-173` | GPL-2.0-or-later (notice kept) |
+| `cash-flow` | `cash_flow.py` | `standard/test/test-cash-flow.scm:14-144`, its three groups dated 2024-03-15 | GPL-2.0-or-later (no notice; GnuCash's licence) |
+| `cashflow-barchart` | `cash_flow.py` | `standard/test/test-cashflow-barchart.scm:51-195`, its three groups dated 2024-03-02 and -03 | GPL-2.0-or-later (notice kept) |
 
 Beside each book, `<book>.expected.json` lists every assertion of the GnuCash tests that run on it, for the report
 translators to turn into named checks: `settings` (now, time zone, locale, date format, report currency, user
@@ -63,7 +66,11 @@ effect (`"Section/Name": value`, the test's cumulative changes from the template
 names the test's assertion and its line, the cells GnuCash reads (`select`: table, row and column as
 `sxml->table-row-col` counts them, or `count` for a number of cells), the exact `expected` strings and their
 `meaning`. `renderOnly` lists assertions that only check a report renders. Runs marked `"inV02Inventory": false` use
-templates outside v0.2's list (`design/reports.md` §12).
+templates outside v0.2's list (`design/reports.md` §12). `test-cash-flow.scm` never renders the report: it reads
+`cash-flow-calc-money-in-out`'s result, so `cash-flow.expected.json`'s checks name the result item they `read`, and
+each run adds the equivalent Cash Flow `report`, worked from the report's source rather than GnuCash output. Checks
+with `"readAs": "number"` compare numbers the test parses from the cells, with the strings they imply under
+`implied`.
 
 ```
 scripts/report-fixtures/build-all.sh               # every book into fixtures/reports, with its checks

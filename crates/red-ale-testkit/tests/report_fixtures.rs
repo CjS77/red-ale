@@ -11,9 +11,13 @@ use serde_json::json;
 fn every_report_fixture_is_listed() {
     let names = report_fixtures();
     let expected = [
+        "adjusting-entries-fx",
+        "adjusting-entries",
         "average-balance",
         "balsheet-pnl",
         "budget",
+        "cash-flow",
+        "cashflow-barchart",
         "category-average",
         "category-daily",
         "category-liability",

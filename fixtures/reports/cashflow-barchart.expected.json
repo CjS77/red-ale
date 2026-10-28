@@ -1,0 +1,130 @@
+{
+  "fixture": "reports/cashflow-barchart.gnucash",
+  "builtBy": "scripts/report-fixtures/cash_flow.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-cashflow-barchart.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of the test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:32)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "dates": {
+    "date-0": "2024-03-01 00:00:00 UTC, gnc:get-start-this-month for the pinned now (:69)",
+    "date-1": "2024-03-02 00:00:00 UTC, gnc:time64-next-day of date-0 (:70)",
+    "date-2": "2024-03-03 00:00:00 UTC (:71)"
+  },
+  "accounts": {
+    "in-txn": { "Root": "a0000000000000000000000000000001", "Root.Asset": "a0000000000000000000000000000002", "Root.Asset.Bank": "a0000000000000000000000000000003", "Root.Asset.Wallet": "a0000000000000000000000000000004", "Root.Expenses": "a0000000000000000000000000000005", "Root.Income": "a0000000000000000000000000000006" },
+    "out-txn": { "Root": "a0000000000000000000000000000007", "Root.Asset": "a0000000000000000000000000000008", "Root.Asset.Bank": "a0000000000000000000000000000009", "Root.Asset.Wallet": "a000000000000000000000000000000a", "Root.Expenses": "a000000000000000000000000000000b", "Root.Income": "a000000000000000000000000000000c" },
+    "null-txn": { "Root": "a000000000000000000000000000000d", "Root.Asset": "a000000000000000000000000000000e", "Root.Asset.Bank": "a000000000000000000000000000000f", "Root.Asset.Wallet": "a0000000000000000000000000000010", "Root.Expenses": "a0000000000000000000000000000011", "Root.Income": "a0000000000000000000000000000012" }
+  },
+  "book": "Three groups in one book, one per test function, each with its own environment and its own top-level \"Root\" (ASSET) with Asset.Bank, Asset.Wallet, Expenses (EXPENSE) and Income (INCOME), USD (:51-57); the accounts are listed above by group and full name. in-txn (:72-73): Bank +$1 from Income on date-1, Wallet +$5 from Income on date-2. out-txn (:116-120): on date-1 Bank +$100 from Income and Expenses +$1 from Bank; on date-2 Wallet +$100 from Income and Expenses +$5 from Wallet. null-txn (:165-168): in-txn's two transactions and, on date-1, Bank +$20 from Wallet.",
+  "optionValues": "Options are those changed from the template's defaults; each test makes its own options object. {\"absolute\": \"date-N\"} is the time above. Accounts are given as group.full name, in the order the test gives them.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements (:82-83): table 1; row 1 is the first data row (the header row holds <th> cells, which a <td> selection skips), null every row; column 1 is the date, 2 Money In, 3 Money Out, 4 Net Flow (5.17:gnucash/report/reports/standard/cashflow-barchart.scm:304-324); the last row is Total. A check with \"count\" expects the number of cells selected rather than their text. Checks marked \"readAs\": \"number\" read each cell with the test's str->num (:43-49): keep only digits, '-' and '.', then string->number, so \"$1.00\" reads 1.0; \"expected\" holds those numbers as GnuCash writes them, and \"implied\" the strings they imply under the C locale.",
+  "runs": [
+    {
+      "id": "test-in-txn",
+      "lines": "60-100",
+      "template": "Cash Flow Barchart",
+      "templateGuid": "5426e4d987f6444387fe70880e5b28a0",
+      "options": {
+        "Display/Show Table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["in-txn.Root.Asset.Wallet", "in-txn.Root.Asset.Bank"]
+      },
+      "checks": [
+        {
+          "name": "in = net, out=0",
+          "line": 85,
+          "select": { "table": 1, "row": null, "columns": [2, 3, 4] },
+          "readAs": "number",
+          "relation": "For each row, column 2 (in) equals column 4 (net) and column 3 (out) is zero.",
+          "implied": {
+            "column2": ["$0.00", "$1.00", "$5.00", "$6.00"],
+            "column3": ["$0.00", "$0.00", "$0.00", "$0.00"],
+            "column4": ["$0.00", "$1.00", "$5.00", "$6.00"]
+          },
+          "meaning": "Only money in: $1 into Bank on date-1 and $5 into Wallet on date-2, both from Income"
+        },
+        { "name": "day in", "line": 91, "select": { "table": 1, "row": null, "column": 2 }, "readAs": "number", "expected": ["0.0", "1.0", "5.0", "6.0"], "implied": { "column2": ["$0.00", "$1.00", "$5.00", "$6.00"] }, "meaning": "Money in for 03/01/24, 03/02/24, 03/03/24 and the total" },
+        { "name": "4 columns", "line": 94, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Date, Money In, Money Out and Net Flow in the first data row" },
+        { "name": "4 rows", "line": 97, "select": { "table": 1, "row": null, "column": 1 }, "count": 4, "meaning": "Three days and Total", "implied": { "column1": ["03/01/24", "03/02/24", "03/03/24", "Total"] } }
+      ]
+    },
+    {
+      "id": "test-out-txn",
+      "lines": "103-148",
+      "template": "Cash Flow Barchart",
+      "templateGuid": "5426e4d987f6444387fe70880e5b28a0",
+      "options": {
+        "Display/Show Table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["out-txn.Root.Asset.Wallet", "out-txn.Root.Asset.Bank"]
+      },
+      "checks": [
+        {
+          "name": "in - out = net",
+          "line": 133,
+          "select": { "table": 1, "row": null, "columns": [2, 3, 4] },
+          "readAs": "number",
+          "relation": "For each row, column 2 (in) less column 3 (out) equals column 4 (net).",
+          "implied": {
+            "column2": ["$0.00", "$100.00", "$100.00", "$200.00"],
+            "column3": ["$0.00", "$1.00", "$5.00", "$6.00"],
+            "column4": ["$0.00", "$99.00", "$95.00", "$194.00"]
+          },
+          "meaning": "$100 in and $1 out on date-1, $100 in and $5 out on date-2"
+        },
+        { "name": "money out", "line": 139, "select": { "table": 1, "row": null, "column": 3 }, "readAs": "number", "expected": ["0.0", "1.0", "5.0", "6.0"], "implied": { "column3": ["$0.00", "$1.00", "$5.00", "$6.00"] }, "meaning": "Money out to Expenses for each day and the total" },
+        { "name": "4 columns", "line": 142, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "4 rows", "line": 145, "select": { "table": 1, "row": null, "column": 1 }, "count": 4, "meaning": "Three days and Total" }
+      ]
+    },
+    {
+      "id": "test-null-txn",
+      "lines": "153-196",
+      "template": "Cash Flow Barchart",
+      "templateGuid": "5426e4d987f6444387fe70880e5b28a0",
+      "options": {
+        "Display/Show Table": true,
+        "General/Start Date": { "absolute": "date-0" },
+        "General/End Date": { "absolute": "date-2" },
+        "General/Step Size": "DayDelta",
+        "General/Price Source": "pricedb-nearest",
+        "General/Report's currency": "USD",
+        "Accounts/Accounts": ["null-txn.Root.Asset.Wallet", "null-txn.Root.Asset.Bank"]
+      },
+      "checks": [
+        {
+          "name": "in = net, out=0",
+          "line": 181,
+          "select": { "table": 1, "row": null, "columns": [2, 3, 4] },
+          "readAs": "number",
+          "relation": "For each row, column 2 (in) equals column 4 (net) and column 3 (out) is zero.",
+          "implied": {
+            "column2": ["$0.00", "$1.00", "$5.00", "$6.00"],
+            "column3": ["$0.00", "$0.00", "$0.00", "$0.00"],
+            "column4": ["$0.00", "$1.00", "$5.00", "$6.00"]
+          },
+          "meaning": "As in test-in-txn: the $20 from Wallet to Bank moves money between two selected accounts and is not counted"
+        },
+        { "name": "day in", "line": 187, "select": { "table": 1, "row": null, "column": 2 }, "readAs": "number", "expected": ["0.0", "1.0", "5.0", "6.0"], "implied": { "column2": ["$0.00", "$1.00", "$5.00", "$6.00"] }, "meaning": "Money in for each day and the total" },
+        { "name": "4 columns", "line": 190, "select": { "table": 1, "row": 1, "column": null }, "count": 4, "meaning": "Four cells in the first data row" },
+        { "name": "4 rows", "line": 193, "select": { "table": 1, "row": null, "column": 1 }, "count": 4, "meaning": "Three days and Total" }
+      ]
+    }
+  ]
+}
