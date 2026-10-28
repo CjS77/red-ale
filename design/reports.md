@@ -828,6 +828,7 @@ These cover every chart in scope:
 | Account pie charts | `pie`: one series, a value and colour per slice (`standard/account-piecharts.scm:472-558`) |
 | Price Scatterplot | `scatter` with a `linear` x axis in steps since the start date (`standard/price-scatter.scm:166-274`) |
 | Average Balance | `bar`: Average, Profit, Gain and Loss series (`example/average-balance.scm:386-451`) |
+| Budget Chart (v0.4) | `bar` or `line` by option, one chart per account: Actual and Budget series (`standard/budget-barchart.scm:155-222`) |
 
 ### Hover labels
 
@@ -1080,6 +1081,8 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | `standard/budget-balance-sheet.rhai` (v0.4) | Budget Balance Sheet | `ecc35ea9dbfa4e20ba389fc85d59cb69` | Budget | `standard/budget-balance-sheet.scm:785-791` |
 | `standard/budget-income-statement.rhai` (v0.4) | Budget Income Statement | `583c313fcc484efc974c4c844404f454` | Budget | `standard/budget-income-statement.scm:591-598` |
 | | Budget Profit & Loss | `e5fa5ce805e840ecbeca4dba3fa4ead9` | Budget | `standard/budget-income-statement.scm:602-609` |
+| `standard/budget-flow.rhai` (v0.4) | Budget Flow | `e6e34fa3b6e748debde3cb3bc76d3e53` | Budget | `standard/budget-flow.scm:315-321` |
+| `standard/budget-barchart.rhai` (v0.4) | Budget Chart | `415cd38d39054d9e9c4040455290c2b1` | Budget | `standard/budget-barchart.scm:322-328` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
 scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary
@@ -1261,6 +1264,8 @@ GnuCash reads and the exact expected strings, with the test line (see `fixtures/
 | Budget Balance Sheet (v0.4) | `standard/test/test-budget.scm:186-253`: the text count and the existing, allocated and unallocated assets, total assets, existing, new and total liabilities, existing and new retained earnings, unrealized losses, existing, new and total equity, and total liabilities and equity | the sheet at the budget's start; moving the start; retained losses and the totals alone without new/existing lines; zero retained earnings and gains left out; liability lines signed by the first liability account; the two-column form and rates; both warnings |
 | Budget Income Statement (v0.4) | `standard/test/test-budget.scm:163-184`: the text count, Income's budgeted $195.00 and the net income of $105.00 | the defaults; the period range, a single period and a range, with prices at the first reported period's start; truncated and refused ranges; reversed accounts; the four layouts; the warnings; the rates |
 | Budget Profit & Loss (v0.4) | none: the test runs the Income Statement's GUID only | the Budget Income Statement's checks against this template; the same statement under its own title; its no-account warning naming the Budget Income Statement |
+| Budget Flow (v0.4) | none: GnuCash has no test of it | a single period; budgeted against actual, with an unset amount and a closing transaction; a period past the budget; no reversed signs; totals of a foreign account under the latest and the nearest price, the latter at the end of the next period; selected accounts and a parent left out; both warnings; a period that is not whole failing |
+| Budget Chart (v0.4) | none: GnuCash has no test of it | budget against actual series per account, with the running totals in the title; running sum off; bars and lines; manual, first-to-last and previous ranges, exact periods rounded; relative periods before and after the budget; the depth limit and rolled-up budgets; both warnings |
 
 Every check of a figure also runs with `report.export` and checks that the HTML has the same display string.
 
@@ -1308,7 +1313,7 @@ drops it and needs nothing from budgets.
 | Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting under the Locale | No script; deterministic bytes |
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
 | Title of the account pie charts | None: the document keeps its empty title (`report/html-document.scm:131`); the chart's title and the warnings' heading name the report | The report name, with its averaging suffix | A result has a title, and its warning blocks leave out the heading that names the report |
-| Average Balance and Price Scatterplot titles, and the budget reports' warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`, `standard/budget-balance-sheet.scm:361-371`, `standard/budget-income-statement.scm:384-410`) | Titled with the "Report name" option (the budget reports' warnings: with the name the warning gives) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
+| Average Balance and Price Scatterplot titles, and the budget reports' warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`, `standard/budget-balance-sheet.scm:361-371`, `standard/budget-income-statement.scm:384-410`, `standard/budget-flow.scm:270-281`, `standard/budget-barchart.scm:289-298`; the Budget Chart's charts, `:313-316`) | Titled with the "Report name" option (the budget reports' warnings: with the name the warning gives) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |
 | Name sorting | Locale collation | Bytewise | As v0.1 |
 | Date interval in titles under the `locale` format and the C locale | ICU's interval form for en_US_POSIX (`1/1/2026 – 12/31/2026`) | `<from> to <to>` | Output under C stays as it was before Locales |

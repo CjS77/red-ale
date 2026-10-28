@@ -272,8 +272,8 @@ Rounding is half up to significant digits, never left of the decimal point, and 
 |   ✅   | Budget Balance Sheet                  | `standard/budget-balance-sheet.scm` (`ecc35ea9dbfa4e20ba389fc85d59cb69`)              |
 |   ✅   | Budget Income Statement               | `standard/budget-income-statement.scm` (`583c313fcc484efc974c4c844404f454`)           |
 |   ✅   | Budget Profit & Loss                  | the same file (`e5fa5ce805e840ecbeca4dba3fa4ead9`), under the Budget Income Statement row |
-|        | Budget Flow                           | `standard/budget-flow.scm` (`e6e34fa3b6e748debde3cb3bc76d3e53`)                       |
-|        | Budget Chart                          | `standard/budget-barchart.scm` (`415cd38d39054d9e9c4040455290c2b1`)                   |
+|   ✅   | Budget Flow                           | `standard/budget-flow.scm` (`e6e34fa3b6e748debde3cb3bc76d3e53`)                       |
+|   ✅   | Budget Chart                          | `standard/budget-barchart.scm` (`415cd38d39054d9e9c4040455290c2b1`)                   |
 |        | Future Scheduled Transactions Summary | `standard/account-summary.scm:430-435` (`47f45d7d6d57b68518481c1fc8d4e4ba`)           |
 |        | Balance Forecast                      | `standard/balance-forecast.scm` (`321d940d487d4ccbb4bd0467ffbadbf2`)                  |
 
