@@ -27,11 +27,11 @@
     "Root.Equity": "a000000000000000000000000000000b"
   },
   "book": "The reconcile tree of reconcile-tests (:1077-1104): the structure of :85-97, every account USD, and the seven 1969-1970 transfers of :182-190 except that trn7 goes from Bank to Expenses. GnuCash builds it in the same book as the trep and invoice trees; the report reads only this tree's Bank and Liabilities, so it has its own book here (design/notes/report-transaction-engine.md §4.5).",
-  "dates": { "start-prev-quarter": "2023-10-01 00:00:00 UTC for the pinned now", "today": "2024-03-15 23:59:59 UTC for the pinned now" },
+  "dates": { "start-prev-quarter": "2023-12-15 00:00:00 UTC for the pinned now: quarters count from the start of the accounting period, today, the 15th (5.17:libgnucash/engine/gnc-option-date.cpp:487-512, :519-596)", "today": "2024-03-15 23:59:59 UTC for the pinned now" },
   "optionValues": "Options are those the test sets; the rest are the template's defaults (5.17:gnucash/report/reports/standard/reconcile-report.scm:34-58): Primary Key reconciled-status, Secondary Key date with no date subtotal, Start Date start-prev-quarter, End Date today, Date Filter reconciled, Reconciled Date and no Memo. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight.",
   "cellSelection": "GnuCash reads text at HTML table positions with get-row-col (:73-74), sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1; row N the Nth row of <tbody>, column null every cell; the result is every text in document order, so empty cells drop out.",
   "renderOnly": [
-    { "line": 1108, "template": "Reconciliation Report", "options": { "Accounts/Accounts": ["Root.Asset.Bank", "Root.Liabilities"] }, "note": "reconcile-report basic run: the default dates, 2023-10-01 to 2024-03-15; the unreconciled splits pass whatever their dates (TE:2568-2571), the reconciled and cleared ones fall outside" }
+    { "line": 1108, "template": "Reconciliation Report", "options": { "Accounts/Accounts": ["Root.Asset.Bank", "Root.Liabilities"] }, "note": "reconcile-report basic run: the default dates, 2023-12-15 to 2024-03-15; only reconciled splits are held to the dates (TE:2568-2571), so the reconciled trn7 falls outside and the cleared and unreconciled splits pass" }
   ],
   "runs": [
     {

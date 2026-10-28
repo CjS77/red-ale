@@ -982,7 +982,9 @@ Pinning, with `reports.md` §13's now **2024-03-15 12:00 UTC** and `TZ=UTC`:
 - Transactions that `gncInvoicePostToAccount` and `gncInvoiceApplyPayment` make, and their splits and lots, get
   fixed GUIDs and entered dates after the call, as `engine_extras` does for others (`qof_instance_set_guid` moves the
   instance within its collection, `5.17:libgnucash/engine/qofinstance.cpp:463`; check the saved book reopens).
-- The RR "basic run" (TT:1108-1109) uses relative defaults: from `start-prev-quarter` (2023-10-01) to `today`.
+- The RR "basic run" (TT:1108-1109) uses relative defaults: from `start-prev-quarter` to `today`. Quarters count
+  from the start of the accounting period, today (the 15th) with no preferences, so the run starts on 2023-12-15
+  (`5.17:libgnucash/engine/gnc-option-date.cpp:519-596`).
 
 `transaction.expected.json` names accounts by GUID: three accounts are called "Root" and two full names are
 `Root.Asset.Bank`. "Every trep account" (TT:294, :518, :623, :785) is the trep tree's accounts **including** its

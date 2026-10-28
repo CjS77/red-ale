@@ -41,9 +41,11 @@ const BUILTIN: &[(&str, &str)] = scripts![
     "standard/cashflow-barchart.rhai",
     "standard/category-barchart.rhai",
     "standard/equity-statement.rhai",
+    "standard/general-ledger.rhai",
     "standard/income-statement.rhai",
     "standard/net-charts.rhai",
     "standard/price-scatter.rhai",
+    "standard/reconcile-report.rhai",
     "standard/transaction.rhai",
     "standard/trial-balance.rhai",
 ];
@@ -51,7 +53,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
 /// The GUIDs and names of the GnuCash 5.17 templates red-ale translates (`design/reports.md` §11). A built-in
 /// template with one of these GUIDs must have its name, and one with one of these names its GUID, so a GUID or name
 /// given to `gnucash-cli --report run` names the same report in red-ale.
-pub const GNUCASH_TEMPLATES: [(&str, &str); 34] = [
+pub const GNUCASH_TEMPLATES: [(&str, &str); 36] = [
     ("3298541c236b494998b236dfad6ad752", "Account Summary"),
     ("c4173ac99b2b448289bf4d11c731af13", "Balance Sheet"),
     ("0b81a3bdfd504aff849ec2e8630524bc", "Income Statement"),
@@ -86,6 +88,8 @@ pub const GNUCASH_TEMPLATES: [(&str, &str); 34] = [
     ("065d5d5a77ba11e8b31e83ada73c5eea", "Balance Sheet (Multicolumn)"),
     ("0e94fd0277ba11e8825d43e27232c9d4", "Income Statement (Multicolumn)"),
     ("2fe3b9833af044abb929a88d5a59620f", "Transaction Report"),
+    ("2e22929e5c5b4b769f615a815ef0c20f", "General Ledger"),
+    ("e45218c6d76f11e7b5ef0800277ef320", "Reconciliation Report"),
 ];
 
 /// A set of built-in scripts: the library compiled into red-ale, or, for tests, any scripts laid out the same way.
