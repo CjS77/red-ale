@@ -6,6 +6,7 @@
 //! after them. Every statement's row count is checked. Rows of unchanged entities, rows red-ale doesn't model and
 //! orphan rows are never touched, except the orphans an inserted entity would adopt.
 
+mod entities;
 pub(crate) mod sql;
 mod transactions;
 
@@ -31,6 +32,8 @@ enum Check {
     Gone(String, Vec<Cell>),
     /// These slot rows, by owner in `id` order, are exactly the rows each owner has.
     Slots(Vec<Vec<Cell>>),
+    /// The rows of `table` whose `column` is the owner are exactly these, in `rowid` order.
+    Dependents(&'static Table, &'static str, Guid, Vec<Vec<Cell>>),
     /// The transaction's splits read back in its order.
     SplitOrder(red_ale_core::Transaction),
 }
@@ -66,31 +69,20 @@ pub(crate) fn write(
         touched_lots: BTreeSet::new(),
         written_lots: BTreeSet::new(),
     };
-    refuse_other_changes(saved, book)?;
     w.commodities(saved)?;
     w.book_slots(saved)?;
+    w.accounts(saved)?;
+    w.budgets(saved)?;
+    w.prices(saved)?;
+    w.lots(saved)?;
     w.transactions(saved)?;
     w.mark_touched_lots()?;
+    w.scheduled(saved)?;
+    w.business(saved)?;
     if w.st.corrupt() {
         w.corrupt()?;
     }
     w.verify()
-}
-
-/// Refuse a save of changes to entities whose rows this version cannot write yet.
-fn refuse_other_changes(saved: &Book, book: &Book) -> Result<(), SqlError> {
-    use red_ale_core::diff::changes;
-    let other = !changes(&saved.accounts, &book.accounts).is_empty()
-        || !changes(&saved.templates.accounts, &book.templates.accounts).is_empty()
-        || !changes(&saved.budgets, &book.budgets).is_empty()
-        || !changes(&saved.prices, &book.prices).is_empty()
-        || !changes(&saved.lots, &book.lots).is_empty()
-        || !changes(&saved.scheduled, &book.scheduled).is_empty()
-        || saved.business != book.business;
-    if other {
-        return Err(SqlError::Unstorable("saving accounts, budgets, prices, lots, schedules or business objects is not supported yet".into()));
-    }
-    Ok(())
 }
 
 /// Whether anything differs between `saved` and `book` that a save would write.
@@ -171,6 +163,13 @@ impl Writer<'_, '_> {
     fn delete_dependents(&mut self, table: &'static Table, column: &str, owner: Guid, rows: usize) -> Result<(), SqlError> {
         let sql = format!("DELETE FROM \"{}\" WHERE \"{column}\" = ?1", table.name);
         self.st.expect(&sql, &[guid(owner)], rows)
+    }
+
+    /// Insert an owner's dependent rows (recurrences, budget amounts, tax-table entries) and check they read back.
+    fn insert_dependents(&mut self, table: &'static Table, column: &'static str, owner: Guid, rows: Vec<Vec<Cell>>) -> Result<(), SqlError> {
+        rows.iter().try_for_each(|r| self.st.expect(&insert(table), r, 1))?;
+        self.checks.push(Check::Dependents(table, column, owner, rows));
+        Ok(())
     }
 
     /// Insert the slot rows of a new owner, with fresh frame and list GUIDs from the Env.
@@ -271,6 +270,10 @@ impl Writer<'_, '_> {
         self.insert_slots(row, &commodity.slots)
     }
 
+    fn ensure_all<'r>(&mut self, ids: impl IntoIterator<Item = &'r CommodityRef>) -> Result<(), SqlError> {
+        ids.into_iter().try_for_each(|id| self.ensure(id))
+    }
+
     fn commodities(&mut self, saved: &Book) -> Result<(), SqlError> {
         let changes = btree_changes(&saved.commodities, &self.book.commodities);
         changes.iter().try_for_each(|change| match change {
@@ -347,6 +350,11 @@ impl Writer<'_, '_> {
                     if self.st.rows(&select(&tables::SLOTS, "obj_guid"), std::slice::from_ref(owner))? != want {
                         return mismatch(format!("the slot rows of {owner:?}"));
                     }
+                }
+            }
+            Check::Dependents(table, column, owner, rows) => {
+                if &self.st.rows(&select(table, column), &[guid(*owner)])? != rows {
+                    return mismatch(format!("the {} rows of {owner}", table.name));
                 }
             }
             Check::SplitOrder(t) => {
