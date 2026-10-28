@@ -48,8 +48,10 @@ its own table and does not.
 
 ## Compatibility in v0.5
 
-Every v0.1 to v0.4 rule holds. Reports only read: no report changes a Book or makes it dirty, on XML or SQLite. The
-only file red-ale writes differently is its own Configuration file ("The Configuration").
+Every v0.1 to v0.4 rule holds. Reports only read: no report changes a Book or makes it dirty, on XML or SQLite. Besides
+red-ale's own Configuration file ("The Configuration"), one thing is written differently, and only in XML books GnuCash
+didn't write: a transaction whose splits are out of GnuCash's order is written in that order, as GnuCash writes it
+after loading the book ("Carried forward from v0.4"). Books GnuCash wrote still round-trip byte for byte.
 
 ## The Configuration
 
@@ -112,12 +114,41 @@ proposed for v0.5 because the release workflow is written and `setup` is approve
 
 From [`milestone4.md`](milestone4.md), "Follow-ups":
 
-| Status | Follow-up                                     | Notes                                                                                                                                                                                                              |
-|:------:|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | XML split order                               | red-ale's XML reader keeps the file's split order where GnuCash sorts on load (`5.17:libgnucash/engine/Transaction.cpp:1508-1510`); differs only for files GnuCash didn't write. Sort as the SQLite reader does    |
-|        | Since Last Run at scale on SQLite             | Measured on XML only in v0.4; repeat the 5,000-transaction run on the SQLite copy now that its first-schedule bug is fixed                                                                                         |
-|        | An SQLite book whose template root has no row | The `books` row names a root with no `accounts` row: the first scheduled transaction makes a new root and the save is refused after the Mutation. Refuse at `scheduledTransaction.create` instead, or make the row |
-|        | Rhai closure bugs                             | Reported upstream by the maintainer; the conventions stay until a release fixes them                                                                                                                               |
+| Status | Follow-up | Notes |
+|:------:|-----------|-------|
+|   ✅   | XML split order | The XML reader sorts each transaction's splits as GnuCash's load does: a stable sort, value ≥ 0 before value < 0, from the commit that ends each transaction's read, Book and template transactions alike (`5.17:libgnucash/backend/xml/gnc-transaction-xml-v2.cpp:565-572`; `5.17:libgnucash/engine/Transaction.cpp:540-553`, `:1508-1510`). The rule is the core's `sort_splits`, shared with the SQLite reader through `sort_as_splits`, and the element's splits take the same order, so an order alone keeps no original text and original text kept for another reason is written sorted. Every XML fixture is already sorted, so `round_trip.rs` passes unchanged; `splits_another_writer_left_unsorted_are_read_and_written_as_gnucash_sorts_them`, `the_split_sort_keeps_the_file_order_on_each_side`, `original_text_kept_for_a_transaction_has_its_splits_sorted`, `template_transaction_splits_are_sorted_as_they_are_read`; oracle: `oracle_split_order.rs`, `red_ale_saves_unsorted_splits_as_gnucash_saves_them` (red-ale's no-edit save is byte for byte what GnuCash 5.17 writes after load and save) |
+|   ✅   | Since Last Run at scale on SQLite | Below. `since_last_run_scale.rs`, `a_since_last_run_creating_5000_transactions_on_an_sqlite_book_is_one_mutation` |
+|   ✅   | An SQLite book whose template root has no row | Made in memory, as GnuCash does: `sxtg_book_begin` makes a template root and loading the `books` row gives it the row's GUID (`5.17:libgnucash/engine/SX-book.cpp:113-125`; `5.17:libgnucash/backend/sql/gnc-book-sql.cpp:119-136`). A new scheduled transaction's template account goes under it and only its own row is written (`5.17:libgnucash/engine/Account.cpp:2824-2879`; `5.17:libgnucash/backend/sql/gnc-account-sql.cpp:278-344`): the oracle, given such a book, wrote no row for the root and reopened with the template account under it. red-ale writes the same rows. Neither a refusal nor a new row: GnuCash edits the book without one. `sqlite_template_root.rs`, `the_first_scheduled_transaction_goes_under_a_template_root_with_no_row`; oracle: `gnucash_reads_the_first_scheduled_transaction_of_a_book_whose_template_root_has_no_row` |
+|        | Rhai closure bugs | Reported upstream by the maintainer; the conventions stay until a release fixes them |
+
+**Measured: Since Last Run on SQLite.** As in [`milestone4.md`](milestone4.md) ("Done when", "Measured: Since Last
+Run"), with the example `memory`: `schedule 10 500` adds ten daily scheduled transactions of 500 occurrences to a copy
+of the 100,000-transaction book, and `since-last-run` opens it at the testkit's clock, proposes, and applies with no
+choices. The SQLite book is the one `generate-sqlite` writes (108.3 MB). Both books were measured again on this
+branch, in release mode; the proposal holds 5,000 instances to create and the apply creates 5,000 transactions (100,000
+to 105,000) in one Mutation (Book revision 0 to 1), with a journal of 10,000 records, a `B` and a `C` for each:
+
+| Step                                | Time, XML v0.4 | Time, XML | Time, SQLite | Peak heap, XML v0.4 | Peak heap, XML | Peak heap, SQLite |
+|-------------------------------------|---------------:|----------:|-------------:|--------------------:|---------------:|------------------:|
+| Open, at rest                       |                |           |              |            174.3 MB |       147.9 MB |          173.7 MB |
+| `scheduledTransaction.sinceLastRun` |        47.9 ms |   45.3 ms |      43.4 ms |            213.0 MB |       186.6 MB |          212.4 MB |
+| `scheduledTransaction.apply`        |        79.6 ms |   61.4 ms |     106.8 ms |            199.6 MB |       173.2 MB |          205.0 MB |
+| After the apply                     |                |           |              |            180.6 MB |       154.2 MB |          180.0 MB |
+| `book.save` of the 105,000          |         3.05 s |    3.01 s |     519.5 ms |            188.8 MB |       162.4 MB |          207.7 MB |
+
+Peak resident set 255.3 MB on SQLite and 220.8 MB on XML (248.5 MB in v0.4), within the 564 MB budget. A second run of
+each gave the same heap figures and times within 15%. The SQLite save writes only the rows of what the apply added, in
+a sixth of the time of the XML save, which writes the whole file; its peak is 27.7 MB above the Book after the apply,
+against the XML save's 8.2 MB. The XML figures fell by 26.4 MB because the XML reader now rebuilds each transaction's
+split list at its exact length when it sorts it, where the list read from the file had room to spare; measured with
+the sort switched off, the XML figures were v0.4's to the tenth of a megabyte. The SQLite reader's split lists still
+grow one split at a time ("Follow-ups").
+
+Running it on SQLite found a testkit bug: `add_daily_schedules` and `run` each used a dispatcher whose first session
+made the same GUIDs, so the transactions the apply created took the GUIDs of the scheduled transactions and template
+transactions made before. SQLite's `transactions` table, which holds both, refused the save; the XML book saved them
+without complaint, so the v0.4 XML figures were measured on a book with those duplicates (the figures above are not).
+`add_daily_schedules` now uses its own range of sessions (`dispatcher_from`).
 
 ## Interfaces
 
@@ -206,4 +237,9 @@ Followed as written until the research note named settles them.
 
 ## Follow-ups
 
-None yet.
+- **The SQLite reader's split lists.** It pushes each split onto its transaction's list, so a list of two or three
+  splits has room for four; the XML reader's exact lists saved 26.4 MB on the 100,000-transaction book ("Carried
+  forward from v0.4", "Measured: Since Last Run on SQLite"). Shrinking them is a memory change of its own.
+- **Duplicate GUIDs across transactions and template transactions.** An XML save writes a Book in which a
+  transaction and a template transaction share a GUID without complaint, though GnuCash keeps both in one collection;
+  only the testkit has made one ("Carried forward from v0.4"). Whether a save should refuse it is open.
