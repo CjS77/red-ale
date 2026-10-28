@@ -136,7 +136,7 @@ fn every_fixture_written_whole_into_a_new_book_reads_back_the_same() {
         .filter(|n| n.ends_with(".gnucash"))
         .collect();
     names.sort();
-    assert_eq!(names.len(), 23);
+    assert_eq!(names.len(), 24);
     names.iter().for_each(|name| {
         let (mut original, rebuilt) = rebuild(name);
         // A new book has its root account first, as GnuCash's `sync` writes it; a fixture may not.
