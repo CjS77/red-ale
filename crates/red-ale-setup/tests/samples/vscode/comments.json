@@ -1,0 +1,8 @@
+{
+  // Settings for every project.
+  "inputs": [],
+  "servers": {
+    /* the GitHub server */
+    "github": { "type": "stdio", "command": "docker", "args": ["run"] }, // keep this comment
+  },
+}

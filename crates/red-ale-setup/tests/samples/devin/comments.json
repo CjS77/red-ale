@@ -1,0 +1,7 @@
+{
+  // Settings for every project.
+  "mcpServers": {
+    /* the GitHub server */
+    "github": { "command": "docker", "args": ["run", "-i", "--rm", "ghcr.io/github/github-mcp-server"] }, // keep this comment
+  },
+}

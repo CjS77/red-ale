@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "red-ale": {
+      "type": "stdio",
+      "command": "/opt/red-ale/bin/red-ale",
+      "args": ["mcp"]
+    }
+  }
+}

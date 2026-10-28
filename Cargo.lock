@@ -1260,6 +1260,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonc-parser"
+version = "0.34.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ecded084f9b9a718d39668a42657c32253663d1f6afb3fbb9134f0305f73f48"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "jsonrpsee"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1795,6 +1804,7 @@ dependencies = [
  "red-ale-mcp",
  "red-ale-rpc",
  "red-ale-service",
+ "red-ale-setup",
  "red-ale-testkit",
  "serde_json",
  "tempfile",
@@ -1941,6 +1951,18 @@ dependencies = [
  "rusqlite",
  "rustix",
  "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "red-ale-setup"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "jsonc-parser",
+ "serde_json",
+ "similar",
  "tempfile",
  "thiserror 2.0.21",
 ]
@@ -2421,6 +2443,12 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "similar"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
 name = "slab"

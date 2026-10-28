@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "red-ale": {
+      "type": "local",
+      "command": ["/opt/red-ale/bin/red-ale", "mcp"],
+      "enabled": true
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "inputs": [],
+  "servers": {
+    "github": { "type": "stdio", "command": "docker", "args": ["run"] }
+  }
+}

@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod params;
+mod setup;
 
 use std::io::{BufRead, Write};
 use std::net::SocketAddr;
@@ -44,6 +45,8 @@ enum Command {
     Methods,
     /// Print the API's schema document.
     Schema,
+    /// Register red-ale's MCP server with the agent harnesses installed on this machine, or remove it.
+    Setup(setup::SetupArgs),
 }
 
 #[derive(Debug, Args)]
@@ -277,6 +280,8 @@ enum Ended {
     Failed(RpcError),
     /// A Quote fetch finished with this many commodities getting no price; its status was printed.
     QuotesFailed(usize),
+    /// `setup` ended with this exit status, having reported why.
+    Status(u8),
 }
 
 impl From<Option<RpcError>> for Ended {
@@ -294,9 +299,11 @@ fn main() -> ExitCode {
         Command::Exec(args) => exec(&args),
         Command::Methods => methods().map(|()| Ended::Done),
         Command::Schema => print_json(&Dispatcher::new(Settings::default()).schema()).map(|()| Ended::Done),
+        Command::Setup(args) => setup::run(&args).map(Ended::Status),
     };
     match outcome {
         Ok(Ended::Done) => ExitCode::SUCCESS,
+        Ok(Ended::Status(status)) => ExitCode::from(status),
         Ok(Ended::Failed(e)) => {
             eprintln!(
                 "{}",

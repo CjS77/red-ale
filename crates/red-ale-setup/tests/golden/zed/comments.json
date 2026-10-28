@@ -1,0 +1,12 @@
+{
+  // Settings for every project.
+  "theme": "One Dark",
+  "context_servers": {
+    /* the GitHub server */
+    "github": { "command": "docker", "args": ["run"], "env": {} }, // keep this comment
+    "red-ale": {
+      "command": "/opt/red-ale/bin/red-ale",
+      "args": ["mcp"],
+    },
+  },
+}

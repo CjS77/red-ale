@@ -1,0 +1,8 @@
+{
+  "context_servers": {
+    "red-ale": {
+      "command": "/opt/red-ale/bin/red-ale",
+      "args": ["mcp"]
+    }
+  }
+}

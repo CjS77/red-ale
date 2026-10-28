@@ -1,0 +1,11 @@
+{
+  "inputs": [],
+  "servers": {
+    "red-ale": {
+      "type": "stdio",
+      "command": "/usr/local/bin/red-ale",
+      "args": ["mcp"]
+    },
+    "github": { "type": "stdio", "command": "docker", "args": ["run"] }
+  }
+}

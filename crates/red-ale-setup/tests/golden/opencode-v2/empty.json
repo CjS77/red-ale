@@ -1,0 +1,10 @@
+{
+  "mcp": {
+    "servers": {
+      "red-ale": {
+        "type": "local",
+        "command": ["/opt/red-ale/bin/red-ale", "mcp"]
+      }
+    }
+  }
+}

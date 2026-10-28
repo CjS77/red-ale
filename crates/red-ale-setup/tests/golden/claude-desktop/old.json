@@ -1,0 +1,11 @@
+{
+  "globalShortcut": "Alt+Space",
+  "preferences": { "menuBarEnabled": false },
+  "mcpServers": {
+    "red-ale": {
+      "command": "/opt/red-ale/bin/red-ale",
+      "args": ["mcp"]
+    },
+    "github": { "command": "docker", "args": ["run", "-i", "--rm", "ghcr.io/github/github-mcp-server"] }
+  }
+}
