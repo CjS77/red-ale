@@ -324,3 +324,69 @@ fn options_read_the_default_report_currency() {
     host.settings.currency = Some(red_ale_core::CommodityRef::currency("GBP"));
     assert_eq!(host.run(&reg, GUID, &json!({})).unwrap().title, "CURRENCY::GBP");
 }
+
+const DEFAULTS: &str = r##"
+fn options(params, o, book) {
+    o.boolean("Display", "Show", "a", "", true);
+    o.multichoice("Display", "Levels", "b", "", 2, [[1, "One"], [2, "Two"]]);
+    o.number_range("Display", "Width", "c", "", "1.5", 0, 10, "0.1");
+    o.color("Display", "Colour", "d", "", "#FF0000");
+    o.date("General", "Fixed", "a", "", "today", #{});
+    o.account_list("Accounts", "Accounts", "a", "", [], #{});
+    o.currency("General", "Report's currency", "b", "", "USD");
+    o.set_default("Display", "Show", false);
+    o.set_default("Display", "Levels", 1);
+    o.set_default("Display", "Width", "2.5");
+    o.set_default("Display", "Colour", "#00FF00");
+    o.set_default("General", "Fixed", "start-this-month");
+    o.set_default("Accounts", "Accounts", ["Root:Asset:House"]);
+    o.set_default("General", "Report's currency", "CURRENCY::GBP");
+    o.make_internal("Display", "Show");
+}
+fn render(params, book, opts, ctx) {
+    let shown = [opts.get("Display", "Show"), opts.get("Display", "Levels"), opts.get("Display", "Width"),
+                 opts.get("Display", "Colour"), opts.get("General", "Fixed"), opts.get("Accounts", "Accounts")[0].fullName,
+                 opts.get("General", "Report's currency").id];
+    #{ title: shown.reduce(|a, b| a + " " + b, ""), sections: [] }
+}
+"##;
+
+/// `o.set_default` takes a default in the form its declaration does and sets the default and the value
+/// (`GncOption-set-default-value`, `5.17:bindings/guile/gnc-optiondb.i:1500-1611`); `o.make_internal` keeps an
+/// option for the renderer but out of `report.options` (`5.17:libgnucash/engine/gnc-optiondb.cpp:266-272`).
+#[test]
+fn a_script_sets_defaults_and_hides_options() {
+    let host = Host::new(fixture("balsheet-pnl.gnucash"));
+    let script = format!("fn templates() {{ [#{{ guid: \"{GUID}\", name: \"Defaults\" }}] }}\n{DEFAULTS}");
+    let reg = registry(&[("defaults.rhai", &script)]);
+    let start = DateValue::Relative(RelativeDate::StartThisMonth)
+        .resolve(NOW, &TimeZone::utc(), bounds())
+        .unwrap()
+        .0;
+    let result = host.run(&reg, GUID, &json!({})).unwrap();
+    assert_eq!(result.title, format!(" false 1 5/2 00FF00 {start} Root:Asset:House CURRENCY::GBP"));
+    let db = reg.options(reg.find(GUID).unwrap(), &host.ctx()).unwrap();
+    assert!(db.changed().is_empty(), "new defaults are not changes");
+    assert!(db.describe().iter().all(|o| o.name != "Show"));
+    let e = host.run(&reg, GUID, &json!({ "Display": { "Show": true } })).unwrap_err();
+    assert!(matches!(&e, ReportError::Option(o) if o.reason == "internal option"), "{e:?}");
+}
+
+/// GnuCash ignores `set-default-value` and `make-internal` on an option that does not exist
+/// (`5.17:bindings/guile/gnc-optiondb.i:1500-1503`); red-ale makes either a script error, so a misspelt name is
+/// found (`design/notes/report-transaction-engine.md` §7, Q6).
+#[test]
+fn defaults_and_hiding_need_a_declared_option() {
+    let host = Host::new(empty_book());
+    ["o.set_default(\"Display\", \"Running Balance\", true);", "o.make_internal(\"Display\", \"Running Balance\");"]
+        .iter()
+        .for_each(|call| {
+            let script = format!(
+                "fn templates() {{ [#{{ guid: \"{GUID}\", name: \"T\" }}] }}\nfn options(params, o, book) {{ {call} }}\n\
+                 fn render(params, book, opts, ctx) {{ #{{ title: \"t\", sections: [] }} }}"
+            );
+            let reg = registry(&[("t.rhai", &script)]);
+            let e = host.run(&reg, GUID, &json!({})).unwrap_err();
+            assert!(e.to_string().contains("option Display/Running Balance: unknown option"), "{call}: {e}");
+        });
+}

@@ -270,6 +270,10 @@ pub(super) fn register_builder(engine: &mut Engine) {
     engine.register_fn("set_default_section", |o: &mut OptionBuilder, s: &str| {
         o.db.borrow_mut().set_default_section(s);
     });
+    engine.register_fn("set_default", set_default);
+    engine.register_fn("make_internal", |o: &mut OptionBuilder, s: &str, n: &str| {
+        declare(o.db.borrow_mut().make_internal(s, n))
+    });
     // `gnc-default-report-currency`, the default of `gnc:options-add-currency!`
     // (`5.17:gnucash/report/options-utilities.scm:124-130`): the report settings' currency, since `options()` has no
     // run context.
@@ -326,15 +330,63 @@ fn account_sel(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dyn
 /// `gnc-register-budget-option`: the default budget, a `Budget` or `()`; scripts pass `book.default_budget()`, as
 /// GnuCash's reports pass `gnc-budget-get-default` (`5.17:gnucash/report/reports/standard/budget.scm:121-124`).
 fn budget(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic) -> Fallible<()> {
-    let default = if d.is_unit() {
-        None
-    } else {
-        let b = d
-            .read_lock::<BudgetHandle>()
-            .ok_or_else(|| script_error(format!("a budget option defaults to a Budget or (), got {}", d.type_name())))?;
-        Some(b.guid())
-    };
+    let default = budget_value(&d)?;
     declare(o.db.borrow_mut().budget(classifier(s, n, k, h), default))
+}
+
+fn budget_value(d: &Dynamic) -> Fallible<Option<Guid>> {
+    if d.is_unit() {
+        return Ok(None);
+    }
+    let b = d
+        .read_lock::<BudgetHandle>()
+        .ok_or_else(|| script_error(format!("a budget option defaults to a Budget or (), got {}", d.type_name())))?;
+    Ok(Some(b.guid()))
+}
+
+/// `o.set_default(section, name, value)`, GnuCash's `GncOption-set-default-value`
+/// (`5.17:bindings/guile/gnc-optiondb.i:1500-1611`): `value` in the form the option's declaration takes its default.
+fn set_default(o: &mut OptionBuilder, s: &str, n: &str, d: Dynamic) -> Fallible<()> {
+    let kind = o.db.borrow().get(s, n).map(|option| option.kind.clone());
+    let value = match kind {
+        Some(kind) => script_value(o, &kind, &d)?,
+        None => return declare(Err(OptionError::new(s, n, "unknown option"))),
+    };
+    declare(o.db.borrow_mut().set_default(s, n, value))
+}
+
+/// A default in script form as an option of `kind` holds it.
+fn script_value(o: &OptionBuilder, kind: &OptionKind, d: &Dynamic) -> Fallible<OptionValue> {
+    let book = o.book.0.book();
+    let text = || {
+        d.clone()
+            .into_string()
+            .map_err(|t| script_error(format!("expected a string, got {t}")))
+    };
+    let array = || {
+        d.read_lock::<Array>()
+            .map(|a| a.clone())
+            .ok_or_else(|| script_error(format!("expected an array, got {}", d.type_name())))
+    };
+    Ok(match kind {
+        OptionKind::Boolean => OptionValue::Bool(bool_arg(Some(d), false)?),
+        OptionKind::String | OptionKind::Text | OptionKind::Font => OptionValue::Text(text()?),
+        OptionKind::Color => OptionValue::Text(text()?.trim_start_matches('#').to_owned()),
+        OptionKind::Internal => match d.as_bool() {
+            Ok(b) => OptionValue::Bool(b),
+            Err(_) => OptionValue::Text(text()?),
+        },
+        OptionKind::Multichoice { .. } => OptionValue::Key(choice_key(d)?),
+        OptionKind::List { .. } => OptionValue::Keys(array()?.iter().map(choice_key).collect::<Fallible<_>>()?),
+        OptionKind::NumberRange { .. } => OptionValue::Number(rational_arg(d)?),
+        OptionKind::PlotSize => OptionValue::PlotSize(plot_size(d)?),
+        OptionKind::Date { .. } => OptionValue::Date(date_value(d)?),
+        OptionKind::AccountList { .. } => OptionValue::Accounts(array()?.iter().map(|a| account_arg(book, a)).collect::<Fallible<_>>()?),
+        OptionKind::AccountSel { .. } if d.is_unit() => OptionValue::Account(None),
+        OptionKind::AccountSel { .. } => OptionValue::Account(Some(account_arg(book, d)?)),
+        OptionKind::Currency | OptionKind::Commodity => OptionValue::Commodity(commodity_arg(book, d)?),
+        OptionKind::Budget => OptionValue::Budget(budget_value(d)?),
+    })
 }
 
 /// The callback of a complex boolean or multichoice-callback option: a function or `()`. GnuCash runs it from the

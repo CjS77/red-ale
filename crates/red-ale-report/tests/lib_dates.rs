@@ -254,3 +254,71 @@ fn a_day_step_keeps_the_local_time_across_daylight_saving() {
     );
     check(&got, &["2024-03-09 10:59:00 82800", "2024-11-03 10:59:00 90000"]);
 }
+
+/// gnc:date-to-week (DU:253-254) is the floor of the week fraction, before and after the epoch and on a week's
+/// boundary; gnc:date-get-week (DU:123-125) counts from the start of the local day. At 2024-03-15 that is week 2827,
+/// whose fourth day is Sunday 10 March and tenth Saturday 16 March: gnc:date-get-week-year-string (DU:169-173).
+#[test]
+fn weeks_and_their_labels() {
+    let got = run(
+        &Host::new(empty_book()),
+        r#"
+        let times = [ctx.now, 0, 2 * 86400, 2 * 86400 - 1, 2 * 86400 - 604800, 2 * 86400 - 604800 - 1, -10000000];
+        print(`${times.map(|x| dates::date_to_week(ctx, x))}`);
+        print(`${times.map(|x| dates::date_to_week_fraction(ctx, x).round_to(1, "floor").to_string())}`);
+        print(`${dates::date_get_week(ctx, ctx.now)} ${dates::date_get_week_year_string(ctx, ctx.now)}`);
+        print(`${dates::date_get_week_year_string(ctx, t.call(2024, 3, 17))}`);
+    "#,
+    );
+    check(
+        &got,
+        &[
+            "[2827, -1, 0, -1, -1, -2, -17]",
+            r#"["2827", "-1", "0", "-1", "-1", "-2", "-17"]"#,
+            "2827 03/10/24 to 03/16/24",
+            "03/17/24 to 03/23/24",
+        ],
+    );
+}
+
+/// gnc:date-year-delta (DU:201-217), exact: 15 January 2023 (day 15) to 15 March 2024 (day 75 of a leap year) is
+/// 1 + 60/366; a non-leap year's days from 28 February (day 59) on count one more, so 1 March to 1 March is a year.
+#[test]
+fn year_deltas_count_days_as_366ths() {
+    let got = run(
+        &Host::new(empty_book()),
+        r"
+        let d = |a, b| dates::date_year_delta(ctx, a, b);
+        print(`${d.call(t.call(2023, 1, 15), t.call(2024, 3, 15))} ${d.call(t.call(2024, 3, 15), t.call(2023, 1, 15))}`);
+        print(`${d.call(t.call(2023, 3, 1), t.call(2024, 3, 1))} ${d.call(t.call(2023, 2, 27), t.call(2023, 2, 28))}`);
+        print(`${d.call(t.call(2024, 2, 28), t.call(2024, 2, 29))} ${d.call(t.call(2024, 5, 5), t.call(2024, 5, 5))}`);
+    ",
+    );
+    check(&got, &["71/61 -71/61", "1 1/183", "1/366 0"]);
+}
+
+/// time64CanonicalDayTime (`5.17:libgnucash/engine/gnc-date.cpp:404-410`) is local noon: in UTC+14, 2024-03-15
+/// 12:00 UTC is 02:00 on 16 March, whose noon is 22:00 UTC on the 15th.
+#[test]
+fn the_canonical_day_time_is_local_noon() {
+    let mut host = Host::new(empty_book());
+    host.zone = TimeZone::fixed(14 * 3600).unwrap();
+    let got = run(
+        &host,
+        "print(`${iso.call(dates::time64_canonical_day_time(ctx, ctx.now))} ${dates::time64_canonical_day_time(ctx, ctx.now)}`);",
+    );
+    check(&got, &["2024-03-16 12:00:00 1710540000"]);
+}
+
+/// `ctx.print_month_year` and `ctx.print_year` print `%B %Y` and `%Y` (DU:151-152, :166-167) with the Locale's month
+/// names.
+#[test]
+fn month_and_year_labels_use_the_locale() {
+    let script = "print(`${ctx.print_month_year(ctx.now)}|${ctx.print_year(ctx.now)}|${ctx.print_month_year(t.call(1999, 12, 31))}`);";
+    let mut host = Host::new(empty_book());
+    let c = run(&host, script);
+    host.locale = red_ale_locale::Locale::by_name("fr_FR").unwrap();
+    let fr = run(&host, script);
+    check(&c, &["March 2024|2024|December 1999"]);
+    check(&fr, &["mars 2024|2024|décembre 1999"]);
+}
