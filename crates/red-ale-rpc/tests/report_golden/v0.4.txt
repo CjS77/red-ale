@@ -1,88 +1,110 @@
 average-balance us Budget Balance Sheet	3714 9fc28f9c25d105a2
+average-balance us Budget Flow	3687 212a516ba20bfd5f
 average-balance us Budget Income Statement	3723 b5127c704ba05435
 average-balance us Budget Profit & Loss	3726 24424af65b09a1cf
 average-balance us Budget Report	3693 f3d44b6ecd7a468d
 average-balance locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+average-balance locale Budget Flow	3687 212a516ba20bfd5f
 average-balance locale Budget Income Statement	3723 b5127c704ba05435
 average-balance locale Budget Profit & Loss	3726 24424af65b09a1cf
 average-balance locale Budget Report	3693 f3d44b6ecd7a468d
 balsheet-pnl us Budget Balance Sheet	3714 9fc28f9c25d105a2
+balsheet-pnl us Budget Flow	3687 212a516ba20bfd5f
 balsheet-pnl us Budget Income Statement	3723 b5127c704ba05435
 balsheet-pnl us Budget Profit & Loss	3726 24424af65b09a1cf
 balsheet-pnl us Budget Report	3693 f3d44b6ecd7a468d
 balsheet-pnl locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+balsheet-pnl locale Budget Flow	3687 212a516ba20bfd5f
 balsheet-pnl locale Budget Income Statement	3723 b5127c704ba05435
 balsheet-pnl locale Budget Profit & Loss	3726 24424af65b09a1cf
 balsheet-pnl locale Budget Report	3693 f3d44b6ecd7a468d
 budget us Budget Balance Sheet	8701 7e011d1c5cd8b1c7
+budget us Budget Flow	8563 2e6ce515e245cea7
 budget us Budget Income Statement	5442 cf5b95c97a3f9b5b
 budget us Budget Profit & Loss	5444 849ee754e2a9332f
 budget us Budget Report	9450 876dde20debafb2f
 budget locale Budget Balance Sheet	8701 7e011d1c5cd8b1c7
+budget locale Budget Flow	8559 236cb7ae03f4d263
 budget locale Budget Income Statement	5442 cf5b95c97a3f9b5b
 budget locale Budget Profit & Loss	5444 849ee754e2a9332f
 budget locale Budget Report	9438 64bfe45928648377
 category-average us Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-average us Budget Flow	3687 212a516ba20bfd5f
 category-average us Budget Income Statement	3723 b5127c704ba05435
 category-average us Budget Profit & Loss	3726 24424af65b09a1cf
 category-average us Budget Report	3693 f3d44b6ecd7a468d
 category-average locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-average locale Budget Flow	3687 212a516ba20bfd5f
 category-average locale Budget Income Statement	3723 b5127c704ba05435
 category-average locale Budget Profit & Loss	3726 24424af65b09a1cf
 category-average locale Budget Report	3693 f3d44b6ecd7a468d
 category-daily us Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-daily us Budget Flow	3687 212a516ba20bfd5f
 category-daily us Budget Income Statement	3723 b5127c704ba05435
 category-daily us Budget Profit & Loss	3726 24424af65b09a1cf
 category-daily us Budget Report	3693 f3d44b6ecd7a468d
 category-daily locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-daily locale Budget Flow	3687 212a516ba20bfd5f
 category-daily locale Budget Income Statement	3723 b5127c704ba05435
 category-daily locale Budget Profit & Loss	3726 24424af65b09a1cf
 category-daily locale Budget Report	3693 f3d44b6ecd7a468d
 category-liability us Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-liability us Budget Flow	3687 212a516ba20bfd5f
 category-liability us Budget Income Statement	3723 b5127c704ba05435
 category-liability us Budget Profit & Loss	3726 24424af65b09a1cf
 category-liability us Budget Report	3693 f3d44b6ecd7a468d
 category-liability locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-liability locale Budget Flow	3687 212a516ba20bfd5f
 category-liability locale Budget Income Statement	3723 b5127c704ba05435
 category-liability locale Budget Profit & Loss	3726 24424af65b09a1cf
 category-liability locale Budget Report	3693 f3d44b6ecd7a468d
 category-multi us Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-multi us Budget Flow	3687 212a516ba20bfd5f
 category-multi us Budget Income Statement	3723 b5127c704ba05435
 category-multi us Budget Profit & Loss	3726 24424af65b09a1cf
 category-multi us Budget Report	3693 f3d44b6ecd7a468d
 category-multi locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+category-multi locale Budget Flow	3687 212a516ba20bfd5f
 category-multi locale Budget Income Statement	3723 b5127c704ba05435
 category-multi locale Budget Profit & Loss	3726 24424af65b09a1cf
 category-multi locale Budget Report	3693 f3d44b6ecd7a468d
 charts-daily us Budget Balance Sheet	3714 9fc28f9c25d105a2
+charts-daily us Budget Flow	3687 212a516ba20bfd5f
 charts-daily us Budget Income Statement	3723 b5127c704ba05435
 charts-daily us Budget Profit & Loss	3726 24424af65b09a1cf
 charts-daily us Budget Report	3693 f3d44b6ecd7a468d
 charts-daily locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+charts-daily locale Budget Flow	3687 212a516ba20bfd5f
 charts-daily locale Budget Income Statement	3723 b5127c704ba05435
 charts-daily locale Budget Profit & Loss	3726 24424af65b09a1cf
 charts-daily locale Budget Report	3693 f3d44b6ecd7a468d
 charts-net us Budget Balance Sheet	3714 9fc28f9c25d105a2
+charts-net us Budget Flow	3687 212a516ba20bfd5f
 charts-net us Budget Income Statement	3723 b5127c704ba05435
 charts-net us Budget Profit & Loss	3726 24424af65b09a1cf
 charts-net us Budget Report	3693 f3d44b6ecd7a468d
 charts-net locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+charts-net locale Budget Flow	3687 212a516ba20bfd5f
 charts-net locale Budget Income Statement	3723 b5127c704ba05435
 charts-net locale Budget Profit & Loss	3726 24424af65b09a1cf
 charts-net locale Budget Report	3693 f3d44b6ecd7a468d
 net-days us Budget Balance Sheet	3714 9fc28f9c25d105a2
+net-days us Budget Flow	3687 212a516ba20bfd5f
 net-days us Budget Income Statement	3723 b5127c704ba05435
 net-days us Budget Profit & Loss	3726 24424af65b09a1cf
 net-days us Budget Report	3693 f3d44b6ecd7a468d
 net-days locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+net-days locale Budget Flow	3687 212a516ba20bfd5f
 net-days locale Budget Income Statement	3723 b5127c704ba05435
 net-days locale Budget Profit & Loss	3726 24424af65b09a1cf
 net-days locale Budget Report	3693 f3d44b6ecd7a468d
 test-data us Budget Balance Sheet	3714 9fc28f9c25d105a2
+test-data us Budget Flow	3687 212a516ba20bfd5f
 test-data us Budget Income Statement	3723 b5127c704ba05435
 test-data us Budget Profit & Loss	3726 24424af65b09a1cf
 test-data us Budget Report	3693 f3d44b6ecd7a468d
 test-data locale Budget Balance Sheet	3714 9fc28f9c25d105a2
+test-data locale Budget Flow	3687 212a516ba20bfd5f
 test-data locale Budget Income Statement	3723 b5127c704ba05435
 test-data locale Budget Profit & Loss	3726 24424af65b09a1cf
 test-data locale Budget Report	3693 f3d44b6ecd7a468d
