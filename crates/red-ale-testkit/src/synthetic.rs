@@ -8,6 +8,7 @@
 //! Transactions are written in GnuCash's order (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1166-1176`):
 //! accounts depth first, each account's splits by date, each transaction where it is first met.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use red_ale_core::currencies::iso_currency;
@@ -35,6 +36,14 @@ const TOP_LEVEL: [(&str, AccountType); 5] = [
 pub fn synthetic_book_text(transactions: usize) -> String {
     let book = synthetic_book(transactions);
     red_ale_xml::write_book_text(&book, &red_ale_xml::XmlResidue::new_book(&book, false))
+}
+
+/// Write a synthetic book of `transactions` transactions as a new SQLite book at `path`, with red-ale's own SQLite
+/// writer ([`crate::sqlite::write_book`]). The Book is the one [`synthetic_book_text`] writes, with the ISO-dates
+/// Book feature an SQLite book carries.
+pub fn write_synthetic_sqlite(transactions: usize, path: &Path) {
+    let mut env = FixedEnv::new(Time64(FIRST_POSTED), 0x5f_u128 << 120);
+    crate::sqlite::write_book(&synthetic_book(transactions), path, &mut env);
 }
 
 /// A synthetic book of `transactions` transactions, with [`ACCOUNTS`] accounts. The same size always gives the same

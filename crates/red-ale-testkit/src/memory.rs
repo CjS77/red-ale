@@ -3,10 +3,16 @@
 //! The figures are heap bytes as a counting global allocator sees them, so they are the same on every run and every
 //! machine. The binary that measures declares the allocator (this crate forbids the `unsafe` one needs) and hands it
 //! in as a [`HeapCounter`]. See `design/milestone3.md`, "Memory and scale".
+//!
+//! The book may be XML or SQLite. For an SQLite book the counter sees only red-ale's heap: SQLite allocates its page
+//! cache and statements with the C allocator, which a process's peak resident set includes.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde_json::json;
+
+use crate::sqlite::{ChangedRows, changed_rows, is_sqlite};
 
 use crate::{TempBook, call, dispatcher};
 
@@ -23,7 +29,7 @@ pub trait HeapCounter {
 /// Heap used by an open session, in bytes, above what was allocated before `book.open`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Measurement {
-    /// Size of the book's plain (uncompressed) file.
+    /// Size of the book's file: plain (uncompressed) XML, or the SQLite database.
     pub file: usize,
     /// The most held at once while `book.open` ran.
     pub peak_open: usize,
@@ -50,7 +56,7 @@ pub fn measure(path: &Path, heap: &dyn HeapCounter) -> Measurement {
     let book = TempBook::new_path();
     std::fs::copy(path, &book.path).unwrap_or_else(|e| panic!("copying {}: {e}", path.display()));
     let file = usize::try_from(std::fs::metadata(&book.path).map_or(0, |m| m.len())).unwrap_or(usize::MAX);
-    warm_up();
+    warm_up(is_sqlite(path));
     let mut d = dispatcher();
     let base = heap.current();
     let peak_open = step(heap, base, || call(&mut d, "book.open", &json!({ "path": book.path_str() })));
@@ -71,6 +77,14 @@ pub fn measure(path: &Path, heap: &dyn HeapCounter) -> Measurement {
 
 /// Heap held by the Book alone, read from the file at `path` with its Residue dropped.
 pub fn book_alone(path: &Path, heap: &dyn HeapCounter) -> usize {
+    if is_sqlite(path) {
+        let base = heap.current();
+        let (book, opened, _) = red_ale_sql::open_read_only(path).expect("the book reads");
+        drop(opened);
+        let held = heap.current().saturating_sub(base);
+        drop(book);
+        return held;
+    }
     let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("reading {}: {e}", path.display()));
     let base = heap.current();
     let (book, residue) = red_ale_xml::read_book(&bytes).expect("the book reads");
@@ -80,6 +94,23 @@ pub fn book_alone(path: &Path, heap: &dyn HeapCounter) -> usize {
     held
 }
 
+/// Open a copy of the SQLite book at `path`, post one transaction, save and close. Returns the posted transaction's
+/// GUID and the rows that save changed, by table, as [`changed_rows`] finds them against the copy as it was before
+/// the open.
+pub fn one_transaction_save(path: &Path) -> (String, BTreeMap<String, ChangedRows>) {
+    let book = TempBook::new_path();
+    let before = book.dir.path().join("before.gnucash");
+    [&book.path, &before].iter().for_each(|to| {
+        std::fs::copy(path, to).unwrap_or_else(|e| panic!("copying {}: {e}", path.display()));
+    });
+    let mut d = dispatcher();
+    call(&mut d, "book.open", &json!({ "path": book.path_str() }));
+    let posted = call(&mut d, "transaction.post", &posting())["guid"].as_str().map(str::to_owned).unwrap_or_default();
+    call(&mut d, "book.save", &json!({}));
+    call(&mut d, "book.close", &json!({ "save": false }));
+    (posted, changed_rows(&before, &book.path))
+}
+
 /// Run `f` and return the peak it reached above `base`.
 fn step<T>(heap: &dyn HeapCounter, base: usize, f: impl FnOnce() -> T) -> usize {
     heap.reset_peak();
@@ -87,11 +118,15 @@ fn step<T>(heap: &dyn HeapCounter, base: usize, f: impl FnOnce() -> T) -> usize 
     heap.peak().saturating_sub(base)
 }
 
-/// Open, post to and save a small book first, so allocations made once per process (tables, lazily built schemas)
-/// are not counted against the book being measured.
-fn warm_up() {
+/// Open, post to and save a small book of the same format first, so allocations made once per process (tables,
+/// lazily built schemas) are not counted against the book being measured.
+fn warm_up(sqlite: bool) {
     let book = TempBook::new_path();
-    std::fs::write(&book.path, crate::synthetic::synthetic_book_text(10)).expect("writing the warm-up book");
+    if sqlite {
+        crate::synthetic::write_synthetic_sqlite(10, &book.path);
+    } else {
+        std::fs::write(&book.path, crate::synthetic::synthetic_book_text(10)).expect("writing the warm-up book");
+    }
     let mut d = dispatcher();
     call(&mut d, "book.open", &json!({ "path": book.path_str() }));
     call(&mut d, "transaction.post", &posting());
