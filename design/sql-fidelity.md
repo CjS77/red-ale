@@ -710,9 +710,17 @@ As [`testing.md`](testing.md) sets out, on copies in temporary directories, neve
   once per session, and is deleted by retention like an XML backup.
 - **Creating.** A created book's `sqlite_master`, `versions` and root account rows equal those of a book the oracle
   creates in the test, its pragmas are GnuCash's, and GnuCash 5.17 opens it with nothing logged and no row changed.
-- **Scale.** The 100,000-transaction book as SQLite within [`milestone3.md`](milestone3.md)'s memory budgets, and a
-  one-transaction save of it writing only that transaction's rows. (Not yet written; a save writing only the changed
-  row is tested on the fixtures.)
+- **Scale.** The 100,000-transaction synthetic book as SQLite, written by red-ale's own writer
+  (`red_ale_testkit::synthetic::write_synthetic_sqlite`: a book created from its root, then the whole Book saved into
+  it), within [`milestone3.md`](milestone3.md)'s memory budgets: 173.6 MB at rest, 210.3 MB at the peak of the open,
+  178.6 MB at post and at save, 243.6 MB peak resident set (`red-ale-testkit/examples/memory.rs`; the figures in
+  [`milestone4.md`](milestone4.md), "Done when"). A save after one `transaction.post` writes only that transaction's
+  rows: its `transactions` row, its two `splits` rows and its `date-posted` slot row, and SQLite's own `sqlite_sequence`
+  row for `slots`, whose `id` is `AUTOINCREMENT`; nothing is deleted. The rows are compared with SQLite's `EXCEPT`
+  against a copy of the file from before the open (`red_ale_testkit::sqlite::changed_rows`), on the 100,000-transaction
+  book by the example (`rows`) and on the 5,000-transaction one by `red-ale-testkit/tests/sqlite_save_rows.rs`.
+  `red-ale-testkit/tests/memory_budget_sqlite.rs` holds the budgets on the 5,000-transaction book as SQLite, as
+  `memory_budget.rs` does for XML.
 - **Fuzzing.** An SQLite file is outside input. `sql_rows` feeds arbitrary cells (NULL, INTEGER, REAL, TEXT, BLOB)
   to every table's row decoder, the decoded slot rows to the Frame builder and arbitrary `versions` rows to the
   version check; `sql_file` opens the fuzzer's bytes read-only as a book, seeded with copies of the SQLite fixtures.
