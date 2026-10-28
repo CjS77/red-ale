@@ -42,6 +42,22 @@ impl Fixture {
         Self { dir, d }
     }
 
+    /// GnuCash's SQLite copy of `fixtures/reports/<name>.gnucash` (`fixtures/sqlite/reports/`), read-only, with
+    /// `reports.dateFormat` set to `date_format`.
+    pub fn open_sqlite(name: &str, date_format: &str) -> Self {
+        let (dir, mut d) = configured(date_format, "none");
+        let book = dir.path().join("book.gnucash");
+        std::fs::copy(
+            format!("{}/../../fixtures/sqlite/reports/{name}.gnucash", env!("CARGO_MANIFEST_DIR")),
+            &book,
+        )
+        .unwrap();
+        let params = json!({ "path": book.display().to_string(), "readOnly": true });
+        d.call("book.open", params)
+            .unwrap_or_else(|e| panic!("book.open: {e} {:?}", e.data));
+        Self { dir, d }
+    }
+
     /// A new, empty book created by `book.create`, with `reports.dateFormat` set to `date_format`.
     pub fn create(date_format: &str) -> Self {
         let (dir, mut d) = configured(date_format, "none");

@@ -696,3 +696,191 @@ fn the_reconcile_book_reads_the_same_on_sqlite() {
     assert_eq!(xml, ["y trn7 -$8.00", "c trn3 $29.00", "n trn1 -$5.00", "n trn6 -$11.00", "n trn4 -$15.00"]);
     assert_eq!(sql, xml);
 }
+
+// The second half: `trep_renderer`, the document. The Transaction Report's own tests (red-ale-rpc's
+// `report_transaction.rs`) check every table assertion of TT; these check what that report cannot reach: the CSV
+// rows and export errors (the report declares no export), the renderer's hooks and the Sign Reverses choices against
+// a global preference.
+
+/// A template whose render is `trep_renderer` with `HOOKS`, offering a CSV export as the GST Statement does.
+const RENDERER: &str = r#"
+fn templates() { [#{ guid: "GUID", name: "Test", exportTypes: ["csv"] }] }
+fn options(params, o, book) {
+    import "lib/trep-engine" as trep;
+    trep::trep_options_generator(o, book);
+}
+fn render(params, book, opts, ctx) {
+    import "lib/trep-engine" as trep;
+    trep::trep_renderer(book, opts, ctx, HOOKS)
+}
+"#;
+
+/// `trep_renderer`'s result on `host` with `hooks` and `options`, for the export `export` or none, as JSON.
+fn render_on(host: &Host, hooks: &str, options: &Value, export: Option<&str>) -> Value {
+    let script = RENDERER.replace("\"GUID\"", &format!("\"{GUID}\"")).replace("HOOKS", hooks);
+    let reg = registry_with(Library::builtin(), &[("test.rhai", &script)], Limits::default());
+    assert!(reg.problems().is_empty(), "{:?}", reg.problems());
+    let mut ctx = host.ctx();
+    ctx.export = export;
+    let t = reg.find(GUID).unwrap();
+    let result = reg.run(t, &[options], None, &ctx).unwrap_or_else(|e| panic!("{e:?}"));
+    serde_json::to_value(result).unwrap()
+}
+
+/// The only table of a result.
+fn the_table(result: &Value) -> Value {
+    let blocks = result["sections"][0]["blocks"].as_array().unwrap();
+    let tables: Vec<&Value> = blocks.iter().filter(|b| b["kind"] == "table").collect();
+    assert_eq!(tables.len(), 1, "{result:#}");
+    tables[0].clone()
+}
+
+/// A table's column headings and each row's cells as they show: display or text, anchor texts joined by `,`,
+/// `-` for an empty cell.
+fn shown(table: &Value) -> Vec<String> {
+    let cell = |c: &Value| match c {
+        Value::Null => "-".to_owned(),
+        c if c["anchors"].is_array() => {
+            let anchors = c["anchors"].as_array().unwrap();
+            anchors.iter().map(|a| a["text"].as_str().unwrap()).collect::<Vec<_>>().join(",")
+        }
+        c => c["display"].as_str().or_else(|| c["text"].as_str()).unwrap().to_owned(),
+    };
+    let head = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect::<Vec<_>>().join("|");
+    let row = |r: &Value| r["cells"].as_array().unwrap().iter().map(cell).collect::<Vec<_>>().join("|");
+    let rows = table["rows"].as_array().unwrap().iter().map(row);
+    std::iter::once(head).chain(rows).collect()
+}
+
+/// TT:1025-1050: the CSV of the grand totals, in GBP converted at the 2000 prices and in the original USD: the
+/// dates in ISO form, each amount as a double prints, no export error. GnuCash's `lists->csv` cases (TT:1055-1069)
+/// are `render::csv`'s own tests.
+#[test]
+fn csv_rows_are_the_grand_totals() {
+    let run = expected_run("csv-export");
+    let result = render_on(host(), "#{}", &options_of(run, &expected()["accounts"]), Some("csv"));
+    let checks = run["checks"].as_array().unwrap();
+    assert!(result.get("exportError").is_none(), "{}", checks[0]["name"]);
+    let rows: red_ale_report::result::ExportRows = serde_json::from_value(result["export"].clone()).unwrap();
+    assert_eq!(red_ale_report::render::csv(&rows), checks[1]["expected"].as_str().unwrap(), "{}", checks[1]["name"]);
+    assert_eq!(checks.len(), 2);
+}
+
+/// GnuCash's export errors (TE:2524, :2605, :2641), set only for an export: no account, no split, two amount
+/// columns. A run that is not for an export carries neither rows nor an error.
+#[test]
+fn csv_export_errors() {
+    let error = |options: &Value| render_on(host(), "#{}", options, Some("csv"))["exportError"].clone();
+    assert_eq!(error(&json!({})), "No accounts, or regexp error");
+    let bank = bank_1969_1970(&json!({}));
+    assert_eq!(error(&bank), "CSV disabled for double column amounts");
+    assert_eq!(error(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))), "No splits found");
+    let single = bank_1969_1970(&json!({ "Display": { "Amount": "single" } }));
+    let rows = render_on(host(), "#{}", &single, Some("csv"))["export"].clone();
+    assert_eq!(rows, json!([["from", "1969-01-01"], ["to", "1970-12-31"], ["Amount", { "num": "1", "denom": "1" }]]));
+    let plain = render_on(host(), "#{}", &single, None);
+    assert!(plain.get("export").is_none() && plain.get("exportError").is_none(), "{plain:#}");
+}
+
+/// `#:custom-calculated-cells` (TE:1557-1573): cells as maps with closures replace the defaults, here the
+/// Reconciliation Report's Funds In and Out (RR:69-98), whose subtotal rows do not merge (no start-dual column);
+/// the legacy vectors (TE:1014-1026) are upgraded; a cell lacking a key falls back to the defaults, logged.
+#[test]
+fn custom_calculated_cells() {
+    let funds = r#"#{ custom_calculated_cells: |options| [
+        trep::calc_cell("Funds In", |s, tr| if s.amount > 0 { monetary(s.account.commodity, s.amount) }, false, true, false, (), true),
+        trep::calc_cell("Funds Out", |s, tr| if s.amount > 0 { () } else { monetary(s.account.commodity, -s.amount) },
+                        false, true, false, (), false),
+    ] }"#;
+    let options = bank_1969_1970(&json!({ "Sorting": { "Primary Subtotal": false }, "Display": { "Grand Total": true } }));
+    let table = the_table(&render_on(host(), funds, &options, None));
+    let rows = shown(&table);
+    assert_eq!(rows[0], "Date|Num|Description|Memo/Notes|Transfer from/to|Funds In|Funds Out");
+    assert_eq!(rows[1], "12/31/69|trn3|desc-3|-|Income|$29.00|-");
+    assert_eq!(rows.last().unwrap(), "Grand Total|$29.00|$28.00");
+    let legacy = r#"#{ custom_calculated_cells: |options|
+        [["Value", |s| monetary(s.account.commodity, s.value), true, true, false, ()]] }"#;
+    let rows = shown(&the_table(&render_on(host(), legacy, &options, None)));
+    assert_eq!(
+        (rows[0].as_str(), rows.last().unwrap().as_str()),
+        ("Date|Num|Description|Memo/Notes|Transfer from/to|Value", "Grand Total|$1.00")
+    );
+    let broken = r#"#{ custom_calculated_cells: |options| [#{ heading: "Broken" }] }"#;
+    let result = render_on(host(), broken, &options, None);
+    assert_eq!(shown(&the_table(&result))[0], "Date|Num|Description|Memo/Notes|Transfer from/to|Debit|Credit");
+    assert!(result["log"][0]["text"].as_str().unwrap().starts_with("field calc_fn missing in cell"), "{:#}", result["log"]);
+}
+
+/// Sign Reverses (TE:1072-1080, :2345) with the global preference reversing credit accounts: "global" and "none"
+/// both follow it, since GnuCash turns "none" into #t, which `sign-reverse-list` lacks; "income-expense" reverses
+/// Income and Expenses. Income's -$29 of trn3 and Liabilities' $8 of trn7, single column.
+#[test]
+fn sign_reverses_none_reads_the_global_preference() {
+    let accounts = ["trep:Root.Income", "trep:Root.Liabilities"].map(account);
+    let amounts = |choice: &str| {
+        let options = bank_1969_1970(&json!({
+            "Accounts": { "Accounts": accounts }, "Display": { "Amount": "single", "Sign Reverses": choice },
+            "Filter": { "Transaction Filter": "desc-[37]", "Use regular expressions for transaction filter": true },
+        }));
+        let rows = shown(&the_table(&render_on(host(), "#{}", &options, None)));
+        rows.iter().filter(|r| r.contains("desc-")).map(|r| r.rsplit('|').next().unwrap().to_owned()).collect::<Vec<_>>()
+    };
+    assert_eq!(amounts("global"), ["$29.00", "-$8.00"]);
+    assert_eq!(amounts("none"), ["$29.00", "-$8.00"]);
+    assert_eq!(amounts("income-expense"), ["$29.00", "$8.00"]);
+    assert_eq!(amounts("credit-accounts"), ["$29.00", "-$8.00"]);
+}
+
+/// `#:empty-report-message` (TE:2526-2531) follows the warnings before the query, not "No matching transactions".
+#[test]
+fn the_empty_report_message_follows_the_no_account_warning() {
+    let hooks = r#"#{ empty_report_message: "Please select the account from Report Options." }"#;
+    let kinds = |options: &Value| {
+        let result = render_on(host(), hooks, options, None);
+        assert_eq!(result["title"], "Test");
+        result["sections"][0]["blocks"].as_array().unwrap().iter().map(|b| b["kind"].as_str().unwrap().to_owned()).collect::<Vec<_>>()
+    };
+    assert_eq!(kinds(&json!({})), ["warning", "text"]);
+    let bad_regex =
+        bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "(", "Use regular expressions for transaction filter": true } }));
+    assert_eq!(kinds(&bad_regex), ["warning", "text"]);
+    assert_eq!(kinds(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))), ["warning"]);
+    assert_eq!(kinds(&bank_1969_1970(&json!({}))), ["text", "table"]);
+}
+
+/// The tables of a result, as `shown` shows each.
+fn tables_shown(result: &Value) -> Vec<Vec<String>> {
+    let blocks = result["sections"][0]["blocks"].as_array().unwrap();
+    blocks.iter().filter(|b| b["kind"] == "table").map(shown).collect()
+}
+
+/// The Subtotal Table (TE:2065-2178) where TT:933-1003 do not reach it, on Bank and Expenses in 1969-1970 (Bank
+/// +$29 in December 1969, -$5 in January 1970, -$23 in February; Expenses +$16 in January, +$15 in February): with
+/// no secondary key, only the total column and no average; with one column, no average either; two amount columns
+/// net debit less credit; only subtotals shown leaves the main table out (TE:2623-2625).
+#[test]
+fn the_subtotal_table_shapes() {
+    let accounts = ["trep:Root.Asset.Bank", "trep:Root.Expenses"].map(account);
+    let with = |more: &Value| {
+        let mut o = bank_1969_1970(&json!({ "Accounts": { "Accounts": accounts }, "Display": { "Subtotal Table": true } }));
+        merge(&mut o, more);
+        tables_shown(&render_on(host(), "#{}", &o, None))
+    };
+    let single = json!({ "Display": { "Amount": "single" } });
+    let t = with(&single);
+    assert_eq!(t.len(), 2);
+    assert_eq!(t[0], ["|Total", "Bank|$1.00", "Expenses|$31.00", "Total|$32.00"]);
+    let mut february = json!({ "General": { "Start Date": { "absolute": "1970-02-01" } },
+                               "Sorting": { "Secondary Key": "date", "Secondary Subtotal for Date Key": "monthly" } });
+    merge(&mut february, &single);
+    assert_eq!(with(&february)[0], ["|February 1970|Total", "Bank|-$23.00|-$23.00", "Expenses|$15.00|$15.00",
+                                    "Total|-$8.00|-$8.00"]);
+    let double = json!({ "Sorting": { "Secondary Key": "date", "Secondary Subtotal for Date Key": "quarterly" } });
+    assert_eq!(with(&double)[0], ["|Q4 1969|Q1 1970|Total|Average", "Bank|$29.00|-$28.00|$1.00|$0.50",
+                                  "Expenses|-|$31.00|$31.00|$15.50", "Total|$29.00|$3.00|$32.00|$16.00"]);
+    let only = json!({ "Sorting": { "Show subtotals only (hide transactional data)": true } });
+    assert_eq!(with(&only).len(), 1);
+    // The table needs an amount column, and reads the Primary Subtotal option itself (TE:2281-2287).
+    assert_eq!(with(&json!({ "Display": { "Amount": "none" } })).len(), 1);
+    assert_eq!(with(&json!({ "Sorting": { "Primary Subtotal": false } })).len(), 1);
+}

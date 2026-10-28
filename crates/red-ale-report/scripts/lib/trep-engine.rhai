@@ -44,17 +44,23 @@
 // This translation is part of red-ale and is distributed under the GNU General Public License, version 3 or (at your
 // option) any later version (GPL-3.0-or-later); see LICENSE.
 //
-// This half holds the options generator (TE:521-1012) and the renderer up to the sorted, filtered splits
+// The first half holds the options generator (TE:521-1012) and the renderer up to the sorted, filtered splits
 // (TE:2203-2594): the parameters, the warnings before the query, the query, the split filter and the custom sort.
-// design/notes/report-transaction-engine.md (§2.1-§2.6) walks through them.
+// The second half builds the document from them (TE:1014-2178, :2596-2641): the columns and calculated cells, the
+// rows with their subheadings and subtotals, the Subtotal Table and the CSV rows. design/notes/report-transaction-
+// engine.md (§2) walks through both.
 //
 // GnuCash's keylists (sortkey-list, date-subtotal-list, …) hold lambdas; here they are functions of the key, and the
 // renderer-fn and split-sortvalue a parameter holds is a map naming its key (design/reports.md §12, "Function values
-// are maps"), applied with `apply_renderer_fn` and `apply_split_sortvalue`. Symbols are strings. GnuCash's
+// are maps"), applied with `apply_renderer_fn` and `apply_split_sortvalue`. A calculated cell's calc-fn and
+// friendly-heading-fn are likewise names of the default ones, or a caller's closure. Symbols are strings. GnuCash's
 // `gnc:string-locale<?` compares bytewise here, as every name sort of red-ale does (design/reports.md §14).
 
+import "lib/accounts" as accounts;
+import "lib/collectors" as collectors;
 import "lib/options" as opts_util;
 import "lib/dates" as dates;
+import "lib/exchange" as exchange;
 import "lib/html-utilities" as html_utils;
 
 /// `DATE-SORTING-TYPES` (TE:149-150): the keys sorted and grouped by a date subtotal.
@@ -681,4 +687,658 @@ fn trep_splits(book, opts, ctx, hooks) {
         result.export_error = "No splits found";
     }
     result
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The second half: the table (`make-split-table`, TE:1052-2063) and the document (TE:2596-2641).
+
+/// `ACCOUNT-SORTING-TYPES` (TE:153-155): the keys whose subheadings name an account.
+private fn account_sorting_types() { ["account-name", "corresponding-acc-name", "account-code", "corresponding-acc-code"] }
+
+/// `n` empty cells (`gnc:html-make-empty-cells`).
+private fn nulls(n) {
+    let cells = [];
+    for i in 0..n { cells.push(()); }
+    cells
+}
+
+/// A text cell, `()` for the empty string, which GnuCash's tests read as no text.
+private fn text_cell(s) { if s == "" { () } else { #{ text: s } } }
+
+/// Whether the report converts to a common currency: the parameter is the currency, or false.
+private fn common(p) { type_of(p.common_currency) != "bool" }
+
+/// `account-namestring` (TE:1798-1814): the code and a space when asked and set, then the full name or the name.
+fn account_namestring(account, show_code, show_name, show_full_name) {
+    if account == () { return "Split Transaction"; }
+    let s = "";
+    if show_code && account.code != "" { s += account.code + " "; }
+    if show_name { s += if show_full_name { account.fullName } else { account.name }; }
+    s
+}
+
+/// `gnc-get-num-action` (`5.17:libgnucash/engine/engine-helpers.c:56-76`): the split's action in a book that uses
+/// it for the num field, else the transaction's num; the num for no split.
+fn get_num_action(split_action, trans, split) {
+    if split != () && split_action { split.action } else { trans.num }
+}
+
+/// The amount the amount cells show (TE:1262-1264): a void transaction's former amount.
+private fn split_amount(split) {
+    if split.transaction.isVoid { split.voidFormerAmount } else { split.amount }
+}
+
+/// `split->invoice-anchors` (TE:1036-1049): the invoices of the lots of the transaction's A/P and A/R splits, each
+/// new one put in front, so in reverse order of their splits.
+private fn invoice_anchors(split) {
+    let anchors = [];
+    let seen = [];
+    for s in split.transaction.splits() {
+        if s.account == () || !(s.account.type in ["PAYABLE", "RECEIVABLE"]) || s.lot == () { continue; }
+        let inv = s.lot.invoice;
+        if inv == () || inv.guid in seen { continue; }
+        seen.push(inv.guid);
+        anchors.insert(0, html_utils::invoice_anchor(inv.guid, inv.id));
+    }
+    anchors
+}
+
+/// The left columns (TE:1103-1252), each `[on, heading, kind, role]`.
+private fn left_column_list(p) {
+    [
+        [p.date, "Date", "date", "date"],
+        [p.entered, "Date Entered", "entered", "date"],
+        [p.reconciled_date, "Reconciled Date", "reconciled-date", "date"],
+        [p.num, if p.trans_number { "Num/T-Num" } else { "Num" }, "num", "text"],
+        [p.description, "Description", "description", "text"],
+        [p.memo, if p.notes { "Memo/Notes" } else { "Memo" }, "memo", "text"],
+        [p.invoice, "Invoice", "invoice", "text"],
+        [p.account_name || p.account_code, "Account", "account", "text"],
+        [p.other_account_name || p.other_account_code, "Transfer from/to", "other-account", "text"],
+        [p.shares, "Shares", "shares", "amount"],
+        [p.doclink, "", "doclink", "text"],
+        [p.price, "Price", "price", "amount"],
+    ]
+}
+
+/// The left columns shown, each `#{ heading, kind, role }`; with only subtotals shown, or none chosen but a total or
+/// subheading to label, one empty column instead (TE:1246-1252).
+private fn left_columns(p) {
+    let cols = [];
+    for c in left_column_list(p) { if c[0] { cols.push(#{ heading: c[1], kind: c[2], role: c[3] }); } }
+    if p.subtotals_only || (cols.is_empty()
+        && (p.grand_total || p.primary_key_renderer_fn != () || p.secondary_key_renderer_fn != ())) {
+        return [#{ heading: "", kind: "blank", role: "label" }];
+    }
+    cols
+}
+
+/// A left column's cell for `split` (the renderer-fns of TE:1103-1244); `tr` is whether the row is the
+/// transaction's own, which some show only on.
+private fn left_cell(p, kind, split, tr) {
+    let trans = split.transaction;
+    switch kind {
+        "date" => if tr { #{ date: trans.datePosted } },
+        "entered" => if tr { #{ date: trans.dateEntered } },
+        "reconciled-date" => if split.reconcile == "y" { #{ date: split.reconcileDate ?? 0 } },
+        "num" => if tr {
+            let num = get_num_action(p.split_action, trans, split);
+            let t_num = if p.trans_number { get_num_action(p.split_action, trans, ()) } else { "" };
+            text_cell(if t_num == "" { num } else { `${num}/${t_num}` })
+        },
+        "description" => if tr { text_cell(trans.description) },
+        "memo" => text_cell(if split.memo == "" && p.notes { trans.notes } else { split.memo }),
+        "invoice" => if tr {
+            let anchors = invoice_anchors(split);
+            if !anchors.is_empty() { #{ anchors: anchors } }
+        },
+        "account" => text_cell(account_namestring(split.account, p.account_code, p.account_name, p.account_full_name)),
+        // The other split's account, "Split Transaction" when there is no one other split (TE:1198-1210).
+        "other-account" => if trans.splitCount > 1 {
+            let other = split.otherSplit;
+            text_cell(account_namestring(if other == () { () } else { other.account }, p.other_account_code,
+                                         p.other_account_name, p.other_account_full_name))
+        },
+        // The amount in a number cell, two places (TE:1212-1218).
+        "shares" => #{ number: split.amount },
+        "doclink" => if trans.docLink != "" {
+            if p.links { html_utils::html_doclink_anchor(trans.docLink, #{ text: "L" }) } else { #{ text: "L" } }
+        },
+        "price" => #{ price: split.sharePrice, currency: trans.currency },
+        _ => (),
+    }
+}
+
+/// A calculated cell (TE:1350-1365) with GnuCash's keys; `calc_fn` and `friendly_heading_fn` name default
+/// functions ("converted-amount", "debit", "bal-bf", …) or are a caller's closures; `()` is #f.
+fn calc_cell(heading, calc_fn, reverse, subtotal, start_dual, friendly, merge_dual) {
+    #{ heading: heading, calc_fn: calc_fn, reverse_column: reverse, subtotal: subtotal, start_dual_column: start_dual,
+       friendly_heading_fn: friendly, merge_dual_column: merge_dual }
+}
+
+/// `default-calculated-cells` (TE:1260-1555): the converted columns, then with the original currency amount the
+/// same in each account's commodity. Converted headings name the report currency (`header-commodity`, TE:1270-1277).
+private fn default_calculated_cells(p) {
+    let cells = [];
+    let any_renderer = p.primary_key_renderer_fn != () || p.secondary_key_renderer_fn != ();
+    for original in [false, true] {
+        if original && !p.common_currency_original { break; }
+        let h = if original || !common(p) { "" } else { ` (${p.common_currency.mnemonic})` };
+        let f = if original { "original-" } else { "converted-" };
+        if p.amount_single { cells.push(calc_cell(`Amount${h}`, f + "amount", true, true, false, "", false)); }
+        if p.amount_double {
+            cells.push(calc_cell(`Debit${h}`, f + "debit", false, true, true, "debit", true));
+            cells.push(calc_cell(`Credit${h}`, f + "credit", false, true, false, "credit", false));
+        }
+        if p.running_balance && p.bal_bf {
+            cells.push(calc_cell(`Running Balance${h}`, f + "balance", true, false, false,
+                                 if original { "original-bal-bf" } else { "bal-bf" }, false));
+        } else if p.running_balance {
+            cells.push(calc_cell(`Account Balance${h}`, f + "balance", true, false, false, (), false));
+        }
+        if p.running_sec { cells.push(calc_cell(`Running Secondary Subtotal${h}`, f + "running-sec", false, false, false, "", false)); }
+        if p.running_prime {
+            let name = if p.secondary_key_renderer_fn != () { "Running Primary Subtotal" } else { "Running Subtotal" };
+            cells.push(calc_cell(name + h, f + "running-prime", false, false, false, "", false));
+        }
+        if p.running_grand_total {
+            let name = if any_renderer { "Running Grand Total" } else { "Running Total" };
+            cells.push(calc_cell(name + h, f + "running-total", false, false, false, "", false));
+        }
+    }
+    cells
+}
+
+/// `upgrade-vector-to-assoclist` (TE:1014-1026): a cell of the legacy form `[heading, calc-fn of the split,
+/// reverse?, subtotal?, start-dual?, friendly-heading-fn, merge-dual?]`.
+private fn upgrade_vector(col) {
+    let cell = calc_cell(col[0], col[1], col[2], col[3], col[4], col[5], col.len() >= 7 && col[6]);
+    cell.legacy = true;
+    cell
+}
+
+/// The calculated cells (TE:1557-1573): the caller's `custom_calculated_cells` of the options, or the defaults when
+/// it gives none or a cell lacks a key (logged, as GnuCash's `gnc:error`); with only subtotals shown, the cells that
+/// are subtotalled.
+private fn calculated_cells(p, opts, custom) {
+    let cells = default_calculated_cells(p);
+    if custom != () {
+        let ccc = custom.call(opts);
+        let keys = ["heading", "calc_fn", "reverse_column", "subtotal", "start_dual_column", "friendly_heading_fn",
+                    "merge_dual_column"];
+        if type_of(ccc) != "array" || ccc.is_empty() {
+            print(`welp ${ccc}`);
+        } else if type_of(ccc[0]) == "array" {
+            cells = [];
+            for col in ccc { cells.push(upgrade_vector(col)); }
+        } else {
+            let valid = true;
+            for cell in ccc {
+                for k in keys { if valid && !(k in cell) { print(`field ${k} missing in cell ${cell}`); valid = false; } }
+            }
+            if valid { cells = ccc; }
+        }
+    }
+    if !p.subtotals_only { return cells; }
+    let kept = [];
+    for c in cells { if c.subtotal { kept.push(c); } }
+    kept
+}
+
+/// The table's environment: what `make-split-table` defines once (TE:1054-1100, :1557-1595), and `mem`, a Memo
+/// holding the six running-total collectors by number (0-5: converted and original total, primary, secondary).
+private fn table_env(book, opts, ctx, p, hooks) {
+    let types = ();
+    for e in sign_reverse_list() { if type_of(p.reversed_signs) == "string" && e[0] == p.reversed_signs { types = e[2]; } }
+    let exchange_fn = if !common(p) { () } else {
+        exchange::case_exchange_time_fn(book, ctx, p.common_currency_price_source, p.common_currency,
+                                        accounts::accounts_get_commodities(p.accounts_matched, ()), p.enddate)
+    };
+    let left = left_columns(p);
+    let cells = calculated_cells(p, opts, hook(hooks, "custom_calculated_cells"));
+    let any_subtotal = false;
+    for c in cells { if c.subtotal { any_subtotal = true; } }
+    let primary_indent = if p.indenting && p.primary_key_renderer_fn != () { 1 } else { 0 };
+    let secondary_indent = if p.indenting && p.secondary_key_renderer_fn != () { 1 } else { 0 };
+    #{
+        book: book, ctx: ctx, p: p, types_to_reverse: types, exchange_fn: exchange_fn, left: left, cells: cells,
+        any_subtotal: any_subtotal, primary_indent: primary_indent, indent_level: primary_indent + secondary_indent,
+        width_left: left.len(), mem: memo(),
+        subtotals_only_option: opts.get("Sorting", "Show subtotals only (hide transactional data)"),
+        sec_subtotal_option: opts.get("Sorting", "Secondary Subtotal"),
+    }
+}
+
+/// `acc-reverse?` (TE:1072-1080): whether the amounts of `account` are shown negated. Sign Reverses "none" is #t as
+/// a parameter (TE:2345); `sign-reverse-list` has no entry for #t, and `assq-ref` of #f is #f, so it reads the
+/// global preference, as "global" does.
+private fn acc_reverse(t, account) {
+    if t.types_to_reverse == () { account.reverse_balance(t.ctx) } else { account.type in t.types_to_reverse }
+}
+
+/// `exchange-fn` (TE:1082-1089) of `foreign` into `domestic` at `date`.
+private fn exchange_at(t, foreign, domestic, date) {
+    if t.exchange_fn == () {
+        exchange::exchange_by_pricedb_nearest(t.book, foreign, domestic, date)
+    } else {
+        exchange::apply_exchange_time_fn(t.exchange_fn, foreign, domestic, date)
+    }
+}
+
+/// `row-currency` (TE:1266-1267): the report currency under Common Currency, else the account's commodity.
+private fn row_currency(t, account) {
+    if common(t.p) { t.p.common_currency } else { account.commodity }
+}
+
+/// `add-split-to-collector` (TE:1313-1320): add `m` to running collector `k` and give its total in `m`'s commodity.
+private fn running_add(t, k, m) {
+    let c = t.mem.get(k) ?? [];
+    c.add(m.commodity, m.amount);
+    t.mem.set(k, c);
+    c.getmonetary(m.commodity, false)
+}
+
+/// A cell's calc-fn applied to `split` (TE:1260-1348); `tr` is whether the row is the transaction's own.
+private fn apply_calc_fn(t, cell, split, tr) {
+    let f = cell.calc_fn;
+    if type_of(f) == "Fn" { return if "legacy" in cell { f.call(split) } else { f.call(split, tr) }; }
+    let account = split.account;
+    let date = split.transaction.datePosted;
+    let original = f.starts_with("original-");
+    let amt = split_amount(split);
+    let amount = monetary(account.commodity, amt);
+    if !original { amount = exchange_at(t, amount, row_currency(t, account), date); }
+    let base = if original { 1 } else { 0 };
+    switch f.sub_string(if original { 9 } else { 10 }) {
+        "amount" => amount,
+        "debit" => if amt > 0 { amount },
+        "credit" => if !(amt > 0) { -amount },
+        "balance" => {
+            let bal = monetary(account.commodity, split.balance);
+            if original { bal } else { exchange_at(t, bal, row_currency(t, account), dates::time64_canonical_day_time(t.ctx, date)) }
+        }
+        "running-total" => if tr { running_add(t, base, amount) },
+        "running-prime" => if tr { running_add(t, 2 + base, amount) },
+        "running-sec" => if tr { running_add(t, 4 + base, amount) },
+        _ => throw `unknown calc-fn ${f}`,
+    }
+}
+
+/// `add-split-row` (TE:1868-1901): the row of `split`, or `()` when only subtotals are shown. A cell is negated when
+/// its column reverses and the account does, and links to the split under Enable Links when it is subtotalled or no
+/// cell is.
+private fn split_row(t, split, alternate, tr) {
+    if t.p.subtotals_only { return (); }
+    let cells = nulls(t.indent_level);
+    for c in t.left { cells.push(left_cell(t.p, c.kind, split, tr)); }
+    let reversible = acc_reverse(t, split.account);
+    for c in t.cells {
+        let m = apply_calc_fn(t, c, split, tr);
+        if m == () { cells.push(()); continue; }
+        let cell = #{ monetary: if c.reverse_column && reversible { -m } else { m } };
+        if t.p.links && (c.subtotal || !t.any_subtotal) { cell = html_utils::html_split_anchor(split, cell); }
+        cells.push(cell);
+    }
+    #{ role: "data", alternate: alternate, cells: cells }
+}
+
+/// `render-summary` (TE:1816-1850): the label of `split`'s group at `level` ("primary" or "secondary"): the date
+/// group, the account (with its code and description as the Sorting options ask), or the key's own renderer.
+private fn render_summary(t, split, level) {
+    let p = t.p;
+    let sortkey = if level == "primary" { p.primary_key } else { p.secondary_key };
+    if sortkey in date_sorting_types() {
+        let date_subtotal = if level == "primary" { p.primary_date_subtotal } else { p.secondary_date_subtotal };
+        return date_subtotal_renderer_fn(t.ctx, date_subtotal, split);
+    }
+    if !(sortkey in account_sorting_types()) { return sortkey_renderer_fn(p.split_action, sortkey, split); }
+    let account = sortkey_renderer_fn(p.split_action, sortkey, split);
+    let name = account_namestring(account, p.sort_account_code, true, p.sort_account_full_name);
+    // A split transaction's other account is none, which has no description: GnuCash fails there (TE:1828-1829).
+    let desc = if account == () { "" } else { account.description };
+    if p.sort_account_description && desc != "" { `${name}: ${desc}` } else { name }
+}
+
+/// The label cells of a subheading or subtotal row (TE:1626-1630, :1700-1711): the label across the indent left
+/// over and the left columns, or with Table for Exporting the label then empty cells.
+private fn label_cells(t, label, right_indent) {
+    let n = right_indent + t.width_left;
+    if t.p.export_table { return [#{ text: label }] + nulls(n - 1); }
+    [if n > 1 { #{ text: label, span: n } } else { #{ text: label } }]
+}
+
+/// The cell of a subheading under calculated cell `c` (TE:1632-1664): under a running balance with an account key,
+/// the account's "Balance b/f", brought to the split's day at noon; with informal headers, two amount columns and an
+/// account key, the column's friendly heading for the account.
+private fn subheading_cell(t, c, split, sortkey) {
+    let p = t.p;
+    let f = c.friendly_heading_fn;
+    let acc = split.account;
+    let account_key = sortkey in account_sorting_types();
+    if f == () { return (); }
+    if f == "bal-bf" || f == "original-bal-bf" {
+        if !account_key { return (); }
+        let bal = monetary(acc.commodity, acc.balance_as_of(p.begindate));
+        if f == "bal-bf" {
+            bal = exchange_at(t, bal, row_currency(t, acc), dates::time64_canonical_day_time(t.ctx, split.transaction.datePosted));
+        }
+        return #{ monetary: if acc_reverse(t, acc) { -bal } else { bal } };
+    }
+    if !(p.informal_headers && p.amount_double && sortkey in sortkey_informal_headers()) { return (); }
+    text_cell(switch f { "debit" => acc.debitLabel, "credit" => acc.creditLabel, "" => "", _ => f.call(acc) })
+}
+
+/// `add-subheading` (TE:1597-1665): the heading of the group `split` starts at `level`, or `()` when only subtotals
+/// are shown; "Balance b/f" follows an account's name when a column brings its balance forward.
+private fn subheading(t, label, split, level) {
+    let p = t.p;
+    if p.subtotals_only { return (); }
+    let sortkey = if level == "primary" { p.primary_key } else { p.secondary_key };
+    let bal_bf = false;
+    for c in t.cells { if c.friendly_heading_fn == "bal-bf" { bal_bf = true; } }
+    if bal_bf && sortkey in account_sorting_types() { label += ": Balance b/f"; }
+    let left_indent = if level == "primary" { 0 } else { t.primary_indent };
+    let cells = nulls(left_indent) + label_cells(t, label, t.indent_level - left_indent);
+    for c in t.cells { cells.push(subheading_cell(t, c, split, sortkey)); }
+    #{ role: "heading", cells: cells }
+}
+
+/// `subtotal-label` (TE:1063-1071): "Total For " in front, unless only subtotals are shown and `level` is the one
+/// shown in detail, as the Secondary Subtotal option says.
+private fn subtotal_label(t, label, level) {
+    let detail = t.subtotals_only_option
+        && switch level { "secondary" => t.sec_subtotal_option, "primary" => !t.sec_subtotal_option, _ => false };
+    if detail { label } else { `Total For ${label}` }
+}
+
+/// The amounts a subtotal row adds to the grid: for each of its commodities, the first column's total less the
+/// second's when the first merges with it (`get-commodity-grid-amount`, TE:1757-1773), zeros included.
+private fn grid_amounts(t, colls) {
+    let amounts = [];
+    for commodity in collector_commodities(colls) {
+        let first = retrieve(colls[0], commodity) ?? rational(0);
+        let merge = t.cells[0].merge_dual_column && colls.len() > 1;
+        let second = if merge { retrieve(colls[1], commodity) ?? rational(0) } else { rational(0) };
+        amounts.push(monetary(commodity, first - second));
+    }
+    amounts
+}
+
+/// The commodities of the collectors, each column's in its collector's order, duplicates dropped (TE:1688-1693).
+private fn collector_commodities(colls) {
+    let list = [];
+    for coll in colls { for pair in coll { if !list.contains(pair[0]) { list.push(pair[0]); } } }
+    list
+}
+
+/// The total of `commodity` in `coll`, `()` when it has none (`retrieve-commodity`, TE:1695-1698).
+private fn retrieve(coll, commodity) {
+    for pair in coll { if pair[0] == commodity { return pair[1]; } }
+    ()
+}
+
+/// `data-columns` (TE:1713-1765): a subtotal row's cells for `commodity`. A start-dual column is held and netted
+/// against the next: the difference shows in the debit column when positive, else in the credit column.
+private fn data_columns(t, colls, commodity) {
+    let cells = [];
+    let last = ();
+    let merging = false;
+    for (coll, j) in colls {
+        let this_column = retrieve(coll, commodity);
+        if t.cells[j].start_dual_column {
+            merging = true;
+            last = this_column;
+        } else if merging {
+            let sum = if last == () && this_column == () { () } else { (last ?? rational(0)) - (this_column ?? rational(0)) };
+            let cell = if sum == () { () } else { #{ monetary: monetary(commodity, sum.abs()) } };
+            cells += if sum != () && sum > 0 { [cell, ()] } else { [(), cell] };
+            merging = false;
+            last = ();
+        } else {
+            cells.push(if this_column == () { () } else { #{ monetary: monetary(commodity, this_column) } });
+        }
+    }
+    cells
+}
+
+/// `add-subtotal-row` (TE:1680-1791): one row per commodity of the collectors, the label on the first.
+private fn subtotal_rows(t, label, colls, role, level) {
+    let left_indent = switch level { "total" => 0, "primary" => t.primary_indent, _ => t.indent_level };
+    let rows = [];
+    for commodity in collector_commodities(colls) {
+        let cells = nulls(left_indent) + label_cells(t, label, t.indent_level - left_indent) + data_columns(t, colls, commodity);
+        rows.push(#{ role: role, cells: cells });
+        label = "";
+    }
+    rows
+}
+
+/// `n` empty commodity collectors.
+private fn new_collectors(n) {
+    let colls = [];
+    for i in 0..n { colls.push([]); }
+    colls
+}
+
+/// The subtotalled cells of a transaction's own row, added to each of `colls` (TE:1903-1917).
+private fn add_to_collectors(t, colls, split) {
+    for (c, j) in t.cells {
+        if !c.subtotal { continue; }
+        let v = apply_calc_fn(t, c, split, true);
+        if v == () { continue; }
+        let coll = colls[j];
+        coll.add(v.commodity, v.amount);
+        colls[j] = coll;
+    }
+    colls
+}
+
+/// The table's columns: the indent, the left columns, the calculated cells (TE:1929-1933).
+private fn table_columns(t) {
+    let columns = [];
+    for i in 0..t.indent_level { columns.push(#{ label: "", role: "label" }); }
+    for c in t.left { columns.push(#{ label: c.heading, role: c.role }); }
+    for c in t.cells { columns.push(#{ label: c.heading, role: "amount" }); }
+    columns
+}
+
+/// The CSV rows of `make-split-table` (TE:2052-2063): each cell's heading and its grand totals; with a dual column,
+/// GnuCash's reason there are none.
+private fn csv_list(t, total) {
+    let csvlist = [];
+    for (c, j) in t.cells {
+        if c.start_dual_column { return "CSV disabled for double column amounts"; }
+        let row = [c.heading];
+        for pair in total[j] { row.push(pair[1]); }
+        csvlist.push(row);
+    }
+    csvlist
+}
+
+/// `make-split-table` (TE:1052-2063): the table of `splits`, the Subtotal Table's grid and the CSV rows. A group ends
+/// where the next split's split-sortvalue differs (`equal?`); its subtotal rows come first, then the next group's
+/// subheadings and a reset of its running totals. Each subtotal also goes into the grid (TE:1767-1773): a secondary
+/// one at its primary group's row (or one row `(#f . "")` with no primary key) and its own column, and at the
+/// total row; a primary one at its row's total column; the grand total at both totals. Returns
+/// `#{ table, grid, csvlist }`.
+private fn make_split_table(book, opts, ctx, p, splits, hooks) {
+    let t = table_env(book, opts, ctx, p, hooks);
+    let primary = new_collectors(t.cells.len());
+    let secondary = new_collectors(t.cells.len());
+    let total = new_collectors(t.cells.len());
+    let pk = p.primary_key_split_sortvalue;
+    let sk = p.secondary_key_split_sortvalue;
+    let rows = [];
+    let grid = make_grid();
+    if pk != () { rows.push(subheading(t, render_summary(t, splits[0], "primary"), splits[0], "primary")); }
+    if sk != () { rows.push(subheading(t, render_summary(t, splits[0], "secondary"), splits[0], "secondary")); }
+    for (current, i) in splits {
+        let next = if i + 1 < splits.len() { splits[i + 1] } else { () };
+        // Shaded by split, odd ones and multi-line rows plain (TE:1967-1971).
+        rows.push(split_row(t, current, !(i % 2 == 0 || p.multiline), true));
+        primary = add_to_collectors(t, primary, current);
+        secondary = add_to_collectors(t, secondary, current);
+        total = add_to_collectors(t, total, current);
+        if p.multiline {
+            for other in current.transaction.splits() { if other != current { rows.push(split_row(t, other, true, false)); } }
+        }
+        let primary_ends = pk != () && (next == () || apply_split_sortvalue(ctx, pk, current) != apply_split_sortvalue(ctx, pk, next));
+        let secondary_ends = sk != ()
+            && (primary_ends || next == () || apply_split_sortvalue(ctx, sk, current) != apply_split_sortvalue(ctx, sk, next));
+        let row_key = if pk == () { grid_key((), "") } else {
+            grid_key(apply_split_sortvalue(ctx, pk, current), render_summary(t, current, "primary"))
+        };
+        if secondary_ends {
+            let label = render_summary(t, current, "secondary");
+            rows += subtotal_rows(t, subtotal_label(t, label, "secondary"), secondary, "subtotal", "secondary");
+            let col_key = grid_key(apply_split_sortvalue(ctx, sk, current), label);
+            grid = grid_add(grid, row_key, col_key, grid_amounts(t, secondary));
+            grid = grid_add(grid, grid_key((), "row-total"), col_key, grid_amounts(t, secondary));
+            secondary = new_collectors(t.cells.len());
+        }
+        if primary_ends {
+            rows += subtotal_rows(t, subtotal_label(t, row_key.label, "primary"), primary, "subtotal", "primary");
+            grid = grid_add(grid, row_key, grid_key((), "col-total"), grid_amounts(t, primary));
+            primary = new_collectors(t.cells.len());
+        }
+        if next != () && primary_ends {
+            rows.push(subheading(t, render_summary(t, next, "primary"), next, "primary"));
+            if sk != () { rows.push(subheading(t, render_summary(t, next, "secondary"), next, "secondary")); }
+            for k in [2, 3, 4, 5] { t.mem.set(k, []); }
+        } else if next != () && secondary_ends {
+            rows.push(subheading(t, render_summary(t, next, "secondary"), next, "secondary"));
+            for k in [4, 5] { t.mem.set(k, []); }
+        }
+    }
+    let width = t.indent_level + t.width_left + t.cells.len();
+    if p.grand_total {
+        rows.push(#{ role: "rule", cells: nulls(width) });
+        rows += subtotal_rows(t, "Grand Total", total, "grandTotal", "total");
+        grid = grid_add(grid, grid_key((), "row-total"), grid_key((), "col-total"), grid_amounts(t, total));
+    }
+    let shown = [];
+    for r in rows { if r != () { shown.push(r); } }
+    #{ table: #{ kind: "table", columns: table_columns(t), rows: shown }, grid: grid, csvlist: csv_list(t, total) }
+}
+
+/// `gnc:trep-renderer` (TE:2179-2641): the document. A warning when no account or expression allows a query (then
+/// the caller's `empty_report_message`) or no split matched; otherwise the dates, then the table. Under
+/// `ctx.export_type()` "csv", the export rows (the dates in ISO form, then `make-split-table`'s) or why there are
+/// none (TE:2524, :2605, :2627-2641). With the Subtotal Table, it comes before the table, which it replaces when only
+/// subtotals are shown (TE:2620-2625).
+fn trep_renderer(book, opts, ctx, hooks) {
+    let r = trep_splits(book, opts, ctx, hooks);
+    let blocks = [];
+    let export_rows = ();
+    let export_error = r.export_error;
+    if r.warning != () {
+        blocks.push(r.warning);
+        let message = hook(hooks, "empty_report_message");
+        if r.splits == () && message != () {
+            blocks.push(if type_of(message) == "string" { #{ kind: "text", text: message } } else { message });
+        }
+    } else {
+        let p = r.parameters;
+        let st = make_split_table(book, opts, ctx, p, r.splits, hooks);
+        blocks.push(#{ kind: "text", role: "heading", text: ctx.print_date_interval(p.begindate, p.enddate) });
+        if r.subtotal_table { blocks.push(grid_table(st.grid)); }
+        if !(r.subtotal_table && opts.get("Sorting", "Show subtotals only (hide transactional data)")) { blocks.push(st.table); }
+        if type_of(st.csvlist) == "string" {
+            export_error = st.csvlist;
+        } else {
+            export_rows = [["from", ctx.print_date_iso(p.begindate)], ["to", ctx.print_date_iso(p.enddate)]] + st.csvlist;
+        }
+    }
+    let doc = #{ title: r.report_title, sections: [#{ blocks: blocks }] };
+    if ctx.export_type() == "csv" {
+        if export_error != () { doc.exportError = export_error; } else { doc["export"] = export_rows; }
+    }
+    doc
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The Subtotal Table (`make-grid`, TE:2065-2178).
+
+/// An empty grid: `cells`, each `#{ id, coll }` with a commodity collector for a row and column; `rows`, the row keys
+/// with the commodities each holds; `cols`, the column keys. GnuCash keeps them in hash tables (TE:2077-2079).
+private fn make_grid() { #{ cells: [], rows: [], cols: [] } }
+
+/// A row or column key, GnuCash's `(sortvalue . label)` pair; `row-total` and `col-total` are labels with no sort
+/// value.
+private fn grid_key(sortvalue, label) {
+    #{ id: `${type_of(sortvalue)}:${sortvalue}:${label}`, sortvalue: sortvalue, label: label, commodities: [] }
+}
+
+private fn key_index(keys, id) {
+    for (k, i) in keys { if k.id == id { return i; } }
+    -1
+}
+
+/// `grid-add` (TE:2096-2110): add `amounts` into the cell at `row`, `col`, and note their commodities in the row.
+private fn grid_add(grid, row, col, amounts) {
+    if key_index(grid.cols, col.id) < 0 { grid.cols.push(col); }
+    let r = key_index(grid.rows, row.id);
+    if r < 0 { grid.rows.push(row); r = grid.rows.len() - 1; }
+    let id = `${row.id}|${col.id}`;
+    let c = key_index(grid.cells, id);
+    if c < 0 { grid.cells.push(#{ id: id, coll: [] }); c = grid.cells.len() - 1; }
+    let coll = grid.cells[c].coll;
+    let commodities = grid.rows[r].commodities;
+    for m in amounts {
+        coll.add(m.commodity, m.amount);
+        if !commodities.contains(m.commodity) { commodities.push(m.commodity); }
+    }
+    grid.cells[c].coll = coll;
+    grid.rows[r].commodities = commodities;
+    grid
+}
+
+/// The keys other than the total named `total`, sorted by sort value, `<` on strings (bytewise) and numbers
+/// (TE:2113-2119). Keys with equal sort values are ordered by label, then as they came; GnuCash leaves them in hash
+/// order.
+private fn sorted_keys(keys, total) {
+    let sorted = [];
+    for k in keys { if k.label != total || k.sortvalue != () { sorted.push(k); } }
+    sorted.sort(|a, b| if a.label < b.label { -1 } else if b.label < a.label { 1 } else { 0 });
+    sorted.sort(|a, b| if type_of(a.sortvalue) != type_of(b.sortvalue) { 0 } else if a.sortvalue < b.sortvalue { -1 }
+                       else if b.sortvalue < a.sortvalue { 1 } else { 0 });
+    sorted
+}
+
+/// A grid cell of `commodity` divided by `divisor` and rounded to its SCU (`make-table-cell`, `monetary-div`,
+/// TE:2121-2135); `()` when the cell holds none.
+private fn grid_cell(grid, row, col, commodity, divisor) {
+    let c = key_index(grid.cells, `${row.id}|${col.id}`);
+    let amount = if c < 0 { () } else { retrieve(grid.cells[c].coll, commodity) };
+    if amount == () { () } else { #{ monetary: round_scu(monetary(commodity, amount / divisor)) } }
+}
+
+/// `grid->html-table` (TE:2112-2163): the Subtotal Table. A line per commodity of each row (by unique name,
+/// `gnc-commodity-compare`), the label on the first; a column per secondary group, then the row's total and, with
+/// two columns or more, its average over the columns.
+private fn grid_table(grid) {
+    let col_total = grid_key((), "col-total");
+    let row_total_at = key_index(grid.rows, grid_key((), "row-total").id);
+    let list_of_rows = sorted_keys(grid.rows, "row-total");
+    if row_total_at >= 0 { list_of_rows.push(grid.rows[row_total_at]); }
+    let list_of_cols = sorted_keys(grid.cols, "col-total");
+    let average = list_of_cols.len() > 1;
+    let columns = [#{ label: "", role: "label" }];
+    for col in list_of_cols { columns.push(#{ label: col.label, role: "amount" }); }
+    columns.push(#{ label: "Total", role: "amount" });
+    if average { columns.push(#{ label: "Average", role: "amount" }); }
+    let rows = [];
+    for row in list_of_rows {
+        let commodities = row.commodities;
+        commodities.sort(|a, b| if a.uniqueName < b.uniqueName { -1 } else if b.uniqueName < a.uniqueName { 1 } else { 0 });
+        for (commodity, k) in commodities {
+            let label = if k > 0 { "" } else if row.sortvalue == () && row.label == "row-total" { "Total" } else { row.label };
+            let cells = [text_cell(label)];
+            for col in list_of_cols { cells.push(grid_cell(grid, row, col, commodity, 1)); }
+            cells.push(grid_cell(grid, row, col_total, commodity, 1));
+            if average { cells.push(grid_cell(grid, row, col_total, commodity, list_of_cols.len())); }
+            rows.push(#{ role: "data", cells: cells });
+        }
+    }
+    #{ kind: "table", title: "Subtotal Table", columns: columns, rows: rows }
 }

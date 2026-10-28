@@ -547,9 +547,14 @@ or as the legacy vectors that `upgrade-vector-to-assoclist` converts; a malforme
 defaults. With `subtotals-only`, only cells with `subtotal?` are kept (TE:1571-1573).
 
 **Sign reversal** (TE:1072-1080, :1883-1888): a cell with `reverse-column?` is negated when the split's account
-reverses: under Sign Reverses `global`, `gnc-reverse-balance` (red-ale's `a.reverse_balance(ctx)`); under the others,
-the account type is in the choice's list (`none` = no type; `income-expense` = INCOME, EXPENSE; `credit-accounts` =
-LIABILITY, PAYABLE, EQUITY, CREDIT, INCOME; TE:420-435).
+reverses: under Sign Reverses `global`, `gnc-reverse-balance` (red-ale's `a.reverse_balance(ctx)`); under
+`income-expense` and `credit-accounts`, the account type is in the choice's list (INCOME, EXPENSE; LIABILITY,
+PAYABLE, EQUITY, CREDIT, INCOME; TE:420-435). **`none` reverses as `global` does**: the parameter turns it into #t
+(TE:2345), `sign-reverse-list` has no #t entry, and Guile's `assq-ref` is sloppy (`scm_sloppy_assq` in
+`libguile/alist.c`), giving #f for a missing key and for the #f alist alike, so `account-types-to-reverse` is #f and
+`acc-reverse?` calls `gnc-reverse-balance` (TE:1072-1080). TT:620-634 cannot tell, as the test runs with no
+preferences. red-ale follows GnuCash: "none" reads `reports.reverseBalancedAccounts`
+(`lib_trep_engine.rs`, `sign_reverses_none_reads_the_global_preference`).
 
 **Links** (TE:1892-1900): with Enable Links, an amount cell links to its split (`gnc:html-split-anchor`, only when the
 split has an account, HU:195-200) when the cell has `subtotal?`, or when no cell has.
