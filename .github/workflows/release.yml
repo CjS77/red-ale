@@ -1,4 +1,5 @@
-# Builds red-ale for the six supported platforms.
+# Builds red-ale for the four supported platforms: Linux and macOS, x86_64 and aarch64. Windows builds are deferred
+# (design/milestone5.md, "Out"): red-ale-service uses Unix-only file APIs.
 #
 # - A pushed tag `vX.Y.Z` builds every target and attaches the archives to a GitHub Release. The tag must match the
 #   workspace version in Cargo.toml.
@@ -7,12 +8,11 @@
 #
 # Asset names are the download contract the install scripts will rely on; changing them breaks every installer:
 #
-#   red-ale-<target>.tar.gz   (zip on Windows: red-ale-<target>.zip)
+#   red-ale-<target>.tar.gz
 #   red-ale-<target>.sha256   (checksum of that archive)
 #
 # red-ale is not pure Rust: rusqlite builds the bundled SQLite and ring has C and assembly, so every runner needs a
-# C compiler for its target. macOS has Xcode's clang and Windows has MSVC; the musl jobs install musl-gcc, and the
-# Windows ARM job needs clang for ring.
+# C compiler for its target. macOS has Xcode's clang; the musl jobs install musl-gcc.
 
 name: release
 
@@ -79,11 +79,6 @@ jobs:
             os: macos-latest
           - target: x86_64-apple-darwin
             os: macos-15-intel
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-          # Free for public repositories only.
-          - target: aarch64-pc-windows-msvc
-            os: windows-11-arm
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -97,22 +92,6 @@ jobs:
           echo "CC_${TARGET//-/_}=musl-gcc" >> "$GITHUB_ENV"
         env:
           TARGET: ${{ matrix.target }}
-
-      # ring needs clang on Windows ARM (its BUILDING.md). Use the LLVM that ships with Visual Studio if the image has
-      # it, otherwise install LLVM.
-      - name: Put clang on the PATH
-        if: matrix.target == 'aarch64-pc-windows-msvc'
-        shell: pwsh
-        run: |
-          if (Get-Command clang -ErrorAction SilentlyContinue) { exit 0 }
-          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-          $llvm = Join-Path $vs 'VC\Tools\Llvm\ARM64\bin'
-          if (Test-Path $llvm) {
-            Add-Content $env:GITHUB_PATH $llvm
-          } else {
-            winget install --id LLVM.LLVM --silent --accept-source-agreements --accept-package-agreements
-            Add-Content $env:GITHUB_PATH "$env:ProgramFiles\LLVM\bin"
-          }
 
       - uses: taiki-e/upload-rust-binary-action@v1
         id: upload
@@ -132,16 +111,13 @@ jobs:
 
       - name: Smoke test
         shell: bash
-        run: |
-          exe=target/${{ matrix.target }}/release/red-ale
-          [ -f "$exe.exe" ] && exe="$exe.exe"
-          "$exe" --version
+        run: target/${{ matrix.target }}/release/red-ale --version
 
       # Ties each released archive to this workflow run (verify: `gh attestation verify <asset> -R CjS77/red-ale`).
       - uses: actions/attest-build-provenance@v4
         if: github.event_name == 'push'
         with:
-          subject-path: ${{ steps.upload.outputs.zip || steps.upload.outputs.tar }}
+          subject-path: ${{ steps.upload.outputs.tar }}
 
       - name: Keep the archive as a workflow artifact
         if: github.event_name != 'push'
@@ -149,6 +125,6 @@ jobs:
         with:
           name: red-ale-${{ matrix.target }}
           path: |
-            ${{ steps.upload.outputs.zip || steps.upload.outputs.tar }}
+            ${{ steps.upload.outputs.tar }}
             ${{ steps.upload.outputs.sha256 }}
           if-no-files-found: error

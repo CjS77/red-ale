@@ -23,20 +23,24 @@ The 17 open rows the roadmap places in v0.5:
 | §8 Investment reports   | Investment Portfolio, Advanced Portfolio, Investment Lots, IFRS cost basis                                                                                                 |
 
 Also in v0.5:
+
 - the default Configuration file ("The Configuration", done);
 - the v0.4 follow-ups taken up here ("Carried forward from v0.4");
-- *proposed*: distribution, that is the release binaries, `red-ale setup` and the install scripts ("Distribution";
-  "Decide before code", item 1).
+- distribution, that is the release binaries, `red-ale setup` and the install scripts ("Distribution";  "Decide before code", item 1).
 
 Why these together: every report here reads data red-ale already models, on the v0.2 report engine, and none needs a
 change to what red-ale writes. The Transaction Report goes first: its engine (`5.17:gnucash/report/trep-engine.scm`,
-2,645 lines) also drives the General Journal, the General Ledger and the Reconciliation Report
-(`gnc:trep-options-generator` and `gnc:trep-renderer`), so four reports rest on it. The Transaction Breakdown builds
+2,645 lines) also drives the General Journal, the General Ledger and the Reconciliation Report (`gnc:trep-options-generator` and
+`gnc:trep-renderer`), so four reports rest on it. The Transaction Breakdown builds
 its own table and does not.
 
 **Out:**
 
 - **Tax and business reports, invoices, PDF export** (v0.6), and the Manual (v0.6).
+- **Windows builds and installation:** deferred to a later version. `red-ale-service` uses Unix-only file APIs
+  (`files.rs`: file modes and `chown`; `lock.rs`: the `.LCK` file's mode), so red-ale doesn't build on Windows today;
+  porting them, with Windows' own owner-only permissions, comes first. `red-ale setup` keeps the harnesses' Windows
+  paths in its spec for then.
 - **Interactive charts:** a v1.0 decision, proposed ❌ ([`roadmap.md`](roadmap.md), "v1.0").
 - **Reports GnuCash 5.17 ships that `features.md` has no row for**: the Lot Viewer (`standard/lot-viewer.scm`), the
   dashboard (`standard/dashboard.scm`) and the Balance Sheet example (`standard/balsheet-eg.scm`). They are checked
@@ -49,13 +53,13 @@ only file red-ale writes differently is its own Configuration file ("The Configu
 
 ## The Configuration
 
-| Status | Item | Notes |
-|:------:|------|-------|
-|   ✅   | The default Configuration file | Without `--config`, every process (`exec`, `serve`, `mcp`) uses one file: `~/.config/red-ale/config.json` on Linux (respecting `XDG_CONFIG_HOME`), `~/Library/Application Support/red-ale/config.json` on macOS, `%APPDATA%\red-ale\config.json` on Windows ([`api/configuration.md`](api/configuration.md), "Which file") |
-|   ✅   | `--no-config` | Memory only, for that process: no Configuration file is read or written. Refused together with `--config` |
-|   ✅   | A lock around every change | Each change holds `<file>.lock` from reading the Configuration to writing it back, so two processes changing settings at once keep both. `ConfigStore::save` takes the lock, so a change can't skip it |
-|   ✅   | The first change makes the directory | As well as the file |
-|   ✅   | Tests never touch the real Configuration | The binary's tests point `HOME`, `XDG_CONFIG_HOME` and `APPDATA` at a temporary directory |
+| Status | Item                                     | Notes                                                                                                                                                                                                                                                                                                                      |
+|:------:|------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|   ✅   | The default Configuration file           | Without `--config`, every process (`exec`, `serve`, `mcp`) uses one file: `~/.config/red-ale/config.json` on Linux (respecting `XDG_CONFIG_HOME`), `~/Library/Application Support/red-ale/config.json` on macOS, `%APPDATA%\red-ale\config.json` on Windows ([`api/configuration.md`](api/configuration.md), "Which file") |
+|   ✅   | `--no-config`                            | Memory only, for that process: no Configuration file is read or written. Refused together with `--config`                                                                                                                                                                                                                  |
+|   ✅   | A lock around every change               | Each change holds `<file>.lock` from reading the Configuration to writing it back, so two processes changing settings at once keep both. `ConfigStore::save` takes the lock, so a change can't skip it                                                                                                                     |
+|   ✅   | The first change makes the directory     | As well as the file                                                                                                                                                                                                                                                                                                        |
+|   ✅   | Tests never touch the real Configuration | The binary's tests point `HOME`, `XDG_CONFIG_HOME` and `APPDATA` at a temporary directory                                                                                                                                                                                                                                  |
 
 This corrects a v0.3 design mistake: a process started without `--config` kept its settings in memory, so an agent's
 `config.set` was lost when its session ended. Evidence: `red-ale/tests/cli.rs`,
@@ -68,25 +72,25 @@ This corrects a v0.3 design mistake: a process started without `--config` kept i
 Translated from GnuCash 5.17's Scheme into Rhai, on the v0.2 engine, as [`reports.md`](reports.md) sets out. Source
 files are under `5.17:gnucash/report/reports/`; lines are the file's length at the pin.
 
-| Status | Report | Source (GUID) | Lines | GnuCash's test |
-|:------:|--------|---------------|------:|----------------|
-|        | Transaction Report | `standard/transaction.scm` (`2fe3b9833af044abb929a88d5a59620f`), on `trep-engine.scm` | 36 + 2,645 | `test-transaction.scm` |
-|        | General Journal | `standard/general-journal.scm` (`25455562bd234dd0b048ecc5a8af9e43`), the Transaction Report with its own options | 125 | |
-|        | General Ledger | `standard/general-ledger.scm` (`2e22929e5c5b4b769f615a815ef0c20f`) | 159 | |
-|        | Reconciliation Report | `standard/reconcile-report.scm` (`e45218c6d76f11e7b5ef0800277ef320`) | 115 | |
-|        | Transaction Breakdown | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine | 260 | |
-|        | Register report | `standard/register.scm` (`22104e02654c4adba844ee75a3f8d173`) | 674 | `test-register.scm` |
-|        | Trial Balance | `standard/trial-balance.scm` (`216cd0cf6931453ebcce85415aba7082`) | 876 | `test-trial-balance.scm` |
-|        | Cash Flow | `standard/cash-flow.scm` (`f8748b813fab4220ba26e743aedf38da`) | 346 | `test-cash-flow.scm` |
-|        | Equity Statement | `standard/equity-statement.scm` (`c2a996c8970f43448654ca84f17dda24`) | 510 | `test-equity-statement.scm` |
-|        | Multicolumn Balance Sheet and P&L | `standard/balsheet-pnl.scm` (`065d5d5a77ba11e8b31e83ada73c5eea`, `0e94fd0277ba11e8825d43e27232c9d4`) | 1,261 | `test-balsheet-pnl.scm` |
-|        | Income/expense vs day of week | `example/daily-reports.scm` (`5e2d129f28d14df881c3e47e3053f604`, `dde49fed4ca940959ae7d01b72742530`) | 310 | |
-|        | Cash flow chart | `standard/cashflow-barchart.scm` (`5426e4d987f6444387fe70880e5b28a0`) | 350 | `test-cashflow-barchart.scm` |
-|        | Investment Portfolio | `standard/portfolio.scm` (`4a6b82e8678c4f3d9e85d9f09634ca89`) | 292 | `test-portfolios.scm` |
-|        | Advanced Portfolio | `standard/advanced-portfolio.scm` (`21d7cfc59fc74f22887596ebde7e462d`) | 1,190 | `test-portfolios.scm` |
-|        | Investment Lots | `standard/investment-lots.scm` (`ab2acc24afd14630a551f98f1a35fa81`) | 2,326 | `test-investment-lots.scm` |
-|        | IFRS cost basis | `standard/ifrs-cost-basis.scm` (`15d5b744176c4625a703720338725291`) | 533 | `test-ifrs-cost-basis.scm` |
-|        | Multicolumn reports | `standard/view-column.scm` (`d8ba4a2e89e8479ca9f6eccdeb164588`) | 189 | |
+| Status | Report                            | Source (GUID)                                                                                                      |      Lines | GnuCash's test               |
+|:------:|-----------------------------------|--------------------------------------------------------------------------------------------------------------------|-----------:|------------------------------|
+|        | Transaction Report                | `standard/transaction.scm` (`2fe3b9833af044abb929a88d5a59620f`), on `trep-engine.scm`                              | 36 + 2,645 | `test-transaction.scm`       |
+|        | General Journal                   | `standard/general-journal.scm` (`25455562bd234dd0b048ecc5a8af9e43`), the Transaction Report with its own options   |        125 |                              |
+|        | General Ledger                    | `standard/general-ledger.scm` (`2e22929e5c5b4b769f615a815ef0c20f`)                                                 |        159 |                              |
+|        | Reconciliation Report             | `standard/reconcile-report.scm` (`e45218c6d76f11e7b5ef0800277ef320`)                                               |        115 |                              |
+|        | Transaction Breakdown             | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine |        260 |                              |
+|        | Register report                   | `standard/register.scm` (`22104e02654c4adba844ee75a3f8d173`)                                                       |        674 | `test-register.scm`          |
+|        | Trial Balance                     | `standard/trial-balance.scm` (`216cd0cf6931453ebcce85415aba7082`)                                                  |        876 | `test-trial-balance.scm`     |
+|        | Cash Flow                         | `standard/cash-flow.scm` (`f8748b813fab4220ba26e743aedf38da`)                                                      |        346 | `test-cash-flow.scm`         |
+|        | Equity Statement                  | `standard/equity-statement.scm` (`c2a996c8970f43448654ca84f17dda24`)                                               |        510 | `test-equity-statement.scm`  |
+|        | Multicolumn Balance Sheet and P&L | `standard/balsheet-pnl.scm` (`065d5d5a77ba11e8b31e83ada73c5eea`, `0e94fd0277ba11e8825d43e27232c9d4`)               |      1,261 | `test-balsheet-pnl.scm`      |
+|        | Income/expense vs day of week     | `example/daily-reports.scm` (`5e2d129f28d14df881c3e47e3053f604`, `dde49fed4ca940959ae7d01b72742530`)               |        310 |                              |
+|        | Cash flow chart                   | `standard/cashflow-barchart.scm` (`5426e4d987f6444387fe70880e5b28a0`)                                              |        350 | `test-cashflow-barchart.scm` |
+|        | Investment Portfolio              | `standard/portfolio.scm` (`4a6b82e8678c4f3d9e85d9f09634ca89`)                                                      |        292 | `test-portfolios.scm`        |
+|        | Advanced Portfolio                | `standard/advanced-portfolio.scm` (`21d7cfc59fc74f22887596ebde7e462d`)                                             |      1,190 | `test-portfolios.scm`        |
+|        | Investment Lots                   | `standard/investment-lots.scm` (`ab2acc24afd14630a551f98f1a35fa81`)                                                |      2,326 | `test-investment-lots.scm`   |
+|        | IFRS cost basis                   | `standard/ifrs-cost-basis.scm` (`15d5b744176c4625a703720338725291`)                                                |        533 | `test-ifrs-cost-basis.scm`   |
+|        | Multicolumn reports               | `standard/view-column.scm` (`d8ba4a2e89e8479ca9f6eccdeb164588`)                                                    |        189 |                              |
 
 The `balsheet-pnl.scm` fixture of v0.2 (`fixtures/reports/balsheet-pnl.gnucash`) already exists. The GUIDs and line
 counts above were read from the pinned source for this draft; the research note for each group confirms them and
@@ -97,24 +101,23 @@ lists the library functions each report needs.
 Getting red-ale onto a machine and into the user's agents, so they can run reports from a harness. Not in the roadmap;
 proposed for v0.5 because the release workflow is written and `setup` is approved ("Decide before code", item 1).
 
-| Status | Item | Notes |
-|:------:|------|-------|
-|        | Release binaries | `.github/workflows/release.yml`: six targets (x86_64 and aarch64 for Linux musl, macOS and Windows), archives with SHA-256 files and build provenance, on a `vX.Y.Z` tag matching the workspace version; a manual run builds without releasing |
-|        | Windows builds | `red-ale-service` uses Unix-only APIs (`files.rs`: file modes and `chown`; `lock.rs`: the `.LCK` file's mode), so neither Windows target builds today. Port them, with Windows' own owner-only permissions, and run the test suite on Windows in CI |
-|        | `red-ale setup` | [`setup.md`](setup.md) (approved): registers `red-ale mcp` with the eleven first-release harnesses, research in [`notes/mcp-harnesses.md`](notes/mcp-harnesses.md) |
-|        | Install scripts | `install.sh` and `install.ps1`, attached to each release: download the archive for the machine, check its SHA-256, install the binary at a fixed path, run `red-ale setup` ([`setup.md`](setup.md), "Installation") |
-|        | Version | The workspace version is still `0.2.0`; the first release sets it to the milestone being released |
+| Status | Item             | Notes                                                                                                                                                                                                                                               |
+|:------:|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | Release binaries | `.github/workflows/release.yml`: four targets (x86_64 and aarch64 for Linux musl and macOS), archives with SHA-256 files and build provenance, on a `vX.Y.Z` tag matching the workspace version; a manual run builds without releasing. Windows is deferred ("Out") |
+|        | `red-ale setup`  | [`setup.md`](setup.md) (approved): registers `red-ale mcp` with the eleven first-release harnesses, research in [`notes/mcp-harnesses.md`](notes/mcp-harnesses.md)                                                                                  |
+|        | Install script | `install.sh`, attached to each release: download the archive for the machine, check its SHA-256, install the binary at a fixed path, run `red-ale setup` ([`setup.md`](setup.md), "Installation")                                 |
+|        | Version          | The workspace version is still `0.2.0`; the first release sets it to the milestone being released                                                                                                                                                   |
 
 ## Carried forward from v0.4
 
 From [`milestone4.md`](milestone4.md), "Follow-ups":
 
-| Status | Follow-up | Notes |
-|:------:|-----------|-------|
-|        | XML split order | red-ale's XML reader keeps the file's split order where GnuCash sorts on load (`5.17:libgnucash/engine/Transaction.cpp:1508-1510`); differs only for files GnuCash didn't write. Sort as the SQLite reader does |
-|        | Since Last Run at scale on SQLite | Measured on XML only in v0.4; repeat the 5,000-transaction run on the SQLite copy now that its first-schedule bug is fixed |
+| Status | Follow-up                                     | Notes                                                                                                                                                                                                              |
+|:------:|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | XML split order                               | red-ale's XML reader keeps the file's split order where GnuCash sorts on load (`5.17:libgnucash/engine/Transaction.cpp:1508-1510`); differs only for files GnuCash didn't write. Sort as the SQLite reader does    |
+|        | Since Last Run at scale on SQLite             | Measured on XML only in v0.4; repeat the 5,000-transaction run on the SQLite copy now that its first-schedule bug is fixed                                                                                         |
 |        | An SQLite book whose template root has no row | The `books` row names a root with no `accounts` row: the first scheduled transaction makes a new root and the save is refused after the Mutation. Refuse at `scheduledTransaction.create` instead, or make the row |
-|        | Rhai closure bugs | Reported upstream by the maintainer; the conventions stay until a release fixes them |
+|        | Rhai closure bugs                             | Reported upstream by the maintainer; the conventions stay until a release fixes them                                                                                                                               |
 
 ## Interfaces
 
@@ -122,19 +125,19 @@ New reports need no new methods: `report.run`, `report.export` and `report.optio
 `redAleApi` becomes 0.5.0 with the first addition, if any (the Multicolumn report's child references may need one,
 item 3). `red-ale setup` is a CLI command only ([`setup.md`](setup.md), "What it is not").
 
-| Status | Interface | Notes |
-|:------:|-----------|-------|
+| Status | Interface    | Notes                                                                                                                                               |
+|:------:|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
 |        | JSON-RPC API | `redAleApi` 0.5.0 if anything is added, additive over 0.4.0; the 0.4.0 document committed beside the others and `api_additive.rs` checks against it |
-|        | MCP server | Unchanged: the new templates are reached through the report tools |
-|        | CLI | `--no-config` (done); `red-ale setup` if distribution is in |
+|        | MCP server   | Unchanged: the new templates are reached through the report tools                                                                                   |
+|        | CLI          | `--no-config` (done); `red-ale setup` if distribution is in                                                                                         |
 
 ## Testing
 
 As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 
 - **GnuCash's own report tests, ported.** Each `test-*.scm` in the table above is read as text: its book becomes a
-  fixture built by the 5.17 oracle through the Python bindings, and its assertions become Rust tests on that fixture.
-  **No test runs Guile** ([`milestone4.md`](milestone4.md), "Decided", item 12).
+  fixture built by the 5.17 oracle through the Python bindings, and its assertions become Rust tests on that fixture. **No test runs Guile**
+  ([`milestone4.md`](milestone4.md), "Decided", item 12).
 - **Hand-worked cases** for every option and branch the ported tests don't reach, each citing the `.scm` lines it
   follows.
 - **Golden bytes:** `report_golden.rs` records every v0.5 report on every fixture book, XML and SQLite, and every
@@ -153,8 +156,7 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 5. **Analysis charts:** Income/expense vs day of week, Cash flow chart.
 6. **Investment reports:** Investment Portfolio, Advanced Portfolio, IFRS cost basis, Investment Lots.
 7. **Multicolumn reports**, last, once there are many reports to combine.
-8. **Distribution**, alongside the reports if it is in: the Windows port first, then the release, `setup` and the
-   install scripts.
+8. **Distribution**, alongside the reports if it is in: the release, `setup` and the install script.
 9. **Interfaces and audit.**
 
 ## Decide before code
@@ -191,9 +193,9 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 - No report changes a Book: the Book's revision and the file are unchanged after every run.
 - Every red-ale process without `--config` shares the default Configuration file, `--no-config` reads and writes no
   file, and concurrent changes keep both.
-- If distribution is in: a tagged release has the six archives with checksums and provenance; both Windows builds pass
-  the test suite; `red-ale setup` passes its per-harness tests and a manual smoke test in each first-release harness;
-  the install scripts install and set up on Linux, macOS and Windows.
+- If distribution is in: a tagged release has the four archives with checksums and provenance; `red-ale setup` passes
+  its per-harness tests and a manual smoke test in each first-release harness; the install script installs and sets up
+  on Linux and macOS.
 - Every JSON-RPC method is an MCP tool with the same name, params schema and hints, and any API change is additive,
   checked by a test.
 - v0.1's to v0.4's done-when checks still pass.

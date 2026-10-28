@@ -149,23 +149,22 @@ Claude Code's and Codex's. Using the one name `red-ale` everywhere means such a 
 
 ## Installation
 
-The install scripts call `setup` as their last step:
+The install script calls `setup` as its last step:
 
 ```
 curl -fsSL https://github.com/CjS77/red-ale/releases/latest/download/install.sh | sh
-irm https://github.com/CjS77/red-ale/releases/latest/download/install.ps1 | iex
 ```
 
-Each script:
+Windows builds, and so `install.ps1` (`irm …/install.ps1 | iex`), are deferred ([`milestone5.md`](milestone5.md),
+"Out"); the Windows paths in this document stay for then. The script:
 
 1. picks the release archive for the machine (the asset names in `.github/workflows/release.yml`);
 2. checks its SHA-256;
-3. installs the binary at a fixed path (`~/.local/bin/red-ale` on Linux and macOS, `%LOCALAPPDATA%\Programs\red-ale\`
-   on Windows) and says so if that directory is not on `PATH`;
+3. installs the binary at a fixed path (`~/.local/bin/red-ale`) and says so if that directory is not on `PATH`;
 4. runs `red-ale setup`, reading answers from the terminal (`/dev/tty`), since the script itself arrives on standard
    input.
 
-`--no-setup` skips step 4; options after `--` are passed to `setup`. The scripts are a separate ticket; this
+`--no-setup` skips step 4; options after `--` are passed to `setup`. The script is a separate ticket; this
 document fixes only what they rely on.
 
 ## Where the code lives
