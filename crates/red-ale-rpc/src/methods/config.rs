@@ -87,7 +87,7 @@ pub struct GetResult {
     pub unknown: Vec<String>,
     /// Settings, at or below the path, whose values in the file do not match the schema.
     pub problems: Vec<ProblemInfo>,
-    /// The Configuration file, if the Configuration is kept in one; otherwise it lasts as long as the server.
+    /// The Configuration file; `null` for a process started with `--no-config`, whose Configuration is in memory.
     pub config_file: Option<String>,
 }
 
@@ -135,7 +135,7 @@ pub struct SetResult {
     pub values: Map<String, Value>,
     /// Keys cleared because their Quote service's URL moved to another host.
     pub cleared_keys: Vec<String>,
-    /// The Configuration file, if the Configuration is kept in one; otherwise it lasts as long as the server.
+    /// The Configuration file; `null` for a process started with `--no-config`, whose Configuration is in memory.
     pub config_file: Option<String>,
 }
 
