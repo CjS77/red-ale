@@ -7,7 +7,7 @@ use red_ale_core::ops::commodities::lookup;
 use red_ale_locale::Conventions;
 use rhai::{Dynamic, Engine, EvalAltResult, INT, Position};
 
-use crate::number::{CommodityFormat, Monetary, NumberError, Rational, Rounding, SizeCap, fixed};
+use crate::number::{CommodityFormat, Monetary, NumberError, Rational, Rounding, SizeCap, cagr, fixed, growth_rate};
 use crate::query::{BookHandle, Fallible, Snapshot, commodity_arg, rational_arg, script_error, small_count};
 
 /// The error of a Rational past the size cap. Rhai's data-size errors cannot be caught by a script's `try`, so a
@@ -65,6 +65,23 @@ fn rational(engine: &mut Engine, cap: SizeCap) {
             Some(usize::try_from(width.as_int()?).map_err(|_| script_error("width must not be negative"))?)
         };
         Ok(fixed(&rational_arg(&r)?, width, small_count(places, "places")?))
+    });
+    growth(engine, cap);
+}
+
+/// `growth_rate(ratio, years)` and `calculate_cagr(basis, end_value, years)`: a Rational, or `()` where GnuCash
+/// has `#f`. `calculate_cagr` takes `()` for a missing basis or years, as GnuCash's takes `#f`.
+fn growth(engine: &mut Engine, cap: SizeCap) {
+    let to_dynamic = |r: Option<Rational>| r.map_or(Dynamic::UNIT, Dynamic::from);
+    engine.register_fn("growth_rate", move |ratio: Dynamic, years: Dynamic| -> Fallible<Dynamic> {
+        let rate = growth_rate(&rational_arg(&ratio)?, &rational_arg(&years)?, cap).map_err(arithmetic)?;
+        Ok(to_dynamic(rate))
+    });
+    engine.register_fn("calculate_cagr", move |basis: Dynamic, end: Dynamic, years: Dynamic| -> Fallible<Dynamic> {
+        let optional = |v: &Dynamic| if v.is_unit() { Ok(None) } else { rational_arg(v).map(Some) };
+        let (basis, years) = (optional(&basis)?, optional(&years)?);
+        let rate = cagr(basis.as_ref(), &rational_arg(&end)?, years.as_ref(), cap).map_err(arithmetic)?;
+        Ok(to_dynamic(rate))
     });
 }
 

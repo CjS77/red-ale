@@ -279,6 +279,23 @@ in `gnc:sum-collector-commodity`), and `gnc_scm_to_numeric` fails there when a p
 (`5.17:bindings/guile/gnc-engine-guile.cpp:1709-1727`). red-ale keeps those values exact. Within 64 bits the figures
 are the same; beyond it, GnuCash fails or prints an empty cell and red-ale prints the figure (section 14).
 
+### Growth rates
+
+Investment Lots' CAGR raises a ratio of doubles to the power `1/years` (`calculate-cagr`,
+`5.17:gnucash/report/reports/standard/investment-lots.scm:447-461`). A fractional power is irrational unless the ratio
+is a perfect power, so it is the one report figure that cannot be exact. `growth_rate(ratio, years)` returns
+`ratio^(1/years) − 1` as a Rational correctly rounded to 10⁻¹², ties to even; `years` is a Rational, since the report
+computes it from day counts. It works as `exp(ln(ratio) / years)` in integer fixed point (`number/growth.rs`), with
+enough fraction bits that the power is known within 2^-128 (at least 128 more than the power's whole part, plus guard
+bits for the error each step adds). That settles the rounding unless the value lies that close to a half-unit
+boundary; then an exact integer check finds a tie on the boundary (so a perfect power that lands on one rounds to
+even), and otherwise the power is computed again to within 2^-1024. Whenever the result has twelve decimals or fewer
+it is exact: 4 over 2 years is `1`, a ratio of 1 is `0`. A negative ratio, zero years, or a zero ratio over negative
+years gives `()`, GnuCash's `#f` or `+inf.0`. `calculate_cagr(basis, end_value, years)` adds `calculate-cagr`'s guards,
+which need the basis and end value apart: `()` when the basis is `()`, zero or negative, the end value is negative,
+or years is `()` or zero. A power whose whole part would pass the Rational size cap stops the run with the
+`number-size` limit; inputs that would need more than 16,384 working bits are a `report-script` error.
+
 ### Display rounding and formatting
 
 A figure is rounded only to be shown, never before it is used again. The host fills in the display form of every cell
@@ -1207,6 +1224,7 @@ Notes for the translators:
 | Category chart percentage cells | `double-to-gnc-numeric` to 1/100 (`report/html-style-info.scm:233-236`) | exact, banker's rounding to 1/100 |
 | Chart values | JSON doubles (`5.17:borrowed/guile-json/json/builder.scm:121-124`) | exact Rationals in the result; integer SVG coordinates |
 | Balance Forecast's "Reserve amount" and "Target amount above reserve" | Doubles of number-range options (`standard/balance-forecast.scm:109-120`), the Target line their double sum | exact Rationals, the Target line their exact sum |
+| Investment Lots' CAGR | `expt` of doubles (`standard/investment-lots.scm:447-461`) | fixed-point power rounded to 10⁻¹² (§3, "Growth rates"); exact where the power is |
 
 ## 13. Testing reports
 

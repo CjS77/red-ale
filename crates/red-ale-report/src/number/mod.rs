@@ -2,18 +2,21 @@
 //!
 //! - [`Rational`]: exact, unbounded but for a [`SizeCap`]; what scripts add and multiply.
 //! - [`Monetary`]: a Rational with a commodity, GnuCash's `gnc:monetary`.
+//! - [`growth_rate`]: `ratio^(1/years) − 1` to 10⁻¹², the one figure that cannot be exact.
 //! - [`format`]: rounding for display only, and GnuCash's amount text (`$1,234.56`, `30. FUNDS`, `$480 + 85/104`).
 //!
 //! A Rational never enters the Book.
 
 mod flonum;
 pub mod format;
+mod growth;
 mod monetary;
 mod rational;
 
 use thiserror::Error;
 
 pub use flonum::guile_inexact;
+pub use growth::{MAX_WORKING_BITS, cagr, growth_rate};
 pub use format::{
     CommodityFormat, MonetaryDisplay, PrintInfo, display_exact, display_monetary, display_number, display_price, fixed, format_amount,
 };
@@ -32,6 +35,14 @@ pub enum NumberError {
         /// Bits of the result's larger part.
         bits: u64,
         /// The cap.
+        max: u64,
+    },
+    /// A growth rate whose inputs need more working precision than [`MAX_WORKING_BITS`].
+    #[error("growth_rate needs {bits} bits of working precision, more than the limit of {max}")]
+    Precision {
+        /// Bits the computation needs.
+        bits: u64,
+        /// The limit.
         max: u64,
     },
     /// Rounding to a denominator that is not positive.
