@@ -682,9 +682,31 @@ As [`testing.md`](testing.md) sets out, on copies in temporary directories, neve
   and an orphan slot row kept with every row an edit doesn't touch. A table or column red-ale doesn't model makes the
   book read-only (§1), so it is never written.
 - **Writing as GnuCash writes.** The oracle makes the same edit to a second copy, and the two dumps are equal once
-  slot `id`s and frame GUIDs are numbered in order of appearance: the same rows changed, with the same values. (Not
-  yet written; `crates/red-ale-sql/tests/encode.rs` checks each row red-ale encodes against GnuCash's for every row of
-  every fixture.)
+  slot `id`s and frame GUIDs are numbered in order of appearance: the same rows changed, with the same values.
+  `crates/red-ale-testkit/tests/oracle_sqlite_as_gnucash.rs` makes six edits, each on every SQLite fixture that has a
+  target for it, red-ale through the dispatcher and GnuCash through its bindings (`oracle/sql_edits.py`): a
+  transaction's description with both its splits' values and amounts; a new two-split transaction; a deleted
+  transaction; an account's name, notes and US tax code (a slot in a frame); a new price; and a transaction's notes
+  and document link. GnuCash logs nothing making its edit or opening red-ale's book. The comparison ignores only what
+  is arbitrary or invisible to GnuCash:
+  - slot `id`s and `sqlite_sequence`'s count for `slots`, and the order of the slot rows of different owners: GnuCash
+    rewrites every slot of every object it commits, with new `id`s, at the end of the table
+    (`5.17:libgnucash/backend/sql/gnc-slots-sql.cpp:645-649`), a transaction whose description alone changed
+    included; red-ale rewrites only Slots that changed ("Slots", §4). Each owner's rows keep their order;
+  - frame and list GUIDs (`guid_new()` on every write, `:583`, `:601`) and the GUIDs of new entities, numbered in
+    order of appearance;
+  - the order of a transaction's split rows beyond what GnuCash's load keeps. GnuCash writes a new transaction's
+    splits in the order they joined it, since `trans_cleanup_commit` commits each split before it sorts them
+    (`5.17:libgnucash/engine/qofinstance.cpp:1004`, `:1028-1029`; `5.17:libgnucash/engine/Transaction.cpp:1460-1510`);
+    red-ale writes the Book's order, already sorted. The load's commit sorts them again, value ≥ 0 first and stably
+    (`5.17:libgnucash/backend/sql/gnc-transaction-sql.cpp:395-397`; `5.17:libgnucash/engine/Transaction.cpp:540-553`),
+    so the rows are compared in that order.
+
+  Objects with a double or list slot are not edited: GnuCash's rewrite loses a double's digits past the twelfth
+  decimal and garbles nested lists (the note §3.8, §9), which red-ale keeps, so no equal dump exists. Every edit was
+  made through the bindings; `ctypes` is used only for `gnc_dmy2time64_neutral`, the price editor's date.
+  `crates/red-ale-sql/tests/encode.rs` checks each row red-ale encodes against GnuCash's for every row of every
+  fixture.
 - **Save atomicity.** A test hook in `red-ale-sql` fails the n-th statement of a save, for every n, and the file's
   rows are unchanged afterwards; a mismatched read-back (a corrupting hook) is refused with `save-verification`.
 - **One book, two formats.** The XML and SQLite copies of each fixture read to equal Books, down to denominators and
