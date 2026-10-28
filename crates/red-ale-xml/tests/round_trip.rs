@@ -246,3 +246,72 @@ fn every_xml_fixture_reads_back_as_the_same_book() {
         assert!(regenerated == book, "{name}: changed when every entity was regenerated");
     });
 }
+
+/// `text` with the splits of the first transaction after `marker` put in `order`, given as indices into the order
+/// the file has them in.
+fn reorder_splits(text: &str, marker: &str, order: &[usize]) -> String {
+    let start = text.find(marker).unwrap();
+    let open = start + text[start..].find("  <trn:splits>\n").unwrap() + "  <trn:splits>\n".len();
+    let close = open + text[open..].find("  </trn:splits>\n").unwrap();
+    let blocks: Vec<&str> = text[open..close].split_inclusive("    </trn:split>\n").collect();
+    assert_eq!(blocks.len(), order.len());
+    let reordered: String = order.iter().map(|&i| blocks[i]).collect();
+    format!("{}{reordered}{}", &text[..open], &text[close..])
+}
+
+const BUY_ACME: &str = "<trn:description>Buy ACME</trn:description>";
+
+/// GnuCash sorts a transaction's splits as it loads it, those with a value of zero or more first and otherwise as
+/// the file has them (`5.17:libgnucash/backend/xml/gnc-transaction-xml-v2.cpp:565-572`;
+/// `5.17:libgnucash/engine/Transaction.cpp:540-553`, `:1508-1510`), so it writes them back in that order.
+#[test]
+fn splits_another_writer_left_unsorted_are_read_and_written_as_gnucash_sorts_them() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let (gnucash, _) = read_book(text.as_bytes()).unwrap();
+    // Buy ACME is 1000.00, 9.95, -1009.95 as GnuCash wrote it; another writer put the negative split first.
+    let other = reorder_splits(&text, BUY_ACME, &[2, 0, 1]);
+    assert_ne!(other, text);
+    let (book, residue) = read_book(other.as_bytes()).unwrap();
+    assert!(book == gnucash, "the splits are in GnuCash's order");
+    assert_eq!(residue.originals_kept(), 0, "the order alone keeps no original text");
+    assert_same("rich with unsorted splits", &text, &write_book_text(&book, &residue));
+}
+
+/// The sort is stable: splits on the same side keep the order the file gives them, even where GnuCash wrote another.
+#[test]
+fn the_split_sort_keeps_the_file_order_on_each_side() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let (book, residue) = read_book(reorder_splits(&text, BUY_ACME, &[1, 2, 0]).as_bytes()).unwrap();
+    let expected = reorder_splits(&text, BUY_ACME, &[1, 0, 2]);
+    assert!(read_book(expected.as_bytes()).unwrap().0 == book, "9.95 stays before 1000.00");
+    assert_same("rich with 9.95 first", &expected, &write_book_text(&book, &residue));
+}
+
+/// A transaction kept as its original text for another reason is kept with its splits in GnuCash's order.
+#[test]
+fn original_text_kept_for_a_transaction_has_its_splits_sorted() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let with_num = text.replacen(&format!("  {BUY_ACME}"), &format!("  <trn:num></trn:num>\n  {BUY_ACME}"), 1);
+    let (book, residue) = read_book(reorder_splits(&with_num, BUY_ACME, &[2, 0, 1]).as_bytes()).unwrap();
+    assert_eq!(residue.originals_kept(), 1);
+    assert_same("rich with an empty num and unsorted splits", &with_num, &write_book_text(&book, &residue));
+}
+
+/// Template transactions are read by the same parser and committed the same way, so they are sorted too
+/// (`5.17:libgnucash/backend/xml/gnc-schedxaction-xml-v2.cpp:828-841`; `io-gncxml-v2.cpp:271-283`, `:336-340`).
+#[test]
+fn template_transaction_splits_are_sorted_as_they_are_read() {
+    let text = String::from_utf8(fixture("synthetic/rich.gnucash")).unwrap();
+    let rent = "<trn:description>Rent</trn:description>\n  <trn:splits>";
+    let (head, tail) = text.split_at(text.find(rent).unwrap());
+    // The template's two splits are zero; give them opposite signs, the negative one first.
+    let tail = tail
+        .replacen("<split:value>0/100</split:value>", "<split:value>-456/100</split:value>", 1)
+        .replacen("<split:value>0/100</split:value>", "<split:value>456/100</split:value>", 1);
+    let negative_first = format!("{head}{tail}");
+    let (book, residue) = read_book(negative_first.as_bytes()).unwrap();
+    let values: Vec<String> = book.templates.transactions[0].splits.iter().map(|s| s.value.to_string()).collect();
+    assert_eq!(values, ["456/100", "-456/100"]);
+    let sorted = reorder_splits(&negative_first, rent, &[1, 0]);
+    assert_same("rich with a sorted template", &sorted, &write_book_text(&book, &residue));
+}

@@ -11,8 +11,9 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use red_ale_core::business::Business;
 use red_ale_core::commodity::TEMPLATE_NAMESPACE;
+use red_ale_core::ops::scheduled::TEMPLATE_ROOT_NAME;
 use red_ale_core::{
-    Account, Book, Budget, Commodity, CommodityRef, FixedEnv, Frame, Guid, Lot, Price, Recurrence, ScheduledTransaction, SlotValue,
+    Account, AccountType, Book, Budget, Commodity, CommodityRef, FixedEnv, Frame, Guid, Lot, Price, Recurrence, ScheduledTransaction, SlotValue,
     Templates, Time64, Transaction,
 };
 use rusqlite::Connection;
@@ -163,7 +164,7 @@ impl<'c> Reader<'c> {
             business,
             budgets,
             templates: Templates {
-                root: trees.templates.contains_key(&ids.template_root).then_some(ids.template_root),
+                root: Some(ids.template_root),
                 accounts: trees.templates,
                 transactions: template_transactions,
             },
@@ -212,6 +213,13 @@ impl<'c> Reader<'c> {
     /// Template root is kept even with no children: the `books` row names it (`5.17:libgnucash/backend/sql/
     /// gnc-book-sql.cpp:67-69`, `:119-136`), so the first scheduled transaction goes under it rather than under a
     /// new root the row doesn't name. An XML book writes the root only with children (`Templates::has_descendants`).
+    ///
+    /// A Template root with no row is made as GnuCash makes it, in memory with the GUID the row names
+    /// (`5.17:libgnucash/engine/SX-book.cpp:113-125`; `5.17:libgnucash/backend/sql/gnc-book-sql.cpp:119-136`). GnuCash
+    /// never writes its row in that book: a scheduled transaction's template account goes under it and only the
+    /// template account's row is written (`5.17:libgnucash/engine/Account.cpp:2824-2879`;
+    /// `5.17:libgnucash/backend/sql/gnc-account-sql.cpp:278-344`). So the save writes none either: the root is in the
+    /// Book as read and stays unchanged.
     fn accounts(&mut self, ids: &BookRow) -> Result<Trees, SqlError> {
         let lookup = self.lookup.clone();
         let rows = decode_all(self.conn, &tables::ACCOUNTS, &mut self.findings, |row, f| {
@@ -219,7 +227,7 @@ impl<'c> Reader<'c> {
         })?;
         let main = reachable(&rows, ids.root);
         let template = reachable(&rows, ids.template_root);
-        if !main.contains(&ids.root) {
+        if !rows.iter().any(|r| r.account.guid == ids.root) {
             return Err(SqlError::NotABook(format!("the root account {} has no row", ids.root)));
         }
         rows.iter()
@@ -235,7 +243,11 @@ impl<'c> Reader<'c> {
                 .collect()
         };
         let accounts = pick(&main);
-        let templates = pick(&template);
+        let mut templates = pick(&template);
+        if !templates.contains_key(&ids.template_root) {
+            let root = Account::new(ids.template_root, TEMPLATE_ROOT_NAME, AccountType::Root, None, None);
+            templates.shift_insert(0, root.guid, Arc::new(root));
+        }
         Ok(Trees { accounts, templates, rows })
     }
 
@@ -439,14 +451,14 @@ fn set_children<T>(items: &mut [T], guid: impl Fn(&T) -> Guid, parent: impl Fn(&
     });
 }
 
-/// The GUIDs reachable from `root` through `parent_guid`, `root` included if it has a row.
+/// The GUIDs reachable from `root` through `parent_guid`, `root` included whether it has a row or not.
 fn reachable(rows: &[AccountRow], root: Guid) -> HashSet<Guid> {
     let mut children: HashMap<Guid, Vec<Guid>> = HashMap::new();
     rows.iter()
         .filter_map(|r| r.account.parent.map(|p| (p, r.account.guid)))
         .for_each(|(p, c)| children.entry(p).or_default().push(c));
     let mut seen = HashSet::new();
-    let mut stack: Vec<Guid> = rows.iter().filter(|r| r.account.guid == root).map(|r| r.account.guid).collect();
+    let mut stack = vec![root];
     while let Some(g) = stack.pop() {
         if seen.insert(g) {
             stack.extend(children.get(&g).into_iter().flatten().copied());

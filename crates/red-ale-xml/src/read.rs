@@ -26,7 +26,7 @@ use crate::budgets::{budget_el, parse_budget};
 use crate::business::{self, BusinessObject};
 use crate::dom::{Element, Token, Tokens, TreeBuilder};
 use crate::entities::{
-    account_el, commodity_el, commodity_is_written, parse_account, parse_commodity, parse_price, parse_transaction, price_el,
+    account_el, commodity_el, commodity_is_written, load_transaction, parse_account, parse_commodity, parse_price, price_el,
     transaction_el,
 };
 use crate::envelope::BOOK_VERSION;
@@ -363,11 +363,11 @@ impl<S: Sink> Reader<S> {
             }
             "gnc:transaction" => {
                 kept.enter(Section::Transactions);
-                let t = parse_transaction(el, &mut kept.notices)?;
+                let (t, loaded) = load_transaction(el, &mut kept.notices)?;
                 keep(
                     &mut kept.originals.transactions,
                     t.guid,
-                    original_if_needed(el, Some(&transaction_el(&t)), 0),
+                    original_if_needed(&loaded, Some(&transaction_el(&t)), 0),
                 );
                 self.sink.transaction(t);
             }
@@ -435,8 +435,8 @@ impl<S: Sink> Reader<S> {
                 self.sink.template_account(account);
             }
             "gnc:transaction" => {
-                let t = parse_transaction(el, &mut kept.notices)?;
-                let original = original_if_needed(el, Some(&transaction_el(&t)), 0);
+                let (t, loaded) = load_transaction(el, &mut kept.notices)?;
+                let original = original_if_needed(&loaded, Some(&transaction_el(&t)), 0);
                 keep(&mut kept.originals.template_transactions, t.guid, original);
                 self.sink.template_transaction(t);
             }

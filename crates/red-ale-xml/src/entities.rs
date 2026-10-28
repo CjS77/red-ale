@@ -3,11 +3,14 @@
 //! Writers mirror `5.17:libgnucash/backend/xml/gnc-commodity-xml-v2.cpp:57-112`, `gnc-pricedb-xml-v2.cpp`,
 //! `gnc-account-xml-v2.cpp:74-160`, `gnc-lot-xml-v2.cpp` and `gnc-transaction-xml-v2.cpp`.
 
+use std::borrow::Cow;
+
 use red_ale_core::currencies::iso_currency;
+use red_ale_core::ops::commit::sort_as_splits;
 use red_ale_core::{Account, AccountType, Commodity, CommodityRef, Guid, Lot, Price, ReconcileState, Split, Time64, Transaction};
 
 use crate::XmlError;
-use crate::dom::Element;
+use crate::dom::{Element, Node};
 use crate::values::{
     Notices, commodity_ref_el, guid_el, int_el, malformed, numeric_el, parse_commodity_ref, parse_guid, parse_int, parse_numeric,
     parse_slots, parse_time, slots_el, text_el, time_el, unknown_children,
@@ -285,6 +288,46 @@ pub fn parse_transaction(el: &Element, notices: &mut Notices) -> Result<Transact
             .unwrap_or_default(),
         splits,
     })
+}
+
+/// Read a `gnc:transaction` as GnuCash's load leaves it: its splits sorted as the commit that ends the read sorts them
+/// (`5.17:libgnucash/backend/xml/gnc-transaction-xml-v2.cpp:565-572`; `5.17:libgnucash/engine/Transaction.cpp:1508-1510`).
+/// The element comes back with its splits in the same order, so any original text kept for it is what GnuCash would
+/// write. A file GnuCash wrote already has them in that order, and its element comes back as it is.
+pub fn load_transaction<'a>(el: &'a Element, notices: &mut Notices) -> Result<(Transaction, Cow<'a, Element>), XmlError> {
+    let mut t = parse_transaction(el, notices)?;
+    let mut indexed: Vec<(usize, Split)> = t.splits.drain(..).enumerate().collect();
+    sort_as_splits(&mut indexed, |(_, s)| s);
+    let order: Vec<usize> = indexed.iter().map(|(i, _)| *i).collect();
+    t.splits = indexed.into_iter().map(|(_, s)| s).collect();
+    if order.iter().enumerate().all(|(at, i)| at == *i) {
+        Ok((t, Cow::Borrowed(el)))
+    } else {
+        Ok((t, Cow::Owned(with_splits_in(el, &order))))
+    }
+}
+
+/// `el` with the elements of its `trn:splits` in `order`, given as indices into the order it has them in.
+fn with_splits_in(el: &Element, order: &[usize]) -> Element {
+    let mut el = el.clone();
+    let splits = el.children.iter_mut().find_map(|n| match n {
+        Node::Element(e) if e.name == "trn:splits" => Some(e),
+        _ => None,
+    });
+    if let Some(splits) = splits {
+        let read: Vec<Element> = splits.elements().cloned().collect();
+        let sorted = order.iter().filter_map(|i| read.get(*i).cloned());
+        splits
+            .children
+            .iter_mut()
+            .filter_map(|n| match n {
+                Node::Element(e) => Some(e),
+                Node::Text(_) => None,
+            })
+            .zip(sorted)
+            .for_each(|(e, s)| *e = s);
+    }
+    el
 }
 
 fn parse_split(el: &Element, notices: &mut Notices) -> Result<Split, XmlError> {
