@@ -44,6 +44,10 @@
       "source": "reports/balsheet-pnl.gnucash",
       "sourceSha256": "42eeb6cf8e81620bd2a8c5d92914e4ff38c53866fb53c2db3d067dae47c00aa3"
     },
+    "reports/budget.gnucash": {
+      "source": "reports/budget.gnucash",
+      "sourceSha256": "eae009815d1e7907ef4e11d00fd4e79791d11bf5690b79bddc07263bb561cce9"
+    },
     "reports/category-average.gnucash": {
       "source": "reports/category-average.gnucash",
       "sourceSha256": "6ae98c8c1fc38ac232aafe26d8623c6f6bb66d2cb44ace90a782a12c1974f317"
