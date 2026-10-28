@@ -84,7 +84,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 |        | Reconciliation Report             | `standard/reconcile-report.scm` (`e45218c6d76f11e7b5ef0800277ef320`)                                               |        115 |                              |
 |        | Transaction Breakdown             | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine |        260 |                              |
 |   ❌   | Register report                   | `standard/register.scm` (`22104e02654c4adba844ee75a3f8d173`): GUI-only, won't do ("Decided", item 5)             |        674 | `test-register.scm`          |
-|        | Trial Balance                     | `standard/trial-balance.scm` (`216cd0cf6931453ebcce85415aba7082`)                                                  |        876 | `test-trial-balance.scm`     |
+|   ✅   | Trial Balance                     | `standard/trial-balance.scm` (`216cd0cf6931453ebcce85415aba7082`)                                                  |        876 | `test-trial-balance.scm`     |
 |        | Cash Flow                         | `standard/cash-flow.scm` (`f8748b813fab4220ba26e743aedf38da`)                                                      |        346 | `test-cash-flow.scm`         |
 |   ✅   | Equity Statement                  | `standard/equity-statement.scm` (`c2a996c8970f43448654ca84f17dda24`)                                               |        510 | `test-equity-statement.scm`  |
 |        | Multicolumn Balance Sheet and P&L | `standard/balsheet-pnl.scm` (`065d5d5a77ba11e8b31e83ada73c5eea`, `0e94fd0277ba11e8825d43e27232c9d4`)               |      1,261 | `test-balsheet-pnl.scm`      |
