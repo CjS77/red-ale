@@ -1,6 +1,7 @@
 # Milestone 4: red-ale v0.4
 
-**Status: in progress.** The scope comes from [`roadmap.md`](roadmap.md) ("v0.4"). What GnuCash 5.17 does is in three
+**Status: done.** Every row below is ✅ or ❌, and each "Done when" item holds, with its evidence listed under it.
+The scope comes from [`roadmap.md`](roadmap.md) ("v0.4"). What GnuCash 5.17 does is in three
 research notes, every claim cited to the source at the pin:
 [`notes/sql-backend.md`](notes/sql-backend.md), [`notes/engine-scheduled-transactions.md`](notes/engine-scheduled-transactions.md)
 and [`notes/engine-budgets.md`](notes/engine-budgets.md). The "Decide before code" items were settled at the start
@@ -539,7 +540,11 @@ are `red-ale-testkit`'s, run with `--features oracle` against GnuCash 5.17.
   `the_api_is_additive_over_0_3_0`, with `redAleApi` 0.4.0; `red-ale/tests/cli.rs` runs the budget and scheduled
   transaction examples through `exec`.
 - **Fuzzing.** `sql_rows`, `sql_file` and `formula` ran 60 s each with no crash ("Carried forward from v0.3").
-- **Earlier milestones.** `cargo test --workspace` and the oracle suite (201 tests) pass, and clippy is clean.
+- **Memory and Since Last Run at scale.** The "Measured" paragraphs under that item above; `red-ale-testkit`:
+  `memory_budget.rs`, `memory_budget_sqlite.rs`, `sqlite_save_rows.rs` and `since_last_run_scale.rs`
+  (`a_since_last_run_creating_5000_transactions_is_one_mutation`).
+- **Earlier milestones.** `cargo test --workspace` (1527 tests) and the oracle suite (206 tests) pass, and clippy is
+  clean with the oracle feature.
 
 ## Follow-ups
 
