@@ -54,25 +54,38 @@ struct SettingsArgs {
     /// Never delete backups or old journals.
     #[arg(long)]
     keep_backups_forever: bool,
-    /// red-ale's configuration file (JSON), holding settings such as the accounting period. Without it they last
-    /// only as long as the process.
-    #[arg(long)]
+    /// red-ale's Configuration file (JSON), holding settings such as the accounting period. Without it, the default
+    /// file every red-ale process shares (~/.config/red-ale/config.json on Linux).
+    #[arg(long, conflicts_with = "no_config")]
     config: Option<PathBuf>,
+    /// Keep the Configuration in memory for this process only: no Configuration file is read or written.
+    #[arg(long)]
+    no_config: bool,
 }
 
 impl SettingsArgs {
-    fn settings(&self) -> Settings {
+    fn settings(&self) -> Result<Settings> {
         let retention = match (self.keep_backups_forever, self.retention_days) {
             (true, _) => Retention::Forever,
             (false, 0) => Retention::Never,
             (false, days) => Retention::Days(days),
         };
-        let config = self.config.as_ref().map_or_else(ConfigStore::in_memory, ConfigStore::at);
-        Settings {
+        Ok(Settings {
             retention,
-            config,
+            config: self.config_store()?,
             ..Settings::default()
+        })
+    }
+
+    /// `--no-config`: memory; `--config <file>`: that file; neither: the default file (`design/api/configuration.md`).
+    fn config_store(&self) -> Result<ConfigStore> {
+        if self.no_config {
+            return Ok(ConfigStore::in_memory());
         }
+        let path = self.config.clone().or_else(red_ale_service::config::default_path);
+        path.map(ConfigStore::at).ok_or_else(|| {
+            anyhow::anyhow!("no home directory to keep the Configuration in (HOME, or APPDATA on Windows); give --config <file> or --no-config")
+        })
     }
 }
 
@@ -335,7 +348,7 @@ fn methods() -> Result<()> {
 
 /// A dispatcher for a server, with `book` opened in it if given. Reports go to standard error, never standard output.
 fn server_dispatcher(settings: &SettingsArgs, book: Option<&str>, read_only: bool) -> Result<Arc<Mutex<Dispatcher>>> {
-    let mut dispatcher = Dispatcher::new(settings.settings());
+    let mut dispatcher = Dispatcher::new(settings.settings()?);
     if let Some(book) = book {
         let info = dispatcher
             .call("book.open", json!({ "path": book, "readOnly": read_only }))
@@ -347,7 +360,7 @@ fn server_dispatcher(settings: &SettingsArgs, book: Option<&str>, read_only: boo
 
 /// Run the server until interrupted. An RPC error is never returned from here, so `Ok(None)` on success.
 fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
-    let config = args.settings.settings().config;
+    let config = args.settings.settings()?.config;
     let limits = (config.jsonrpc_max_request_bytes()?, config.jsonrpc_max_response_bytes()?);
     let dispatcher = server_dispatcher(&args.settings, args.book.as_deref(), args.read_only)?;
     let runtime = tokio::runtime::Runtime::new()?;
@@ -366,7 +379,7 @@ fn serve(args: &ServeArgs) -> Result<Option<RpcError>> {
 /// Serve MCP on standard input and output until the client closes standard input or a signal arrives, then close
 /// the book as `serve` does. Standard output carries the protocol only.
 fn mcp(args: &McpArgs) -> Result<Option<RpcError>> {
-    let max_request_bytes = args.settings.settings().config.mcp_max_request_bytes()?;
+    let max_request_bytes = args.settings.settings()?.config.mcp_max_request_bytes()?;
     let dispatcher = server_dispatcher(&args.settings, args.book.as_deref(), args.read_only)?;
     let runtime = tokio::runtime::Runtime::new()?;
     let outcome = runtime.block_on(async {
@@ -446,7 +459,7 @@ fn exec(args: &ExecArgs) -> Result<Ended> {
         (None, Some(method)) => vec![(method.clone(), args.input.fill(method, params::parse(&args.params)?)?)],
         (None, None) => bail!("give a method or --script"),
     };
-    let mut d = Dispatcher::new(args.settings.settings());
+    let mut d = Dispatcher::new(args.settings.settings()?);
     if let Err(e) = open_book(&mut d, args) {
         return Ok(Ended::Failed(e));
     }

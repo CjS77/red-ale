@@ -215,8 +215,11 @@ fn a_failed_set_changes_nothing() {
         codes::INVALID_PARAMS
     );
     assert_eq!(s.text(), text);
-    let entries: Vec<_> = std::fs::read_dir(s.dir.path()).unwrap().collect();
-    assert_eq!(entries.len(), 1, "no temporary file is left");
+    // The lock file stays beside the Configuration: it is what writers lock, not a temporary file.
+    let mut entries: Vec<String> =
+        std::fs::read_dir(s.dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    entries.sort();
+    assert_eq!(entries, ["red-ale.json", "red-ale.json.lock"], "no temporary file is left");
 }
 
 #[test]

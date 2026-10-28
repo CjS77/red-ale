@@ -2,7 +2,7 @@
 //! GnuCash's custom reports (`design/reports.md` §9). Each stores only the options that differ from the template's
 //! defaults (`5.17:bindings/guile/options.scm:141`), so it follows the template's later defaults for the rest.
 
-use red_ale_service::config::Config;
+use red_ale_service::config::{Config, ConfigLock};
 use red_ale_service::reports::SavedReport;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -69,6 +69,7 @@ pub struct DeleteResult {
 /// Save a report's options under a new name. A clash is `conflict`, where GnuCash appends a number
 /// (`5.17:gnucash/report/report-core.scm:515-532`), so the caller gets the name it asked for.
 pub(super) fn save(ctx: &mut Context, p: SaveParams) -> Result<ReportInfo, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let reports = Reports::load(ctx)?;
     let name = name(&p.name, WHAT)?;
     if reports.saved.iter().any(|s| s.name == name) {
@@ -99,13 +100,14 @@ pub(super) fn save(ctx: &mut Context, p: SaveParams) -> Result<ReportInfo, RpcEr
     })?;
     let mut all = reports.saved;
     all.push(saved);
-    store(ctx, reports.config, &all)?;
+    store(ctx, &lock, reports.config, &all)?;
     Ok(info)
 }
 
 /// Set options of a saved configuration, keeping its GUID and name, as GnuCash's "Save Report Configuration" over an
 /// existing one does (`5.17:gnucash/report/report-core.scm:705-719`).
 pub(super) fn update(ctx: &mut Context, p: UpdateParams) -> Result<ReportInfo, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let reports = Reports::load(ctx)?;
     let current = reports.configuration(&p.configuration.0)?;
     let template = reports.template_of(current)?;
@@ -130,13 +132,14 @@ pub(super) fn update(ctx: &mut Context, p: UpdateParams) -> Result<ReportInfo, R
     };
     let info = ReportInfo::saved(&updated, Some(template));
     let all = replace(&reports.saved, updated);
-    store(ctx, reports.config, &all)?;
+    store(ctx, &lock, reports.config, &all)?;
     Ok(info)
 }
 
 /// Rename a saved configuration; a name another one has is `conflict`, as GnuCash's dialog refuses it
 /// (`5.17:gnucash/gnome/dialog-custom-report.c:462-494`).
 pub(super) fn rename(ctx: &mut Context, p: RenameParams) -> Result<ReportInfo, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let reports = Reports::load(ctx)?;
     let current = reports.configuration(&p.configuration.0)?;
     let name = name(&p.name, WHAT)?;
@@ -146,18 +149,19 @@ pub(super) fn rename(ctx: &mut Context, p: RenameParams) -> Result<ReportInfo, R
     let renamed = SavedReport { name, ..current.clone() };
     let info = ReportInfo::saved(&renamed, reports.registry.template(renamed.template));
     let all = replace(&reports.saved, renamed);
-    store(ctx, reports.config, &all)?;
+    store(ctx, &lock, reports.config, &all)?;
     Ok(info)
 }
 
 /// Delete a saved configuration (`gnc:delete-report`, `5.17:gnucash/report/report-core.scm:811-818`).
 pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let reports = Reports::load(ctx)?;
     let current = reports.configuration(&p.configuration.0)?;
     let deleted = ReportInfo::saved(current, reports.registry.template(current.template));
     let guid = current.guid;
     let all: Vec<SavedReport> = reports.saved.iter().filter(|s| s.guid != guid).cloned().collect();
-    store(ctx, reports.config, &all)?;
+    store(ctx, &lock, reports.config, &all)?;
     Ok(DeleteResult { deleted })
 }
 
@@ -169,8 +173,8 @@ fn replace(saved: &[SavedReport], changed: SavedReport) -> Vec<SavedReport> {
         .collect()
 }
 
-/// Write the saved configurations to the Configuration, atomically.
-pub(super) fn store(ctx: &Context, mut config: Config, saved: &[SavedReport]) -> Result<(), RpcError> {
+/// Write the saved configurations to the Configuration, atomically, under the lock taken before it was loaded.
+pub(super) fn store(ctx: &Context, lock: &ConfigLock, mut config: Config, saved: &[SavedReport]) -> Result<(), RpcError> {
     config.set_saved_reports(saved);
-    Ok(ctx.settings.config.save(&config)?)
+    Ok(ctx.settings.config.save(lock, &config)?)
 }

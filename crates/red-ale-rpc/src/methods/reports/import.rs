@@ -162,6 +162,7 @@ fn option_message(e: &OptionError) -> String {
 /// Import saved report configurations. Each keeps GnuCash's GUID and name and stores only the options that differ
 /// from its template's defaults, read without a Book, so the result does not depend on the book open.
 pub(super) fn configurations(ctx: &mut Context, p: ImportParams) -> Result<ImportConfigurationsResult, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let reports = Reports::load(ctx)?;
     let entries = import::saved_reports(&p.text);
     let mut all = reports.saved.clone();
@@ -191,7 +192,7 @@ pub(super) fn configurations(ctx: &mut Context, p: ImportParams) -> Result<Impor
         Ok(())
     })?;
     if !p.dry_run && !out.imported.is_empty() {
-        configurations::store(ctx, reports.config, &all)?;
+        configurations::store(ctx, &lock, reports.config, &all)?;
     }
     Ok(out)
 }
@@ -277,6 +278,7 @@ fn configure(mut db: OptionDb, forms: &[OptionForm], on: &On<'_>) -> Result<(Map
 /// Import style sheets. An entry for a predefined style sheet holds changes to it; one with a new name is a user
 /// style sheet. A name the Configuration already has an entry for is skipped, so edits made in red-ale are kept.
 pub(super) fn style_sheets(ctx: &mut Context, p: ImportParams) -> Result<ImportStyleSheetsResult, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
     let mut out = ImportStyleSheetsResult {
@@ -294,7 +296,7 @@ pub(super) fn style_sheets(ctx: &mut Context, p: ImportParams) -> Result<ImportS
         }
     });
     if !p.dry_run && !out.imported.is_empty() {
-        sheets::store(ctx, config, &records)?;
+        sheets::store(ctx, &lock, config, &records)?;
     }
     Ok(out)
 }

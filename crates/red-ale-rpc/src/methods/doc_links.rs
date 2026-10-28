@@ -177,8 +177,9 @@ pub struct SetPathHeadParams {
 
 fn set_path_head(ctx: &mut Context, p: SetPathHeadParams) -> Result<PathHeadInfo, RpcError> {
     let head = p.path_head.as_deref().map(normalise_path_head).transpose()?;
+    let lock = ctx.settings.config.lock()?;
     let mut config = ctx.settings.config.load()?;
     config.set_doc_link_path_head(head.as_deref());
-    ctx.settings.config.save(&config)?;
+    ctx.settings.config.save(&lock, &config)?;
     describe(ctx)
 }

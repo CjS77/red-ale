@@ -106,6 +106,7 @@ pub fn saved_map(config: &Config) -> Result<SavedMap, ServiceError> {
 /// Save the map an import used over the one the Configuration holds: `qif-import:save-map-prefs`
 /// (`5.17:gnucash/import-export/qif-imp/qif-guess-map.scm:304-344`).
 pub fn save_map(store: &ConfigStore, used: &SavedMap) -> Result<(), ServiceError> {
+    let lock = store.lock()?;
     let mut config = store.load()?;
     let mut saved = saved_map(&config)?;
     saved.extend(used.clone());
@@ -113,5 +114,5 @@ pub fn save_map(store: &ConfigStore, used: &SavedMap) -> Result<(), ServiceError
     config
         .apply(&[(MAP_SETTING.to_owned(), value)])
         .map_err(|e| invalid(e.to_string()))?;
-    store.save(&config)
+    store.save(&lock, &config)
 }

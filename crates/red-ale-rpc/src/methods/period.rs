@@ -145,9 +145,10 @@ fn set(ctx: &mut Context, p: SetParams) -> Result<PeriodInfo, RpcError> {
         c.configured_fy = Some(fiscal(f)?);
     }
     period::check_period(&c.period, c.fy())?;
+    let lock = ctx.settings.config.lock()?;
     let mut config = ctx.settings.config.load()?;
     config.set_accounting_period(&c.period, c.configured_fy);
-    ctx.settings.config.save(&config)?;
+    ctx.settings.config.save(&lock, &config)?;
     Ok(describe(ctx, &c))
 }
 

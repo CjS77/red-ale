@@ -140,6 +140,7 @@ pub struct SetResult {
 }
 
 fn set(ctx: &mut Context, p: SetParams) -> Result<SetResult, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let mut config = ctx.settings.config.load()?;
     let changes: Vec<(String, Value)> = p.changes.into_iter().collect();
     let applied = config.apply(&changes).map_err(setting_error)?;
@@ -150,7 +151,7 @@ fn set(ctx: &mut Context, p: SetParams) -> Result<SetResult, RpcError> {
         .iter()
         .map(|(text, _)| Ok((text.clone(), config.view(Some(&path(text)?)).map_err(setting_error)?)));
     let values = values.collect::<Result<Map<String, Value>, RpcError>>()?;
-    ctx.settings.config.save(&config)?;
+    ctx.settings.config.save(&lock, &config)?;
     Ok(SetResult {
         values,
         cleared_keys: applied.cleared_keys,

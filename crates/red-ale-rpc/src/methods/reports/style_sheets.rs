@@ -8,7 +8,7 @@
 use red_ale_report::ReportError;
 use red_ale_report::options::OptionInfo;
 use red_ale_report::render::{StyleSheet, StyleSheetTemplate};
-use red_ale_service::config::Config;
+use red_ale_service::config::{Config, ConfigLock};
 use red_ale_service::reports::StyleSheetRecord;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -94,6 +94,7 @@ pub struct CreateParams {
 }
 
 pub(super) fn create(ctx: &mut Context, p: CreateParams) -> Result<StyleSheetInfo, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
     let name = name(&p.name, WHAT)?;
@@ -106,7 +107,7 @@ pub(super) fn create(ctx: &mut Context, p: CreateParams) -> Result<StyleSheetInf
     sheet.apply(&given).map_err(ReportError::from)?;
     let raw = given.as_object().cloned().unwrap_or_default();
     records.push(record(&sheet, &raw, Map::new()));
-    store(ctx, config, &records)?;
+    store(ctx, &lock, config, &records)?;
     Ok(StyleSheetInfo::of(&sheet))
 }
 
@@ -123,6 +124,7 @@ pub struct UpdateParams {
 /// Change a style sheet's options. Predefined style sheets can be changed too, as GnuCash lets the user edit
 /// `Default`.
 pub(super) fn update(ctx: &mut Context, p: UpdateParams) -> Result<StyleSheetInfo, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
     let mut sheet = style_sheets(&records)?
@@ -136,7 +138,7 @@ pub(super) fn update(ctx: &mut Context, p: UpdateParams) -> Result<StyleSheetInf
     let first = records.iter().position(|r| r.name == p.name);
     records.retain(|r| r.name != p.name);
     records.insert(first.unwrap_or(records.len()).min(records.len()), changed);
-    store(ctx, config, &records)?;
+    store(ctx, &lock, config, &records)?;
     Ok(StyleSheetInfo::of(&sheet))
 }
 
@@ -161,6 +163,7 @@ pub struct DeleteResult {
 /// Delete a user style sheet, or reset a predefined one to its template's defaults, which is what GnuCash does at
 /// its next start (`5.17:gnucash/report/gnc-report.cpp:81-111`).
 pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult, RpcError> {
+    let lock = ctx.settings.config.lock()?;
     let config = ctx.settings.config.load()?;
     let mut records = config.style_sheets()?;
     let sheet = style_sheets(&records)?
@@ -168,7 +171,7 @@ pub(super) fn delete(ctx: &mut Context, p: DeleteParams) -> Result<DeleteResult,
         .cloned()
         .ok_or_else(|| RpcError::not_found(KIND, &p.name))?;
     records.retain(|r| r.name != p.name);
-    store(ctx, config, &records)?;
+    store(ctx, &lock, config, &records)?;
     Ok(DeleteResult {
         deleted: StyleSheetInfo::of(&sheet),
         reset: sheet.is_predefined(),
@@ -213,8 +216,8 @@ fn merge(mut base: Map<String, Value>, changes: &Value) -> Map<String, Value> {
     base
 }
 
-/// Write the style sheet entries to the Configuration, atomically.
-pub(super) fn store(ctx: &Context, mut config: Config, records: &[StyleSheetRecord]) -> Result<(), RpcError> {
+/// Write the style sheet entries to the Configuration, atomically, under the lock taken before it was loaded.
+pub(super) fn store(ctx: &Context, lock: &ConfigLock, mut config: Config, records: &[StyleSheetRecord]) -> Result<(), RpcError> {
     config.set_style_sheets(records);
-    Ok(ctx.settings.config.save(&config)?)
+    Ok(ctx.settings.config.save(lock, &config)?)
 }

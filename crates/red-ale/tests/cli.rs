@@ -10,12 +10,30 @@ use serde_json::{Value, json};
 
 const BIN: &str = env!("CARGO_BIN_EXE_red-ale");
 
+/// The binary, with every home directory a Configuration could live in pointed at one temporary directory for this
+/// test binary, so a test never reads or writes the user's real Configuration.
+fn red_ale() -> Command {
+    static HOME: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+    let home = HOME.get_or_init(|| tempfile::tempdir().unwrap()).path();
+    in_home(home)
+}
+
+/// The binary, with its home directories under `home`.
+fn in_home(home: &Path) -> Command {
+    let mut command = Command::new(BIN);
+    command
+        .env("HOME", home)
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .env("APPDATA", home.join("AppData"));
+    command
+}
+
 fn fixture(name: &str) -> String {
     format!("{}/../../fixtures/{name}", env!("CARGO_MANIFEST_DIR"))
 }
 
 fn run(args: &[&str]) -> Output {
-    Command::new(BIN).args(args).output().unwrap()
+    red_ale().args(args).output().unwrap()
 }
 
 fn json(bytes: &[u8]) -> Value {
@@ -165,7 +183,7 @@ fn a_script_runs_since_last_run_and_applies_it() {
 fn scripts_run_in_order_and_stop_at_the_first_failure() {
     let dir = tempfile::tempdir().unwrap();
     let book = copy(dir.path(), "synthetic/rich.gnucash");
-    let mut child = Command::new(BIN)
+    let mut child = red_ale()
         .args(["exec", "--book", &book, "--script", "-"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -201,7 +219,7 @@ fn methods_and_schema_list_the_api() {
 fn serve_and_call_over_http() {
     let dir = tempfile::tempdir().unwrap();
     let book = copy(dir.path(), "synthetic/rich.gnucash");
-    let mut server = Command::new(BIN)
+    let mut server = red_ale()
         .args(["serve", "--listen", "127.0.0.1:0", "--book", &book])
         .stderr(Stdio::piped())
         .spawn()
@@ -377,7 +395,7 @@ fn rfc3339(t: red_ale_core::Time64) -> String {
 }
 
 fn run_in(tz: Option<&str>, args: &[&str]) -> Output {
-    let mut command = Command::new(BIN);
+    let mut command = red_ale();
     command.args(args);
     match tz {
         Some(tz) => command.env("TZ", tz),
@@ -535,7 +553,7 @@ fn call_saves_a_configuration_and_exports_it_to_a_file() {
         "--config",
         &config,
     ];
-    let mut server = Command::new(BIN).args(args).stderr(Stdio::piped()).spawn().unwrap();
+    let mut server = red_ale().args(args).stderr(Stdio::piped()).spawn().unwrap();
     let mut lines = BufReader::new(server.stderr.take().unwrap()).lines();
     let url = lines
         .by_ref()
@@ -570,7 +588,7 @@ fn call_saves_a_configuration_and_exports_it_to_a_file() {
 #[test]
 fn a_reader_closing_the_pipe_ends_output_quietly() {
     ["schema", "methods"].into_iter().for_each(|command| {
-        let mut child = Command::new(BIN)
+        let mut child = red_ale()
             .arg(command)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -653,7 +671,7 @@ fn the_response_size_limit_comes_from_the_configuration() {
 
 /// Start `red-ale serve` with `args` and return it with its URL.
 fn serve_with(args: &[&str]) -> (std::process::Child, String) {
-    let mut server = Command::new(BIN)
+    let mut server = red_ale()
         .arg("serve")
         .args(["--listen", "127.0.0.1:0"])
         .args(args)
@@ -910,4 +928,45 @@ fn file_fills_the_text_param_of_imports() {
     let stored: Value = serde_json::from_str(&std::fs::read_to_string(dir.path().join("config.json")).unwrap()).unwrap();
     assert_eq!(stored["reports"]["saved"].as_array().unwrap().len(), 3);
     assert!(stored["reports"].get("styleSheets").is_none(), "the dry run wrote nothing");
+}
+
+/// The default Configuration file (`design/api/configuration.md`): `$XDG_CONFIG_HOME/red-ale/config.json` on Linux
+/// (`~/Library/Application Support` on macOS, `%APPDATA%` on Windows), shared by every process started without
+/// `--config`, and made, with its directory, by the first change.
+#[test]
+fn without_config_every_process_shares_the_default_file() {
+    let home = tempfile::tempdir().unwrap();
+    let exec = |args: &[&str]| {
+        let out = in_home(home.path()).arg("exec").args(args).output().unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        json(&out.stdout)
+    };
+    let set = exec(&["config.set", r#"changes:={"import.settings.matchThreshold": 3}"#]);
+    let file = set["configFile"].as_str().unwrap().to_owned();
+    assert!(Path::new(&file).starts_with(home.path()), "{file}");
+    assert!(file.ends_with(&Path::new("red-ale").join("config.json").display().to_string()), "{file}");
+    if cfg!(target_os = "linux") {
+        assert_eq!(Path::new(&file), home.path().join(".config/red-ale/config.json"));
+    }
+    assert!(Path::new(&file).is_file());
+    let got = exec(&["config.get", "path=import.settings.matchThreshold"]);
+    assert_eq!((got["value"].clone(), got["configFile"].clone()), (json!(3), json!(file)));
+}
+
+/// `--no-config` keeps the Configuration in memory: nothing is read from the default file or written to it.
+#[test]
+fn no_config_reads_and_writes_no_file() {
+    let home = tempfile::tempdir().unwrap();
+    let exec = |args: &[&str]| in_home(home.path()).arg("exec").args(args).output().unwrap();
+    let out = exec(&["config.set", r#"changes:={"import.settings.matchThreshold": 3}"#]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let out = exec(&["--no-config", "config.get", "path=import.settings.matchThreshold"]);
+    assert_ne!(json(&out.stdout)["value"], json!(3), "the default file is not read");
+    assert_eq!(json(&out.stdout)["configFile"], Value::Null);
+    let before = std::fs::read(home.path().join(".config/red-ale/config.json")).ok();
+    let out = exec(&["--no-config", "config.set", r#"changes:={"import.settings.matchThreshold": 4}"#]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(std::fs::read(home.path().join(".config/red-ale/config.json")).ok(), before, "nor written");
+    let both = exec(&["--no-config", "--config", "x.json", "config.get"]);
+    assert!(!both.status.success(), "--config and --no-config together are refused");
 }

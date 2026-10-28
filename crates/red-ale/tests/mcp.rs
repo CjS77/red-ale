@@ -10,6 +10,24 @@ use serde_json::{Value, json};
 
 const BIN: &str = env!("CARGO_BIN_EXE_red-ale");
 
+/// The binary, with every home directory a Configuration could live in pointed at one temporary directory for this
+/// test binary, so a test never reads or writes the user's real Configuration.
+fn red_ale() -> Command {
+    static HOME: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+    let home = HOME.get_or_init(|| tempfile::tempdir().unwrap()).path();
+    in_home(home)
+}
+
+/// The binary, with its home directories under `home`.
+fn in_home(home: &Path) -> Command {
+    let mut command = Command::new(BIN);
+    command
+        .env("HOME", home)
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .env("APPDATA", home.join("AppData"));
+    command
+}
+
 fn send(stdin: &mut ChildStdin, message: &Value) {
     writeln!(stdin, "{message}").unwrap();
     stdin.flush().unwrap();
@@ -35,7 +53,7 @@ fn mcp_writes_only_protocol_messages_and_releases_the_lock_on_exit() {
     )
     .unwrap();
     let book = book.display().to_string();
-    let mut server = Command::new(BIN)
+    let mut server = red_ale()
         .args(["mcp", "--book", &book, "--retention-days", "0"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -88,12 +106,12 @@ fn mcp_writes_only_protocol_messages_and_releases_the_lock_on_exit() {
 fn sigterm_stops_mcp_and_releases_the_lock_while_standard_input_is_open() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("new.gnucash").display().to_string();
-    let created = Command::new(BIN)
+    let created = red_ale()
         .args(["exec", "--create", "--book", &book, "book.info"])
         .output()
         .unwrap();
     assert!(created.status.success());
-    let mut server = Command::new(BIN)
+    let mut server = red_ale()
         .args(["mcp", "--book", &book])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

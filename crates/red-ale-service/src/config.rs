@@ -2,13 +2,16 @@
 //! accounting period (`5.17:gnucash/gschemas/org.gnucash.GnuCash.window.pages.account.tree.gschema.xml.in`).
 //!
 //! The configuration is a JSON object in a file named by [`Settings`](crate::Settings), or, with no file, held in
-//! memory for the life of the process. Keys red-ale does not know are kept when it writes the file.
+//! memory for the life of the process. The binary uses [`default_path`] unless given another file, or `--no-config`
+//! for memory (`design/api/configuration.md`). Keys red-ale does not know are kept when it writes the file.
 //!
 //! ```json
 //! { "accountingPeriod": { "start": "year", "end": "2024-12-31", "fiscalYearEnd": "06-30" } }
 //! ```
 
+use std::ffi::OsString;
 use std::fmt;
+use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -145,6 +148,40 @@ impl Config {
     }
 }
 
+/// The default Configuration file, shared by every red-ale process started without `--config`:
+/// `$XDG_CONFIG_HOME/red-ale/config.json` (else `~/.config/red-ale/config.json`) on Linux and other Unixes,
+/// `~/Library/Application Support/red-ale/config.json` on macOS, `%APPDATA%\red-ale\config.json` on Windows. `None`
+/// when the environment names no home directory.
+pub fn default_path() -> Option<PathBuf> {
+    default_path_for(std::env::consts::OS, |name| std::env::var_os(name))
+}
+
+fn default_path_for(os: &str, var: impl Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
+    let dir = |name: &str| var(name).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let base = match os {
+        "windows" => dir("APPDATA"),
+        "macos" => dir("HOME").map(|home| home.join("Library").join("Application Support")),
+        // The XDG Base Directory spec ignores a relative XDG_CONFIG_HOME.
+        _ => dir("XDG_CONFIG_HOME")
+            .filter(|d| d.is_absolute())
+            .or_else(|| dir("HOME").map(|home| home.join(".config"))),
+    }?;
+    Some(base.join("red-ale").join("config.json"))
+}
+
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    PathBuf::from(name)
+}
+
+/// Held from loading the Configuration to saving it ([`ConfigStore::lock`]).
+#[must_use = "the lock is held only while the guard lives"]
+#[derive(Debug)]
+pub struct ConfigLock {
+    _file: Option<File>,
+}
+
 /// Where the configuration lives: a file, or memory shared by every clone of the store.
 #[derive(Clone, Default)]
 pub struct ConfigStore {
@@ -205,13 +242,40 @@ impl ConfigStore {
         }
     }
 
-    /// Replace the configuration. A file is written beside itself and renamed into place, so it is never half
-    /// written.
-    pub fn save(&self, config: &Config) -> Result<(), ServiceError> {
+    /// Take the lock every change holds from its [`load`](Self::load) to its [`save`](Self::save), so two
+    /// processes changing one file at once don't lose either change. A file store locks `<file>.lock` beside it,
+    /// creating the directory if needed, and waits for any other holder; the lock goes when the guard is dropped.
+    /// A memory store needs none: one process's changes already come one at a time through the dispatcher.
+    pub fn lock(&self) -> Result<ConfigLock, ServiceError> {
+        let Some(path) = &self.path else {
+            return Ok(ConfigLock { _file: None });
+        };
+        let lock_path = with_suffix(path, ".lock");
+        let io = |source| ServiceError::Io {
+            path: lock_path.clone(),
+            source,
+        };
+        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+            std::fs::create_dir_all(dir).map_err(io)?;
+        }
+        let file = OpenOptions::new().create(true).truncate(false).write(true).open(&lock_path).map_err(io)?;
+        file.lock().map_err(io)?;
+        Ok(ConfigLock { _file: Some(file) })
+    }
+
+    /// Replace the configuration, under the lock taken before it was loaded. A file is written beside itself and
+    /// renamed into place, so it is never half written; its directory is made if it doesn't exist.
+    pub fn save(&self, _lock: &ConfigLock, config: &Config) -> Result<(), ServiceError> {
         let Some(path) = &self.path else {
             *self.memory.lock().unwrap_or_else(PoisonError::into_inner) = config.clone();
             return Ok(());
         };
+        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+            std::fs::create_dir_all(dir).map_err(|source| ServiceError::Io {
+                path: dir.to_owned(),
+                source,
+            })?;
+        }
         crate::files::replace_private_file(path, config.to_text().as_bytes())
     }
 
@@ -294,14 +358,73 @@ mod tests {
         let clone = memory.clone();
         let mut c = Config::default();
         c.set_accounting_period(&AccountingPeriod::default(), "12-31".parse().ok());
-        memory.save(&c).unwrap();
+        memory.save(&memory.lock().unwrap(), &c).unwrap();
         assert_eq!(clone.load().unwrap(), c);
         assert_eq!(memory, clone);
         assert_ne!(memory, ConfigStore::in_memory());
         let dir = tempfile::tempdir().unwrap();
         let file = ConfigStore::at(dir.path().join("red-ale.json"));
         assert_eq!(file.load().unwrap(), Config::default());
-        file.save(&c).unwrap();
+        file.save(&file.lock().unwrap(), &c).unwrap();
         assert_eq!(ConfigStore::at(dir.path().join("red-ale.json")).load().unwrap(), c);
+    }
+
+    #[test]
+    fn the_default_path_follows_each_platform() {
+        fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<OsString> + 'a {
+            move |name| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| OsString::from(*v))
+        }
+        let linux = [("HOME", "/home/me")];
+        assert_eq!(default_path_for("linux", env(&linux)), Some(PathBuf::from("/home/me/.config/red-ale/config.json")));
+        let xdg = [("HOME", "/home/me"), ("XDG_CONFIG_HOME", "/xdg")];
+        assert_eq!(default_path_for("linux", env(&xdg)), Some(PathBuf::from("/xdg/red-ale/config.json")));
+        let relative = [("HOME", "/home/me"), ("XDG_CONFIG_HOME", "rel")];
+        assert_eq!(default_path_for("freebsd", env(&relative)), Some(PathBuf::from("/home/me/.config/red-ale/config.json")));
+        assert_eq!(
+            default_path_for("macos", env(&linux)),
+            Some(PathBuf::from("/home/me/Library/Application Support/red-ale/config.json"))
+        );
+        let windows = [("APPDATA", "C:/Users/me/AppData/Roaming")];
+        assert_eq!(
+            default_path_for("windows", env(&windows)),
+            Some(PathBuf::from("C:/Users/me/AppData/Roaming").join("red-ale").join("config.json"))
+        );
+        assert_eq!(default_path_for("linux", env(&[("HOME", "")])), None);
+        assert_eq!(default_path_for("windows", env(&linux)), None);
+    }
+
+    /// The first save makes the file's directory.
+    #[test]
+    fn a_first_save_makes_the_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ConfigStore::at(dir.path().join("a/b/config.json"));
+        let mut c = Config::default();
+        c.set_doc_link_path_head(Some("file:///docs/"));
+        store.save(&store.lock().unwrap(), &c).unwrap();
+        assert_eq!(store.load().unwrap(), c);
+    }
+
+    /// Changes by many writers at once, each through its own store over the same file as separate processes would
+    /// have, are all kept: each holds the lock from its load to its save.
+    #[test]
+    fn concurrent_changes_are_all_kept() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let writers: Vec<_> = (0..8)
+            .map(|i| {
+                let store = ConfigStore::at(&path);
+                std::thread::spawn(move || {
+                    (0..10).for_each(|j| {
+                        let lock = store.lock().unwrap();
+                        let mut c = store.load().unwrap();
+                        c.raw.insert(format!("custom.w{i}.n{j}"), Value::Bool(true));
+                        store.save(&lock, &c).unwrap();
+                    });
+                })
+            })
+            .collect();
+        writers.into_iter().for_each(|w| w.join().unwrap());
+        let kept = ConfigStore::at(&path).load().unwrap();
+        assert_eq!(kept.raw.len(), 80);
     }
 }
