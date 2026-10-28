@@ -2,6 +2,7 @@
 
 use red_ale_core::book_options::{GNUCASH_FEATURES, features};
 use red_ale_service::session::SUPPORTED_FEATURES;
+use red_ale_service::backend::Format;
 use red_ale_service::{ReadOnlyReason, Session};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -15,11 +16,11 @@ pub fn methods() -> Vec<Method> {
     vec![
         method(
             "book.open",
-            "Open an XML or SQLite book. SQLite books open read-only for now, and some XML books do too (see readOnlyReasons).",
+            "Open an XML or SQLite book. Some books open read-only (see readOnlyReasons).",
             Effect::Read,
             open,
         ),
-        method("book.create", "Create a new, empty XML book and open it.", Effect::Write, create),
+        method("book.create", "Create a new, empty XML or SQLite book and open it.", Effect::Write, create),
         method(
             "book.info",
             "Describe the open book: path, read-only state, features and counts.",
@@ -28,7 +29,7 @@ pub fn methods() -> Vec<Method> {
         ),
         method(
             "book.save",
-            "Save the open book, backing up the previous file first.",
+            "Save the open book, backing up the previous file first (for an SQLite book, before the session's first save).",
             Effect::Write,
             save,
         ),
@@ -53,22 +54,53 @@ pub struct OpenParams {
     pub read_only: bool,
 }
 
+/// A book file's format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum BookFormat {
+    /// GnuCash's XML, gzipped or plain.
+    Xml,
+    /// An SQLite database.
+    Sqlite,
+}
+
+impl From<BookFormat> for Format {
+    fn from(f: BookFormat) -> Self {
+        match f {
+            BookFormat::Xml => Self::Xml,
+            BookFormat::Sqlite => Self::Sqlite,
+        }
+    }
+}
+
+impl From<Format> for BookFormat {
+    fn from(f: Format) -> Self {
+        match f {
+            Format::Xml => Self::Xml,
+            Format::Sqlite => Self::Sqlite,
+        }
+    }
+}
+
 /// Params of `book.create`.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CreateParams {
-    /// A path or `xml://` URI that does not exist yet.
+    /// A path, or an `xml://` or `sqlite3://` URI, that does not exist yet.
     pub path: String,
-    /// Write it gzip-compressed (GnuCash's default). Defaults to the server's setting.
+    /// XML only: write it gzip-compressed (GnuCash's default). Defaults to the server's setting.
     #[serde(default)]
     pub compressed: Option<bool>,
+    /// `xml` or `sqlite`. Defaults to the one a `sqlite3://` or `xml://` URI names, else `xml`.
+    #[serde(default)]
+    pub format: Option<BookFormat>,
 }
 
 /// Params of `book.save`.
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SaveParams {
-    /// Change the file's compression; by default it is kept.
+    /// XML only: change the file's compression; by default it is kept.
     #[serde(default)]
     pub compressed: Option<bool>,
 }
@@ -119,10 +151,20 @@ pub struct ReplayResult {
 /// Why a book is read-only.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct ReadOnlyInfo {
-    /// `requested`, `unsupported-features`, `unrecognised-content`, `schema-version` or `writing-not-supported`.
+    /// `requested`, `unsupported-features`, `unrecognised-content` or `schema-version`.
     pub code: &'static str,
     /// Explanation.
     pub message: String,
+}
+
+/// A `versions` row of an SQLite book: a table, or `Gnucash` and `Gnucash-Resave`, with its version.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionInfo {
+    /// The table name.
+    pub table: String,
+    /// Its version.
+    pub version: i64,
 }
 
 /// A Book feature the book declares.
@@ -174,8 +216,13 @@ pub struct BookInfo {
     pub read_only_reasons: Vec<ReadOnlyInfo>,
     /// There are unsaved changes.
     pub dirty: bool,
-    /// The file is gzip-compressed.
+    /// The file is gzip-compressed; always false for an SQLite book.
     pub compressed: bool,
+    /// The file's format: `xml` or `sqlite`.
+    pub format: BookFormat,
+    /// SQLite books only: the `versions` table as read, in its order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub versions: Option<Vec<VersionInfo>>,
     /// The transaction journal being written, if any.
     pub journal: Option<String>,
     /// Book features the book declares.
@@ -192,7 +239,7 @@ pub struct SaveResult {
     pub backup: Option<String>,
     /// Old backups and journals removed by retention.
     pub removed: Vec<String>,
-    /// The file was written gzip-compressed.
+    /// The file was written gzip-compressed; always false for an SQLite book.
     pub compressed: bool,
 }
 
@@ -225,6 +272,10 @@ pub fn describe(session: &Session) -> BookInfo {
         read_only_reasons: session.read_only_reasons().iter().map(reason_info).collect(),
         dirty: session.is_dirty(),
         compressed: session.compressed().unwrap_or(false),
+        format: session.format().into(),
+        versions: session
+            .versions()
+            .map(|rows| rows.iter().map(|(table, version)| VersionInfo { table: table.clone(), version: *version }).collect()),
         journal: session.journal_path().map(|p| p.display().to_string()),
         features: features(book)
             .into_iter()
@@ -259,13 +310,30 @@ fn open(ctx: &mut Context, p: OpenParams) -> Result<BookInfo, RpcError> {
     Ok(describe(ctx.install(session)?))
 }
 
+/// The format `book.create` makes: the one asked for, which a `sqlite3://` or `xml://` URI must agree with, else the
+/// URI's, else XML (`design/sql-fidelity.md` §7).
+fn create_format(p: &CreateParams) -> Result<Format, RpcError> {
+    let scheme = Format::of_scheme(&p.path);
+    let format = match (p.format.map(Format::from), scheme) {
+        (Some(asked), Some(named)) if asked != named => {
+            return Err(RpcError::new(codes::INVALID_PARAMS, format!("format {} contradicts the path's URI scheme", asked.name())));
+        }
+        (asked, named) => asked.or(named).unwrap_or(Format::Xml),
+    };
+    if format == Format::Sqlite && p.compressed.is_some() {
+        return Err(RpcError::new(codes::INVALID_PARAMS, "compressed applies to XML books only"));
+    }
+    Ok(format)
+}
+
 fn create(ctx: &mut Context, p: CreateParams) -> Result<BookInfo, RpcError> {
     ctx.require_no_session()?;
+    let format = create_format(&p)?;
     let mut settings = ctx.settings.clone();
     if let Some(c) = p.compressed {
         settings.compress_new_books = c;
     }
-    let session = Session::create(&p.path, settings)?;
+    let session = Session::create_as(&p.path, format, settings)?;
     Ok(describe(ctx.install(session)?))
 }
 
@@ -274,7 +342,11 @@ fn info(ctx: &mut Context, _: NoParams) -> Result<BookInfo, RpcError> {
 }
 
 fn save(ctx: &mut Context, p: SaveParams) -> Result<SaveResult, RpcError> {
-    let report = ctx.session()?.save(p.compressed)?;
+    let session = ctx.session()?;
+    if session.format() == Format::Sqlite && p.compressed.is_some() {
+        return Err(RpcError::new(codes::INVALID_PARAMS, "compressed applies to XML books only"));
+    }
+    let report = session.save(p.compressed)?;
     let show = |p: &std::path::PathBuf| p.display().to_string();
     Ok(SaveResult {
         backup: report.backup.as_ref().map(show),

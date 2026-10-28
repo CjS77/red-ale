@@ -160,6 +160,10 @@ impl Backend for XmlBackend {
     fn xml_residue(&self) -> Option<&XmlResidue> {
         Some(&self.residue)
     }
+
+    fn versions(&self) -> Option<&[(String, i64)]> {
+        None
+    }
 }
 
 #[cfg(test)]

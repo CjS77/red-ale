@@ -48,6 +48,9 @@ pub mod codes {
     pub const BACKUP_FAILED: i32 = 1011;
     /// The book has unsaved changes.
     pub const UNSAVED_CHANGES: i32 = 1012;
+    /// Another program wrote the SQL book or broke its lock since red-ale opened or last saved it; nothing was
+    /// written.
+    pub const BOOK_CHANGED: i32 = 1013;
 
     /// An entity named in the request does not exist.
     pub const NOT_FOUND: i32 = 2000;
@@ -82,7 +85,7 @@ pub mod codes {
     pub const FORMULA: i32 = 6000;
 
     /// Every code with its name, for the schema document.
-    pub const ALL: [(i32, &str); 31] = [
+    pub const ALL: [(i32, &str); 32] = [
         (PARSE_ERROR, "parse-error"),
         (INVALID_REQUEST, "invalid-request"),
         (METHOD_NOT_FOUND, "method-not-found"),
@@ -101,6 +104,7 @@ pub mod codes {
         (SAVE_VERIFICATION, "save-verification"),
         (BACKUP_FAILED, "backup-failed"),
         (UNSAVED_CHANGES, "unsaved-changes"),
+        (BOOK_CHANGED, "book-changed"),
         (NOT_FOUND, "not-found"),
         (INVALID, "invalid"),
         (UNBALANCED, "unbalanced"),
@@ -219,7 +223,12 @@ impl From<ServiceError> for RpcError {
             ServiceError::Io { path: p, .. } => Self::new(codes::IO_ERROR, message).with_data(path(&p)),
             ServiceError::Backup { path: p, .. } => Self::new(codes::BACKUP_FAILED, message).with_data(path(&p)),
             ServiceError::SqlBook { path: p } => Self::new(codes::SQL_BOOK, message).with_data(json!({ "path": p })),
-            ServiceError::SqliteCreate { path: p } => Self::new(codes::SQL_BOOK, message).with_data(path(&p)),
+            ServiceError::SqlLocked { path: p, hostname, pid } => Self::new(codes::BOOK_LOCKED, message).with_data(json!({
+                "path": p.display().to_string(), "holder": { "hostname": hostname, "pid": pid },
+            })),
+            ServiceError::BookChanged { path: p, detail } => {
+                Self::new(codes::BOOK_CHANGED, message).with_data(json!({ "path": p.display().to_string(), "detail": detail }))
+            }
             ServiceError::Busy { path: p } => Self::new(codes::BOOK_LOCKED, message).with_data(path(&p)),
             ServiceError::UnsupportedUri { uri } => Self::new(codes::UNSUPPORTED_URI, message).with_data(json!({ "uri": uri })),
             ServiceError::Xml { path: p, .. }

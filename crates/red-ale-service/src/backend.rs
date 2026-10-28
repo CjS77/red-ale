@@ -25,7 +25,7 @@ pub use xml::XmlBackend;
 pub enum Format {
     /// GnuCash's XML, gzipped or plain (`red-ale-xml`).
     Xml,
-    /// An SQLite database (`red-ale-sql`), read-only for now.
+    /// An SQLite database (`red-ale-sql`).
     Sqlite,
 }
 
@@ -113,12 +113,12 @@ pub fn open(path: &Path, format: Format, access: Access, rule: ReadOnlyRule<'_>)
     }
 }
 
-/// Create a new, empty book and lock it for writing. The file may not be written yet: the Session saves the new
-/// Book at once, which writes it. SQLite books cannot be created yet.
+/// Create a new, empty book and lock it for writing. An XML book's file is not written yet: the Session saves the
+/// new Book at once, which writes it. An SQLite book is written whole, with its schema, before this returns.
 pub fn create(path: &Path, format: Format, settings: &Settings, env: &mut dyn Env) -> Result<Opened, ServiceError> {
     match format {
         Format::Xml => XmlBackend::create(path, settings, env),
-        Format::Sqlite => Err(ServiceError::SqliteCreate { path: path.to_owned() }),
+        Format::Sqlite => SqliteBackend::create(path, settings, env),
     }
 }
 
@@ -170,4 +170,7 @@ pub trait Backend: fmt::Debug + Send {
 
     /// XML only: the Residue, which Export Accounts writes from.
     fn xml_residue(&self) -> Option<&XmlResidue>;
+
+    /// SQLite only: the `versions` rows as read, in `rowid` order (`book.info`).
+    fn versions(&self) -> Option<&[(String, i64)]>;
 }

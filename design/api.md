@@ -123,17 +123,18 @@ is used only for protocol errors.
 | -32603 | `internal-error`    | A bug in red-ale.                                                         |
 | 1000   | `no-book`           | No book is open.                                                          |
 | 1001   | `book-already-open` | A book is already open in this server.                                    |
-| 1002   | `book-locked`       | Another program holds the book's lock (`data.path` is the lock file).     |
-| 1003   | `cannot-lock`       | The lock file could not be created.                                       |
-| 1004   | `sql-book`          | The book is a database server's (`mysql://`, `postgres://`, `postgresql://`; v0.7), or `book.create` was asked for an SQLite book, which red-ale cannot write yet; refused before anything is touched. |
+| 1002   | `book-locked`       | Another program holds the book's lock: for XML `data.path` is the lock file; for SQLite `data.path` is the book and `data.holder` its `gnclock` row (`hostname`, `pid`), or there is no `holder` when another program was writing the book for longer than the 5 s busy timeout. |
+| 1003   | `cannot-lock`       | The lock file could not be created, or the SQLite book (or its directory) can't be written. |
+| 1004   | `sql-book`          | The book is a database server's (`mysql://`, `postgres://`, `postgresql://`; v0.7); refused before anything is touched. |
 | 1005   | `unsupported-uri`   | A URI scheme other than a path, `file://` or `xml://`.                    |
 | 1006   | `read-only`         | The book is open read-only (`data.reason`).                               |
 | 1007   | `file-exists`       | `book.create` on an existing file.                                        |
 | 1008   | `io-error`          | A file operation failed.                                                  |
 | 1009   | `file-format`       | Not a readable XML book (or journal), including GnuCash version 1 files.  |
-| 1010   | `save-verification` | The file written did not read back as the same book; it was removed and the book on disk is unchanged. |
+| 1010   | `save-verification` | The file written did not read back as the same book; it was removed and the book on disk is unchanged. For an SQLite book, the save's transaction was rolled back. |
 | 1011   | `backup-failed`     | The backup could not be made; nothing was written.                        |
 | 1012   | `unsaved-changes`   | `book.close` on a book with unsaved changes, without `save` or `discard`. |
+| 1013   | `book-changed`      | Another program wrote the SQLite book or broke its lock since red-ale opened it or last saved it (`data.path`, `data.detail`); nothing was written. From 0.4.0. |
 | 2000   | `not-found`         | An entity named in the request does not exist (`data.kind`, `data.id`).   |
 | 2001   | `invalid`           | The request is not valid for the book as it stands.                       |
 | 2002   | `unbalanced`        | A transaction would not balance (`data.imbalance`, `data.currency`).      |
@@ -152,10 +153,10 @@ is used only for protocol errors.
 
 | Method               | Effect | Does                                                                                   |
 |----------------------|--------|----------------------------------------------------------------------------------------|
-| `book.open`          | read   | Open a book (`path`, `readOnly`): XML, or SQLite (a file or `sqlite3://`), read-only for now. Takes an XML book's `.LCK` lock unless read-only. |
-| `book.create`        | write  | Create an empty book (root account only) and open it; gzip-compressed unless `compressed: false`. |
-| `book.info`          | read   | Path, GUIDs, read-only state and reasons, dirty, compression, journal, Book features, `options` (`useTradingAccounts`), counts. |
-| `book.save`          | write  | Back up the previous file, write the book (atomically), rotate the journal, apply retention. `compressed` changes the file's compression. |
+| `book.open`          | read   | Open a book (`path`, `readOnly`): XML, or SQLite (a file or `sqlite3://`). Unless read-only, takes an XML book's `.LCK` lock or an SQLite book's `gnclock` row ([`sql-fidelity.md`](sql-fidelity.md) §5). |
+| `book.create`        | write  | Create an empty book (root account only) and open it. `format` is `xml` (the default, gzip-compressed unless `compressed: false`) or `sqlite` (GnuCash 5.17's schema; also chosen by a `sqlite3://` path). A `format` the URI scheme contradicts, or `compressed` with SQLite, is `invalid-params`. `format` from 0.4.0. |
+| `book.info`          | read   | Path, GUIDs, read-only state and reasons, dirty, compression, `format` (`xml`, `sqlite`), for SQLite the `versions` rows (`table`, `version`), journal, Book features, counts. `compressed` is false for an SQLite book. `format` and `versions` from 0.4.0. |
+| `book.save`          | write  | Back up the previous file, write the book (atomically), rotate the journal, apply retention. `compressed` changes an XML file's compression; on an SQLite book it is `invalid-params`. An SQLite book is backed up before the session's first save that writes, and its save writes only the rows that changed, in one SQL transaction ([`sql-fidelity.md`](sql-fidelity.md) §4, §6). |
 | `book.close`         | write  | Release the lock. Refuses unsaved changes unless `save` or `discard`.                  |
 | `book.replayJournal` | write  | Replay a GnuCash `.log` journal: transactions created, updated or deleted by GUID.     |
 | `book.closeBooks`    | write  | Close the books: zero income and expense into equity at a date ([`api/close-book.md`](api/close-book.md)). Not `book.close`. |
@@ -164,9 +165,9 @@ is used only for protocol errors.
 
 A book opens **read-only**, and says why in `readOnlyReasons`, when editing it could break it: it declares a Book
 feature red-ale does not implement (`unsupported-features`), holds content red-ale can keep but not edit safely
-(`unrecognised-content`), its SQL schema is not GnuCash 5.17's (`schema-version`), its format can't be written
-yet (`writing-not-supported`: SQLite books, until saving them lands), or the caller asked (`requested`). A read-only
-book is never locked and never written.
+(`unrecognised-content`), its SQL schema is not GnuCash 5.17's (`schema-version`), or the caller asked (`requested`). A read-only
+book is never locked and never written. (Before 0.4.0 an SQLite book opened for writing gave `writing-not-supported`;
+it is no longer given.)
 Since v0.2 the num field source (and its Book feature `Number Field Source`) and an auto read-only threshold no longer
 make a book read-only; the threshold makes old transactions read-only instead
 ([`api/book-options.md`](api/book-options.md)), and the reason `auto-read-only` is no longer given. Nor do trading

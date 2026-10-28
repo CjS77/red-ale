@@ -89,6 +89,32 @@ pub fn backup(book: &Path) -> Result<Option<PathBuf>, ServiceError> {
     }
 }
 
+/// Make a backup of `book` with `copy`, which writes a consistent copy of it to a new file: into a temporary file
+/// beside the book, given the book's mode and group, then linked to `<book>.<timestamp>.gnucash` without replacing an
+/// existing file, waiting for the next second as [`backup`] does. For SQLite books, whose copy must come from the open
+/// connection (`design/sql-fidelity.md` §6).
+pub fn backup_with(book: &Path, copy: impl FnOnce(&Path) -> Result<(), ServiceError>) -> Result<PathBuf, ServiceError> {
+    let tmp = temp_path(book);
+    let made = copy(&tmp).and_then(|()| keep_owner(&tmp, fs::metadata(book).ok().as_ref())).and_then(|()| link_backup(book, &tmp));
+    let _ = fs::remove_file(&tmp);
+    made
+}
+
+/// Link `tmp` to a new backup name of `book`.
+fn link_backup(book: &Path, tmp: &Path) -> Result<PathBuf, ServiceError> {
+    let deadline = SystemTime::now() + Duration::from_millis(1500);
+    loop {
+        let target = with_suffix(book, &format!(".{}.gnucash", local_timestamp()));
+        match fs::hard_link(tmp, &target) {
+            Ok(()) => return Ok(target),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists && SystemTime::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => return Err(ServiceError::Backup { path: target, source: e }),
+        }
+    }
+}
+
 fn temp_path(book: &Path) -> PathBuf {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let nanos = SystemTime::now()
