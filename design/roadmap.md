@@ -10,8 +10,9 @@ rows are ✅. This page says which version each open row belongs to, and why in 
 ## Where things stand
 
 v0.3 is done: every row of [`milestone3.md`](milestone3.md) is ✅ or ❌ and its "Done when" list holds, with the
-evidence for each item listed there. `features.md` has 184 rows: 106 are ✅ (60 ported in v0.1, 34 in v0.2, 12 in
-v0.3), 22 are ❌ (won't do), and 56 are open, all placed below. v0.3 added one row, "Online quotes (red-ale)", beside
+evidence for each item listed there. v0.4's 19 rows are ✅ and [`milestone4.md`](milestone4.md) gathers the evidence
+for its "Done when" list. `features.md` has 184 rows: 125 are ✅ (60 ported in v0.1, 34 in v0.2, 12 in v0.3, 19 in
+v0.4), 22 are ❌ (won't do), and 37 are open, all placed below. v0.3 added one row, "Online quotes (red-ale)", beside
 the ❌ Finance::Quote one. Autosave, the new account hierarchy assistant, account templates and the financial
 calculator became ❌ after v0.3 (see "v0.7").
 
@@ -20,7 +21,7 @@ calculator became ❌ after v0.3 (see "v0.7").
 | v0.1    | GnuCash ≤ 2.0 features on XML books; JSON-RPC and CLI             |         — | Released ([`milestone1.md`](milestone1.md))    |
 | v0.2    | MCP; reports ≤ 1.6 in Rhai; rest of books, transactions, business |         — | Done ([`milestone2.md`](milestone2.md))        |
 | v0.3    | Memory and scale; import and export; online quotes                |         — | Done ([`milestone3.md`](milestone3.md))        |
-| v0.4    | SQLite books; scheduled transactions and budgets, with reports    |        19 | Next                                           |
+| v0.4    | SQLite books; scheduled transactions and budgets, with reports    |         — | In progress ([`milestone4.md`](milestone4.md)) |
 | v0.5    | Ledgers, statements, analysis and investment reports              |        17 | Proposed                                       |
 | v0.6    | The manual; business and tax reports, invoices, PDF export        |        14 | Proposed                                       |
 | v0.7    | MySQL and PostgreSQL books                                        |         2 | Proposed                                       |

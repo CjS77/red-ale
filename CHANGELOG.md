@@ -4,6 +4,85 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## 0.4.0 - Unreleased
+
+Milestone 4 ([`design/milestone4.md`](design/milestone4.md)): SQLite books, scheduled transactions and budgets, and
+their reports. `redAleApi` is 0.4.0, additive over 0.3.0.
+
+### Added
+
+#### SQLite books
+
+- `book.open` opens GnuCash's SQLite books, by path or `sqlite3://`, and `book.save` writes them: only the rows that
+  changed, in one SQL transaction, each row read back before the commit, everything rolled back on any failure. Rows,
+  tables and columns red-ale doesn't model are kept. GnuCash 5.17 opens every fixture red-ale edited and saved with
+  nothing logged and nothing lost.
+- red-ale takes and releases GnuCash's `gnclock` lock row, refuses a book GnuCash holds, and refuses to save when
+  another program wrote the book or broke the lock (`book-changed`).
+- A timestamped backup is made before the first save that writes, and the `.log` journal replays as for XML books.
+- `book.create` makes a new SQLite book with GnuCash 5.17's schema (`format: "sqlite"`). `book.info` reports the
+  `format` and the `versions` rows.
+- A book whose `versions` rows are not 5.17's opens read-only and names the table; red-ale never upgrades a schema.
+
+#### Scheduled transactions
+
+- `scheduledTransaction.create`, `update`, `delete`, `get` and `list`, with every recurrence type GnuCash has and
+  template transactions whose amounts may be formulas with variables.
+- `scheduledTransaction.occurrences`: the next dates of a schedule, saved or not.
+- Since Last Run as a proposal: `scheduledTransaction.sinceLastRun` lists what is due, the caller chooses, and
+  `scheduledTransaction.apply` creates the transactions and advances the schedules as one change.
+- `scheduledTransaction.fromTransaction` and `scheduledTransaction.loan`, GnuCash's Schedule from Transaction dialog
+  and Mortgage and Loan Repayment assistant as one call each.
+- Formulas are exact, including GnuCash's financial functions (`pmt`, `ipmt`, `ppmt` and others).
+
+#### Budgets
+
+- `budget.create`, `update`, `copy`, `delete`, `get` and `list`; `budget.setAmounts` and `budget.setNotes`.
+- `budget.estimate`, GnuCash's Estimate from past transactions, and `budget.scrubSigns`, its natural-signs scrub.
+- The Book option for the default budget.
+
+#### Reports
+
+- Translated from GnuCash 5.17: the Budget Report, Budget Balance Sheet, Budget Income Statement, Budget Profit &
+  Loss, Budget Flow, Budget Chart, Future Scheduled Transactions Summary and Balance Forecast.
+- The report library reads budgets and the scheduled transactions' cash flow; chart series can set GnuCash's
+  `pointRadius`, and tables have footnotes.
+
+#### Interfaces
+
+- Every new method is an MCP tool with the same name, params schema and hints, and reachable from the CLI.
+- New error codes: 1013 `book-changed` and 6000 `formula`.
+
+### Fixed
+
+- A lone parenthesised number in a business import file, such as `(5)`, now reads as -5, as GnuCash reads it.
+- A saved report configuration whose budget was deleted runs with no budget, as in GnuCash, instead of being refused.
+
+### Not supported
+
+- GnuCash's `cpd_*` and `amort_*` formula functions: they need non-integer powers, which can't be exact.
+- MySQL and PostgreSQL books (planned for v0.7).
+
+### Differences from GnuCash
+
+- Since Last Run runs only when asked, never on open, and applies whole or not at all. An instance after a
+  postponed one is proposed once, not on every run, and a formula that fails refuses the apply instead of creating
+  a transaction with 0.
+- Postponing an instance in an SQLite book is refused: GnuCash's SQL backend accepts it and loses it on the next
+  load.
+- Formulas never pass through floating point. Division by zero and overflow are refused, where GnuCash uses 0.
+- The natural-signs scrub runs only through `budget.scrubSigns`; budget edits are refused until it has run on a book
+  that needs it. GnuCash runs it from the GUI after every open.
+- The loan assistant doesn't copy the defects recorded in `design/notes/engine-scheduled-transactions.md` §6.3, and
+  writes formula numbers without grouping so they read the same in every locale.
+
+The pages in [`design/api/`](design/api) list every difference in detail.
+
+### Dependency updates
+
+- rusqlite: (none) => 0.40.2
+- rustix: (none) => 1.1.5
+
 ## 0.3.0 - Unreleased
 
 Milestone 3 ([`design/milestone3.md`](design/milestone3.md)): memory and scale, import and export, online price
