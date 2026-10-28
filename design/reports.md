@@ -663,12 +663,14 @@ rest of the API. It carries data, not markup: exact figures with their display f
 checks it against the schema and fills those fields; a mismatch is a `report-result` error naming the path.
 
 Beyond the schema, a result is valid when every cell holds exactly one content (`text`, `monetary`, `commodities`,
-`number`, `price` or `date`), `places` and `suffix` appear only on number cells and `currency` on every price cell and
-nowhere else, each row covers exactly the table's columns (a `null` cell covers one, a cell its `span`), a row's
-`level` is below the `levels` of the table's amount columns, `levels` appears only on amount columns, a chart's series
-have one value per label (scatter series have `points` instead), `colors` and `links` have one entry per value, a
-`currency` axis names its `commodity`, a pie chart has one series, plot sizes are 1–100 % or at least one pixel, and
-no *host* field is set by the script. `optionsSummary` blocks come only from the host.
+`number`, `price`, `date` or `anchors`), `places` and `suffix` appear only on number cells and `currency` on every price
+cell and nowhere else, `until` only on date cells and not before the date, an `anchors` cell has at least one anchor
+and no `link` or `account` of its own, a `docLink` names a document, `labelLines` has at least one line, each row
+covers exactly the table's columns (a `null` cell covers one, a cell its `span`), a row's `level` is below the
+`levels` of the table's amount columns, `levels` appears only on amount columns, a chart's series have one value per
+label (scatter series have `points` instead), `colors` and `links` have one entry per value, a `currency` axis names
+its `commodity`, a pie chart has one series, plot sizes are 1–100 % or at least one pixel, and no *host* field is set
+by the script. `optionsSummary` blocks come only from the host.
 
 ### Top level
 
@@ -701,10 +703,11 @@ no *host* field is set by the script. `optionsSummary` blocks come only from the
 
 | `kind` | Fields | GnuCash |
 |--------|--------|---------|
-| `text` | `text`, `role`: `paragraph` (default), `heading`, `note` | `gnc:make-html-text`, `gnc:html-markup-h3`, `gnc:html-markup-p` |
+| `text` | `text`, `role`: `paragraph` (default), `heading`, `note`; `link` (v0.5, optional): what the text leads to | `gnc:make-html-text`, `gnc:html-markup-h3`, `gnc:html-markup-p`; the Multicolumn statements' "Barchart" link (`standard/balsheet-pnl.scm:1079-1083`) |
 | `warning` | `title`, `text` | `gnc:html-make-generic-warning` and the no-account and empty-data warnings built on it (`report/html-utilities.scm:350-381`) |
 | `table` | below | `<html-table>` |
 | `chart` | below | `<html-chart>` |
+| `list` (v0.5) | `items: [{ text, account? }]`, an item with `account` naming (and linking to) that account | `gnc:html-markup-ul` (`report/html-text.scm:210-215`): the Cash Flow's selected accounts (`standard/cash-flow.scm:253-262`) |
 | `group` | `blocks`, laid out side by side | the one-row layout tables of the two-column Balance Sheet and Income Statement (`standard/balance-sheet.scm:503-513`, `standard/income-statement.scm:483-536`) |
 | `optionsSummary` | *host*. `rows: [{ section, name, value }]` | `gnc:html-render-options-changed` |
 
@@ -731,7 +734,10 @@ no *host* field is set by the script. `optionsSummary` blocks come only from the
 ```
 
 **Columns** have a `label` (empty for none), a `role`, and an optional `align` (`left`, `right`, `center`; amounts
-default right). Roles: `label` (account names and row labels), `text`, `amount`, `date`. An `amount` column may
+default right). `labelLines` (v0.5, optional) is the heading as stacked lines, top first: GnuCash's multi-row column
+headers (`gnc:html-table-set-multirow-col-headers!`), which the Transaction Breakdown fills with each account's name
+split at its separator (`standard/txn-columns.scm:170-174`). `label` still holds the heading in one line for a client
+that reads one. Roles: `label` (account names and row labels), `text`, `amount`, `date`. An `amount` column may
 have `levels`, the number of staircase positions an account table uses: GnuCash puts a deeper account's amount
 further left and totals furthest right (`report/html-acct-table.scm:870-923`, amount depth at `:1059-1062`). A
 row's `level` says which position its amount takes, 0 being the rightmost. The renderer turns levels into
@@ -758,14 +764,17 @@ colour (section 8).
 | commodities | `commodities: [{ monetary, converted }]` | each line's `display` and `convertedDisplay` |
 | number | `number: Rational`, `places` (default 2), `suffix` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer |
 | price | `price: Rational`, `currency` | `display` with the currency's price print info |
-| date | `date: Time64` (a Timestamp on the wire) | `localDate` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat` |
+| date | `date: Time64` (a Timestamp on the wire); `until` (v0.5, optional): the end of the period it starts | `localDate` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat`; with `until`, also `localUntil`, and `display` is `<date> to <until>`, each as `qof-print-date` prints it, as the Multicolumn P&L's column headers (`standard/balsheet-pnl.scm:1140-1153`) |
+| anchors (v0.5) | `anchors: [{ text, link }]` | none: the texts, one per line. The Transaction Report's invoice cell (`report/trep-engine.scm:1036-1049`) |
 
 A `commodities` cell is GnuCash's nested commodity table for an account holding foreign commodities: one line per
 commodity, the native amount and its value in the report currency (`report/html-acct-table.scm:925-948`).
 
-Any cell may also have `account` (a GUID: the cell names or links to that account), `link` (below), `rule: true` (an
-accounting rule above the figure, the "Show accounting-style rules" option, `report/html-acct-table.scm:901-906`),
-`span` (columns it covers, default 1) and `footnote` (v0.4).
+`until` is a Rhai keyword, so a script quotes the key: `#{ date: from, "until": to }`.
+
+Any cell but an `anchors` cell may also have `account` (a GUID: the cell names or links to that account) and `link`
+(below). Any cell may have `rule: true` (an accounting rule above the figure, the "Show accounting-style rules" option,
+`report/html-acct-table.scm:901-906`), `span` (columns it covers, default 1) and `footnote` (v0.4).
 
 **Footnotes** (v0.4). A table may have `footnotes`, notes numbered from 1, and a cell's `footnote` is the number of
 the one it refers to. The renderer writes the number as a superscript after the cell's content, titled with the note,
@@ -774,11 +783,24 @@ and lists the notes after the table: GnuCash's footnote collector, which the Bud
 
 ### Links
 
-A link points at something a client can open: `{ "account": "<guid>" }` (GnuCash's register link,
-`report/html-utilities.scm:82-88`), or `{ "report": { "template": "<guid>", "options": { … } } }` (GnuCash's
-drill-down: the charts link a bar or slice to the same report on that account's children,
-`standard/category-barchart.scm:589-609`, `standard/account-piecharts.scm:474-496`). GnuCash creates a report
-instance at render time for a report link; red-ale only describes it, and a client runs it with `report.run`.
+A link points at something a client can open, as GnuCash's anchors (`report/html-utilities.scm:82-224`):
+
+| Link | Leads to | GnuCash |
+|------|----------|---------|
+| `{ "account": "<guid>" }` | the account's register | `gnc:account-anchor-text` (`:85-88`) |
+| `{ "report": { "template": "<guid>", "options": { … } } }` | another report run (drill-down: the charts link a bar or slice to the same report on that account's children) | `gnc:make-report-anchor` (`:168-172`); `standard/category-barchart.scm:589-609`, `standard/account-piecharts.scm:474-496` |
+| `{ "split": "<guid>" }` (v0.5) | the split in its account's register | `gnc:split-anchor-text` (`:90-91`), `gnc:html-split-anchor` (`:195-200`) |
+| `{ "transaction": "<guid>" }` (v0.5) | the transaction | `gnc:transaction-anchor-text` (`:93-94`) |
+| `{ "invoice": "<guid>" }` (v0.5) | an invoice, bill or voucher | `gnc:invoice-anchor-text` (`:127-128`) |
+| `{ "price": "<guid>" }` (v0.5) | a price in the price database | `gnc:price-anchor-text` (`:107-110`), `gnc:html-price-anchor` (`:217-224`) |
+| `{ "docLink": "<uri>" }` (v0.5) | a transaction's or invoice's linked document | `gnc:transaction-doclink-anchor-text`, `gnc:invoice-doclink-anchor-text` (`:96-100`) |
+
+GnuCash creates a report instance at render time for a report link; red-ale only describes it, and a client runs it
+with `report.run`.
+GnuCash's document link names the transaction or invoice and GnuCash opens the document it holds; red-ale's carries
+the URI, and the HTML shows only the text (section 8). `lib/html-utilities` builds the cells and anchors as GnuCash's
+helpers do: `html_split_anchor`, `html_transaction_anchor`, `html_doclink_anchor`, `html_price_anchor`,
+`invoice_anchor` and `html_markup_ul`.
 
 ### Charts
 
@@ -875,8 +897,12 @@ figures must match GnuCash's, the markup need not.
 - **Tables.** An `amount` column with `levels` becomes that many cell columns; a row's amount goes in the column of
   its `level`, counted from the right, as GnuCash lays out its account tables. A `commodities` cell becomes a small
   nested table, one line per commodity. Cells with `account` carry `data-account="<guid>"`; a `link` becomes
-  `data-link` with its JSON. There are no `href`s: GnuCash's `gnc-register:` and report URLs mean nothing outside
-  GnuCash, and a client that embeds the page can wire the data attributes itself.
+  `data-link` with its JSON, on a cell, a text block's element or each anchor of an `anchors` cell. There are no
+  `href`s: GnuCash's `gnc-register:` and report URLs mean nothing outside GnuCash, and a client that embeds the page
+  can wire the data attributes itself. A `docLink` becomes nothing: its text shows unlinked, so an exported page
+  carries no path to a user's files. An `anchors` cell writes its texts one per line. Columns with `labelLines`
+  make the header as many rows as the most lines, a column without them showing its label in the first row.
+- A `list` block is a `<ul>`; an item naming an account carries `data-account` and shows as a link.
 - **Negative figures** get the class `neg`, coloured red when the style sheet's "Negative Values in Red" is on
   (`report/html-fonts.scm:116-119`).
 - A `group` block is a CSS grid of its blocks side by side, stacking on narrow screens.
@@ -1321,6 +1347,7 @@ drops it and needs nothing from budgets.
 | CSS style sheet text | Default CSS on `</style` | Refused on `</style`, `@import`, `url(`, `image(`, `image-set(`, `src(`, `\` | Exported pages load nothing |
 | Hover labels and chart look | Chart.js, `Intl.NumberFormat` | Static SVG, red-ale's formatting under the Locale | No script; deterministic bytes |
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
+| Document links (v0.5) | A `gnc-register:` link naming the transaction or invoice, opened by GnuCash (`report/html-utilities.scm:96-100`) | The document's URI in the result; text only in HTML | An exported page never points at a user's files |
 | Title of the account pie charts | None: the document keeps its empty title (`report/html-document.scm:131`); the chart's title and the warnings' heading name the report | The report name, with its averaging suffix | A result has a title, and its warning blocks leave out the heading that names the report |
 | Average Balance and Price Scatterplot titles, and the budget reports' warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`, `standard/budget-balance-sheet.scm:361-371`, `standard/budget-income-statement.scm:384-410`, `standard/budget-flow.scm:270-281`, `standard/budget-barchart.scm:289-298`; the Budget Chart's charts, `:313-316`) | Titled with the "Report name" option (the budget reports' warnings: with the name the warning gives) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |

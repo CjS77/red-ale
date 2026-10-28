@@ -160,7 +160,7 @@ item 3). `red-ale setup` is a CLI command only ([`setup.md`](setup.md), "What it
 
 | Status | Interface    | Notes                                                                                                                                               |
 |:------:|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | JSON-RPC API | `redAleApi` 0.5.0 if anything is added, additive over 0.4.0; the 0.4.0 document committed beside the others and `api_additive.rs` checks against it |
+|        | JSON-RPC API | `redAleApi` 0.5.0 (started), additive over 0.4.0; the 0.4.0 document is committed beside the others and `api_additive.rs` checks against it. Added so far, to `ReportResult` ([`reports.md`](reports.md) §7): link kinds `split`, `transaction`, `invoice`, `price`, `docLink`; `anchors` cells; `until` (host: `localUntil`) on date cells; `labelLines` on columns; `link` on text blocks; `list` blocks |
 |        | MCP server   | Unchanged: the new templates are reached through the report tools                                                                                   |
 |        | CLI          | `--no-config` (done); `red-ale setup` if distribution is in                                                                                         |
 
