@@ -30,9 +30,12 @@ Also in v0.5:
 
 Why these together: every report here reads data red-ale already models, on the v0.2 report engine, and none needs a
 change to what red-ale writes. The Transaction Report goes first: its engine (`5.17:gnucash/report/trep-engine.scm`,
-2,645 lines) also drives the General Journal, the General Ledger and the Reconciliation Report (`gnc:trep-options-generator` and
-`gnc:trep-renderer`), so four reports rest on it. The Transaction Breakdown builds
-its own table and does not.
+2,645 lines) also drives the General Ledger and the Reconciliation Report (`gnc:trep-options-generator` and
+`gnc:trep-renderer`), so three reports rest on it. The General Journal is the Register report's renderer in journal
+mode over the whole Book (`standard/general-journal.scm:41-118`), and the Transaction Breakdown builds its own table.
+Research: [`notes/report-transaction-engine.md`](notes/report-transaction-engine.md),
+[`notes/report-statements-charts.md`](notes/report-statements-charts.md) and
+[`notes/report-investments.md`](notes/report-investments.md).
 
 **Out:**
 
@@ -76,7 +79,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 | Status | Report                            | Source (GUID)                                                                                                      |      Lines | GnuCash's test               |
 |:------:|-----------------------------------|--------------------------------------------------------------------------------------------------------------------|-----------:|------------------------------|
 |        | Transaction Report                | `standard/transaction.scm` (`2fe3b9833af044abb929a88d5a59620f`), on `trep-engine.scm`                              | 36 + 2,645 | `test-transaction.scm`       |
-|        | General Journal                   | `standard/general-journal.scm` (`25455562bd234dd0b048ecc5a8af9e43`), the Transaction Report with its own options   |        125 |                              |
+|        | General Journal                   | `standard/general-journal.scm` (`25455562bd234dd0b048ecc5a8af9e43`), on `register.scm`'s renderer ("Decided", 5) |        125 |                              |
 |        | General Ledger                    | `standard/general-ledger.scm` (`2e22929e5c5b4b769f615a815ef0c20f`)                                                 |        159 |                              |
 |        | Reconciliation Report             | `standard/reconcile-report.scm` (`e45218c6d76f11e7b5ef0800277ef320`)                                               |        115 |                              |
 |        | Transaction Breakdown             | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine |        260 |                              |
@@ -179,8 +182,8 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 ## Order of work
 
 1. ✅ **The default Configuration file.**
-2. **The Transaction Report engine** as a library module, then the Transaction Report, General Journal, General Ledger
-   and Reconciliation Report on it.
+2. **The Transaction Report engine** as a library module, then the Transaction Report, General Ledger and
+   Reconciliation Report on it; the General Journal on `lib/register`.
 3. **Statements:** Trial Balance, Cash Flow, Equity Statement, Multicolumn Balance Sheet and P&L.
 4. **Transaction Breakdown.**
 5. **Analysis charts:** Income/expense vs day of week, Cash flow chart.
@@ -207,10 +210,16 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
    new `grid` block. Views nest to depth 4, at most 100 child runs per run under one deadline; a cycle or a limit
    renders a warning in its cell. The note's open questions are followed as proposed.
 4. **The Transaction Report engine** is a library module (`lib/trep-engine.rhai`) with its options, sorting,
-   subtotals and the split filter, and the four reports on it are thin scripts, as GnuCash's are. The split query
-   reuses `book.split_query` and grows only what the engine's filters need (`transaction.find`'s criteria).
+   subtotals and the split filter, and the reports on it are thin scripts, as GnuCash's are. The split query
+   reuses `book.split_query` and grows only what the engine's filters need (`transaction.find`'s criteria). The
+   research ([`notes/report-transaction-engine.md`](notes/report-transaction-engine.md)) found three reports on it,
+   not four; its open questions are followed as proposed (the engine builds CSV rows, but no v0.5 template offers
+   CSV, as in 5.17; Primary Key "None" keeps split order, a deviation).
 5. **The Register report won't be done** (❌). GnuCash runs it from a register window, on that window's query and
-   layout (`standard/register.scm`); red-ale has no GUI. Its `features.md` row is ❌.
+   layout (`standard/register.scm`); red-ale has no GUI. Its `features.md` row is ❌. The General Journal, a template
+   of its own in GnuCash's Reports menu, delegates to the Register report's renderer in journal mode with a query of
+   every non-void transaction (`standard/general-journal.scm:41-118`), so the renderer and options are translated as
+   a library, `lib/register`, used by the General Journal only; no Register template is registered.
 
 6. **Investment arithmetic** (settled by [`notes/report-investments.md`](notes/report-investments.md) §7). All four
    reports compute in their scripts; the core supplies reads only (lots, `split.lot`, the stock-split flag, prices in
