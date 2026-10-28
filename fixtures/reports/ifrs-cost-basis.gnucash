@@ -1,0 +1,1576 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<gnc-v2
+     xmlns:gnc="http://www.gnucash.org/XML/gnc"
+     xmlns:act="http://www.gnucash.org/XML/act"
+     xmlns:book="http://www.gnucash.org/XML/book"
+     xmlns:cd="http://www.gnucash.org/XML/cd"
+     xmlns:cmdty="http://www.gnucash.org/XML/cmdty"
+     xmlns:price="http://www.gnucash.org/XML/price"
+     xmlns:slot="http://www.gnucash.org/XML/slot"
+     xmlns:split="http://www.gnucash.org/XML/split"
+     xmlns:sx="http://www.gnucash.org/XML/sx"
+     xmlns:trn="http://www.gnucash.org/XML/trn"
+     xmlns:ts="http://www.gnucash.org/XML/ts"
+     xmlns:fs="http://www.gnucash.org/XML/fs"
+     xmlns:bgt="http://www.gnucash.org/XML/bgt"
+     xmlns:recurrence="http://www.gnucash.org/XML/recurrence"
+     xmlns:lot="http://www.gnucash.org/XML/lot"
+     xmlns:addr="http://www.gnucash.org/XML/addr"
+     xmlns:billterm="http://www.gnucash.org/XML/billterm"
+     xmlns:bt-days="http://www.gnucash.org/XML/bt-days"
+     xmlns:bt-prox="http://www.gnucash.org/XML/bt-prox"
+     xmlns:cust="http://www.gnucash.org/XML/cust"
+     xmlns:employee="http://www.gnucash.org/XML/employee"
+     xmlns:entry="http://www.gnucash.org/XML/entry"
+     xmlns:invoice="http://www.gnucash.org/XML/invoice"
+     xmlns:job="http://www.gnucash.org/XML/job"
+     xmlns:order="http://www.gnucash.org/XML/order"
+     xmlns:owner="http://www.gnucash.org/XML/owner"
+     xmlns:taxtable="http://www.gnucash.org/XML/taxtable"
+     xmlns:tte="http://www.gnucash.org/XML/tte"
+     xmlns:vendor="http://www.gnucash.org/XML/vendor">
+<gnc:count-data cd:type="book">1</gnc:count-data>
+<gnc:book version="2.0.0">
+<book:id type="guid">b0000000000000000000000000000000</book:id>
+<gnc:count-data cd:type="commodity">2</gnc:count-data>
+<gnc:count-data cd:type="account">17</gnc:count-data>
+<gnc:count-data cd:type="transaction">18</gnc:count-data>
+<gnc:count-data cd:type="price">27</gnc:count-data>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>CURRENCY</cmdty:space>
+  <cmdty:id>CAD</cmdty:id>
+  <cmdty:get_quotes/>
+  <cmdty:quote_source>currency</cmdty:quote_source>
+  <cmdty:quote_tz/>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>CURRENCY</cmdty:space>
+  <cmdty:id>USD</cmdty:id>
+  <cmdty:get_quotes/>
+  <cmdty:quote_source>currency</cmdty:quote_source>
+  <cmdty:quote_tz/>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>NYSE</cmdty:space>
+  <cmdty:id>SPY</cmdty:id>
+  <cmdty:name>SPY</cmdty:name>
+  <cmdty:fraction>10000</cmdty:fraction>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>template</cmdty:space>
+  <cmdty:id>template</cmdty:id>
+  <cmdty:name>template</cmdty:name>
+  <cmdty:xcode>template</cmdty:xcode>
+  <cmdty:fraction>1</cmdty:fraction>
+</gnc:commodity>
+<gnc:pricedb version="1">
+  <price>
+    <price:id type="guid">e0000000000000000000000000000025</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-21 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000024</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-20 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000020</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-18 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000001b</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-15 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000019</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-10 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000013</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-03 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000011</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-05-21 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000000</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-05-10 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>20/17</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000000c</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-05-02 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000000b</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-04-16 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000009</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-04-01 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000007</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-03-18 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000003</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2019-12-11 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000001</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2019-07-01 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>1/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000026</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-21 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>80/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000021</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-20 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>80/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000001d</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-18 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>100/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000001c</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-15 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>170/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000001a</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-10 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>140/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000014</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-06-03 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>140/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000012</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-05-21 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>4300/27</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000000e</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-05-11 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>0/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000000d</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-05-02 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>380/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e000000000000000000000000000000a</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-04-01 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>168/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000008</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2020-03-18 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>160/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000004</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2019-12-11 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>320/1</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000002</price:id>
+    <price:commodity>
+      <cmdty:space>NYSE</cmdty:space>
+      <cmdty:id>SPY</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>CAD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2019-07-01 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>200/1</price:value>
+  </price>
+</gnc:pricedb>
+<gnc:account version="2.0.0">
+  <act:name>Root Account</act:name>
+  <act:id type="guid">a0000000000000000000000000000000</act:id>
+  <act:type>ROOT</act:type>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Root</act:name>
+  <act:id type="guid">a0000000000000000000000000000001</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000000</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Asset</act:name>
+  <act:id type="guid">a0000000000000000000000000000002</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Broker</act:name>
+  <act:id type="guid">a0000000000000000000000000000003</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000002</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>CAD Cash</act:name>
+  <act:id type="guid">a0000000000000000000000000000004</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000003</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>USD Cash</act:name>
+  <act:id type="guid">a0000000000000000000000000000005</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000003</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>SPY</act:name>
+  <act:id type="guid">a0000000000000000000000000000006</act:id>
+  <act:type>STOCK</act:type>
+  <act:commodity>
+    <cmdty:space>NYSE</cmdty:space>
+    <cmdty:id>SPY</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>10000</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000003</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Current Assets</act:name>
+  <act:id type="guid">a0000000000000000000000000000007</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000002</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Checking Account</act:name>
+  <act:id type="guid">a0000000000000000000000000000008</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000007</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Income</act:name>
+  <act:id type="guid">a0000000000000000000000000000009</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>USD CapGain</act:name>
+  <act:id type="guid">a000000000000000000000000000000a</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000009</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>USD Interest</act:name>
+  <act:id type="guid">a000000000000000000000000000000b</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000009</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Expenses</act:name>
+  <act:id type="guid">a000000000000000000000000000000c</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>USD Commissions</act:name>
+  <act:id type="guid">a000000000000000000000000000000d</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Equity</act:name>
+  <act:id type="guid">a000000000000000000000000000000e</act:id>
+  <act:type>EQUITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Opening Balances</act:name>
+  <act:id type="guid">a000000000000000000000000000000f</act:id>
+  <act:type>EQUITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000e</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Opening Balances USD</act:name>
+  <act:id type="guid">a0000000000000000000000000000010</act:id>
+  <act:type>EQUITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000e</act:parent>
+</gnc:account>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000001</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-05-06 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:02 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>fund trading account</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-05-06</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000003</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10000000/100</split:value>
+      <split:quantity>10000000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000002</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10000000/100</split:value>
+      <split:quantity>-10000000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000002</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-05-10 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:03 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Convert CAD to USD</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-05-10</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000005</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10000000/100</split:value>
+      <split:quantity>8500000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000004</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10000000/100</split:value>
+      <split:quantity>-10000000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000003</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2019-07-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:04 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy SPY</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2019-07-01</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000007</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2000000/100</split:value>
+      <split:quantity>1000000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000008</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000006</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2000995/100</split:value>
+      <split:quantity>-2000995/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000004</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2019-12-11 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:05 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy SPY</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2019-12-11</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000a</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1600000/100</split:value>
+      <split:quantity>500000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000b</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000009</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1600995/100</split:value>
+      <split:quantity>-1600995/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000005</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-03-18 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:06 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Sell SPY</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-03-18</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000c</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>995/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000d</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1199005/100</split:value>
+      <split:quantity>1199005/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600995/100</split:value>
+      <split:quantity>600995/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000f</split:id>
+      <split:action>Sell</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1200000/100</split:value>
+      <split:quantity>-750000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000010</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600995/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000006</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-04-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:07 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy SPY</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-04-01</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000012</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4200000/100</split:value>
+      <split:quantity>2500000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000013</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000011</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-4200995/100</split:value>
+      <split:quantity>-4200995/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000007</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-04-16 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:08 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Return of Capital</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-04-16</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000014</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>250000/100</split:value>
+      <split:quantity>250000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000015</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-250000/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000008</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-05-02 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:09 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy spy</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-05-02</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000017</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>4750000/100</split:value>
+      <split:quantity>1250000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000018</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000016</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-4750000/100</split:value>
+      <split:quantity>-4750000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-05-21 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:11 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Sell SPY</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-05-21</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001a</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>995/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000d</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2149005/100</split:value>
+      <split:quantity>2149005/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>574702/100</split:value>
+      <split:quantity>574702/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001d</split:id>
+      <split:action>Sell</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2150000/100</split:value>
+      <split:quantity>-1350000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-574702/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-06-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:12 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy spy</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-06-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000020</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2100000/100</split:value>
+      <split:quantity>1500000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000021</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2100000/100</split:value>
+      <split:quantity>-2100000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-06-10 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Sell SPY</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-06-10</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000022</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>995/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000d</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000023</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>12809005/100</split:value>
+      <split:quantity>12809005/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000024</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1783309/100</split:value>
+      <split:quantity>1783309/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000025</split:id>
+      <split:action>Sell</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-12810000/100</split:value>
+      <split:quantity>-9150000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000026</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1783309/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-06-10 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:14 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Sell SPY Short</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-06-10</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000027</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000028</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1189005/100</split:value>
+      <split:quantity>1189005/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000029</split:id>
+      <split:action>Sell</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1190000/100</split:value>
+      <split:quantity>-850000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000e</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-06-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:15 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Sell SPY Short</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-06-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002a</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1104005/100</split:value>
+      <split:quantity>1104005/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002c</split:id>
+      <split:action>Sell</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1105000/100</split:value>
+      <split:quantity>-650000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-06-18 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:16 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy SPY Close Short</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-06-18</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002d</split:id>
+      <split:action>Sell</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>500000/100</split:value>
+      <split:quantity>500000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002e</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>995/100</split:value>
+      <split:quantity>995/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000d</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>264337/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000030</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-500995/100</split:value>
+      <split:quantity>-500995/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000031</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-264337/100</split:value>
+      <split:quantity>-264337/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000010</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-06-20 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:17 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy SPY Close Short</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-06-20</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000032</split:id>
+      <split:action>Sell</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>800000/100</split:value>
+      <split:quantity>1000000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000033</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>498/100</split:value>
+      <split:quantity>498/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000d</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000034</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>728673/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000035</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-800498/100</split:value>
+      <split:quantity>-800498/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000036</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-728673/100</split:value>
+      <split:quantity>-728673/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000011</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-06-21 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:18 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Buy SPY</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-06-21</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000038</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>800000/100</split:value>
+      <split:quantity>1000000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000039</split:id>
+      <split:action>Fee</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>498/100</split:value>
+      <split:quantity>0/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000037</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-800498/100</split:value>
+      <split:quantity>-800498/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000009</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-05-11 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:10 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>stock split</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-05-11</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000019</split:id>
+      <split:action>Buy</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>4500000/10000</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000000</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>CAD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2020-05-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:01 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>opening cash</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2020-05-01</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000001</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>20000000/100</split:value>
+      <split:quantity>20000000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000000</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-20000000/100</split:value>
+      <split:quantity>-20000000/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000f</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+</gnc:book>
+</gnc-v2>
+
