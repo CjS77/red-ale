@@ -275,10 +275,12 @@ Operations registered for scripts:
 | `abs`, `sign`, `is_zero`, `is_integer`, `num`, `denom`, `min`, `max` | `num` and `denom` return Rationals, since either may pass 64 bits |
 | `r.round()` | To the nearest integer, ties to even: Scheme's `round` on an exact number, which `standard/category-barchart.scm:309` uses |
 | `r.round_to(denom, mode)` | `gnc-numeric-convert`: to a denominator with a GnuCash rounding mode: `"round"` (banker's, `GNC-RND-ROUND`), `"half-up"`, `"half-down"`, `"floor"`, `"ceiling"`, `"truncate"`, `"promote"` (`5.17:libgnucash/engine/gnc-numeric.h:91-97`) |
+| `r.round_sigfigs(figs, mode)` (v0.5) | `gnc-numeric-convert` with `GNC-DENOM-SIGFIGS`: to `figs` significant figures with a mode as `round_to` takes, at the denominator `sigfigs_denom` picks (`5.17:libgnucash/engine/gnc-numeric.cpp:468-486`), its exponent capped at 18 as `powten` caps it; a whole part of `figs` digits or more rounds to an integer. The Investment Portfolio's average prices (`standard/portfolio.scm:193-200`) |
 | `r.to_decimal(places)` | Text with exactly `places` decimals, rounded half-up; for labels |
 | `fixed(r, width, places)` | `width` may be `()` for no padding. Guile's `~w,dF`: rounds half-up to `places` and pads to `width`, dropping the leading `0` of a value below 1 when the width allows no more (`.5`), as `standard/account-piecharts.scm:552-554` relies on |
 | `monetary(commodity, r)`, `m.commodity`, `m.amount`, `m + m`, `m - m`, `-m`, `m.round_scu()` | Sums of two commodities are a `report-script` error. `round_scu` rounds to the commodity's SCU with banker's rounding, the `round-scu` of `standard/account-piecharts.scm:497-500` |
 | `m.to_string()` | `gnc:monetary->string` (`report/report-utilities.scm:143-146`): the exact value, no rounding, with the commodity's symbol |
+| `m.to_string(use_symbol)` (v0.5) | `xaccPrintAmount` with `gnc-commodity-print-info commodity use-symbol`: as `m.to_string()`, the symbol only when `use_symbol`; Investment Lots' "Show mnemonic in amounts" (`standard/investment-lots.scm:808-812`) |
 
 GnuCash crosses back to `gnc_numeric` in a few places (`gnc-numeric-mul` in the exchange functions, `gnc-numeric-convert`
 in `gnc:sum-collector-commodity`), and `gnc_scm_to_numeric` fails there when a part passes 64 bits
@@ -403,6 +405,7 @@ comes back in hash order.
 | `book.uses_split_action_for_num()` (v0.5) | bool | `book.info` | `qof-book-use-split-action-for-num-field`: the num field source, which the Transaction Report's option names and Num cells follow |
 | `book.company_name()` | string, `""` when unset | | `gnc:company-info` |
 | `book.prices(commodity, currency)` | Price[], newest first, ties by GUID | `price.list` | `gnc-pricedb-get-prices`, forward only (`5.17:libgnucash/engine/gnc-pricedb.cpp:2047-2058`) |
+| `book.prices_any_currency(commodity, when, mode)` (v0.5) | Price[], newest first | | `gnc-pricedb-lookup-nearest-in-time-any-currency-t64`, `-nearest-before-any-currency-t64` and `-latest-any-currency` (`5.17:libgnucash/engine/gnc-pricedb.cpp:1955-2001`): for each other commodity `commodity` has a price with, either way round, the one nearest `when`, the newest at or before it, or (`"latest"`) the newest at or before the run's now. Prices come as stored: a script inverts one whose `commodity` is not the one asked for, as the investment reports do. A price at exactly `when` may be listed twice under `"nearest"`, as GnuCash lists it |
 | `book.price_rate(commodity, currency, when, mode)` | Rational | `price.nearest`, `price.latest` | `gnc-pricedb-get-{nearest,nearest-before,latest}-price`: 1 for the same commodity; a direct price, inverted when quoted the other way; else an indirect price through a commodity both are priced in; 0 when there is none (`:2408-2527`) |
 | `book.price_convert(monetary, currency, when, mode)` | Monetary | | `gnc-pricedb-convert-balance-*`: amount × `price_rate`, rounded to the currency's SCU with banker's rounding; 0 when no price (`:2529-2586`) |
 | `book.commodity_splits(accounts, until, commodity, sorted)` | Split[] | | `gnc-get-match-commodity-splits`: non-void splits of `accounts` up to `until` (inclusive) whose transaction currency differs from their account's commodity and, unless `commodity` is `()`, one of the two is `commodity` (`5.17:bindings/engine.i:167-193`). Unsorted, account after account, each in split order (`get-exchange-totals` relies on it, CU:447); `sorted`, all in split order. Callers pass the root's sorted descendants (CU:203-205) or those holding shares (`standard/price-scatter.scm:147-149`) |
@@ -469,6 +472,7 @@ legacy bank types get "Debit" and "Credit".
 | `a.balance_as_of(t)` | Rational | `xaccAccountGetBalanceAsOfDate`: splits posted strictly before `t` (`Account.cpp:3505-3524`); `account.balance` |
 | `a.accumulate_at(times, what)` | (Rational or `()`)[] | `gnc-account-accumulate-to-dates` (`5.17:bindings/engine.i:196-236`): for each time, `what` (`"balance"`, `"noclosingBalance"`, `"clearedBalance"` or `"reconciledBalance"`) of the last split posted at or before it, `()` before the first split |
 | `a.reverse_balance(ctx)` | bool | `gnc-reverse-balance` under `reports.reverseBalancedAccounts` |
+| `a.currency_or_parent()` (v0.5) | Commodity or `()` | `gnc_account_get_currency_or_parent` (`Account.cpp:3403-3412`): the account's commodity if it is a currency, else the nearest ancestor's that is |
 
 ### Split, Transaction, Commodity, Price
 
@@ -483,12 +487,21 @@ legacy bank types get "Debit" and "Credit".
     at `:1663` and `:1679`). The Transaction Report sorts by these; its Transfer cell reads `otherSplit` instead;
   - `voidFormerAmount`, `voidFormerValue`: what a voided split held, 0 when it never was voided
     (`xaccSplitVoidFormerAmount`, `-Value`, `Split.cpp:2190-2204`);
-  - `lot`: the split's Lot, or `()`.
+  - `lot`: the split's Lot, or `()`;
+  - `isStockSplit`: its `split-type` slot is `stock-split` (`xaccSplitGetType`, `Split.cpp:2039-2058`), as
+    `xaccSplitMakeStockSplit` marks one;
+  - `actionNum`: the split's action, or the transaction's num when the book uses split actions for nums
+    (`gnc-get-action-num`, `5.17:libgnucash/engine/engine-helpers.c:85-102`), which IFRS cost basis matches its fees
+    filter against.
 - **Transaction**: `guid`, `currency`, `datePosted` (Time64), `dateEntered`, `num`, `description`, `notes`,
   `isClosing` (the `book_closing` slot), `isVoid`, `splitCount`, `splits()`, and from v0.5 `docLink` (`""` when
   none; `xaccTransGetDocLink`, `5.17:libgnucash/engine/Transaction.cpp:2217-2221`).
 - **Lot** (v0.5): `guid`; `invoice`, `#{ guid, id }` of the business document the lot's `gncInvoice/invoice-guid`
-  slot names, or `()` (`gncInvoiceGetInvoiceFromLot`), which the Transaction Report's Invoice column reads.
+  slot names, or `()` (`gncInvoiceGetInvoiceFromLot`), which the Transaction Report's Invoice column reads; `title`
+  and `notes`, `()` when unset (`gnc-lot-get-title`, `-notes`, `5.17:libgnucash/engine/gnc-lot.cpp:444-460`);
+  `account`; `splits()`, in the lot's list order (`gnc-lot-get-split-list`, `:424-431`): the order they joined it,
+  which red-ale takes as Book order, as loading a file adds them (`gnc_lot_add_split` appends, `:619`). Investment
+  Lots reads these and sorts the splits itself; no report reads the engine's lot balance or closure.
 - **Commodity**: `id` (`NAMESPACE::MNEMONIC`), `namespace`, `mnemonic`, `fullname`, `fraction` (SCU), `isCurrency`,
   `symbol` (the nice symbol of section 3), `uniqueName`.
 - **Price**: `guid`, `commodity`, `currency`, `time`, `source`, `type`, `value`.
@@ -535,6 +548,7 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | `book.uses_trading_accounts()` | `book_options::uses_trading_accounts` | |
 | `book.company_name()` | `book_options::company_name` (`options/Business/Company Name`) | new |
 | `book.prices(commodity, currency)` | `ops::prices::prices(book, commodity, Some(currency), false)`; a date range is a filter on `time`, as the Price Scatterplot filters (`standard/price-scatter.scm:220-229`) | |
+| `book.prices_any_currency(…)` | `ops::prices::convert::nearest_any_currency`, `latest_before_any_currency` (at now for `"latest"`) | v0.5 |
 | `book.price_rate(…)` | `ops::prices::convert::rate` with `PriceAt::{Nearest, Before, Latest { now }}` | new |
 | `book.price_convert(…)` | `ops::prices::convert::convert_balance`, after the Monetary's Rational is made a Numeric (past 64 bits GnuCash fails at the same place, section 3) | new |
 | `book.commodity_splits(…)` | `ops::transactions::find::cross_commodity_splits` | new |
@@ -555,6 +569,9 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | Split `corrAccountFullName`, `corrAccountCode` | `ops::transactions::corr_account_full_name`, `corr_account_code` | new (v0.5) |
 | Split `voidFormerAmount`, `voidFormerValue` | `ops::transactions::void::void_former_amount`, `void_former_value` | new (v0.5) |
 | Split `lot`; Lot `invoice` | `Split::lot`, `Book::lot`; `ops::business::payments::lot_invoice` | |
+| Lot `title`, `notes`, `account`; `splits()` | `Lot::title`, `Lot::notes`, `Lot::account`; `ops::lots::lot_split_list` | new (v0.5, `lot_split_list`) |
+| Split `isStockSplit`, `actionNum` | `lot::is_stock_split`; `book_options::uses_split_action_for_num` | v0.5 |
+| `a.currency_or_parent()` | `ops::scrub::currency_or_parent` | v0.5 |
 | Transaction `docLink` | `ops::doc_links::doc_link` | |
 | Account `debitLabel`, `creditLabel` | `ops::accounts::debit_label`, `credit_label` | new (v0.5) |
 | Transaction `isClosing`, `isVoid` | `Transaction::is_closing`, `Transaction::is_void` | |
@@ -569,8 +586,7 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 Core also has the reads `lib/balances` and clients may want beyond these: `balances_at_dates`
 (`gnc:account-get-balances-at-dates`, the sum of amounts at or before each time, which counts the stock splits the
 engine skips), `balance_as_of_in_commodity` (`xaccAccountGet{,Noclosing}BalanceAsOfDateInCurrency`, sub-accounts
-converted at the price before), `balance_change` (`xaccAccountGet{,Noclosing}BalanceChangeForPeriod`) and the
-any-currency lookups `nearest_any_currency` and `latest_before_any_currency`. No JSON-RPC method is added: every
+converted at the price before) and `balance_change` (`xaccAccountGet{,Noclosing}BalanceChangeForPeriod`). No JSON-RPC method is added: every
 query function that mirrors a method mirrors one that exists.
 
 Behaviour the oracle confirms and translations must keep:
@@ -1222,6 +1238,7 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | `standard/balsheet-pnl.rhai` (v0.5) | Balance Sheet (Multicolumn) | `065d5d5a77ba11e8b31e83ada73c5eea` | Assets & Liabilities | `standard/balsheet-pnl.scm:1242`, `:1245-1251` |
 | | Income Statement (Multicolumn) | `0e94fd0277ba11e8825d43e27232c9d4` | Income & Expense | `standard/balsheet-pnl.scm:1243`, `:1253-1259` |
 | `standard/transaction.rhai` (v0.5) | Transaction Report | `2fe3b9833af044abb929a88d5a59620f` | (top level) | `standard/transaction.scm:31-36` |
+| `standard/portfolio.rhai` (v0.5) | Investment Portfolio | `4a6b82e8678c4f3d9e85d9f09634ca89` | Assets & Liabilities | `standard/portfolio.scm:286-292` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
 scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary is the
@@ -1264,6 +1281,7 @@ Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.
 | `standard/cash-flow.scm` (v0.5) | Cash Flow | OU: date-interval, currency, price-source, account-selection. RU: account-full-name<?, accounts-get-children-depth, accounts-get-commodities, account-get-trans-type-splits-interval (through the calculation), collector-. CU: case-exchange-fn, case-exchange-time-fn, case-price-fn, sum-collector-commodity. HU: make-rates-table, no-account warning, `gnc:html-markup-ul` (a `list` block). DU: time64-start/end-day-time. `cash-flow-calc-money-in-out` (`lib/cash-flow-calc`) | Every split of each transaction that touches a selected account in the period, void ones not found, closing ones counted; prices at each split's posted date |
 | `standard/balsheet-pnl.scm` (v0.5) | Balance Sheet (Multicolumn), Income Statement (Multicolumn) | OU: date-interval, account-levels, currency, price-source. RU: filter-accountlist-type, decompose-accountlist, accounts-get-commodities(-sorted), account-accumulate-at-dates (as its own loop over each account's splits, recording what each date needs), collector+ and collector-, monetaries-add, and a `monetary+` of its own (`standard/balsheet-pnl.scm:371-384`). CU: case-exchange-time-fn (amounts), case-exchange-fn (unrealized gains and retained earnings), case-price-fn (rates). DU: make-date-list, decdate, deltasym-to-delta, time64-start/end-day-time. HU: make-report-anchor (`make_report_anchor`), no-account warning. Its own walker `add-multicolumn-acct-table` (`:279-607`) and `book-main-currency` (`:804-812`) | Each split's balance, no-closing balance and value under its transaction's currency: closing transactions are left out of the P&L and kept by the balance sheet; the last split at each date (split links); "Use Trading Accounts" (trading accounts in place of unrealized gains); the latest price of each commodity (`has-price?`, `:662-676`) and prices at each column's date; placeholders |
 | `standard/cashflow-barchart.scm` (v0.5) | Cash Flow Barchart | OU: date-interval, interval-choice, currency, price-source, plot-size. RU: accounts-get-commodities, not-all-zeros, monetary+. CU: case-exchange-fn, case-exchange-time-fn, sum-collector-commodity. DU: make-date-interval-list, deltasym-to-delta, time64-start/end-day-time. HU: make-report-anchor (`make_report_anchor`), no-account and empty-data warnings. `cash-flow-calc-money-in-out` per interval | As the Cash Flow, per interval |
+| `standard/portfolio.scm` (v0.5) | Investment Portfolio | OU: report-date, currency, price-source. RU: filter-accountlist-type, account-get-comm-balance-at-date, the commodity collector. CU: case-exchange-fn. HU: html-account-anchor (an account cell), html-price-anchor (a monetary cell linked to the price), no-account warning. DU: time64-end-day-time, `time64CanonicalDayTime` | Each account's own balance strictly before the end of the Date; prices in any currency nearest to, at or before local noon of the Date, or at or before now (`book.prices_any_currency`), shown as stored; the average-cost and weighted-average exchange functions, their 10,000-unit price rounded to five significant figures (`round_sigfigs`); share counts in the share display |
 | `report/trep-engine.scm` (v0.5) | none: the library module `lib/trep-engine`, which the Transaction Report, General Ledger and Reconciliation Report are built on (`notes/report-transaction-engine.md`) | OU: date-interval, currency, price-source. DU: time64-start/end-day-time, date-get-week, date-get-week-year-string, the month, quarter and year strings. HU: no-account and generic warnings, split, invoice and document-link anchors. RU: the commodity collectors, accounts-get-commodities. CU: case-exchange-time-fn, exchange-by-pricedb-nearest. Guile's `make-regexp` (section 2) | The split query with reconcile states, closing match, the QOF sort keys and one split per transaction; the reads of section 5 marked v0.5 (other split, corresponding account name and code, void former amount, lot and invoice, document link, debit and credit labels, the num field source); reconcile and entered dates; prices for foreign commodities |
 | `standard/transaction.scm` (v0.5) | Transaction Report | the engine as it is: `lib/trep-engine` | as `report/trep-engine.scm`; no export type, as in GnuCash (TR:31-36) |
 
@@ -1378,6 +1396,7 @@ Notes for the translators:
 | Investment Lots' CAGR | `expt` of doubles (`standard/investment-lots.scm:447-461`) | fixed-point power rounded to 10⁻¹² (§3, "Growth rates"); exact where the power is |
 | Transaction Report CSV numbers (v0.5) | `(number->string (exact->inexact n))` (TE:496) | as v0.3's chart CSV: the shortest digits of the nearest double, computed exactly (`number/flonum.rs`) |
 | Transaction Report Shares column (v0.5) | the amount through `double-to-gnc-numeric … 100 GNC-RND-ROUND` (TE:1212-1218; `report/html-style-info.scm:233-236`) | a number cell: the exact amount rounded to 1/100 with banker's rounding; differs only if the double lands across a rounding boundary |
+| Investment Portfolio's "Share decimal places" | a double option, `inexact->exact` (`standard/portfolio.scm:99-101`) | a whole Rational; a fraction is a `report-script` error, where GnuCash's conversion to an integer fails |
 
 ## 13. Testing reports
 
@@ -1425,6 +1444,7 @@ can be re-run to check it.
 | `reports/cash-flow.gnucash` (v0.5), and its SQLite copy, saved the same way | the three groups of `standard/test/test-cash-flow.scm:14-144`, posted on the pinned 2024-03-15 | the Cash Flow and its calculation |
 | `reports/cashflow-barchart.gnucash` (v0.5), and its SQLite copy, saved the same way | the three groups of `standard/test/test-cashflow-barchart.scm:51-195`, posted on 2024-03-02 and 03-03 | the Cash Flow Barchart |
 | `reports/balsheet-pnl-extras.gnucash` and `-trading` (v0.5), and their SQLite copies, saved the same way | none: `scripts/report-fixtures/balsheet_pnl_extras.py` adds what `balsheet-pnl` lacks: expense accounts, a closing transaction, placeholders, an account with no splits, a priced EUR and an unpriced CHF; the second book with trading accounts | the Multicolumn statements (hand-worked) |
+| `reports/stock-test-data.gnucash` (v0.5), and its SQLite copy, saved the same way | `create-stock-test-data` (`5.17:bindings/guile/test/test-engine-extras.scm:952-1059`), as `standard/test/test-portfolios.scm` builds it for both its groups; the 1981-01-01 price is $50 (500 for 10), not the $5 the transaction's description says | the Investment Portfolio; the Advanced Portfolio |
 
 GUIDs are fixed and readable (`a000…0001` for the first account made, and so on), entered dates and void times are
 the pinned now plus one second per transaction, and books are written uncompressed, so a script gives the same bytes
@@ -1457,6 +1477,7 @@ GnuCash reads and the exact expected strings, with the test line (see `fixtures/
 | Balance Sheet (Multicolumn), Income Statement (Multicolumn) (v0.5) | `standard/test/test-balsheet-pnl.scm:493-650`: all 16 checks, the row headers, each column's balances with the conversions and the rates, the date rows both orders, the P&L's monthly columns and its headers, and the rates under each price source (the runs at `:617-650` give the P&L's options to the balance sheet's GUID, which GnuCash renders as a balance sheet), on the XML book and its SQLite copy. GnuCash reads its HTML table's texts; the test rebuilds them from the result: the rate rows back into their title row as `"<one unit> <rate>"`, each cell's texts in `sxpath`'s breadth-first order (an amount shown before its `<small>` original and that original's trailing space, `" to <end>"` after a P&L header's start), and account names with `:` for the fixture's `.` | the options and their order; no accounts under each title form; dual columns and the amount staircase, indented names, placeholders unlinked, split links (none before an account's first split); the P&L leaving the closing transaction out and the balance sheet keeping it; multilevel mode; zero accounts hidden and zero figures omitted in both modes; a depth limit, "Label sections" off (the rates vanish) and "Include totals" off (the Net Income stays); a common currency with an unpriced commodity ("missing", unconverted), unrealized gains, retained earnings unconverted while an income commodity has no price and converted without it; each price source, and the amounts without their originals; `pricedb-latest` ending every P&L header and Transaction Report link today; the Transaction Report links with and without a common currency, the main currency on a tie, and the Barchart links run on their templates; the two weighted averages differing on `balsheet-pnl`; weekly, two-week, swapped, yearly and month-end periods, the overall column first and last; trading accounts in place of unrealized gains; a run changing nothing on both extras books, XML and SQLite |
 | Cash Flow Barchart (v0.5) | `standard/test/test-cashflow-barchart.scm:60-196`: money in, out and net per day and in total, read as numbers as the test reads them, and the row and column counts, on the XML book and its SQLite copy | the options and their order; a year of `charts-daily` by month, its colours and totals; no accounts; all zero (no table even with "Show Table"); a hidden non-zero series still drawing the chart; each "Show" option; the values' links to the Cash Flow, with the options both reports have, and running one; a short last interval and swapped dates |
 | Transaction Report (v0.5) | `standard/test/test-transaction.scm:241-1050`: every assertion of `transaction.expected.json` (115 table checks: headers, totals, cell and row counts, links, sign reversals, sort orders, date subtotals, running totals, informal headers, both Subtotal Tables, the invoice cell), each expected string also in the exported HTML; the CSV string and its export error (TT:1025-1050) through the engine with the CSV export type, as the report declares none; on the XML book only, as GnuCash cannot save it as SQLite | entered and reconciled dates, Shares and Price cells; document links with links on and off; numbers in a split-action book with Trans Number; a payment paying two invoices (anchors in reverse order); Balance b/f under Common Currency; each condition that turns Balance b/f off; the Subtotal Table with no secondary key, one column, two amount columns, subtotals only; the CSV export errors; custom and legacy calculated cells; Sign Reverses "none" against a global preference; the empty-report message; a run leaving the Book unchanged; test-data's XML and SQLite copies giving the same result |
+| Investment Portfolio (v0.5) | `standard/test/test-portfolios.scm:53-78`: AAPL's row under `pricedb-latest`, `pricedb-nearest` on 1980-03-01, and `average-cost` and `weighted-average` on 1980-09-01, on the XML book and its SQLite copy; the null test (`:26`) as the no-account warning on an empty book | the options and their order, the default accounts; the rows, rule and Total, the account and price links; accounts with no shares (no price: $0.00 unlinked) and the shading over shown rows only; `pricedb-before`, `-nearest` and `-latest` on one date, the latest ignoring it; prices shown as stored with every price-database source, a newer price in another currency and one quoted the other way round (`0.025 ABC`, the note's Q9), the values converted through the price database; `nearest` taking the newest of each currency's nearest; no price; the averages' five significant figures ($1,234.60 against a $12,345.67 value); 0, 2 and 3 share places with a half-up tie; no shown rows (the rule alone); a run changing nothing, XML and SQLite |
 
 Every check of a figure also runs with `report.export` and checks that the HTML has the same display string.
 

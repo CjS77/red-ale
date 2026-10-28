@@ -318,6 +318,25 @@ fn an_explicit_lot_takes_what_fits_and_closed_lots_refuse() {
     assert!(remove_split(&mut f.book, rest).unwrap(), "a lot left empty is deleted");
 }
 
+/// `gnc_lot_get_split_list` keeps the order splits joined the lot, which red-ale takes as Book order; the viewer's
+/// list sorts by date.
+#[test]
+fn a_lot_lists_its_splits_in_book_order() {
+    let mut f = fx();
+    let later = f.trade(3, "10", "100.00");
+    let earlier = f.trade(1, "5", "40.00");
+    let lot = create_lot(&mut f.book, &mut f.env, f.stock, None, None).unwrap();
+    [later, earlier].iter().for_each(|t| {
+        let split = f.stock_splits_of(*t)[0].guid;
+        assign_split(&mut f.book, &mut f.env, split, Some(lot)).unwrap();
+    });
+    let listed: Vec<Guid> = lot_split_list(&f.book, lot).iter().map(|(t, _)| t.guid).collect();
+    assert_eq!(listed, [later, earlier]);
+    let viewed: Vec<Guid> = lot_splits(&f.book, lot).unwrap().iter().map(|s| s.transaction).collect();
+    assert_eq!(viewed, [earlier, later]);
+    assert!(lot_split_list(&f.book, f.stock).is_empty(), "no split is in a lot of that GUID");
+}
+
 #[test]
 fn the_viewer_lists_splits_gains_and_free_split_gains() {
     let mut f = fx();

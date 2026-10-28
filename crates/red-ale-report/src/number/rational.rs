@@ -281,6 +281,28 @@ impl Rational {
         Self::new(units, denom)
     }
 
+    /// The value rounded by `mode` to `figs` significant figures: `gnc-numeric-convert` with `GNC-DENOM-SIGFIGS`, at
+    /// the denominator GnuCash's `sigfigs_denom` picks (`5.17:libgnucash/engine/gnc-numeric.cpp:468-486`). Above 1 it
+    /// is `10^(figs - d - 1)`, or 1 once the whole part has `figs` digits, `d` counting the whole part's digits after
+    /// the first; at or below 1 it is `10^(figs + d)`, `d` counting those of `⌊1/|value|⌋`. An exact power of ten at
+    /// or below 1 so keeps one figure more, which changes nothing since it is exact. The exponent stops at 18, as
+    /// GnuCash's `powten` does (`:63-69`).
+    pub fn round_sigfigs(&self, figs: u32, mode: Rounding) -> Result<Self, NumberError> {
+        if self.is_zero() {
+            return Ok(self.clone());
+        }
+        let (num, den) = (self.numer().abs(), self.denom());
+        let above_one = num > *den;
+        let whole = if above_one { &num / den } else { den / &num };
+        let digits = u32::try_from(whole.to_string().len() - 1).unwrap_or(u32::MAX);
+        let exponent = if above_one {
+            figs.saturating_sub(digits.saturating_add(1))
+        } else {
+            figs.saturating_add(digits)
+        };
+        self.round_to(10_i64.pow(exponent.min(18)), mode)
+    }
+
     /// Rounded half away from zero to `places` decimals, as an integer count of `10^-places`.
     pub(crate) fn scaled_half_up(&self, places: u32) -> BigInt {
         let scale = BigInt::from(10).pow(places);
@@ -601,6 +623,31 @@ mod tests {
         assert!(r("1").round_to(0, Rounding::Bankers).is_err());
         assert_eq!("half-up".parse::<Rounding>().unwrap(), Rounding::HalfUp);
         assert!("never".parse::<Rounding>().is_err());
+    }
+
+    /// Worked from `sigfigs_denom` (`5.17:libgnucash/engine/gnc-numeric.cpp:468-486`) with five figures, as the
+    /// Investment Portfolio's average prices round (`standard/portfolio.scm:193-200`).
+    #[test]
+    fn significant_figures_follow_sigfigs_denom() {
+        let five = |s: &str, mode| r(s).round_sigfigs(5, mode).unwrap();
+        let cases = [
+            ("700/3", "233.33"),
+            ("-700/3", "-233.33"),
+            ("200", "200"),
+            ("123456.7", "123457"),
+            ("2/3", "0.66667"),
+            ("1/30", "0.033333"),
+            ("1", "1"),
+            ("0.1", "0.1"),
+            ("0", "0"),
+            ("2.00005", "2"),
+            ("2.00015", "2.0002"),
+            ("1/1000000000000000000000000000000", "0"),
+        ];
+        cases.iter().for_each(|(v, want)| assert_eq!(five(v, Bankers), r(want), "{v}"));
+        assert_eq!(five("2.00005", HalfUp), r("2.0001"));
+        assert_eq!(five("1/30", Ceiling), r("0.033334"));
+        assert_eq!(r("123.456").round_sigfigs(2, Bankers).unwrap(), r("123"));
     }
 
     #[test]

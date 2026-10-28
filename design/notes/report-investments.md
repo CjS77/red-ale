@@ -551,7 +551,7 @@ Book `create-stock-test-data` (TEE:952-1059):
 | 1981-04-01 | spin-off $150 | Bank 150, AAPL −150/0 |
 
 Prices:
-- Transaction prices at local midnight, source `user:xfer-dialog`, type "test" (TEE:283-288): $100, $200, $400, $5, $6.
+- Transaction prices at local midnight, source `user:xfer-dialog`, type "test" (TEE:283-288): $100, $200, $400, $50, $6. The 1981-01-01 price is $50, 500 for 10 shares, not the $5 its description says.
 - Stock-split prices, source `user:stock-split`, type "unknown": $40, $4, $12.
 
 The stock splits use `xaccTransSetDatePostedSecsNormalized` and USD.

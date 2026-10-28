@@ -1,12 +1,10 @@
 //! The `Book` handle (`design/reports.md` §5, "Book").
 
-use std::rc::Rc;
-
 use red_ale_core::book_options::{company_name, uses_split_action_for_num, uses_trading_accounts};
 use red_ale_core::currencies::{convert_from_euro, convert_to_euro, is_euro_currency};
 use red_ale_core::ops::accounts::descendants_sorted;
 use red_ale_core::ops::commodities::{canonical, lookup};
-use red_ale_core::ops::prices::convert::{PriceAt, convert_balance, rate};
+use red_ale_core::ops::prices::convert::{PriceAt, convert_balance, latest_before_any_currency, nearest_any_currency, rate};
 use red_ale_core::ops::prices::prices;
 use red_ale_core::ops::scheduled::cash_flow;
 use red_ale_core::ops::transactions::find::cross_commodity_splits;
@@ -14,7 +12,7 @@ use red_ale_core::{AccountType, Guid, Numeric, Time64};
 use rhai::{Array, Dynamic, Engine, INT, Map};
 
 use super::args::{accounts_arg, commodity_arg, optional_commodity_arg, optional_time_arg};
-use super::{BookHandle, Fallible, PriceHandle, script_error};
+use super::{BookHandle, Fallible, script_error};
 use crate::number::{Monetary, Rational};
 use crate::wire::parse_commodity;
 
@@ -42,6 +40,7 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("uses_split_action_for_num", |b: &mut BookHandle| uses_split_action_for_num(b.0.book()));
     engine.register_fn("company_name", |b: &mut BookHandle| company_name(b.0.book()).to_owned());
     engine.register_fn("prices", book_prices);
+    engine.register_fn("prices_any_currency", prices_any_currency);
     engine.register_fn("price_rate", price_rate);
     engine.register_fn("price_convert", price_convert);
     engine.register_fn("commodity_splits", commodity_splits);
@@ -86,15 +85,21 @@ fn book_prices(b: &mut BookHandle, commodity: Dynamic, currency: Dynamic) -> Fal
     let book = b.0.book();
     let (commodity, currency) = (commodity_arg(book, &commodity)?, commodity_arg(book, &currency)?);
     let found = prices(book, &commodity, Some(&currency), false);
-    Ok(found
-        .into_iter()
-        .map(|p| {
-            Dynamic::from(PriceHandle {
-                snap: Rc::clone(&b.0),
-                guid: p.guid,
-            })
-        })
-        .collect())
+    Ok(found.into_iter().map(|p| Dynamic::from(b.price(p.guid))).collect())
+}
+
+/// `gnc-pricedb-lookup-nearest-in-time-any-currency-t64`, `-nearest-before-any-currency-t64` and
+/// `-latest-any-currency` (`5.17:libgnucash/engine/gnc-pricedb.cpp:1955-2001`): the price of `commodity` in each other
+/// commodity nearest to `when`, the newest at or before it, or the newest at or before the run's now; newest first.
+/// Each price is as stored, quoted either way round.
+fn prices_any_currency(b: &mut BookHandle, commodity: Dynamic, when: INT, mode: &str) -> Fallible<Array> {
+    let book = b.0.book();
+    let commodity = commodity_arg(book, &commodity)?;
+    let found = match price_at(b, when, mode)? {
+        PriceAt::Nearest(t) => nearest_any_currency(book, &commodity, t),
+        PriceAt::Before(t) | PriceAt::Latest { now: t } => latest_before_any_currency(book, &commodity, t),
+    };
+    Ok(found.into_iter().map(|p| Dynamic::from(b.price(p.guid))).collect())
 }
 
 /// Which price a lookup takes: `"nearest"`, `"before"` or `"latest"`; `"latest"` reads the run's now, never the clock.
