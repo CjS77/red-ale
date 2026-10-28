@@ -4,11 +4,10 @@
 //! GnuCash keeps these as runtime caches (`priv->splits`, `split->adjusted_amount`, `lot->is_closed`); red-ale
 //! rebuilds them from the Book whenever an operation needs them, so they are never stale.
 
-use std::cmp::Ordering;
-
 use crate::book_options::uses_split_action_for_num;
 use crate::lot::is_stock_split;
 use crate::ops::commit::account_scu;
+use crate::ops::transactions::order::split_order;
 use crate::{Book, CommodityRef, DomainResult, Guid, How, Numeric, Round, Split, Time64, Transaction};
 
 /// One split of the account.
@@ -178,99 +177,4 @@ fn adjust_for_stock_splits(entries: &mut [Entry], scu: i64) -> DomainResult<()> 
         balance = new_balance;
         Ok(())
     })
-}
-
-/// True when the transaction closes the books (`xaccTransGetIsClosingTxn`, slot `book_closing`,
-/// `5.17:libgnucash/engine/Transaction.cpp:2228-2236`).
-fn is_closing(t: &Transaction) -> bool {
-    t.slots
-        .get_key("book_closing")
-        .and_then(crate::SlotValue::as_int)
-        .is_some_and(|v| v != 0)
-}
-
-/// The leading unsigned integer of a string, as `strtoull` reads it; 0 when there is none.
-fn leading_number(s: &str) -> (u64, &str) {
-    let trimmed = s.trim_start();
-    let digits = trimmed.strip_prefix('+').unwrap_or(trimmed);
-    let end = digits.find(|c: char| !c.is_ascii_digit()).unwrap_or(digits.len());
-    match digits[..end].parse::<u64>() {
-        Ok(n) => (n, &digits[end..]),
-        Err(_) if end > 0 => (u64::MAX, &digits[end..]),
-        Err(_) => (0, s),
-    }
-}
-
-/// `order_by_int64_or_string` (`5.17:libgnucash/engine/Transaction.cpp:1773-1791`). GnuCash collates text with
-/// `g_utf8_collate`, which depends on the locale; red-ale compares bytes.
-fn order_num(a: &str, b: &str) -> Ordering {
-    let ((na, ra), (nb, rb)) = (leading_number(a), leading_number(b));
-    if na != 0 && nb != 0 {
-        return na.cmp(&nb).then_with(|| ra.cmp(rb));
-    }
-    a.cmp(b)
-}
-
-/// `xaccTransOrder_num_action` (`5.17:libgnucash/engine/Transaction.cpp:1794-1838`): posted date, closing
-/// transactions last, number (or split action), date entered, description, GUID.
-pub fn trans_order(ta: &Transaction, num_a: Option<&str>, tb: &Transaction, num_b: Option<&str>) -> Ordering {
-    if ta.guid == tb.guid {
-        return Ordering::Equal;
-    }
-    let num = |t: &Transaction, n: Option<&str>| n.map_or_else(|| t.num.clone().unwrap_or_default(), str::to_owned);
-    ta.date_posted
-        .cmp(&tb.date_posted)
-        .then_with(|| is_closing(ta).cmp(&is_closing(tb)))
-        .then_with(|| order_num(&num(ta, num_a), &num(tb, num_b)))
-        .then_with(|| ta.date_entered.cmp(&tb.date_entered))
-        .then_with(|| {
-            ta.description
-                .as_deref()
-                .unwrap_or_default()
-                .cmp(tb.description.as_deref().unwrap_or_default())
-        })
-        .then_with(|| ta.guid.cmp(&tb.guid))
-}
-
-/// `xaccSplitOrder` (`5.17:libgnucash/engine/Split.cpp:1536-1597`): the order of an account's splits.
-fn split_order(ta: &Transaction, sa: &Split, tb: &Transaction, sb: &Split, num_action: bool) -> Ordering {
-    if ta.guid == tb.guid && sa.guid == sb.guid {
-        return Ordering::Equal;
-    }
-    let by_txn = if num_action {
-        trans_order(
-            ta,
-            Some(sa.action.as_deref().unwrap_or_default()),
-            tb,
-            Some(sb.action.as_deref().unwrap_or_default()),
-        )
-    } else {
-        trans_order(ta, None, tb, None)
-    };
-    by_txn
-        .then_with(|| sa.memo.as_deref().unwrap_or_default().cmp(sb.memo.as_deref().unwrap_or_default()))
-        .then_with(|| {
-            sa.action
-                .as_deref()
-                .unwrap_or_default()
-                .cmp(sb.action.as_deref().unwrap_or_default())
-        })
-        .then_with(|| sa.reconcile_state.as_char().cmp(&sb.reconcile_state.as_char()))
-        .then_with(|| sa.amount.cmp_value(sb.amount))
-        .then_with(|| sa.value.cmp_value(sb.value))
-        .then_with(|| sa.reconcile_date.unwrap_or_default().cmp(&sb.reconcile_date.unwrap_or_default()))
-        .then_with(|| sa.guid.cmp(&sb.guid))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn numbers_order_numerically_then_as_text() {
-        assert_eq!(order_num("9", "10"), Ordering::Less);
-        assert_eq!(order_num("10a", "10b"), Ordering::Less);
-        assert_eq!(order_num("", "1"), Ordering::Less);
-        assert_eq!(order_num("abc", "abd"), Ordering::Less);
-    }
 }

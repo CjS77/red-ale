@@ -328,6 +328,9 @@ The oracle test runs the same queries through GnuCash's query engine and gets th
 - Regular expressions use Rust's `regex` syntax, close to POSIX extended (`REG_EXTENDED`); there are no
   backreferences in either.
 - Text ties in the sort compare by code point. GnuCash uses `g_utf8_collate`, which depends on the locale.
+- The sort is a total order where GnuCash's is not: nums and, with the num field source on, two splits of one
+  transaction are ordered as [`../reports.md`](../reports.md) §14 sets out, so the results never depend on hash
+  order and a sort never fails.
 - `dateEntered`, `void` and `notContains`/`notEquals` are query parameters GnuCash registers but the dialog does not
   offer.
 - Scheduled-transaction template splits are not in the book model, so they are never found. GnuCash's results

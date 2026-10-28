@@ -3,7 +3,8 @@
 
 use std::sync::Arc;
 
-use super::ledger::{Ledger, Touched, trans_order};
+use super::ledger::{Ledger, Touched};
+use crate::ops::transactions::order::trans_order;
 use super::{edit_split, edit_txn, locate};
 use crate::account::slot_paths as acct_slots;
 use crate::lot::{account_slots, gains_source, gains_split, is_stock_split, split_slots};
@@ -60,7 +61,7 @@ pub fn balance_before(book: &Book, ledger: &Ledger, lot: Guid, split: Guid) -> D
         .try_fold((Numeric::ZERO, Numeric::ZERO), |(amount, value), e| {
             let source = locate(book, e.split).and_then(|(_, s)| source_of(book, s)).unwrap_or(e.split);
             let ta = locate(book, source).and_then(|(t, _)| book.transaction(t));
-            let before = ta.is_some_and(|ta| (ta.guid == tb.guid && source != target) || trans_order(ta, None, &tb, None).is_lt());
+            let before = ta.is_some_and(|ta| (ta.guid == tb.guid && source != target) || trans_order(ta, &tb).is_lt());
             if before {
                 Ok((amount.add_fixed(e.adjusted)?, value.add_fixed(e.value)?))
             } else {

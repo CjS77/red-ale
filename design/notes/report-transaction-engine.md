@@ -90,7 +90,8 @@ a claim, the test line is cited.
     two splits' actions, then a transaction's own splits by memo and then action (`Split.cpp:1548-1573`). A
     transaction whose splits' memos and actions sort opposite ways forms a cycle with another transaction on the same
     day entered between them, so the query's default sort, and every sort that falls back to it, follows hash order
-    there. red-ale's order is fixed (`reports.md` §14).
+    there. red-ale compares two splits of one transaction by their actions first, which makes the order total
+    (`reports.md` §14).
 
 ---
 
