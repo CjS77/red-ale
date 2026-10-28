@@ -31,7 +31,7 @@ use crate::entities::{
 };
 use crate::envelope::BOOK_VERSION;
 use crate::input::TextStream;
-use crate::scheduled::{parse_scheduled, parse_template_account, scheduled_el};
+use crate::scheduled::{give_template_commodity, parse_scheduled, parse_template_account, scheduled_el};
 use crate::values::{Notices, parse_guid, parse_slots, slots_el};
 
 /// How much of the start of the text is checked for the XML declaration and the `gnc-v2` root. GnuCash looks at the
@@ -783,8 +783,14 @@ impl Sink for Verify<'_> {
         if is_root(&account) {
             self.template_root = Some(guid);
         }
-        let expected = self.expected.templates.accounts.get(&guid);
-        let same = matches(expected, &account, &mut self.seen.template_accounts, guid);
+        // The Book's account as GnuCash would load it from what was written: a template root made in this session
+        // has no commodity, and reads back with the template commodity.
+        let expected = self.expected.templates.accounts.get(&guid).map(|a| {
+            let mut loaded = Account::clone(a);
+            give_template_commodity(&mut loaded);
+            Arc::new(loaded)
+        });
+        let same = matches(expected.as_ref(), &account, &mut self.seen.template_accounts, guid);
         self.check(same, || format!("template account {guid} differs after writing"));
     }
 

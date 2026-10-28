@@ -164,6 +164,18 @@ fn deferred_el(d: &DeferredInstance) -> Element {
         .child(int_el("sx:instanceCount", i64::from(d.instance_count)))
 }
 
+/// Give a template account read without a commodity `template:template`, as `tt_act_handler` does
+/// (`5.17:libgnucash/backend/xml/gnc-schedxaction-xml-v2.cpp:796-818`). A template root made in this session has none
+/// (`sxtg_book_begin`, `5.17:libgnucash/engine/SX-book.cpp:113-125`) and is written so; read back, it has one.
+pub fn give_template_commodity(account: &mut Account) {
+    if account.commodity.is_none() {
+        // `xaccAccountSetCommodity` also sets the SCU to the commodity's fraction (`5.17:libgnucash/engine/Account.cpp:2683-2684`).
+        account.commodity = Some(CommodityRef::new(TEMPLATE_NAMESPACE, "template"));
+        account.commodity_scu = Some(1);
+        account.non_standard_scu = false;
+    }
+}
+
 /// Read one `gnc:account` of `gnc:template-transactions`, as `tt_act_handler` and `add_template_transaction_local` do
 /// (`gnc-schedxaction-xml-v2.cpp:771-822`, `5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:303-343`): an account with no
 /// commodity gets `template:template`, a parentless ROOT becomes the template root, and a parentless account of any
@@ -178,12 +190,7 @@ pub fn parse_template_account(el: &Element, root: &mut Option<Guid>, notices: &m
     if !lots.is_empty() {
         notices.unrecognised.push(format!("template account {guid} holds lots"));
     }
-    if account.commodity.is_none() {
-        // `xaccAccountSetCommodity` also sets the SCU to the commodity's fraction (`5.17:libgnucash/engine/Account.cpp:2683-2684`).
-        account.commodity = Some(CommodityRef::new(TEMPLATE_NAMESPACE, "template"));
-        account.commodity_scu = Some(1);
-        account.non_standard_scu = false;
-    }
+    give_template_commodity(&mut account);
     match (account.parent, account.account_type) {
         (Some(_), _) => {}
         (None, red_ale_core::AccountType::Root) => {

@@ -375,3 +375,39 @@ fn gnucash_reads_the_scheduled_transactions_red_ale_made() {
     let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
     assert_eq!(red_ale_testkit::diff(&whole, &red_ale_testkit::model::dump(&read), &skip), Vec::<String>::new());
 }
+
+/// The first scheduled transaction of a book that had none: red-ale makes the template root as GnuCash does, with no
+/// commodity (`5.17:libgnucash/engine/SX-book.cpp:113-125`), and saves it. GnuCash 5.17 reads the scheduled
+/// transaction and its template splits as red-ale wrote them, and its view of the whole book is red-ale's.
+#[test]
+fn gnucash_reads_the_first_scheduled_transaction_of_a_book() {
+    let book = TempBook::new_path();
+    std::fs::write(&book.path, red_ale_testkit::synthetic::synthetic_book_text(10)).unwrap();
+    let mut d = dispatcher();
+    call(&mut d, "book.open", &json!({ "path": book.path_str() }));
+    let made = call(&mut d, "scheduledTransaction.create", &json!({
+        "name": "Daily", "startDate": "2024-06-01", "schedule": [{ "mult": 1, "periodType": "day" }], "end": { "occurrences": 5 },
+        "templateTransactions": [{
+            "description": "Scheduled",
+            "splits": [
+                { "account": "Expenses:Expenses 0000", "debitFormula": "12.34" },
+                { "account": "Assets:Assets 0000", "creditFormula": "12.34" },
+            ],
+        }],
+    }));
+    let info = call(&mut d, "scheduledTransaction.get", &json!({ "scheduledTransaction": made["guid"] }));
+    call(&mut d, "book.close", &json!({ "save": true }));
+
+    let (read, _) = red_ale_xml::read_book(&std::fs::read(&book.path).unwrap()).unwrap();
+    let guid = info["guid"].as_str().unwrap();
+    let gnucash = gnucash_scheduled(&book);
+    let mut fields = gnucash[guid].clone();
+    let splits = fields.as_object_mut().unwrap().remove("splits").unwrap();
+    assert_eq!(fields, as_gnucash_dumps(&info, &read.scheduled[&Guid::parse(guid).unwrap()]));
+    let splits: std::collections::BTreeMap<String, Value> =
+        splits.as_array().unwrap().iter().map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone())).collect();
+    assert_eq!(splits, template_splits(&info));
+    let whole = oracle::dump(&book.path).unwrap();
+    let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
+    assert_eq!(red_ale_testkit::diff(&whole, &red_ale_testkit::model::dump(&read), &skip), Vec::<String>::new());
+}

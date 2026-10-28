@@ -12,6 +12,8 @@ pub mod memory;
 pub mod model;
 pub mod oracle;
 pub mod quote_server;
+pub mod since_last_run;
+pub mod sqlite;
 pub mod synthetic;
 
 use std::path::{Path, PathBuf};

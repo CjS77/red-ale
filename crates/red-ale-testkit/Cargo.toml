@@ -14,13 +14,14 @@ oracle = []
 red-ale-core.workspace = true
 red-ale-rpc.workspace = true
 red-ale-service.workspace = true
+red-ale-sql.workspace = true
 red-ale-xml.workspace = true
+rusqlite.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
 red-ale-import.workspace = true
-red-ale-sql.workspace = true
 red-ale-locale.workspace = true
 peak_alloc.workspace = true
 tokio.workspace = true

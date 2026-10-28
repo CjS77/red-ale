@@ -17,7 +17,7 @@ use crate::session::{ReadOnlyReason, Settings};
 mod sql;
 mod xml;
 
-pub use sql::SqliteBackend;
+pub use sql::{ISO_DATES_FEATURE, SqliteBackend};
 pub use xml::XmlBackend;
 
 /// The format of a book file.

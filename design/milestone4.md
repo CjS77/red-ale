@@ -428,6 +428,69 @@ functions, the instance model's amounts, the forecast reports), expected values 
 - Every report above gives the figures its expected results hold.
 - The memory budgets of [`milestone3.md`](milestone3.md) still hold on the 100,000-transaction book, and a Since Last
   Run creating 5,000 transactions is one Mutation.
+
+  **Measured: memory.** `crates/red-ale-testkit/examples/memory.rs`, in release mode, as for
+  [`milestone3.md`](milestone3.md) ("Memory and scale"): one process through `book.open`, `transaction.post` and
+  `book.save` on the 100,000-transaction synthetic book, heap as the allocator counts it. The SQLite book is the same
+  Book written by red-ale's SQLite writer (`generate-sqlite`: `red_ale_sql::create` from the root, then the whole Book
+  saved into it, as `red-ale-sql/tests/write.rs` does with the fixtures), 108.3 MB; the XML book's plain file is 155.6
+  MB.
+
+  | Book                          | Open, at rest | Peak at open | Peak at post | Peak at save | After save | Peak RSS |
+  |-------------------------------|--------------:|-------------:|-------------:|-------------:|-----------:|---------:|
+  | XML, end of v0.3              |      169.2 MB |     172.5 MB |     174.3 MB |     177.5 MB |   169.2 MB | 203.9 MB |
+  | XML, v0.4                     |      174.2 MB |     174.2 MB |     179.3 MB |     182.5 MB |   174.2 MB | 209.8 MB |
+  | SQLite, v0.4                  |      173.6 MB |     210.3 MB |     178.6 MB |     178.6 MB |   173.6 MB | 243.6 MB |
+  | Budget                        |        376 MB |       564 MB |       564 MB |       564 MB |     376 MB |          |
+
+  Every figure is within its budget. The Book alone is 164.2 MB read from XML and 163.7 MB from SQLite, as at the end
+  of v0.3. The 5 MB more the XML session holds is the Session's `saved` Book, new in v0.4: the Book as read or last
+  saved, which a Backend saves the difference from, a second set of the Book's maps over the same shared entities. The
+  SQLite open peaks 37 MB above the session at rest because the reader decodes a table whole before building from it:
+  every split is decoded before the splits join their transactions (`red-ale-sql/src/read.rs`, `transactions`). For an SQLite book the heap leaves out SQLite's own allocations (page cache, statements, the first save's
+  online backup); the peak resident set includes them.
+
+  On the 5,000-transaction book, in hundredths of the plain XML file (8.5 MB), against limits of 130 at rest and 200
+  at the peaks: XML 114 at rest and after save, 147, 120 and 160 at the peaks of open, post and save
+  (`memory_budget.rs`, `memory_stays_within_budget`; 109, 109, 147, 114 and 154 at the end of v0.3); SQLite about 111,
+  111, 139, 117 and 117 (`memory_budget_sqlite.rs`, `memory_on_an_sqlite_book_stays_within_budget`).
+
+  **Measured: a one-transaction save of the SQLite book.** The example's `rows` posts one transaction to a copy of the
+  100,000-transaction SQLite book, saves, and compares every table with the file as it was before the open: the save
+  added one `transactions` row, two `splits` rows and the `date-posted` slot row, all the posted transaction's, and
+  moved on SQLite's `sqlite_sequence` row for `slots`; nothing else changed and nothing was deleted. On the
+  5,000-transaction book: `sqlite_save_rows.rs`,
+  `a_one_transaction_save_of_the_synthetic_book_writes_only_that_transactions_rows`.
+
+  **Measured: Since Last Run.** The example's `schedule 10 500` adds ten daily scheduled transactions of 500
+  occurrences, from 2020-01-01, to a copy of the 100,000-transaction XML book; `since-last-run` then opens it at the
+  testkit's clock (2024-07-01), proposes, and applies with no choices. The proposal holds 5,000 instances to create;
+  the apply creates 5,000 transactions (100,000 to 105,000), in release mode:
+
+  | Step                                 | Time    | Peak heap |
+  |--------------------------------------|--------:|----------:|
+  | Open, at rest                        |         |  174.3 MB |
+  | `scheduledTransaction.sinceLastRun`  | 47.9 ms |  213.0 MB |
+  | `scheduledTransaction.apply`         | 79.6 ms |  199.6 MB |
+  | After the apply                      |         |  180.6 MB |
+  | `book.save` of the 105,000           | 3.05 s  |  188.8 MB |
+
+  Peak resident set 248.5 MB, within the 564 MB budget. The apply is one Mutation: the Book revision a proposal is
+  made at goes from 0 to 1 across it, as for `import.apply` ([`milestone3.md`](milestone3.md), "An import is one
+  Mutation"). The journal is GnuCash's, with a record per transaction change and none per Mutation
+  (`5.17:libgnucash/engine/TransLog.cpp:198-288`): the session writes its 10,000 records, a `B` and a `C` for each of
+  the 5,000 transactions, once the Mutation has succeeded and before its Book replaces the session's. Test:
+  `red-ale-testkit/tests/since_last_run_scale.rs`, `a_since_last_run_creating_5000_transactions_is_one_mutation`, on a
+  100-transaction synthetic book with the same schedules.
+
+  Building that book found that the first scheduled transaction of an XML book with none could not be saved: the
+  template root it makes has no commodity, as GnuCash's `sxtg_book_begin` makes it
+  (`5.17:libgnucash/engine/SX-book.cpp:113-125`), and is written so, but read back it has the template commodity
+  GnuCash's reader gives it (`5.17:libgnucash/backend/xml/gnc-schedxaction-xml-v2.cpp:796-818`), so the save's
+  read-back refused it. The read-back now applies GnuCash's reading to the Book's template accounts before comparing
+  (`red-ale-rpc/tests/scheduled.rs`, `the_first_scheduled_transaction_of_a_new_book_saves_and_reopens`;
+  `oracle_scheduled.rs`, `gnucash_reads_the_first_scheduled_transaction_of_a_book`). The same in an SQLite book is a
+  follow-up (below).
 - Every JSON-RPC method is an MCP tool with the same name, params schema and hints, and `redAleApi` 0.4.0 is additive
   over 0.3.0, checked by a test.
 - v0.1's, v0.2's and v0.3's done-when checks still pass.
@@ -488,5 +551,13 @@ are `red-ale-testkit`'s, run with `--features oracle` against GnuCash 5.17.
   one the Book no longer has reads as `()`, as [`reports.md`](reports.md) §6 says and as GnuCash restores it through
   `gnc-budget-lookup` (`5.17:bindings/guile/options.scm:150-160`). Such a configuration runs with the report's
   no-budget warning (`report_budget.rs`, `a_saved_configuration_whose_budget_was_deleted_runs_with_none`).
+- **The first scheduled transaction of an SQLite book with none.** An SQLite book always has a template root, named
+  by its `books` row, but one without children reads as no template root, as in XML; the first
+  `scheduledTransaction.create`, `fromTransaction` or `loan` then makes a new template root, and the save refuses it
+  ("the book's template root is not …, the one its books row names"), after the Mutation was applied. Every book
+  `book.create` makes as SQLite, and every GnuCash SQLite book with no scheduled transaction, is affected. GnuCash
+  uses the `books` row's root. Choosing how the Book carries a childless template root, without breaking the XML and
+  SQLite reads of the same fixture being equal, is a ticket of its own; until then Since Last Run at scale is
+  measured on XML only.
 - **The `sql_file` fuzz target** (mutated SQLite fixtures opened read-only), named in [`sql-fidelity.md`](sql-fidelity.md).
   Done: it ran 60 s with no crash ("Carried forward from v0.3", Fuzzing).

@@ -123,6 +123,31 @@ fn create_get_list_occurrences_and_reopen() {
     assert_eq!(read, got);
 }
 
+/// The first scheduled transaction of an XML book that has none makes the template root, with no commodity, as
+/// `sxtg_book_begin` makes it (`5.17:libgnucash/engine/SX-book.cpp:113-125`). GnuCash gives a template account read
+/// without one the template commodity (`5.17:libgnucash/backend/xml/gnc-schedxaction-xml-v2.cpp:796-818`), so the
+/// save's read-back finds the root so; the save is not refused, and the book reopens with its scheduled transaction.
+#[test]
+fn the_first_scheduled_transaction_of_a_new_book_saves_and_reopens() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("new.gnucash").display().to_string();
+    let mut d = dispatcher();
+    let ok = |d: &mut Dispatcher, method: &str, params: Value| {
+        d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+    };
+    ok(&mut d, "book.create", json!({ "path": path }));
+    ok(&mut d, "account.create", json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "CURRENCY::USD" }));
+    ok(&mut d, "account.create", json!({ "name": "Food", "type": "EXPENSE", "parent": "Expenses" }));
+    ok(&mut d, "account.create", json!({ "name": "Assets", "type": "ASSET", "commodity": "CURRENCY::USD" }));
+    ok(&mut d, "account.create", json!({ "name": "Cash", "type": "CASH", "parent": "Assets" }));
+    let guid = ok(&mut d, "scheduledTransaction.create", rent_params())["guid"].clone();
+    let got = ok(&mut d, "scheduledTransaction.get", json!({ "scheduledTransaction": guid }));
+    ok(&mut d, "book.close", json!({ "save": true }));
+    let mut reopened = dispatcher();
+    ok(&mut reopened, "book.open", json!({ "path": path, "readOnly": true }));
+    assert_eq!(ok(&mut reopened, "scheduledTransaction.get", json!({ "scheduledTransaction": guid })), got);
+}
+
 /// `update` sets one end and clears the other and replaces the template transactions, keeping the GUIDs given; the
 /// temporal state stays. `delete` removes the scheduled transaction with its template.
 #[test]
