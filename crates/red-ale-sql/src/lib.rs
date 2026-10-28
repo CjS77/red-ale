@@ -13,6 +13,7 @@
 pub mod cell;
 mod connection;
 pub mod double;
+pub mod encode;
 pub mod error;
 mod read;
 pub mod residue;

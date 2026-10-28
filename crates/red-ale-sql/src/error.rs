@@ -25,6 +25,9 @@ pub enum SqlError {
     /// The database is an SQLite file but not a GnuCash book that can be built.
     #[error("not a GnuCash SQL book: {0}")]
     NotABook(String),
+    /// The Book holds something an SQLite book cannot store (`design/sql-fidelity.md` §8).
+    #[error("{0}")]
+    Unstorable(String),
     /// SQLite failed.
     #[error("SQLite: {0}")]
     Sqlite(#[from] rusqlite::Error),
