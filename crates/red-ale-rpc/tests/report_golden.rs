@@ -71,10 +71,10 @@ const V04_REPORTS: [&str; 8] = [
 ];
 
 /// The built-in reports added in v0.5, which `v0.5.txt` covers. A translated report appends its name.
-const V05_REPORTS: &[&str] = &["Equity Statement", "Trial Balance"];
+const V05_REPORTS: &[&str] = &["Equity Statement", "Trial Balance", "Cash Flow", "Cash Flow Barchart"];
 
 /// The fixture books added in v0.5, on which `v0.5.txt` records the v0.5 reports besides `BOOKS`.
-const V05_BOOKS: &[&str] = &["adjusting-entries", "adjusting-entries-fx"];
+const V05_BOOKS: &[&str] = &["adjusting-entries", "adjusting-entries-fx", "cash-flow", "cashflow-barchart"];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
 fn fnv1a(bytes: &[u8]) -> u64 {

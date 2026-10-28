@@ -1,6 +1,6 @@
 // lib/html-utilities: anchors, chart colours, the exchange-rates table and the warnings reports show instead of figures.
 //
-// Translated from 5.17:gnucash/report/html-utilities.scm (lines 188-381), cited below as HU. Its header:
+// Translated from 5.17:gnucash/report/html-utilities.scm (lines 168-381), cited below as HU. Its header:
 //
 // html-utilities.scm: Useful functions when using the HTML generator.
 //
@@ -83,6 +83,30 @@ fn html_price_anchor(price, currency, value) {
 /// (`gnc:invoice-anchor-text`, HU:127-128).
 fn invoice_anchor(invoice, text) {
     #{ text: text, link: #{ invoice: invoice } }
+}
+
+/// `gnc:make-report-anchor` (HU:168-185): a link to a run of template `reportname` with the values of `src_options`
+/// (the running report's options) copied as `gnc:options-copy-values` copies them
+/// (`5.17:bindings/guile/options.scm:112-123`), then each `[section, name, value]` of `optionlist` set. GnuCash
+/// copies every option both templates declare; a script cannot read another template's declarations, so `both_have`
+/// names them as `[section, name]` pairs, besides the three General options every report has ("Report name",
+/// "Stylesheet", "Add options summary"), which are always copied. Values are in wire form, as `report.run` takes
+/// them. GnuCash makes a report instance; red-ale describes the run (`design/reports.md` §7, "Links").
+fn make_report_anchor(reportname, src_options, both_have, optionlist) {
+    let options = #{};
+    for so in [["General", "Report name"], ["General", "Stylesheet"], ["General", "Add options summary"]] + both_have {
+        if !(so[0] in options) {
+            options[so[0]] = #{};
+        }
+        options[so[0]][so[1]] = src_options.raw(so[0], so[1]);
+    }
+    for o in optionlist {
+        if !(o[0] in options) {
+            options[o[0]] = #{};
+        }
+        options[o[0]][o[1]] = o[2];
+    }
+    #{ report: #{ template: reportname, options: options } }
 }
 
 /// `gnc:html-markup-ul` (`5.17:gnucash/report/html-text.scm:210-215`): a list block of `items`, each a text or a map
