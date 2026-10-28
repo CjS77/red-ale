@@ -438,4 +438,7 @@ functions, the instance model's amounts, the forecast reports), expected values 
   non-negative values first and otherwise in order (`5.17:libgnucash/engine/Transaction.cpp:1508-1510`), for XML and SQL
   alike. red-ale's SQLite reader does the same; its XML reader keeps the file's order, which differs only for files GnuCash
   did not write. A ticket of its own.
+- **A saved report configuration whose budget was deleted.** [`reports.md`](reports.md) §6 says the budget option then
+  reads as `()`; `report.run` refuses it with `report-option` ("unknown budget") instead, so such a configuration
+  can't run.
 - **The `sql_file` fuzz target** (mutated SQLite fixtures opened read-only), named in [`sql-fidelity.md`](sql-fidelity.md).
