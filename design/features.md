@@ -283,7 +283,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 | Status | Name                 | Short description                              | Introduced | Ported |
 |:------:|----------------------|------------------------------------------------|:----------:|:------:|
 |   ✅   | Investment Portfolio | Holdings and values at a date                  |    1.6     |  0.5   |
-|        | Advanced Portfolio   | Holdings with basis, gains, income and returns |    1.8     |        |
+|   ✅   | Advanced Portfolio   | Holdings with basis, gains, income and returns |    1.8     |  0.5   |
 |        | Investment Lots      | Lots with basis, gains and annual growth rate  |    5.0     |        |
 |        | IFRS cost basis      | Weighted-average cost basis under IFRS         |    4.6     |        |
 
