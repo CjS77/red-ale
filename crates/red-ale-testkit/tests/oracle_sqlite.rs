@@ -36,6 +36,14 @@ fn read(path: &Path) -> Book {
     book
 }
 
+fn without_childless_template_root(mut book: Book) -> Book {
+    if !book.templates.has_descendants() {
+        book.templates.root = None;
+        book.templates.accounts.clear();
+    }
+    book
+}
+
 fn uri(path: &Path) -> PathBuf {
     PathBuf::from(format!("sqlite3://{}", path.display()))
 }
@@ -65,7 +73,8 @@ fn every_sqlite_fixture_reads_as_gnucash_reads_it() {
 }
 
 /// Rebuilding the fixtures with `scripts/sql-fixtures/build.py` gives books that read to the same Books: only the
-/// GUIDs GnuCash makes afresh (commodities, slot frames) differ, and red-ale reads neither into the Book.
+/// GUIDs GnuCash makes afresh differ. red-ale reads neither commodities' nor slot frames' into the Book; a template
+/// root with no children, also made afresh by each Save As, is left out of the comparison.
 #[test]
 fn the_fixtures_are_what_the_build_script_makes() {
     let out = tempfile::tempdir().unwrap();
@@ -83,7 +92,7 @@ fn the_fixtures_are_what_the_build_script_makes() {
         .filter_map(|name| {
             let committed = TempBook::copy(name);
             let rebuilt = out.path().join(name.trim_start_matches("sqlite/"));
-            let (a, b) = (read(&committed.path), read(&rebuilt));
+            let (a, b) = (without_childless_template_root(read(&committed.path)), without_childless_template_root(read(&rebuilt)));
             (format!("{a:?}") != format!("{b:?}")).then(|| name.clone())
         })
         .collect();

@@ -35,4 +35,4 @@ pub use template::{
     INSTANCE_COUNT_VARIABLE, exchange_rate_variable, is_marker, template_account, template_transactions, transaction_currency, variables,
 };
 pub use text::{formula_number, places_of};
-pub use write::{TEMPLATE_ROOT_NAME, numeric_of};
+pub use write::{TEMPLATE_ROOT_NAME, numeric_of, template_root};

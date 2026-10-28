@@ -440,7 +440,7 @@ impl<'a, W: Write> Writer<'a, W> {
     /// each in the order the Book holds them.
     fn templates(&mut self) {
         let (templates, before) = (&self.book.templates, &self.residue.snapshot.templates);
-        if templates.accounts.keys().any(|g| Some(*g) != templates.root) {
+        if templates.has_descendants() {
             self.out.push_str("<gnc:template-transactions>\n");
             for a in templates.accounts.values() {
                 let original = self.residue.originals.template_accounts.get(&a.guid);

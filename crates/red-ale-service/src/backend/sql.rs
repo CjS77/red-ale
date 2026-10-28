@@ -66,10 +66,12 @@ impl SqliteBackend {
     }
 
     /// Write a new book with GnuCash 5.17's schema and lock it: the empty Book, with the ISO-dates feature GnuCash's
-    /// first load would add (`design/sql-fidelity.md` §7).
+    /// first load would add (`design/sql-fidelity.md` §7), and the template root its `books` row names, so the first
+    /// scheduled transaction goes under that root.
     pub(super) fn create(path: &Path, _settings: &Settings, env: &mut dyn Env) -> Result<Opened, ServiceError> {
         let mut book = Book::new_empty(env);
         set_feature_used(&mut book, ISO_DATES_FEATURE);
+        red_ale_core::ops::scheduled::template_root(&mut book, env);
         let sqlite = red_ale_sql::create(path, &book, &owner(), env).map_err(|e| error(path, e))?;
         let backend = Self {
             book: sqlite,

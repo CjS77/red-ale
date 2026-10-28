@@ -50,8 +50,13 @@ impl Book {
 }
 
 fn dispatcher() -> Dispatcher {
+    seeded(0x5c)
+}
+
+/// A dispatcher whose GUIDs start from `seed`, so sessions over the same book don't make each other's GUIDs.
+fn seeded(seed: u128) -> Dispatcher {
     let mut d = Dispatcher::new(Settings::default());
-    d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(JAN_15), 0x5c << 100))));
+    d.set_env_factory(Box::new(move || Box::new(FixedEnv::new(Time64(JAN_15), seed << 100))));
     d
 }
 
@@ -129,13 +134,28 @@ fn create_get_list_occurrences_and_reopen() {
 /// save's read-back finds the root so; the save is not refused, and the book reopens with its scheduled transaction.
 #[test]
 fn the_first_scheduled_transaction_of_a_new_book_saves_and_reopens() {
+    ["xml", "sqlite"].iter().for_each(|format| first_and_last_schedules_save_and_reopen(format));
+}
+
+/// The first scheduled transaction of a new book, then deleting it, then another, each saved and reopened. An SQLite
+/// book keeps the template root its `books` row names however many children it has, so every one is saved under it
+/// (`5.17:libgnucash/backend/sql/gnc-book-sql.cpp:67-69`, `:119-136`); an XML book writes the root only with children
+/// (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1179-1199`).
+fn first_and_last_schedules_save_and_reopen(format: &str) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("new.gnucash").display().to_string();
-    let mut d = dispatcher();
     let ok = |d: &mut Dispatcher, method: &str, params: Value| {
-        d.call(method, params.clone()).unwrap_or_else(|e| panic!("{method} {params}: {e} {:?}", e.data))
+        d.call(method, params.clone()).unwrap_or_else(|e| panic!("{format} {method} {params}: {e} {:?}", e.data))
     };
-    ok(&mut d, "book.create", json!({ "path": path }));
+    let mut sessions = 0x5c;
+    let mut reopen = |path: &str| {
+        sessions += 1;
+        let mut d = seeded(sessions);
+        ok(&mut d, "book.open", json!({ "path": path }));
+        d
+    };
+    let mut d = dispatcher();
+    ok(&mut d, "book.create", json!({ "path": path, "format": format }));
     ok(&mut d, "account.create", json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "CURRENCY::USD" }));
     ok(&mut d, "account.create", json!({ "name": "Food", "type": "EXPENSE", "parent": "Expenses" }));
     ok(&mut d, "account.create", json!({ "name": "Assets", "type": "ASSET", "commodity": "CURRENCY::USD" }));
@@ -143,9 +163,17 @@ fn the_first_scheduled_transaction_of_a_new_book_saves_and_reopens() {
     let guid = ok(&mut d, "scheduledTransaction.create", rent_params())["guid"].clone();
     let got = ok(&mut d, "scheduledTransaction.get", json!({ "scheduledTransaction": guid }));
     ok(&mut d, "book.close", json!({ "save": true }));
-    let mut reopened = dispatcher();
-    ok(&mut reopened, "book.open", json!({ "path": path, "readOnly": true }));
-    assert_eq!(ok(&mut reopened, "scheduledTransaction.get", json!({ "scheduledTransaction": guid })), got);
+    let mut d = reopen(&path);
+    assert_eq!(ok(&mut d, "scheduledTransaction.get", json!({ "scheduledTransaction": guid })), got, "{format}");
+    ok(&mut d, "scheduledTransaction.delete", json!({ "scheduledTransaction": guid }));
+    ok(&mut d, "book.close", json!({ "save": true }));
+    let mut d = reopen(&path);
+    assert_eq!(ok(&mut d, "scheduledTransaction.list", json!({}))["scheduledTransactions"], json!([]), "{format}");
+    let again = ok(&mut d, "scheduledTransaction.create", rent_params())["guid"].clone();
+    ok(&mut d, "book.close", json!({ "save": true }));
+    let mut d = reopen(&path);
+    assert_eq!(ok(&mut d, "scheduledTransaction.list", json!({}))["scheduledTransactions"][0]["guid"], again, "{format}");
+    ok(&mut d, "book.close", json!({}));
 }
 
 /// `update` sets one end and clears the other and replaces the template transactions, keeping the GUIDs given; the

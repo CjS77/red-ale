@@ -136,7 +136,9 @@ fn a_created_book_has_gnucash_s_schema_versions_and_pragmas() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("new.gnucash");
     let mut env = env();
-    let book = Book::new_empty(&mut env);
+    let mut book = Book::new_empty(&mut env);
+    // The service gives a new book its template root, which the `books` row names and the read keeps.
+    red_ale_core::ops::scheduled::template_root(&mut book, &mut env);
     let made = create(&path, &book, &me(), &mut env).unwrap();
     assert!(made.holds_lock());
     assert!(matches!(create(&path, &book, &me(), &mut env), Err(SqlError::Io(_))));

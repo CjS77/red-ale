@@ -488,8 +488,10 @@ fn remove_all(book: &Book) -> Book {
     b.lots.clear();
     b.budgets.clear();
     b.scheduled.clear();
-    // A Book has a template root only while it has template accounts, as red-ale reads one.
-    b.templates = red_ale_core::scheduled::Templates::default();
+    // The template root stays: the `books` row names it, and red-ale reads it back with no children.
+    let template_root = b.templates.root;
+    b.templates.accounts.retain(|g, _| Some(*g) == template_root);
+    b.templates.transactions.clear();
     b.business = red_ale_core::business::Business::default();
     b
 }

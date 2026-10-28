@@ -332,8 +332,15 @@ def read(sx):
     }
 
 
+def uri(path):
+    """The session URI for the book at path: SQLite by its file header, XML otherwise."""
+    with open(path, "rb") as f:
+        sqlite = f.read(16) == b"SQLite format 3\x00"
+    return ("sqlite3://" if sqlite else "xml://") + path
+
+
 def dump(path):
-    session = Session("xml://" + path, SessionOpenMode.SESSION_READ_ONLY)
+    session = Session(uri(path), SessionOpenMode.SESSION_READ_ONLY)
     try:
         found = []
         callback = FOREACH(lambda instance, _: found.append(instance))

@@ -411,3 +411,38 @@ fn gnucash_reads_the_first_scheduled_transaction_of_a_book() {
     let skip: Vec<&str> = red_ale_testkit::model::NOT_YET_COMPUTED.to_vec();
     assert_eq!(red_ale_testkit::diff(&whole, &red_ale_testkit::model::dump(&read), &skip), Vec::<String>::new());
 }
+
+/// The first scheduled transaction of a new SQLite book goes under the template root its `books` row names
+/// (`5.17:libgnucash/backend/sql/gnc-book-sql.cpp:67-69`, `:119-136`), so the save is not refused, and GnuCash 5.17
+/// reads the scheduled transaction and its template splits as red-ale wrote them.
+#[test]
+fn gnucash_reads_the_first_scheduled_transaction_of_a_new_sqlite_book() {
+    let book = TempBook::new_path();
+    let mut d = dispatcher();
+    call(&mut d, "book.create", &json!({ "path": book.path_str(), "format": "sqlite" }));
+    call(&mut d, "account.create", &json!({ "name": "Expenses", "type": "EXPENSE", "commodity": "CURRENCY::USD" }));
+    call(&mut d, "account.create", &json!({ "name": "Assets", "type": "ASSET", "commodity": "CURRENCY::USD" }));
+    let made = call(&mut d, "scheduledTransaction.create", &json!({
+        "name": "Daily", "startDate": "2024-06-01", "schedule": [{ "mult": 1, "periodType": "day" }], "end": { "occurrences": 5 },
+        "templateTransactions": [{
+            "description": "Scheduled",
+            "splits": [
+                { "account": "Expenses", "debitFormula": "12.34" },
+                { "account": "Assets", "creditFormula": "12.34" },
+            ],
+        }],
+    }));
+    let info = call(&mut d, "scheduledTransaction.get", &json!({ "scheduledTransaction": made["guid"] }));
+    call(&mut d, "book.close", &json!({ "save": true }));
+
+    let (read, _, findings) = red_ale_sql::open_read_only(&book.path).unwrap();
+    assert!(findings.is_empty(), "{findings:?}");
+    let guid = info["guid"].as_str().unwrap();
+    let gnucash = gnucash_scheduled(&book);
+    let mut fields = gnucash[guid].clone();
+    let splits = fields.as_object_mut().unwrap().remove("splits").unwrap();
+    assert_eq!(fields, as_gnucash_dumps(&info, &read.scheduled[&Guid::parse(guid).unwrap()]));
+    let splits: std::collections::BTreeMap<String, Value> =
+        splits.as_array().unwrap().iter().map(|s| (s["split"].as_str().unwrap().to_owned(), s.clone())).collect();
+    assert_eq!(splits, template_splits(&info));
+}

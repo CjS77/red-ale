@@ -136,6 +136,16 @@ fn without_unwritten_currencies(mut sql: Book) -> Book {
     sql
 }
 
+/// The Template root with no children, which an SQLite book keeps because its `books` row names it and an XML book
+/// leaves out (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1179-1199`).
+fn without_childless_template_root(mut sql: Book) -> Book {
+    if !sql.templates.has_descendants() {
+        sql.templates.root = None;
+        sql.templates.accounts.clear();
+    }
+    sql
+}
+
 /// Where two Books differ, entity by entity.
 fn differences(xml: &Book, sql: &Book) -> Vec<String> {
     let mut out = Vec::new();
@@ -201,7 +211,7 @@ fn every_fixture_reads_to_the_book_of_its_xml_original() {
             let (xml, _) = red_ale_xml::read_book(&std::fs::read(fixtures().join(name)).unwrap()).unwrap();
             assert!(sql.slots.get_in(&["features", ISO_DATES]).is_some(), "{name}: no ISO-dates feature");
             let xml = without_iso_dates_feature(as_sql_holds_it(xml));
-            differences(&xml, &without_iso_dates_feature(without_unwritten_currencies(sql)))
+            differences(&xml, &without_childless_template_root(without_iso_dates_feature(without_unwritten_currencies(sql))))
                 .into_iter()
                 .map(move |d| format!("{name}: {d}"))
                 .collect::<Vec<_>>()

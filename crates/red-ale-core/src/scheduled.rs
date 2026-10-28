@@ -89,6 +89,13 @@ impl Templates {
     pub fn splits(&self) -> impl Iterator<Item = (&Transaction, &Split)> {
         self.transactions.values().flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s)))
     }
+
+    /// Whether any template account sits under the template root. GnuCash's XML writer writes the template block,
+    /// root included, only then (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1179-1199`); a root left childless,
+    /// by deleting the last scheduled transaction, is not in the file.
+    pub fn has_descendants(&self) -> bool {
+        self.accounts.keys().any(|g| Some(*g) != self.root)
+    }
 }
 
 /// What a template split's `sched-xaction` Frame says (`5.17:libgnucash/engine/Split.cpp:69-75`): the Account the

@@ -656,7 +656,9 @@ impl<'a> Verify<'a> {
         let expected = self.expected;
         self.check(root == expected.root, || "book identity differ after writing".into());
         let template_root = self.template_root;
-        self.check(template_root == expected.templates.root, || "template root differs after writing".into());
+        let templates_written = expected.templates.has_descendants();
+        let written_root = expected.templates.root.filter(|_| templates_written);
+        self.check(template_root == written_root, || "template root differs after writing".into());
         let commodity = expected
             .commodities
             .iter()
@@ -668,7 +670,10 @@ impl<'a> Verify<'a> {
             .or_else(|| first_missing("price", expected.prices.keys(), &self.seen.prices))
             .or_else(|| first_missing("lot", expected.lots.keys(), &self.seen.lots))
             .or_else(|| first_missing("budget", expected.budgets.keys(), &self.seen.budgets))
-            .or_else(|| first_missing("template account", expected.templates.accounts.keys(), &self.seen.template_accounts))
+            .or_else(|| {
+                let accounts = expected.templates.accounts.keys().filter(|_| templates_written);
+                first_missing("template account", accounts, &self.seen.template_accounts)
+            })
             .or_else(|| first_missing("template transaction", expected.templates.transactions.keys(), &self.seen.template_transactions))
             .or_else(|| first_missing("scheduled transaction", expected.scheduled.keys(), &self.seen.scheduled))
             .or_else(|| {

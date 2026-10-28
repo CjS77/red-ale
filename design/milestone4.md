@@ -551,13 +551,15 @@ are `red-ale-testkit`'s, run with `--features oracle` against GnuCash 5.17.
   one the Book no longer has reads as `()`, as [`reports.md`](reports.md) §6 says and as GnuCash restores it through
   `gnc-budget-lookup` (`5.17:bindings/guile/options.scm:150-160`). Such a configuration runs with the report's
   no-budget warning (`report_budget.rs`, `a_saved_configuration_whose_budget_was_deleted_runs_with_none`).
-- **The first scheduled transaction of an SQLite book with none.** An SQLite book always has a template root, named
-  by its `books` row, but one without children reads as no template root, as in XML; the first
-  `scheduledTransaction.create`, `fromTransaction` or `loan` then makes a new template root, and the save refuses it
-  ("the book's template root is not …, the one its books row names"), after the Mutation was applied. Every book
-  `book.create` makes as SQLite, and every GnuCash SQLite book with no scheduled transaction, is affected. GnuCash
-  uses the `books` row's root. Choosing how the Book carries a childless template root, without breaking the XML and
-  SQLite reads of the same fixture being equal, is a ticket of its own; until then Since Last Run at scale is
-  measured on XML only.
+- **The first scheduled transaction of a book with none, and after the last is deleted.** Done. An SQLite book
+  keeps the template root its `books` row names, children or not (`5.17:libgnucash/backend/sql/gnc-book-sql.cpp:67-69`,
+  `:119-136`), and `book.create` gives a new SQLite Book that root, so the first `scheduledTransaction.create`,
+  `fromTransaction` or `loan` goes under it; before, it made a root the row didn't name and the save was refused.
+  An XML save's read-back expects the template root only when the writer writes it, with children
+  (`Templates::has_descendants`); before, deleting an XML book's last scheduled transaction made every later save
+  fail. `red-ale-rpc/tests/scheduled.rs`, `the_first_scheduled_transaction_of_a_new_book_saves_and_reopens` (both
+  formats: create, save, delete, save, create, save, each reopened); `oracle_scheduled.rs`,
+  `gnucash_reads_the_first_scheduled_transaction_of_a_new_sqlite_book`. Since Last Run at scale is still measured on
+  XML only.
 - **The `sql_file` fuzz target** (mutated SQLite fixtures opened read-only), named in [`sql-fidelity.md`](sql-fidelity.md).
   Done: it ran 60 s with no crash ("Carried forward from v0.3", Fuzzing).

@@ -22,8 +22,9 @@ use crate::{
 pub const TEMPLATE_ROOT_NAME: &str = "Template Root";
 
 /// The template root, made as `sxtg_book_begin` makes it if the Book has none: type ROOT, named `Template Root`, no
-/// commodity. GnuCash makes one in every book; a book that never had a scheduled transaction has none in its file.
-fn template_root(book: &mut Book, env: &mut dyn Env) -> Guid {
+/// commodity. GnuCash makes one in every book; an XML book that never had a scheduled transaction has none in its
+/// file, and a new SQLite book names one in its `books` row from the start.
+pub fn template_root(book: &mut Book, env: &mut dyn Env) -> Guid {
     if let Some(root) = book.templates.root {
         return root;
     }

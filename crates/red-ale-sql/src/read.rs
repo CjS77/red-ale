@@ -152,7 +152,7 @@ impl<'c> Reader<'c> {
             business,
             budgets,
             templates: Templates {
-                root: (!trees.templates.is_empty()).then_some(ids.template_root),
+                root: trees.templates.contains_key(&ids.template_root).then_some(ids.template_root),
                 accounts: trees.templates,
                 transactions: template_transactions,
             },
@@ -195,8 +195,9 @@ impl<'c> Reader<'c> {
     }
 
     /// The Account tree from the root and the template accounts from the Template root, each in `rowid` order. The
-    /// template accounts are kept only when the Template root has children, as the XML writer writes it only then
-    /// (`5.17:libgnucash/backend/xml/io-gncxml-v2.cpp:1179-1199`).
+    /// Template root is kept even with no children: the `books` row names it (`5.17:libgnucash/backend/sql/
+    /// gnc-book-sql.cpp:67-69`, `:119-136`), so the first scheduled transaction goes under it rather than under a
+    /// new root the row doesn't name. An XML book writes the root only with children (`Templates::has_descendants`).
     fn accounts(&mut self, ids: &BookRow) -> Result<Trees, SqlError> {
         let lookup = self.lookup.clone();
         let rows = decode_all(self.conn, &tables::ACCOUNTS, &mut self.findings, |row, f| rows::account(row, &lookup, f))?;
@@ -215,7 +216,7 @@ impl<'c> Reader<'c> {
                 .collect()
         };
         let accounts = pick(&main);
-        let templates = if template.len() > 1 { pick(&template) } else { IndexMap::new() };
+        let templates = pick(&template);
         Ok(Trees { accounts, templates, rows })
     }
 
