@@ -2,7 +2,10 @@
 
 use std::path::PathBuf;
 
+use red_ale_core::ops::scheduled::ScheduledError;
 use thiserror::Error;
+
+use crate::proposals::ProposalKind;
 
 /// Why a session operation failed.
 #[derive(Debug, Error)]
@@ -113,18 +116,20 @@ pub enum ServiceError {
         /// What is wrong, in GnuCash's words where it has them.
         message: String,
     },
-    /// No Import proposal is held with this ID: unknown, applied, discarded, pushed out by newer ones, or made before
-    /// the book was opened.
-    #[error("no import proposal {id} is held; preview the file again")]
+    /// No proposal of this kind is held with this ID: unknown, applied, discarded, pushed out by newer ones, or made
+    /// before the book was opened.
+    #[error("no {kind} {id} is held; {}", kind.again())]
     ProposalNotFound {
+        /// The kind of proposal asked for.
+        kind: ProposalKind,
         /// The ID asked for.
         id: String,
     },
     /// The Book has changed since the proposal was made.
-    #[error(
-        "the book has changed since import proposal {id} was made (revision {proposal_revision}, now {book_revision}); preview the file again"
-    )]
+    #[error("the book has changed since {kind} {id} was made (revision {proposal_revision}, now {book_revision}); {}", kind.again())]
     StaleProposal {
+        /// The kind of proposal.
+        kind: ProposalKind,
         /// The proposal's ID.
         id: String,
         /// The Book revision it was made at.
@@ -132,4 +137,7 @@ pub enum ServiceError {
         /// The Book revision now.
         book_revision: u64,
     },
+    /// A scheduled transaction's instance can't be proposed or applied (`design/api/scheduled-transactions.md`).
+    #[error(transparent)]
+    Scheduled(#[from] ScheduledError),
 }

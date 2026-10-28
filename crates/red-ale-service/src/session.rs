@@ -13,7 +13,8 @@ use red_ale_xml::XmlResidue;
 use crate::backend::{self, Access, Backend, Format, Opened, SaveOptions};
 use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files};
-use crate::import::ProposalStore;
+use crate::proposals::{ProposalKind, ProposalStore};
+use crate::since_last_run::HeldRun;
 use crate::journal::{Journal, RecordKind, record_lines};
 use crate::replay::{ReplayReport, replay};
 
@@ -180,7 +181,8 @@ pub struct Session {
     settings: Settings,
     env: Box<dyn EnvDebug>,
     revision: u64,
-    proposals: ProposalStore,
+    proposals: ProposalStore<red_ale_import::pipeline::Proposal>,
+    runs: ProposalStore<HeldRun>,
 }
 
 /// An [`Env`] that can be stored in a session.
@@ -243,7 +245,8 @@ impl Session {
             settings,
             env,
             revision: 0,
-            proposals: ProposalStore::default(),
+            proposals: ProposalStore::new(ProposalKind::Import),
+            runs: ProposalStore::new(ProposalKind::SinceLastRun),
         }
     }
 
@@ -302,15 +305,20 @@ impl Session {
         self.journal.current_path()
     }
 
-    /// The Book revision: how many Mutations this session has applied. An Import proposal records the revision it
-    /// was made at, and is applied only at that revision (`design/milestone3.md`, "Decided").
+    /// The Book revision: how many Mutations this session has applied. An Import proposal or Since Last Run proposal
+    /// records the revision it was made at, and is applied only at that revision (`design/milestone3.md`, "Decided").
     pub fn revision(&self) -> u64 {
         self.revision
     }
 
     /// The Import proposals held for this session's Book, dropped with it.
-    pub(crate) fn proposals(&mut self) -> &mut ProposalStore {
+    pub(crate) fn proposals(&mut self) -> &mut ProposalStore<red_ale_import::pipeline::Proposal> {
         &mut self.proposals
+    }
+
+    /// The Since Last Run proposals held for this session's Book, dropped with it; apart from the Import proposals.
+    pub(crate) fn runs(&mut self) -> &mut ProposalStore<HeldRun> {
+        &mut self.runs
     }
 
     /// The current time from the session's environment.
