@@ -49,7 +49,7 @@ const V02_BOOKS: usize = 10;
 const V02_REPORTS: usize = 19;
 
 /// The built-in reports added in v0.4, which `v0.4.txt` covers.
-const V04_REPORTS: [&str; 2] = ["Budget Report", "Budget Balance Sheet"];
+const V04_REPORTS: [&str; 4] = ["Budget Report", "Budget Balance Sheet", "Budget Income Statement", "Budget Profit & Loss"];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
 fn fnv1a(bytes: &[u8]) -> u64 {

@@ -158,7 +158,6 @@
       "lines": "163-184",
       "template": "Budget Income Statement",
       "templateGuid": "583c313fcc484efc974c4c844404f454",
-      "translated": false,
       "options": {},
       "checks": [
         { "name": "basic test", "line": 172, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 72, "meaning": "Text nodes of the first table" },
