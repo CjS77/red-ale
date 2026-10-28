@@ -9,7 +9,10 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 
 use crate::memory::HeapCounter;
-use crate::{TempBook, call, dispatcher};
+use crate::{TempBook, call, dispatcher, dispatcher_from};
+
+/// The first session of the dispatcher [`add_daily_schedules`] uses, far from where [`dispatcher`]'s start.
+const SCHEDULING_SESSIONS: u32 = 0x8000;
 
 /// The first occurrence of every schedule [`add_daily_schedules`] adds, so that up to 1,643 daily occurrences fall
 /// due by [`crate::TEST_NOW`] (2024-07-01).
@@ -23,8 +26,12 @@ const LEAVES: usize = 398;
 /// `occurrences` occurrences, moving 12.34 from a synthetic asset account to an expense account, and save the book.
 /// None is auto-create and none reminds in advance, so a Since Last Run at [`crate::TEST_NOW`] proposes every
 /// occurrence to create: `schedules * occurrences` of them, for `occurrences` up to 1,643.
+///
+/// Its sessions count from [`SCHEDULING_SESSIONS`], so [`run`]'s new transactions never take the GUID of a scheduled
+/// transaction, template account or template transaction made here: an SQLite book keeps template transactions in
+/// the same `transactions` table, and GnuCash keeps them in one collection with the rest.
 pub fn add_daily_schedules(path: &Path, schedules: usize, occurrences: usize) {
-    let mut d = dispatcher();
+    let mut d = dispatcher_from(red_ale_core::TimeZone::utc(), SCHEDULING_SESSIONS);
     call(&mut d, "book.open", &json!({ "path": path.display().to_string() }));
     (0..schedules).for_each(|i| drop(call(&mut d, "scheduledTransaction.create", &schedule(i, occurrences))));
     call(&mut d, "book.close", &json!({ "save": true }));

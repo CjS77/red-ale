@@ -150,9 +150,15 @@ pub fn dispatcher() -> red_ale_rpc::Dispatcher {
 
 /// [`dispatcher`] in another local time zone.
 pub fn dispatcher_in(zone: red_ale_core::TimeZone) -> red_ale_rpc::Dispatcher {
+    dispatcher_from(zone, 0)
+}
+
+/// [`dispatcher_in`] whose sessions count from `first`, for a book one dispatcher hands to another: given distinct
+/// ranges, neither makes a GUID the other made.
+pub fn dispatcher_from(zone: red_ale_core::TimeZone, first: u32) -> red_ale_rpc::Dispatcher {
     let mut d = red_ale_rpc::Dispatcher::new(red_ale_service::Settings::default());
     d.restrict_quotes_to_loopback();
-    let sessions = std::sync::atomic::AtomicU32::new(0);
+    let sessions = std::sync::atomic::AtomicU32::new(first);
     d.set_env_factory(Box::new(move || {
         let session = sessions.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let seed = (0x00ed_u128 << 112) | (u128::from(session) << 80);
