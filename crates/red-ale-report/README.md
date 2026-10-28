@@ -106,6 +106,7 @@ keep GnuCash's order, with the Book (and the run context `ctx` where GnuCash rea
 | `lib/budget` | `budget_get_start_date`, `budget_get_end_date`, `budget_account_get_net`, `budget_accountlist_get_net`, `budget_account_get_initial_balance`, `budget_accountlist_get_initial_balance`, `get_account_period_rolledup_budget_value`, `budget_account_get_rolledup_net` |
 | `lib/acct-table` | `make_html_acct_table_env_accts`, `html_acct_table_add_accounts` (with `report_budget` and `get_balance_fn` in its environment), `num_rows`, `get_row_env`, `add_labeled_amount_line`, `gnc_commodity_table`, `add_account_balances` (result rows: role, account, depth, level, cells) |
 | `lib/html-utilities` | `assign_colors`, `make_rates_table` (a table block), `make_generic_warning`, `make_generic_simple_warning`, `make_generic_budget_warning`, `make_generic_options_warning`, `make_no_account_warning`, `make_empty_data_warning` (warning blocks) |
+| `lib/trep-engine` | the Transaction Report engine's options and the first half of its renderer: `trep_options_generator`, `trep_splits(book, opts, ctx, hooks)` (`#{ parameters, report_title, subtotal_table, splits, warning, export_error }`), `trep_hooks`, the keylists (`sortkey_list`, `date_subtotal_list`, `reconcile_list`, `sign_reverse_list`, `date_sorting_types`, `sortkey_informal_headers`), `sortkey_sortkey`, `sortkey_split_sortvalue`, `sortkey_renderer_fn`, `date_sortvalue`, `date_subtotal_renderer_fn`, `subtotal_enabled`, `custom_sorting`, `apply_split_sortvalue`, `apply_renderer_fn` |
 
 Conventions a translator needs:
 
@@ -133,6 +134,8 @@ a closure records only the anonymous function's hash, which is looked up in the 
 (`FnPtrType::get_linked_script`, `rhai-1.27.0/src/types/fn_ptr.rs:61-83`), so the module that defined it is never
 searched. Neither is reported upstream yet. When a Rhai upgrade fails that test, the bug is fixed: drop the
 convention and the test.
+- `make_regexp(pattern, icase)` is Guile's `make-regexp`: a `Regexp` (`re.is_match(text)`), or `()` when the pattern
+  does not compile.
 - `memo()` makes a `Memo`, a table from integers to values shared by its copies; `case_exchange_time_fn` keeps its
   daily price tables in one.
 
