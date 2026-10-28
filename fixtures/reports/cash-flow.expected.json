@@ -1,0 +1,110 @@
+{
+  "fixture": "reports/cash-flow.gnucash",
+  "builtBy": "scripts/report-fixtures/cash_flow.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-cash-flow.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "not set by the test; its checks compare numbers, not text",
+    "dateFormat": "not set: GnuCash's default, locale",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "dates": {
+    "today": "2024-03-15, (gnc-localtime (current-time)) for the pinned now (:36)",
+    "to-date-t64": "2024-03-15 23:59:59 UTC, gnc-dmy2time64-end of today (:37)",
+    "from-date-t64": "2024-03-14 23:59:59 UTC, to-date-t64 less 86400 s (NDayDelta, :21-24, :38)",
+    "posted": "every transaction is made at to-date-t64 and posted on that day, 2024-03-15 10:59 UTC (5.17:bindings/guile/test/test-engine-extras.scm:118-142)"
+  },
+  "accounts": {
+    "one-tx-in": { "Root": "a0000000000000000000000000000001", "Root.Asset": "a0000000000000000000000000000002", "Root.Asset.Bank": "a0000000000000000000000000000003", "Root.Asset.Wallet": "a0000000000000000000000000000004", "Root.Expenses": "a0000000000000000000000000000005" },
+    "one-tx-skip": { "Root": "a0000000000000000000000000000006", "Root.Asset": "a0000000000000000000000000000007", "Root.Asset.Bank": "a0000000000000000000000000000008", "Root.Asset.Wallet": "a0000000000000000000000000000009", "Root.Expenses": "a000000000000000000000000000000a" },
+    "both-way": { "Root": "a000000000000000000000000000000b", "Root.Asset": "a000000000000000000000000000000c", "Root.Asset.Bank": "a000000000000000000000000000000d", "Root.Asset.Wallet": "a000000000000000000000000000000e", "Root.Expenses": "a000000000000000000000000000000f" }
+  },
+  "book": "Three groups in one book, one per test function, each with its own environment and its own top-level \"Root\" (ASSET) with Asset.Bank, Asset.Wallet and Expenses (EXPENSE), USD (:14-19); the accounts are listed above by group and full name. one-tx-in: Bank +$100 from Expenses (:41). one-tx-skip: Bank +$100 from Wallet (:84). both-way: Bank +$100 from Expenses, then Expenses +$50 from Bank (:117-118).",
+  "calcSelection": "The test never renders the Cash Flow report. It calls cash-flow-calc-money-in-out (5.17:gnucash/report/reports/cash-flow-calc.scm:33-106) with the settings of each run's \"calc\", identity conversions (to-report-currency and exchange-fn return the amount unchanged, :26-28) and include-trading-accounts off, and reads the result alist. A check's \"read\" names the item: money-in-alist or money-out-alist (\"expected\" lists the accounts in it, [] for none); money-in-collector or money-out-collector, summed in USD with gnc:sum-collector-commodity; or, with \"account\", that account's collector in the named alist, summed the same way. \"expected\" is then the exact amount the test compares with equal?, as a decimal string. \"implied\" marks what the test needs without asserting it: (cadr (assoc account alist)) raises an error when the account is missing.",
+  "reportEquivalent": "Each run's \"report\" is the Cash Flow (template Cash Flow, GUID f8748b813fab4220ba26e743aedf38da) red-ale checks in place of the calculation: the run's accounts, Start Date and End Date 2024-03-15 (the report widens them to the start and end of the day, and nothing is posted on 2024-03-14), every other option at its default (full names on, USD, pricedb-nearest). Its rows are worked from 5.17:gnucash/report/reports/standard/cash-flow.scm:266-317, not read from GnuCash output: each \"in\" or \"out\" row is an account's full name and amount under \"Money into selected accounts comes from\" or \"Money out of selected accounts goes to\", then the Money In, Money Out and Difference totals.",
+  "runs": [
+    {
+      "id": "test-one-tx-in-cash-flow",
+      "lines": "30-71",
+      "calc": {
+        "accounts": ["one-tx-in.Root.Asset.Bank"],
+        "from-date-t64": "2024-03-14T23:59:59Z",
+        "to-date-t64": "2024-03-15T23:59:59Z",
+        "report-currency": "USD",
+        "include-trading-accounts": false
+      },
+      "checks": [
+        { "name": "money-in-alist has Expenses", "line": 52, "read": "money-in-alist", "account": "one-tx-in.Root.Expenses", "implied": true, "meaning": "Expenses' collector is looked up before the checks" },
+        { "name": "The money-out-alist is not null.", "line": 53, "read": "money-out-alist", "expected": [], "meaning": "Nothing leaves Bank" },
+        { "name": "Failed expense-acc-in-collector", "line": 55, "read": "money-in-alist", "account": "one-tx-in.Root.Expenses", "expected": "100", "meaning": "$100 comes into Bank from Expenses (the test compares with 10000/100)" },
+        { "name": "Failed money-in-collector", "line": 60, "read": "money-in-collector", "expected": "100", "meaning": "Money in" },
+        { "name": "Failed sum-collector-commodity", "line": 65, "read": "money-out-collector", "expected": "0", "meaning": "Money out (the failure text says 100.00 but the test compares with 0)" }
+      ],
+      "report": {
+        "accounts": ["one-tx-in.Root.Asset.Bank"],
+        "in": [["Root.Expenses", "$100.00"]],
+        "out": [],
+        "Money In": "$100.00",
+        "Money Out": "$0.00",
+        "Difference": "$100.00"
+      }
+    },
+    {
+      "id": "test-one-tx-skip-cash-flow",
+      "lines": "73-104",
+      "calc": {
+        "accounts": ["one-tx-skip.Root.Asset.Wallet", "one-tx-skip.Root.Asset.Bank"],
+        "from-date-t64": "2024-03-14T23:59:59Z",
+        "to-date-t64": "2024-03-15T23:59:59Z",
+        "report-currency": "USD",
+        "include-trading-accounts": false
+      },
+      "checks": [
+        { "name": "money-in-alist null", "line": 95, "read": "money-in-alist", "expected": [], "meaning": "A transfer between two selected accounts is skipped" },
+        { "name": "money-out-alist null", "line": 96, "read": "money-out-alist", "expected": [], "meaning": "Likewise out" },
+        { "name": "money-in-collector 0", "line": 97, "read": "money-in-collector", "expected": "0", "meaning": "Money in" },
+        { "name": "money-out-collector 0", "line": 100, "read": "money-out-collector", "expected": "0", "meaning": "Money out" }
+      ],
+      "report": {
+        "accounts": ["one-tx-skip.Root.Asset.Wallet", "one-tx-skip.Root.Asset.Bank"],
+        "in": [],
+        "out": [],
+        "Money In": "$0.00",
+        "Money Out": "$0.00",
+        "Difference": "$0.00"
+      }
+    },
+    {
+      "id": "test-both-way-cash-flow",
+      "lines": "106-146",
+      "calc": {
+        "accounts": ["both-way.Root.Asset.Wallet", "both-way.Root.Asset.Bank"],
+        "from-date-t64": "2024-03-14T23:59:59Z",
+        "to-date-t64": "2024-03-15T23:59:59Z",
+        "report-currency": "USD",
+        "include-trading-accounts": false
+      },
+      "checks": [
+        { "name": "money-in-alist has Expenses", "line": 129, "read": "money-in-alist", "account": "both-way.Root.Expenses", "implied": true, "meaning": "Looked up before the checks" },
+        { "name": "money-out-alist has Expenses", "line": 130, "read": "money-out-alist", "account": "both-way.Root.Expenses", "implied": true, "meaning": "Looked up before the checks" },
+        { "name": "expenses in 100", "line": 137, "read": "money-in-alist", "account": "both-way.Root.Expenses", "expected": "100", "meaning": "$100 into Bank from Expenses" },
+        { "name": "expenses out 50", "line": 138, "read": "money-out-alist", "account": "both-way.Root.Expenses", "expected": "50", "meaning": "$50 out of Bank to Expenses: one account both in and out" },
+        { "name": "money-in-collector 100", "line": 139, "read": "money-in-collector", "expected": "100", "meaning": "Money in" },
+        { "name": "money-out-collector 50", "line": 142, "read": "money-out-collector", "expected": "50", "meaning": "Money out" }
+      ],
+      "report": {
+        "accounts": ["both-way.Root.Asset.Wallet", "both-way.Root.Asset.Bank"],
+        "in": [["Root.Expenses", "$100.00"]],
+        "out": [["Root.Expenses", "$50.00"]],
+        "Money In": "$100.00",
+        "Money Out": "$50.00",
+        "Difference": "$50.00"
+      }
+    }
+  ]
+}

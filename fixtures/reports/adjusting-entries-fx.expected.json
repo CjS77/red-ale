@@ -1,0 +1,47 @@
+{
+  "fixture": "reports/adjusting-entries-fx.gnucash",
+  "builtBy": "scripts/report-fixtures/adjusting_entries.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-trial-balance.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of the test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:35)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": ".",
+    "userSymbols": { "GBP": "#" }
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank": "a0000000000000000000000000000003",
+    "Root.Asset.GBP Bank": "a0000000000000000000000000000004",
+    "Root.Asset.Wallet": "a0000000000000000000000000000005",
+    "Root.Income": "a0000000000000000000000000000006",
+    "Root.Income-GBP": "a0000000000000000000000000000007",
+    "Root.Expenses": "a0000000000000000000000000000008",
+    "Root.Liabilities": "a0000000000000000000000000000009",
+    "Root.Equity": "a000000000000000000000000000000a"
+  },
+  "book": "adjusting-entries.gnucash (same GUIDs) with the two foreign transfers the test adds before its last run (:170-173): 2000-01-15 GBP Bank to Bank, GBP 10 for USD 14 \"GBP 10 to USD 14\"; 2000-02-15 Bank to GBP Bank, USD 9 for GBP 8 \"USD 9 to GBP 8\". Each adds a price that replaces create-test-data's of the same pair, day and source (5.17:libgnucash/engine/gnc-pricedb.cpp:1053-1071): USD in GBP 10/14 on 2000-01-15 (equal), and GBP in USD 9/8 on 2000-02-15 (was 9/6), now the only GBP price in USD. Own balances: Bank $2,191, GBP Bank #606; the others as in adjusting-entries.gnucash.",
+  "optionValues": "Options are those changed from the template's defaults and in effect for the run: the test changes one options object step by step, so the run keeps the earlier runs' changes (adjusting-entries.expected.json) and sets the variation back to current, the default (:175). {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight. Symbols are written without the quote.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1 of the document; row N counts <tr> elements from 1, negative from the end; column null every cell. The result is every text node in document order.",
+  "runs": [
+    {
+      "id": "trial-balance test-unrealized-gain",
+      "lines": "168-179",
+      "template": "Trial Balance",
+      "templateGuid": "216cd0cf6931453ebcce85415aba7082",
+      "options": {
+        "Commodities/Price Source": "pricedb-nearest",
+        "General/Start of Adjusting/Closing": { "absolute": "2000-01-01" }
+      },
+      "checks": [
+        { "name": "unrealized losses", "line": 177, "select": { "table": 1, "row": -2, "column": null }, "expected": ["Unrealized Gains", "$3.25"], "meaning": "The second row from the bottom, above the totals: the book balance, USD +10 and GBP -6, is +$3.25 at 9/8, against $0 at the average cost 5/3, so a gain. The test's name says losses" }
+      ]
+    }
+  ]
+}

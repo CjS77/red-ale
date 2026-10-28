@@ -1,0 +1,115 @@
+{
+  "fixture": "reports/adjusting-entries.gnucash",
+  "builtBy": "scripts/report-fixtures/adjusting_entries.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-trial-balance.scm and test-equity-statement.scm",
+  "licence": "GPL-2.0-or-later, as the notice at the top of each test (kept in the script)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (test-trial-balance.scm:35, test-equity-statement.scm:35)",
+    "dateFormat": "Trial Balance runs: not set, GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date. Equity Statement run: ISO (test-equity-statement.scm:63), read in the two Capital rows",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": ".",
+    "userSymbols": { "GBP": "#" }
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank": "a0000000000000000000000000000003",
+    "Root.Asset.GBP Bank": "a0000000000000000000000000000004",
+    "Root.Asset.Wallet": "a0000000000000000000000000000005",
+    "Root.Income": "a0000000000000000000000000000006",
+    "Root.Income-GBP": "a0000000000000000000000000000007",
+    "Root.Expenses": "a0000000000000000000000000000008",
+    "Root.Liabilities": "a0000000000000000000000000000009",
+    "Root.Equity": "a000000000000000000000000000000a"
+  },
+  "book": "create-test-data (5.17:bindings/guile/test/test-engine-extras.scm:389-480; the book of test-data.gnucash, same GUIDs), then three transfers (test-trial-balance.scm:69-76 = test-equity-statement.scm:68-75): 2003-06-30 Expenses to Equity 111 \"Closing Entries\", flagged closing; 2003-06-01 Expenses to Equity 33 \"Adjusting Entries\"; 2003-07-01 Income to Equity -2500 \"Adjusting Entries\". Own balances: Bank $2,186, GBP Bank #608, Wallet $20, Liabilities -$3, Income -$73, Income-GBP -#612, Expenses $120, Equity -$2,245. GBP is $1.50 at the latest price, 2000-02-15 (9/6). The Trial Balance's last run needs two more transfers and is in adjusting-entries-fx.expected.json.",
+  "optionValues": "Options are those changed from the template's defaults and in effect for the run: each test changes one options object step by step. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight. Symbols are written without the quote. The Trial Balance's Date of Report keeps its default, end-accounting-period, which reads 2024-03-15 23:59:59 under the pinned now; its Start of Adjusting/Closing default, start-accounting-period, reads 2024-03-15 00:00:00.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1 of the document; row N counts <tr> elements from 1 (negative from the end), null every row; column N counts <td> cells from 1, null every cell. The result is every text node in document order, so a blank cell gives nothing. A check with \"count\" expects the number of text nodes selected rather than their text.",
+  "runs": [
+    {
+      "id": "trial-balance current",
+      "test": "test-trial-balance.scm",
+      "lines": "63-94",
+      "template": "Trial Balance",
+      "templateGuid": "216cd0cf6931453ebcce85415aba7082",
+      "options": {
+        "Commodities/Price Source": "pricedb-nearest"
+      },
+      "checks": [
+        { "name": "current table has 22 cells", "line": 79, "select": { "table": 1, "row": null, "column": null }, "count": 22, "meaning": "11 account labels, 6 debit and 5 credit figures" },
+        { "name": "current accounts", "line": 83, "select": { "table": 1, "row": null, "column": 1 }, "expected": ["Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity", "Unrealized Losses"], "meaning": "Every account in display order, then the unrealized row: the book balance in USD at 3/2 is -$1 (USD +5, GBP -4)" },
+        { "name": "current debits", "line": 88, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$2,186.00", "$912.00", "$20.00", "$120.00", "$1.00", "$3,239.00"], "meaning": "Debits: Bank, GBP Bank (#608 at 3/2), Wallet, Expenses, Unrealized Losses, total" },
+        { "name": "current credits = $401", "line": 92, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["$3.00", "$73.00", "$918.00", "$2,245.00", "$3,239.00"], "meaning": "Credits: Liabilities, Income, Income-GBP (#612 at 3/2), Equity, total. The '= $401' in the test's name is stale" }
+      ]
+    },
+    {
+      "id": "trial-balance pre-adj",
+      "test": "test-trial-balance.scm",
+      "lines": "96-115",
+      "template": "Trial Balance",
+      "templateGuid": "216cd0cf6931453ebcce85415aba7082",
+      "options": {
+        "Commodities/Price Source": "pricedb-nearest",
+        "General/Start of Adjusting/Closing": { "absolute": "2000-01-01" },
+        "General/Report variation": "pre-adj"
+      },
+      "checks": [
+        { "name": "pre-adj table has 22 cells", "line": 100, "select": { "table": 1, "row": null, "column": null }, "count": 22, "meaning": "11 account labels, 7 debit and 4 credit figures" },
+        { "name": "pre-adj accounts", "line": 104, "select": { "table": 1, "row": null, "column": 1 }, "expected": ["Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity", "Unrealized Losses"], "meaning": "As in the current run" },
+        { "name": "pre-adj debits", "line": 109, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$2,186.00", "$912.00", "$20.00", "$264.00", "$111.00", "$1.00", "$3,494.00"], "meaning": "Debits without the 2003 adjusting and closing entries: Bank, GBP Bank, Wallet, Expenses 264, Equity 111 (create-test-data's 1977 closing entry), Unrealized Losses, total" },
+        { "name": "pre-adj credits = $401", "line": 113, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["$3.00", "$2,573.00", "$918.00", "$3,494.00"], "meaning": "Credits: Liabilities, Income 2573, Income-GBP, total. The '= $401' in the test's name is stale" }
+      ]
+    },
+    {
+      "id": "trial-balance work-sheet",
+      "test": "test-trial-balance.scm",
+      "lines": "117-166",
+      "template": "Trial Balance",
+      "templateGuid": "216cd0cf6931453ebcce85415aba7082",
+      "options": {
+        "Commodities/Price Source": "pricedb-nearest",
+        "General/Start of Adjusting/Closing": { "absolute": "2000-01-01" },
+        "General/Report variation": "work-sheet"
+      },
+      "checks": [
+        { "name": "work-sheet table has 58 cells", "line": 119, "select": { "table": 1, "row": null, "column": null }, "count": 58, "meaning": "12 labels and 46 figures" },
+        { "name": "work-sheet accounts", "line": 123, "select": { "table": 1, "row": null, "column": 1 }, "expected": ["Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity", "Unrealized Losses", "Net Income"], "meaning": "As in the other runs, then the Net Income row" },
+        { "name": "work-sheet tb debits", "line": 128, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$2,186.00", "$912.00", "$20.00", "$264.00", "$111.00", "$1.00", "$3,494.00"], "meaning": "Trial Balance debits, as the pre-adj run" },
+        { "name": "work-sheet tb credits", "line": 132, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["$3.00", "$2,573.00", "$918.00", "$3,494.00"], "meaning": "Trial Balance credits, as the pre-adj run" },
+        { "name": "work-sheet adj debits", "line": 136, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["$2,500.00", "$2,500.00", "$760.00"], "meaning": "Adjustments debits: Income 2500, the column total, then $760.00, which is the Net Income row's Income Statement debit cell (trial-balance.scm:821-826) and yet is read as column 4 of that row; red-ale maps the third value to that cell" },
+        { "name": "work-sheet adj credits", "line": 140, "select": { "table": 1, "row": null, "column": 5 }, "expected": ["$33.00", "$2,467.00", "$2,500.00"], "meaning": "Adjustments credits: Expenses 33, Equity 2467 (2500 less 33), total" },
+        { "name": "work-sheet atb debits", "line": 144, "select": { "table": 1, "row": null, "column": 6 }, "expected": ["$2,186.00", "$912.00", "$20.00", "$231.00", "$1.00", "$3,350.00"], "meaning": "Adjusted Trial Balance debits: Bank, GBP Bank, Wallet, Expenses 231 (264 - 33), Unrealized Losses, total" },
+        { "name": "work-sheet atb credits", "line": 148, "select": { "table": 1, "row": null, "column": 7 }, "expected": ["$3.00", "$73.00", "$918.00", "$2,356.00", "$3,350.00"], "meaning": "Adjusted Trial Balance credits: Liabilities, Income 73, Income-GBP, Equity 2356 (2467 - 111), total" },
+        { "name": "work-sheet is debits", "line": 152, "select": { "table": 1, "row": null, "column": 8 }, "expected": ["$231.00", "$231.00", "$991.00"], "meaning": "Income Statement debits: Expenses, subtotal, total with Net Income" },
+        { "name": "work-sheet is credits", "line": 156, "select": { "table": 1, "row": null, "column": 9 }, "expected": ["$73.00", "$918.00", "$991.00", "$991.00"], "meaning": "Income Statement credits: Income, Income-GBP, subtotal, total; net income 991 - 231 = 760" },
+        { "name": "work-sheet bs debits", "line": 160, "select": { "table": 1, "row": null, "column": 10 }, "expected": ["$2,186.00", "$912.00", "$20.00", "$1.00", "$3,119.00", "$3,119.00"], "meaning": "Balance Sheet debits: Bank, GBP Bank, Wallet, Unrealized Losses, subtotal, total" },
+        { "name": "work-sheet bs credits", "line": 164, "select": { "table": 1, "row": null, "column": 11 }, "expected": ["$3.00", "$2,356.00", "$2,359.00", "$760.00", "$3,119.00"], "meaning": "Balance Sheet credits: Liabilities, Equity, subtotal, Net Income, total" }
+      ]
+    },
+    {
+      "id": "equity-statement current",
+      "test": "test-equity-statement.scm",
+      "lines": "77-112",
+      "template": "Equity Statement",
+      "templateGuid": "c2a996c8970f43448654ca84f17dda24",
+      "options": {
+        "General/Start Date": { "absolute": "1970-01-01" },
+        "General/End Date": { "absolute": "2005-01-01" }
+      },
+      "checks": [
+        { "name": "current table has 22 cells", "line": 82, "select": { "table": 1, "row": null, "column": null }, "count": 14, "meaning": "The seven rows' label and amount; the first row's empty cells hold no text. The test's name says 22 but it expects 14" },
+        { "name": "capital", "line": 86, "select": { "table": 1, "row": 2, "column": null }, "expected": ["Capital, 1970-01-01", "$29.00"], "meaning": "Capital at the start: the 1969 income of 29 (the void 10 counts 0)" },
+        { "name": "income", "line": 90, "select": { "table": 1, "row": 3, "column": null }, "expected": ["Net income for Period", "$620.00"], "meaning": "Net income: -298 USD + #612 at the 2000-02-15 price 3/2, nearest to 2005" },
+        { "name": "investments", "line": 94, "select": { "table": 1, "row": 4, "column": null }, "expected": ["Investments for Period", "$2,722.00"], "meaning": "Investments: equity at the end 2245 + closing entries 222 + withdrawals 255" },
+        { "name": "withdrawals", "line": 98, "select": { "table": 1, "row": 5, "column": null }, "expected": ["Withdrawals for Period", "$255.00"], "meaning": "Withdrawals" },
+        { "name": "unrealized", "line": 102, "select": { "table": 1, "row": 6, "column": null }, "expected": ["Unrealized Losses for Period", "$1.00"], "meaning": "Unrealized: the end book balance, USD 5 and GBP -4, is -$1 at 3/2 and $0 at the average cost 5/4" },
+        { "name": "inc/dec in capital", "line": 106, "select": { "table": 1, "row": 7, "column": null }, "expected": ["Increase in capital", "$3,086.00"], "meaning": "620 + 2722 - 1 - 255" },
+        { "name": "capital end", "line": 110, "select": { "table": 1, "row": 8, "column": null }, "expected": ["Capital, 2005-01-01", "$3,115.00"], "meaning": "29 + 3086" }
+      ]
+    }
+  ]
+}
