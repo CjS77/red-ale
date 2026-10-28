@@ -48,7 +48,7 @@ pub(super) fn read(kind: &OptionKind, default: &OptionValue, json: &Value, ctx: 
             .map(|g| OptionValue::Account(Some(g))),
         OptionKind::Currency => commodity(json, true, ctx).map(OptionValue::Commodity),
         OptionKind::Commodity => commodity(json, false, ctx).map(OptionValue::Commodity),
-        OptionKind::Budget => string(json).and_then(|s| budget(s, ctx)).map(|g| OptionValue::Budget(Some(g))),
+        OptionKind::Budget => string(json).and_then(budget).map(|g| OptionValue::Budget(Some(g))),
     }
 }
 
@@ -283,14 +283,12 @@ fn account(text: &str, types: &[AccountType], ctx: &ValueContext<'_>) -> Read<Gu
     }
 }
 
-/// A budget by GUID, as GnuCash saves it (`5.17:bindings/guile/options.scm:150-160`). With a Book it must name one of
-/// its budgets; without one it is kept unchecked, as an account's GUID is.
-fn budget(text: &str, ctx: &ValueContext<'_>) -> Read<Guid> {
-    let guid = Guid::parse(text.trim()).map_err(|_| format!("{text:?} is not a budget's GUID"))?;
-    match ctx.book {
-        Some(book) if book.budget(guid).is_none() => Err(format!("unknown budget {guid}")),
-        _ => Ok(guid),
-    }
+/// A budget by GUID, as GnuCash saves it (`5.17:bindings/guile/options.scm:150-160`). It is kept even when the Book
+/// has no such budget: a saved configuration may name one since deleted. GnuCash restores the option through
+/// `gnc-budget-lookup`, which then gives no budget (`5.17:bindings/guile/options.scm:150-160`,
+/// `5.17:libgnucash/engine/gnc-option-impl.cpp:200-217`), so the report runs with none and gives its own warning.
+fn budget(text: &str) -> Read<Guid> {
+    Guid::parse(text.trim()).map_err(|_| format!("{text:?} is not a budget's GUID"))
 }
 
 /// A commodity id; a currency option takes only the `CURRENCY` namespace (`5.17:libgnucash/engine/gnc-option-impl.cpp:341-349`).

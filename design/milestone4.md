@@ -438,7 +438,9 @@ functions, the instance model's amounts, the forecast reports), expected values 
   non-negative values first and otherwise in order (`5.17:libgnucash/engine/Transaction.cpp:1508-1510`), for XML and SQL
   alike. red-ale's SQLite reader does the same; its XML reader keeps the file's order, which differs only for files GnuCash
   did not write. A ticket of its own.
-- **A saved report configuration whose budget was deleted.** [`reports.md`](reports.md) §6 says the budget option then
-  reads as `()`; `report.run` refuses it with `report-option` ("unknown budget") instead, so such a configuration
-  can't run.
+- **A saved report configuration whose budget was deleted.** Done: a budget option keeps any well-formed GUID, and
+  one the Book no longer has reads as `()`, as [`reports.md`](reports.md) §6 says and as GnuCash restores it through
+  `gnc-budget-lookup` (`5.17:bindings/guile/options.scm:150-160`). Such a configuration runs with the report's
+  no-budget warning (`report_budget.rs`, `a_saved_configuration_whose_budget_was_deleted_runs_with_none`).
 - **The `sql_file` fuzz target** (mutated SQLite fixtures opened read-only), named in [`sql-fidelity.md`](sql-fidelity.md).
+  Written and built; not yet run, since `cargo-fuzz` is not installed here.

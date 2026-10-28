@@ -15,7 +15,7 @@
 
 mod report_runs;
 
-use report_runs::{Fixture, html_table, only};
+use report_runs::{Fixture, blocks_of, html_table, only};
 use serde_json::{Value, json};
 
 const TEMPLATE: &str = "Budget Report";
@@ -515,4 +515,20 @@ fn warnings() {
     f.call("book.create", &json!({ "path": dir.path().join("new.gnucash").display().to_string() }));
     let result = f.run(TEMPLATE, &json!({}));
     assert_eq!(only(&result, "warning")["title"], "No accounts selected");
+}
+
+/// A saved configuration whose budget was deleted still runs: GnuCash restores the option through `gnc-budget-lookup`,
+/// which then gives no budget (`5.17:bindings/guile/options.scm:150-160`), so the report warns as with none (BR:668-671),
+/// though the book has another budget.
+#[test]
+fn a_saved_configuration_whose_budget_was_deleted_runs_with_none() {
+    let mut f = Fixture::open("budget", "locale", false);
+    f.call("budget.scrubSigns", &json!({}));
+    let spare = f.call("budget.create", &json!({ "name": "Spare", "numPeriods": 3 }))["guid"].clone();
+    let options = json!({ "General": { "Budget": spare } });
+    let saved = f.call("report.saveConfiguration", &json!({ "name": "Spare budget", "report": TEMPLATE, "options": options }));
+    assert!(blocks_of(&f.call("report.run", &json!({ "report": saved["guid"] })), "warning").is_empty(), "the budget runs");
+    f.call("budget.delete", &json!({ "budget": spare }));
+    let result = f.call("report.run", &json!({ "report": saved["guid"] }));
+    assert_eq!(only(&result, "warning")["text"], "No budgets exist. You must create at least one budget.");
 }

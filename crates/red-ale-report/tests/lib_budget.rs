@@ -267,7 +267,7 @@ fn budget_and_callback_options() {
     let options = json!({ "General": { "Budget": other.to_string(), "Range start": "first" } });
     assert_eq!(host.run(&reg, GUID, &options).unwrap().title, "Other false first");
     let unknown = json!({ "General": { "Budget": "00000000000000000000000000000001" } });
-    assert!(format!("{:?}", host.run(&reg, GUID, &unknown).unwrap_err()).contains("unknown budget"));
+    assert_eq!(host.run(&reg, GUID, &unknown).unwrap().title, "none false current", "a deleted budget reads as none");
     let empty = Host::new(common::empty_book());
     assert_eq!(empty.run(&reg, GUID, &json!({})).unwrap().title, "none false current");
 
