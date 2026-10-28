@@ -1,0 +1,54 @@
+{
+  "fixture": "reports/reconcile.gnucash",
+  "builtBy": "scripts/report-fixtures/transaction.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-transaction.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence; the book helpers' notice (test-engine-extras.scm) is kept in the scripts",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:34)",
+    "dateFormat": "ISO: reconcile-tests renders without setting it, after trep-tests set it (:70); no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank": "a0000000000000000000000000000003",
+    "Root.Asset.GBP Bank": "a0000000000000000000000000000004",
+    "Root.Asset.USD Bank": "a0000000000000000000000000000005",
+    "Root.Asset.Wallet": "a0000000000000000000000000000006",
+    "Root.Income": "a0000000000000000000000000000007",
+    "Root.Income-GBP": "a0000000000000000000000000000008",
+    "Root.Expenses": "a0000000000000000000000000000009",
+    "Root.Liabilities": "a000000000000000000000000000000a",
+    "Root.Equity": "a000000000000000000000000000000b"
+  },
+  "book": "The reconcile tree of reconcile-tests (:1077-1104): the structure of :85-97, every account USD, and the seven 1969-1970 transfers of :182-190 except that trn7 goes from Bank to Expenses. GnuCash builds it in the same book as the trep and invoice trees; the report reads only this tree's Bank and Liabilities, so it has its own book here (design/notes/report-transaction-engine.md §4.5).",
+  "dates": { "start-prev-quarter": "2023-10-01 00:00:00 UTC for the pinned now", "today": "2024-03-15 23:59:59 UTC for the pinned now" },
+  "optionValues": "Options are those the test sets; the rest are the template's defaults (5.17:gnucash/report/reports/standard/reconcile-report.scm:34-58): Primary Key reconciled-status, Secondary Key date with no date subtotal, Start Date start-prev-quarter, End Date today, Date Filter reconciled, Reconciled Date and no Memo. {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight.",
+  "cellSelection": "GnuCash reads text at HTML table positions with get-row-col (:73-74), sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1; row N the Nth row of <tbody>, column null every cell; the result is every text in document order, so empty cells drop out.",
+  "renderOnly": [
+    { "line": 1108, "template": "Reconciliation Report", "options": { "Accounts/Accounts": ["Root.Asset.Bank", "Root.Liabilities"] }, "note": "reconcile-report basic run: the default dates, 2023-10-01 to 2024-03-15; the unreconciled splits pass whatever their dates (TE:2568-2571), the reconciled and cleared ones fall outside" }
+  ],
+  "runs": [
+    {
+      "id": "filter reconcile date",
+      "lines": "1110-1121",
+      "template": "Reconciliation Report",
+      "templateGuid": "e45218c6d76f11e7b5ef0800277ef320",
+      "options": {
+        "Accounts/Accounts": ["Root.Asset.Bank", "Root.Liabilities"],
+        "General/Start Date": { "absolute": "1970-03-01" },
+        "General/End Date": { "absolute": "1970-03-31" }
+      },
+      "checks": [
+        { "name": "test reconciled amounts = $8", "line": 1113, "select": { "table": 1, "row": 3, "column": null }, "expected": ["Total For Reconciled", "$8.00"], "meaning": "Rows 1-3: the Reconciled subheading, trn7 (Bank, Funds Out $8), its total" },
+        { "name": "test cleared amounts = $29", "line": 1116, "select": { "table": 1, "row": 6, "column": null }, "expected": ["Total For Cleared", "$29.00"], "meaning": "Rows 4-6: Cleared, trn3 (Bank, Funds In $29), its total" },
+        { "name": "test unreconciled amounts = $31", "line": 1119, "select": { "table": 1, "row": 11, "column": null }, "expected": ["Total For Unreconciled", "$31.00"], "meaning": "Rows 7-11: Unreconciled, trn1 and trn4 on Bank and trn6 on Liabilities (Funds Out $5, $15, $11), its total; the void trn2 and trn5 are left out" }
+      ]
+    }
+  ]
+}

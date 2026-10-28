@@ -21,7 +21,9 @@ fn every_report_fixture_is_listed() {
         "charts-daily",
         "charts-net",
         "net-days",
+        "reconcile",
         "test-data",
+        "transaction",
     ];
     assert_eq!(names, expected.map(|n| format!("reports/{n}.gnucash")));
 }
