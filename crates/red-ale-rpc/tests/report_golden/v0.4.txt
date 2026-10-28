@@ -130,3 +130,47 @@ test-data locale Budget Flow	3687 212a516ba20bfd5f
 test-data locale Budget Income Statement	3723 b5127c704ba05435
 test-data locale Budget Profit & Loss	3726 24424af65b09a1cf
 test-data locale Budget Report	3693 f3d44b6ecd7a468d
+average-balance us Future Scheduled Transactions Summary	5189 008b292f43e43906
+average-balance locale Future Scheduled Transactions Summary	5181 29cad9ae1e17b296
+balsheet-pnl us Future Scheduled Transactions Summary	7337 7d51b27b17788c7e
+balsheet-pnl locale Future Scheduled Transactions Summary	7329 a963cd69bee2492e
+budget us Future Scheduled Transactions Summary	7034 1d4b058f391a2e31
+budget locale Future Scheduled Transactions Summary	7026 bb7df0147b9034c1
+category-average us Future Scheduled Transactions Summary	4852 eb4964ebbc401f3a
+category-average locale Future Scheduled Transactions Summary	4844 5930e2de8aee190a
+category-daily us Future Scheduled Transactions Summary	4852 eb4964ebbc401f3a
+category-daily locale Future Scheduled Transactions Summary	4844 5930e2de8aee190a
+category-liability us Future Scheduled Transactions Summary	4852 8bb8022dbe66f342
+category-liability locale Future Scheduled Transactions Summary	4844 c228f0b37f49a752
+category-multi us Future Scheduled Transactions Summary	6697 498e04d79b87affe
+category-multi locale Future Scheduled Transactions Summary	6689 075a761323bea88e
+charts-daily us Future Scheduled Transactions Summary	7023 53178290ade96e2d
+charts-daily locale Future Scheduled Transactions Summary	7015 5f85cff44085493d
+charts-net us Future Scheduled Transactions Summary	7023 53178290ade96e2d
+charts-net locale Future Scheduled Transactions Summary	7015 5f85cff44085493d
+net-days us Future Scheduled Transactions Summary	9516 ca5932c63cfda1a5
+net-days locale Future Scheduled Transactions Summary	9508 50a7f113f3df6f75
+test-data us Future Scheduled Transactions Summary	7034 1d4b058f391a2e31
+test-data locale Future Scheduled Transactions Summary	7026 bb7df0147b9034c1
+average-balance us Balance Forecast	3619 a351be7997a99ea0
+average-balance locale Balance Forecast	3619 a351be7997a99ea0
+balsheet-pnl us Balance Forecast	3619 a351be7997a99ea0
+balsheet-pnl locale Balance Forecast	3619 a351be7997a99ea0
+budget us Balance Forecast	3619 a351be7997a99ea0
+budget locale Balance Forecast	3619 a351be7997a99ea0
+category-average us Balance Forecast	3619 a351be7997a99ea0
+category-average locale Balance Forecast	3619 a351be7997a99ea0
+category-daily us Balance Forecast	3619 a351be7997a99ea0
+category-daily locale Balance Forecast	3619 a351be7997a99ea0
+category-liability us Balance Forecast	3619 a351be7997a99ea0
+category-liability locale Balance Forecast	3619 a351be7997a99ea0
+category-multi us Balance Forecast	3619 a351be7997a99ea0
+category-multi locale Balance Forecast	3619 a351be7997a99ea0
+charts-daily us Balance Forecast	3619 a351be7997a99ea0
+charts-daily locale Balance Forecast	3619 a351be7997a99ea0
+charts-net us Balance Forecast	3619 a351be7997a99ea0
+charts-net locale Balance Forecast	3619 a351be7997a99ea0
+net-days us Balance Forecast	3619 a351be7997a99ea0
+net-days locale Balance Forecast	3619 a351be7997a99ea0
+test-data us Balance Forecast	3619 a351be7997a99ea0
+test-data locale Balance Forecast	3619 a351be7997a99ea0

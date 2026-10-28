@@ -32,6 +32,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use red_ale_core::formula::NumberFormat;
 use red_ale_core::ops::balances::{Balances, running_balances};
 use red_ale_core::{Account, Book, CommodityRef, Guid, Price, Split, Time64, TimeZone, Transaction};
 use rhai::{Engine, EvalAltResult};
@@ -56,17 +57,21 @@ pub(crate) struct Snapshot {
     now: Time64,
     /// The local time zone, which places budget periods' bounds as GnuCash's process time zone does.
     zone: TimeZone,
+    /// How formulas read numbers: the Locale's, as GnuCash's expression parser takes them.
+    formula_format: NumberFormat,
     /// The running totals of each account's splits, by split GUID, computed when first read.
     running: RefCell<BTreeMap<Guid, Rc<BTreeMap<Guid, Balances>>>>,
 }
 
 impl Snapshot {
-    /// A snapshot of `book` for a run at `now` in `zone`: a copy-on-write clone, one `Arc` per entity.
-    pub(crate) fn new(book: &Book, now: Time64, zone: TimeZone) -> Rc<Self> {
+    /// A snapshot of `book` for a run at `now` in `zone`, reading formulas' numbers in `formula_format`: a
+    /// copy-on-write clone, one `Arc` per entity.
+    pub(crate) fn new(book: &Book, now: Time64, zone: TimeZone, formula_format: NumberFormat) -> Rc<Self> {
         Rc::new(Self {
             book: book.clone(),
             now,
             zone,
+            formula_format,
             running: RefCell::new(BTreeMap::new()),
         })
     }
@@ -84,6 +89,11 @@ impl Snapshot {
     /// The run's local time zone.
     pub(crate) fn zone(&self) -> &TimeZone {
         &self.zone
+    }
+
+    /// How the run's formulas read numbers.
+    pub(crate) fn formula_format(&self) -> NumberFormat {
+        self.formula_format
     }
 
     /// The running totals of `account`'s splits: `ops::balances::running_balances`, computed once per run.

@@ -8,6 +8,7 @@ use red_ale_core::ops::accounts::descendants_sorted;
 use red_ale_core::ops::commodities::{canonical, lookup};
 use red_ale_core::ops::prices::convert::{PriceAt, convert_balance, rate};
 use red_ale_core::ops::prices::prices;
+use red_ale_core::ops::scheduled::cash_flow;
 use red_ale_core::ops::transactions::find::{DescriptionPattern, PeriodQuery, cross_commodity_splits, period_splits};
 use red_ale_core::{AccountType, Guid, Numeric, Time64};
 use rhai::{Array, Dynamic, Engine, INT, Map};
@@ -47,6 +48,7 @@ pub(super) fn register(engine: &mut Engine) {
         euro_side(&c).map(|c| is_euro_currency(&c))
     });
     engine.register_fn("euro_convert", euro_convert);
+    engine.register_fn("sx_cashflow", sx_cashflow);
 }
 
 /// `book.account(ref)`: by GUID or full name, `()` when there is none.
@@ -220,6 +222,25 @@ fn euro_convert(m: Monetary, currency: Dynamic) -> Fallible<Dynamic> {
     let euros = convert_to_euro(&from, amount).map_err(fail)?;
     let converted = convert_from_euro(&to, euros).map_err(fail)?;
     Ok(Dynamic::from(Monetary::new(to, numeric(converted)?)))
+}
+
+/// `gnc-sx-all-instantiate-cashflow-all` (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1968-1976`): what every
+/// enabled scheduled transaction adds to each account from `from` to `to`, by account GUID, in the account's
+/// commodity, debits positive, computed from the model without creating anything (`ops::scheduled::cash_flow`).
+/// GnuCash's Guile wrapper takes each time's local date, so both days count whole (`gnc_time64_to_GDate`,
+/// `5.17:bindings/guile/expressions.i:27-32`), and hands each sum to Scheme as an exact rational (`:46-70`). Formulas
+/// are read with every variable 0; what fails counts as 0, as there.
+fn sx_cashflow(b: &mut BookHandle, from: INT, to: INT) -> Fallible<Map> {
+    let zone = b.0.zone();
+    let date = |t: INT| {
+        zone.local_date(Time64(t))
+            .ok_or_else(|| script_error(format!("{t} is not a time a date can be taken of")))
+    };
+    let flow = cash_flow(b.0.book(), date(from)?, date(to)?, b.0.formula_format()).map_err(|e| script_error(e.to_string()))?;
+    flow.amounts
+        .into_iter()
+        .map(|(guid, amount)| Ok((guid.to_string().into(), Dynamic::from(numeric(amount)?))))
+        .collect()
 }
 
 /// A core Numeric as a Rational.

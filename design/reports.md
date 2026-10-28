@@ -384,6 +384,7 @@ comes back in hash order.
 | `book.commodity_splits(accounts, until, commodity, sorted)` | Split[] | | `gnc-get-match-commodity-splits`: non-void splits of `accounts` up to `until` (inclusive) whose transaction currency differs from their account's commodity and, unless `commodity` is `()`, one of the two is `commodity` (`5.17:bindings/engine.i:167-193`). Unsorted, account after account, each in split order (`get-exchange-totals` relies on it, CU:447); `sorted`, all in split order. Callers pass the root's sorted descendants (CU:203-205) or those holding shares (`standard/price-scatter.scm:147-149`) |
 | `book.split_query(q)` | Split[] in split order | `transaction.find` | the split query of `gnc:account-get-trans-type-splits-interval` (`report/report-utilities.scm:692-725`), which the Average Balance report also runs (`example/average-balance.scm:300-345`): `q` is `#{ accounts, from, to, description: #{ text, cased, regexp }, closing }`; void splits never match (both GnuCash queries leave them out); `description` and `closing` are OR'ed, as there |
 | `is_euro_currency(c)`, `euro_convert(m, currency)` | bool, Monetary or `()` | `currency.euroConvert` | `gnc-is-euro-currency`, `gnc-convert-to-euro`/`-from-euro` (`5.17:libgnucash/engine/gnc-euro.cpp:31-106`); `()` unless both are euro currencies, as `gnc:exchange-by-euro` (`report/commodity-utilities.scm:635-644`). `c` may be a currency the Book does not hold |
+| `book.sx_cashflow(from, to)` (v0.4) | map of account GUID → Rational | | `gnc-sx-all-instantiate-cashflow-all` (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1968-1976`): what every enabled scheduled transaction adds to each account from the local date of `from` to that of `to`, both inclusive (`gnc_time64_to_GDate`, `5.17:bindings/guile/expressions.i:27-32`), in the account's commodity, debits positive, computed from the model without creating anything ([`notes/engine-budgets.md`](notes/engine-budgets.md) §4.10). Occurrences count on from the last one, which is not counted again; Deferred instances play no part; formulas are read in the Locale's monetary separators with every variable 0, and what fails counts as 0. An account that no counted template split names is absent; one whose sums cancel is 0 |
 
 `mode` is `"nearest"`, `"before"` or `"latest"`; `when` is a Time64. `"latest"` keeps GnuCash's split behaviour:
 the direct lookup takes the newest price even if it is in the future, the indirect one the newest at or before now
@@ -440,10 +441,10 @@ Periods count from 0; every read takes any period, past the count too, as GnuCas
 
 `a` is an Account or its GUID or full name, as elsewhere.
 
-**Still to come**: `book.sx_cashflow(from, to)` (GUID → Rational, `gnc-sx-all-instantiate-cashflow-all`,
-[`notes/engine-budgets.md`](notes/engine-budgets.md) §4.10) for the Future Scheduled Transactions Summary and the
-Balance Forecast goes beside the Book's reads in `query/book.rs` once core has the cash flow; those reports pass it
-to the account table through `get_balance_fn`, as `standard/account-summary.scm:327-336` does.
+The Future Scheduled Transactions Summary and the Balance Forecast read `book.sx_cashflow`; the summary passes it to
+the account table through `get_balance_fn`, as `standard/account-summary.scm:327-336` does. GnuCash's GUI may give a
+formula's variable a value its calculator kept (§4.10 step 4 of the note); red-ale reads every variable as 0, as
+GnuCash does with no such value.
 
 ### Core reads behind the query API
 
@@ -481,6 +482,7 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | `book.default_budget()` | `ops::budgets::default_budget` | new (v0.4) |
 | `b.period_start_date(p)`, `b.period_end_date(p)` | `ops::budgets::period_times` | new (v0.4) |
 | `b.account_period_actual_value(a, p)` | `ops::budgets::actual` | new (v0.4) |
+| `book.sx_cashflow(from, to)` | `ops::scheduled::cash_flow` over `TimeZone::local_date` of each time | new (v0.4) |
 
 Core also has the reads `lib/balances` and clients may want beyond these: `balances_at_dates`
 (`gnc:account-get-balances-at-dates`, the sum of amounts at or before each time, which counts the stock splits the
@@ -817,6 +819,8 @@ the same stack name stack together; GnuCash's `stack` key), `kind` (`bar` or `li
 series) or `links` (one per value). A `scatter` series has `points: [{ x: Rational, y: Rational, label }]` instead of
 `values`, and `line` (`#rrggbb` or `null`): the price chart joins its points with a line of another colour
 (`standard/price-scatter.scm:269-274`). `marker` is `circle`, `square`, `diamond`, `cross` or `plus`.
+`pointRadius` (Rational, v0.4) is GnuCash's key of that name (`standard/balance-forecast.scm:153-154`): 0 draws a
+line's markers transparent, so they keep their hover labels; any other radius draws them as usual.
 
 These cover every chart in scope:
 
@@ -829,6 +833,7 @@ These cover every chart in scope:
 | Price Scatterplot | `scatter` with a `linear` x axis in steps since the start date (`standard/price-scatter.scm:166-274`) |
 | Average Balance | `bar`: Average, Profit, Gain and Loss series (`example/average-balance.scm:386-451`) |
 | Budget Chart (v0.4) | `bar` or `line` by option, one chart per account: Actual and Budget series (`standard/budget-barchart.scm:155-222`) |
+| Balance Forecast (v0.4) | `line`: Minimum, Balance, Target and Reserve, unfilled, `lineWidth` 1.5, `pointRadius` 3 or 0 (`standard/balance-forecast.scm:234-293`) |
 
 ### Hover labels
 
@@ -1059,6 +1064,7 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | Script | Template name | GUID | Menu | Source |
 |--------|---------------|------|------|--------|
 | `standard/account-summary.rhai` | Account Summary | `3298541c236b494998b236dfad6ad752` | (top level) | `standard/account-summary.scm:423-428` |
+| | Future Scheduled Transactions Summary (v0.4) | `47f45d7d6d57b68518481c1fc8d4e4ba` | (top level) | `standard/account-summary.scm:430-435` |
 | `standard/balance-sheet.rhai` | Balance Sheet | `c4173ac99b2b448289bf4d11c731af13` | Assets & Liabilities | `standard/balance-sheet.scm:527-533` |
 | `standard/income-statement.rhai` | Income Statement | `0b81a3bdfd504aff849ec2e8630524bc` | Income & Expense | `standard/income-statement.scm:566-572` |
 | | Profit & Loss | `8758ba23984c40dea5527f5f0ca2779e` | Income & Expense | `standard/income-statement.scm:576-582` |
@@ -1083,11 +1089,12 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | | Budget Profit & Loss | `e5fa5ce805e840ecbeca4dba3fa4ead9` | Budget | `standard/budget-income-statement.scm:602-609` |
 | `standard/budget-flow.rhai` (v0.4) | Budget Flow | `e6e34fa3b6e748debde3cb3bc76d3e53` | Budget | `standard/budget-flow.scm:315-321` |
 | `standard/budget-barchart.rhai` (v0.4) | Budget Chart | `415cd38d39054d9e9c4040455290c2b1` | Budget | `standard/budget-barchart.scm:322-328` |
+| `standard/balance-forecast.rhai` (v0.4) | Balance Forecast | `321d940d487d4ccbb4bd0467ffbadbf2` | Assets & Liabilities | `standard/balance-forecast.scm:300-306` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
-scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary
-(`47f45d7d6d57b68518481c1fc8d4e4ba`, `standard/account-summary.scm:430-435`) is not defined: it needs scheduled
-transactions.
+scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary is the
+Account Summary's script with `params.sx`, as GnuCash's two templates share one options generator and renderer
+(`standard/account-summary.scm:138`, `:241`); it reads `book.sx_cashflow` (section 5).
 
 **Looking a report up.** Methods take `report`: a GUID, or a name. A GUID matches a template or a saved
 configuration. A name matches template names and saved configuration names; more than one match is a `conflict`
@@ -1108,7 +1115,7 @@ Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.
 
 | Report file | Templates | Helpers it uses | Book data and features |
 |-------------|-----------|-----------------|------------------------|
-| `standard/account-summary.scm` | Account Summary | OU: report-date, account-levels, currency, price-source, subtotal-view. RU: filter-accountlist-type, get-current-account-tree-depth, the commodity collector. CU: case-exchange-fn, case-price-fn. HAT: make-html-acct-table/env/accts, num-rows, get-row-env, the data half of add-account-balances. HU: make-rates-table, no-account warning. DU: time64-end-day-time. `gnc-accounts-and-all-descendants` | Account code, type, description, notes; prices for foreign commodities; company name |
+| `standard/account-summary.scm` | Account Summary, Future Scheduled Transactions Summary (v0.4) | OU: report-date (date-interval for the summary), account-levels, currency, price-source, subtotal-view. RU: filter-accountlist-type, get-current-account-tree-depth, the commodity collector. CU: case-exchange-fn, case-price-fn. HAT: make-html-acct-table/env/accts, num-rows, get-row-env, the data half of add-account-balances. HU: make-rates-table, no-account warning. DU: time64-end-day-time. `gnc-accounts-and-all-descendants` | Account code, type, description, notes; prices for foreign commodities; company name; the scheduled transactions' cash flow (the summary) |
 | `standard/balance-sheet.scm` | Balance Sheet | As Account Summary, plus RU: decompose-accountlist, collector+ and collector-, monetaries-add, accounts-get-comm-total-assets, account-get-comm-value-at-date; CU: sum-collector-commodity, uniform-commodity? | "Use Trading Accounts" (`standard/balance-sheet.scm:266`): a trading line instead of unrealized gains; TRADING accounts; `xaccAccountGetBalanceAsOfDate` |
 | `standard/income-statement.scm` | Income Statement, Profit & Loss | OU: date-interval, account-levels, currency, price-source, subtotal-view. RU: decompose-accountlist, accountlist-get-comm-balance-interval-with-closing, account-get-trans-type-balance-interval-with-closing, account-get-trans-type-splits-interval, collectors. CU, HAT and HU as Balance Sheet | Closing transactions (`book_closing` slot) and the closing-entries description pattern; TRADING accounts if selected; voided splits excluded |
 | `example/average-balance.scm` | Average Balance | OU: date-interval, interval-choice, currency, price-source, plot-size. RU: accounts-get-commodities, account-get-balances-at-dates, monetaries-add, collectors. CU: case-exchange-time-fn (and everything under it), sum-collector-commodity. DU: make-date-list, deltasym-to-delta, decdate, time64-start/end-day-time. HU: empty-data and no-account warnings | A split query (accounts, dates, non-void); same-day split order follows "Number Field Source" (`5.17:libgnucash/engine/Split.cpp:1548-1557`) |
@@ -1116,6 +1123,7 @@ Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.
 | `standard/category-barchart.scm` | the four "Over Time" charts | As net-charts, plus OU: account-levels, sort-method; RU: get-current-account-tree-depth; CU: sum-collector-commodity; DU: date-get-fraction-func and the fraction functions; HU: assign-colors | |
 | `standard/account-piecharts.scm` | the five pie charts | OU: report-date or date-interval, currency, price-source, account-levels, plot-size, sort-method. RU: account-get-comm-balance-interval, account-get-comm-balance-at-date, filter-accountlist-type, get-current-account-tree-depth, monetary->string. CU: case-exchange-fn, sum-collector-commodity. DU: fraction functions. HU: assign-colors, warnings | Securities: account commodities and prices |
 | `standard/price-scatter.scm` | Price Scatterplot | OU: date-interval, interval-choice, currency, plot-size. RU: account-has-shares?, monetary->string. CU: get-commodity-inst-prices, get-commodity-totalavg-prices, and the euro conversion | STOCK, MUTUAL and CURRENCY accounts with cross-commodity splits; the price database (forward prices only) |
+| `standard/balance-forecast.scm` (v0.4) | Balance Forecast | OU: date-interval, interval-choice, currency, price-source, plot-size. RU: filter-accountlist-type, accounts-get-commodities, account-get-balances-at-dates, the commodity collector. CU: case-exchange-time-fn, sum-collector-commodity. DU: make-date-interval-list, deltasym-to-delta, time64-start/end-day-time. HU: no-account and empty-data warnings | `book.sx_cashflow`; each account's first split (`gnc-account-get-earliest-date`, read as the first of `a.splits()`); prices for foreign commodities |
 
 No report needs a Book feature (`features` slot); all only read. The last column lists the Book data their figures
 depend on.
@@ -1198,6 +1206,7 @@ Notes for the translators:
 | Price chart tooltip x | `~2,2F` (`standard/price-scatter.scm:260-267`) | `fixed(r, 2, 2)` |
 | Category chart percentage cells | `double-to-gnc-numeric` to 1/100 (`report/html-style-info.scm:233-236`) | exact, banker's rounding to 1/100 |
 | Chart values | JSON doubles (`5.17:borrowed/guile-json/json/builder.scm:121-124`) | exact Rationals in the result; integer SVG coordinates |
+| Balance Forecast's "Reserve amount" and "Target amount above reserve" | Doubles of number-range options (`standard/balance-forecast.scm:109-120`), the Target line their double sum | exact Rationals, the Target line their exact sum |
 
 ## 13. Testing reports
 

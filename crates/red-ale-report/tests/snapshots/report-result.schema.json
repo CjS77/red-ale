@@ -1131,6 +1131,17 @@
             }
           ]
         },
+        "pointRadius": {
+          "description": "The points' radius, GnuCash's `pointRadius` (`5.17:gnucash/report/reports/standard/balance-forecast.scm:153-154`):\n0 hides a line's markers, which keep their hover labels; any other radius draws them as usual.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rational"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "displays": {
           "description": "Host: each value as its hover label shows it, under the y axis's format.",
           "type": [

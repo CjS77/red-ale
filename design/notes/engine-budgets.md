@@ -577,8 +577,9 @@ adjustment on `rich.gnucash`'s monthly rent (last 2024-09-01, end 2025-07-01, we
 
 Added in v0.4 (`../reports.md` §5 "Budget", §6, §12): the Budget handle and the three Book reads, the budget,
 complex-boolean and multichoice-callback options and the budget option's saved form, `lib/budget`, `report_budget`,
-`make_date_interval_list`; `book.price_convert(…, "nearest")` was already the nearest conversion. Still open:
-`a.earliest_date()` and `book.sx_cashflow`.
+`make_date_interval_list`; `book.price_convert(…, "nearest")` was already the nearest conversion; then
+`book.sx_cashflow` (`../reports.md` §5 "Book"). `a.earliest_date()` was not needed: the Balance Forecast reads the
+first split of `a.splits()`, which is in split order as GnuCash's split list is.
 
 | Need | Used by | GnuCash |
 |------|---------|---------|
@@ -750,8 +751,10 @@ changed to `rent` and its numeric to `0/1`, the call segfaulted in the parser's 
 1. **Formulas in the cash flow.** What GnuCash 5.17's GUI really gives for a template formula with a variable depends
    on its persisted calculator variables; the oracle cannot evaluate formulas without Guile. Is "variables are 0" an
    acceptable recorded deviation, or should the oracle gain a Guile-initialised harness?
-2. **The forecast's start day.** §4.9's double count of an occurrence on the start date is from the source only. Check
-   with a hand-built case once red-ale computes the cash flow, or with a Guile harness.
+2. **The forecast's start day.** §4.9's double count of an occurrence on the start date is from the source only.
+   red-ale keeps it, and a hand-built case worked from the source shows it
+   (`crates/red-ale-rpc/tests/report_forecast.rs`, `an_occurrence_on_the_start_date_counts_twice`); only a Guile
+   harness could confirm it against GnuCash itself.
 3. **SQL copies that disagree.** Proposal 13 refuses writing; reading could instead prefer `slots` (what GnuCash writes
    back). Needs a decision with the SQL Backend's design.
 4. **Weekend-adjusted budgets.** Only another program writes them; red-ale reads them and computes as §1.4. Should

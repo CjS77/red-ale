@@ -274,8 +274,8 @@ Rounding is half up to significant digits, never left of the decimal point, and 
 |   ✅   | Budget Profit & Loss                  | the same file (`e5fa5ce805e840ecbeca4dba3fa4ead9`), under the Budget Income Statement row |
 |   ✅   | Budget Flow                           | `standard/budget-flow.scm` (`e6e34fa3b6e748debde3cb3bc76d3e53`)                       |
 |   ✅   | Budget Chart                          | `standard/budget-barchart.scm` (`415cd38d39054d9e9c4040455290c2b1`)                   |
-|        | Future Scheduled Transactions Summary | `standard/account-summary.scm:430-435` (`47f45d7d6d57b68518481c1fc8d4e4ba`)           |
-|        | Balance Forecast                      | `standard/balance-forecast.scm` (`321d940d487d4ccbb4bd0467ffbadbf2`)                  |
+|   ✅   | Future Scheduled Transactions Summary | `standard/account-summary.scm:430-435` (`47f45d7d6d57b68518481c1fc8d4e4ba`)           |
+|   ✅   | Balance Forecast                      | `standard/balance-forecast.scm` (`321d940d487d4ccbb4bd0467ffbadbf2`)                  |
 
 All are translated from GnuCash's Scheme into Rhai, on the v0.2 engine, as [`reports.md`](reports.md) sets out. The
 report library needs what [`notes/engine-budgets.md`](notes/engine-budgets.md) §4.11 lists: budget reads (periods,
@@ -294,7 +294,7 @@ hand-worked cases for the rest, each citing the 5.17 lines it follows (§5).
 |:------:|----------------------------------------|---------------------------------------------------------------------------------------------------------|
 |   ✅   | Mutations walk their maps in order     | `red_ale_core::diff::changes`, used by `Session::try_mutate` and the trading-account commit; a property test checks it against lookups |
 |   ✅   | Clippy after `cargo fmt`               | The formatting commit left pedantic lints failing; fixed without changing behaviour                     |
-|        | The `sql-book` message                 | `crates/red-ale-service/src/error.rs:41` says SQLite arrives in v0.3. SQLite files no longer get it; for database URIs it names v0.7 |
+|   ✅   | The `sql-book` message                 | Names v0.7 for database URIs (`mysql://`, `postgres://`, `postgresql://`) only, refused in `resolve_path` before anything is touched; SQLite files and `sqlite3://` never reach it (`crates/red-ale-service/src/error.rs:43-48`, `session.rs:150-174`; `tests/session.rs`, `database_server_books_are_refused_before_anything_happens`) |
 
 ## Carried forward from v0.3
 
