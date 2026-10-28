@@ -2,15 +2,18 @@
 //! figure (`design/reports.md` §3, "Display rounding and formatting"; §7).
 
 use red_ale_core::{Book, CommodityRef, Date, Time64, TimeZone};
-use red_ale_locale::Locale;
+use red_ale_locale::{Conventions, Locale};
 
 use super::chart::{Axis, AxisFormat};
 use super::validate::Stage;
 use super::{
-    Block, Cell, Chart, CommodityLine, LogEntry, OptionValues, RESULT_VERSION, ReportDraft, ReportIdentity, ReportResult, Section,
+    Block, Cell, Chart, CommodityLine, LogEntry, NumberFormat, NumberRounding, OptionValues, RESULT_VERSION, ReportDraft, ReportIdentity, ReportResult, Section,
 };
 use crate::error::ResultError;
-use crate::number::{CommodityFormat, Monetary, Rational, display_exact, display_monetary, display_number, display_price};
+use crate::number::{
+    CommodityFormat, Monetary, Rational, Rounding, display_exact, display_monetary, display_number, display_number_rounded,
+    display_price, display_share,
+};
 use crate::settings::DateFormat;
 use crate::wire::Timestamp;
 
@@ -83,6 +86,7 @@ impl ReportDraft {
             sections,
             log: run.log,
             export: self.export,
+            export_error: self.export_error,
         };
         super::validate::sections(&result.sections, Stage::Finished)?;
         Ok(result)
@@ -119,7 +123,7 @@ fn fill_cell(cell: &mut Cell, path: &str, ctx: &DisplayContext<'_>) -> Fill {
         (cell.rounded, cell.display) = (Some(rounded), Some(display));
     } else if let Some(n) = &cell.number {
         let suffix = cell.suffix.as_deref().unwrap_or("");
-        cell.display = Some(format!("{}{suffix}", display_number(n, cell.places, &ctx.locale.conventions())));
+        cell.display = Some(format!("{}{suffix}", number_display(n, cell, &ctx.locale.conventions())));
     } else if let (Some(p), Some(currency)) = (&cell.price, &cell.currency) {
         let currency = ctx.commodity(&currency.0, &format!("{path}.currency"))?;
         cell.display = Some(display_price(p, &currency, &ctx.locale.conventions()));
@@ -138,6 +142,15 @@ fn fill_cell(cell: &mut Cell, path: &str, ctx: &DisplayContext<'_>) -> Fill {
             .try_for_each(|(i, l)| fill_line(l, &format!("{path}.commodities[{i}]"), ctx))?;
     }
     Ok(())
+}
+
+/// A number cell's figure: the share display, or the number renderer with the cell's rounding.
+fn number_display(n: &Rational, cell: &Cell, conv: &Conventions) -> String {
+    match (cell.number_format, cell.rounding) {
+        (Some(NumberFormat::Share), _) => display_share(n, cell.places, conv),
+        (None, Some(NumberRounding::HalfUp)) => display_number_rounded(n, cell.places, Rounding::HalfUp, conv),
+        (None, Some(NumberRounding::Bankers) | None) => display_number(n, cell.places, conv),
+    }
 }
 
 fn fill_line(line: &mut CommodityLine, path: &str, ctx: &DisplayContext<'_>) -> Fill {

@@ -564,3 +564,27 @@ fn configuration_methods_work_with_no_book_and_declare_their_target() {
         .zip(3000..)
         .for_each(|(name, code)| assert!(errors.contains(&(code, *name)), "{code} {name}"));
 }
+
+/// A template that offers CSV and, asked for it, says why it has nothing to export, as the Transaction Report does
+/// with `gnc:html-document-set-export-error` (`5.17:gnucash/report/trep-engine.scm:2524`).
+const EXPORT_ERROR_SCRIPT: &str = r#"
+fn templates() { [#{ guid: "0000000000000000000000000000a006", name: "No Splits", exportTypes: ["csv"] }] }
+fn options(params, o, book) { }
+fn render(params, book, opts, ctx) {
+    let draft = #{ title: "No Splits", sections: [] };
+    if ctx.export_type() == "csv" { draft.exportError = "No splits found"; }
+    draft
+}
+"#;
+
+#[test]
+fn an_export_error_answers_export_csv() {
+    let mut s = Setup::new();
+    std::fs::write(s.dir.path().join("reports/export-error.rhai"), EXPORT_ERROR_SCRIPT).unwrap();
+    s.open(true);
+    assert!(s.call("report.run", json!({ "report": "No Splits" })).get("exportError").is_none());
+    let err = s.err("report.exportCsv", json!({ "report": "No Splits" }));
+    assert_eq!(err.code, codes::INVALID);
+    assert_eq!(err.message, "No splits found");
+    assert_eq!(err.data.unwrap(), json!({ "reason": "export-error", "message": "No splits found" }));
+}

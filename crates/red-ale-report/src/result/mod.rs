@@ -20,7 +20,9 @@ use serde_json::{Map, Value};
 
 pub use chart::{Axis, AxisFormat, Chart, ChartType, Color, Marker, PlotSize, Point, Scale, Series, SeriesKind, Tooltip};
 pub use finish::{DisplayContext, RunInfo};
-pub use table::{Align, Anchor, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, ReportLink, Row, RowRole, Table};
+pub use table::{
+    Align, Anchor, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, NumberFormat, NumberRounding, ReportLink, Row, RowRole, Table,
+};
 
 use crate::error::ResultError;
 use crate::number::Rational;
@@ -69,6 +71,10 @@ pub struct ReportResult {
     /// GnuCash's export string before it is joined (`gnc:html-document-set-export-string`). Absent otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub export: Option<ExportRows>,
+    /// Why the run for an export has nothing to export, as the script gave it (`gnc:html-document-set-export-error`,
+    /// `5.17:gnucash/report/trep-engine.scm:2524`): "No splits found". Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export_error: Option<String>,
 }
 
 /// The rows of an export: each a list of cells, as GnuCash's `gnc:lists->csv` takes them
@@ -99,6 +105,9 @@ pub struct ReportDraft {
     /// The export's rows, when the run context asks for an export (`ctx.export_type()`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub export: Option<ExportRows>,
+    /// Why there is nothing to export, when the run context asks for an export; not with `export`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export_error: Option<String>,
 }
 
 /// A section: an optional title and ordered blocks.
@@ -301,6 +310,9 @@ impl ReportDraft {
     /// staircase levels within the columns' levels, chart series that fit their labels, and no field only the host
     /// may set.
     pub fn validate(&self) -> Result<(), ResultError> {
+        if self.export.is_some() && self.export_error.is_some() {
+            return Err(ResultError::new("exportError", "a draft has export rows or an export error, not both"));
+        }
         validate::sections(&self.sections, validate::Stage::Draft)
     }
 }

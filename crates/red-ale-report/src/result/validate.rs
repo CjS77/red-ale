@@ -1,7 +1,9 @@
 //! What makes a report result valid beyond its schema (`design/reports.md` §7).
 
 use super::chart::AxisFormat;
-use super::{Anchor, Block, Cell, CellContent, Chart, ChartType, Column, ColumnRole, Link, PlotSize, Row, Section, Series, Table};
+use super::{
+    Anchor, Block, Cell, CellContent, Chart, ChartType, Column, ColumnRole, Link, PlotSize, Row, RowRole, Section, Series, Table,
+};
 use crate::error::ResultError;
 
 /// Whether the host has filled in its fields yet.
@@ -112,6 +114,11 @@ fn footnotes(r: &Row, count: usize, path: &str) -> Check {
 }
 
 fn row(r: &Row, width: usize, levels: Option<u32>, path: &str, stage: Stage) -> Check {
+    ensure(
+        r.alternate.is_none() || matches!(r.role, RowRole::Data | RowRole::Account),
+        &format!("{path}.alternate"),
+        "only data and account rows are shaded",
+    )?;
     let covered: u64 = r.cells.iter().map(|c| c.as_ref().map_or(1, |c| u64::from(c.columns()))).sum();
     let fits = covered == u64::try_from(width).unwrap_or(u64::MAX);
     ensure(
@@ -149,9 +156,14 @@ fn cell(c: &Cell, path: &str, stage: Stage) -> Check {
     let is_number = matches!(content, CellContent::Number(_));
     let is_price = matches!(content, CellContent::Price(_));
     ensure(
-        is_number || (c.places.is_none() && c.suffix.is_none()),
+        is_number || (c.places.is_none() && c.suffix.is_none() && c.rounding.is_none() && c.number_format.is_none()),
         path,
-        "places and suffix belong to number cells",
+        "places, suffix, rounding and numberFormat belong to number cells",
+    )?;
+    ensure(
+        c.number_format.is_none() || c.rounding.is_none(),
+        &format!("{path}.rounding"),
+        "a share display rounds half up; it takes no rounding",
     )?;
     ensure(
         c.places.is_none_or(|p| p <= MAX_PLACES),

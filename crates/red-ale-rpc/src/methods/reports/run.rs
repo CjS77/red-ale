@@ -263,6 +263,9 @@ pub(super) fn export_csv(ctx: &mut Context, p: ExportCsvParams) -> Result<Export
             export: Some(EXPORT_CSV),
         };
         let result = reports.run(&p.report, p.options.as_ref(), &at, book, env)?;
+        if let Some(message) = &result.export_error {
+            return Err(RpcError::invalid(message.clone()).with_data(json!({ "reason": "export-error", "message": message })));
+        }
         let rows = result.export.as_ref().ok_or_else(|| {
             RpcError::invalid("No exportable data: the report has no accounts or no figures to export")
                 .with_data(json!({ "reason": "no-exportable-data" }))

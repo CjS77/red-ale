@@ -776,6 +776,7 @@ by the script. `optionsSummary` blocks come only from the host.
 | `options` | *host*. Every option's value, in wire form, so the result says exactly what produced it |
 | `sections` | Ordered sections, each an optional `title` and ordered `blocks` |
 | `export` | Optional (v0.3). Set only when `ctx.export_type()` is `"csv"`: the rows GnuCash hands `gnc:lists->csv` (`report/trep-engine.scm:463-512`), each a list of cells that are a string, an exact number or `null`. The host turns them into the CSV of `report.exportCsv`; `report.run` never carries them |
+| `exportError` | Optional (v0.5). Set only when `ctx.export_type()` is `"csv"`, instead of `export`: why there is nothing to export ("No splits found"), GnuCash's `gnc:html-document-set-export-error` (`report/trep-engine.scm:2524`, `:2605`, `:2641`). `report.exportCsv` answers it with `invalid`, `data.reason: "export-error"` and the message. A draft with both is a `report-result` error |
 | `log` | *host*. The report log |
 
 ### Blocks
@@ -826,11 +827,16 @@ columns; a client may ignore them and read the figure.
 
 - `account`: the GUID of the account the row is about;
 - `depth`: indentation of the label, counted in levels (`indented-depth` of `report/html-acct-table.scm:749-763`);
-- `level`: the amount's staircase position.
+- `level`: the amount's staircase position;
+- `alternate` (v0.5): for a `data` or `account` row, `true` to shade it as GnuCash's `alternate-row`, `false` as
+  `normal-row`. Absent, data and account rows alternate by position. The Transaction Report shades by split, so a
+  transaction's several lines share a shade (`report/trep-engine.scm:1967-1977`). On any other role it is a
+  `report-result` error.
 
 Row roles: `data` (default), `heading` (a section label such as "Assets"), `account`, `subtotal` ("Total Bank1"),
 `total` (a section total: "Total Assets"), `grandTotal` ("Total Liabilities & Equity", "Net income"), `rule` (a
-horizontal rule across the table, GnuCash's `gnc:html-table-append-ruler!`) and `spacer`. The roles stand for
+horizontal rule across the table, GnuCash's `gnc:html-table-append-ruler!`), `spacer` and `warning` (v0.5: a warning
+inside the table, bold in the negative colour, Investment Lots' warning rows, `standard/investment-lots.scm:1077-1096`). The roles stand for
 GnuCash's row and cell markup (`primary-subheading`, `total-label-cell`, `total-number-cell`), which style sheets
 colour (section 8).
 
@@ -841,7 +847,7 @@ colour (section 8).
 | text | `text` | the text |
 | monetary | `monetary: { amount: Rational, commodity }` | `rounded` (Amount at the commodity's SCU, banker's rounding) and `display`, section 3 |
 | commodities | `commodities: [{ monetary, converted }]` | each line's `display` and `convertedDisplay` |
-| number | `number: Rational`, `places` (default 2), `suffix` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer |
+| number | `number: Rational`, `places` (default 2), `suffix`; `rounding` (v0.5): `bankers` (default) or `halfUp`; `numberFormat` (v0.5): `share` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer. `rounding: "halfUp"` rounds ties away from zero, for the rates GnuCash prints from doubles with Guile's `~,nf` (`standard/advanced-portfolio.scm:914-922`; `3.625` is `3.63`). `numberFormat: "share"` is GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): exactly `places` decimals, the magnitude rounded half up (`:1105-1145`, so ties go away from zero), grouped with the Locale's numeric separators, the point always printed (`1,234.568`, `100.`); it takes no `rounding` |
 | price | `price: Rational`, `currency` | `display` with the currency's price print info |
 | date | `date: Time64` (a Timestamp on the wire); `until` (v0.5, optional): the end of the period it starts | `localDate` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat`; with `until`, also `localUntil`, and `display` is `<date> to <until>`, each as `qof-print-date` prints it, as the Multicolumn P&L's column headers (`standard/balsheet-pnl.scm:1140-1153`) |
 | anchors (v0.5) | `anchors: [{ text, link }]` | none: the texts, one per line. The Transaction Report's invoice cell (`report/trep-engine.scm:1036-1049`) |
@@ -854,6 +860,10 @@ commodity, the native amount and its value in the report currency (`report/html-
 Any cell but an `anchors` cell may also have `account` (a GUID: the cell names or links to that account) and `link`
 (below). Any cell may have `rule: true` (an accounting rule above the figure, the "Show accounting-style rules" option,
 `report/html-acct-table.scm:901-906`), `span` (columns it covers, default 1) and `footnote` (v0.4).
+
+A table may have no columns (v0.5): its rows then have no cells. The Transaction Report makes one when the Amount is
+`Hide` and every other column is off (`standard/test/test-transaction.scm:495-501`); the renderer writes an empty
+table.
 
 **Footnotes** (v0.4). A table may have `footnotes`, notes numbered from 1, and a cell's `footnote` is the number of
 the one it refers to. The renderer writes the number as a superscript after the cell's content, titled with the note,
@@ -971,7 +981,10 @@ figures must match GnuCash's, the markup need not.
 - **Class names are GnuCash's** where one exists: `number-cell`, `total-number-cell`, `text-cell`,
   `total-label-cell`, `date-cell`, `neg`, and the row styles `normal-row`, `alternate-row`, `primary-subheading`,
   `secondary-subheading` and `grand-total` (`report/stylesheets/plain.scm:104-167`). CSS written for GnuCash's CSS
-  template therefore styles red-ale's page too. Rows also carry `role-<role>`.
+  template therefore styles red-ale's page too. Rows also carry `role-<role>`. Data and account rows take
+  `normal-row` and `alternate-row` by position, or as their `alternate` says (v0.5). A `warning` row's text cells
+  are `total-label-cell neg`, as Investment Lots marks them (`standard/investment-lots.scm:1090-1095`), and the row
+  has no row style.
 - Line breaks in text become `<br>`.
 - **Tables.** An `amount` column with `levels` becomes that many cell columns; a row's amount goes in the column of
   its `level`, counted from the right, as GnuCash lays out its account tables. A `commodities` cell becomes a small
@@ -980,7 +993,8 @@ figures must match GnuCash's, the markup need not.
   `href`s: GnuCash's `gnc-register:` and report URLs mean nothing outside GnuCash, and a client that embeds the page
   can wire the data attributes itself. A `docLink` becomes nothing: its text shows unlinked, so an exported page
   carries no path to a user's files. An `anchors` cell writes its texts one per line. Columns with `labelLines`
-  make the header as many rows as the most lines, a column without them showing its label in the first row.
+  make the header as many rows as the most lines, a column without them showing its label in the first row. A
+  table with no columns has no header and empty rows (v0.5).
 - A `list` block is a `<ul>`; an item naming an account carries `data-account` and shows as a link.
 - **Negative figures** get the class `neg`, coloured red when the style sheet's "Negative Values in Red" is on
   (`report/html-fonts.scm:116-119`).
@@ -1424,6 +1438,7 @@ drops it and needs nothing from budgets.
 | Amounts past 64 bits | Fail at `gnc_scm_to_numeric`: an empty cell or an error (`5.17:bindings/guile/gnc-engine-guile.cpp:1709-1727`) | Exact, printed | Figures within 64 bits are the same |
 | Floating point (day fractions, pie percentages, chart values) | Doubles | Exact, rounded as GnuCash displays | No floats anywhere in red-ale |
 | Bad option values | Logged and ignored | `report-option` error | A typo never runs a different report |
+| A script's `set-default-value` or `make-internal` on an option that does not exist | Ignored (`5.17:bindings/guile/gnc-optiondb.i:1500-1503`; `5.17:libgnucash/engine/gnc-optiondb.cpp:266-272`); the General Ledger and Reconciliation Report rely on it | `report-script` error; the translations leave those calls out | A misspelt name in a user script is found; the figures are the same |
 | A split query's description pattern that is not a regular expression | The criterion is dropped (`qof_query_string_predicate` returns null, `5.17:libgnucash/engine/qofquerycore.cpp:319-334`) | `report-script` error | A typo never matches every transaction |
 | A split query's regular expressions and case folding | POSIX extended expressions; `g_utf8_casefold` | Rust `regex`; lowercase, as `transaction.find` | Same results for patterns both dialects read alike |
 | A split query sorted with no first key (the Transaction Report's Primary Key "None") | Not sorted: hash order (`5.17:libgnucash/engine/qofquery.cpp:492-497`, `:792-797`) | Split order | Determinism; GnuCash's order is undefined |
@@ -1438,7 +1453,7 @@ drops it and needs nothing from budgets.
 | Drill-down links | Report instances made at render time | Described in the result; no `href` in HTML | Clients run them with `report.run` |
 | Document links (v0.5) | A `gnc-register:` link naming the transaction or invoice, opened by GnuCash (`report/html-utilities.scm:96-100`) | The document's URI in the result; text only in HTML | An exported page never points at a user's files |
 | Title of the account pie charts | None: the document keeps its empty title (`report/html-document.scm:131`); the chart's title and the warnings' heading name the report | The report name, with its averaging suffix | A result has a title, and its warning blocks leave out the heading that names the report |
-| Average Balance and Price Scatterplot titles, and the budget reports' warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`, `standard/budget-balance-sheet.scm:361-371`, `standard/budget-income-statement.scm:384-410`, `standard/budget-flow.scm:270-281`, `standard/budget-barchart.scm:289-298`; the Budget Chart's charts, `:313-316`) | Titled with the "Report name" option (the budget reports' warnings: with the name the warning gives) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
+| Average Balance and Price Scatterplot titles, and the budget reports' and the Transaction Report engine's warnings | Untitled documents (`example/average-balance.scm:291`, `standard/price-scatter.scm:146`, `standard/budget.scm:661-671`, `standard/budget-balance-sheet.scm:361-371`, `standard/budget-income-statement.scm:384-410`, `standard/budget-flow.scm:270-281`, `standard/budget-barchart.scm:289-298`; the Budget Chart's charts, `:313-316`; `report/trep-engine.scm:2501-2531`, `:2596-2605`) | Titled with the "Report name" option (the budget reports' warnings: with the name the warning gives) | red-ale's warnings leave out the report-name heading GnuCash gives them; the title names the report |
 | Unordered sets (`gnc-accounts-and-all-descendants`, the Securities pie) | Hash order | A fixed order | Determinism; no figure changes |
 | Name sorting | Locale collation | Bytewise | As v0.1 |
 | Date interval in titles under the `locale` format and the C locale | ICU's interval form for en_US_POSIX (`1/1/2026 – 12/31/2026`) | `<from> to <to>` | Output under C stays as it was before Locales |
