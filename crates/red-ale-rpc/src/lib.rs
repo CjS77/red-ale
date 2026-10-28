@@ -17,4 +17,4 @@ pub use dispatch::{Context, Dispatcher, Effect, Method, Origin, Target, method};
 pub use error::{RpcError, codes};
 
 /// The version of the API's schema. Within a major version, changes are additive only.
-pub const API_VERSION: &str = "0.3.0";
+pub const API_VERSION: &str = "0.4.0";

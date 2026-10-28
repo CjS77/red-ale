@@ -15,8 +15,8 @@ or the `api.schema` method. This page gives the conventions; `api/` holds one pa
 
 ## Versioning
 
-`api.schema` reports `redAleApi` (`0.1.0` in v0.1, `0.2.0` in v0.2, `0.3.0` in v0.3). Within a major version the API changes only additively: new
-methods, new optional params, new result fields. A method, param, result field or error code, once released, keeps its
+`api.schema` reports `redAleApi` (`0.1.0` in v0.1, `0.2.0` in v0.2, `0.3.0` in v0.3, `0.4.0` in v0.4). Within a
+major version the API changes only additively: new methods, new optional params, new result fields. A method, param, result field or error code, once released, keeps its
 name and meaning.
 
 From 0.2 on, a test holds each later 0.x version to this until v1.0 freezes the API
