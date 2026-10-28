@@ -171,7 +171,11 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 3. **Multicolumn reports** (`view-column.scm`) embed other reports. A Multicolumn report's options name its child
    reports by saved configuration GUID, or by template GUID with options; each child is rendered by the engine and
    laid out in the grid GnuCash uses. A child that no longer exists renders a warning in its cell, as a deleted budget
-   does. Its research note settles whether `report.run` needs a new param (an API addition).
+   does. Settled by [`notes/report-statements-charts.md`](notes/report-statements-charts.md) §8.4: `report.run`
+   takes no new param. Children are a new option type, `reportPlacement` (GnuCash's `__general`/`report-list`), an
+   array of `{report, options?, colspan, rowspan}` in the existing `options` param; the host runs each child into a
+   new `grid` block. Views nest to depth 4, at most 100 child runs per run under one deadline; a cycle or a limit
+   renders a warning in its cell. The note's open questions are followed as proposed.
 4. **The Transaction Report engine** is a library module (`lib/trep-engine.rhai`) with its options, sorting,
    subtotals and the split filter, and the four reports on it are thin scripts, as GnuCash's are. The split query
    reuses `book.split_query` and grows only what the engine's filters need (`transaction.find`'s criteria).
