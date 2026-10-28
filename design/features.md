@@ -254,7 +254,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | Balance Sheet                     | Assets, liabilities and equity at a date           |    1.6     |  0.2   |
 |   ✅   | Income Statement                  | Income and expense over a period (profit and loss) |    1.6     |  0.2   |
 |        | Multicolumn Balance Sheet and P&L | Balance sheet and P&L across several periods       |    3.6     |        |
-|        | Trial Balance                     | Debit and credit balances of every account         |    2.0     |        |
+|   ✅   | Trial Balance                     | Debit and credit balances of every account         |    2.0     |  0.5   |
 |        | Cash Flow                         | Money into and out of chosen accounts              |    1.8     |        |
 |   ✅   | Equity Statement                  | Changes in equity over a period                    |    2.0     |  0.5   |
 |        | General Journal                   | Every transaction in date order                    |    2.0     |        |
