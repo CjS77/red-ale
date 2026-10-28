@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use red_ale_core::formula::NumberFormat;
 use red_ale_core::{Book, FixedEnv, Time64, TimeZone};
 
 use super::log::Log;
@@ -12,7 +13,7 @@ use crate::query::Snapshot;
 /// handle, as Rhai requires, never of the Book.
 #[test]
 fn no_script_function_hands_out_the_book() {
-    let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0), TimeZone::utc());
+    let snap = Snapshot::new(&Book::new_empty(&mut FixedEnv::new(Time64(0), 0)), Time64(0), TimeZone::utc(), NumberFormat::default());
     let sources = Arc::new(std::collections::BTreeMap::default());
     let conventions = red_ale_locale::Locale::c().conventions();
     let e = engine(&Setup {

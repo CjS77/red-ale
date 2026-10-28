@@ -6,8 +6,9 @@ use std::sync::Arc;
 
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd, book_fiscal_year_end, period_bounds};
 use red_ale_core::time::PeriodBounds;
+use red_ale_core::formula::NumberFormat;
 use red_ale_core::{Book, Guid, Time64, TimeZone};
-use red_ale_locale::Locale;
+use red_ale_locale::{Conventions, Locale};
 use rhai::{AST, Dynamic, Engine};
 use serde_json::Value;
 
@@ -95,12 +96,23 @@ impl Registry {
     }
 }
 
+/// The monetary decimal point and group separator GnuCash's expression parser reads numbers in, with
+/// `gnc_localeconv`'s defaults (`5.17:libgnucash/app-utils/gnc-exp-parser.c:362-381`): what a scheduled transaction's
+/// formulas are read in when a report asks for the cash flow.
+fn formula_format(conv: &Conventions) -> NumberFormat {
+    let first = |s: &str, default: char| s.chars().next().unwrap_or(default);
+    NumberFormat {
+        decimal_point: first(conv.mon_decimal_point, '.'),
+        group_separator: first(conv.mon_thousands_sep, ','),
+    }
+}
+
 impl<'r> Run<'r> {
     fn start(registry: &'r Registry, template: &'r TemplateInfo, ctx: &RunContext<'_>) -> Result<Self, ReportError> {
         let limits = registry.limits();
-        let snap = Snapshot::new(ctx.book, ctx.now, ctx.zone.clone());
-        let log = Log::new(limits.get_usize(Limit::StringSize));
         let conventions = ctx.locale.conventions();
+        let snap = Snapshot::new(ctx.book, ctx.now, ctx.zone.clone(), formula_format(&conventions));
+        let log = Log::new(limits.get_usize(Limit::StringSize));
         let engine = engine(&Setup {
             snap: Rc::clone(&snap),
             sources: Arc::clone(registry.sources()),

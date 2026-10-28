@@ -384,6 +384,7 @@ comes back in hash order.
 | `book.commodity_splits(accounts, until, commodity, sorted)` | Split[] | | `gnc-get-match-commodity-splits`: non-void splits of `accounts` up to `until` (inclusive) whose transaction currency differs from their account's commodity and, unless `commodity` is `()`, one of the two is `commodity` (`5.17:bindings/engine.i:167-193`). Unsorted, account after account, each in split order (`get-exchange-totals` relies on it, CU:447); `sorted`, all in split order. Callers pass the root's sorted descendants (CU:203-205) or those holding shares (`standard/price-scatter.scm:147-149`) |
 | `book.split_query(q)` | Split[] in split order | `transaction.find` | the split query of `gnc:account-get-trans-type-splits-interval` (`report/report-utilities.scm:692-725`), which the Average Balance report also runs (`example/average-balance.scm:300-345`): `q` is `#{ accounts, from, to, description: #{ text, cased, regexp }, closing }`; void splits never match (both GnuCash queries leave them out); `description` and `closing` are OR'ed, as there |
 | `is_euro_currency(c)`, `euro_convert(m, currency)` | bool, Monetary or `()` | `currency.euroConvert` | `gnc-is-euro-currency`, `gnc-convert-to-euro`/`-from-euro` (`5.17:libgnucash/engine/gnc-euro.cpp:31-106`); `()` unless both are euro currencies, as `gnc:exchange-by-euro` (`report/commodity-utilities.scm:635-644`). `c` may be a currency the Book does not hold |
+| `book.sx_cashflow(from, to)` (v0.4) | map of account GUID → Rational | | `gnc-sx-all-instantiate-cashflow-all` (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1968-1976`): what every enabled scheduled transaction adds to each account from the local date of `from` to that of `to`, both inclusive (`gnc_time64_to_GDate`, `5.17:bindings/guile/expressions.i:27-32`), in the account's commodity, debits positive, computed from the model without creating anything ([`notes/engine-budgets.md`](notes/engine-budgets.md) §4.10). Occurrences count on from the last one, which is not counted again; Deferred instances play no part; formulas are read in the Locale's monetary separators with every variable 0, and what fails counts as 0. An account that no counted template split names is absent; one whose sums cancel is 0 |
 
 `mode` is `"nearest"`, `"before"` or `"latest"`; `when` is a Time64. `"latest"` keeps GnuCash's split behaviour:
 the direct lookup takes the newest price even if it is in the future, the indirect one the newest at or before now
@@ -440,10 +441,10 @@ Periods count from 0; every read takes any period, past the count too, as GnuCas
 
 `a` is an Account or its GUID or full name, as elsewhere.
 
-**Still to come**: `book.sx_cashflow(from, to)` (GUID → Rational, `gnc-sx-all-instantiate-cashflow-all`,
-[`notes/engine-budgets.md`](notes/engine-budgets.md) §4.10) for the Future Scheduled Transactions Summary and the
-Balance Forecast goes beside the Book's reads in `query/book.rs` once core has the cash flow; those reports pass it
-to the account table through `get_balance_fn`, as `standard/account-summary.scm:327-336` does.
+The Future Scheduled Transactions Summary and the Balance Forecast read `book.sx_cashflow`; the summary passes it to
+the account table through `get_balance_fn`, as `standard/account-summary.scm:327-336` does. GnuCash's GUI may give a
+formula's variable a value its calculator kept (§4.10 step 4 of the note); red-ale reads every variable as 0, as
+GnuCash does with no such value.
 
 ### Core reads behind the query API
 
@@ -481,6 +482,7 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | `book.default_budget()` | `ops::budgets::default_budget` | new (v0.4) |
 | `b.period_start_date(p)`, `b.period_end_date(p)` | `ops::budgets::period_times` | new (v0.4) |
 | `b.account_period_actual_value(a, p)` | `ops::budgets::actual` | new (v0.4) |
+| `book.sx_cashflow(from, to)` | `ops::scheduled::cash_flow` over `TimeZone::local_date` of each time | new (v0.4) |
 
 Core also has the reads `lib/balances` and clients may want beyond these: `balances_at_dates`
 (`gnc:account-get-balances-at-dates`, the sum of amounts at or before each time, which counts the stock splits the
