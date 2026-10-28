@@ -170,12 +170,12 @@ the reason.
 
 | Status | Feature                     | Notes                                                                                                     |
 |:------:|-----------------------------|-----------------------------------------------------------------------------------------------------------|
-|        | Scheduled transactions      | In the core model, with their template accounts and template transactions; `scheduledTransaction.*`       |
-|        | Recurrence rules            | Every period type, multiplier and weekend adjustment, with next occurrences as GnuCash computes them      |
-|        | Formulas and variables      | Template split amounts as formulas over variables, evaluated exactly                                      |
-|        | Since Last Run              | Two calls, as import: a proposal of due instances, then apply                                             |
-|        | Schedule from transaction   | A scheduled transaction made from an existing Transaction                                                 |
-|        | Mortgage and loan assistant | One operation that builds a loan's repayment schedule, as the stock split assistant became `stock.split` |
+|   ✅   | Scheduled transactions      | In the core model, with their template accounts and template transactions; `scheduledTransaction.*`       |
+|   ✅   | Recurrence rules            | Every period type, multiplier and weekend adjustment, with next occurrences as GnuCash computes them      |
+|   ✅   | Formulas and variables      | Template split amounts as formulas over variables, evaluated exactly                                      |
+|   ✅   | Since Last Run              | Two calls, as import: a proposal of due instances, then apply                                             |
+|   ✅   | Schedule from transaction   | A scheduled transaction made from an existing Transaction                                                 |
+|   ✅   | Mortgage and loan assistant | One operation that builds a loan's repayment schedule, as the stock split assistant became `stock.split` |
 
 What GnuCash does is in [`notes/engine-scheduled-transactions.md`](notes/engine-scheduled-transactions.md); its §10
 lists the implications this section adopts.

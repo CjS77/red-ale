@@ -866,8 +866,10 @@ Written only if the template root has ≥ 1 descendant (`5.17:libgnucash/backend
 `<gnc:template-transactions>\n` (fprintf), the template root and its descendants as `<gnc:account>`s (same rules as
 §6.4/§7.3), the template transactions as `<gnc:transaction>`s (walk §7.4 from the template root), then
 `</gnc:template-transactions>\n`. Conventional content (from the fixture and GnuCash's own test file): template root
-named `Template Root`, type `ROOT`, commodity `template:template`, SCU 1, `<act:non-standard-scu/>`, no parent; one
-child per SX named by the SX GUID, type `BANK`, same commodity; each template split has value `0/<fraction>`, quantity
+named `Template Root`, type `ROOT`, commodity `template:template`, SCU 1, `<act:non-standard-scu/>`, no parent (a
+template root 5.17 made itself, in a book whose file had none, is written with no `act:commodity`, as the oracle
+shows: `sxtg_book_begin` sets none, `5.17:libgnucash/engine/SX-book.cpp:113-125`; the reader gives it
+`template:template`, below); one child per SX named by the SX GUID, type `BANK`, same commodity; each template split has value `0/<fraction>`, quantity
 `0/1`, the template account, and a `sched-xaction` frame slot with keys `account` (guid), `credit-formula`
 (string), `credit-numeric` (numeric), `debit-formula` (string), `debit-numeric` (numeric).
 
