@@ -13,10 +13,16 @@ Milestone 5 ([`design/milestone5.md`](design/milestone5.md)), in progress.
 - `red-ale setup` registers red-ale's MCP server (`red-ale mcp`, with this binary's absolute path) with the agent
   harnesses installed on the machine, and `red-ale setup --remove` takes it out again
   ([`design/setup.md`](design/setup.md)). It shows its plan and asks before changing anything (`--yes` to skip the
-  question, `--dry-run` to see each file's exact change); `--list` shows what is installed and set up. This release
-  edits the configs of opencode, Claude Desktop, Cursor, VS Code, Antigravity, Devin and Zed. Only the `red-ale`
-  entry changes: comments, other servers and settings are kept, the file is backed up first and replaced
-  atomically, and a file that doesn't parse is left alone. Claude Desktop is changed only while it isn't running.
+  question, `--dry-run` to see each file's exact change); `--list` shows what is installed and set up.
+  - Claude Code, Codex, GitHub Copilot CLI, Gemini CLI and Devin (when `devin` is on `PATH`) are set up through
+    their own `mcp add` and `mcp remove` commands.
+  - opencode, Claude Desktop, Cursor, VS Code, Antigravity, Devin (otherwise) and Zed have their config files
+    edited. Only the `red-ale` entry changes: comments, other servers, settings and layout are kept, the file is
+    backed up first and replaced atomically, and a file that doesn't parse is left alone. Claude Desktop is
+    changed only while it isn't running.
+- `install.sh`, attached to each release, installs red-ale at `~/.local/bin/red-ale` after checking the archive's
+  SHA-256, then runs `red-ale setup`:
+  `curl -fsSL https://github.com/CjS77/red-ale/releases/latest/download/install.sh | sh`.
 
 ### Changed
 

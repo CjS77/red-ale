@@ -103,9 +103,9 @@ proposed for v0.5 because the release workflow is written and `setup` is approve
 
 | Status | Item             | Notes                                                                                                                                                                                                                                               |
 |:------:|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | Release binaries | `.github/workflows/release.yml`: four targets (x86_64 and aarch64 for Linux musl and macOS), archives with SHA-256 files and build provenance, on a `vX.Y.Z` tag matching the workspace version; a manual run builds without releasing. Windows is deferred ("Out") |
-|        | `red-ale setup`  | [`setup.md`](setup.md) (approved): registers `red-ale mcp` with the eleven first-release harnesses, research in [`notes/mcp-harnesses.md`](notes/mcp-harnesses.md)                                                                                  |
-|        | Install script | `install.sh`, attached to each release: download the archive for the machine, check its SHA-256, install the binary at a fixed path, run `red-ale setup` ([`setup.md`](setup.md), "Installation")                                 |
+|        | Release binaries | `.github/workflows/release.yml`: four targets (x86_64 and aarch64 for Linux musl and macOS), archives with SHA-256 files and build provenance, on a `vX.Y.Z` tag matching the workspace version; a manual run builds without releasing. Windows is deferred ("Out"). The workflow is in place and also checks and attaches `install.sh`; pushing the first tag, and checking its assets, is the maintainer's step |
+|   ✅   | `red-ale setup`  | [`setup.md`](setup.md) (approved): registers `red-ale mcp` with the eleven first-release harnesses, research in [`notes/mcp-harnesses.md`](notes/mcp-harnesses.md). Crate `red-ale-setup`: file adapters for opencode, Claude Desktop, Cursor, VS Code, Antigravity, Devin and Zed; CLI adapters for Claude Code, Codex, Copilot CLI, Gemini and Devin (when `devin` is on `PATH`). Tests: golden files per adapter and sample (`crates/red-ale-setup/tests/adapters.rs`), fake CLIs that record their arguments (`tests/cli.rs`), the command line (`crates/red-ale/tests/setup.rs`). The manual smoke test per harness is still to run before the release |
+|   ✅   | Install script | `install.sh`, attached to each release: download the archive for the machine, check its SHA-256, install the binary at a fixed path, run `red-ale setup` ([`setup.md`](setup.md), "Installation"). Tested against a fake release served from `file://` (`crates/red-ale/tests/install.rs`): install, `--no-setup`, arguments after `--`, a checksum that doesn't match |
 |        | Version          | The workspace version is still `0.2.0`; the first release sets it to the milestone being released                                                                                                                                                   |
 
 ## Carried forward from v0.4
@@ -206,4 +206,6 @@ Followed as written until the research note named settles them.
 
 ## Follow-ups
 
-None yet.
+| Status | Follow-up | Notes |
+|:------:|-----------|-------|
+|        | `setup --remove` and an empty servers object | Removing the red-ale entry also removes the servers object (`mcpServers`, `servers`, …) when that leaves it empty, so removing what `setup` added gives back the original. A file that already had an empty `"mcpServers": {}` loses that key. Harmless to every Harness known, but not byte-exact |
