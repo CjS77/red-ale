@@ -3,8 +3,8 @@
 //! from 2024-08-01 adjusted back off weekends, last occurrence 2024-09-01, Instance count 2, a Deferred instance saved
 //! at 2024-09-01, 5 days to remind, ending 2025-07-01, 456.00 from Checking to Food.
 //!
-//! An SQLite book's refusal of `postponed` is not tested here: no Backend opens SQLite books yet, so no Session has
-//! the format. `red_ale_core::ops::scheduled::apply`'s own tests cover the refusal with `can_postpone: false`.
+//! The rich fixture's SQLite copy has the same rent without its Deferred instance, which GnuCash's SQL backend drops
+//! (`design/sql-fidelity.md` §8); postponing an instance there is refused.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::needless_pass_by_value)]
 
@@ -275,4 +275,25 @@ fn a_read_only_book_proposes_but_never_applies() {
     let p = b.propose();
     assert_eq!(p["summary"]["toCreate"], 2);
     assert_eq!(b.apply(&p, json!([])).unwrap_err().code, codes::READ_ONLY);
+}
+
+/// An SQLite book has no place for postponed instances, so choosing one is refused and nothing changes; creating
+/// and ignoring still apply (`design/sql-fidelity.md` §8; the engine's `can_postpone`).
+#[test]
+fn an_sqlite_book_refuses_postponing_an_instance() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("book.gnucash");
+    std::fs::copy(format!("{}/../../fixtures/sqlite/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR")), &path).unwrap();
+    let mut d = Dispatcher::new(Settings::default());
+    d.set_env_factory(Box::new(|| Box::new(FixedEnv::new(Time64(NOV_28), 0x5c << 100))));
+    let info = d.call("book.open", json!({ "path": path.display().to_string() })).unwrap();
+    assert_eq!(json!([info["format"], info["readOnly"]]), json!(["sqlite", false]));
+    let p = d.call("scheduledTransaction.sinceLastRun", json!({})).unwrap();
+    assert!(instances(&p).iter().all(|i| i[1] != "postponed"), "the SQLite copy holds no Deferred instance");
+    let choose = |state: &str| json!({ "proposal": p["id"], "choices": [{ "index": 0, "state": state }] });
+    let err = d.call("scheduledTransaction.apply", choose("postponed")).unwrap_err();
+    assert_eq!(reason(&err), (codes::INVALID, json!("sql-deferred-instances")));
+    assert_eq!(d.call("book.info", json!({})).unwrap()["dirty"], false);
+    d.call("scheduledTransaction.apply", choose("ignored")).unwrap();
+    d.call("book.save", json!({})).unwrap();
 }

@@ -1938,6 +1938,8 @@ dependencies = [
  "red-ale-locale",
  "red-ale-sql",
  "red-ale-xml",
+ "rusqlite",
+ "rustix",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",

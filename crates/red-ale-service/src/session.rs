@@ -65,9 +65,6 @@ pub enum ReadOnlyReason {
     UnrecognisedContent(Vec<String>),
     /// An SQL book's `versions` rows are not GnuCash 5.17's; red-ale never upgrades a schema.
     SchemaVersions(Vec<String>),
-    /// The book was opened for writing, but red-ale cannot write its format yet (SQLite books, until saving them
-    /// lands).
-    WritingNotSupported,
 }
 
 impl ReadOnlyReason {
@@ -78,7 +75,6 @@ impl ReadOnlyReason {
             Self::UnsupportedFeatures(_) => "unsupported-features",
             Self::UnrecognisedContent(_) => "unrecognised-content",
             Self::SchemaVersions(_) => "schema-version",
-            Self::WritingNotSupported => "writing-not-supported",
         }
     }
 }
@@ -90,7 +86,6 @@ impl fmt::Display for ReadOnlyReason {
             Self::UnsupportedFeatures(list) => write!(f, "the book uses features red-ale v0.1 does not support: {}", list.join("; ")),
             Self::UnrecognisedContent(list) => write!(f, "the book contains data red-ale cannot edit safely: {}", list.join("; ")),
             Self::SchemaVersions(list) => write!(f, "the book's schema is not GnuCash 5.17's: {}", list.join("; ")),
-            Self::WritingNotSupported => write!(f, "writing SQLite books is not yet supported"),
         }
     }
 }
@@ -227,14 +222,19 @@ impl Session {
         Ok(Self::from_opened(opened, settings, Box::new(SystemEnv)))
     }
 
-    /// Create a new, empty book file, taking its lock. Fails if the file exists.
+    /// Create a new, empty book file, taking its lock. Fails if the file exists. The format is the one an `xml://` or
+    /// `sqlite3://` URI names, else XML.
     pub fn create(spec: &str, settings: Settings) -> Result<Self, ServiceError> {
+        Self::create_as(spec, Format::of_scheme(spec).unwrap_or(Format::Xml), settings)
+    }
+
+    /// [`Session::create`] in `format`.
+    pub fn create_as(spec: &str, format: Format, settings: Settings) -> Result<Self, ServiceError> {
         let path = resolve_path(spec)?;
         if path.exists() {
             return Err(ServiceError::Exists { path });
         }
         let mut env = SystemEnv;
-        let format = Format::of_scheme(spec).unwrap_or(Format::Xml);
         let opened = backend::create(&path, format, &settings, &mut env)?;
         let mut session = Self::from_opened(opened, settings, Box::new(env));
         session.dirty = true;
@@ -293,6 +293,11 @@ impl Session {
     /// XML only: whether the file is gzip-compressed.
     pub fn compressed(&self) -> Option<bool> {
         self.backend.compressed()
+    }
+
+    /// SQLite only: the `versions` rows as read.
+    pub fn versions(&self) -> Option<&[(String, i64)]> {
+        self.backend.versions()
     }
 
     /// Why the session is read-only; empty when it is writable.
@@ -558,6 +563,10 @@ mod tests {
         }
 
         fn xml_residue(&self) -> Option<&XmlResidue> {
+            None
+        }
+
+        fn versions(&self) -> Option<&[(String, i64)]> {
             None
         }
     }

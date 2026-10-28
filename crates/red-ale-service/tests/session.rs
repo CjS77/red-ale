@@ -61,30 +61,147 @@ fn listing(dir: &Path) -> Vec<String> {
 }
 
 #[test]
-fn sqlite_books_open_read_only_and_are_never_written() {
+fn a_read_only_sqlite_session_never_writes() {
     let dir = tempfile::tempdir().unwrap();
     let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
     let before = std::fs::read(&path).unwrap();
+    let mut reader = Session::open(&format!("sqlite3://{}", path.display()), true, Settings::default()).unwrap();
+    assert_eq!(reader.read_only_reasons(), [ReadOnlyReason::Requested]);
+    assert!(matches!(reader.save(None), Err(ServiceError::ReadOnly { .. })));
+    reader.close(true).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert_eq!(listing(dir.path()), ["book.gnucash"]);
+}
+
+fn gnclock(path: &Path) -> i64 {
+    let conn = rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    conn.query_row("SELECT count(*) FROM gnclock", [], |r| r.get(0)).unwrap()
+}
+
+fn describe_first(session: &mut Session, text: &str) {
+    session
+        .mutate(|book, _| {
+            let t = book.transactions.values_mut().next().unwrap();
+            Arc::make_mut(t).description = Some(text.into());
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn an_sqlite_session_journals_backs_up_once_and_saves() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
     let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
     assert_eq!(session.format(), red_ale_service::backend::Format::Sqlite);
-    assert_eq!(session.read_only_reasons(), [ReadOnlyReason::WritingNotSupported]);
-    assert_eq!(session.read_only_reasons()[0].code(), "writing-not-supported");
-    assert!(!session.book().accounts.is_empty());
-    let err = session.mutate(|book, _| {
-        book.slots = red_ale_core::Frame::new();
-        Ok(())
-    });
-    assert!(matches!(err, Err(ServiceError::ReadOnly { ref reason }) if reason.contains("not yet supported")), "{err:?}");
-    assert!(matches!(session.save(None), Err(ServiceError::ReadOnly { .. })));
-    session.close(true).unwrap();
-    assert_eq!(std::fs::read(&path).unwrap(), before);
-    assert_eq!(listing(dir.path()), ["book.gnucash"]);
+    assert!(!session.is_read_only());
+    assert_eq!(gnclock(&path), 1);
+    let report = session.save(None).unwrap();
+    assert_eq!(report.backup, None, "a save with nothing to write makes no backup");
+    describe_first(&mut session, "First");
+    let journal = session.journal_path().unwrap().to_owned();
+    assert!(journal.display().to_string().starts_with(&format!("{}.", path.display())), "{}", journal.display());
+    assert!(std::fs::read_to_string(&journal).unwrap().contains("First"));
+    let backup = session.save(None).unwrap().backup.unwrap();
+    assert!(backup.display().to_string().ends_with(".gnucash") && backup != path, "{}", backup.display());
+    describe_first(&mut session, "Second");
+    assert_eq!(session.save(None).unwrap().backup, None, "one backup per session");
+    session.close(false).unwrap();
+    assert_eq!(gnclock(&path), 0);
+    assert_eq!(gnclock(&backup), 0, "the backup holds no lock row");
 
-    let reader = Session::open(&format!("sqlite3://{}", path.display()), true, Settings::default()).unwrap();
-    assert_eq!(reader.read_only_reasons(), [ReadOnlyReason::Requested]);
-    drop(reader);
-    assert_eq!(std::fs::read(&path).unwrap(), before);
-    assert_eq!(listing(dir.path()), ["book.gnucash"]);
+    let read = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap();
+    assert_eq!(read.book().transactions[0].description.as_deref(), Some("Second"));
+    let old = Session::open(backup.to_str().unwrap(), true, Settings::default()).unwrap();
+    assert_ne!(old.book().transactions[0].description.as_deref(), Some("First"));
+    let names = listing(dir.path());
+    assert!(names.iter().any(|n| Path::new(n).extension().is_some_and(|e| e == "log")), "{names:?}");
+}
+
+fn has_iso_dates(path: &Path) -> bool {
+    let session = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap();
+    red_ale_core::book_options::features(session.book()).iter().any(|(name, _)| name.starts_with("ISO-8601 formatted date strings"))
+}
+
+/// The ISO-dates Book feature is set by the first save that writes, never on open (`design/sql-fidelity.md` §4).
+#[test]
+fn the_first_save_sets_the_iso_dates_feature() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    conn.execute_batch("DELETE FROM slots WHERE name = 'features' OR name LIKE 'features/%'").unwrap();
+    drop(conn);
+    assert!(!has_iso_dates(&path));
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    session.save(None).unwrap();
+    session.close(false).unwrap();
+    assert!(!has_iso_dates(&path), "an open and a save with nothing to write set nothing");
+
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    describe_first(&mut session, "First");
+    session.save(None).unwrap();
+    session.close(false).unwrap();
+    assert!(has_iso_dates(&path));
+}
+
+/// An SQLite session's journal replays into the next session, as an XML book's does (`design/sql-fidelity.md` §6).
+#[test]
+fn an_sqlite_book_s_journal_replays() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/gnucash/sample1.gnucash");
+    let mut lost = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    describe_first(&mut lost, "Journaled");
+    let journal = lost.journal_path().unwrap().to_owned();
+    drop(lost);
+
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    assert_ne!(session.book().transactions[0].description.as_deref(), Some("Journaled"));
+    let report = session.replay_journal(&journal, false).unwrap();
+    assert_eq!(report.updated.len(), 1, "{report:?}");
+    session.save(None).unwrap();
+    session.close(false).unwrap();
+    let read = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap();
+    assert_eq!(read.book().transactions[0].description.as_deref(), Some("Journaled"));
+}
+
+/// Retention treats an SQLite book's backups as an XML book's: by name and age (`design/sql-fidelity.md` §6).
+#[test]
+fn retention_removes_an_sqlite_book_s_backups() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
+    let settings = Settings { retention: red_ale_service::files::Retention::Never, ..Settings::default() };
+    let mut session = Session::open(path.to_str().unwrap(), false, settings).unwrap();
+    describe_first(&mut session, "First");
+    let report = session.save(None).unwrap();
+    let backup = report.backup.clone().unwrap();
+    assert!(report.removed.contains(&backup), "{report:?}");
+    assert!(!backup.exists());
+    session.close(false).unwrap();
+}
+
+#[test]
+fn dropping_an_sqlite_session_releases_its_lock() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
+    let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    let err = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap_err();
+    assert!(matches!(&err, ServiceError::SqlLocked { pid, .. } if *pid == i64::from(std::process::id())), "{err}");
+    drop(session);
+    assert_eq!(gnclock(&path), 0);
+}
+
+#[test]
+fn a_new_sqlite_book_is_created_whole_and_locked() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("new.gnucash");
+    let session = Session::create(&format!("sqlite3://{}", path.display()), Settings::default()).unwrap();
+    assert_eq!(session.format(), red_ale_service::backend::Format::Sqlite);
+    assert_eq!(gnclock(&path), 1);
+    session.close(false).unwrap();
+    assert_eq!(gnclock(&path), 0);
+    assert_eq!(listing(dir.path()), ["new.gnucash"]);
+    let reopened = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    assert!(!reopened.is_read_only(), "{:?}", reopened.read_only_reasons());
 }
 
 #[test]
@@ -98,8 +215,9 @@ fn an_sqlite_book_with_another_schema_version_says_so() {
         _ => None,
     });
     assert!(versions.unwrap().iter().any(|v| v.starts_with("splits is version 4")), "{reasons:?}");
-    assert_eq!(reasons.last(), Some(&ReadOnlyReason::WritingNotSupported));
     assert!(reasons.iter().any(|r| r.code() == "schema-version"));
+    drop(session);
+    assert_eq!(gnclock(&path), 0, "a book that opens read-only takes no lock");
 }
 
 #[test]
@@ -116,17 +234,12 @@ fn a_scheme_the_file_contradicts_is_refused() {
 }
 
 #[test]
-fn database_server_books_and_new_sqlite_books_are_refused_before_anything_happens() {
+fn database_server_books_are_refused_before_anything_happens() {
     let err = Session::open("postgres://user@host/db", false, Settings::default()).unwrap_err();
     assert!(matches!(err, ServiceError::SqlBook { .. }), "{err}");
     assert!(err.to_string().contains("v0.7"), "{err}");
     let err = Session::open("mysql://user@host/db", false, Settings::default()).unwrap_err();
     assert!(matches!(err, ServiceError::SqlBook { .. }), "{err}");
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("new.gnucash");
-    let err = Session::create(&format!("sqlite3://{}", path.display()), Settings::default()).unwrap_err();
-    assert!(matches!(err, ServiceError::SqliteCreate { .. }), "{err}");
-    assert!(listing(dir.path()).is_empty());
 }
 
 #[test]

@@ -333,10 +333,10 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |:------:|---------------------|-------------------------------------------------|:----------:|:------:|
 |   ✅   | XML file format     | The v2 XML book format                          |    1.6     |  0.1   |
 |   ✅   | Compressed XML      | Gzip-compressed XML books                       |    1.8     |  0.1   |
-|        | SQLite books        | Books stored in SQLite through libdbi           |    2.4     |        |
+|   ✅   | SQLite books        | Books stored in SQLite through libdbi           |    2.4     |  0.4   |
 |        | MySQL/MariaDB books | Books stored in MySQL or MariaDB through libdbi |    2.4     |        |
 |        | PostgreSQL books    | Books stored in PostgreSQL through libdbi       |    2.4     |        |
-|        | ISO dates in SQLite | ISO 8601 timestamps in SQLite books             |   2.6.20   |        |
+|   ✅   | ISO dates in SQLite | ISO 8601 timestamps in SQLite books             |   2.6.20   |  0.4   |
 
 ### Safety
 

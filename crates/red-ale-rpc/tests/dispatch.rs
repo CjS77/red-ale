@@ -116,15 +116,29 @@ fn refusals_have_stable_codes() {
 }
 
 #[test]
-fn sqlite_books_open_read_only_with_their_reasons() {
+fn sqlite_books_open_for_writing_locked_and_say_their_format() {
     let dir = tempfile::tempdir().unwrap();
     let path = copy(&dir, "sqlite/synthetic/rich.gnucash");
     let mut d = Dispatcher::new(Settings::default());
     let info = d.call("book.open", json!({ "path": format!("sqlite3://{path}") })).unwrap();
-    assert_eq!(info["readOnly"], true);
-    assert_eq!(info["readOnlyReasons"][0]["code"], "writing-not-supported");
-    assert_eq!(d.call("book.save", json!({})).unwrap_err().code, codes::READ_ONLY);
+    assert_eq!(json!([info["readOnly"], info["format"], info["compressed"]]), json!([false, "sqlite", false]));
+    assert_eq!(info["versions"][0], json!({ "table": "Gnucash", "version": 5_000_017 }));
+    assert_eq!(info["versions"].as_array().unwrap().len(), 24);
+    let err = d.call("book.save", json!({ "compressed": true })).unwrap_err();
+    assert_eq!(err.code, codes::INVALID_PARAMS);
+    let saved = d.call("book.save", json!({})).unwrap();
+    assert_eq!(json!([saved["backup"], saved["compressed"]]), json!([null, false]), "nothing to write makes no backup");
+
+    let mut other = Dispatcher::new(Settings::default());
+    let err = other.call("book.open", json!({ "path": path })).unwrap_err();
+    assert_eq!(err.code, codes::BOOK_LOCKED);
+    let data = err.data.unwrap();
+    assert_eq!(data["path"], json!(path));
+    assert_eq!(data["holder"]["pid"], json!(std::process::id()));
+    assert!(data["holder"]["hostname"].is_string());
     d.call("book.close", json!({})).unwrap();
+    other.call("book.open", json!({ "path": path })).unwrap();
+    other.call("book.close", json!({})).unwrap();
 
     let piecash = tempfile::tempdir().unwrap();
     let path = copy(&piecash, "piecash/simple_sample.sqlite.gnucash");
@@ -164,4 +178,31 @@ fn schema_lists_every_method_with_its_effect_target() {
         };
         assert_eq!(m["target"], expected, "{name}");
     });
+}
+
+#[test]
+fn book_create_makes_sqlite_books_when_asked() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("new.gnucash").display().to_string();
+    let mut d = Dispatcher::new(Settings::default());
+    let refused = [
+        json!({ "path": path, "format": "sqlite", "compressed": true }),
+        json!({ "path": format!("sqlite3://{path}"), "format": "xml" }),
+        json!({ "path": format!("xml://{path}"), "format": "sqlite" }),
+    ];
+    refused
+        .iter()
+        .for_each(|params| assert_eq!(d.call("book.create", params.clone()).unwrap_err().code, codes::INVALID_PARAMS, "{params}"));
+    assert!(!std::path::Path::new(&path).exists());
+    let info = d.call("book.create", json!({ "path": path, "format": "sqlite" })).unwrap();
+    assert_eq!(json!([info["format"], info["readOnly"], info["dirty"]]), json!(["sqlite", false, false]));
+    assert_eq!(info["features"][0]["name"], "ISO-8601 formatted date strings in SQLite3 databases.");
+    d.call("book.close", json!({})).unwrap();
+    assert_eq!(d.call("book.create", json!({ "path": path })).unwrap_err().code, codes::FILE_EXISTS);
+    let info = d.call("book.open", json!({ "path": path })).unwrap();
+    assert_eq!(json!([info["format"], info["readOnly"]]), json!(["sqlite", false]));
+    d.call("book.close", json!({})).unwrap();
+    let uri = dir.path().join("uri.gnucash").display().to_string();
+    let info = d.call("book.create", json!({ "path": format!("sqlite3://{uri}") })).unwrap();
+    assert_eq!(info["format"], "sqlite");
 }

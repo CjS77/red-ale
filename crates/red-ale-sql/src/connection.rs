@@ -60,6 +60,34 @@ fn configure(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Open an existing book for reading and writing, never creating it. SQLite rolls a hot journal back here, which
+/// restores the last committed state, as any GnuCash open would. A file SQLite can only open read-only (no write
+/// permission) is refused, since the lock could not be taken.
+pub(crate) fn open_read_write(path: &Path) -> Result<Connection, SqlError> {
+    check_header(path)?;
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = Connection::open_with_flags(path, flags).map_err(SqlError::from_write)?;
+    configure(&conn).map_err(SqlError::from_sqlite)?;
+    if conn.is_readonly(rusqlite::MAIN_DB).map_err(SqlError::from_sqlite)? {
+        return Err(SqlError::CannotWrite(format!("{} is not writable", path.display())));
+    }
+    Ok(conn)
+}
+
+/// The data version: SQLite changes it when another connection commits to the database
+/// (`PRAGMA data_version`), which is how a save finds that another program wrote the book.
+pub(crate) fn data_version(conn: &Connection) -> Result<i64, SqlError> {
+    conn.query_row("PRAGMA data_version", [], |r| r.get(0)).map_err(SqlError::from_sqlite)
+}
+
+/// Create a database file for a new book: it must not exist (`design/sql-fidelity.md` §7).
+pub(crate) fn create(path: &Path) -> Result<Connection, SqlError> {
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = Connection::open_with_flags(path, flags).map_err(SqlError::from_write)?;
+    configure(&conn).map_err(SqlError::from_sqlite)?;
+    Ok(conn)
+}
+
 /// Open the book read-only (`SQLITE_OPEN_READONLY`): nothing is written to the file or beside it.
 pub(crate) fn open_read_only(path: &Path) -> Result<Connection, SqlError> {
     check_header(path)?;

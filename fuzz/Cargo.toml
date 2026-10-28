@@ -114,3 +114,10 @@ path = "fuzz_targets/sql_rows.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "sql_file"
+path = "fuzz_targets/sql_file.rs"
+test = false
+doc = false
+bench = false

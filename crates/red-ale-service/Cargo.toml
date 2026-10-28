@@ -16,10 +16,12 @@ chrono.workspace = true
 encoding_rs.workspace = true
 getrandom.workspace = true
 red-ale-import.workspace = true
+rustix.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+rusqlite.workspace = true
 tempfile.workspace = true
 
 [lints]

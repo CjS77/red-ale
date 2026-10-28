@@ -46,11 +46,24 @@ pub enum ServiceError {
         /// The URI.
         path: String,
     },
-    /// A new book was asked for as SQLite, which red-ale cannot write yet.
-    #[error("cannot create {path}: writing SQLite books is not yet supported; create an XML book")]
-    SqliteCreate {
-        /// The book that was not created.
+    /// Another program holds an SQLite book's lock: its `gnclock` row (`design/sql-fidelity.md` §5).
+    #[error("{path} is locked by {hostname} (process {pid}); close it there first")]
+    SqlLocked {
+        /// The book.
         path: PathBuf,
+        /// The holder's host name.
+        hostname: String,
+        /// The holder's process ID.
+        pid: i64,
+    },
+    /// Another program wrote the SQLite book or broke its lock since red-ale opened or last saved it; nothing was
+    /// written.
+    #[error("save refused: {detail}; nothing was written. Close the book and open it again to see the other program's changes")]
+    BookChanged {
+        /// The book.
+        path: PathBuf,
+        /// What was found.
+        detail: String,
     },
     /// An `xml://` or `sqlite3://` URI names a file of the other format.
     #[error("{path} is an {} book, not an {} book as its URI says", found.name(), declared.name())]
