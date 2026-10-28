@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 red-ale-core.workspace = true
 red-ale-locale.workspace = true
+red-ale-sql.workspace = true
 red-ale-xml.workspace = true
 chrono.workspace = true
 encoding_rs.workspace = true

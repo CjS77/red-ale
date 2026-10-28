@@ -71,13 +71,11 @@ fn open_info_save_close() {
 fn refusals_have_stable_codes() {
     let dir = tempfile::tempdir().unwrap();
     let mut d = Dispatcher::new(Settings::default());
-    let sqlite = copy(&dir, "piecash/simple_sample.sqlite.gnucash");
-    assert_eq!(d.call("book.open", json!({ "path": sqlite })).unwrap_err().code, codes::SQL_BOOK);
+    assert_eq!(d.call("book.open", json!({ "path": "postgres://user@host/db" })).unwrap_err().code, codes::SQL_BOOK);
+    let xml = copy(&dir, "synthetic/rich.gnucash");
     assert_eq!(
-        d.call("book.open", json!({ "path": format!("sqlite3://{sqlite}") }))
-            .unwrap_err()
-            .code,
-        codes::SQL_BOOK
+        d.call("book.open", json!({ "path": format!("sqlite3://{xml}") })).unwrap_err().code,
+        codes::FILE_FORMAT
     );
     assert_eq!(
         d.call("book.open", json!({ "path": "https://example.com/book" })).unwrap_err().code,
@@ -115,6 +113,24 @@ fn refusals_have_stable_codes() {
         .unwrap();
     assert_eq!(ro["readOnlyReasons"][0]["code"], "requested");
     assert_eq!(d.call("book.save", json!({})).unwrap_err().code, codes::READ_ONLY);
+}
+
+#[test]
+fn sqlite_books_open_read_only_with_their_reasons() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy(&dir, "sqlite/synthetic/rich.gnucash");
+    let mut d = Dispatcher::new(Settings::default());
+    let info = d.call("book.open", json!({ "path": format!("sqlite3://{path}") })).unwrap();
+    assert_eq!(info["readOnly"], true);
+    assert_eq!(info["readOnlyReasons"][0]["code"], "writing-not-supported");
+    assert_eq!(d.call("book.save", json!({})).unwrap_err().code, codes::READ_ONLY);
+    d.call("book.close", json!({})).unwrap();
+
+    let piecash = tempfile::tempdir().unwrap();
+    let path = copy(&piecash, "piecash/simple_sample.sqlite.gnucash");
+    let info = d.call("book.open", json!({ "path": path, "readOnly": true })).unwrap();
+    let codes: Vec<&str> = info["readOnlyReasons"].as_array().unwrap().iter().filter_map(|r| r["code"].as_str()).collect();
+    assert!(codes.starts_with(&["requested"]) && codes.contains(&"schema-version"), "{codes:?}");
 }
 
 #[test]

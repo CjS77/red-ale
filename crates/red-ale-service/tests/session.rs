@@ -54,17 +54,91 @@ fn open_locks_and_close_releases() {
     drop(reader);
 }
 
+fn listing(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    names.sort();
+    names
+}
+
 #[test]
-fn sql_books_are_refused_before_anything_happens() {
+fn sqlite_books_open_read_only_and_are_never_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
+    let before = std::fs::read(&path).unwrap();
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    assert_eq!(session.format(), red_ale_service::backend::Format::Sqlite);
+    assert_eq!(session.read_only_reasons(), [ReadOnlyReason::WritingNotSupported]);
+    assert_eq!(session.read_only_reasons()[0].code(), "writing-not-supported");
+    assert!(!session.book().accounts.is_empty());
+    let err = session.mutate(|book, _| {
+        book.slots = red_ale_core::Frame::new();
+        Ok(())
+    });
+    assert!(matches!(err, Err(ServiceError::ReadOnly { ref reason }) if reason.contains("not yet supported")), "{err:?}");
+    assert!(matches!(session.save(None), Err(ServiceError::ReadOnly { .. })));
+    session.close(true).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert_eq!(listing(dir.path()), ["book.gnucash"]);
+
+    let reader = Session::open(&format!("sqlite3://{}", path.display()), true, Settings::default()).unwrap();
+    assert_eq!(reader.read_only_reasons(), [ReadOnlyReason::Requested]);
+    drop(reader);
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert_eq!(listing(dir.path()), ["book.gnucash"]);
+}
+
+#[test]
+fn an_sqlite_book_with_another_schema_version_says_so() {
     let dir = tempfile::tempdir().unwrap();
     let path = copy_to(dir.path(), "piecash/simple_sample.sqlite.gnucash");
-    let err = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap_err();
-    assert!(matches!(err, ServiceError::SqlBook { .. }), "{err}");
-    assert!(!lock_path(&path).exists());
-    let err = Session::open(&format!("sqlite3://{}", path.display()), false, Settings::default()).unwrap_err();
-    assert!(matches!(err, ServiceError::SqlBook { .. }));
+    let session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    let reasons = session.read_only_reasons();
+    let versions = reasons.iter().find_map(|r| match r {
+        ReadOnlyReason::SchemaVersions(list) => Some(list),
+        _ => None,
+    });
+    assert!(versions.unwrap().iter().any(|v| v.starts_with("splits is version 4")), "{reasons:?}");
+    assert_eq!(reasons.last(), Some(&ReadOnlyReason::WritingNotSupported));
+    assert!(reasons.iter().any(|r| r.code() == "schema-version"));
+}
+
+#[test]
+fn a_scheme_the_file_contradicts_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let xml = copy_to(dir.path(), "synthetic/rich.gnucash");
+    let err = Session::open(&format!("sqlite3://{}", xml.display()), true, Settings::default()).unwrap_err();
+    assert!(matches!(err, ServiceError::WrongFormat { .. }), "{err}");
+    let other = tempfile::tempdir().unwrap();
+    let sqlite = copy_to(other.path(), "sqlite/synthetic/rich.gnucash");
+    let err = Session::open(&format!("xml://{}", sqlite.display()), true, Settings::default()).unwrap_err();
+    assert_eq!(err.to_string(), format!("{} is an SQLite book, not an XML book as its URI says", sqlite.display()));
+    assert!(!lock_path(&xml).exists() && !lock_path(&sqlite).exists());
+}
+
+#[test]
+fn database_server_books_and_new_sqlite_books_are_refused_before_anything_happens() {
     let err = Session::open("postgres://user@host/db", false, Settings::default()).unwrap_err();
-    assert!(matches!(err, ServiceError::SqlBook { .. }));
+    assert!(matches!(err, ServiceError::SqlBook { .. }), "{err}");
+    assert!(err.to_string().contains("v0.7"), "{err}");
+    let err = Session::open("mysql://user@host/db", false, Settings::default()).unwrap_err();
+    assert!(matches!(err, ServiceError::SqlBook { .. }), "{err}");
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("new.gnucash");
+    let err = Session::create(&format!("sqlite3://{}", path.display()), Settings::default()).unwrap_err();
+    assert!(matches!(err, ServiceError::SqliteCreate { .. }), "{err}");
+    assert!(listing(dir.path()).is_empty());
+}
+
+#[test]
+fn files_that_are_not_sqlite_books_are_file_errors() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("book.gnucash");
+    let mut bytes = b"SQLite format 3\0".to_vec();
+    bytes.resize(4096, 0xa5);
+    std::fs::write(&path, &bytes).unwrap();
+    let err = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap_err();
+    assert!(matches!(err, ServiceError::Sql { .. }), "{err}");
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
 }
 
 #[test]

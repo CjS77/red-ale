@@ -16,6 +16,7 @@ red-ale-import = { path = "../crates/red-ale-import" }
 red-ale-locale = { path = "../crates/red-ale-locale" }
 red-ale-quotes = { path = "../crates/red-ale-quotes" }
 red-ale-report = { path = "../crates/red-ale-report" }
+red-ale-sql = { path = "../crates/red-ale-sql" }
 red-ale-xml = { path = "../crates/red-ale-xml" }
 serde_json = "1.0"
 
@@ -103,6 +104,13 @@ bench = false
 [[bin]]
 name = "xml"
 path = "fuzz_targets/xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sql_rows"
+path = "fuzz_targets/sql_rows.rs"
 test = false
 doc = false
 bench = false

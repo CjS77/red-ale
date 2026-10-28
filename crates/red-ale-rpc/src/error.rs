@@ -219,8 +219,13 @@ impl From<ServiceError> for RpcError {
             ServiceError::Io { path: p, .. } => Self::new(codes::IO_ERROR, message).with_data(path(&p)),
             ServiceError::Backup { path: p, .. } => Self::new(codes::BACKUP_FAILED, message).with_data(path(&p)),
             ServiceError::SqlBook { path: p } => Self::new(codes::SQL_BOOK, message).with_data(json!({ "path": p })),
+            ServiceError::SqliteCreate { path: p } => Self::new(codes::SQL_BOOK, message).with_data(path(&p)),
+            ServiceError::Busy { path: p } => Self::new(codes::BOOK_LOCKED, message).with_data(path(&p)),
             ServiceError::UnsupportedUri { uri } => Self::new(codes::UNSUPPORTED_URI, message).with_data(json!({ "uri": uri })),
-            ServiceError::Xml { path: p, .. } | ServiceError::Journal { path: p, .. } => {
+            ServiceError::Xml { path: p, .. }
+            | ServiceError::Sql { path: p, .. }
+            | ServiceError::WrongFormat { path: p, .. }
+            | ServiceError::Journal { path: p, .. } => {
                 Self::new(codes::FILE_FORMAT, message).with_data(path(&p))
             }
             ServiceError::ReadOnly { reason } => Self::new(codes::READ_ONLY, message).with_data(json!({ "reason": reason })),
