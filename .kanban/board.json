@@ -1,8 +1,8 @@
 {
   "schema": 2,
-  "version": 5,
+  "version": 9,
   "next_ticket_seq": 1,
-  "next_epic_seq": 6,
+  "next_epic_seq": 10,
   "columns": [
     {
       "id": "todo",
@@ -56,6 +56,34 @@
       "color": "#e08787",
       "status": "review",
       "body": "Make every v0.4 feature reachable through JSON-RPC, MCP and the CLI, publish `redAleApi` 0.4.0 additive over 0.3.0, and audit the milestone's \"Done when\" list with evidence, as v0.3 did.\n\nWork:\n- [x] Mutation walk (v0.3 follow-up)\n- [x] Loopback guard for quote tests (v0.3 follow-up)\n- [ ] Commit the 0.3.0 schema; api_additive against it\n- [ ] MCP hints for the new methods; CLI coverage\n- [ ] features.md Ported 0.4, roadmap, changelog\n- [ ] Done-when evidence"
+    },
+    {
+      "id": "EP-6",
+      "title": "v0.5 Report foundations",
+      "color": "#8fb965",
+      "status": "review",
+      "body": "Shared report-engine work the v0.5 reports need, gathered from the three research notes so it is built once: `design/notes/report-transaction-engine.md` §3, `report-statements-charts.md` §9-10, `report-investments.md` §8. All result additions are additive and make `redAleApi` 0.5.0 (0.4.0 document committed, `api_additive.rs` checks it).\n\nWork (branch `milestone-5`, one worktree branch per item):\n- [ ] Result additions A: split/transaction/invoice/doc-link/price links, text-block link, date-cell `until`, column `labelLines`, `list` block; redAleApi 0.5.0\n- [ ] Result additions B: number cells (share display, half-away-from-zero), multi-anchor cells, row `alternate`, `exportError`, zero-column tables, warning rows/titles\n- [ ] Split query and reads for the engine (reconcile, isClosing, sort keys, unique; otherSplit, corrAccount*, voidFormerAmount, lot/invoice, docLink, debit/credit labels, split-action-for-num)\n- [ ] Investment reads (prices in any currency, currency_or_parent, actionNum, Lot handle, isStockSplit, round_sigfigs)\n- [ ] Options and context: set_default, make_internal, print_month_year/print_year; lib/dates additions\n- [ ] growth_rate (Investment Lots' CAGR, fixed point to 10⁻¹²)\n- [ ] Fixtures: statements, Transaction Report, investments"
+    },
+    {
+      "id": "EP-7",
+      "title": "v0.5 Ledgers and statements",
+      "color": "#5eb3d6",
+      "status": "review",
+      "body": "Translate GnuCash 5.17's ledger and statement reports into Rhai on the v0.2 engine, with GnuCash's options and figures, on XML and SQLite. Research: `design/notes/report-transaction-engine.md` (Transaction Report engine, General Ledger, Reconciliation Report; General Journal on `lib/register`) and `design/notes/report-statements-charts.md` (Trial Balance, Cash Flow, Equity Statement, Multicolumn Balance Sheet and Income Statement, Transaction Breakdown, day-of-week reports, Cash flow chart). Expected figures from GnuCash's report tests read as text and hand-worked cases; no Guile. Design: `design/milestone5.md` \"Reports\".\n\nWork:\n- [ ] trep engine: options, query, filter, sort\n- [ ] trep engine: columns, rows, subtotals, grand total, CSV rows\n- [ ] trep engine: Subtotal Table\n- [ ] Transaction Report and its ported tests\n- [ ] General Ledger, Reconciliation Report\n- [ ] General Journal on lib/register\n- [ ] Equity Statement; Trial Balance (and work sheet)\n- [ ] Cash Flow and lib/cash-flow-calc; Cash flow chart\n- [ ] Multicolumn Balance Sheet and Income Statement\n- [ ] Transaction Breakdown; Income/expense vs day of week"
+    },
+    {
+      "id": "EP-8",
+      "title": "v0.5 Investment reports",
+      "color": "#a58fd6",
+      "status": "review",
+      "body": "Translate Investment Portfolio, Advanced Portfolio, Investment Lots and IFRS cost basis from GnuCash 5.17 into Rhai. All four compute in their scripts with exact Rationals; the core supplies reads only (milestone5.md \"Decided\", item 6). Research: `design/notes/report-investments.md`. Expected figures from test-portfolios.scm, test-investment-lots.scm and test-ifrs-cost-basis.scm read as text, plus hand-worked cases; no Guile.\n\nWork:\n- [ ] Investment Portfolio\n- [ ] Advanced Portfolio: figures (average, FIFO, LIFO, 10⁻⁸ and SCU roundings)\n- [ ] Advanced Portfolio: report, options, columns, totals\n- [ ] IFRS cost basis\n- [ ] Investment Lots I: walk, classification, main rows\n- [ ] Investment Lots II: split rows, warnings, price row, chart\n- [ ] Hand-worked cases"
+    },
+    {
+      "id": "EP-9",
+      "title": "v0.5 Multicolumn, distribution, interfaces and audit",
+      "color": "#7c9cf5",
+      "status": "review",
+      "body": "The rest of v0.5 (`design/milestone5.md`).\n\nMulticolumn View (`standard/view-column.scm`; `design/notes/report-statements-charts.md` §8): children in a `reportPlacement` option, run by the host into a `grid` block, nesting depth 4, 100 child runs, one deadline; no new `report.run` param.\n\nDistribution (`design/setup.md`): release workflow, `red-ale setup`, `install.sh`.\n\nInterfaces and audit: `redAleApi` 0.5.0 additive over 0.4.0, MCP parity, features.md Ported 0.5, roadmap, changelog, done-when evidence.\n\nWork:\n- [x] `red-ale setup`: file adapters\n- [x] `red-ale setup`: CLI adapters; `install.sh` attached to releases\n- [x] v0.4 carried-forward items\n- [ ] Multicolumn View A: `reportPlacement` option type\n- [ ] Multicolumn View B: grid block, child runs, view-column.rhai\n- [ ] Multicolumn View C: importing embedded reports\n- [ ] features.md, roadmap, changelog; done-when evidence"
     }
   ],
   "tickets": []
