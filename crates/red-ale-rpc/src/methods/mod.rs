@@ -23,6 +23,7 @@ pub mod quotes;
 pub mod reconcile;
 pub mod reports;
 pub mod scrub;
+pub mod since_last_run;
 pub mod transactions;
 
 /// Every method red-ale serves.
@@ -49,6 +50,7 @@ pub fn all() -> Vec<Method> {
         reports::methods(),
         import::methods(),
         import_map::methods(),
+        since_last_run::methods(),
         export::methods(),
     ]
     .into_iter()

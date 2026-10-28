@@ -434,4 +434,8 @@ functions, the instance model's amounts, the forecast reports), expected values 
 
 ## Follow-ups
 
-None yet.
+- **Split order of XML books GnuCash didn't write.** GnuCash sorts each transaction's splits as it loads a book,
+  non-negative values first and otherwise in order (`5.17:libgnucash/engine/Transaction.cpp:1508-1510`), for XML and SQL
+  alike. red-ale's SQLite reader does the same; its XML reader keeps the file's order, which differs only for files GnuCash
+  did not write. A ticket of its own.
+- **The `sql_file` fuzz target** (mutated SQLite fixtures opened read-only), named in [`sql-fidelity.md`](sql-fidelity.md).

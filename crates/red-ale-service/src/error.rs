@@ -2,7 +2,10 @@
 
 use std::path::PathBuf;
 
+use red_ale_core::ops::scheduled::ScheduledError;
 use thiserror::Error;
+
+use crate::proposals::ProposalKind;
 
 /// Why a session operation failed.
 #[derive(Debug, Error)]
@@ -37,11 +40,41 @@ pub enum ServiceError {
         /// The cause.
         source: std::io::Error,
     },
-    /// The path names an SQL book; v0.1 handles XML books only.
-    #[error("{path} is an SQL book; red-ale v0.1 opens XML books only (SQLite arrives in v0.3)")]
+    /// The URI names a database server's book (MySQL or PostgreSQL), which red-ale does not open yet.
+    #[error("{path} is a database server's book; red-ale opens XML and SQLite files only (MySQL and PostgreSQL arrive in v0.7)")]
     SqlBook {
-        /// The path or URI.
+        /// The URI.
         path: String,
+    },
+    /// A new book was asked for as SQLite, which red-ale cannot write yet.
+    #[error("cannot create {path}: writing SQLite books is not yet supported; create an XML book")]
+    SqliteCreate {
+        /// The book that was not created.
+        path: PathBuf,
+    },
+    /// An `xml://` or `sqlite3://` URI names a file of the other format.
+    #[error("{path} is an {} book, not an {} book as its URI says", found.name(), declared.name())]
+    WrongFormat {
+        /// The file.
+        path: PathBuf,
+        /// The format the URI names.
+        declared: crate::backend::Format,
+        /// The format the file is.
+        found: crate::backend::Format,
+    },
+    /// Another program held a write lock on the SQL book for longer than red-ale waits to read it.
+    #[error("{path} is busy: another program is writing it; try again")]
+    Busy {
+        /// The book.
+        path: PathBuf,
+    },
+    /// The file could not be read as an SQLite book.
+    #[error("{path}: {source}")]
+    Sql {
+        /// The book.
+        path: PathBuf,
+        /// The cause.
+        source: red_ale_sql::SqlError,
     },
     /// The URI scheme is not supported.
     #[error("unsupported URI {uri}; use a path or an xml:// URI")]
@@ -113,18 +146,20 @@ pub enum ServiceError {
         /// What is wrong, in GnuCash's words where it has them.
         message: String,
     },
-    /// No Import proposal is held with this ID: unknown, applied, discarded, pushed out by newer ones, or made before
-    /// the book was opened.
-    #[error("no import proposal {id} is held; preview the file again")]
+    /// No proposal of this kind is held with this ID: unknown, applied, discarded, pushed out by newer ones, or made
+    /// before the book was opened.
+    #[error("no {kind} {id} is held; {}", kind.again())]
     ProposalNotFound {
+        /// The kind of proposal asked for.
+        kind: ProposalKind,
         /// The ID asked for.
         id: String,
     },
     /// The Book has changed since the proposal was made.
-    #[error(
-        "the book has changed since import proposal {id} was made (revision {proposal_revision}, now {book_revision}); preview the file again"
-    )]
+    #[error("the book has changed since {kind} {id} was made (revision {proposal_revision}, now {book_revision}); {}", kind.again())]
     StaleProposal {
+        /// The kind of proposal.
+        kind: ProposalKind,
         /// The proposal's ID.
         id: String,
         /// The Book revision it was made at.
@@ -132,4 +167,7 @@ pub enum ServiceError {
         /// The Book revision now.
         book_revision: u64,
     },
+    /// A scheduled transaction's instance can't be proposed or applied (`design/api/scheduled-transactions.md`).
+    #[error(transparent)]
+    Scheduled(#[from] ScheduledError),
 }

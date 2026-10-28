@@ -12,7 +12,6 @@ pub mod file;
 mod prices;
 pub mod qif;
 pub mod settings;
-mod store;
 
 use std::sync::Arc;
 
@@ -25,7 +24,6 @@ pub use file::{FileContent, ImportFile};
 pub use prices::PricesParams;
 pub use qif::QifParams;
 pub use settings::{LayoutChoice, PriceLayoutChoice};
-pub use store::{KEPT, ProposalStore};
 
 use crate::config::{Config, ConfigStore};
 use crate::{ServiceError, Session};
@@ -117,18 +115,8 @@ pub fn apply(
             reason: reason.to_string(),
         });
     }
-    let held = session
-        .proposals()
-        .get(id)
-        .cloned()
-        .ok_or_else(|| ServiceError::ProposalNotFound { id: id.to_owned() })?;
-    if held.revision != session.revision() {
-        return Err(ServiceError::StaleProposal {
-            id: id.to_owned(),
-            proposal_revision: held.revision,
-            book_revision: session.revision(),
-        });
-    }
+    let revision = session.revision();
+    let held = session.proposals().current(id, revision)?;
     let mut applied = session.mutate(|book, env| pipeline::apply(book, env, &held.proposal, changes, choices))?;
     session.proposals().remove(id);
     if let Some(Err(e)) = applied.qif_account_map.as_ref().map(|map| qif::save_map(store, map)) {
@@ -143,9 +131,5 @@ pub fn apply(
 
 /// Drop a held proposal.
 pub fn discard(session: &mut Session, id: &str) -> Result<(), ServiceError> {
-    if session.proposals().remove(id) {
-        Ok(())
-    } else {
-        Err(ServiceError::ProposalNotFound { id: id.to_owned() })
-    }
+    session.proposals().discard(id)
 }

@@ -68,12 +68,32 @@ fn errors_exit_with_code_2_and_save_nothing() {
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(json(&out.stderr)["error"]["code"], -32601);
     assert_eq!(std::fs::read(&book).unwrap(), before);
-    let sql = copy(dir.path(), "piecash/simple_sample.sqlite.gnucash");
-    let out = run(&["exec", "--book", &sql, "book.info"]);
+    let out = run(&["exec", "--book", "mysql://user@host/db", "book.info"]);
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(json(&out.stderr)["error"]["code"], 1004);
     let out = run(&["exec", "--book", &book, "book.open", "novalue"]);
     assert_eq!(out.status.code(), Some(1), "bad arguments are usage errors");
+}
+
+/// Since Last Run from a script, as `design/api/scheduled-transactions.md`, "CLI" runs it: the proposal is held for the
+/// rest of the process, so the first one is `slr-1`. The fixture's rent ended on 2025-07-01, so on any day since, ten
+/// instances are due after its postponed one.
+#[test]
+fn a_script_runs_since_last_run_and_applies_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = copy(dir.path(), "synthetic/rich.gnucash");
+    let script = dir.path().join("slr.txt");
+    let apply = r#"{"proposal": "slr-1", "choices": [{"index": 0, "state": "ignored"}]}"#;
+    std::fs::write(&script, format!("scheduledTransaction.sinceLastRun\nscheduledTransaction.apply {apply}\n")).unwrap();
+    let out = run(&["exec", "--book", &book, "--script", &script.display().to_string()]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let results = json(&out.stdout);
+    assert_eq!(results[0]["id"], "slr-1");
+    assert_eq!(results[0]["summary"]["toCreate"], 10);
+    assert_eq!(results[1]["created"].as_array().map(Vec::len), Some(10));
+    assert_eq!(results[1]["schedules"][0]["lastOccurrence"], "2025-07-01");
+    let info = json(&run(&["exec", "--book", &book, "--read-only", "book.info"]).stdout);
+    assert_eq!(info["counts"]["transactions"], 17, "saved");
 }
 
 #[test]

@@ -10,6 +10,7 @@ members = [
     "crates/red-ale-report",
     "crates/red-ale-rpc",
     "crates/red-ale-service",
+    "crates/red-ale-sql",
     "crates/red-ale-testkit",
     "crates/red-ale-xml",
 ]
@@ -56,6 +57,8 @@ regex = "1.12"
 rhai = { version = "1.27.0", default-features = false, features = ["std", "no_float", "no_time", "serde"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-native-certs = "0.8"
+# SQLite books, with SQLite compiled in so its version is pinned (design/sql-fidelity.md §10).
+rusqlite = { version = "0.40.2", default-features = false, features = ["bundled", "backup"] }
 rmcp = { version = "3.7", default-features = false, features = ["server", "transport-io"] }
 schemars = "1.2"
 serde = { version = "1.0", features = ["derive"] }
@@ -75,6 +78,7 @@ red-ale-quotes = { path = "crates/red-ale-quotes" }
 red-ale-report = { path = "crates/red-ale-report" }
 red-ale-rpc = { path = "crates/red-ale-rpc" }
 red-ale-service = { path = "crates/red-ale-service" }
+red-ale-sql = { path = "crates/red-ale-sql" }
 red-ale-testkit = { path = "crates/red-ale-testkit" }
 red-ale-xml = { path = "crates/red-ale-xml" }
 

@@ -187,6 +187,11 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     ["budget.create", "budget.update", "budget.copy", "budget.setAmounts", "budget.setNotes"]
         .iter()
         .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("write"), "{name}"));
+    // And for Since Last Run (`design/api/scheduled-transactions.md`, "Methods and MCP").
+    ["scheduledTransaction.sinceLastRun", "scheduledTransaction.discard"]
+        .iter()
+        .for_each(|name| assert_eq!(tool(name)["annotations"], expected_hints("read"), "{name}"));
+    assert_eq!(tool("scheduledTransaction.apply")["annotations"], expected_hints("write"));
     let schema_tool = tool("api.schema");
     assert_eq!(schema_tool["annotations"], expected_hints("read"));
     assert_eq!(schema_tool["inputSchema"]["type"], "object");

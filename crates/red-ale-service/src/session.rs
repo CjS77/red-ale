@@ -13,7 +13,8 @@ use red_ale_xml::XmlResidue;
 use crate::backend::{self, Access, Backend, Format, Opened, SaveOptions};
 use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files};
-use crate::import::ProposalStore;
+use crate::proposals::{ProposalKind, ProposalStore};
+use crate::since_last_run::HeldRun;
 use crate::journal::{Journal, RecordKind, record_lines};
 use crate::replay::{ReplayReport, replay};
 
@@ -62,6 +63,11 @@ pub enum ReadOnlyReason {
     UnsupportedFeatures(Vec<String>),
     /// The file holds content red-ale can keep but not edit safely.
     UnrecognisedContent(Vec<String>),
+    /// An SQL book's `versions` rows are not GnuCash 5.17's; red-ale never upgrades a schema.
+    SchemaVersions(Vec<String>),
+    /// The book was opened for writing, but red-ale cannot write its format yet (SQLite books, until saving them
+    /// lands).
+    WritingNotSupported,
 }
 
 impl ReadOnlyReason {
@@ -71,6 +77,8 @@ impl ReadOnlyReason {
             Self::Requested => "requested",
             Self::UnsupportedFeatures(_) => "unsupported-features",
             Self::UnrecognisedContent(_) => "unrecognised-content",
+            Self::SchemaVersions(_) => "schema-version",
+            Self::WritingNotSupported => "writing-not-supported",
         }
     }
 }
@@ -81,6 +89,8 @@ impl fmt::Display for ReadOnlyReason {
             Self::Requested => write!(f, "opened read-only on request"),
             Self::UnsupportedFeatures(list) => write!(f, "the book uses features red-ale v0.1 does not support: {}", list.join("; ")),
             Self::UnrecognisedContent(list) => write!(f, "the book contains data red-ale cannot edit safely: {}", list.join("; ")),
+            Self::SchemaVersions(list) => write!(f, "the book's schema is not GnuCash 5.17's: {}", list.join("; ")),
+            Self::WritingNotSupported => write!(f, "writing SQLite books is not yet supported"),
         }
     }
 }
@@ -141,13 +151,13 @@ impl Env for SystemEnv {
     }
 }
 
-/// Turn a path or `xml://` / `file://` URI into a path, refusing SQL books and other schemes before anything is
-/// opened.
+/// Turn a path or an `xml://`, `sqlite3://` or `file://` URI into a path, refusing database servers' books and other
+/// schemes before anything is opened.
 pub fn resolve_path(spec: &str) -> Result<PathBuf, ServiceError> {
     let lower = spec.to_ascii_lowercase();
-    let path = if lower.starts_with("xml://") || lower.starts_with("file://") {
+    let path = if ["xml://", "sqlite3://", "file://"].iter().any(|s| lower.starts_with(s)) {
         &spec[spec.find("://").map_or(0, |i| i + 3)..]
-    } else if ["sqlite3://", "postgres://", "postgresql://", "mysql://"]
+    } else if ["postgres://", "postgresql://", "mysql://"]
         .iter()
         .any(|s| lower.starts_with(s))
     {
@@ -180,7 +190,8 @@ pub struct Session {
     settings: Settings,
     env: Box<dyn EnvDebug>,
     revision: u64,
-    proposals: ProposalStore,
+    proposals: ProposalStore<red_ale_import::pipeline::Proposal>,
+    runs: ProposalStore<HeldRun>,
 }
 
 /// An [`Env`] that can be stored in a session.
@@ -203,7 +214,7 @@ impl Session {
     /// read-only.
     pub fn open(spec: &str, read_only: bool, settings: Settings) -> Result<Self, ServiceError> {
         let path = resolve_path(spec)?;
-        let format = Format::of(&path)?;
+        let format = Format::of(spec, &path)?;
         let access = if read_only { Access::ReadOnly } else { Access::ReadWrite };
         let rule = |book: &Book, findings: &[ReadOnlyReason]| {
             let mut reasons = read_only_triggers(book, findings);
@@ -223,7 +234,8 @@ impl Session {
             return Err(ServiceError::Exists { path });
         }
         let mut env = SystemEnv;
-        let opened = backend::create(&path, Format::Xml, &settings, &mut env)?;
+        let format = Format::of_scheme(spec).unwrap_or(Format::Xml);
+        let opened = backend::create(&path, format, &settings, &mut env)?;
         let mut session = Self::from_opened(opened, settings, Box::new(env));
         session.dirty = true;
         session.save(None)?;
@@ -243,7 +255,8 @@ impl Session {
             settings,
             env,
             revision: 0,
-            proposals: ProposalStore::default(),
+            proposals: ProposalStore::new(ProposalKind::Import),
+            runs: ProposalStore::new(ProposalKind::SinceLastRun),
         }
     }
 
@@ -302,15 +315,20 @@ impl Session {
         self.journal.current_path()
     }
 
-    /// The Book revision: how many Mutations this session has applied. An Import proposal records the revision it
-    /// was made at, and is applied only at that revision (`design/milestone3.md`, "Decided").
+    /// The Book revision: how many Mutations this session has applied. An Import proposal or Since Last Run proposal
+    /// records the revision it was made at, and is applied only at that revision (`design/milestone3.md`, "Decided").
     pub fn revision(&self) -> u64 {
         self.revision
     }
 
     /// The Import proposals held for this session's Book, dropped with it.
-    pub(crate) fn proposals(&mut self) -> &mut ProposalStore {
+    pub(crate) fn proposals(&mut self) -> &mut ProposalStore<red_ale_import::pipeline::Proposal> {
         &mut self.proposals
+    }
+
+    /// The Since Last Run proposals held for this session's Book, dropped with it; apart from the Import proposals.
+    pub(crate) fn runs(&mut self) -> &mut ProposalStore<HeldRun> {
+        &mut self.runs
     }
 
     /// The current time from the session's environment.

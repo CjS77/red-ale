@@ -3,6 +3,7 @@
 //! Codes are part of the published language: a code, once released, keeps its meaning. `design/api.md` lists them.
 
 use red_ale_core::DomainError;
+use red_ale_core::ops::scheduled::{AccountProblem, ScheduledError};
 use red_ale_report::{ReportError, ReportErrorKind};
 use red_ale_service::ServiceError;
 use serde::Serialize;
@@ -76,8 +77,12 @@ pub mod codes {
     /// A method needs the network and the Configuration has it off; nothing was sent.
     pub const NETWORK_DISABLED: i32 = 5000;
 
+    /// A scheduled transaction's formula does not parse, names a function red-ale does not compute, or can't be
+    /// evaluated for an instance.
+    pub const FORMULA: i32 = 6000;
+
     /// Every code with its name, for the schema document.
-    pub const ALL: [(i32, &str); 30] = [
+    pub const ALL: [(i32, &str); 31] = [
         (PARSE_ERROR, "parse-error"),
         (INVALID_REQUEST, "invalid-request"),
         (METHOD_NOT_FOUND, "method-not-found"),
@@ -108,6 +113,7 @@ pub mod codes {
         (REPORT_LOAD, "report-load"),
         (IMPORT_FILE, "import-file"),
         (NETWORK_DISABLED, "network-disabled"),
+        (FORMULA, "formula"),
     ];
 }
 
@@ -213,8 +219,13 @@ impl From<ServiceError> for RpcError {
             ServiceError::Io { path: p, .. } => Self::new(codes::IO_ERROR, message).with_data(path(&p)),
             ServiceError::Backup { path: p, .. } => Self::new(codes::BACKUP_FAILED, message).with_data(path(&p)),
             ServiceError::SqlBook { path: p } => Self::new(codes::SQL_BOOK, message).with_data(json!({ "path": p })),
+            ServiceError::SqliteCreate { path: p } => Self::new(codes::SQL_BOOK, message).with_data(path(&p)),
+            ServiceError::Busy { path: p } => Self::new(codes::BOOK_LOCKED, message).with_data(path(&p)),
             ServiceError::UnsupportedUri { uri } => Self::new(codes::UNSUPPORTED_URI, message).with_data(json!({ "uri": uri })),
-            ServiceError::Xml { path: p, .. } | ServiceError::Journal { path: p, .. } => {
+            ServiceError::Xml { path: p, .. }
+            | ServiceError::Sql { path: p, .. }
+            | ServiceError::WrongFormat { path: p, .. }
+            | ServiceError::Journal { path: p, .. } => {
                 Self::new(codes::FILE_FORMAT, message).with_data(path(&p))
             }
             ServiceError::ReadOnly { reason } => Self::new(codes::READ_ONLY, message).with_data(json!({ "reason": reason })),
@@ -229,8 +240,8 @@ impl From<ServiceError> for RpcError {
                 reason,
                 message: text,
             } => Self::new(codes::IMPORT_FILE, message).with_data(json!({ "file": file, "line": line, "reason": reason, "message": text })),
-            ServiceError::ProposalNotFound { id } => {
-                Self::new(codes::NOT_FOUND, message).with_data(json!({ "kind": "importProposal", "id": id }))
+            ServiceError::ProposalNotFound { kind, id } => {
+                Self::new(codes::NOT_FOUND, message).with_data(json!({ "kind": kind.wire(), "id": id }))
             }
             ServiceError::StaleProposal {
                 proposal_revision,
@@ -239,6 +250,46 @@ impl From<ServiceError> for RpcError {
             } => Self::new(codes::CONFLICT, message).with_data(json!({
                 "reason": "book-revision", "proposalRevision": proposal_revision, "bookRevision": book_revision,
             })),
+            ServiceError::Scheduled(e) => e.into(),
+        }
+    }
+}
+
+/// A Since Last Run refusal is `invalid` with `data.reason` and the instances it names; a failing Formula is `formula`
+/// with where it is (`design/api/scheduled-transactions.md`, "Evaluation" and "`scheduledTransaction.apply`").
+impl From<ScheduledError> for RpcError {
+    fn from(e: ScheduledError) -> Self {
+        let message = e.to_string();
+        match e {
+            ScheduledError::Formula(f) => Self::new(codes::FORMULA, message).with_data(json!({
+                "reason": f.error.reason(),
+                "formula": f.formula,
+                "position": Value::Null,
+                "scheduledTransaction": f.site.scheduled.to_string(),
+                "templateTransaction": f.site.template_transaction.to_string(),
+                "split": f.site.split.to_string(),
+                "side": f.side.as_str(),
+                "index": f.index,
+            })),
+            ScheduledError::Account { site, problem, index } => {
+                let account = match problem {
+                    AccountProblem::Missing(a) => a,
+                    AccountProblem::Placeholder(a) | AccountProblem::Root(a) | AccountProblem::NoCommodity(a) => Some(a),
+                };
+                Self::new(codes::INVALID, message).with_data(json!({
+                    "reason": problem.reason(),
+                    "account": account.map(|a| a.to_string()),
+                    "scheduledTransaction": site.scheduled.to_string(),
+                    "templateTransaction": site.template_transaction.to_string(),
+                    "split": site.split.to_string(),
+                    "index": index,
+                }))
+            }
+            ScheduledError::Refused { reason, indexes, .. } => Self::new(codes::INVALID, message).with_data(json!({
+                "reason": reason.reason(), "index": indexes.first(), "indexes": indexes,
+            })),
+            ScheduledError::Recurrence(_) => Self::new(codes::INVALID, message).with_data(json!({ "reason": "recurrence" })),
+            ScheduledError::Domain(d) => d.into(),
         }
     }
 }

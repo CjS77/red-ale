@@ -1,0 +1,22 @@
+[package]
+name = "red-ale-sql"
+description = "The SQLite Backend for GnuCash books"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+red-ale-core.workspace = true
+indexmap.workspace = true
+rusqlite.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+red-ale-xml.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

@@ -85,6 +85,22 @@ pub enum FormulaError {
     TooDeep,
 }
 
+impl FormulaError {
+    /// The API's `data.reason` for it (`design/api/scheduled-transactions.md`, "Evaluation"): `syntax`,
+    /// `unknown-function`, `inexact`, `arguments`, `non-integer-power`, `string-argument`, `division-by-zero`,
+    /// `overflow` or `unbound-variable`.
+    pub fn reason(&self) -> &'static str {
+        match self {
+            Self::Unexpected(_) | Self::Incomplete | Self::Parens | Self::NotAVariable | Self::TooDeep => "syntax",
+            Self::Arithmetic(m) if *m == NumericError::DivideByZero.to_string() => "division-by-zero",
+            Self::Arithmetic(_) => "overflow",
+            Self::Unbound(_) => "unbound-variable",
+            Self::Text(_) => "string-argument",
+            Self::Function { error, .. } => error.reason(),
+        }
+    }
+}
+
 /// Why a function call failed. Shown after the function's name ([`FormulaError::Function`]).
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum FunctionError {
@@ -112,6 +128,21 @@ pub enum FunctionError {
     /// A function red-ale does not compute.
     #[error("can't be computed exactly: {0}")]
     Inexact(&'static str),
+}
+
+impl FunctionError {
+    /// The API's `data.reason` for a call that failed this way.
+    fn reason(&self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown-function",
+            Self::Inexact(_) => "inexact",
+            Self::Arity(_) => "arguments",
+            Self::Text => "string-argument",
+            Self::NotWhole(_) => "non-integer-power",
+            Self::DivisionByZero => "division-by-zero",
+            Self::TooLarge(_) | Self::Range => "overflow",
+        }
+    }
 }
 
 /// The locale's monetary separators, as `gnc_localeconv` gives them.
@@ -261,7 +292,7 @@ impl<'a> Semantics<'a> for Eval<'a, '_> {
             '+' => l.add(r, DENOM_AUTO, exact),
             '-' => l.sub(r, DENOM_AUTO, exact),
             '*' => l.mul(r, DENOM_AUTO, exact),
-            _ if r.is_zero() => return Err(FormulaError::Arithmetic("division by zero".into())),
+            _ if r.is_zero() => return Err(arithmetic(NumericError::DivideByZero)),
             _ => l.div(r, DENOM_AUTO, exact),
         }
         .map(Value::Num)
