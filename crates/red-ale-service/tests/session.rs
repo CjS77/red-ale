@@ -118,6 +118,32 @@ fn an_sqlite_session_journals_backs_up_once_and_saves() {
     assert!(names.iter().any(|n| Path::new(n).extension().is_some_and(|e| e == "log")), "{names:?}");
 }
 
+fn has_iso_dates(path: &Path) -> bool {
+    let session = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap();
+    red_ale_core::book_options::features(session.book()).iter().any(|(name, _)| name.starts_with("ISO-8601 formatted date strings"))
+}
+
+/// The ISO-dates Book feature is set by the first save that writes, never on open (`design/sql-fidelity.md` §4).
+#[test]
+fn the_first_save_sets_the_iso_dates_feature() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    conn.execute_batch("DELETE FROM slots WHERE name = 'features' OR name LIKE 'features/%'").unwrap();
+    drop(conn);
+    assert!(!has_iso_dates(&path));
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    session.save(None).unwrap();
+    session.close(false).unwrap();
+    assert!(!has_iso_dates(&path), "an open and a save with nothing to write set nothing");
+
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    describe_first(&mut session, "First");
+    session.save(None).unwrap();
+    session.close(false).unwrap();
+    assert!(has_iso_dates(&path));
+}
+
 /// Retention treats an SQLite book's backups as an XML book's: by name and age (`design/sql-fidelity.md` §6).
 #[test]
 fn retention_removes_an_sqlite_book_s_backups() {
