@@ -1,0 +1,73 @@
+{
+  "fixture": "reports/ifrs-cost-basis.gnucash",
+  "builtBy": "scripts/report-fixtures/ifrs_cost_basis.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-ifrs-cost-basis.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:17)",
+    "dateFormat": "ISO, set at :246 before the report runs",
+    "reportCurrency": "USD (the run sets CAD)",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Broker": "a0000000000000000000000000000003",
+    "Root.Asset.Broker.CAD Cash": "a0000000000000000000000000000004",
+    "Root.Asset.Broker.USD Cash": "a0000000000000000000000000000005",
+    "Root.Asset.Broker.SPY": "a0000000000000000000000000000006",
+    "Root.Asset.Current Assets": "a0000000000000000000000000000007",
+    "Root.Asset.Current Assets.Checking Account": "a0000000000000000000000000000008",
+    "Root.Income": "a0000000000000000000000000000009",
+    "Root.Income.USD CapGain": "a000000000000000000000000000000a",
+    "Root.Income.USD Interest": "a000000000000000000000000000000b",
+    "Root.Expenses": "a000000000000000000000000000000c",
+    "Root.Expenses.USD Commissions": "a000000000000000000000000000000d",
+    "Root.Equity": "a000000000000000000000000000000e",
+    "Root.Equity.Opening Balances": "a000000000000000000000000000000f",
+    "Root.Equity.Opening Balances USD": "a0000000000000000000000000000010"
+  },
+  "book": "create-ifrs-cost-basis-test-data (:54-243): accounts in CAD except USD Cash, USD CapGain, USD Interest, USD Commissions and Opening Balances USD; SPY is NYSE::SPY with SCU 10000. The fifteen SPY transactions (2019-07-01 to 2020-06-21) are in CAD, each split with the action the test gives it (\"Buy\", \"Sell\", \"Fee\" or \"\"; the Return of Capital's USD Cash split has none). Each split into a USD account adds a price of USD in CAD (1, or 20/17 for the 2020-05-10 conversion) and each SPY split with a non-zero amount a price of SPY in CAD; the price database keeps one per commodity, currency and day, so 2020-06-10's two transactions leave one SPY price (140) and one USD price. The report reads none of them: its rate converts the stock account's currency (Broker's CAD, gnc_account_get_currency_or_parent) to CAD. The two transactions of 2020-06-10 are ordered by entered date, creation order (\"Sell SPY\" before \"Sell SPY Short\").",
+  "dates": "No date in the book or the run depends on now: Start Date and End Date are absolute (:256-259).",
+  "optionValues": "Options are those the test sets (:251-259). {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight. Accounts are full names. Stock Account, Dividend Account and Cap Gains Account keep their defaults, the first account of their types in display order (5.17:libgnucash/engine/gnc-option-impl.cpp:491-521): Root.Asset.Broker.SPY for Stock Account and Root.Income, the parent, for both Dividend Account and Cap Gains Account; so no split matches a dividend or capital gains account, USD CapGain being neither.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1, row N (the Nth data row, the column headers being <th>), every <td> cell, giving every text node in document order. A figure that is none renders as an empty cell and gives no text, so the expected lists are shorter than the 28 columns and do not say which column each string is in. The columns, in order (5.17:gnucash/report/reports/standard/ifrs-cost-basis.scm:369-379): date, description, trans-units, cumul-units, note, curr, fx, purchase-val, purchase-cost, cash-dividends, proceeds-val, proceeds-cost, conv-purchase-val, conv-purchase-cost, conv-dividends, conv-proceeds-val, conv-proceeds-cost, cumulative-average-cost-basis, average-cost-basis/unit-for-sale, average-cost-basis-of-sale, net-proceeds, gain-post-commission, gain-pre-commission (calc), gain-pre-commission (register), gain-pre-commission variance, cumul-gross-profit, cumul-net-profit, cumul-tot-return.",
+  "renderOnly": [
+    { "line": 38, "template": "IFRS weighted-average cost basis report", "templateGuid": "15d5b744176c4625a703720338725291", "note": "null-test: renders with default options on an empty book, before the test data is created" }
+  ],
+  "runs": [
+    {
+      "id": "ifrs-cad",
+      "lines": "245-357",
+      "template": "IFRS weighted-average cost basis report",
+      "templateGuid": "15d5b744176c4625a703720338725291",
+      "options": {
+        "General/Report's currency": "CAD",
+        "General/Proceeds Account": "Root.Asset.Broker.USD Cash",
+        "General/Fees Account": "Root.Expenses.USD Commissions",
+        "General/Start Date": { "absolute": "2019-01-01" },
+        "General/End Date": { "absolute": "2021-01-01" }
+      },
+      "checks": [
+        { "name": "BUY 100 SPY", "line": 264, "select": { "table": 1, "row": 1, "column": null }, "expected": ["2019-07-01", "Buy SPY", "100. SPY", "100. SPY", "Open Long", "CAD", "C$1.00", "C$20,000.00", "C$9.95", "C$20,000.00", "C$9.95", "C$20,009.95", "C$0.00", "C$0.00", "C$0.00"], "meaning": "Opening purchase of 100 SPY for C$20,000 with a C$9.95 capitalised fee" },
+        { "name": "BUY 50 SPY", "line": 270, "select": { "table": 1, "row": 2, "column": null }, "expected": ["2019-12-11", "Buy SPY", "50. SPY", "150. SPY", "Buy", "CAD", "C$1.00", "C$16,000.00", "C$9.95", "C$16,000.00", "C$9.95", "C$36,019.90", "C$200.10", "C$0.00", "C$0.00", "C$0.00"], "meaning": "Second purchase; basis per unit before it C$200.10" },
+        { "name": "Sell 75 SPY", "line": 276, "select": { "table": 1, "row": 3, "column": null }, "expected": ["2020-03-18", "Sell SPY", "-75. SPY", "75. SPY", "Sell", "CAD", "C$1.00", "C$12,000.00", "C$9.95", "C$12,000.00", "C$9.95", "C$18,009.95", "C$240.13", "C$18,009.95", "C$11,990.05", "-C$6,019.90", "-C$6,009.95", "-C$6,009.95", "-C$6,009.95", "-C$6,019.90", "-C$6,019.90"], "meaning": "Sale of half the holding at a loss" },
+        { "name": "BUY 250 SPY", "line": 283, "select": { "table": 1, "row": 4, "column": null }, "expected": ["2020-04-01", "Buy SPY", "250. SPY", "325. SPY", "Buy", "CAD", "C$1.00", "C$42,000.00", "C$9.95", "C$42,000.00", "C$9.95", "C$60,019.90", "C$240.13", "-C$6,009.95", "-C$6,019.90", "-C$6,019.90"], "meaning": "Purchase after the loss; running totals carried" },
+        { "name": "Return Capital $2500", "line": 289, "select": { "table": 1, "row": 5, "column": null }, "expected": ["2020-04-16", "Return of Capital", "0. SPY", "325. SPY", "Return of capital", "CAD", "C$1.00", "-C$2,500.00", "-C$2,500.00", "C$57,519.90", "C$184.68", "-C$6,009.95", "-C$6,019.90", "-C$6,019.90"], "meaning": "Return of capital: no units, basis reduced by C$2,500" },
+        { "name": "BUY 125 SPY", "line": 295, "select": { "table": 1, "row": 6, "column": null }, "expected": ["2020-05-02", "Buy spy", "125. SPY", "450. SPY", "Buy", "CAD", "C$1.00", "C$47,500.00", "C$0.00", "C$47,500.00", "C$0.00", "C$105,019.90", "C$176.98", "-C$6,009.95", "-C$6,019.90", "-C$6,019.90"], "meaning": "Purchase with a zero fee split" },
+        { "name": "2:1 split", "line": 301, "select": { "table": 1, "row": 7, "column": null }, "expected": ["2020-05-11", "stock split", "450. SPY", "900. SPY", "Stock split", "CAD", "C$1.00", "C$105,019.90", "C$233.38", "-C$6,009.95", "-C$6,019.90", "-C$6,019.90"], "meaning": "2:1 stock split as a 450-unit, zero-value split: basis unchanged" },
+        { "name": "sell 135 SPY", "line": 307, "select": { "table": 1, "row": 8, "column": null }, "expected": ["2020-05-21", "Sell SPY", "-135. SPY", "765. SPY", "Sell", "CAD", "C$1.00", "C$21,500.00", "C$9.95", "C$21,500.00", "C$9.95", "C$89,266.92", "C$116.69", "C$15,752.98", "C$21,490.05", "C$5,737.06", "C$5,747.02", "C$5,747.02", "-C$262.94", "-C$282.84", "-C$282.84"], "meaning": "Sale at a gain after the split" },
+        { "name": "BUY 150 SPY", "line": 314, "select": { "table": 1, "row": 9, "column": null }, "expected": ["2020-06-03", "Buy spy", "150. SPY", "915. SPY", "Buy", "CAD", "C$1.00", "C$21,000.00", "C$0.00", "C$21,000.00", "C$0.00", "C$110,266.92", "C$116.69", "-C$262.94", "-C$282.84", "-C$282.84"], "meaning": "Purchase with a zero fee split" },
+        { "name": "sell 915 SPY close long", "line": 320, "select": { "table": 1, "row": 10, "column": null }, "expected": ["2020-06-10", "Sell SPY", "-915. SPY", "0. SPY", "Sell", "CAD", "C$1.00", "C$128,100.00", "C$9.95", "C$128,100.00", "C$9.95", "C$0.00", "C$120.51", "C$110,266.92", "C$128,090.05", "C$17,823.14", "C$17,833.08", "C$17,833.08", "C$17,570.15", "C$17,540.30", "C$17,540.30"], "meaning": "Sale of the whole holding, closing the long position" },
+        { "name": "short-sell 85 SPY", "line": 327, "select": { "table": 1, "row": 11, "column": null }, "expected": ["2020-06-10", "Sell SPY Short", "-85. SPY", "-85. SPY", "Open Short", "CAD", "C$1.00", "-C$11,900.00", "C$9.95", "-C$11,900.00", "C$9.95", "-C$11,890.05", "C$17,570.15", "C$17,540.30", "C$17,540.30"], "meaning": "Short sale opening a short position, the same day as row 10 and after it" },
+        { "name": "short-sell 65 SPY", "line": 333, "select": { "table": 1, "row": 12, "column": null }, "expected": ["2020-06-15", "Sell SPY Short", "-65. SPY", "-150. SPY", "Short Sell", "CAD", "C$1.00", "-C$11,050.00", "C$9.95", "-C$11,050.00", "C$9.95", "-C$22,930.10", "C$139.88", "C$17,570.15", "C$17,540.30", "C$17,540.30"], "meaning": "Further short sale" },
+        { "name": "buy 50 SPY short", "line": 339, "select": { "table": 1, "row": 13, "column": null }, "expected": ["2020-06-18", "Buy SPY Close Short", "50. SPY", "-100. SPY", "Cover Buy", "CAD", "C$1.00", "-C$5,000.00", "C$9.95", "-C$5,000.00", "C$9.95", "-C$15,286.73", "C$152.87", "-C$7,643.37", "-C$5,009.95", "C$2,633.42", "C$2,643.37", "C$2,643.37", "C$20,213.52", "C$20,173.72", "C$20,173.72"], "meaning": "Partial cover of the short position" },
+        { "name": "BUY 100 SPY close short", "line": 346, "select": { "table": 1, "row": 14, "column": null }, "expected": ["2020-06-20", "Buy SPY Close Short", "100. SPY", "0. SPY", "Cover Buy", "CAD", "C$1.00", "-C$8,000.00", "C$4.98", "-C$8,000.00", "C$4.98", "C$0.00", "C$152.87", "-C$15,286.73", "-C$8,004.98", "C$7,281.75", "C$7,286.73", "C$7,286.73", "C$27,500.25", "C$27,455.47", "C$27,455.47"], "meaning": "Cover closing the short position" },
+        { "name": "BUY 100 SPY", "line": 353, "select": { "table": 1, "row": 15, "column": null }, "expected": ["2020-06-21", "Buy SPY", "100. SPY", "100. SPY", "Open Long", "CAD", "C$1.00", "C$8,000.00", "C$4.98", "C$8,000.00", "C$4.98", "C$8,004.98", "C$27,500.25", "C$27,455.47", "C$27,455.47"], "meaning": "New long position" }
+      ]
+    }
+  ]
+}

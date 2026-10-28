@@ -1,0 +1,60 @@
+{
+  "fixture": "reports/lots-reverse-split-sale.gnucash",
+  "builtBy": "scripts/report-fixtures/investment_lots.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-investment-lots.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:15)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Assets": "a0000000000000000000000000000002",
+    "Root.Assets.Broker": "a0000000000000000000000000000003",
+    "Root.Assets.Broker.Cash": "a0000000000000000000000000000004",
+    "Root.Assets.Broker.AAPL": "a0000000000000000000000000000005"
+  },
+  "lots": {
+    "Root.Assets.Broker.AAPL": ["10000000000000000000000000000000"]
+  },
+  "book": "Book D, create-reverse-split-with-sale-test-data (:231-307): book B plus a sale. AAPL (NASDAQ, SCU 1). 2020-01-01 \"Buy AAPL lot\": AAPL +100 for $5,000 against Cash -$5,000; 2020-02-01 \"Reverse Split\": AAPL -50, value 0, split-type \"stock-split\", action \"Split\"; 2020-03-01 \"Sell AAPL\": AAPL -25 for -$3,000 against Cash +$3,000. All three AAPL splits are in one untitled lot; no prices. AAPL holds 25 shares. The engine's lot balance is -25: it sums adjusted amounts, and the reverse split scales the buy's to 50 while keeping its own -50 (5.17:libgnucash/engine/Account.cpp:2285-2308, gnc-lot.cpp:505-511). Investment Lots reads raw amounts and never the engine's balance. Read back from the file, the lot lists its splits as buy, sale, reverse split, the order of their transactions in the file; the report sorts them by posted date (design/notes/report-investments.md 4.2).",
+  "dates": "No date in the book depends on now. The run keeps the default Start date and End date, start-accounting-period and today (5.17:gnucash/report/reports/standard/investment-lots.scm:353-359); with no preferences both are today, taken at the end of the day (:667-672): 2024-03-15 23:59:59 UTC for the pinned now. Every split falls before the window, as in GnuCash's own run on any date after 2020; the sale still reduces the lot's end basis (:1854-1855).",
+  "optionValues": "The run uses the template's default options.",
+  "cellSelection": "As in lots-reverse-split.expected.json: \"columnOfHeader\": L stands for the texts of the Nth <td> of every row of table 1, N being the position of the first text equal to L among every <th> text of table 1 (find-col-index, :371-376), or the empty list when none is (:822-827).",
+  "checkShapes": "\"contains\": the selected texts include this string. \"always\": the assertion is the constant #t. \"equalTo\": the selected texts equal, as lists, those the same selection gives for the named run of another fixture.",
+  "runs": [
+    {
+      "id": "reverse-split-with-sale",
+      "lines": "816-834",
+      "template": "Investment Lots",
+      "templateGuid": "ab2acc24afd14630a551f98f1a35fa81",
+      "options": {},
+      "checks": [
+        { "name": "reverse-split-sale-has-sold-splits-column", "line": 829, "select": { "table": 1, "row": 0, "column": null }, "contains": "Sold Splits", "meaning": "The header has a Sold Splits column" },
+        { "name": "reverse-split-sale-realized-gain-column-optional", "line": 830, "always": true, "meaning": "No assertion: (test-assert ... #t)" },
+        { "name": "sold-splits-equal-equivalent-baseline", "line": 831, "select": { "table": 1, "row": null, "columnOfHeader": "Sold Splits" }, "equalTo": { "fixture": "reports/lots-postsplit-baseline.gnucash", "run": "equivalent-baseline-sale" }, "meaning": "Sold Splits as in the book that buys 50 shares for $5,000 and sells 25" },
+        { "name": "realized-gain-equal-equivalent-baseline", "line": 833, "select": { "table": 1, "row": null, "columnOfHeader": "Realized Gain" }, "equalTo": { "fixture": "reports/lots-postsplit-baseline.gnucash", "run": "equivalent-baseline-sale" }, "meaning": "Realized Gain as in that book" }
+      ]
+    }
+  ],
+  "codeReading": "From design/notes/report-investments.md 4.6, read from the Scheme and not run: (1) with the default \"Group gains by age\" of gains-only no header text equals \"Realized Gain\" (investment-lots.scm:124-126, :1046-1050), so both Realized Gain selections are empty lists; (2) the account name heads each account's rows in a <th> (5.17:gnucash/report/stylesheets/plain.scm:105-112), so the selection for \"Sold Splits\" reads the column to its right, Sold Amount; (3) the default window holds no split, so nothing is sold in it and those cells are blank in both books. The assertions hold for any of these readings; they would compare real figures only with a window holding the sale, as in workedFromCode.",
+  "workedFromCode": {
+    "source": "design/notes/report-investments.md 4.6 and 9.4: hand-worked from the Scheme, not run, and not GnuCash's assertions. The book agrees with their inputs: one lot holding all three splits, 25 shares held, no prices. The 204.1% is (3000/2500)^(366/60) - 1 = 2.0409 in doubles: the purchase and the sale are 60 days apart in a leap year (gnc:date-year-delta, 5.17:bindings/guile/date-utilities.scm:201-217).",
+    "runs": [
+      {
+        "run": "reverse-split-with-sale",
+        "figures": { "End Amount": "25. AAPL", "End Basis": "$2,500.00", "LT Unrealized Gain": "-$2,500.00", "Unrealized CAGR": "-100.0%", "price line": "No price found" }
+      },
+      {
+        "options": { "General/Start date": { "absolute": "2019-12-31" }, "General/End date": { "absolute": "2020-12-31" } },
+        "figures": { "Bought Amount": "100. AAPL", "Bought Value (Basis)": "$5,000.00", "Bought Average Price": "$50.00", "Sold Splits": "1", "Sold Amount": "25. AAPL", "Sold Basis": "$2,500.00", "Sold Value": "$3,000.00", "Sold Average Price": "$120.00", "ST Realized Gain": "$500.00", "Realized CAGR": "204.1%", "End Amount": "25. AAPL", "End Basis": "$2,500.00", "ST Unrealized Gain": "-$2,500.00", "Unrealized CAGR": "-100.0%" }
+      }
+    ]
+  }
+}

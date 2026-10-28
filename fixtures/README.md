@@ -59,6 +59,9 @@ made, `c…` transactions, `d…` splits, `e…` prices, `f…` budgets), so a r
 | `cash-flow` | `cash_flow.py` | `standard/test/test-cash-flow.scm:14-144`, its three groups dated 2024-03-15 | GPL-2.0-or-later (no notice; GnuCash's licence) |
 | `cashflow-barchart` | `cash_flow.py` | `standard/test/test-cashflow-barchart.scm:51-195`, its three groups dated 2024-03-02 and -03 | GPL-2.0-or-later (notice kept) |
 | `balsheet-pnl-extras`, `-trading` | `balsheet_pnl_extras.py` | no GnuCash test: a small book for hand-worked Multicolumn Balance Sheet and P&L checks (expense accounts, a closing transaction, placeholders, an account with no splits, priced EUR and unpriced CHF), the second with trading accounts made by GnuCash's own commit; its figures are in the script's docstring | as red-ale |
+| `stock-test-data` | `stock_test_data.py` | `create-stock-test-data` and its `stock-split` helper (`bindings/guile/test/test-engine-extras.scm:893-1059`), as `standard/test/test-portfolios.scm:52`, `:84` builds it | GPL-2.0-or-later (notice in test-engine-extras.scm kept; test-portfolios.scm has none and is cited under GnuCash's licence) |
+| `ifrs-cost-basis` | `ifrs_cost_basis.py` | `standard/test/test-ifrs-cost-basis.scm:54-243` | GPL-2.0-or-later (no notice; GnuCash's licence) |
+| `investment-lots`, `lots-reverse-split`, `lots-baseline`, `lots-reverse-split-sale`, `lots-postsplit-baseline` | `investment_lots.py` | books A to E of `standard/test/test-investment-lots.scm:59-369`; B to E keep their AAPL splits in one lot, GUID `1…0`, and A's unbalanced transactions add an Imbalance-USD account, given fixed GUIDs after each commit | GPL-2.0-or-later (no notice; GnuCash's licence) |
 
 Beside each book, `<book>.expected.json` lists every assertion of the GnuCash tests that run on it, for the report
 translators to turn into named checks: `settings` (now, time zone, locale, date format, report currency, user

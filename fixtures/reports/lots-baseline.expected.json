@@ -1,0 +1,50 @@
+{
+  "fixture": "reports/lots-baseline.gnucash",
+  "builtBy": "scripts/report-fixtures/investment_lots.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-investment-lots.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:15)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Assets": "a0000000000000000000000000000002",
+    "Root.Assets.Broker": "a0000000000000000000000000000003",
+    "Root.Assets.Broker.Cash": "a0000000000000000000000000000004",
+    "Root.Assets.Broker.AAPL": "a0000000000000000000000000000005"
+  },
+  "lots": {
+    "Root.Assets.Broker.AAPL": ["10000000000000000000000000000000"]
+  },
+  "book": "Book C, create-baseline-lot-test-data (:186-229): AAPL (NASDAQ, SCU 1). 2020-01-01 \"Buy AAPL lot baseline\": AAPL +100 for $5,000, in one untitled lot, against Cash -$5,000. No prices.",
+  "dates": "No date in the book depends on now. The run keeps the default Start date and End date, start-accounting-period and today (5.17:gnucash/report/reports/standard/investment-lots.scm:353-359); with no preferences both are today, taken at the end of the day (:667-672): 2024-03-15 23:59:59 UTC for the pinned now. The purchase falls before the window, as in GnuCash's own run on any date after 2020.",
+  "optionValues": "The run uses the template's default options.",
+  "cellSelection": "As in lots-reverse-split.expected.json: \"columnOfHeader\": L stands for the texts of the Nth <td> of every row of table 1, N being the position of the first text equal to L among every <th> text of table 1 (find-col-index, :371-376), or the empty list when none is (:770-775).",
+  "runs": [
+    {
+      "id": "baseline-lot",
+      "lines": "763-777",
+      "template": "Investment Lots",
+      "templateGuid": "ab2acc24afd14630a551f98f1a35fa81",
+      "options": {},
+      "reads": [
+        { "name": "base-sold-values", "line": 770, "select": { "table": 1, "row": null, "columnOfHeader": "Sold Splits" } },
+        { "name": "base-realized-values", "line": 773, "select": { "table": 1, "row": null, "columnOfHeader": "Realized Gain" } }
+      ],
+      "checks": [],
+      "note": "The test asserts nothing on this run alone: the values it reads are compared with book B's in lots-reverse-split.expected.json, run reverse-split-vs-baseline (:792-795)."
+    }
+  ],
+  "workedFromCode": {
+    "source": "design/notes/report-investments.md 4.6: hand-worked from the Scheme, not run, and not GnuCash's assertions. The book agrees with their inputs: one lot holding the purchase, 100 shares held, no prices.",
+    "run": "baseline-lot",
+    "figures": { "End Amount": "100. AAPL", "End Basis": "$5,000.00", "LT Unrealized Gain": "-$5,000.00", "Unrealized CAGR": "-100.0%", "price line": "No price found" }
+  }
+}

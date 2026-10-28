@@ -15,3 +15,6 @@ for script in account_summary balsheet_pnl average_balance charts net_barchart c
         adjusting_entries cash_flow balsheet_pnl_extras; do
     python3 "$here/$script.py" "$out"
 done
+for script in stock_test_data ifrs_cost_basis investment_lots; do
+    python3 "$here/$script.py" "$out"
+done

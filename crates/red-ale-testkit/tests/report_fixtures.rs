@@ -26,7 +26,14 @@ fn every_report_fixture_is_listed() {
         "category-multi",
         "charts-daily",
         "charts-net",
+        "ifrs-cost-basis",
+        "investment-lots",
+        "lots-baseline",
+        "lots-postsplit-baseline",
+        "lots-reverse-split-sale",
+        "lots-reverse-split",
         "net-days",
+        "stock-test-data",
         "test-data",
     ];
     assert_eq!(names, expected.map(|n| format!("reports/{n}.gnucash")));
