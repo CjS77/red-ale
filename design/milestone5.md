@@ -86,7 +86,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 |   ❌   | Register report                   | `standard/register.scm` (`22104e02654c4adba844ee75a3f8d173`): GUI-only, won't do ("Decided", item 5)             |        674 | `test-register.scm`          |
 |        | Trial Balance                     | `standard/trial-balance.scm` (`216cd0cf6931453ebcce85415aba7082`)                                                  |        876 | `test-trial-balance.scm`     |
 |        | Cash Flow                         | `standard/cash-flow.scm` (`f8748b813fab4220ba26e743aedf38da`)                                                      |        346 | `test-cash-flow.scm`         |
-|        | Equity Statement                  | `standard/equity-statement.scm` (`c2a996c8970f43448654ca84f17dda24`)                                               |        510 | `test-equity-statement.scm`  |
+|   ✅   | Equity Statement                  | `standard/equity-statement.scm` (`c2a996c8970f43448654ca84f17dda24`)                                               |        510 | `test-equity-statement.scm`  |
 |        | Multicolumn Balance Sheet and P&L | `standard/balsheet-pnl.scm` (`065d5d5a77ba11e8b31e83ada73c5eea`, `0e94fd0277ba11e8825d43e27232c9d4`)               |      1,261 | `test-balsheet-pnl.scm`      |
 |        | Income/expense vs day of week     | `example/daily-reports.scm` (`5e2d129f28d14df881c3e47e3053f604`, `dde49fed4ca940959ae7d01b72742530`)               |        310 |                              |
 |        | Cash flow chart                   | `standard/cashflow-barchart.scm` (`5426e4d987f6444387fe70880e5b28a0`)                                              |        350 | `test-cashflow-barchart.scm` |

@@ -256,7 +256,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |        | Multicolumn Balance Sheet and P&L | Balance sheet and P&L across several periods       |    3.6     |        |
 |        | Trial Balance                     | Debit and credit balances of every account         |    2.0     |        |
 |        | Cash Flow                         | Money into and out of chosen accounts              |    1.8     |        |
-|        | Equity Statement                  | Changes in equity over a period                    |    2.0     |        |
+|   ✅   | Equity Statement                  | Changes in equity over a period                    |    2.0     |  0.5   |
 |        | General Journal                   | Every transaction in date order                    |    2.0     |        |
 |        | General Ledger                    | Every split, grouped by account                    |    2.0     |        |
 |        | Transaction Report                | Filtered, sorted and subtotalled list of splits    |   1.6.1    |        |
