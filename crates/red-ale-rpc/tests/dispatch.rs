@@ -190,7 +190,9 @@ fn book_create_makes_sqlite_books_when_asked() {
         json!({ "path": format!("sqlite3://{path}"), "format": "xml" }),
         json!({ "path": format!("xml://{path}"), "format": "sqlite" }),
     ];
-    refused.iter().for_each(|params| assert_eq!(d.call("book.create", params.clone()).unwrap_err().code, codes::INVALID_PARAMS, "{params}"));
+    refused
+        .iter()
+        .for_each(|params| assert_eq!(d.call("book.create", params.clone()).unwrap_err().code, codes::INVALID_PARAMS, "{params}"));
     assert!(!std::path::Path::new(&path).exists());
     let info = d.call("book.create", json!({ "path": path, "format": "sqlite" })).unwrap();
     assert_eq!(json!([info["format"], info["readOnly"], info["dirty"]]), json!(["sqlite", false, false]));

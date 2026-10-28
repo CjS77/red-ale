@@ -118,6 +118,21 @@ fn an_sqlite_session_journals_backs_up_once_and_saves() {
     assert!(names.iter().any(|n| Path::new(n).extension().is_some_and(|e| e == "log")), "{names:?}");
 }
 
+/// Retention treats an SQLite book's backups as an XML book's: by name and age (`design/sql-fidelity.md` §6).
+#[test]
+fn retention_removes_an_sqlite_book_s_backups() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/synthetic/rich.gnucash");
+    let settings = Settings { retention: red_ale_service::files::Retention::Never, ..Settings::default() };
+    let mut session = Session::open(path.to_str().unwrap(), false, settings).unwrap();
+    describe_first(&mut session, "First");
+    let report = session.save(None).unwrap();
+    let backup = report.backup.clone().unwrap();
+    assert!(report.removed.contains(&backup), "{report:?}");
+    assert!(!backup.exists());
+    session.close(false).unwrap();
+}
+
 #[test]
 fn dropping_an_sqlite_session_releases_its_lock() {
     let dir = tempfile::tempdir().unwrap();
