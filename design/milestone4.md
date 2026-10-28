@@ -432,6 +432,52 @@ functions, the instance model's amounts, the forecast reports), expected values 
   over 0.3.0, checked by a test.
 - v0.1's, v0.2's and v0.3's done-when checks still pass.
 
+### Evidence
+
+Checked in the final audit. Test names are in the crate's `tests/` directory unless a path is given; `oracle` tests
+are `red-ale-testkit`'s, run with `--features oracle` against GnuCash 5.17.
+
+- **Rows.** Every row above is ✅ or ❌. The 19 ✅ GnuCash features (§4's six, §5's four, §8's seven reports counted
+  as `features.md` lists them, §9's two) have Ported `0.4` in `features.md`, which has no other `0.4` row.
+- **SQLite round-trips.** `red-ale-sql`: `every_fixture_opens_read_only_and_is_left_byte_for_byte` (fixtures.rs),
+  `a_normal_open_and_close_leaves_every_row_as_it_was` (lock.rs). `oracle_sqlite_write.rs`:
+  `an_edited_sqlite_book_opens_in_gnucash_with_nothing_logged_and_reads_the_same`,
+  `every_sqlite_fixture_edited_and_saved_reads_the_same_in_gnucash`,
+  `every_kind_edited_or_removed_reads_the_same_in_gnucash`,
+  `every_sqlite_fixture_written_whole_by_red_ale_reads_in_gnucash_as_the_original` and
+  `rows_red_ale_does_not_model_or_change_are_kept`. `oracle_sqlite_as_gnucash.rs`: the same six edits made by
+  red-ale and by GnuCash give the same rows ([`sql-fidelity.md`](sql-fidelity.md) §9, "Writing as GnuCash writes").
+- **Locks.** `oracle_sqlite_write.rs`: `each_refuses_a_book_the_other_holds`,
+  `a_save_after_gnucash_broke_the_lock_is_refused`. `red-ale-sql/tests/lock.rs`: release on close, on drop, on a
+  book that turns out read-only, and only red-ale's own row; the service tests cover failed opens and saves.
+- **Schema versions.** `red-ale-sql/tests/findings.rs`: `versions_changed_down_and_up_are_named`, one test per
+  finding of [`sql-fidelity.md`](sql-fidelity.md) §1.
+- **One book, two formats.** `red-ale-sql/tests/fixtures.rs`: `every_fixture_reads_to_the_book_of_its_xml_original`;
+  `oracle_sqlite.rs`: `every_sqlite_fixture_reads_as_gnucash_reads_it`.
+- **Recurrences and Since Last Run.** `oracle_recurrences.rs`: `recurrence_arithmetic_matches_gnucash` (148,680
+  cases through `recurrenceNextInstance`). `oracle_scheduled.rs`: `next_instances_agree_with_gnucash`,
+  `gnucash_reads_back_the_instances_red_ale_applied`, `gnucash_reads_the_instances_since_last_run_created_over_rpc`.
+  Property tests in `red-ale-core/src/ops/scheduled`: `occurrences_never_go_backwards`,
+  `applying_then_proposing_again_creates_nothing_more`.
+- **Formulas and the loan.** `red-ale-core/src/formula` unit tests (exact results; financial functions);
+  `red-ale-core/src/ops/scheduled/loan/tests.rs`: `a_thirty_year_loan_has_gnucashs_formulas`,
+  `the_loans_formulas_give_the_hand_worked_figures` (the first instance is 599.55 / 99.55 / 500.00, no Imbalance);
+  `oracle_scheduled.rs`: `gnucash_reads_the_scheduled_transactions_red_ale_made`.
+- **Budgets.** `oracle_budgets.rs`: `budgets_red_ale_saved_read_back_in_gnucash_unchanged`,
+  `a_budget_red_ale_created_filled_and_estimated_reads_back_in_gnucash`,
+  `the_feature_comes_with_the_first_budget_and_goes_with_the_last`, `the_sign_scrub_flips_what_gnucashs_own_scrub_flips`.
+- **Reports.** `red-ale-rpc`: `report_budget.rs`, `report_budget_balance_sheet.rs`,
+  `report_budget_income_statement.rs` (every `test-budget.scm` assertion, plus hand-worked cases),
+  `report_budget_flow.rs`, `report_budget_chart.rs`, `report_forecast.rs` (hand-worked cases citing the `.scm`
+  lines), and `red-ale-report/tests/engine_sx_cashflow.rs` (GnuCash's own occurrence counts); `report_golden.rs`
+  records the eight v0.4 reports on every fixture book.
+- **Interfaces.** `red-ale-mcp/tests/tools.rs`: `every_method_is_a_tool_with_its_params_schema_and_hints`, with the
+  v0.4 hints pinned; `red-ale-rpc/tests/api_additive.rs`: `the_api_is_additive_over_0_2_0` and
+  `the_api_is_additive_over_0_3_0`, with `redAleApi` 0.4.0; `red-ale/tests/cli.rs` runs the budget and scheduled
+  transaction examples through `exec`.
+- **Fuzzing.** `sql_rows`, `sql_file` and `formula` ran 60 s each with no crash ("Carried forward from v0.3").
+- **Earlier milestones.** `cargo test --workspace` and the oracle suite (201 tests) pass, and clippy is clean.
+
 ## Follow-ups
 
 - **Split order of XML books GnuCash didn't write.** GnuCash sorts each transaction's splits as it loads a book,
