@@ -80,6 +80,14 @@ pub(crate) fn data_version(conn: &Connection) -> Result<i64, SqlError> {
     conn.query_row("PRAGMA data_version", [], |r| r.get(0)).map_err(SqlError::from_sqlite)
 }
 
+/// Create a database file for a new book: it must not exist (`design/sql-fidelity.md` §7).
+pub(crate) fn create(path: &Path) -> Result<Connection, SqlError> {
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = Connection::open_with_flags(path, flags).map_err(SqlError::from_write)?;
+    configure(&conn).map_err(SqlError::from_sqlite)?;
+    Ok(conn)
+}
+
 /// Open the book read-only (`SQLITE_OPEN_READONLY`): nothing is written to the file or beside it.
 pub(crate) fn open_read_only(path: &Path) -> Result<Connection, SqlError> {
     check_header(path)?;

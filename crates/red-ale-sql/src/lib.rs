@@ -14,6 +14,7 @@
 
 pub mod cell;
 mod connection;
+mod create;
 pub mod double;
 pub mod encode;
 pub mod error;
@@ -21,6 +22,7 @@ mod lock;
 mod read;
 pub mod residue;
 mod save;
+mod storable;
 pub mod rows;
 pub mod schema;
 pub mod slots;
@@ -33,6 +35,7 @@ use red_ale_core::{Book, Env};
 use rusqlite::{Connection, TransactionBehavior};
 
 pub use error::SqlError;
+pub use create::create;
 pub use lock::LockOwner;
 pub use residue::SqlResidue;
 
@@ -81,6 +84,12 @@ impl SqliteBook {
     /// What the book holds that the Book does not.
     pub fn residue(&self) -> &SqlResidue {
         &self.residue
+    }
+
+    /// Why `after` can't be stored in an SQLite book, if it can't (`design/sql-fidelity.md` §8). Only what changed
+    /// from `before` is checked.
+    pub fn unstorable(before: &Book, after: &Book) -> Option<String> {
+        storable::unstorable(before, after)
     }
 
     /// Whether a save of `book`, given `saved`, the Book as read or last saved, would write anything.
