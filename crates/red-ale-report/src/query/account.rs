@@ -2,6 +2,7 @@
 
 use red_ale_core::ops::accounts::{credit_label, debit_label, depth, descendants_sorted, sorted_children, tree_depth, type_label};
 use red_ale_core::ops::balances::{Total, account_splits, account_splits_between, balance_as_of, running_totals_at};
+use red_ale_core::ops::scrub::currency_or_parent;
 use red_ale_core::{Account, Guid};
 use rhai::{Array, Dynamic, Engine, INT};
 
@@ -50,6 +51,12 @@ pub(super) fn register(engine: &mut Engine) {
         numeric(total)
     });
     engine.register_fn("accumulate_at", accumulate_at);
+    // `gnc_account_get_currency_or_parent` (`5.17:libgnucash/engine/Account.cpp:3403-3412`): the account's commodity if
+    // a currency, else the nearest ancestor's that is, else `()`.
+    engine.register_fn("currency_or_parent", |a: &mut AccountHandle| -> Fallible<Dynamic> {
+        let found = currency_or_parent(a.snap.book(), a.get()?);
+        Ok(found.map_or(Dynamic::UNIT, |c| Dynamic::from(a.book().commodity(&c))))
+    });
     engine.register_fn("reverse_balance", |a: &mut AccountHandle, ctx: ContextHandle| -> Fallible<bool> {
         Ok(ctx.settings().reverse_balanced_accounts.reverses(a.get()?.account_type))
     });

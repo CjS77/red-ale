@@ -4,7 +4,10 @@
 use std::rc::Rc;
 
 use red_ale_core::ops::balances::{Balances, Total};
+use red_ale_core::book_options::uses_split_action_for_num;
+use red_ale_core::lot::is_stock_split;
 use red_ale_core::ops::business::payments::lot_invoice;
+use red_ale_core::ops::lots::lot_split_list;
 use red_ale_core::ops::commodities::{display_symbol, is_iso_namespace, lookup};
 use red_ale_core::ops::doc_links::doc_link;
 use red_ale_core::ops::transactions::find::share_price;
@@ -15,7 +18,7 @@ use red_ale_core::{Commodity, Price, Split, Transaction};
 use rhai::{Array, Dynamic, Engine, INT, Map};
 
 use super::book::numeric;
-use super::{BookHandle, CommodityHandle, Fallible, LotHandle, PriceHandle, SplitHandle, TransactionHandle, script_error};
+use super::{AccountHandle, BookHandle, CommodityHandle, Fallible, LotHandle, PriceHandle, SplitHandle, TransactionHandle, script_error};
 use crate::number::Rational;
 
 pub(super) fn register(engine: &mut Engine) {
@@ -64,6 +67,18 @@ fn split(engine: &mut Engine) {
     engine.register_get("noclosingBalance", |s: &mut SplitHandle| running(s, Total::Noclosing));
     engine.register_get("voidFormerAmount", field(|_, s| numeric(void_former_amount(s)).map(Dynamic::from)));
     engine.register_get("voidFormerValue", field(|_, s| numeric(void_former_value(s)).map(Dynamic::from)));
+    // `xaccSplitGetType` is "stock-split" (`5.17:libgnucash/engine/Split.cpp:2039-2058`).
+    engine.register_get("isStockSplit", field(|_, s| Ok(Dynamic::from(is_stock_split(s)))));
+    // `gnc_get_action_num` (`5.17:libgnucash/engine/engine-helpers.c:85-102`): the split's action, or the
+    // transaction's num when the book uses split actions for nums.
+    engine.register_get("actionNum", |s: &mut SplitHandle| -> Fallible<String> {
+        let (t, split) = s.get()?;
+        Ok(if uses_split_action_for_num(s.snap.book()) {
+            text(t.num.as_deref())
+        } else {
+            text(split.action.as_deref())
+        })
+    });
     split_relations(engine);
 }
 
@@ -190,5 +205,15 @@ fn lot(engine: &mut Engine) {
                 .collect();
             Dynamic::from(map)
         })
+    });
+    let optional = |s: Option<&str>| s.map_or(Dynamic::UNIT, Into::into);
+    // `gnc-lot-get-title`, `gnc-lot-get-notes` (`5.17:libgnucash/engine/gnc-lot.cpp:444-460`): `()` when unset.
+    engine.register_get("title", move |l: &mut LotHandle| -> Fallible<Dynamic> { Ok(optional(l.get()?.title())) });
+    engine.register_get("notes", move |l: &mut LotHandle| -> Fallible<Dynamic> { Ok(optional(l.get()?.notes())) });
+    engine.register_get("account", |l: &mut LotHandle| -> Fallible<AccountHandle> {
+        Ok(BookHandle(Rc::clone(&l.snap)).account(l.get()?.account))
+    });
+    engine.register_fn("splits", |l: &mut LotHandle| {
+        BookHandle(Rc::clone(&l.snap)).splits(lot_split_list(l.snap.book(), l.guid))
     });
 }

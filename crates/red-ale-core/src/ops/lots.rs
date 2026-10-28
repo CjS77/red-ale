@@ -73,6 +73,17 @@ pub fn account_lots(book: &Book, account: Guid) -> Vec<Guid> {
     book.lots.values().rev().filter(|l| l.account == account).map(|l| l.guid).collect()
 }
 
+/// A lot's splits in GnuCash's list order (`gnc_lot_get_split_list`, `5.17:libgnucash/engine/gnc-lot.cpp:424-431`):
+/// the order they joined it, each appended (`gnc_lot_add_split`, `:619`). Loading a book adds them in file order, so
+/// red-ale takes Book order: transactions as the Book holds them, splits in their transaction's order.
+pub fn lot_split_list(book: &Book, lot: Guid) -> Vec<(&Transaction, &Split)> {
+    book.transactions
+        .values()
+        .flat_map(|t| t.splits.iter().map(move |s| (t.as_ref(), s)))
+        .filter(|(_, s)| s.lot == Some(lot))
+        .collect()
+}
+
 /// A new, empty lot titled `Lot <n>` from the account's `lot-mgmt/next-id` slot, which then counts up
 /// (`gnc_lot_make_default`, `5.17:libgnucash/engine/gnc-lot.cpp:765-783`).
 pub fn make_default_lot(book: &mut Book, env: &mut dyn Env, account: Guid) -> DomainResult<Guid> {

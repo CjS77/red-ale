@@ -7,7 +7,9 @@ use red_ale_core::ops::commodities::lookup;
 use red_ale_locale::Conventions;
 use rhai::{Dynamic, Engine, EvalAltResult, INT, Position};
 
-use crate::number::{CommodityFormat, Monetary, NumberError, Rational, Rounding, SizeCap, cagr, fixed, growth_rate};
+use crate::number::{
+    CommodityFormat, Monetary, NumberError, PrintInfo, Rational, Rounding, SizeCap, cagr, fixed, format_amount, growth_rate,
+};
 use crate::query::{BookHandle, Fallible, Snapshot, commodity_arg, rational_arg, script_error, small_count};
 
 /// The error of a Rational past the size cap. Rhai's data-size errors cannot be caught by a script's `try`, so a
@@ -54,6 +56,10 @@ fn rational(engine: &mut Engine, cap: SizeCap) {
     engine.register_fn("round_to", |r: Rational, denom: INT, mode: &str| -> Fallible<Rational> {
         let mode: Rounding = mode.parse().map_err(|e: NumberError| script_error(e.to_string()))?;
         r.round_to(denom, mode).map_err(arithmetic)
+    });
+    engine.register_fn("round_sigfigs", |r: Rational, figs: INT, mode: &str| -> Fallible<Rational> {
+        let mode: Rounding = mode.parse().map_err(|e: NumberError| script_error(e.to_string()))?;
+        r.round_sigfigs(small_count(figs, "figures")?, mode).map_err(arithmetic)
     });
     engine.register_fn("to_decimal", |r: Rational, places: INT| -> Fallible<String> {
         Ok(r.to_decimal(small_count(places, "places")?))
@@ -156,6 +162,13 @@ fn monetary(engine: &mut Engine, snap: &Rc<Snapshot>, cap: SizeCap, conv: Conven
     engine.register_fn("to_string", move |m: &mut Monetary| -> Fallible<String> {
         let format = CommodityFormat::from_book(s.book(), &m.commodity).ok_or_else(|| unknown(m))?;
         Ok(m.to_display_string(&format, &conv))
+    });
+    // `xaccPrintAmount` with `gnc-commodity-print-info commodity use-symbol`
+    // (`5.17:gnucash/report/reports/standard/investment-lots.scm:808-812`): the exact amount, the symbol only when asked.
+    let s = Rc::clone(snap);
+    engine.register_fn("to_string", move |m: &mut Monetary, use_symbol: bool| -> Fallible<String> {
+        let format = CommodityFormat::from_book(s.book(), &m.commodity).ok_or_else(|| unknown(m))?;
+        Ok(format_amount(&m.amount, &PrintInfo::commodity(&format, use_symbol), &conv))
     });
     engine.register_fn("to_debug", |m: &mut Monetary| {
         format!("monetary(\"{}\", \"{}\")", m.commodity, m.amount)

@@ -37,7 +37,7 @@ use std::rc::Rc;
 
 use red_ale_core::formula::NumberFormat;
 use red_ale_core::ops::balances::{Balances, running_balances};
-use red_ale_core::{Account, Book, CommodityRef, Guid, Price, Split, Time64, TimeZone, Transaction};
+use red_ale_core::{Account, Book, CommodityRef, Guid, Lot, Price, Split, Time64, TimeZone, Transaction};
 use rhai::{Engine, EvalAltResult};
 
 pub(crate) use args::{account_arg, commodity_arg, rational_arg, small_count, time_arg};
@@ -177,6 +177,13 @@ impl BookHandle {
         }
     }
 
+    fn price(&self, guid: Guid) -> PriceHandle {
+        PriceHandle {
+            snap: Rc::clone(&self.0),
+            guid,
+        }
+    }
+
     fn split(&self, t: &Transaction, s: &Split) -> SplitHandle {
         SplitHandle {
             snap: Rc::clone(&self.0),
@@ -263,6 +270,15 @@ impl PriceHandle {
             .get(&self.guid)
             .map(AsRef::as_ref)
             .ok_or_else(|| script_error(format!("no price {}", self.guid)))
+    }
+}
+
+impl LotHandle {
+    fn get(&self) -> Fallible<&Lot> {
+        self.snap
+            .book
+            .lot(self.guid)
+            .ok_or_else(|| script_error(format!("no lot {}", self.guid)))
     }
 }
 
