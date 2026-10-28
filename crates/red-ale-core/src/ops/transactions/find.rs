@@ -9,10 +9,12 @@
 //! Times are read in UTC where GnuCash uses the local time zone (red-ale has no local time zone yet).
 
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use regex::{Regex, RegexBuilder};
 
 use super::order::split_order;
+use super::sort::{SortLevel, sort_splits};
 use crate::ops::balances::account_splits_between;
 use crate::ops::commodities::canonical;
 use crate::{
@@ -386,12 +388,23 @@ pub struct PeriodQuery {
     pub description: Option<DescriptionPattern>,
     /// Only Closing transactions, or (with `description`) transactions whose description matches.
     pub closing: bool,
+    /// The reconcile states a split may be in (`xaccQueryAddClearedMatch`, `5.17:libgnucash/engine/Query.cpp:474-503`);
+    /// `None` is every state but voided, `CLEARED-ALL` less `CLEARED-VOIDED`.
+    pub reconcile: Option<Vec<ReconcileState>>,
+    /// Only transactions that are (or are not) Closing transactions, AND'ed with the rest
+    /// (`xaccQueryAddClosingTransMatch`, as `5.17:gnucash/report/trep-engine.scm:2539-2540` adds it).
+    pub is_closing: Option<bool>,
+    /// The sort, at most three levels (primary, secondary, tertiary); none is the query's default sort, split order.
+    pub sort: Vec<SortLevel>,
+    /// Only the first split of each transaction, in the sorted order (`xaccQueryGetSplitsUniqueTrans`,
+    /// `5.17:libgnucash/engine/Query.cpp:67-90`).
+    pub unique: bool,
 }
 
 impl PeriodQuery {
-    /// The query as a find query. A split in state `v` never matches (`CLEARED-ALL` less `CLEARED-VOIDED`); the
-    /// description and closing criteria are OR'ed and the result AND'ed with the rest, as GnuCash merges them. An
-    /// empty pattern matches every description, as GnuCash's `strstr` does.
+    /// The query as a find query. Without `reconcile`, a split in state `v` never matches (`CLEARED-ALL` less
+    /// `CLEARED-VOIDED`); the description and closing criteria are OR'ed and the result AND'ed with the rest, as
+    /// GnuCash merges them. An empty pattern matches every description, as GnuCash's `strstr` does.
     fn to_query(&self) -> DomainResult<Query> {
         let open = |t: Option<Time64>| t.map_or(Query::All(Vec::new()), |t| Query::PostedAt(Compare::GreaterOrEqual, t));
         let close = |t: Option<Time64>| t.map_or(Query::All(Vec::new()), |t| Query::PostedAt(Compare::LessOrEqual, t));
@@ -400,11 +413,19 @@ impl PeriodQuery {
             (None, false) => Query::All(Vec::new()),
             (description, closing) => Query::Any(description.into_iter().chain(closing.then_some(Query::Closing(true))).collect()),
         };
-        Ok(Query::All(vec![
-            Query::Reconcile {
+        let reconcile = self.reconcile.as_ref().map_or_else(
+            || Query::Reconcile {
                 states: vec![ReconcileState::Voided],
                 negate: true,
             },
+            |states| Query::Reconcile {
+                states: states.clone(),
+                negate: false,
+            },
+        );
+        Ok(Query::All(vec![
+            reconcile,
+            self.is_closing.map_or(Query::All(Vec::new()), Query::Closing),
             Query::Accounts {
                 how: AccountMatch::Any,
                 accounts: self.accounts.clone(),
@@ -426,16 +447,25 @@ impl DescriptionPattern {
     }
 }
 
-/// The splits a report's split query finds, with their transactions, in `xaccSplitOrder` (the query's default sort).
-/// An unknown account, or a regular expression that does not compile, is an error; GnuCash drops the criterion.
+/// The splits a report's split query finds, with their transactions, sorted by the query's sort (see [`sort_splits`]),
+/// `xaccSplitOrder` by default. An unknown account, a regular expression that does not compile, or more than three
+/// sort levels is an error; GnuCash drops the criterion, or has no place for a fourth level.
 pub fn period_splits<'a>(book: &'a Book, query: &PeriodQuery) -> DomainResult<Vec<(&'a Transaction, &'a Split)>> {
+    if query.sort.len() > 3 {
+        return Err(DomainError::invalid("a split query sorts by at most three keys"));
+    }
     if query.accounts.is_empty() {
         return Ok(Vec::new());
     }
     let q = query.to_query()?;
     q.check(book)?;
     // No criterion of a period query reads the local day.
-    Ok(matching(book, &q, &TimeZone::utc()))
+    let mut found = sort_splits(book, &query.sort, matching(book, &q, &TimeZone::utc()));
+    if query.unique {
+        let mut seen = BTreeSet::new();
+        found.retain(|(t, _)| seen.insert(t.guid));
+    }
+    Ok(found)
 }
 
 /// The non-void splits of `accounts` posted up to `until` (inclusive) whose transaction currency is not their account's
@@ -674,6 +704,53 @@ mod tests {
             .is_err()
         );
         assert!(found(&PeriodQuery::default()).is_empty());
+    }
+
+    #[test]
+    fn period_queries_filter_states_and_closing_sort_and_keep_one_split_per_transaction() {
+        use super::super::sort::{SortKey, SortLevel};
+        use std::sync::Arc;
+        let mut f = fixture();
+        let first = posted(&mut f, 1, "first", 100);
+        let closing = posted(&mut f, 2, "closing", 200);
+        Arc::make_mut(f.book.transactions.get_mut(&closing).unwrap())
+            .slots
+            .set(crate::transaction::slot_paths::BOOK_CLOSING, crate::SlotValue::Integer(1));
+        let cleared = posted(&mut f, 3, "cleared", 300);
+        let voided = posted(&mut f, 4, "voided", 400);
+        Arc::make_mut(f.book.transactions.get_mut(&cleared).unwrap()).splits[1].reconcile_state = ReconcileState::Cleared;
+        let void = Arc::make_mut(f.book.transactions.get_mut(&voided).unwrap());
+        void.splits.iter_mut().for_each(|s| s.reconcile_state = ReconcileState::Voided);
+        let both = PeriodQuery {
+            accounts: vec![f.food, f.bank],
+            ..PeriodQuery::default()
+        };
+        let found = |q: &PeriodQuery| period_splits(&f.book, q).unwrap().iter().map(|(t, _)| t.guid).collect::<Vec<_>>();
+        let states = |s: &[ReconcileState]| PeriodQuery {
+            reconcile: Some(s.to_vec()),
+            ..both.clone()
+        };
+        assert_eq!(found(&states(&[ReconcileState::Cleared])), [cleared]);
+        assert_eq!(found(&states(&[ReconcileState::Voided])), [voided, voided]);
+        let not_closing = PeriodQuery {
+            is_closing: Some(false),
+            ..both.clone()
+        };
+        assert_eq!(found(&not_closing), [first, first, cleared, cleared]);
+        let descending = PeriodQuery {
+            sort: vec![SortLevel {
+                key: Some(SortKey::DatePosted),
+                ascending: false,
+            }],
+            unique: true,
+            ..both.clone()
+        };
+        assert_eq!(found(&descending), [cleared, closing, first], "the first split of each in the sorted order");
+        let four = PeriodQuery {
+            sort: vec![descending.sort[0]; 4],
+            ..both.clone()
+        };
+        assert!(period_splits(&f.book, &four).is_err());
     }
 
     #[test]

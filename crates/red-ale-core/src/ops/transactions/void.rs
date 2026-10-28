@@ -82,12 +82,26 @@ pub fn void_detached(book: &Book, now: Time64, t: &mut Transaction, reason: &str
     Ok(())
 }
 
+/// The amount a voided split had: `xaccSplitVoidFormerAmount`, zero when the slot is missing
+/// (`5.17:libgnucash/engine/Split.cpp:2190-2196`).
+pub fn void_former_amount(s: &Split) -> Numeric {
+    former(s, slot_paths::VOID_FORMER_AMOUNT)
+}
+
+/// The value a voided split had: `xaccSplitVoidFormerValue`, zero when the slot is missing (`Split.cpp:2198-2204`).
+pub fn void_former_value(s: &Split) -> Numeric {
+    former(s, slot_paths::VOID_FORMER_VALUE)
+}
+
+fn former(s: &Split, path: &str) -> Numeric {
+    s.slots.get(path).and_then(SlotValue::as_numeric).unwrap_or(Numeric::ZERO)
+}
+
 /// `xaccSplitUnvoid`: restore amount and value from the slots (zero when missing), reset the state to `n` and delete
 /// the slots (`5.17:libgnucash/engine/Split.cpp:2220-2231`).
 fn unvoid_split(s: &mut Split) {
-    let former = |s: &Split, path| s.slots.get(path).and_then(SlotValue::as_numeric).unwrap_or(Numeric::ZERO);
-    s.amount = former(s, slot_paths::VOID_FORMER_AMOUNT);
-    s.value = former(s, slot_paths::VOID_FORMER_VALUE);
+    s.amount = void_former_amount(s);
+    s.value = void_former_value(s);
     s.reconcile_state = ReconcileState::New;
     s.slots.remove(slot_paths::VOID_FORMER_AMOUNT);
     s.slots.remove(slot_paths::VOID_FORMER_VALUE);
@@ -189,6 +203,8 @@ mod tests {
         let s = &t.splits[0];
         assert!(s.value.same_repr(usd(0)) && s.amount.same_repr(usd(0)));
         assert_eq!(s.slots.get(slot_paths::VOID_FORMER_VALUE), Some(&SlotValue::Numeric(usd(700))));
+        assert_eq!((void_former_amount(s), void_former_value(s)), (usd(700), usd(700)));
+        assert!(void_former_amount(&before.splits[0]).is_zero(), "zero when never voided");
         assert!(matches!(void(&mut f.book, &mut f.env, g, "again"), Err(DomainError::Conflict(_))));
         unvoid(&mut f.book, &mut f.env, g).unwrap();
         assert_eq!(f.book.transaction(g).unwrap(), &before);
