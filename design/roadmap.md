@@ -239,6 +239,10 @@ Licence: the books are under the GFDL 1.1 or later, with no Invariant Sections a
 may adapt the books' text; code stays GPL-3.0-or-later. What that asks of the Manual is in
 [`manual.md`](manual.md), "Licence".
 
+#### Deployment
+
+Build a CI pipeline to deploy the red-ale docs & manual on Github pages.
+
 ### Business and tax reports, invoices, PDF export
 
 | Area                | Rows                                                                                                                                                                                        |
