@@ -61,8 +61,12 @@ mkdir -p corpus/xml && cp ../fixtures/synthetic/*.gnucash corpus/xml/
 target/x86_64-unknown-linux-gnu/release/xml corpus/xml -max_total_time=60 -rss_limit_mb=4096
 ```
 
-Seed `xml` with the fixture books, `qif` with `fixtures/qif/`, and the CSV targets with `fixtures/csv/` and
-`crates/red-ale-rpc/tests/export/`; the other targets start from nothing.
+The SQL targets link the bundled SQLite, whose C globals AddressSanitizer reports as an `odr-violation` at start-up
+(the C library is not built with the sanitizer); run them with `ASAN_OPTIONS=detect_odr_violation=0`.
+
+Seed `xml` with the fixture books, `sql_file` with copies of `fixtures/sqlite/*/*.gnucash`, `qif` with
+`fixtures/qif/`, and the CSV targets with `fixtures/csv/` and `crates/red-ale-rpc/tests/export/`; the other targets
+start from nothing.
 `corpus/` and `artifacts/` are not committed. A crash found by fuzzing becomes a unit or property test first.
 
 ## Fixtures

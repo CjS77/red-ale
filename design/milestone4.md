@@ -304,11 +304,11 @@ From [`milestone3.md`](milestone3.md), "Follow-ups":
 |:------:|-------------------------------------------|---------------------------------------------------------------------------------------------------|
 |   ✅   | Mutation cost                             | Above                                                                                             |
 |   ✅   | A loopback guard for quote tests          | `Dispatcher::restrict_quotes_to_loopback`, set by every testkit dispatcher; a runtime switch, not a cargo feature ([`api/quotes.md`](api/quotes.md)) |
-|        | Fuzzing                                   | New targets for the SQL row readers and formulas with variables (see "Testing")                   |
-|        | Rhai closure bugs                         | Report upstream; the conventions stay until a release fixes them                                  |
-|        | `ring` is C                               | Unchanged; SQLite adds a second C library ("Decided", item 3)                                     |
-|        | Opening an exported account tree          | Not in v0.4; still open in [`open-questions.md`](open-questions.md)                               |
-|        | GnuCash's QIF account map file            | Not in v0.4                                                                                       |
+|   ✅   | Fuzzing                                   | `sql_rows`, `sql_file` and `formula` ([`testing.md`](testing.md), "Fuzzing"); each ran 60 s with libFuzzer and AddressSanitizer, `sql_file` seeded from `fixtures/sqlite`: no crash, leak or timeout |
+|   ✅   | Rhai closure bugs                         | Settled in v0.3 (`red-ale-report/tests/rhai_closure_limits.rs`); the conventions stay, and the upstream report is the maintainer's to file |
+|   ✅   | `ring` is C                               | Unchanged; SQLite adds a second C library ("Decided", item 3)                                     |
+|   ❌   | Opening an exported account tree          | Not in v0.4; still open in [`open-questions.md`](open-questions.md)                               |
+|   ❌   | GnuCash's QIF account map file            | Not in v0.4                                                                                       |
 
 ## Interfaces
 
@@ -316,9 +316,9 @@ Each feature above counts as done only once it is reachable through JSON-RPC, MC
 
 | Status | Interface    | Notes                                                                                                                         |
 |:------:|--------------|-------------------------------------------------------------------------------------------------------------------------------|
-|        | JSON-RPC API | `scheduledTransaction.*` and `budget.*`; `book.open` takes SQLite files and `sqlite3://`; `book.create` takes `format`. `redAleApi` becomes `0.4.0`, additive over `0.3.0`: the 0.3.0 document is committed beside the 0.2.0 one, and `api_additive.rs` checks against it |
-|        | MCP server   | Every new method as a tool. Deletes, `budget.estimate` and `budget.scrubSigns` are destructive; `scheduledTransaction.sinceLastRun`, `scheduledTransaction.occurrences`, `budget.get` and `budget.list` read only |
-|        | CLI          | Every new method through `exec` and `call`                                                                                    |
+|   ✅   | JSON-RPC API | `scheduledTransaction.*` and `budget.*`; `book.open` takes SQLite files and `sqlite3://`; `book.create` takes `format`. `redAleApi` becomes `0.4.0`, additive over `0.3.0`: the 0.3.0 document is committed beside the 0.2.0 one, and `api_additive.rs` checks against it |
+|   ✅   | MCP server   | Every new method as a tool. Deletes, `budget.estimate` and `budget.scrubSigns` are destructive; `scheduledTransaction.sinceLastRun`, `scheduledTransaction.occurrences`, `budget.get` and `budget.list` read only |
+|   ✅   | CLI          | Every new method through `exec` and `call`                                                                                    |
 
 The designs go in `api/scheduled-transactions.md` and `api/budgets.md`, and the SQL Backend's in `sql-fidelity.md`
 beside [`file-fidelity.md`](file-fidelity.md).
@@ -443,4 +443,4 @@ functions, the instance model's amounts, the forecast reports), expected values 
   `gnc-budget-lookup` (`5.17:bindings/guile/options.scm:150-160`). Such a configuration runs with the report's
   no-budget warning (`report_budget.rs`, `a_saved_configuration_whose_budget_was_deleted_runs_with_none`).
 - **The `sql_file` fuzz target** (mutated SQLite fixtures opened read-only), named in [`sql-fidelity.md`](sql-fidelity.md).
-  Written and built; not yet run, since `cargo-fuzz` is not installed here.
+  Done: it ran 60 s with no crash ("Carried forward from v0.3", Fuzzing).

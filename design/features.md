@@ -140,10 +140,10 @@ source names and the `Finance::Quote` price source, so GnuCash reads the prices 
 
 | Status | Name                  | Short description                                                  | Introduced | Ported |
 |:------:|-----------------------|--------------------------------------------------------------------|:----------:|:------:|
-|        | Budgets               | Several budgets per book, each with amounts per account and period |    2.0     |        |
-|        | Estimate from history | Fills budget amounts from past transactions                        |    2.0     |        |
-|        | Budget notes          | A note per account and period                                      |    4.0     |        |
-|        | Natural signs         | Stores budget amounts with their natural signs                     |    3.8     |        |
+|   ✅   | Budgets               | Several budgets per book, each with amounts per account and period |    2.0     |  0.4   |
+|   ✅   | Estimate from history | Fills budget amounts from past transactions                        |    2.0     |  0.4   |
+|   ✅   | Budget notes          | A note per account and period                                      |    4.0     |  0.4   |
+|   ✅   | Natural signs         | Stores budget amounts with their natural signs                     |    3.8     |  0.4   |
 
 ## 6. Business
 
