@@ -2,18 +2,18 @@
 
 use std::rc::Rc;
 
-use red_ale_core::book_options::{company_name, uses_trading_accounts};
+use red_ale_core::book_options::{company_name, uses_split_action_for_num, uses_trading_accounts};
 use red_ale_core::currencies::{convert_from_euro, convert_to_euro, is_euro_currency};
 use red_ale_core::ops::accounts::descendants_sorted;
 use red_ale_core::ops::commodities::{canonical, lookup};
 use red_ale_core::ops::prices::convert::{PriceAt, convert_balance, rate};
 use red_ale_core::ops::prices::prices;
 use red_ale_core::ops::scheduled::cash_flow;
-use red_ale_core::ops::transactions::find::{DescriptionPattern, PeriodQuery, cross_commodity_splits, period_splits};
+use red_ale_core::ops::transactions::find::cross_commodity_splits;
 use red_ale_core::{AccountType, Guid, Numeric, Time64};
 use rhai::{Array, Dynamic, Engine, INT, Map};
 
-use super::args::{account_arg, accounts_arg, commodity_arg, optional_commodity_arg, optional_time_arg};
+use super::args::{accounts_arg, commodity_arg, optional_commodity_arg, optional_time_arg};
 use super::{BookHandle, Fallible, PriceHandle, script_error};
 use crate::number::{Monetary, Rational};
 use crate::wire::parse_commodity;
@@ -38,12 +38,14 @@ pub(super) fn register(engine: &mut Engine) {
         found.map_or(Dynamic::UNIT, |id| Dynamic::from(b.commodity(&id)))
     });
     engine.register_fn("uses_trading_accounts", |b: &mut BookHandle| uses_trading_accounts(b.0.book()));
+    // `qof-book-use-split-action-for-num-field`: the book's num field source.
+    engine.register_fn("uses_split_action_for_num", |b: &mut BookHandle| uses_split_action_for_num(b.0.book()));
     engine.register_fn("company_name", |b: &mut BookHandle| company_name(b.0.book()).to_owned());
     engine.register_fn("prices", book_prices);
     engine.register_fn("price_rate", price_rate);
     engine.register_fn("price_convert", price_convert);
     engine.register_fn("commodity_splits", commodity_splits);
-    engine.register_fn("split_query", split_query);
+    engine.register_fn("split_query", super::split_query::split_query);
     engine.register_fn("is_euro_currency", |c: Dynamic| -> Fallible<bool> {
         euro_side(&c).map(|c| is_euro_currency(&c))
     });
@@ -140,59 +142,6 @@ fn commodity_splits(b: &mut BookHandle, accounts: Array, until: Dynamic, commodi
         commodity.as_ref(),
         sorted,
     )))
-}
-
-/// The split query of `gnc:account-get-trans-type-splits-interval`: `#{ accounts, from, to, description, closing }`.
-fn split_query(b: &mut BookHandle, q: Map) -> Fallible<Array> {
-    let book = b.0.book();
-    let known = ["accounts", "from", "to", "description", "closing"];
-    if let Some(key) = q.keys().find(|k| !known.contains(&k.as_str())) {
-        return Err(script_error(format!("unknown split query field {key:?}")));
-    }
-    let field = |name: &str| q.get(name).cloned().unwrap_or(Dynamic::UNIT);
-    let accounts = field("accounts");
-    let accounts = match accounts.read_lock::<Array>() {
-        Some(items) => accounts_arg(book, &items)?,
-        None if accounts.is_unit() => Vec::new(),
-        None => vec![account_arg(book, &accounts)?],
-    };
-    let closing = field("closing");
-    let query = PeriodQuery {
-        accounts,
-        from: optional_time_arg(&field("from"))?,
-        to: optional_time_arg(&field("to"))?,
-        description: description(&field("description"))?,
-        closing: if closing.is_unit() {
-            false
-        } else {
-            closing.as_bool().map_err(|_| script_error("closing must be true or false"))?
-        },
-    };
-    let found = period_splits(book, &query).map_err(|e| script_error(e.to_string()))?;
-    Ok(b.splits(found))
-}
-
-/// `#{ text, cased, regexp }`, or `()` for none.
-fn description(v: &Dynamic) -> Fallible<Option<DescriptionPattern>> {
-    if v.is_unit() {
-        return Ok(None);
-    }
-    let map = v
-        .read_lock::<Map>()
-        .ok_or_else(|| script_error("description must be #{ text, cased, regexp }"))?;
-    let flag = |name: &str| {
-        map.get(name).map_or(Ok(false), |f| {
-            f.as_bool().map_err(|_| script_error(format!("{name} must be true or false")))
-        })
-    };
-    let text = map
-        .get("text")
-        .and_then(|t| t.read_lock::<rhai::ImmutableString>().map(|s| s.to_string()));
-    Ok(Some(DescriptionPattern {
-        text: text.ok_or_else(|| script_error("description needs its text"))?,
-        cased: flag("cased")?,
-        regexp: flag("regexp")?,
-    }))
 }
 
 /// A commodity for the euro functions, which take any currency, in the Book or not.

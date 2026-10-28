@@ -8,6 +8,7 @@
 
 pub mod find;
 pub mod order;
+pub mod sort;
 pub mod transfer;
 pub mod void;
 
@@ -320,6 +321,48 @@ pub fn other_split<'a>(book: &Book, t: &'a Transaction, split: Guid) -> Option<&
     });
     let first = others.next()?;
     if others.next().is_some() { None } else { Some(first) }
+}
+
+/// What the corresponding-account reads give when there is no one other split, untranslated:
+/// `_("-- Split Transaction --")` (`5.17:libgnucash/engine/Split.cpp:1663`).
+pub const SPLIT_TRANSACTION_LABEL: &str = "-- Split Transaction --";
+
+/// The code the corresponding-account code read gives when there is no one other split, untranslated:
+/// `C_("Displayed account code of the other account in a multi-split transaction", "Split")` (`Split.cpp:1679`).
+pub const SPLIT_TRANSACTION_CODE: &str = "Split";
+
+/// The one other split, as `get_corr_account_split` finds it (`5.17:libgnucash/engine/Split.cpp:1621-1635`): none
+/// when the transaction has more than two splits, counting every split, or when [`other_split`] finds none.
+fn corr_split<'a>(book: &Book, t: &'a Transaction, split: Guid) -> Option<&'a crate::Split> {
+    if t.splits.len() > 2 {
+        return None;
+    }
+    other_split(book, t, split)
+}
+
+/// `xaccSplitGetCorrAccountFullName` (`5.17:libgnucash/engine/Split.cpp:1654-1668`): the full name of the other split's
+/// account, or [`SPLIT_TRANSACTION_LABEL`] past two splits or with no one other split (a one-split transaction, or
+/// two splits one of which is in a trading account or cut by a lot). An other split with no account gives `""`, as
+/// `gnc_account_get_full_name` of none does.
+pub fn corr_account_full_name(book: &Book, t: &Transaction, split: Guid) -> String {
+    corr_split(book, t, split).map_or_else(
+        || SPLIT_TRANSACTION_LABEL.to_owned(),
+        |o| o.account.and_then(|a| book.full_name(a)).unwrap_or_default(),
+    )
+}
+
+/// `xaccSplitGetCorrAccountCode` (`5.17:libgnucash/engine/Split.cpp:1670-1684`): the other split's account code
+/// (`""` when it has none), or [`SPLIT_TRANSACTION_CODE`] where [`corr_account_full_name`] gives the label.
+pub fn corr_account_code(book: &Book, t: &Transaction, split: Guid) -> String {
+    corr_split(book, t, split).map_or_else(
+        || SPLIT_TRANSACTION_CODE.to_owned(),
+        |o| {
+            o.account
+                .and_then(|a| book.account(a))
+                .and_then(|a| a.code.clone())
+                .unwrap_or_default()
+        },
+    )
 }
 
 /// Transactions matching `filter`, in GnuCash's transaction order (`xaccTransOrder`, see [`order`]).

@@ -460,6 +460,7 @@ fn query(q: &QuerySpec, a: &Accounts) -> PeriodQuery {
             regexp,
         }),
         closing: *closing,
+        ..PeriodQuery::default()
     }
 }
 

@@ -51,9 +51,13 @@ a claim, the test line is cited.
    sort (taken whenever a date key has a date subtotal, TE:2431-2437) compares whole full-name strings with
    `gnc:string-locale<?` (TE:179-184, :2467-2468). They differ when a name holds a character that sorts below the
    separator (`"Bank 2.X"` against `"Bank.Y"`).
-6. **Number sorts as text.** `TRANS-NUM` is a `QOF_TYPE_STRING` parameter (`5.17:libgnucash/engine/Transaction.cpp:2880`),
-   compared with `g_strcmp0` (`5.17:libgnucash/engine/qofquerycore.cpp:194-207`): `"10"` sorts before `"9"`, unlike
-   `xaccTransOrder`.
+6. **Transaction number sorts by its leading number; split action sorts as text.** `TRANS-NUM` is a
+   `QOF_TYPE_STRING` parameter with its own compare function, `qof_string_number_compare_func`
+   (`5.17:libgnucash/engine/Transaction.cpp:2879-2883`, `5.17:libgnucash/engine/qofquerycore.cpp:234-262`): the
+   numbers `strtol` reads at the start (0 when there is none, negatives too), then the rest with `g_strcmp0`, so
+   `"9"` sorts before `"10"` and `"-3"` before `""`. `SPLIT-ACTION`, the `number` key's parameter under the num field
+   source, has none and compares with `g_strcmp0` (`qofquerycore.cpp:194-207`): `"10"` before `"9"`. Neither is
+   `xaccTransOrder`'s `strtoull` rule. `crates/red-ale-testkit/tests/oracle_split_sort.rs` confirms both.
 7. **The Transaction Report has no CSV export in 5.17.** TR registers no `export-types` or `export-thunk` (TR:31-36),
    so neither the GUI (`5.17:gnucash/gnome/gnc-plugin-page-report.cpp:1762-1777`) nor `gnucash-cli`
    (`report/report-core.scm:848-871`) reaches the engine's CSV path. Only the Income and GST Statement (v0.6, a tax
@@ -82,6 +86,11 @@ a claim, the test line is cited.
     :2144-2146; TT:974-976, `$1.00 / 3 = $0.33`).
 15. **The Shares column goes through a double**: an amount in a number cell, printed by the default number renderer
     with `double-to-gnc-numeric … 100` (TE:1212-1218; `report/html-style-info.scm:233-236`), so two decimals.
+16. **Under the num field source, split order is not a total order.** `xaccSplitOrder` compares transactions by the
+    two splits' actions, then a transaction's own splits by memo and then action (`Split.cpp:1548-1573`). A
+    transaction whose splits' memos and actions sort opposite ways forms a cycle with another transaction on the same
+    day entered between them, so the query's default sort, and every sort that falls back to it, follows hash order
+    there. red-ale's order is fixed (`reports.md` §14).
 
 ---
 
@@ -418,8 +427,8 @@ negated for "descending" (`qofquery.cpp:345-374`). An empty key list compares eq
 | `corresponding-acc-code` | `SPLIT-CORR-ACCT-CODE` | `xaccSplitGetCorrAccountCode` strings (`:1747-1760`) |
 | `amount` | `SPLIT-VALUE` | split **value**, `gnc_numeric_compare` (`qofquerycore.cpp:543-553`) |
 | `description` | `SPLIT-TRANS` → `TRANS-DESCRIPTION` | `g_strcmp0` |
-| `number` | `SPLIT-ACTION` (*SA*) or `SPLIT-TRANS` → `TRANS-NUM` | `g_strcmp0` (fact 6) |
-| `t-number` | `SPLIT-TRANS` → `TRANS-NUM` | `g_strcmp0` |
+| `number` | `SPLIT-ACTION` (*SA*) or `SPLIT-TRANS` → `TRANS-NUM` | `g_strcmp0` for the action; `qof_string_number_compare_func` for the num (fact 6) |
+| `t-number` | `SPLIT-TRANS` → `TRANS-NUM` | `qof_string_number_compare_func` (fact 6) |
 | `memo` | `SPLIT-MEMO` | `g_strcmp0` |
 | `notes` | none (custom) | |
 | `none` | `'()` | nothing |
@@ -668,11 +677,11 @@ including complex boolean and multichoice with callback; the result's `export` r
 | Need | Used by | GnuCash |
 |------|---------|---------|
 | `book.split_query` grows: `reconcile` (the states a split may be in; default `["n","c","y","f"]`, today's fixed behaviour), `isClosing` (`true`/`false`/absent, AND'ed, beside the existing OR'ed `closing`), `sort` (`[{ key, ascending }, …]`, at most two, the default sort third), `unique` (one split per transaction). Names follow `transaction.find`'s `reconcile.states` and `closing` | engine, GJ | TE:2533-2553; GJ:57-64; `Query.cpp:67-90`, `:474-503` |
-| The query sort keys of §2.4, in core (`ops::transactions::find`): `accountFullName` (path-wise), `accountCode`, `datePosted`, `dateReconciled`, `corrAccountFullName`, `corrAccountCode`, `value`, `description`, `num`, `action`, `memo`, `default`; an empty primary means no sort (§fact 3, see §7 Q3) | engine | `qofquery.cpp:295-374`; `Split.cpp:1687-1760` |
+| The query sort keys of §2.4, in core (`ops::transactions::sort`): `accountFullName` (path-wise), `accountCode`, `datePosted`, `dateEntered`, `dateReconciled`, `corrAccountFullName`, `corrAccountCode`, `value`, `amount`, `description`, `num`, `action`, `memo`, `default`; an empty primary means no sort (§fact 3, see §7 Q3) | engine | `qofquery.cpp:295-374`; `Split.cpp:1687-1760` |
 | Split `otherSplit` (or `()`): `xaccSplitGetOtherSplit`, skipping trading and `lot-split` splits | Transfer from/to, corresponding-acc renderer | `Split.cpp:2161-2185`; core has `ops::transactions::other_split` |
 | Split `corrAccountFullName`, `corrAccountCode`: `"-- Split Transaction --"` / `"Split"` past two splits | corresponding-acc sorts | `Split.cpp:1620-1685` |
 | Split `voidFormerAmount` | amounts of void transactions | `Split.cpp:2190-2196`; `TE:1262-1264`; RR:71-74 |
-| Split `lot`, and the lot's invoice: `#{ guid, id }` or `()` | Invoice column | `gncInvoiceGetInvoiceFromLot`; core `ops::business::payments::lot_invoice` |
+| Split `lot` (a Lot or `()`), and the Lot's `invoice`: `#{ guid, id }` or `()` | Invoice column | `gncInvoiceGetInvoiceFromLot`; core `ops::business::payments::lot_invoice` |
 | Transaction `docLink` (`""` when none) | Link column | `xaccTransGetDocLink`; core `ops::doc_links::doc_link` |
 | Account `debitLabel`, `creditLabel` (friendly strings) | informal headers | `Account.cpp:148-185`, `:4079-4101` |
 | `book.uses_split_action_for_num()` | the options generator (option names), Num cell, `number` key | `qof-book-use-split-action-for-num-field`; core `book_options::uses_split_action_for_num` |

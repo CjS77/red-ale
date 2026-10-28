@@ -15,6 +15,7 @@
 //! | `Split`       | [`SplitHandle`]       | its transaction's GUID and its own |
 //! | `Commodity`   | [`CommodityHandle`]   | `NAMESPACE::MNEMONIC`          |
 //! | `Price`       | [`PriceHandle`]       | GUID                           |
+//! | `Lot`         | [`LotHandle`]         | GUID                           |
 //! | `Budget`      | [`BudgetHandle`]      | GUID                           |
 
 // Functions registered with Rhai take their arguments by value: Rhai passes owned values to every parameter but
@@ -27,6 +28,8 @@ mod book;
 #[allow(clippy::needless_pass_by_value)]
 mod budget;
 mod entities;
+#[allow(clippy::needless_pass_by_value)]
+mod split_query;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -148,6 +151,13 @@ pub struct CommodityHandle {
 /// A price (Rhai type `Price`).
 #[derive(Debug, Clone)]
 pub struct PriceHandle {
+    snap: Rc<Snapshot>,
+    guid: Guid,
+}
+
+/// A lot (Rhai type `Lot`).
+#[derive(Debug, Clone)]
+pub struct LotHandle {
     snap: Rc<Snapshot>,
     guid: Guid,
 }

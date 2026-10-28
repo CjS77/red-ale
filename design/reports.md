@@ -394,12 +394,13 @@ comes back in hash order.
 | `book.accounts_of_types(types)` | Account[], depth first in display order | | `gnc:filter-accountlist-type` over `gnc-account-get-descendants-sorted` (`report/report-utilities.scm:178-181`), the default of most account options |
 | `book.commodity(id)` | Commodity or `()` | `commodity.get` | |
 | `book.uses_trading_accounts()` | bool | `book.info` | `qof-book-use-trading-accounts` |
+| `book.uses_split_action_for_num()` (v0.5) | bool | `book.info` | `qof-book-use-split-action-for-num-field`: the num field source, which the Transaction Report's option names and Num cells follow |
 | `book.company_name()` | string, `""` when unset | | `gnc:company-info` |
 | `book.prices(commodity, currency)` | Price[], newest first, ties by GUID | `price.list` | `gnc-pricedb-get-prices`, forward only (`5.17:libgnucash/engine/gnc-pricedb.cpp:2047-2058`) |
 | `book.price_rate(commodity, currency, when, mode)` | Rational | `price.nearest`, `price.latest` | `gnc-pricedb-get-{nearest,nearest-before,latest}-price`: 1 for the same commodity; a direct price, inverted when quoted the other way; else an indirect price through a commodity both are priced in; 0 when there is none (`:2408-2527`) |
 | `book.price_convert(monetary, currency, when, mode)` | Monetary | | `gnc-pricedb-convert-balance-*`: amount × `price_rate`, rounded to the currency's SCU with banker's rounding; 0 when no price (`:2529-2586`) |
 | `book.commodity_splits(accounts, until, commodity, sorted)` | Split[] | | `gnc-get-match-commodity-splits`: non-void splits of `accounts` up to `until` (inclusive) whose transaction currency differs from their account's commodity and, unless `commodity` is `()`, one of the two is `commodity` (`5.17:bindings/engine.i:167-193`). Unsorted, account after account, each in split order (`get-exchange-totals` relies on it, CU:447); `sorted`, all in split order. Callers pass the root's sorted descendants (CU:203-205) or those holding shares (`standard/price-scatter.scm:147-149`) |
-| `book.split_query(q)` | Split[] in split order | `transaction.find` | the split query of `gnc:account-get-trans-type-splits-interval` (`report/report-utilities.scm:692-725`), which the Average Balance report also runs (`example/average-balance.scm:300-345`): `q` is `#{ accounts, from, to, description: #{ text, cased, regexp }, closing }`; void splits never match (both GnuCash queries leave them out); `description` and `closing` are OR'ed, as there |
+| `book.split_query(q)` | Split[], in split order unless `q.sort` says otherwise | `transaction.find` | the split query of `gnc:account-get-trans-type-splits-interval` (`report/report-utilities.scm:692-725`), which the Average Balance report also runs (`example/average-balance.scm:300-345`), and of the Transaction Report engine (`report/trep-engine.scm:2533-2553`): `q` is `#{ accounts, from, to, description: #{ text, cased, regexp }, closing, reconcile, isClosing, sort, unique }`, below |
 | `is_euro_currency(c)`, `euro_convert(m, currency)` | bool, Monetary or `()` | `currency.euroConvert` | `gnc-is-euro-currency`, `gnc-convert-to-euro`/`-from-euro` (`5.17:libgnucash/engine/gnc-euro.cpp:31-106`); `()` unless both are euro currencies, as `gnc:exchange-by-euro` (`report/commodity-utilities.scm:635-644`). `c` may be a currency the Book does not hold |
 | `book.sx_cashflow(from, to)` (v0.4) | map of account GUID → Rational | | `gnc-sx-all-instantiate-cashflow-all` (`5.17:libgnucash/app-utils/gnc-sx-instance-model.c:1968-1976`): what every enabled scheduled transaction adds to each account from the local date of `from` to that of `to`, both inclusive (`gnc_time64_to_GDate`, `5.17:bindings/guile/expressions.i:27-32`), in the account's commodity, debits positive, computed from the model without creating anything ([`notes/engine-budgets.md`](notes/engine-budgets.md) §4.10). Occurrences count on from the last one, which is not counted again; Deferred instances play no part; formulas are read in the Locale's monetary separators with every variable 0, and what fails counts as 0. An account that no counted template split names is absent; one whose sums cancel is 0 |
 
@@ -407,11 +408,50 @@ comes back in hash order.
 the direct lookup takes the newest price even if it is in the future, the indirect one the newest at or before now
 (`5.17:libgnucash/engine/gnc-pricedb.cpp:1731-1750`, `:1955-1960`).
 
+The split query's fields, each optional:
+
+- `accounts`: the accounts the splits are in (`xaccQueryAddAccountMatch` with `QOF-GUID-MATCH-ANY`); none finds
+  nothing. `from`, `to`: posted at or after, at or before, to the second (`xaccQueryAddDateMatchTT`).
+- `description` and `closing`: the transaction's description matches, or (`closing: true`) it is a Closing
+  transaction; the two are OR'ed with each other and AND'ed with the rest, as
+  `gnc:account-get-trans-type-splits-interval` merges them.
+- `reconcile` (v0.5): the states a split may be in, named as `transaction.find`'s `reconcile.states` (`"n"`, `"c"`,
+  `"y"`, `"f"`, `"v"`; `xaccQueryAddClearedMatch`, `5.17:libgnucash/engine/Query.cpp:474-503`). Without it every state
+  but `v`: void splits match only when asked for, as both GnuCash queries leave them out.
+- `isClosing` (v0.5): the transaction is (`true`) or is not (`false`) a Closing transaction, AND'ed
+  (`xaccQueryAddClosingTransMatch`, `report/trep-engine.scm:2539-2540`), unlike `closing`.
+- `sort` (v0.5): up to three levels, primary first, each `#{ key, ascending }` (`ascending` defaults to true), as
+  `qof-query-set-sort-order` and `qof-query-set-sort-increasing` take them. The first level that tells two splits apart
+  decides, negated when descending (`5.17:libgnucash/engine/qofquery.cpp:345-374`); ties at every level keep split order.
+  A level with key `"none"` compares every two splits equal; with `"none"` first nothing is sorted, which in GnuCash is
+  hash order and in red-ale split order (section 14). Without `sort`, split order (`QUERY-DEFAULT-SORT`). The keys,
+  each a QOF sort parameter, compared as `SortKey` in `ops::transactions::sort` documents:
+
+  | Key | QOF parameter | Compares |
+  |-----|---------------|----------|
+  | `accountFullName` | `SPLIT-ACCT-FULLNAME` | the account paths from the top, the first differing accounts' names; the same account is equal, an ancestor less (`Split.cpp:1687-1709`) |
+  | `accountCode` | `SPLIT-ACCOUNT`, `ACCOUNT-CODE-` | account codes, `""` when unset |
+  | `corrAccountFullName`, `corrAccountCode` | `SPLIT-CORR-ACCT-NAME`, `SPLIT-CORR-ACCT-CODE` | the Split reads of the same names (`Split.cpp:1725-1757`) |
+  | `datePosted`, `dateEntered` | `SPLIT-TRANS`, `TRANS-DATE-POSTED` / `-ENTERED` | the transaction's times, to the second |
+  | `dateReconciled` | `SPLIT-DATE-RECONCILED` | reconcile times, 0 when never reconciled |
+  | `value`, `amount` | `SPLIT-VALUE`, `SPLIT-AMOUNT` | exactly |
+  | `num` | `SPLIT-TRANS`, `TRANS-NUM` | the transaction's num by its own compare function, `qof_string_number_compare_func` (`Transaction.cpp:2879-2883`, `qofquerycore.cpp:234-262`): the numbers `strtol` reads at the start (0 when none), then the rest of each string; `"9"` before `"10"` |
+  | `action`, `memo` | `SPLIT-ACTION`, `SPLIT-MEMO` | the strings, byte by byte (`g_strcmp0`, `qofquerycore.cpp:194-207`) |
+  | `description` | `SPLIT-TRANS`, `TRANS-DESCRIPTION` | the strings, byte by byte |
+  | `default` | `QUERY-DEFAULT-SORT` | split order |
+
+- `unique` (v0.5): only the first split of each transaction, in the sorted order (`xaccQueryGetSplitsUniqueTrans`,
+  `Query.cpp:67-90`).
+
 ### Account
 
 Properties: `guid`, `name`, `fullName`, `type`, `typeString` (the type's label, "Asset", as
 `xaccAccountGetTypeStr` gives it), `code`, `description`, `notes`, `placeholder`, `hidden`, `commodity` (Commodity),
-`parent` (Account or `()`), `depth` (levels below the root).
+`parent` (Account or `()`), `depth` (levels below the root), and from v0.5 `debitLabel` and `creditLabel`: the friendly
+names of a debit and a credit in an account of its type ("Deposit" and "Withdrawal" for a bank account), untranslated,
+as `gnc-account-get-debit-string` and `-credit-string` give them without the "use formal accounting labels"
+preference, which red-ale does not have (`5.17:libgnucash/engine/Account.cpp:148-185`, `:4079-4101`); root and the
+legacy bank types get "Debit" and "Credit".
 
 | Function | Returns | GnuCash |
 |----------|---------|---------|
@@ -428,9 +468,21 @@ Properties: `guid`, `name`, `fullName`, `type`, `typeString` (the type's label, 
 
 - **Split**: `guid`, `account`, `transaction`, `amount`, `value`, `memo`, `action`, `reconcile`, `reconcileDate`,
   `balance`, `noclosingBalance` (`xaccSplitGetNoclosingBalance`, `5.17:libgnucash/engine/Split.cpp:1322-1325`),
-  `sharePrice`.
+  `sharePrice`; from v0.5:
+  - `otherSplit`: the one other split, or `()` (`xaccSplitGetOtherSplit`, `5.17:libgnucash/engine/Split.cpp:2161-2185`):
+    splits in trading accounts and cut splits (with a `lot-split` slot) do not count, and more than one other is `()`;
+  - `corrAccountFullName`, `corrAccountCode`: the other split's account's full name and code, or
+    `"-- Split Transaction --"` and `"Split"`, untranslated, when the transaction has more than two splits (all
+    counted) or no one other split (`xaccSplitGetCorrAccountFullName`, `-Code`, `Split.cpp:1621-1684`; the strings
+    at `:1663` and `:1679`). The Transaction Report sorts by these; its Transfer cell reads `otherSplit` instead;
+  - `voidFormerAmount`, `voidFormerValue`: what a voided split held, 0 when it never was voided
+    (`xaccSplitVoidFormerAmount`, `-Value`, `Split.cpp:2190-2204`);
+  - `lot`: the split's Lot, or `()`.
 - **Transaction**: `guid`, `currency`, `datePosted` (Time64), `dateEntered`, `num`, `description`, `notes`,
-  `isClosing` (the `book_closing` slot), `isVoid`, `splitCount`, `splits()`.
+  `isClosing` (the `book_closing` slot), `isVoid`, `splitCount`, `splits()`, and from v0.5 `docLink` (`""` when
+  none; `xaccTransGetDocLink`, `5.17:libgnucash/engine/Transaction.cpp:2217-2221`).
+- **Lot** (v0.5): `guid`; `invoice`, `#{ guid, id }` of the business document the lot's `gncInvoice/invoice-guid`
+  slot names, or `()` (`gncInvoiceGetInvoiceFromLot`), which the Transaction Report's Invoice column reads.
 - **Commodity**: `id` (`NAMESPACE::MNEMONIC`), `namespace`, `mnemonic`, `fullname`, `fraction` (SCU), `isCurrency`,
   `symbol` (the nice symbol of section 3), `uniqueName`.
 - **Price**: `guid`, `commodity`, `currency`, `time`, `source`, `type`, `value`.
@@ -480,7 +532,8 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | `book.price_rate(…)` | `ops::prices::convert::rate` with `PriceAt::{Nearest, Before, Latest { now }}` | new |
 | `book.price_convert(…)` | `ops::prices::convert::convert_balance`, after the Monetary's Rational is made a Numeric (past 64 bits GnuCash fails at the same place, section 3) | new |
 | `book.commodity_splits(…)` | `ops::transactions::find::cross_commodity_splits` | new |
-| `book.split_query(q)` | `ops::transactions::find::period_splits` with a `PeriodQuery` | new |
+| `book.split_query(q)` | `ops::transactions::find::period_splits` with a `PeriodQuery`; its sort `ops::transactions::sort::sort_splits` over `SortLevel`s | new (sort, v0.5) |
+| `book.uses_split_action_for_num()` | `book_options::uses_split_action_for_num` | |
 | `is_euro_currency`, `euro_convert` | `currencies::is_euro_currency`, `ops::commodities::euro_convert` | |
 | `a.children()`, `a.descendants()` | `Book::children`, `Book::descendants` | |
 | `a.children_sorted()`, `a.descendants_sorted()` | `ops::accounts::sorted_children`, `ops::accounts::descendants_sorted` | new (descendants) |
@@ -492,6 +545,12 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | `a.reverse_balance(ctx)` | none: a report setting (section 4), not Book data; stays in `red-ale-report` | |
 | Split `balance`, `noclosingBalance` | `ops::balances::running_balances` (`RunningSplit::running`) | new |
 | Split `sharePrice` | `ops::transactions::find::share_price` | |
+| Split `otherSplit` | `ops::transactions::other_split` | |
+| Split `corrAccountFullName`, `corrAccountCode` | `ops::transactions::corr_account_full_name`, `corr_account_code` | new (v0.5) |
+| Split `voidFormerAmount`, `voidFormerValue` | `ops::transactions::void::void_former_amount`, `void_former_value` | new (v0.5) |
+| Split `lot`; Lot `invoice` | `Split::lot`, `Book::lot`; `ops::business::payments::lot_invoice` | |
+| Transaction `docLink` | `ops::doc_links::doc_link` | |
+| Account `debitLabel`, `creditLabel` | `ops::accounts::debit_label`, `credit_label` | new (v0.5) |
 | Transaction `isClosing`, `isVoid` | `Transaction::is_closing`, `Transaction::is_void` | |
 | Commodity `symbol` | `ops::commodities::display_symbol` | |
 | `ctx.accounting_period()` | `ops::period::period_bounds` | |
@@ -1360,6 +1419,9 @@ drops it and needs nothing from budgets.
 | Bad option values | Logged and ignored | `report-option` error | A typo never runs a different report |
 | A split query's description pattern that is not a regular expression | The criterion is dropped (`qof_query_string_predicate` returns null, `5.17:libgnucash/engine/qofquerycore.cpp:319-334`) | `report-script` error | A typo never matches every transaction |
 | A split query's regular expressions and case folding | POSIX extended expressions; `g_utf8_casefold` | Rust `regex`; lowercase, as `transaction.find` | Same results for patterns both dialects read alike |
+| A split query sorted with no first key (the Transaction Report's Primary Key "None") | Not sorted: hash order (`5.17:libgnucash/engine/qofquery.cpp:492-497`, `:792-797`) | Split order | Determinism; GnuCash's order is undefined |
+| A split query's splits equal at every sort level | The order the query collected them in, hash order (a stable merge sort, `qofquery.cpp:792-797`) | Split order | Determinism; the Transaction Report always sorts by split order third, so its splits never tie |
+| Split order with the num field source on | `xaccSplitOrder` is not a total order: a transaction whose splits' memos and actions sort opposite ways forms a cycle with a transaction entered between them on the same day (`Split.cpp:1548-1573`); the sort's result follows hash order | Sorted from the transactions in GUID order: fixed, but not one GnuCash gives on every run | GnuCash's own order varies |
 | Saved configuration name clash | A number is appended on save | `conflict` | The caller gets the name it asked for |
 | User text in style sheets | Inserted as raw HTML | Escaped | No injected markup in exported reports |
 | CSS style sheet text | Default CSS on `</style` | Refused on `</style`, `@import`, `url(`, `image(`, `image-set(`, `src(`, `\` | Exported pages load nothing |

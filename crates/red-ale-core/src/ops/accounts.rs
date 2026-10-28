@@ -68,6 +68,46 @@ pub fn type_label(t: AccountType) -> &'static str {
     }
 }
 
+/// The friendly name of a debit in an account of type `t`, untranslated: `gnc_account_get_debit_string` without the
+/// "use formal accounting labels" preference (`5.17:libgnucash/engine/Account.cpp:148-164`, `:4079-4089`), whose
+/// `"Debit"` covers the types its table leaves out (root and the legacy bank types).
+pub fn debit_label(t: AccountType) -> &'static str {
+    use AccountType as T;
+    match t {
+        T::None => "Funds In",
+        T::Bank => "Deposit",
+        T::Cash => "Receive",
+        T::Credit | T::Payable => "Payment",
+        T::Asset => "Increase",
+        T::Liability | T::Trading | T::Equity => "Decrease",
+        T::Stock | T::Mutual | T::Currency => "Buy",
+        T::Income => "Charge",
+        T::Expense => "Expense",
+        T::Receivable => "Invoice",
+        T::Root | T::Checking | T::Savings | T::MoneyMarket | T::CreditLine => "Debit",
+    }
+}
+
+/// The friendly name of a credit in an account of type `t`, untranslated: `gnc_account_get_credit_string` without
+/// the formal labels preference (`5.17:libgnucash/engine/Account.cpp:167-183`, `:4091-4101`).
+pub fn credit_label(t: AccountType) -> &'static str {
+    use AccountType as T;
+    match t {
+        T::None => "Funds Out",
+        T::Bank => "Withdrawal",
+        T::Cash => "Spend",
+        T::Credit => "Charge",
+        T::Asset => "Decrease",
+        T::Liability | T::Trading | T::Equity => "Increase",
+        T::Stock | T::Mutual | T::Currency => "Sell",
+        T::Income => "Income",
+        T::Expense => "Rebate",
+        T::Payable => "Bill",
+        T::Receivable => "Payment",
+        T::Root | T::Checking | T::Savings | T::MoneyMarket | T::CreditLine => "Credit",
+    }
+}
+
 /// The fundamental type: ASSET, LIABILITY, INCOME, EXPENSE or EQUITY (`xaccAccountTypeGetFundamental`,
 /// `5.17:libgnucash/engine/Account.cpp:4483`).
 pub fn fundamental_type(t: AccountType) -> Option<AccountType> {
@@ -1563,5 +1603,23 @@ mod tests {
         );
         let other = f.add(Guid::NULL, "Other", AccountType::Expense);
         assert!(delete_account(&mut f.book, other, &DeleteOptions::default()).is_ok());
+    }
+
+    #[test]
+    fn debit_and_credit_labels_follow_gnucash_tables() {
+        use AccountType as T;
+        let labels = |t| (debit_label(t), credit_label(t));
+        assert_eq!(labels(T::Bank), ("Deposit", "Withdrawal"));
+        assert_eq!(labels(T::Credit), ("Payment", "Charge"));
+        assert_eq!(labels(T::Liability), ("Decrease", "Increase"));
+        assert_eq!(labels(T::Mutual), ("Buy", "Sell"));
+        assert_eq!(labels(T::Income), ("Charge", "Income"));
+        assert_eq!(labels(T::Expense), ("Expense", "Rebate"));
+        assert_eq!(labels(T::Payable), ("Payment", "Bill"));
+        assert_eq!(labels(T::Receivable), ("Invoice", "Payment"));
+        assert_eq!(labels(T::Equity), ("Decrease", "Increase"));
+        assert_eq!(labels(T::None), ("Funds In", "Funds Out"));
+        assert_eq!(labels(T::Root), ("Debit", "Credit"), "not in the tables");
+        assert_eq!(labels(T::Savings), ("Debit", "Credit"));
     }
 }
