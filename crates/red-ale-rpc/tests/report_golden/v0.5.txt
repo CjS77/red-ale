@@ -416,3 +416,65 @@ stock-test-data us Reconciliation Report	3954 8062a6198956301d
 stock-test-data locale General Journal	12354 abfb59bed530d3b8
 stock-test-data locale General Ledger	3714 53d2a42883ac6c2c
 stock-test-data locale Reconciliation Report	3954 8062a6198956301d
+average-balance us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+average-balance locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+balsheet-pnl us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+balsheet-pnl locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+budget us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+budget locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-average us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-average locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-daily us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-daily locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-liability us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-liability locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-multi us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+category-multi locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+charts-daily us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+charts-daily locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+charts-net us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+charts-net locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+net-days us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+net-days locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+test-data us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+test-data locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+adjusting-entries us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+adjusting-entries locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+adjusting-entries-fx us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+adjusting-entries-fx locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+cash-flow us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+cash-flow locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+cashflow-barchart us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+cashflow-barchart locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+balsheet-pnl-extras us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+balsheet-pnl-extras locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+balsheet-pnl-extras-trading us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+balsheet-pnl-extras-trading locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+transaction us IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+transaction locale IFRS weighted-average cost basis report	4729 25a65449e0a5c449
+stock-test-data us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+stock-test-data locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+ifrs-cost-basis us Balance Sheet (Multicolumn)	9704 223829d44f439aca
+ifrs-cost-basis us Cash Flow	4808 79050b81c0dbd4d2
+ifrs-cost-basis us Cash Flow Barchart	3635 e178c0959d3418ea
+ifrs-cost-basis us Equity Statement	4636 e4e6f0639a62684a
+ifrs-cost-basis us General Journal	23064 9fee767072669c30
+ifrs-cost-basis us General Ledger	3714 53d2a42883ac6c2c
+ifrs-cost-basis us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+ifrs-cost-basis us Income Statement (Multicolumn)	11060 c84de29cb28f131e
+ifrs-cost-basis us Investment Portfolio	4611 23429cc2f96bff22
+ifrs-cost-basis us Reconciliation Report	3954 8062a6198956301d
+ifrs-cost-basis us Transaction Report	3722 6935fd70da4b08c8
+ifrs-cost-basis us Trial Balance	7899 cca65ceaa2363e56
+ifrs-cost-basis locale Balance Sheet (Multicolumn)	9700 fa92cddb7b170bc2
+ifrs-cost-basis locale Cash Flow	4800 2d44a1ecfe03d0ca
+ifrs-cost-basis locale Cash Flow Barchart	3635 e178c0959d3418ea
+ifrs-cost-basis locale Equity Statement	4624 0c5fc8fa6f0a3602
+ifrs-cost-basis locale General Journal	23028 50240ffedf763954
+ifrs-cost-basis locale General Ledger	3714 53d2a42883ac6c2c
+ifrs-cost-basis locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+ifrs-cost-basis locale Income Statement (Multicolumn)	11052 c9403dc76d58a0b6
+ifrs-cost-basis locale Investment Portfolio	4607 8da12459c0de9776
+ifrs-cost-basis locale Reconciliation Report	3954 8062a6198956301d
+ifrs-cost-basis locale Transaction Report	3722 6935fd70da4b08c8
+ifrs-cost-basis locale Trial Balance	7895 64fdbdf8aeefd826

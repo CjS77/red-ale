@@ -93,7 +93,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 |   ✅   | Investment Portfolio              | `standard/portfolio.scm` (`4a6b82e8678c4f3d9e85d9f09634ca89`)                                                      |        292 | `test-portfolios.scm`        |
 |        | Advanced Portfolio                | `standard/advanced-portfolio.scm` (`21d7cfc59fc74f22887596ebde7e462d`)                                             |      1,190 | `test-portfolios.scm`        |
 |        | Investment Lots                   | `standard/investment-lots.scm` (`ab2acc24afd14630a551f98f1a35fa81`)                                                |      2,326 | `test-investment-lots.scm`   |
-|        | IFRS cost basis                   | `standard/ifrs-cost-basis.scm` (`15d5b744176c4625a703720338725291`)                                                |        533 | `test-ifrs-cost-basis.scm`   |
+|   ✅   | IFRS cost basis                   | `standard/ifrs-cost-basis.scm` (`15d5b744176c4625a703720338725291`)                                                |        533 | `test-ifrs-cost-basis.scm`   |
 |        | Multicolumn reports               | `standard/view-column.scm` (`d8ba4a2e89e8479ca9f6eccdeb164588`)                                                    |        189 |                              |
 
 The `balsheet-pnl.scm` fixture of v0.2 (`fixtures/reports/balsheet-pnl.gnucash`) already exists. The GUIDs and line
