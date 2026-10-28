@@ -87,6 +87,15 @@ fn options(params, o, book) {
     o.set_default_section("General");
 }
 
+/// The division-by-zero message (`OVERFLOW-ERROR`, :51-55), as one paragraph: GnuCash's line breaks are HTML
+/// whitespace.
+private fn overflow_error(reason) {
+    #{ kind: "warning", title: "Error",
+       text: `There is an error processing the transaction '${reason}'. This may to be caused by a sell transaction `
+           + "causing a negative stock balance, and a subsequent buy transaction causing a zero balance. This leads to "
+           + "a division-by-zero error. It can be fixed by preventing negative stock balances." }
+}
+
 /// "Share decimal places" as a count of places. GnuCash passes `inexact->exact` of the number to
 /// `gnc-share-print-info-places` (:367-370), which takes only a whole number; so does red-ale, with a message.
 private fn share_places(value) {
@@ -747,9 +756,80 @@ private fn columns(env) {
     cols + [amount_column("Total Return"), amount_column("Rate of Return")]
 }
 
-/// The table of the account rows (:1009-1088).
+/// A total of the report (:1089-1135): `collector` in the report's currency through the exchange function.
+private fn report_total(env, collector) {
+    collectors::sum_collector_commodity(collector, env.currency, env.exchange_fn)
+}
+
+/// The "Total" row (:1089-1160): `" "` under each shown optional column and the marker, then the totals in the
+/// report's currency through the exchange function, the gains and the return added and rounded to its SCU, and the
+/// rates.
+private fn total_row(env, out) {
+    let rf = env.currency.fraction;
+    let moneyin = report_total(env, out.moneyin);
+    let income = report_total(env, out.income);
+    let gain = report_total(env, out.gain);
+    let ugain = report_total(env, out.ugain);
+    let both_gains = monetary(env.currency, to_frac(gain.amount + ugain.amount, rf));
+    let totalreturn = monetary(env.currency, to_frac(both_gains.amount + income.amount, rf));
+    let cells = [#{ text: "Total" }];
+    for shown in [env.show_symbol, env.show_listing, env.show_shares, env.show_price, true] {
+        if shown {
+            cells.push(#{ text: " " });
+        }
+    }
+    cells += [
+        #{ monetary: report_total(env, out.basis) },
+        #{ monetary: report_total(env, out.value) },
+        #{ monetary: moneyin },
+        #{ monetary: report_total(env, out.moneyout) },
+        #{ monetary: gain },
+        #{ monetary: ugain },
+        #{ monetary: both_gains },
+        rate_cell(both_gains.amount, moneyin.amount),
+        #{ monetary: income },
+    ];
+    if env.fees != "ignore-brokerage" {
+        cells.push(#{ monetary: report_total(env, out.brokerage) });
+    }
+    cells += [#{ monetary: totalreturn }, rate_cell(totalreturn.amount, moneyin.amount)];
+    #{ role: "grandTotal", cells: cells }
+}
+
+/// The notes after the table (:1163-1172), one line each: transaction pricing, then the price of 1.
+private fn notes(out) {
+    let lines = [];
+    if out.warn_price_dirty {
+        lines += ["* this commodity data was built using transaction pricing instead of the price list.",
+                  "If you are in a multi-currency situation, the exchanges may not be correct."];
+    }
+    if out.warn_no_price {
+        lines.push("** this commodity has no price and a price of 1 has been used.");
+    }
+    if lines.is_empty() {
+        return [];
+    }
+    let text = lines[0];
+    for line in lines.extract(1) {
+        text += "\n" + line;
+    }
+    [#{ kind: "text", text: text, role: "note" }]
+}
+
+/// The blocks of a report with accounts (:1009-1173): the division-by-zero error when a walk hit one, the table of
+/// rows, a rule and the totals, and the notes. GnuCash's rule spans 17 columns whatever the table has; here it covers
+/// the table.
 private fn portfolio_blocks(env) {
-    [#{ kind: "table", columns: columns(env), rows: stock_rows(env).rows }]
+    let cols = columns(env);
+    let out = stock_rows(env);
+    let rows = out.rows;
+    let rule = [];
+    rule.pad(cols.len(), ());
+    rows.push(#{ role: "rule", cells: rule });
+    rows.push(total_row(env, out));
+    let blocks = if is_none(out.error) { [] } else { [overflow_error(out.error)] };
+    blocks.push(#{ kind: "table", columns: cols, rows: rows });
+    blocks + notes(out)
 }
 
 /// `advanced-portfolio-renderer` (:149-1182).

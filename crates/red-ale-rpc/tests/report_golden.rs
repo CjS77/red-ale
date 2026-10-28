@@ -80,6 +80,7 @@ const V05_REPORTS: &[&str] = &[
     "Income Statement (Multicolumn)",
     "Transaction Report",
     "Investment Portfolio",
+    "Advanced Portfolio",
 ];
 
 /// The fixture books added in v0.5, on which `v0.5.txt` records the v0.5 reports besides `BOOKS`.
