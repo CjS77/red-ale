@@ -209,7 +209,26 @@ pub fn evaluate_with(text: &str, format: NumberFormat, variables: &Variables, fu
 pub fn free_variables(text: &str, format: NumberFormat) -> Result<Vec<String>, FormulaError> {
     let mut names = Names::default();
     parser::run(text, format, Mode::Formula, &mut names)?;
-    Ok(names.0.into_iter().map(str::to_owned).collect())
+    Ok(names.variables.into_iter().map(str::to_owned).collect())
+}
+
+/// Check, without evaluating it, that every function a formula calls is one `functions` computes, with the number of
+/// arguments it takes. Each call is tried with no arguments: [`Financial`] names an unknown or inexact function before
+/// it counts arguments, and answers a known one with [`FunctionError::Arity`]. The editor refuses a formula GnuCash
+/// can't parse (`5.17:gnucash/gnome/dialog-sx-editor.c:766-790`); a call GnuCash would send to Guile and red-ale can't
+/// compute is refused with it.
+pub fn check_calls(text: &str, format: NumberFormat, functions: &dyn Functions) -> Result<(), FormulaError> {
+    let mut names = Names::default();
+    parser::run(text, format, Mode::Formula, &mut names)?;
+    names.calls.into_iter().try_for_each(|(name, count)| {
+        let error = match functions.call(name, &[]) {
+            Err(FunctionError::Arity(n)) if n == count => return Ok(()),
+            Err(FunctionError::Arity(n)) => FunctionError::Arity(n),
+            Err(e) => e,
+            Ok(_) => return Ok(()),
+        };
+        Err(FormulaError::Function { name: name.to_owned(), error })
+    })
 }
 
 /// A value on GnuCash's parser stack: a temporary, a reference to a named variable, or a string.
@@ -332,9 +351,13 @@ impl<'a> Semantics<'a> for Eval<'a, '_> {
     }
 }
 
-/// The names a formula uses, without evaluating it.
+/// The names a formula uses, without evaluating it: its variables, and its function calls with their numbers of
+/// arguments.
 #[derive(Default)]
-struct Names<'a>(IndexSet<&'a str>);
+struct Names<'a> {
+    variables: IndexSet<&'a str>,
+    calls: Vec<(&'a str, usize)>,
+}
 
 impl<'a> Semantics<'a> for Names<'a> {
     /// The variable's name, if the value is a variable.
@@ -349,7 +372,7 @@ impl<'a> Semantics<'a> for Names<'a> {
     }
 
     fn variable(&mut self, name: &'a str) -> Self::Value {
-        self.0.insert(name);
+        self.variables.insert(name);
         Some(name)
     }
 
@@ -369,7 +392,8 @@ impl<'a> Semantics<'a> for Names<'a> {
         Ok(target)
     }
 
-    fn call(&mut self, _: &'a str, _: Vec<Self::Value>) -> Result<Self::Value, FormulaError> {
+    fn call(&mut self, name: &'a str, args: Vec<Self::Value>) -> Result<Self::Value, FormulaError> {
+        self.calls.push((name, args.len()));
         Ok(None)
     }
 }
