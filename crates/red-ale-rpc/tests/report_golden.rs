@@ -13,7 +13,8 @@
 //! `"locale": "C"`, and compares. On a mismatch the HTML is written to a temporary directory for diffing.
 //!
 //! Reports added since keep their own record, `tests/report_golden/v0.4.txt`: every v0.4 report on every book,
-//! `budget` included, written when the report was translated and checked against its tests:
+//! `budget` included, written when the report was translated and checked against its tests. Lines are looked up by
+//! key, so each report's lines are appended as a block when it is added:
 //!
 //! ```text
 //! RED_ALE_GOLDEN_WRITE_V04=/tmp/v0.4.txt cargo test -p red-ale-rpc --test report_golden
@@ -49,7 +50,7 @@ const V02_BOOKS: usize = 10;
 const V02_REPORTS: usize = 19;
 
 /// The built-in reports added in v0.4, which `v0.4.txt` covers.
-const V04_REPORTS: [&str; 1] = ["Budget Report"];
+const V04_REPORTS: [&str; 2] = ["Budget Report", "Future Scheduled Transactions Summary"];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
 fn fnv1a(bytes: &[u8]) -> u64 {

@@ -38,7 +38,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
 /// The GUIDs and names of the GnuCash 5.17 templates red-ale translates (`design/reports.md` §11). A built-in
 /// template with one of these GUIDs must have its name, and one with one of these names its GUID, so a GUID or name
 /// given to `gnucash-cli --report run` names the same report in red-ale.
-pub const GNUCASH_TEMPLATES: [(&str, &str); 20] = [
+pub const GNUCASH_TEMPLATES: [(&str, &str); 21] = [
     ("3298541c236b494998b236dfad6ad752", "Account Summary"),
     ("c4173ac99b2b448289bf4d11c731af13", "Balance Sheet"),
     ("0b81a3bdfd504aff849ec2e8630524bc", "Income Statement"),
@@ -59,6 +59,7 @@ pub const GNUCASH_TEMPLATES: [(&str, &str); 20] = [
     ("3fe6dce77da24c66bdc8f8efdea7f9ac", "Liabilities"),
     ("1d241609fd4644caad765c95be20ff4c", "Price Scatterplot"),
     ("810ed4b25ef0486ea43bbd3dddb32b11", "Budget Report"),
+    ("47f45d7d6d57b68518481c1fc8d4e4ba", "Future Scheduled Transactions Summary"),
 ];
 
 /// A set of built-in scripts: the library compiled into red-ale, or, for tests, any scripts laid out the same way.

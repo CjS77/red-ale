@@ -1060,6 +1060,7 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | Script | Template name | GUID | Menu | Source |
 |--------|---------------|------|------|--------|
 | `standard/account-summary.rhai` | Account Summary | `3298541c236b494998b236dfad6ad752` | (top level) | `standard/account-summary.scm:423-428` |
+| | Future Scheduled Transactions Summary (v0.4) | `47f45d7d6d57b68518481c1fc8d4e4ba` | (top level) | `standard/account-summary.scm:430-435` |
 | `standard/balance-sheet.rhai` | Balance Sheet | `c4173ac99b2b448289bf4d11c731af13` | Assets & Liabilities | `standard/balance-sheet.scm:527-533` |
 | `standard/income-statement.rhai` | Income Statement | `0b81a3bdfd504aff849ec2e8630524bc` | Income & Expense | `standard/income-statement.scm:566-572` |
 | | Profit & Loss | `8758ba23984c40dea5527f5f0ca2779e` | Income & Expense | `standard/income-statement.scm:576-582` |
@@ -1081,9 +1082,9 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | `standard/budget.rhai` (v0.4) | Budget Report | `810ed4b25ef0486ea43bbd3dddb32b11` | Budget | `standard/budget.scm:763-769` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
-scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary
-(`47f45d7d6d57b68518481c1fc8d4e4ba`, `standard/account-summary.scm:430-435`) is not defined: it needs scheduled
-transactions.
+scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary is the
+Account Summary's script with `params.sx`, as GnuCash's two templates share one options generator and renderer
+(`standard/account-summary.scm:138`, `:241`); it reads `book.sx_cashflow` (section 5).
 
 **Looking a report up.** Methods take `report`: a GUID, or a name. A GUID matches a template or a saved
 configuration. A name matches template names and saved configuration names; more than one match is a `conflict`
@@ -1104,7 +1105,7 @@ Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.
 
 | Report file | Templates | Helpers it uses | Book data and features |
 |-------------|-----------|-----------------|------------------------|
-| `standard/account-summary.scm` | Account Summary | OU: report-date, account-levels, currency, price-source, subtotal-view. RU: filter-accountlist-type, get-current-account-tree-depth, the commodity collector. CU: case-exchange-fn, case-price-fn. HAT: make-html-acct-table/env/accts, num-rows, get-row-env, the data half of add-account-balances. HU: make-rates-table, no-account warning. DU: time64-end-day-time. `gnc-accounts-and-all-descendants` | Account code, type, description, notes; prices for foreign commodities; company name |
+| `standard/account-summary.scm` | Account Summary, Future Scheduled Transactions Summary (v0.4) | OU: report-date (date-interval for the summary), account-levels, currency, price-source, subtotal-view. RU: filter-accountlist-type, get-current-account-tree-depth, the commodity collector. CU: case-exchange-fn, case-price-fn. HAT: make-html-acct-table/env/accts, num-rows, get-row-env, the data half of add-account-balances. HU: make-rates-table, no-account warning. DU: time64-end-day-time. `gnc-accounts-and-all-descendants` | Account code, type, description, notes; prices for foreign commodities; company name; the scheduled transactions' cash flow (the summary) |
 | `standard/balance-sheet.scm` | Balance Sheet | As Account Summary, plus RU: decompose-accountlist, collector+ and collector-, monetaries-add, accounts-get-comm-total-assets, account-get-comm-value-at-date; CU: sum-collector-commodity, uniform-commodity? | "Use Trading Accounts" (`standard/balance-sheet.scm:266`): a trading line instead of unrealized gains; TRADING accounts; `xaccAccountGetBalanceAsOfDate` |
 | `standard/income-statement.scm` | Income Statement, Profit & Loss | OU: date-interval, account-levels, currency, price-source, subtotal-view. RU: decompose-accountlist, accountlist-get-comm-balance-interval-with-closing, account-get-trans-type-balance-interval-with-closing, account-get-trans-type-splits-interval, collectors. CU, HAT and HU as Balance Sheet | Closing transactions (`book_closing` slot) and the closing-entries description pattern; TRADING accounts if selected; voided splits excluded |
 | `example/average-balance.scm` | Average Balance | OU: date-interval, interval-choice, currency, price-source, plot-size. RU: accounts-get-commodities, account-get-balances-at-dates, monetaries-add, collectors. CU: case-exchange-time-fn (and everything under it), sum-collector-commodity. DU: make-date-list, deltasym-to-delta, decdate, time64-start/end-day-time. HU: empty-data and no-account warnings | A split query (accounts, dates, non-void); same-day split order follows "Number Field Source" (`5.17:libgnucash/engine/Split.cpp:1548-1557`) |

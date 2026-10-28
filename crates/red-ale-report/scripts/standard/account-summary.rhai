@@ -31,9 +31,10 @@
 // This translation is part of red-ale and is distributed under the GNU General Public License, version 3 or (at your
 // option) any later version (GPL-3.0-or-later); see LICENSE.
 //
-// Translated from 5.17:gnucash/report/reports/standard/account-summary.scm, cited below by line. Only the Account
-// Summary template is translated: the Future Scheduled Transactions Summary that shares the file (:430-435) needs
-// scheduled transactions, which red-ale v0.2 does not have, so the `sx?` branches are left out.
+// Translated from 5.17:gnucash/report/reports/standard/account-summary.scm, cited below by line. The file's two
+// templates share the options generator and the renderer, told apart by `sx?` (`params.sx`): the Account Summary
+// (:423-428) shows balances at a date, the Future Scheduled Transactions Summary (:430-435) what the scheduled
+// transactions add to each account over a date range, through `book.sx_cashflow` (v0.4).
 
 import "lib/accounts" as accounts;
 import "lib/acct-table" as acct_table;
@@ -41,9 +42,13 @@ import "lib/exchange" as exchange;
 import "lib/html-utilities" as html_utils;
 import "lib/options" as opts_util;
 
-/// The template (:423-428).
+/// The two templates (:423-435).
 fn templates() {
-    [#{ guid: "3298541c236b494998b236dfad6ad752", name: "Account Summary", params: #{ reportname: "Account Summary" } }]
+    [
+        #{ guid: "3298541c236b494998b236dfad6ad752", name: "Account Summary", params: #{ reportname: "Account Summary", sx: false } },
+        #{ guid: "47f45d7d6d57b68518481c1fc8d4e4ba", name: "Future Scheduled Transactions Summary",
+           params: #{ reportname: "Future Scheduled Transactions Summary", sx: true } },
+    ]
 }
 
 /// The account types the "Accounts" option selects by default (:158-164).
@@ -52,10 +57,15 @@ private fn default_account_types() {
      "INCOME", "EXPENSE"]
 }
 
-/// `accsum-options-generator` (:138-234), without its `sx?` date interval.
+/// `accsum-options-generator` (:138-234).
 fn options(params, o, book) {
     o.string("General", "Report Title", "a", "Title for this report.", params.reportname);
-    opts_util::add_report_date(o, "General", "Date", "c");
+    // The date at which to report balances, or the range the scheduled transactions are counted over (:146-151).
+    if params.sx {
+        opts_util::add_date_interval(o, "General", "Start Date", "End Date", "c");
+    } else {
+        opts_util::add_report_date(o, "General", "Date", "c");
+    }
 
     o.account_list("Accounts", "Accounts", "a", "Report on these accounts, if display depth allows.",
                    accounts::filter_accountlist_type(default_account_types(), book.root().descendants_sorted()), #{});
@@ -107,13 +117,15 @@ private fn join(parts, separator) {
 }
 
 /// The option values `accsum-renderer` reads (:248-286), by its names.
-private fn read_options(book, opts, ctx) {
+private fn read_options(params, book, opts, ctx) {
     let depth_limit = opts.get("Accounts", "Levels of Subaccounts");
     let report_commodity = opts.get("Commodities", "Report's currency");
     let price_source = opts.get("Commodities", "Price Source");
-    let to_date = ctx.end_of_day(opts.get("General", "Date"));
+    let to_date = ctx.end_of_day(opts.get("General", if params.sx { "End Date" } else { "Date" }));
     #{
+        sx: params.sx,
         report_title: opts.get("General", "Report Title"),
+        from_date: if params.sx { ctx.start_of_day(opts.get("General", "Start Date")) } else { () },
         to_date: to_date,
         accounts: opts.get("Accounts", "Accounts"),
         // "just in case we need this information..." (:280-283)
@@ -139,10 +151,14 @@ private fn read_options(book, opts, ctx) {
     }
 }
 
-/// `accsum-renderer` (:241-421) for the Account Summary.
+/// `accsum-renderer` (:241-421).
 fn render(params, book, opts, ctx) {
-    let o = read_options(book, opts, ctx);
-    let title = `${book.company_name()} ${o.report_title} ${ctx.print_date(o.to_date)}`;
+    let o = read_options(params, book, opts, ctx);
+    let title = if o.sx {
+        `${book.company_name()} ${o.report_title} For Period Covering ${ctx.print_date(o.from_date)} to ${ctx.print_date(o.to_date)}`
+    } else {
+        `${book.company_name()} ${o.report_title} ${ctx.print_date(o.to_date)}`
+    };
     let blocks = if o.accounts.is_empty() {
         // "is this *really* necessary??" (:303-307)
         [html_utils::make_no_account_warning(params.reportname)]
@@ -155,7 +171,7 @@ fn render(params, book, opts, ctx) {
 /// The account table (:310-411) and, when asked, the exchange rates (:413-418).
 private fn summary_blocks(book, ctx, o) {
     let table_env = #{
-        start_date: (),
+        start_date: o.from_date,
         end_date: o.to_date,
         display_tree_depth: o.tree_depth,
         depth_limit_behavior: o.bottom_behavior,
@@ -164,6 +180,7 @@ private fn summary_blocks(book, ctx, o) {
         parent_account_subtotal_mode: o.parent_total_mode,
         zero_balance_mode: if o.show_zb_accts { "show-leaf-acct" } else { "omit-leaf-acct" },
         account_label_mode: if o.use_links { "anchor" } else { "name" },
+        get_balance_fn: if o.sx { sx_balance_fn(book.sx_cashflow(o.from_date, o.to_date)) } else { () },
     };
     let params = #{
         parent_account_balance_mode: o.parent_mode,
@@ -179,6 +196,14 @@ private fn summary_blocks(book, ctx, o) {
                                                  accounts::accounts_and_all_descendants(o.accounts)));
     }
     blocks
+}
+
+/// The `get-balance-fn` of the scheduled-transaction summary (:310-311, :327-336): an account's balance is what the
+/// scheduled transactions add to it, in its own commodity, or an empty collector when they add nothing.
+private fn sx_balance_fn(sx_value_hash) {
+    |account, start_date, end_date| {
+        if account.guid in sx_value_hash { [[account.commodity, sx_value_hash[account.guid]]] } else { [] }
+    }
 }
 
 /// The table GnuCash assembles in `build-table` (:357-409): the code, type and description columns that are

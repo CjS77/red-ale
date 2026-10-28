@@ -29,23 +29,25 @@ impl Fixture {
 
     /// As [`Fixture::open`], with `reports.reverseBalancedAccounts` set to `reverse`.
     pub fn open_reversing(name: &str, date_format: &str, read_only: bool, reverse: &str) -> Self {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(dir.path().join("reports")).unwrap();
-        let config = json!({
-            "accountingPeriod": { "start": "today", "end": "today" },
-            "reports": { "directory": "reports", "reverseBalancedAccounts": reverse, "dateFormat": date_format },
-        });
-        std::fs::write(dir.path().join("config.json"), config.to_string()).unwrap();
+        let (dir, mut d) = configured(date_format, reverse);
         let book = dir.path().join("book.gnucash");
         std::fs::copy(
             format!("{}/../../fixtures/reports/{name}.gnucash", env!("CARGO_MANIFEST_DIR")),
             &book,
         )
         .unwrap();
-        let mut d = dispatcher(&dir.path().join("config.json"));
         let params = json!({ "path": book.display().to_string(), "readOnly": read_only });
         d.call("book.open", params)
             .unwrap_or_else(|e| panic!("book.open: {e} {:?}", e.data));
+        Self { dir, d }
+    }
+
+    /// A new, empty book created by `book.create`, with `reports.dateFormat` set to `date_format`.
+    pub fn create(date_format: &str) -> Self {
+        let (dir, mut d) = configured(date_format, "none");
+        let params = json!({ "path": dir.path().join("book.gnucash").display().to_string() });
+        d.call("book.create", params)
+            .unwrap_or_else(|e| panic!("book.create: {e} {:?}", e.data));
         Self { dir, d }
     }
 
@@ -75,6 +77,19 @@ impl Fixture {
         names.sort();
         names
     }
+}
+
+/// A temporary directory holding the Configuration of GnuCash's report tests, and a dispatcher over it.
+fn configured(date_format: &str, reverse: &str) -> (tempfile::TempDir, Dispatcher) {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("reports")).unwrap();
+    let config = json!({
+        "accountingPeriod": { "start": "today", "end": "today" },
+        "reports": { "directory": "reports", "reverseBalancedAccounts": reverse, "dateFormat": date_format },
+    });
+    std::fs::write(dir.path().join("config.json"), config.to_string()).unwrap();
+    let d = dispatcher(&dir.path().join("config.json"));
+    (dir, d)
 }
 
 /// `report.options` of `report` with no book open, as `section/name key type default` lines in GnuCash's order.
