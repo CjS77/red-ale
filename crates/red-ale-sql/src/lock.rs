@@ -73,6 +73,16 @@ pub(crate) fn insert(conn: &Connection, owner: &LockOwner) -> Result<HeldLock, S
     })
 }
 
+/// True when `gnclock` holds exactly this session's row: anything else means another program broke the lock (GnuCash's
+/// "Open Anyway" deletes every row) or wrote one of its own.
+pub(crate) fn is_held(conn: &Connection, held: &HeldLock) -> Result<bool, SqlError> {
+    let rows: Vec<(i64, Option<String>, Option<i64>)> = conn
+        .prepare("SELECT rowid, Hostname, PID FROM gnclock ORDER BY rowid")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .collect::<Result<_, _>>()?;
+    Ok(rows == [(held.rowid, Some(held.owner.hostname.clone()), Some(held.owner.pid))])
+}
+
 /// Delete this session's row, and only it, in one transaction. A row already gone (the lock was broken) deletes
 /// nothing, and that is not an error.
 pub(crate) fn release(conn: &mut Connection, held: &HeldLock) -> Result<(), SqlError> {

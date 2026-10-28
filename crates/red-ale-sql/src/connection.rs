@@ -74,6 +74,12 @@ pub(crate) fn open_read_write(path: &Path) -> Result<Connection, SqlError> {
     Ok(conn)
 }
 
+/// The data version: SQLite changes it when another connection commits to the database
+/// (`PRAGMA data_version`), which is how a save finds that another program wrote the book.
+pub(crate) fn data_version(conn: &Connection) -> Result<i64, SqlError> {
+    conn.query_row("PRAGMA data_version", [], |r| r.get(0)).map_err(SqlError::from_sqlite)
+}
+
 /// Open the book read-only (`SQLITE_OPEN_READONLY`): nothing is written to the file or beside it.
 pub(crate) fn open_read_only(path: &Path) -> Result<Connection, SqlError> {
     check_header(path)?;
