@@ -40,12 +40,13 @@ It uses [`rmcp`](https://crates.io/crates/rmcp), the official Rust SDK (Apache-2
 | `--read-only`            | Open that Book read-only.                                                  |
 | `--retention-days <n>`   | Keep backups and old journals this many days (default 30).                 |
 | `--keep-backups-forever` | Never delete backups or old journals.                                      |
-| `--config <file>`        | red-ale's Configuration file.                                              |
+| `--config <file>`        | red-ale's Configuration file; without it, the default Configuration file.  |
+| `--no-config`            | Keep the Configuration in memory: no file is read or written.              |
 
 A client configuration, for example:
 
 ```json
-{ "mcpServers": { "red-ale": { "command": "red-ale", "args": ["mcp", "--config", "/home/me/.config/red-ale.json"] } } }
+{ "mcpServers": { "red-ale": { "command": "/home/me/.local/bin/red-ale", "args": ["mcp"] } } }
 ```
 
 ## Tools

@@ -1,10 +1,43 @@
 # API: the Configuration
 
-red-ale's **Configuration** is its own JSON settings file (`--config <file>`; without it, settings last as long as
-the process): what GnuCash keeps outside the book, in its preferences and its user data directory. v0.3 declares
+red-ale's **Configuration** is its own JSON settings file: what GnuCash keeps outside the book, in its preferences
+and its user data directory. v0.3 declares
 every setting in a JSON Schema and adds three methods to read and change them
 ([`../milestone3.md`](../milestone3.md), "The Configuration API"). Domain code: `red-ale-service::config`
 (`schema` declares the settings, `settings` reads and changes them); methods: `red-ale-rpc::methods::config`.
+
+## Which file
+
+Every red-ale process (`exec`, `serve`, `mcp`) keeps its settings in one Configuration file:
+
+| Started with | Configuration |
+|---|---|
+| neither option | The **default Configuration file**, shared by every process started this way |
+| `--config <file>` | `<file>`, for this process |
+| `--no-config` | Memory, for this process only: no file is read or written |
+
+`--config` and `--no-config` together are refused. The default file is:
+
+| OS | Default Configuration file |
+|---|---|
+| Linux and other Unixes | `$XDG_CONFIG_HOME/red-ale/config.json` (an absolute `XDG_CONFIG_HOME` only), else `~/.config/red-ale/config.json` |
+| macOS | `~/Library/Application Support/red-ale/config.json` |
+| Windows | `%APPDATA%\red-ale\config.json` |
+
+With no home directory to find it in (`HOME`, or `APPDATA` on Windows), red-ale refuses to start and asks for
+`--config <file>` or `--no-config`. `config.get`, `config.set` and the other Configuration methods use whichever
+Configuration the process started with. Domain code: `red_ale_service::config::default_path`.
+
+**Reading and writing.** The file is read at every use, so a change made by hand or by another process is seen at
+once; a missing file reads as an empty Configuration. Every change (`config.set`, `period.set`,
+`docLink.setPathHead`, the saved report configuration and style sheet methods, the QIF account map an import
+learns) holds an exclusive lock on `<file>.lock` beside the file from the moment it reads the Configuration to the
+moment it has written it back, so two processes changing settings at once keep both changes. The file is written to a
+temporary file beside it and renamed into place, with owner-only permissions since it can hold Quote service keys;
+the first change makes the file and its directory. The lock file stays beside the Configuration.
+
+Until v0.5, a process started without `--config` kept its settings in memory, so an agent's changes were lost when
+its session ended. That was a mistake in the v0.3 design, corrected in v0.5 ([`../milestone5.md`](../milestone5.md)).
 
 ## Methods
 
@@ -61,7 +94,7 @@ Result: `{ path, value, unknown, problems, configFile }`.
   are kept on every write and do nothing; listing them shows typos in a file edited by hand.
 - `problems`: `[{ path, message }]` for settings, at or below `path`, whose values in the file do not match the
   schema. A problem's path gives list items as `[i]`.
-- `configFile`: the file, or `null` for a Configuration held in memory.
+- `configFile`: the file, or `null` for a process started with `--no-config`.
 
 An unknown or malformed path is `invalid-params`.
 

@@ -316,8 +316,8 @@ one Mutation.
 
 GnuCash keeps the accounting period as user preferences, not in the book
 (`5.17:gnucash/gschemas/org.gnucash.GnuCash.window.pages.account.tree.gschema.xml.in`). red-ale keeps it in its own
-configuration: a JSON file given with `--config <path>` (`Settings::config`), or, without one, in memory for the life of
-the server. A book is never touched, so `period.set` works with no book open and never makes one dirty. The file is
+Configuration ([`configuration.md`](configuration.md), "Which file"): the default Configuration file, the one given
+with `--config <path>`, or memory with `--no-config`. A book is never touched, so `period.set` works with no book open and never makes one dirty. The file is
 rewritten atomically and keeps keys red-ale does not know:
 
 ```json

@@ -4,6 +4,20 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## 0.5.0 - Unreleased
+
+Milestone 5 ([`design/milestone5.md`](design/milestone5.md)), in progress.
+
+### Changed
+
+- Every red-ale process started without `--config` (`exec`, `serve`, `mcp`) now keeps its settings in one default
+  Configuration file, shared by them all: `~/.config/red-ale/config.json` on Linux (or under `$XDG_CONFIG_HOME`),
+  `~/Library/Application Support/red-ale/config.json` on macOS, `%APPDATA%\red-ale\config.json` on Windows. Before,
+  such a process kept its settings in memory, and an agent's `config.set` was lost when its session ended.
+  `--no-config` keeps the old behaviour: memory only, no file read or written.
+- Changes to the Configuration from several processes at once are all kept: each change locks `<file>.lock` while it
+  reads and writes the file.
+
 ## 0.4.0 - Unreleased
 
 Milestone 4 ([`design/milestone4.md`](design/milestone4.md)): SQLite books, scheduled transactions and budgets, and
