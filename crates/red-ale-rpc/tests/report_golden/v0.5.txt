@@ -50,3 +50,71 @@ adjusting-entries-fx us Equity Statement	4632 7ddf80396d6ce54a
 adjusting-entries-fx us Trial Balance	6493 02342c989ca89e45
 adjusting-entries-fx locale Equity Statement	4620 f45303a1cf692732
 adjusting-entries-fx locale Trial Balance	6489 f35e0065a732fe15
+average-balance us Cash Flow	4883 24f652da757548f9
+average-balance us Cash Flow Barchart	3635 e178c0959d3418ea
+average-balance locale Cash Flow	4875 53f93a3b28568e31
+average-balance locale Cash Flow Barchart	3635 e178c0959d3418ea
+balsheet-pnl us Cash Flow	4808 79050b81c0dbd4d2
+balsheet-pnl us Cash Flow Barchart	3635 e178c0959d3418ea
+balsheet-pnl locale Cash Flow	4800 2d44a1ecfe03d0ca
+balsheet-pnl locale Cash Flow Barchart	3635 e178c0959d3418ea
+budget us Cash Flow	4808 79050b81c0dbd4d2
+budget us Cash Flow Barchart	3635 e178c0959d3418ea
+budget locale Cash Flow	4800 2d44a1ecfe03d0ca
+budget locale Cash Flow Barchart	3635 e178c0959d3418ea
+category-average us Cash Flow	4694 b4d9d7d69b2b0050
+category-average us Cash Flow Barchart	3635 e178c0959d3418ea
+category-average locale Cash Flow	4686 75b248ee02c98eb8
+category-average locale Cash Flow Barchart	3635 e178c0959d3418ea
+category-daily us Cash Flow	4894 dcb5640f4a19b46f
+category-daily us Cash Flow Barchart	5629 b5b20c98d20156ce
+category-daily locale Cash Flow	4886 267cdf88023e1837
+category-daily locale Cash Flow Barchart	5613 aa51879a214fcdee
+category-liability us Cash Flow	4694 b4d9d7d69b2b0050
+category-liability us Cash Flow Barchart	3635 e178c0959d3418ea
+category-liability locale Cash Flow	4686 75b248ee02c98eb8
+category-liability locale Cash Flow Barchart	3635 e178c0959d3418ea
+category-multi us Cash Flow	6237 d15c8f563b0da4b9
+category-multi us Cash Flow Barchart	6137 51f34466b819aa4a
+category-multi locale Cash Flow	6229 c408ed5d8b1d3391
+category-multi locale Cash Flow Barchart	6121 67c09df2b972e93a
+charts-daily us Cash Flow	4808 79050b81c0dbd4d2
+charts-daily us Cash Flow Barchart	3635 e178c0959d3418ea
+charts-daily locale Cash Flow	4800 2d44a1ecfe03d0ca
+charts-daily locale Cash Flow Barchart	3635 e178c0959d3418ea
+charts-net us Cash Flow	4808 79050b81c0dbd4d2
+charts-net us Cash Flow Barchart	3635 e178c0959d3418ea
+charts-net locale Cash Flow	4800 2d44a1ecfe03d0ca
+charts-net locale Cash Flow Barchart	3635 e178c0959d3418ea
+net-days us Cash Flow	5066 f1e4cbc59a1b8dc1
+net-days us Cash Flow Barchart	3635 e178c0959d3418ea
+net-days locale Cash Flow	5058 ccd6b62011550129
+net-days locale Cash Flow Barchart	3635 e178c0959d3418ea
+test-data us Cash Flow	4808 79050b81c0dbd4d2
+test-data us Cash Flow Barchart	3635 e178c0959d3418ea
+test-data locale Cash Flow	4800 2d44a1ecfe03d0ca
+test-data locale Cash Flow Barchart	3635 e178c0959d3418ea
+adjusting-entries us Cash Flow	4808 79050b81c0dbd4d2
+adjusting-entries us Cash Flow Barchart	3635 e178c0959d3418ea
+adjusting-entries locale Cash Flow	4800 2d44a1ecfe03d0ca
+adjusting-entries locale Cash Flow Barchart	3635 e178c0959d3418ea
+adjusting-entries-fx us Cash Flow	4808 79050b81c0dbd4d2
+adjusting-entries-fx us Cash Flow Barchart	3635 e178c0959d3418ea
+adjusting-entries-fx locale Cash Flow	4800 2d44a1ecfe03d0ca
+adjusting-entries-fx locale Cash Flow Barchart	3635 e178c0959d3418ea
+cash-flow us Cash Flow	5838 c9ec9ddae95a06da
+cash-flow us Cash Flow Barchart	5790 48ebc250104ce3a9
+cash-flow us Equity Statement	4630 c61cb0a07724a794
+cash-flow us Trial Balance	7548 e1bb74a09d70f9cc
+cash-flow locale Cash Flow	5830 8eedbf97eb816c92
+cash-flow locale Cash Flow Barchart	5774 386aa76bf93f45c5
+cash-flow locale Equity Statement	4618 c812352d96c01e04
+cash-flow locale Trial Balance	7544 895050424d8292fc
+cashflow-barchart us Cash Flow	5222 fd397a738c5047a6
+cashflow-barchart us Cash Flow Barchart	3635 e178c0959d3418ea
+cashflow-barchart us Equity Statement	4628 133fa732f2e5947a
+cashflow-barchart us Trial Balance	8328 1c2dc1666c85ef8b
+cashflow-barchart locale Cash Flow	5214 c9b7d2ed3b866cae
+cashflow-barchart locale Cash Flow Barchart	3635 e178c0959d3418ea
+cashflow-barchart locale Equity Statement	4616 dd34d753455bd87a
+cashflow-barchart locale Trial Balance	8324 f97395f4b8f7d43b
