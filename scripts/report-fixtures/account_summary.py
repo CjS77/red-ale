@@ -31,7 +31,7 @@ from engine_extras import (ASSET, EQUITY, EXPENSE, INCOME, LIABILITY, check_book
 
 
 def create_test_data():
-    """`create-test-data` (`test-engine-extras.scm:389-480`)."""
+    """`create-test-data` (`test-engine-extras.scm:389-480`): the accounts by name, as its account alist."""
     env = create_test_env()
     gbp = mnemonic_to_commodity("GBP")
     structure = ["Root", {"type": ASSET},
@@ -72,6 +72,7 @@ def create_test_data():
         env_transfer(env, 3, m + 1, 1978, income, bank, 103, description="$103 income")
         env_transfer(env, 15, m + 1, 1978, bank, expense, 22, description="$22 expense")
         env_transfer(env, 9, m + 1, 1978, income, bank, 109, description="$109 income")
+    return accts
 
 
 def main():

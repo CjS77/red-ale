@@ -43,7 +43,7 @@ as 5.17's output; replace it with 5.17 output if a 5.17 GUI build becomes availa
 calls of the test and of `5.17:bindings/guile/test/test-engine-extras.scm` (ported in `engine_extras.py`), saves the
 book, then reopens it read-only in GnuCash and checks the account balances the test's figures imply. Books whose
 dates depend on now are built for 2024-03-15 12:00:00 UTC. GUIDs are fixed (`b…0` the book, `a…N` the Nth account
-made, `c…` transactions, `d…` splits, `e…` prices), so a rebuild gives the same bytes.
+made, `c…` transactions, `d…` splits, `e…` prices, `f…` budgets), so a rebuild gives the same bytes.
 
 | Book | Script | Rebuilt from (GnuCash 5.17) | Licence of the source |
 |------|--------|-----------------------------|-----------------------|
@@ -53,6 +53,7 @@ made, `c…` transactions, `d…` splits, `e…` prices), so a rebuild gives the
 | `charts-net`, `charts-daily` | `charts.py` | books B and A of `standard/test/test-charts.scm:85-114`, `:148-200` | GPL-2.0-or-later (no notice; GnuCash's licence) |
 | `net-days` | `net_barchart.py` | `standard/test/test-standard-net-barchart.scm:58-311`; its first three groups are the book of `test-standard-net-linechart.scm` | GPL-2.0-or-later (notice kept) |
 | `category-daily`, `-average`, `-multi`, `-liability` | `category_report.py` | `standard/test/test-standard-category-report.scm:81-318` | GPL-2.0-or-later (notice kept) |
+| `budget` | `budget.py` | `standard/test/test-budget.scm:66-69`: `create-test-data` and `gnc:create-budget-and-transactions` (`bindings/guile/test/test-engine-extras.scm:851-884`), the budget made through ctypes on `libgnc-engine.so` (the bindings do not wrap it), GUID `f…0` | GPL-2.0-or-later (notice kept) |
 
 Beside each book, `<book>.expected.json` lists every assertion of the GnuCash tests that run on it, for the report
 translators to turn into named checks: `settings` (now, time zone, locale, date format, report currency, user

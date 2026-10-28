@@ -8,13 +8,14 @@ use std::path::Path;
 
 use red_ale_testkit::{fixture, oracle, report_fixtures};
 
-const SCRIPTS: [&str; 6] = [
+const SCRIPTS: [&str; 7] = [
     "account_summary",
     "balsheet_pnl",
     "average_balance",
     "charts",
     "net_barchart",
     "category_report",
+    "budget",
 ];
 
 #[test]

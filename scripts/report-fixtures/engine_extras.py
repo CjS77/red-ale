@@ -24,7 +24,7 @@ fixture scripts in this directory use them to rebuild the books GnuCash's report
 Differences from a GnuCash test run, all for reproducible output and none visible to a report:
 
 - GUIDs are fixed: `<kind><sequence>` in hex, where kind is `b` for the book, `a` for accounts (the root account is
-  `a000...0`), `c` for transactions, `d` for splits and `e` for prices, numbered in creation order.
+  `a000...0`), `c` for transactions, `d` for splits, `e` for prices and `f` for budgets, numbered in creation order.
 - A transaction's entered date and a voided transaction's `void-time` are the pinned now (`NOW`) plus one second per
   transaction made so far, instead of the wall clock (`Transaction.cpp:2517-2524`).
 - The book is written uncompressed.

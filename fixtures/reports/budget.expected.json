@@ -1,0 +1,195 @@
+{
+  "fixture": "reports/budget.gnucash",
+  "builtBy": "scripts/report-fixtures/budget.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-budget.scm",
+  "licence": "GPL-2.0-or-later (notice kept in the test and in budget.py)",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:38)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank": "a0000000000000000000000000000003",
+    "Root.Asset.GBP Bank": "a0000000000000000000000000000004",
+    "Root.Asset.Wallet": "a0000000000000000000000000000005",
+    "Root.Income": "a0000000000000000000000000000006",
+    "Root.Income-GBP": "a0000000000000000000000000000007",
+    "Root.Expenses": "a0000000000000000000000000000008",
+    "Root.Liabilities": "a0000000000000000000000000000009",
+    "Root.Equity": "a000000000000000000000000000000a"
+  },
+  "budget": {
+    "guid": "f0000000000000000000000000000000",
+    "name": "test budget",
+    "periods": "6, monthly from 2024-03-01 (gnc-budget-new's first of the current month on the pinned now)",
+    "amounts": "Bank 20, 40, -, 60; Expenses -, 30, 20, 40; Income -55, -, -65, -75 for periods 0-3 (5.17:bindings/guile/test/test-engine-extras.scm:861-869)",
+    "notes": "Income period 0 \"income-0 -$60\", Expenses period 1 \"expense-1 $25\" (:881-882)",
+    "transactions": "at each period's midpoint: Bank +55 from Income (0), +67 (2), +77 (3); Expenses +20 from Bank (0, 1); Income to Equity 55 (1), marked closing (:870-880)"
+  },
+  "optionValues": "Options are those changed from the template's defaults: the test changes one options object step by step, so each run keeps the changes before it. Symbols are written without the quote.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1, row N counted from 1 or null for every row, column null for every cell; the result is every text node in document order, so \"count\" is the number of text nodes in the table. The table has two header rows, the column titles and Bgt/Act/Diff (5.17:gnucash/report/reports/standard/budget.scm:446-504), then one row per account: Root (3), Asset (4), Bank (5), GBP Bank (6), Wallet (7), Liabilities (8), Income (9), Income-GBP (10), Expenses (11). A budget cell with a note reads as the figure followed by a space, then the footnote's number (budget.scm:253-259). Footnotes are the <li> texts of the list after the table.",
+  "runs": [
+    {
+      "id": "basic all display off",
+      "lines": "74-83",
+      "template": "Budget Report",
+      "templateGuid": "810ed4b25ef0486ea43bbd3dddb32b11",
+      "options": {
+        "Accounts/Account Display Depth": "all",
+        "Display/Show Difference": false,
+        "Display/Show Budget": false,
+        "Display/Show Budget Notes": false,
+        "Display/Show Actual": false
+      },
+      "checks": [
+        { "name": "all display OFF, table has 15 cells", "line": 81, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 15, "meaning": "Six period titles and nine account labels; no figures" }
+      ]
+    },
+    {
+      "id": "basic",
+      "lines": "85-112",
+      "template": "Budget Report",
+      "templateGuid": "810ed4b25ef0486ea43bbd3dddb32b11",
+      "options": {
+        "Accounts/Account Display Depth": "all",
+        "Display/Show Difference": true,
+        "Display/Show Budget": true,
+        "Display/Show Budget Notes": true,
+        "Display/Show Actual": true,
+        "Display/Show Column with Totals": true
+      },
+      "checks": [
+        { "name": "all display ON, table has 228 cells", "line": 91, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 228, "meaning": "7 titles, 21 Bgt/Act/Diff, 9 rows of a label and 21 figures, and 2 footnote marks" },
+        { "name": "bank", "line": 94, "select": { "table": 1, "row": 5, "column": null }, "expected": ["Bank", "$20.00", "$35.00", "-$15.00", "$40.00", "-$20.00", "$60.00", ".", "$67.00", "-$67.00", "$60.00", "$77.00", "-$17.00", ".", "$0.00", ".", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00"], "meaning": "Bank: budget, actual and difference for each of the six periods, then the total" },
+        { "name": "income", "line": 99, "select": { "table": 1, "row": 9, "column": null }, "expected": ["Income", "-$55.00 ", "1", "-$55.00", "$0.00", ".", "$0.00", ".", "-$65.00", "-$67.00", "$2.00", "-$75.00", "-$77.00", "$2.00", ".", "$0.00", ".", ".", "$0.00", ".", "-$195.00", "-$199.00", "$4.00"], "meaning": "Income, with footnote 1 on period 0's budget; period 1's closing transaction is left out of the actuals" },
+        { "name": "expense", "line": 104, "select": { "table": 1, "row": 11, "column": null }, "expected": ["Expenses", ".", "$20.00", "-$20.00", "$30.00 ", "2", "$20.00", "$10.00", "$20.00", "$0.00", "$20.00", "$40.00", "$0.00", "$40.00", ".", "$0.00", ".", ".", "$0.00", ".", "$90.00", "$40.00", "$50.00"], "meaning": "Expenses, with footnote 2 on period 1's budget" },
+        { "name": "budget notes", "line": 109, "select": { "footnotes": true }, "expected": ["income-0 -$60", "expense-1 $25"], "meaning": "The footnotes, in the order they are marked" }
+      ]
+    },
+    {
+      "id": "only next period",
+      "lines": "114-125",
+      "template": "Budget Report",
+      "templateGuid": "810ed4b25ef0486ea43bbd3dddb32b11",
+      "options": {
+        "Accounts/Account Display Depth": "all",
+        "Display/Show Difference": true,
+        "Display/Show Column with Totals": true,
+        "General/Report for range of budget periods": true,
+        "General/Range start": "current",
+        "General/Range end": "next"
+      },
+      "checks": [
+        { "name": "only next period - 135 cells", "line": 118, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 135, "meaning": "Columns 0, 1, periods 2-5 collapsed, and the total" },
+        { "name": "only next period- bank", "line": 122, "select": { "table": 1, "row": 5, "column": null }, "expected": ["Bank", "$20.00", "$35.00", "-$15.00", "$40.00", "-$20.00", "$60.00", "$60.00", "$144.00", "-$84.00", "$120.00", "$159.00", "-$39.00"], "meaning": "The current period (0) on the pinned now, the next, the rest collapsed, the total" }
+      ]
+    },
+    {
+      "id": "only last period",
+      "lines": "127-137",
+      "template": "Budget Report",
+      "templateGuid": "810ed4b25ef0486ea43bbd3dddb32b11",
+      "options": {
+        "Accounts/Account Display Depth": "all",
+        "Display/Show Difference": true,
+        "Display/Show Column with Totals": true,
+        "General/Report for range of budget periods": true,
+        "General/Range start": "last",
+        "General/Range end": "last"
+      },
+      "checks": [
+        { "name": "only last period - 102 cells", "line": 130, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 102, "meaning": "Periods 0-4 collapsed, period 5, the total" },
+        { "name": "only last period - bank", "line": 134, "select": { "table": 1, "row": 5, "column": null }, "expected": ["Bank", "$120.00", "$159.00", "-$39.00", ".", "$0.00", ".", "$120.00", "$159.00", "-$39.00"], "meaning": "Bank" }
+      ]
+    },
+    {
+      "id": "exact periods",
+      "lines": "139-153",
+      "template": "Budget Report",
+      "templateGuid": "810ed4b25ef0486ea43bbd3dddb32b11",
+      "options": {
+        "Accounts/Account Display Depth": "all",
+        "Display/Show Difference": true,
+        "Display/Show Column with Totals": true,
+        "General/Report for range of budget periods": true,
+        "General/Range start": "manual",
+        "General/Range end": "manual",
+        "General/Exact start period": 2,
+        "General/Exact end period": 4,
+        "General/Include collapsed periods before selected.": false,
+        "General/Include collapsed periods after selected.": false
+      },
+      "checks": [
+        { "name": "exact periods - 134 cells", "line": 146, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 134, "meaning": "Periods 1, 2 and 3 and their total; footnote 1 is Expenses' period 1" },
+        { "name": "exact periods - bank", "line": 150, "select": { "table": 1, "row": 5, "column": null }, "expected": ["Bank", "$40.00", "-$20.00", "$60.00", ".", "$67.00", "-$67.00", "$60.00", "$77.00", "-$17.00", "$100.00", "$124.00", "-$24.00"], "meaning": "Bank" }
+      ]
+    },
+    {
+      "id": "Use accumulated amounts",
+      "lines": "155-160",
+      "template": "Budget Report",
+      "templateGuid": "810ed4b25ef0486ea43bbd3dddb32b11",
+      "options": {
+        "Accounts/Account Display Depth": "all",
+        "Display/Show Difference": true,
+        "Display/Show Column with Totals": true,
+        "General/Report for range of budget periods": true,
+        "General/Range start": "manual",
+        "General/Range end": "manual",
+        "General/Exact start period": 2,
+        "General/Exact end period": 4,
+        "General/Include collapsed periods before selected.": false,
+        "General/Include collapsed periods after selected.": false,
+        "General/Use accumulated amounts": true
+      },
+      "checks": [
+        { "name": "use accumulated amounts", "line": 157, "select": { "table": 1, "row": 5, "column": null }, "expected": ["Bank", "$60.00", "$15.00", "$45.00", "$60.00", "$82.00", "-$22.00", "$120.00", "$159.00", "-$39.00", "$120.00", "$159.00", "-$39.00"], "meaning": "Periods 0-1, 0-2 and 0-3, and the total over periods 0-3" }
+      ]
+    },
+    {
+      "id": "budget-is-basic",
+      "lines": "163-184",
+      "template": "Budget Income Statement",
+      "templateGuid": "583c313fcc484efc974c4c844404f454",
+      "translated": false,
+      "options": {},
+      "checks": [
+        { "name": "basic test", "line": 172, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 72, "meaning": "Text nodes of the first table" },
+        { "name": "budgeted income amounts", "line": 176, "select": { "xpath": "(// table // (tr 1) // table // (tr 3) // *text*)" }, "expected": ["$195.00", "Income"], "meaning": "Budgeted revenue, and the account it is for" },
+        { "name": "net loss for budget", "line": 181, "select": { "xpath": "(// table // (tr 2) // table // (tr 5) // *text*)" }, "expected": ["Net income for Budget test budget", "$105.00"], "meaning": "Net income for the budget" }
+      ]
+    },
+    {
+      "id": "budget-bs-basic",
+      "lines": "186-253",
+      "template": "Budget Balance Sheet",
+      "templateGuid": "ecc35ea9dbfa4e20ba389fc85d59cb69",
+      "translated": false,
+      "options": {},
+      "checks": [
+        { "name": "basic test", "line": 195, "select": { "table": 1, "row": null, "column": null, "count": true }, "expected": 52, "meaning": "Text nodes of the first table" },
+        { "name": "existing assets", "line": 199, "select": { "table": 1, "row": 8, "column": null }, "expected": ["Existing Assets", "$3,118.00"], "meaning": "The line's label and amount" },
+        { "name": "allocated assets", "line": 203, "select": { "table": 1, "row": 9, "column": null }, "expected": ["Allocated Assets", "$120.00"], "meaning": "The line's label and amount" },
+        { "name": "unallocated assets", "line": 207, "select": { "table": 1, "row": 10, "column": null }, "expected": ["Unallocated Assets", "-$15.00"], "meaning": "The line's label and amount" },
+        { "name": "total assets", "line": 211, "select": { "table": 1, "row": 11, "column": null }, "expected": ["Total Assets", "$3,223.00"], "meaning": "The line's label and amount" },
+        { "name": "existing liab", "line": 215, "select": { "table": 1, "row": 16, "column": null }, "expected": ["Existing Liabilities", "-$3.00"], "meaning": "The line's label and amount" },
+        { "name": "new liab", "line": 219, "select": { "table": 1, "row": 17, "column": null }, "expected": ["New Liabilities", "$0.00"], "meaning": "The line's label and amount" },
+        { "name": "total liab", "line": 223, "select": { "table": 1, "row": 18, "column": null }, "expected": ["Total Liabilities", "-$3.00"], "meaning": "The line's label and amount" },
+        { "name": "retained earnings", "line": 227, "select": { "table": 1, "row": 22, "column": null }, "expected": ["Existing Retained Earnings", "$3,227.00"], "meaning": "The line's label and amount" },
+        { "name": "retained earnings", "line": 231, "select": { "table": 1, "row": 23, "column": null }, "expected": ["New Retained Earnings", "$105.00"], "meaning": "The line's label and amount" },
+        { "name": "unrealized losses", "line": 235, "select": { "table": 1, "row": 24, "column": null }, "expected": ["Unrealized Losses", "$1.00"], "meaning": "The line's label and amount" },
+        { "name": "existing equity", "line": 239, "select": { "table": 1, "row": 25, "column": null }, "expected": ["Existing Equity", "$3,115.00"], "meaning": "The line's label and amount" },
+        { "name": "new equity", "line": 243, "select": { "table": 1, "row": 26, "column": null }, "expected": ["New Equity", "$105.00"], "meaning": "The line's label and amount" },
+        { "name": "total equity", "line": 247, "select": { "table": 1, "row": 27, "column": null }, "expected": ["Total Equity", "$3,220.00"], "meaning": "The line's label and amount" },
+        { "name": "total liab and equity", "line": 251, "select": { "table": 1, "row": 29, "column": null }, "expected": ["Total Liabilities & Equity", "$3,223.00"], "meaning": "The line's label and amount" }
+      ]
+    }
+  ]
+}

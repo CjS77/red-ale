@@ -11,6 +11,6 @@ out=${1:-$here/../../fixtures/reports}
 PYTHONPATH=${RED_ALE_ORACLE_PYTHONPATH:-$HOME/.local/opt/gnucash-5.17/lib/python3.12/site-packages}
 TZ=UTC
 export PYTHONPATH TZ
-for script in account_summary balsheet_pnl average_balance charts net_barchart category_report; do
+for script in account_summary balsheet_pnl average_balance charts net_barchart category_report budget; do
     python3 "$here/$script.py" "$out"
 done

@@ -13,6 +13,7 @@ fn every_report_fixture_is_listed() {
     let expected = [
         "average-balance",
         "balsheet-pnl",
+        "budget",
         "category-average",
         "category-daily",
         "category-liability",
