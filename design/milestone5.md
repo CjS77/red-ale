@@ -42,9 +42,8 @@ its own table and does not.
   porting them, with Windows' own owner-only permissions, comes first. `red-ale setup` keeps the harnesses' Windows
   paths in its spec for then.
 - **Interactive charts:** a v1.0 decision, proposed ❌ ([`roadmap.md`](roadmap.md), "v1.0").
-- **Reports GnuCash 5.17 ships that `features.md` has no row for**: the Lot Viewer (`standard/lot-viewer.scm`), the
-  dashboard (`standard/dashboard.scm`) and the Balance Sheet example (`standard/balsheet-eg.scm`). They are checked
-  for rows in "Rows missing from `features.md`" rather than added here.
+- **Reports GnuCash 5.17 ships that `features.md` had no row for**: the Lot Viewer and the Dashboard (v0.6), the
+  Balance Sheet (eguile) and Sample Graphs (❌); "Decided", item 7.
 
 ## Compatibility in v0.5
 
@@ -142,7 +141,7 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
   follows.
 - **Golden bytes:** `report_golden.rs` records every v0.5 report on every fixture book, XML and SQLite, and every
   earlier report's bytes stay unchanged.
-- **Exact figures:** where GnuCash computes in doubles (cost basis, rates of return, the IFRS weighted average), red-ale
+- **Exact figures:** where GnuCash computes in doubles (rates of gain and return, Investment Lots' growth rates), red-ale
   computes exactly and records each difference in [`reports.md`](reports.md)'s floating-point table.
 - **Reports only read:** a run leaves the Book's revision and the file unchanged, XML and SQLite.
 
@@ -182,16 +181,16 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 5. **The Register report won't be done** (❌). GnuCash runs it from a register window, on that window's query and
    layout (`standard/register.scm`); red-ale has no GUI. Its `features.md` row is ❌.
 
-### Proposed
-
-Followed as written until the research note named settles them.
-
-6. **Investment arithmetic.** Advanced Portfolio's basis methods (average, FIFO, LIFO), IFRS cost basis and
-   Investment Lots compute gains and rates. *Proposed:* on the core's lot and capital gains code where it gives the
-   same figures, and otherwise in the scripts with exact Rationals, with every place GnuCash rounds or uses doubles
-   recorded. A research note per report settles which.
-7. **Rows missing from `features.md`:** the Lot Viewer, dashboard and Balance Sheet example. *Proposed:* rows marked ❌
-   or placed in a later version, decided with the research.
+6. **Investment arithmetic** (settled by [`notes/report-investments.md`](notes/report-investments.md) §7). All four
+   reports compute in their scripts; the core supplies reads only (lots, `split.lot`, the stock-split flag, prices in
+   any currency, the other split). Advanced Portfolio keeps its own (units, price) list for average, FIFO and LIFO,
+   with GnuCash's 10⁻⁸ and SCU roundings, which are exact steps; Investment Lots does its own basis arithmetic; IFRS
+   cost basis has no floating point. The core's gains code writes gains transactions, which a report may not. Rates
+   of gain and return are exact, rounded half away from zero, and differ from GnuCash's doubles only at ties;
+   Investment Lots' annual growth rate is a fractional power, computed in fixed point to 10⁻¹². The note's open
+   questions are followed as proposed.
+7. **Rows missing from `features.md`** (settled by the same note, §10): the Lot Viewer and the Dashboard get rows for
+   v0.6; the Balance Sheet (eguile) and Sample Graphs are ❌.
 
 ## Done when
 

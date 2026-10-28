@@ -293,16 +293,17 @@ Also for v1.0:
 
 ## Rows missing from `features.md`
 
-5.17 loads three reports that have no row. They should be added before their version starts:
+5.17 loads three reports that had no row. Added in v0.5 ([`notes/report-investments.md`](notes/report-investments.md) §10):
 
 | Report                 | Source                      | Suggested version          |
 |------------------------|-----------------------------|----------------------------|
-| Balance Sheet (eguile) | `standard/balsheet-eg.scm`  | v0.6, with the eguile work |
-| Lot Viewer             | `standard/lot-viewer.scm`   | v0.5                       |
+| Balance Sheet (eguile) | `standard/balsheet-eg.scm`  | ❌: its template is Guile code |
+| Lot Viewer             | `standard/lot-viewer.scm`   | v0.6, with the business reports (its lots are business lots) |
 | Sample Graphs          | `example/sample-graphs.scm` | ❌, as Hello World         |
 
-The Dashboard (`standard/dashboard.scm`) is a preset multicolumn report of reports v0.2 ports, so it can sit under
-"Multicolumn reports" in v0.5 rather than get its own row.
+The Dashboard (`standard/dashboard.scm`) is a menu item that makes a preset Multicolumn report of reports v0.2
+ports. It has its own row under "Report system", in v0.6, once v0.5 settles how a Multicolumn report names its
+children.
 
 ## Carried forward from v0.2
 

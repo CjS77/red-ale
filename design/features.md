@@ -244,6 +244,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | HTML export                 | Saves a report as HTML                         |    1.6     |  0.2   |
 |        | PDF export                  | Saves a report as PDF                          |    2.6     |        |
 |        | Interactive charts          | Charts drawn with Chart.js                     |    4.0     |        |
+|        | Dashboard                   | A preset two-column page of the income and expense pies, the income/expense chart and the account summary |    4.0     |        |
 
 ### Financial statements
 
@@ -318,12 +319,15 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |        | Easy invoice                          | Simplified invoice layout                              |    2.0     |        |
 |        | Tax invoice                           | Configurable invoice layout showing tax                |    2.4     |        |
 |        | Receipt                               | Receipt layout for point-of-sale printers              |    3.0     |        |
+|        | Lot Viewer report                     | One account's lots side by side, with their transactions, documents and balances |    3.9     |        |
 
 ### Samples
 
 | Status | Name               | Short description                | Introduced | Ported |
 |:------:|--------------------|----------------------------------|:----------:|:------:|
 |   ❌   | Hello World report | Sample report for report authors |   ≤ 1.4    |        |
+|   ❌   | Sample Graphs      | Sample charts for report authors |    2.0     |        |
+|   ❌   | Balance Sheet (eguile) | Balance sheet laid out by an editable eguile template; the template is Guile code |    2.4     |        |
 
 ## 9. Files and storage
 
