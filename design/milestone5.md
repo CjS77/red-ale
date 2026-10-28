@@ -1,8 +1,8 @@
 # Milestone 5: red-ale v0.5
 
 **Status: draft.** The scope comes from [`roadmap.md`](roadmap.md) ("v0.5"), plus the Configuration change, which is
-done. The "Decide before code" items carry *Proposed* answers; they are settled, and research notes written, before
-the reports that depend on them.
+done. "Decide before code" lists what is settled and what is still proposed; the proposed items are settled, and
+research notes written, before the reports that depend on them.
 
 **Goal:** red-ale runs GnuCash's ledgers, financial statements, analysis charts and investment reports, translated
 from their Scheme into Rhai, with GnuCash's options and figures, on XML and SQLite books alike. Every red-ale process
@@ -13,7 +13,7 @@ feature here is done, set its Ported column there to `0.5`.
 
 ## Scope
 
-The 17 open rows the roadmap places in v0.5:
+The 17 open rows the roadmap places in v0.5 (the Register report among them won't be done, "Decided", item 5):
 
 | Area                    | Rows                                                                                                                                                                       |
 |-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -79,7 +79,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 |        | General Ledger                    | `standard/general-ledger.scm` (`2e22929e5c5b4b769f615a815ef0c20f`)                                                 |        159 |                              |
 |        | Reconciliation Report             | `standard/reconcile-report.scm` (`e45218c6d76f11e7b5ef0800277ef320`)                                               |        115 |                              |
 |        | Transaction Breakdown             | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine |        260 |                              |
-|        | Register report                   | `standard/register.scm` (`22104e02654c4adba844ee75a3f8d173`)                                                       |        674 | `test-register.scm`          |
+|   ❌   | Register report                   | `standard/register.scm` (`22104e02654c4adba844ee75a3f8d173`): GUI-only, won't do ("Decided", item 5)             |        674 | `test-register.scm`          |
 |        | Trial Balance                     | `standard/trial-balance.scm` (`216cd0cf6931453ebcce85415aba7082`)                                                  |        876 | `test-trial-balance.scm`     |
 |        | Cash Flow                         | `standard/cash-flow.scm` (`f8748b813fab4220ba26e743aedf38da`)                                                      |        346 | `test-cash-flow.scm`         |
 |        | Equity Statement                  | `standard/equity-statement.scm` (`c2a996c8970f43448654ca84f17dda24`)                                               |        510 | `test-equity-statement.scm`  |
@@ -152,7 +152,7 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 2. **The Transaction Report engine** as a library module, then the Transaction Report, General Journal, General Ledger
    and Reconciliation Report on it.
 3. **Statements:** Trial Balance, Cash Flow, Equity Statement, Multicolumn Balance Sheet and P&L.
-4. **Register report and Transaction Breakdown.**
+4. **Transaction Breakdown.**
 5. **Analysis charts:** Income/expense vs day of week, Cash flow chart.
 6. **Investment reports:** Investment Portfolio, Advanced Portfolio, IFRS cost basis, Investment Lots.
 7. **Multicolumn reports**, last, once there are many reports to combine.
@@ -161,23 +161,27 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 
 ## Decide before code
 
-*Proposed* answers, to be settled before the work they affect.
+### Decided
 
-1. **Distribution in v0.5.** *Proposed:* yes, as above. It doesn't touch the reports, and users can't easily try the
-   reports without it. The alternative is a v0.5.x of its own.
-2. **Checking against `gnucash-cli --report run`.** The roadmap puts it in v0.5, comparing red-ale's output with a GUI
-   build of GnuCash 5.17. GnuCash's reports *are* Guile, so this runs Guile, which the project rules forbid even in
-   tests. *Proposed:* drop it; GnuCash's own test assertions, ported as text, and hand-worked cases stand in, as in
-   v0.4. The roadmap's paragraph is left as written, with this decision recorded here.
-3. **Multicolumn reports** (`view-column.scm`) embed other reports. *Proposed:* a Multicolumn report's options name
-   its child reports by saved configuration GUID or template GUID with options, each rendered by the engine and laid
-   out in the grid GnuCash uses. A child that no longer exists renders a warning in its cell, as a deleted budget
-   does. Settles whether `report.run` needs a new param (an API addition).
-4. **The Transaction Report engine** is shared, so it is a library module (`lib/trep-engine.rhai`) with its options,
-   sorting, subtotals and the split filter, and the four reports are thin scripts over it, as GnuCash's are. The split
-   query reuses `book.split_query` and grows only what the engine's filters need (`transaction.find`'s criteria).
-5. **The Register report** runs from a register window in GnuCash. *Proposed:* the account, or a saved query, is an
-   option, as the roadmap says.
+1. **Distribution is in v0.5**, as "Distribution" sets out. It doesn't touch the reports, and users can't easily try
+   the reports without it.
+2. **No `gnucash-cli --report run`.** GnuCash's reports are Guile, and red-ale runs no Guile, in tests either. Report
+   figures are checked against GnuCash's own report tests, read as text, and hand-calculated values. The roadmap's
+   paragraph is left as written, with this decision recorded here.
+3. **Multicolumn reports** (`view-column.scm`) embed other reports. A Multicolumn report's options name its child
+   reports by saved configuration GUID, or by template GUID with options; each child is rendered by the engine and
+   laid out in the grid GnuCash uses. A child that no longer exists renders a warning in its cell, as a deleted budget
+   does. Its research note settles whether `report.run` needs a new param (an API addition).
+4. **The Transaction Report engine** is a library module (`lib/trep-engine.rhai`) with its options, sorting,
+   subtotals and the split filter, and the four reports on it are thin scripts, as GnuCash's are. The split query
+   reuses `book.split_query` and grows only what the engine's filters need (`transaction.find`'s criteria).
+5. **The Register report won't be done** (❌). GnuCash runs it from a register window, on that window's query and
+   layout (`standard/register.scm`); red-ale has no GUI. Its `features.md` row is ❌.
+
+### Proposed
+
+Followed as written until the research note named settles them.
+
 6. **Investment arithmetic.** Advanced Portfolio's basis methods (average, FIFO, LIFO), IFRS cost basis and
    Investment Lots compute gains and rates. *Proposed:* on the core's lot and capital gains code where it gives the
    same figures, and otherwise in the scripts with exact Rationals, with every place GnuCash rounds or uses doubles

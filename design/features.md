@@ -260,7 +260,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |        | General Ledger                    | Every split, grouped by account                    |    2.0     |        |
 |        | Transaction Report                | Filtered, sorted and subtotalled list of splits    |   1.6.1    |        |
 |        | Reconciliation Report             | Reconciled and outstanding splits per account      |    3.6     |        |
-|        | Register report                   | Prints an account register                         |    1.6     |        |
+|   ❌   | Register report                   | Prints an account register                         |    1.6     |        |
 
 ### Analysis and charts
 
