@@ -111,7 +111,9 @@ XML, and `scrub.imbalance` repairs it when asked. Orphan rows (above).
 - a book in write-ahead-log mode (header bytes 18–19 = 2): GnuCash never sets it, and even reading one can write
   beside it and checkpoint into it;
 - a read-only open of a book with a hot journal (`<book>-journal` left by a crash): rolling it back writes the file.
-  A normal open lets SQLite roll it back, which restores the last committed state, as any GnuCash open would;
+  A normal open lets SQLite roll it back, which restores the last committed state, as any GnuCash open would. The
+  check is a non-empty `<book>-journal`, so a read-only open while another program is in the middle of a write is
+  refused too, rather than waiting;
 - a file SQLite cannot read as a database.
 
 A book whose `gnclock` holds a row cannot be opened for writing (`book-locked`, §5), as for XML; it can be opened
@@ -226,7 +228,9 @@ proposals. `try_mutate` calls `check_storable` before it commits; `save` calls `
 then `save`, then sets `saved` to the Book, rotates the journal and applies retention, for both formats.
 `read_only_triggers` takes the Backend's findings (`&[ReadOnlyReason]`) instead of an `XmlResidue`; the rule the
 Session passes adds `Requested` first for a read-only open, so `Opened::read_only` is complete and "empty" means "the
-Backend holds the lock". With the SQLite Backend, `ReadOnlyReason` gains `SchemaVersions(Vec<String>)` with the code
+Backend holds the lock". Until SQLite books can be saved, an SQLite book opened for writing opens read-only with
+`ReadOnlyReason::WritingNotSupported` (`writing-not-supported`), after the rule's reasons. With the SQLite Backend,
+`ReadOnlyReason` gains `SchemaVersions(Vec<String>)` with the code
 `schema-version`. A Book `prepare_save` returns replaces the Session's Book only once the save succeeds, and does not
 move the revision: it is not a Mutation and touches nothing an Import proposal reads.
 
@@ -268,6 +272,8 @@ pub struct Findings {
 pub struct SqliteBook { /* private */ }
 
 /// Read the book. With an owner, reads inside `BEGIN IMMEDIATE` and inserts the lock row only if `writable` agrees.
+/// (The read-only ticket provides only `open_read_only(path)`, which is `open` with no owner; the save ticket adds
+/// this.)
 pub fn open(path: &Path, owner: Option<&LockOwner>, writable: &dyn Fn(&Book, &Findings) -> bool)
     -> Result<(Book, SqliteBook, Findings), SqlError>;
 
@@ -315,13 +321,18 @@ are decoded as they are stepped and not kept, so the memory budgets of [`milesto
 | `schedxactions` | Scheduled transactions | `template_act_guid` names the template account. Deferred instances: none (§8) |
 | `recurrences` | A scheduled transaction's Schedule, a budget's Recurrence | By `obj_guid`, in `rowid` order, which is the Schedule's order (GnuCash appends in result order, `5.17:libgnucash/backend/sql/gnc-recurrence-sql.cpp:348-361`). A budget's must be exactly one: GnuCash warns at none or several and takes the first (`:323-345`) |
 | `budgets`, `budget_amounts` | Budgets | Amounts and notes come from the budget's Slots; `budget_amounts` is checked against them (below) |
-| `billterms` … `vendors` | `Book.business` | Owner references are `owner_type` (GnuCash's `GncOwnerType`) and `owner_guid`; addresses are the `addr_*` and `shipaddr_*` columns (`5.17:libgnucash/backend/sql/gnc-address-sql.cpp:51-68`); `taxtable_entries` by `taxtable`, in `rowid` order |
+| `billterms` … `vendors` | `Book.business` | Owner references are `owner_type` (GnuCash's `GncOwnerType`) and `owner_guid`; addresses are the `addr_*` and `shipaddr_*` columns (`5.17:libgnucash/backend/sql/gnc-address-sql.cpp:51-68`); `taxtable_entries` by `taxtable`, in `rowid` order. A bill term's or tax table's `child` has no column: it is the last row in `rowid` order whose `parent` names it, as GnuCash's loader sets it from each child (`5.17:libgnucash/backend/sql/gnc-bill-term-sql.cpp:154-176`, `gnc-tax-table-sql.cpp` likewise). A NULL `invoices.date_posted` or `orders.date_closed` is unset (`None`): these are the business columns where the model has no time 0. `refcount` is read as stored; GnuCash's SQL load adds one for each customer, vendor or invoice that sets the term or table while loading (`5.17:libgnucash/engine/gncCustomer.c:409-417`) and, unlike the XML load (`5.17:libgnucash/backend/xml/gnc-bill-term-xml-v2.cpp:689-721`), never recounts, so the oracle's count is higher than the file's |
 | `slots` | Every entity's Slots | Read whole, in `rowid` order, and built into Frames by owner (below) |
 
-**Split order.** A transaction's split order is the order its splits load. GnuCash loads them through an
-`INNER JOIN` with no `ORDER BY` (`5.17:libgnucash/backend/sql/gnc-transaction-sql.cpp:256-262`): whether SQLite scans
-`splits` or walks `splits_tx_guid_index` per transaction, one transaction's splits come in `rowid` order, which is
-what red-ale reads. A test with split `rowid`s out of transaction order confirms it (the note's open question 2).
+**Split order.** GnuCash loads splits through an `INNER JOIN` with no `ORDER BY`
+(`5.17:libgnucash/backend/sql/gnc-transaction-sql.cpp:256-262`): whether SQLite scans `splits` or walks
+`splits_tx_guid_index` per transaction, one transaction's splits come in `rowid` order. Each transaction is loaded
+inside an edit (`:297`, `:397`), and its commit sorts the splits, value ≥ 0 first, stably
+(`5.17:libgnucash/engine/Transaction.cpp:1508-1510`, `:540-553`), so that sort of the `rowid` order is the split order,
+and what red-ale reads (`red_ale_core::ops::commit::sort_splits`). A book GnuCash wrote is already in that order, since
+every commit sorts. The oracle test with split `rowid`s out of transaction order confirms it (the note's open
+question 2): `rowid` order alone is not GnuCash's order. The XML reader keeps the file's order, which for GnuCash's
+own files is the same.
 
 ### Values
 
@@ -633,7 +644,9 @@ As [`testing.md`](testing.md) sets out, on copies in temporary directories, neve
   the XML read-only, `SESSION_NEW_STORE` an `sqlite3://` session, swap the data, mark the book dirty through
   `ctypes`, save, open once read-only so the ISO-dates feature is set, and delete the journal the bindings leave. The
   script is committed with its output, which records the libdbi and SQLite versions under the oracle; an oracle test
-  rebuilds them and requires the same rows. The piecash SQLite book stays as shipped, the case of an older schema.
+  rebuilds them and requires books that read to the same Books (a rebuild differs only in the GUIDs GnuCash makes
+  afresh: commodities' and slot frames', which are not in the Book). The piecash SQLite book stays as shipped, the
+  case of an older schema.
 - **Read-only round-trip.** Opening read-only and closing leaves the file byte for byte as it was (a hash), for every
   fixture, and creates no file beside it.
 - **Normal round-trip.** Opening for writing and closing leaves every row as it was: the dump of every table (`rowid`
@@ -646,9 +659,16 @@ As [`testing.md`](testing.md) sets out, on copies in temporary directories, neve
   slot `id`s and frame GUIDs are numbered in order of appearance: the same rows changed, with the same values.
 - **Save atomicity.** A test hook in `red-ale-sql` fails the n-th statement of a save, for every n, and the file's
   rows are unchanged afterwards; a mismatched read-back (a corrupting hook) is refused with `save-verification`.
-- **One book, two formats.** The XML and SQLite copies of each fixture read to equal Books, apart from what GnuCash's
-  own conversion changes: deferred instances and nested lists (§8), doubles beyond 12 decimals (the note §3.8) and
-  commodities neither reader counts as data (unused currencies, the `template` commodity).
+- **One book, two formats.** The XML and SQLite copies of each fixture read to equal Books, down to denominators and
+  the order of accounts, transactions, template accounts and prices, apart from what GnuCash's own conversion
+  changes: deferred instances (§8), address Slots (an address is columns of its owner, with nowhere to hang Slots),
+  doubles beyond 12 decimals (the note §3.8), and commodities. Save As writes a commodity only when an account,
+  transaction, price, invoice, employee or vendor uses it (`5.17:libgnucash/backend/sql/gnc-sql-backend.cpp:884-893`
+  and its callers), so every unused commodity is lost, not only unused currencies; and it writes the currencies the
+  XML writer leaves out. The ISO-dates feature is in every SQLite copy (GnuCash's load adds it). Nested lists are not a
+  difference for red-ale: the rows are what the XML holds, and only GnuCash's reader loses them. Lots are compared
+  without their order (XML holds each account's lots by GUID, SQL by the account's order); GnuCash finds lots by
+  GUID. The comparison is `crates/red-ale-sql/tests/fixtures.rs`.
 - **Locks.** red-ale refuses a book GnuCash holds; GnuCash refuses one red-ale holds; red-ale's row goes on close, on
   a session that turns out read-only, on a failed open, on a failed save followed by close, and on drop; a row left
   by "another host" stays. GnuCash's "Open Anyway" while red-ale holds the book, and an edit by a GnuCash read-only
@@ -665,8 +685,8 @@ As [`testing.md`](testing.md) sets out, on copies in temporary directories, neve
 - **Scale.** The 100,000-transaction book as SQLite within [`milestone3.md`](milestone3.md)'s memory budgets, and a
   one-transaction save of it writing only that transaction's rows.
 - **Fuzzing.** An SQLite file is outside input. `sql_rows` feeds arbitrary cells (NULL, INTEGER, REAL, TEXT, BLOB)
-  to every table's row decoder and arbitrary slot rows to the Frame builder; `sql_file` opens mutated copies of the
-  fixtures read-only. Neither may panic, and every refusal is a finding or an error.
+  to every table's row decoder, the decoded slot rows to the Frame builder and arbitrary `versions` rows to the
+  version check; `sql_file` (not yet written) opens mutated copies of the fixtures read-only. Neither may panic, and every refusal is a finding or an error.
 
 ## 10. Dependencies
 

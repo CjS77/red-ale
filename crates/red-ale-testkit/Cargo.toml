@@ -20,6 +20,7 @@ tempfile.workspace = true
 
 [dev-dependencies]
 red-ale-import.workspace = true
+red-ale-sql.workspace = true
 red-ale-locale.workspace = true
 peak_alloc.workspace = true
 tokio.workspace = true
