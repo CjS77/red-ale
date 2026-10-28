@@ -336,6 +336,23 @@ fn a_save_after_gnucash_broke_the_lock_is_refused() {
     assert!(!descriptions.iter().any(|d| d == "Edited by red-ale"));
 }
 
+/// A new book's account rows without their GUIDs: the root and the template root, as GnuCash's `sync` writes them.
+const ROOT_ROWS: &str = r#"
+import json, sqlite3, sys
+db = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
+print(json.dumps({
+    "accounts": [list(r) for r in db.execute(
+        "SELECT name, account_type, commodity_guid, commodity_scu, non_std_scu, parent_guid, code, description, hidden,"
+        " placeholder FROM accounts ORDER BY rowid")],
+    "commodities": db.execute("SELECT count(*) FROM commodities").fetchone()[0],
+}))
+db.close()
+"#;
+
+fn root_rows(path: &Path) -> Value {
+    serde_json::from_str(&oracle::run_code(ROOT_ROWS, &[&path.display().to_string()]).unwrap()).unwrap()
+}
+
 /// The schema of a new book: `sqlite_master`, sorted, and the `versions` rows.
 fn schema(path: &Path) -> (Vec<String>, Vec<String>) {
     let mut all = rows(path);
@@ -347,7 +364,7 @@ fn schema(path: &Path) -> (Vec<String>, Vec<String>) {
 }
 
 /// A book made by `book.create` with `format: "sqlite"` opens in GnuCash with no upgrade and nothing logged, and has
-/// the schema and versions GnuCash 5.17 gives a book it creates.
+/// the schema, `versions` and root account rows GnuCash 5.17 gives a book it creates.
 #[test]
 fn a_created_sqlite_book_opens_in_gnucash_and_has_its_schema() {
     let book = TempBook::new_path();
@@ -365,6 +382,7 @@ fn a_created_sqlite_book_opens_in_gnucash_and_has_its_schema() {
     let theirs = TempBook::new_path();
     oracle::run_code(GNUCASH_CREATE, &[&theirs.path_str()]).unwrap();
     assert_eq!(schema(&book.path), schema(&theirs.path));
+    assert_eq!(root_rows(&book.path), root_rows(&theirs.path));
 }
 
 /// The backup red-ale makes before its first save opens in GnuCash, unlocked, as the book was before the save.
