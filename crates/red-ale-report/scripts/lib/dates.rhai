@@ -1,6 +1,6 @@
 // lib/dates: calendar stepping, date lists and the date fractions reports average with.
 //
-// Translated from 5.17:bindings/guile/date-utilities.scm (lines 176-493), cited below as DU. Its header:
+// Translated from 5.17:bindings/guile/date-utilities.scm (lines 176-499), cited below as DU. Its header:
 //
 // date-utilities.scm -- date utility functions.
 // Bryan Larsen (blarsen@ada-works.com)
@@ -297,4 +297,14 @@ fn time64_start_day_time(ctx, t64) {
 /// `gnc:time64-end-day-time` (DU:487-493): local 23:59:59 of `t64`'s day.
 fn time64_end_day_time(ctx, t64) {
     ctx.end_of_day(t64)
+}
+
+/// `gnc:time64-previous-day` (DU:495-496): `t64` a day earlier at the same local time of day, through `decdate`.
+fn time64_previous_day(ctx, t64) {
+    decdate(ctx, t64, delta("day", 1))
+}
+
+/// `gnc:time64-next-day` (DU:498-499): `t64` a day later at the same local time of day, through `incdate`.
+fn time64_next_day(ctx, t64) {
+    incdate(ctx, t64, delta("day", 1))
 }
