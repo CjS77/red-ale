@@ -10,6 +10,7 @@ members = [
     "crates/red-ale-report",
     "crates/red-ale-rpc",
     "crates/red-ale-service",
+    "crates/red-ale-setup",
     "crates/red-ale-sql",
     "crates/red-ale-testkit",
     "crates/red-ale-xml",
@@ -45,6 +46,8 @@ icu_locale_core = "2.4"
 icu_normalizer = { version = "2.4", default-features = false, features = ["compiled_data"] }
 indexmap = "2.14"
 jiff = { version = "0.2.38", default-features = false, features = ["std"] }
+# Harness configs edited through a syntax tree that keeps their text (design/setup.md, "Editing a Harness config").
+jsonc-parser = { version = "0.34.0", features = ["cst", "serde_json"] }
 jsonrpsee = { version = "0.25", features = ["server", "http-client", "macros"] }
 num-bigint = "0.4.6"
 num-integer = "0.1.46"
@@ -66,6 +69,8 @@ schemars = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 serde_path_to_error = "0.1.20"
+# The diffs `red-ale setup` shows before it changes a Harness config.
+similar = { version = "2.7.0", default-features = false, features = ["text"] }
 tempfile = "3.24"
 thiserror = "2.0"
 tokio = { version = "1.49", features = ["macros", "rt-multi-thread", "signal"] }
@@ -80,6 +85,7 @@ red-ale-quotes = { path = "crates/red-ale-quotes" }
 red-ale-report = { path = "crates/red-ale-report" }
 red-ale-rpc = { path = "crates/red-ale-rpc" }
 red-ale-service = { path = "crates/red-ale-service" }
+red-ale-setup = { path = "crates/red-ale-setup" }
 red-ale-sql = { path = "crates/red-ale-sql" }
 red-ale-testkit = { path = "crates/red-ale-testkit" }
 red-ale-xml = { path = "crates/red-ale-xml" }

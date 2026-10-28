@@ -8,6 +8,16 @@ and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has
 
 Milestone 5 ([`design/milestone5.md`](design/milestone5.md)), in progress.
 
+### Added
+
+- `red-ale setup` registers red-ale's MCP server (`red-ale mcp`, with this binary's absolute path) with the agent
+  harnesses installed on the machine, and `red-ale setup --remove` takes it out again
+  ([`design/setup.md`](design/setup.md)). It shows its plan and asks before changing anything (`--yes` to skip the
+  question, `--dry-run` to see each file's exact change); `--list` shows what is installed and set up. This release
+  edits the configs of opencode, Claude Desktop, Cursor, VS Code, Antigravity, Devin and Zed. Only the `red-ale`
+  entry changes: comments, other servers and settings are kept, the file is backed up first and replaced
+  atomically, and a file that doesn't parse is left alone. Claude Desktop is changed only while it isn't running.
+
 ### Changed
 
 - Every red-ale process started without `--config` (`exec`, `serve`, `mcp`) now keeps its settings in one default

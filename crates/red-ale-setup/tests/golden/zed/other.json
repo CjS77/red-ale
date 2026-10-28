@@ -1,0 +1,11 @@
+{
+  "theme": "One Dark",
+  "ui_font_size": 16,
+  "context_servers": {
+    "github": { "command": "docker", "args": ["run"], "env": {} },
+    "red-ale": {
+      "command": "/opt/red-ale/bin/red-ale",
+      "args": ["mcp"]
+    }
+  }
+}

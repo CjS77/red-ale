@@ -1,0 +1,13 @@
+{
+  // Settings for every project.
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    /* the GitHub server */
+    "github": { "type": "local", "command": ["docker", "run"], "enabled": true }, // keep this comment
+    "red-ale": {
+      "type": "local",
+      "command": ["/opt/red-ale/bin/red-ale", "mcp"],
+      "enabled": true,
+    },
+  },
+}

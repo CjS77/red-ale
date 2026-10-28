@@ -267,6 +267,17 @@ See [`reports.md`](reports.md).
 | **Style sheet** | A named set of presentation options from a *style sheet template* (Plain, CSS, Easy, Fancy, Footer, Head or Tail), applied when a Report result is rendered as HTML. |
 | **Report settings** | The Configuration's `reports` values standing in for GnuCash preferences reports read: report currency, reversed-balance accounts, date format, week start, limits. |
 
+## Installation
+
+See [`setup.md`](setup.md).
+
+| Term | Meaning |
+|------|---------|
+| **Harness** | A program that runs an AI agent and starts MCP servers for it: Claude Code, Codex, opencode and so on. One name for all of them, whatever the harness calls itself (client, host, IDE, agent). |
+| **Harness config** | The file, or the Harness's own CLI, where a Harness keeps its MCP servers. |
+| **red-ale entry** | The one server entry `red-ale setup` owns in a Harness config, keyed by the name `red-ale`. |
+| **Setup plan** | What `red-ale setup` will do to each Harness config, shown before anything is changed. |
+
 ## red-ale
 
 | Term | Meaning |

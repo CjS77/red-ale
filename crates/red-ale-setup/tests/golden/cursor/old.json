@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "red-ale": {
+      "type": "stdio",
+      "command": "/opt/red-ale/bin/red-ale",
+      "args": ["mcp"]
+    },
+    "github": { "command": "docker", "args": ["run", "-i", "--rm", "ghcr.io/github/github-mcp-server"] }
+  }
+}
