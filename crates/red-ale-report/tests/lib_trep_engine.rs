@@ -837,3 +837,40 @@ fn the_empty_report_message_follows_the_no_account_warning() {
     assert_eq!(kinds(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))), ["warning"]);
     assert_eq!(kinds(&bank_1969_1970(&json!({}))), ["text", "table"]);
 }
+
+/// The tables of a result, as `shown` shows each.
+fn tables_shown(result: &Value) -> Vec<Vec<String>> {
+    let blocks = result["sections"][0]["blocks"].as_array().unwrap();
+    blocks.iter().filter(|b| b["kind"] == "table").map(shown).collect()
+}
+
+/// The Subtotal Table (TE:2065-2178) where TT:933-1003 do not reach it, on Bank and Expenses in 1969-1970 (Bank
+/// +$29 in December 1969, -$5 in January 1970, -$23 in February; Expenses +$16 in January, +$15 in February): with
+/// no secondary key, only the total column and no average; with one column, no average either; two amount columns
+/// net debit less credit; only subtotals shown leaves the main table out (TE:2623-2625).
+#[test]
+fn the_subtotal_table_shapes() {
+    let accounts = ["trep:Root.Asset.Bank", "trep:Root.Expenses"].map(account);
+    let with = |more: &Value| {
+        let mut o = bank_1969_1970(&json!({ "Accounts": { "Accounts": accounts }, "Display": { "Subtotal Table": true } }));
+        merge(&mut o, more);
+        tables_shown(&render_on(host(), "#{}", &o, None))
+    };
+    let single = json!({ "Display": { "Amount": "single" } });
+    let t = with(&single);
+    assert_eq!(t.len(), 2);
+    assert_eq!(t[0], ["|Total", "Bank|$1.00", "Expenses|$31.00", "Total|$32.00"]);
+    let mut february = json!({ "General": { "Start Date": { "absolute": "1970-02-01" } },
+                               "Sorting": { "Secondary Key": "date", "Secondary Subtotal for Date Key": "monthly" } });
+    merge(&mut february, &single);
+    assert_eq!(with(&february)[0], ["|February 1970|Total", "Bank|-$23.00|-$23.00", "Expenses|$15.00|$15.00",
+                                    "Total|-$8.00|-$8.00"]);
+    let double = json!({ "Sorting": { "Secondary Key": "date", "Secondary Subtotal for Date Key": "quarterly" } });
+    assert_eq!(with(&double)[0], ["|Q4 1969|Q1 1970|Total|Average", "Bank|$29.00|-$28.00|$1.00|$0.50",
+                                  "Expenses|-|$31.00|$31.00|$15.50", "Total|$29.00|$3.00|$32.00|$16.00"]);
+    let only = json!({ "Sorting": { "Show subtotals only (hide transactional data)": true } });
+    assert_eq!(with(&only).len(), 1);
+    // The table needs an amount column, and reads the Primary Subtotal option itself (TE:2281-2287).
+    assert_eq!(with(&json!({ "Display": { "Amount": "none" } })).len(), 1);
+    assert_eq!(with(&json!({ "Sorting": { "Primary Subtotal": false } })).len(), 1);
+}

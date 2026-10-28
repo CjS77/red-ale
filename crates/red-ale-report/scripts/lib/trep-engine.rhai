@@ -1051,6 +1051,19 @@ private fn subtotal_label(t, label, level) {
     if detail { label } else { `Total For ${label}` }
 }
 
+/// The amounts a subtotal row adds to the grid: for each of its commodities, the first column's total less the
+/// second's when the first merges with it (`get-commodity-grid-amount`, TE:1757-1773), zeros included.
+private fn grid_amounts(t, colls) {
+    let amounts = [];
+    for commodity in collector_commodities(colls) {
+        let first = retrieve(colls[0], commodity) ?? rational(0);
+        let merge = t.cells[0].merge_dual_column && colls.len() > 1;
+        let second = if merge { retrieve(colls[1], commodity) ?? rational(0) } else { rational(0) };
+        amounts.push(monetary(commodity, first - second));
+    }
+    amounts
+}
+
 /// The commodities of the collectors, each column's in its collector's order, duplicates dropped (TE:1688-1693).
 private fn collector_commodities(colls) {
     let list = [];
@@ -1142,9 +1155,12 @@ private fn csv_list(t, total) {
     csvlist
 }
 
-/// `make-split-table` (TE:1052-2063): the table of `splits` and its CSV rows. A group ends where the next split's
-/// split-sortvalue differs (`equal?`); its subtotal rows come first, then the next group's subheadings and a reset of
-/// its running totals. Returns `#{ table, csvlist }`.
+/// `make-split-table` (TE:1052-2063): the table of `splits`, the Subtotal Table's grid and the CSV rows. A group ends
+/// where the next split's split-sortvalue differs (`equal?`); its subtotal rows come first, then the next group's
+/// subheadings and a reset of its running totals. Each subtotal also goes into the grid (TE:1767-1773): a secondary
+/// one at its primary group's row (or one row `(#f . "")` with no primary key) and its own column, and at the
+/// total row; a primary one at its row's total column; the grand total at both totals. Returns
+/// `#{ table, grid, csvlist }`.
 private fn make_split_table(book, opts, ctx, p, splits, hooks) {
     let t = table_env(book, opts, ctx, p, hooks);
     let primary = new_collectors(t.cells.len());
@@ -1153,6 +1169,7 @@ private fn make_split_table(book, opts, ctx, p, splits, hooks) {
     let pk = p.primary_key_split_sortvalue;
     let sk = p.secondary_key_split_sortvalue;
     let rows = [];
+    let grid = make_grid();
     if pk != () { rows.push(subheading(t, render_summary(t, splits[0], "primary"), splits[0], "primary")); }
     if sk != () { rows.push(subheading(t, render_summary(t, splits[0], "secondary"), splits[0], "secondary")); }
     for (current, i) in splits {
@@ -1168,14 +1185,20 @@ private fn make_split_table(book, opts, ctx, p, splits, hooks) {
         let primary_ends = pk != () && (next == () || apply_split_sortvalue(ctx, pk, current) != apply_split_sortvalue(ctx, pk, next));
         let secondary_ends = sk != ()
             && (primary_ends || next == () || apply_split_sortvalue(ctx, sk, current) != apply_split_sortvalue(ctx, sk, next));
+        let row_key = if pk == () { grid_key((), "") } else {
+            grid_key(apply_split_sortvalue(ctx, pk, current), render_summary(t, current, "primary"))
+        };
         if secondary_ends {
-            rows += subtotal_rows(t, subtotal_label(t, render_summary(t, current, "secondary"), "secondary"), secondary,
-                                  "subtotal", "secondary");
+            let label = render_summary(t, current, "secondary");
+            rows += subtotal_rows(t, subtotal_label(t, label, "secondary"), secondary, "subtotal", "secondary");
+            let col_key = grid_key(apply_split_sortvalue(ctx, sk, current), label);
+            grid = grid_add(grid, row_key, col_key, grid_amounts(t, secondary));
+            grid = grid_add(grid, grid_key((), "row-total"), col_key, grid_amounts(t, secondary));
             secondary = new_collectors(t.cells.len());
         }
         if primary_ends {
-            rows += subtotal_rows(t, subtotal_label(t, render_summary(t, current, "primary"), "primary"), primary, "subtotal",
-                                  "primary");
+            rows += subtotal_rows(t, subtotal_label(t, row_key.label, "primary"), primary, "subtotal", "primary");
+            grid = grid_add(grid, row_key, grid_key((), "col-total"), grid_amounts(t, primary));
             primary = new_collectors(t.cells.len());
         }
         if next != () && primary_ends {
@@ -1191,16 +1214,18 @@ private fn make_split_table(book, opts, ctx, p, splits, hooks) {
     if p.grand_total {
         rows.push(#{ role: "rule", cells: nulls(width) });
         rows += subtotal_rows(t, "Grand Total", total, "grandTotal", "total");
+        grid = grid_add(grid, grid_key((), "row-total"), grid_key((), "col-total"), grid_amounts(t, total));
     }
     let shown = [];
     for r in rows { if r != () { shown.push(r); } }
-    #{ table: #{ kind: "table", columns: table_columns(t), rows: shown }, csvlist: csv_list(t, total) }
+    #{ table: #{ kind: "table", columns: table_columns(t), rows: shown }, grid: grid, csvlist: csv_list(t, total) }
 }
 
 /// `gnc:trep-renderer` (TE:2179-2641): the document. A warning when no account or expression allows a query (then
 /// the caller's `empty_report_message`) or no split matched; otherwise the dates, then the table. Under
 /// `ctx.export_type()` "csv", the export rows (the dates in ISO form, then `make-split-table`'s) or why there are
-/// none (TE:2524, :2605, :2627-2641).
+/// none (TE:2524, :2605, :2627-2641). With the Subtotal Table, it comes before the table, which it replaces when only
+/// subtotals are shown (TE:2620-2625).
 fn trep_renderer(book, opts, ctx, hooks) {
     let r = trep_splits(book, opts, ctx, hooks);
     let blocks = [];
@@ -1216,7 +1241,8 @@ fn trep_renderer(book, opts, ctx, hooks) {
         let p = r.parameters;
         let st = make_split_table(book, opts, ctx, p, r.splits, hooks);
         blocks.push(#{ kind: "text", role: "heading", text: ctx.print_date_interval(p.begindate, p.enddate) });
-        blocks.push(st.table);
+        if r.subtotal_table { blocks.push(grid_table(st.grid)); }
+        if !(r.subtotal_table && opts.get("Sorting", "Show subtotals only (hide transactional data)")) { blocks.push(st.table); }
         if type_of(st.csvlist) == "string" {
             export_error = st.csvlist;
         } else {
@@ -1228,4 +1254,91 @@ fn trep_renderer(book, opts, ctx, hooks) {
         if export_error != () { doc.exportError = export_error; } else { doc["export"] = export_rows; }
     }
     doc
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The Subtotal Table (`make-grid`, TE:2065-2178).
+
+/// An empty grid: `cells`, each `#{ id, coll }` with a commodity collector for a row and column; `rows`, the row keys
+/// with the commodities each holds; `cols`, the column keys. GnuCash keeps them in hash tables (TE:2077-2079).
+private fn make_grid() { #{ cells: [], rows: [], cols: [] } }
+
+/// A row or column key, GnuCash's `(sortvalue . label)` pair; `row-total` and `col-total` are labels with no sort
+/// value.
+private fn grid_key(sortvalue, label) {
+    #{ id: `${type_of(sortvalue)}:${sortvalue}:${label}`, sortvalue: sortvalue, label: label, commodities: [] }
+}
+
+private fn key_index(keys, id) {
+    for (k, i) in keys { if k.id == id { return i; } }
+    -1
+}
+
+/// `grid-add` (TE:2096-2110): add `amounts` into the cell at `row`, `col`, and note their commodities in the row.
+private fn grid_add(grid, row, col, amounts) {
+    if key_index(grid.cols, col.id) < 0 { grid.cols.push(col); }
+    let r = key_index(grid.rows, row.id);
+    if r < 0 { grid.rows.push(row); r = grid.rows.len() - 1; }
+    let id = `${row.id}|${col.id}`;
+    let c = key_index(grid.cells, id);
+    if c < 0 { grid.cells.push(#{ id: id, coll: [] }); c = grid.cells.len() - 1; }
+    let coll = grid.cells[c].coll;
+    let commodities = grid.rows[r].commodities;
+    for m in amounts {
+        coll.add(m.commodity, m.amount);
+        if !commodities.contains(m.commodity) { commodities.push(m.commodity); }
+    }
+    grid.cells[c].coll = coll;
+    grid.rows[r].commodities = commodities;
+    grid
+}
+
+/// The keys other than the total named `total`, sorted by sort value, `<` on strings (bytewise) and numbers
+/// (TE:2113-2119). Keys with equal sort values are ordered by label, then as they came; GnuCash leaves them in hash
+/// order.
+private fn sorted_keys(keys, total) {
+    let sorted = [];
+    for k in keys { if k.label != total || k.sortvalue != () { sorted.push(k); } }
+    sorted.sort(|a, b| if a.label < b.label { -1 } else if b.label < a.label { 1 } else { 0 });
+    sorted.sort(|a, b| if type_of(a.sortvalue) != type_of(b.sortvalue) { 0 } else if a.sortvalue < b.sortvalue { -1 }
+                       else if b.sortvalue < a.sortvalue { 1 } else { 0 });
+    sorted
+}
+
+/// A grid cell of `commodity` divided by `divisor` and rounded to its SCU (`make-table-cell`, `monetary-div`,
+/// TE:2121-2135); `()` when the cell holds none.
+private fn grid_cell(grid, row, col, commodity, divisor) {
+    let c = key_index(grid.cells, `${row.id}|${col.id}`);
+    let amount = if c < 0 { () } else { retrieve(grid.cells[c].coll, commodity) };
+    if amount == () { () } else { #{ monetary: round_scu(monetary(commodity, amount / divisor)) } }
+}
+
+/// `grid->html-table` (TE:2112-2163): the Subtotal Table. A line per commodity of each row (by unique name,
+/// `gnc-commodity-compare`), the label on the first; a column per secondary group, then the row's total and, with
+/// two columns or more, its average over the columns.
+private fn grid_table(grid) {
+    let col_total = grid_key((), "col-total");
+    let row_total_at = key_index(grid.rows, grid_key((), "row-total").id);
+    let list_of_rows = sorted_keys(grid.rows, "row-total");
+    if row_total_at >= 0 { list_of_rows.push(grid.rows[row_total_at]); }
+    let list_of_cols = sorted_keys(grid.cols, "col-total");
+    let average = list_of_cols.len() > 1;
+    let columns = [#{ label: "", role: "label" }];
+    for col in list_of_cols { columns.push(#{ label: col.label, role: "amount" }); }
+    columns.push(#{ label: "Total", role: "amount" });
+    if average { columns.push(#{ label: "Average", role: "amount" }); }
+    let rows = [];
+    for row in list_of_rows {
+        let commodities = row.commodities;
+        commodities.sort(|a, b| if a.uniqueName < b.uniqueName { -1 } else if b.uniqueName < a.uniqueName { 1 } else { 0 });
+        for (commodity, k) in commodities {
+            let label = if k > 0 { "" } else if row.sortvalue == () && row.label == "row-total" { "Total" } else { row.label };
+            let cells = [text_cell(label)];
+            for col in list_of_cols { cells.push(grid_cell(grid, row, col, commodity, 1)); }
+            cells.push(grid_cell(grid, row, col_total, commodity, 1));
+            if average { cells.push(grid_cell(grid, row, col_total, commodity, list_of_cols.len())); }
+            rows.push(#{ role: "data", cells: cells });
+        }
+    }
+    #{ kind: "table", title: "Subtotal Table", columns: columns, rows: rows }
 }
