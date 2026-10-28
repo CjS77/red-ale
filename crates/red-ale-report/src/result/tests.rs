@@ -391,3 +391,81 @@ fn additions_are_validated() {
     let e = finish_additions(&json!({ "title": "t", "sections": [{ "blocks": [{ "kind": "list", "items": [{ "txt": "a" }] }] }] }));
     assert_eq!(e.unwrap_err().path, "sections[0].blocks[0].items[0].txt");
 }
+
+/// A draft with the second set of `redAleApi` 0.5.0 additions: a row's `alternate`, a `warning` row, number cells
+/// with the share display and half-up rounding, a table with no columns, and `exportError`.
+fn additions_b_json() -> Value {
+    json!({
+        "title": "Additions B",
+        "exportError": "No splits found",
+        "sections": [{
+            "blocks": [
+                {
+                    "kind": "table",
+                    "columns": [ { "label": "Units", "role": "amount" }, { "label": "Rate", "role": "amount" } ],
+                    "rows": [
+                        { "alternate": true, "cells": [ { "number": "1234.5675", "places": 3, "numberFormat": "share" },
+                                                        { "number": "3.625", "rounding": "halfUp", "suffix": "%" } ] },
+                        { "role": "account", "alternate": false,
+                          "cells": [ { "number": "-100", "places": 0, "numberFormat": "share" },
+                                     { "number": "-3.625", "rounding": "halfUp", "suffix": "%" } ] },
+                        { "cells": [ { "number": "0.125", "numberFormat": "share" }, { "number": "3.625", "rounding": "bankers" } ] },
+                        { "role": "warning", "cells": [ { "text": "Lot has no purchase", "span": 2 } ] }
+                    ]
+                },
+                { "kind": "table", "columns": [], "rows": [ { "cells": [] }, { "role": "rule", "cells": [] } ] }
+            ]
+        }]
+    })
+}
+
+/// The share display is `gnc_share_print_info_places` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): exactly
+/// `places` decimals, half away from zero, grouped, the point always printed; `halfUp` rounds a rate's tie away from
+/// zero where banker's rounding goes to even.
+#[test]
+fn additions_b_finish_and_round_trip() {
+    let r = finish_additions(&additions_b_json()).unwrap();
+    r.validate().unwrap();
+    let Block::Table(t) = &r.sections[0].blocks[0] else {
+        panic!("not a table")
+    };
+    let shown: Vec<Option<&str>> = t.rows[..3]
+        .iter()
+        .flat_map(|row| row.cells.iter().map(|c| c.as_ref().unwrap().display.as_deref()))
+        .collect();
+    assert_eq!(
+        shown,
+        [Some("1,234.568"), Some("3.63%"), Some("-100."), Some("-3.63%"), Some("0.13"), Some("3.62")]
+    );
+    assert_eq!(r.export_error.as_deref(), Some("No splits found"));
+    let v = serde_json::to_value(&r).unwrap();
+    assert_eq!(v["exportError"], "No splits found");
+    assert_eq!(v["sections"][0]["blocks"][0]["rows"][1]["alternate"], false);
+    assert!(v["sections"][0]["blocks"][0]["rows"][2].get("alternate").is_none());
+    assert_eq!(v["sections"][0]["blocks"][0]["rows"][3]["role"], "warning");
+    assert_eq!(ReportResult::from_json(&v).unwrap(), r);
+}
+
+#[test]
+fn additions_b_are_validated() {
+    // Each case edits the draft at a path below the first block, and names the path the error must give.
+    let cases: [(&str, Value, &str); 4] = [
+        ("/rows/3/alternate", json!(true), "rows[3].alternate"),
+        ("/rows/3/cells/0/rounding", json!("halfUp"), "rows[3].cells[0]"),
+        ("/rows/3/cells/0/numberFormat", json!("share"), "rows[3].cells[0]"),
+        ("/rows/0/cells/0/rounding", json!("halfUp"), "rows[0].cells[0].rounding"),
+    ];
+    cases.into_iter().for_each(|(at, value, path)| {
+        let (parent, last) = at.rsplit_once('/').unwrap();
+        let mut v = additions_b_json();
+        v.pointer_mut(&format!("/sections/0/blocks/0{parent}")).unwrap()[last] = value;
+        let e = ReportDraft::from_json(&v).unwrap().validate().unwrap_err();
+        assert_eq!(e.path, format!("sections[0].blocks[0].{path}"), "{at}");
+    });
+    let mut v = additions_b_json();
+    v["export"] = json!([["a"]]);
+    assert_eq!(ReportDraft::from_json(&v).unwrap().validate().unwrap_err().path, "exportError");
+    let mut v = additions_b_json();
+    v["sections"][0]["blocks"][0]["rows"][0]["cells"][0]["numberFormat"] = json!("plain");
+    assert!(ReportDraft::from_json(&v).is_err(), "share is the one number format");
+}

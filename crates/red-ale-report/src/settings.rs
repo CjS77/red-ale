@@ -27,7 +27,7 @@ pub enum DateFormat {
 }
 
 /// A core date as the locale crate takes it.
-fn civil(d: Date) -> Option<CivilDate> {
+pub(crate) fn civil(d: Date) -> Option<CivilDate> {
     CivilDate::new(d.year(), u8::try_from(d.month()).ok()?, u8::try_from(d.day()).ok()?)
 }
 

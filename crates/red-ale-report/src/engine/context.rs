@@ -10,7 +10,7 @@ use rhai::{Dynamic, Engine, INT, Map};
 
 use super::run::RunContext as HostContext;
 use crate::query::{BookHandle, Fallible, Snapshot, script_error, time_arg};
-use crate::settings::{ReportSettings, WeekStart};
+use crate::settings::{ReportSettings, WeekStart, civil};
 use crate::wire::Timestamp;
 
 /// What a run knows about time and preferences: the context handed to a template's `render` as `ctx` (Rhai type
@@ -62,6 +62,13 @@ impl ContextHandle {
         self.0.snap.now()
     }
 
+    /// The local date of `t` under a `strftime` format, as `gnc-print-time64` prints it.
+    fn strftime(&self, format: &str, t: &Dynamic) -> Fallible<String> {
+        let date = self.date(time_arg(t)?)?;
+        let date = civil(date).ok_or_else(|| script_error(format!("date {date} is outside the supported range")))?;
+        Ok(self.0.locale.format_date(format, date))
+    }
+
     fn date(&self, t: Time64) -> Fallible<Date> {
         self.0
             .zone
@@ -102,6 +109,14 @@ pub(super) fn register(engine: &mut Engine) {
                 .to_local(t)
                 .ok_or_else(|| script_error(format!("time {} is outside the supported range", t.0)))?;
         Ok(format!("{} {:02}:{:02}:{:02}", l.date.to_file_string(), l.hour, l.minute, l.second))
+    });
+    // `gnc:date-get-month-year-string` and `gnc:date-get-year-string` (`5.17:bindings/guile/date-utilities.scm:151-152`,
+    // `:166-167`): `gnc-print-time64` with `%B %Y` and `%Y`, month names from the run's Locale.
+    engine.register_fn("print_month_year", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
+        c.strftime("%B %Y", &t)
+    });
+    engine.register_fn("print_year", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
+        c.strftime("%Y", &t)
     });
     engine.register_fn("print_date_iso", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         Ok(c.date(time_arg(&t)?)?.to_file_string())

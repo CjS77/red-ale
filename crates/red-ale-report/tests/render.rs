@@ -652,3 +652,41 @@ proptest! {
         check_page(&html);
     }
 }
+
+/// The second set of 0.5.0 additions: `alternate` shades a row whatever its position, a `warning` row is a bold label
+/// in the negative colour (`total-label-cell neg`, `5.17:gnucash/report/reports/standard/investment-lots.scm:1077-1096`),
+/// and a table with no columns is an empty table, not a failure.
+#[test]
+fn row_shading_warning_rows_and_tables_with_no_columns() {
+    let units = |n: &str, display: &str| json!({ "number": n, "places": 0, "numberFormat": "share", "display": display });
+    let r = result(
+        "Additions B",
+        json!([ { "blocks": [
+            { "kind": "table",
+              "columns": [ { "label": "Account", "role": "label" }, { "label": "Units", "role": "amount" } ],
+              "rows": [
+                { "alternate": false, "cells": [ { "text": "AAPL" }, units("100", "100.") ] },
+                { "alternate": false, "cells": [ { "text": "" }, units("25", "25.") ] },
+                { "cells": [ { "text": "MSFT" }, units("-3", "-3.") ] },
+                { "role": "warning", "cells": [ { "text": "Lot has no purchase", "span": 2 } ] }
+              ] },
+            { "kind": "table", "columns": [], "rows": [ { "cells": [] }, { "role": "rule", "cells": [] } ] }
+        ] } ]),
+    );
+    let html = page(&r, None);
+    check_page(&html);
+    let rows: Vec<&str> = html.lines().filter(|l| l.starts_with("<tr class=\"role-")).collect();
+    assert_eq!(
+        rows[..4],
+        [
+            "<tr class=\"role-data normal-row\"><td class=\"text-cell label-cell\">AAPL</td><td class=\"number-cell\">100.</td></tr>",
+            "<tr class=\"role-data normal-row\"><td class=\"text-cell label-cell\"></td><td class=\"number-cell\">25.</td></tr>",
+            "<tr class=\"role-data normal-row\"><td class=\"text-cell label-cell\">MSFT</td><td class=\"number-cell neg\">-3.</td></tr>",
+            "<tr class=\"role-warning\"><td class=\"total-label-cell neg label-cell\" colspan=\"2\">Lot has no purchase</td></tr>",
+        ]
+    );
+    assert_eq!(
+        rows[4..],
+        ["<tr class=\"role-data normal-row\"></tr>", "<tr class=\"role-rule\"><td><hr></td></tr>"]
+    );
+}

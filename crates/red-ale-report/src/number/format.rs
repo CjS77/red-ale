@@ -125,6 +125,15 @@ impl PrintInfo {
             use_separators: true,
         }
     }
+
+    /// `gnc_share_print_info_places` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): no symbol, the locale's
+    /// numeric separators, grouped, padded to `places` decimals.
+    pub fn share(places: u32) -> Self {
+        Self {
+            monetary: false,
+            ..Self::plain(places)
+        }
+    }
 }
 
 /// `is_decimal_fraction`: the decimals of a power-of-ten SCU (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:862-883`).
@@ -308,14 +317,31 @@ pub fn display_price(price: &Rational, currency: &CommodityFormat, conv: &Conven
 /// rounding and padded to the locale's `frac_digits`, grouped, no symbol. red-ale generalises it to `places` decimals,
 /// rounded and padded to. GnuCash goes through a double here; red-ale rounds exactly.
 pub fn display_number(value: &Rational, places: Option<u32>, conv: &Conventions) -> String {
-    let round_to = places.unwrap_or(NUMBER_PLACES);
-    let denom = 10_i64.checked_pow(round_to).unwrap_or(i64::MAX);
-    let rounded = value.round_to(denom, Rounding::Bankers).unwrap_or_else(|_| value.clone());
+    display_number_rounded(value, places, Rounding::Bankers, conv)
+}
+
+/// [`display_number`] rounding with `mode`: `HalfUp` for the rates GnuCash prints with Guile's `~,nf`.
+pub fn display_number_rounded(value: &Rational, places: Option<u32>, mode: Rounding, conv: &Conventions) -> String {
+    let rounded = round_places(value, places.unwrap_or(NUMBER_PLACES), mode);
     format_amount(
         &rounded,
         &PrintInfo::plain(places.unwrap_or_else(|| u32::from(conv.frac_digits))),
         conv,
     )
+}
+
+/// A share count as GnuCash's share print info prints it (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): the
+/// magnitude rounded half up to exactly `places` decimals, default 2 (`:1105-1145`), grouped, the point always
+/// printed: `1,234.568` for 1234.5675 at 3 places, `100.` at none.
+pub fn display_share(value: &Rational, places: Option<u32>, conv: &Conventions) -> String {
+    let places = places.unwrap_or(NUMBER_PLACES);
+    format_amount(&round_places(value, places, Rounding::HalfUp), &PrintInfo::share(places), conv)
+}
+
+/// `value` rounded to `places` decimals with `mode`; unchanged if that does not fit.
+fn round_places(value: &Rational, places: u32, mode: Rounding) -> Rational {
+    let denom = 10_i64.checked_pow(places).unwrap_or(i64::MAX);
+    value.round_to(denom, mode).unwrap_or_else(|_| value.clone())
 }
 
 /// The exact value, grouped, with as many decimals as it needs and no trailing decimal point, or `w + n/d`: how chart
@@ -465,6 +491,24 @@ mod tests {
         assert_eq!(display_exact(&r("2500"), &c()), "2,500");
         assert_eq!(display_exact(&r("-0.25"), &c()), "-0.25");
         assert_eq!(display_exact(&r("1/3"), &c()), "1/3");
+    }
+
+    /// `gnc_share_print_info_places` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): exactly `places`
+    /// decimals, the magnitude rounded half up (`:1105-1145`), so ties go away from zero; the numeric separators, not
+    /// the monetary ones, which pt_PT tells apart.
+    #[test]
+    fn shares_round_half_away_from_zero_to_exactly_places() {
+        let share = |s: &str, places| display_share(&r(s), places, &c());
+        assert_eq!(share("1234.5675", Some(3)), "1,234.568");
+        assert_eq!(share("-0.005", Some(2)), "-0.01");
+        assert_eq!(share("0.125", None), "0.13");
+        assert_eq!(share("100", Some(0)), "100.");
+        assert_eq!(share("2/3", Some(4)), "0.6667");
+        assert_eq!(share("7", Some(3)), "7.000");
+        // pt_PT's LC_NUMERIC has no thousands separator, which `gnc_localeconv` fills with `,`; LC_MONETARY's is `.`.
+        assert_eq!(display_share(&r("1234"), Some(1), &under("pt_PT")), "1,234,0");
+        let rate = |s: &str| display_number_rounded(&r(s), Some(2), Rounding::HalfUp, &c());
+        assert_eq!((rate("3.625"), rate("-3.625"), rate("3.615")), ("3.63".into(), "-3.63".into(), "3.62".into()));
     }
 
     fn under(locale: &str) -> Conventions {

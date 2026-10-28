@@ -87,6 +87,11 @@ pub struct Row {
     /// The amount's staircase position, 0 being the rightmost.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub level: Option<u32>,
+    /// For a `data` or `account` row: whether it is shaded as GnuCash's `alternate-row` (`true`) or `normal-row`
+    /// (`false`). Absent, rows alternate by position. The Transaction Report shades by split and keeps a
+    /// transaction's lines alike (`5.17:gnucash/report/trep-engine.scm:1967-1977`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alternate: Option<bool>,
     /// The cells, `null` for an empty one.
     pub cells: Vec<Option<Cell>>,
 }
@@ -113,6 +118,9 @@ pub enum RowRole {
     Rule,
     /// An empty spacer row.
     Spacer,
+    /// A warning inside a table, shown bold and in the negative colour: Investment Lots' warning rows
+    /// (`total-label-cell neg`, `5.17:gnucash/report/reports/standard/investment-lots.scm:1077-1096`).
+    Warning,
 }
 
 /// A cell. It holds exactly one of `text`, `monetary`, `commodities`, `number`, `price`, `date` and `anchors`; the
@@ -156,6 +164,12 @@ pub struct Cell {
     /// For a `number`: text after the figure, such as `" %"`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub suffix: Option<String>,
+    /// For a `number`: how it is rounded to `places`; banker's when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rounding: Option<NumberRounding>,
+    /// For a `number`: how it is printed; GnuCash's number renderer when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub number_format: Option<NumberFormat>,
     /// For a `price`: the currency it is in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<CommodityId>,
@@ -187,6 +201,27 @@ pub struct Cell {
     /// The number of the table's footnote this cell refers to, shown as a superscript after the content.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub footnote: Option<u32>,
+}
+
+/// How a `number` cell is rounded to its `places`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum NumberRounding {
+    /// Ties to even, as GnuCash's number renderer rounds (`5.17:gnucash/report/html-style-info.scm:233-236`).
+    Bankers,
+    /// Ties away from zero, as Guile's `~,nf` rounds the rates GnuCash prints from doubles
+    /// (`5.17:gnucash/report/reports/standard/advanced-portfolio.scm:914-922`).
+    HalfUp,
+}
+
+/// How a `number` cell is printed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum NumberFormat {
+    /// GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`):
+    /// exactly `places` decimals, rounded half away from zero (`:1105-1145`), grouped with the locale's numeric
+    /// separators, the decimal point always printed: the portfolios' share counts, `100.` with no places.
+    Share,
 }
 
 /// The content of a cell, borrowed.

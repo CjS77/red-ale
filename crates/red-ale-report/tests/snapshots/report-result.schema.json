@@ -66,6 +66,13 @@
           ]
         }
       }
+    },
+    "exportError": {
+      "description": "Why the run for an export has nothing to export, as the script gave it (`gnc:html-document-set-export-error`,\n`5.17:gnucash/report/trep-engine.scm:2524`): \"No splits found\". Absent otherwise.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "additionalProperties": false,
@@ -666,6 +673,13 @@
           "format": "uint32",
           "minimum": 0
         },
+        "alternate": {
+          "description": "For a `data` or `account` row: whether it is shaded as GnuCash's `alternate-row` (`true`) or `normal-row`\n(`false`). Absent, rows alternate by position. The Transaction Report shades by split and keeps a\ntransaction's lines alike (`5.17:gnucash/report/trep-engine.scm:1967-1977`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "cells": {
           "description": "The cells, `null` for an empty one.",
           "type": "array",
@@ -728,6 +742,11 @@
           "description": "An empty spacer row.",
           "type": "string",
           "const": "spacer"
+        },
+        {
+          "description": "A warning inside a table, shown bold and in the negative colour: Investment Lots' warning rows\n(`total-label-cell neg`, `5.17:gnucash/report/reports/standard/investment-lots.scm:1077-1096`).",
+          "type": "string",
+          "const": "warning"
         }
       ]
     },
@@ -825,6 +844,28 @@
           "type": [
             "string",
             "null"
+          ]
+        },
+        "rounding": {
+          "description": "For a `number`: how it is rounded to `places`; banker's when absent.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NumberRounding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "numberFormat": {
+          "description": "For a `number`: how it is printed; GnuCash's number renderer when absent.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NumberFormat"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "currency": {
@@ -1041,6 +1082,31 @@
       "required": [
         "text",
         "link"
+      ]
+    },
+    "NumberRounding": {
+      "description": "How a `number` cell is rounded to its `places`.",
+      "oneOf": [
+        {
+          "description": "Ties to even, as GnuCash's number renderer rounds (`5.17:gnucash/report/html-style-info.scm:233-236`).",
+          "type": "string",
+          "const": "bankers"
+        },
+        {
+          "description": "Ties away from zero, as Guile's `~,nf` rounds the rates GnuCash prints from doubles\n(`5.17:gnucash/report/reports/standard/advanced-portfolio.scm:914-922`).",
+          "type": "string",
+          "const": "halfUp"
+        }
+      ]
+    },
+    "NumberFormat": {
+      "description": "How a `number` cell is printed.",
+      "oneOf": [
+        {
+          "description": "GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`):\nexactly `places` decimals, rounded half away from zero (`:1105-1145`), grouped with the locale's numeric\nseparators, the decimal point always printed: the portfolios' share counts, `100.` with no places.",
+          "type": "string",
+          "const": "share"
+        }
       ]
     },
     "ChartType": {

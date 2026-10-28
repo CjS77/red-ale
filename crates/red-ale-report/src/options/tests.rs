@@ -558,3 +558,43 @@ fn budget_options_round_trip_by_guid() {
     none.budget(c("General", "Budget", "a"), None).unwrap();
     assert_eq!(value_of(&none, "General", "Budget"), Value::Null, "no budget to default to");
 }
+
+/// `GncOption-set-default-value` sets the default and the value (`5.17:libgnucash/engine/gnc-option-impl.cpp:87-91`);
+/// red-ale refuses an option that does not exist and a default the option's checks would replace.
+#[test]
+fn set_default_changes_default_and_value() {
+    let mut db = db();
+    db.set_default("Display", "Show Totals", OptionValue::Bool(false)).unwrap();
+    db.set_default("Display", "Parent account balances", OptionValue::Key("omit-bal".into()))
+        .unwrap();
+    assert_eq!(value_of(&db, "Display", "Show Totals"), json!(false));
+    assert_eq!(db.get("Display", "Show Totals").unwrap().default_value(), &OptionValue::Bool(false));
+    assert!(db.changed().is_empty(), "a new default is not a change");
+    let refused = |db: &mut OptionDb, section: &str, name: &str, v: OptionValue| db.set_default(section, name, v).unwrap_err().reason;
+    assert_eq!(refused(&mut db, "Display", "Running Balance", OptionValue::Bool(true)), "unknown option");
+    assert_eq!(
+        refused(&mut db, "Display", "Parent account balances", OptionValue::Key("no-such".into())),
+        "\"no-such\" is not a valid default"
+    );
+    let n = |s: &str| OptionValue::Number(Rational::parse(s).unwrap());
+    assert_eq!(refused(&mut db, "Display", "Maximum Slices", n("1")), "1 is not a valid default");
+    assert!(refused(&mut db, "Display", "Show Totals", OptionValue::Text("yes".into())).contains("cannot default to"));
+    db.set_default("Display", "Maximum Slices", n("9")).unwrap();
+    assert_eq!(value_of(&db, "Display", "Maximum Slices"), json!(9));
+}
+
+/// `GncOptionDB::make_internal` (`5.17:libgnucash/engine/gnc-optiondb.cpp:266-272`): the option keeps its value but
+/// leaves `report.options` and the params schema, and a change to it is refused.
+#[test]
+fn an_option_made_internal_is_kept_but_not_published() {
+    let mut db = db();
+    db.make_internal("Display", "Show Totals").unwrap();
+    assert_eq!(value_of(&db, "Display", "Show Totals"), json!(true));
+    assert!(db.describe().iter().all(|i| i.name != "Show Totals"));
+    let s = db.params_schema();
+    assert_eq!(s["properties"]["Display"]["properties"]["Show Totals"], Value::Null);
+    assert!(s["properties"]["Display"]["properties"]["Show Percents"].is_object());
+    assert_eq!(reason_on(&mut db, &json!({ "Display": { "Show Totals": false } })), "internal option");
+    assert_eq!(reason_on(&mut db, &json!({ "Display": { "Show Totals": null } })), "internal option");
+    assert_eq!(db.make_internal("Display", "Running Balance").unwrap_err().reason, "unknown option");
+}

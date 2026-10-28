@@ -179,6 +179,42 @@ impl OptionDb {
         self.default_section = Some(section.to_owned());
     }
 
+    /// `GncOption-set-default-value`: both the option's default and its value become `default`
+    /// (`5.17:libgnucash/engine/gnc-option-impl.cpp:87-91`). A default the declaration would have replaced (a key
+    /// that is not a choice, a number out of range) is refused, as GnuCash's validating setters refuse it
+    /// (`5.17:libgnucash/engine/gnc-option-impl.hpp:433-439`). GnuCash ignores an option that does not exist
+    /// (`5.17:bindings/guile/gnc-optiondb.i:1500-1503`); red-ale refuses it, so a misspelt name is caught
+    /// (`design/notes/report-transaction-engine.md` §7, Q6).
+    pub fn set_default(&mut self, section: &str, name: &str, default: OptionValue) -> Declared {
+        let fail = |reason: String| OptionError::new(section, name, reason);
+        let index = self.index(section, name)?;
+        let option = &mut self.options[index];
+        let wire = value::write(&default);
+        let checked = checked_default(&option.kind, default).map_err(fail)?;
+        if value::write(&checked) != wire {
+            return Err(fail(format!("{wire} is not a valid default")));
+        }
+        option.set_default(checked);
+        Ok(())
+    }
+
+    /// `GncOptionDB::make_internal` (`5.17:libgnucash/engine/gnc-optiondb.cpp:266-272`): the option keeps its value
+    /// for the renderer but leaves `report.options` and the `options` param's schema, and a change to it is refused,
+    /// so it keeps its default and never shows in the options summary. An option that does not exist is refused, as
+    /// for [`OptionDb::set_default`], where GnuCash ignores it.
+    pub fn make_internal(&mut self, section: &str, name: &str) -> Declared {
+        let index = self.index(section, name)?;
+        self.options[index].make_internal();
+        Ok(())
+    }
+
+    fn index(&self, section: &str, name: &str) -> Result<usize, OptionError> {
+        self.options
+            .iter()
+            .position(|o| o.section() == section && o.name() == name)
+            .ok_or_else(|| OptionError::new(section, name, "unknown option"))
+    }
+
     /// The section a dialog opens on.
     pub fn default_section(&self) -> Option<&str> {
         self.default_section.as_deref()
@@ -257,11 +293,10 @@ impl OptionDb {
 
     /// The index of `section`/`name` and the value `json` sets it to; `None` resets it.
     fn read(&self, section: &str, name: &str, json: &Value, ctx: &ValueContext<'_>) -> Result<(usize, Option<OptionValue>), OptionError> {
-        let index = self
-            .options
-            .iter()
-            .position(|o| o.section() == section && o.name() == name)
-            .ok_or_else(|| OptionError::new(section, name, "unknown option"))?;
+        let index = self.index(section, name)?;
+        if self.options[index].is_made_internal() {
+            return Err(OptionError::new(section, name, "internal option"));
+        }
         if json.is_null() {
             return Ok((index, None));
         }

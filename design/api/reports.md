@@ -41,7 +41,9 @@ for a saved configuration.
 field or a new kind (`api.md`, "Versioning"): link kinds `split`, `transaction`, `invoice`,
 `price` and `docLink` (§7, "Links"); `anchors` cells and `until` on date cells, with the host's `localUntil` (§7,
 "Tables"); `labelLines` on columns; `link` on text blocks; `list` blocks (§7, "Blocks"). `report.export` renders a
-`docLink` as plain text (§8).
+`docLink` as plain text (§8). Then: `alternate` on rows, the `warning` row role, tables with no columns, `rounding`
+(`bankers`, `halfUp`) and `numberFormat` (`share`) on number cells (§7, "Tables"), and `exportError` on the result
+(§7, "Top level").
 
 ## Methods
 
@@ -126,7 +128,10 @@ empty for the charts, which GnuCash leaves untitled.
 Errors as `report.run`, and `invalid` with `data.reason`:
 - `no-export` (`data.exportType: "csv"`): the report offers no CSV export;
 - `no-exportable-data`: GnuCash's "No exportable data" (`net-charts.scm:456-457`): no accounts selected, or no
-  figures in the period (the chart's empty-data warning).
+  figures in the period (the chart's empty-data warning);
+- `export-error` (v0.5, `data.message`, also the error's message): the report said why it has nothing to export,
+  its result's `exportError`, as the Transaction Report engine's `gnc:html-document-set-export-error`
+  (`5.17:gnucash/report/trep-engine.scm:2524`, `:2605`, `:2641`): "No splits found".
 
 Nothing is written to disk; the CLI's `--output` writes the `csv` on the caller's side.
 

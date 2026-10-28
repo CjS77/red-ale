@@ -24,11 +24,11 @@ pub(super) fn table(t: &Table, look: &Look) -> String {
     let labelled = |c: &Column| !c.label.is_empty() || c.label_lines.iter().flatten().any(|l| !l.is_empty());
     let head = t.columns.iter().any(labelled).then(|| head(&t.columns, &widths));
     let rows = t.rows.iter().scan(0_usize, |striped, row| {
-        let alternate = matches!(row.role, RowRole::Data | RowRole::Account) && {
+        let by_position = matches!(row.role, RowRole::Data | RowRole::Account) && {
             *striped += 1;
             *striped % 2 == 0
         };
-        Some(self::row(t, row, &widths, total, alternate, look))
+        Some(self::row(t, row, &widths, total, row.alternate.unwrap_or(by_position), look))
     });
     let body = std::iter::once("<tbody>".to_owned()).chain(rows).chain(["</tbody>".to_owned()]);
     let open = std::iter::once("<table class=\"report-table\">".to_owned());
@@ -102,6 +102,7 @@ fn role_name(r: RowRole) -> &'static str {
         RowRole::GrandTotal => "grandTotal",
         RowRole::Rule => "rule",
         RowRole::Spacer => "spacer",
+        RowRole::Warning => "warning",
     }
 }
 
@@ -113,7 +114,7 @@ fn row_style(r: RowRole, alternate: bool) -> Option<&'static str> {
         RowRole::Heading | RowRole::Subtotal => Some("primary-subheading"),
         RowRole::Total => Some("secondary-subheading"),
         RowRole::GrandTotal => Some("grand-total"),
-        RowRole::Rule | RowRole::Spacer => None,
+        RowRole::Rule | RowRole::Spacer | RowRole::Warning => None,
     }
 }
 
@@ -174,20 +175,22 @@ fn cells(t: &Table, row: &Row, widths: &[usize], look: &Look) -> String {
 fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize, notes: &[String]) -> String {
     let content = cell.content();
     let total = is_total(row.role);
+    let warning = row.role == RowRole::Warning;
     let label_column = column.is_some_and(|c| c.role == ColumnRole::Label);
     let text = matches!(content, Some(CellContent::Text(_) | CellContent::Anchors(_)) | None);
     let kind = match content {
-        _ if text && total => "total-label-cell",
+        _ if text && (total || warning) => "total-label-cell",
         _ if text => "text-cell",
         Some(CellContent::Date(_)) => "date-cell",
         _ if total => "total-number-cell",
         _ => "number-cell",
     };
-    let negative = match content {
-        Some(CellContent::Monetary(m)) => m.amount.is_negative(),
-        Some(CellContent::Number(n) | CellContent::Price(n)) => n.is_negative(),
-        _ => false,
-    };
+    let negative = warning
+        || match content {
+            Some(CellContent::Monetary(m)) => m.amount.is_negative(),
+            Some(CellContent::Number(n) | CellContent::Price(n)) => n.is_negative(),
+            _ => false,
+        };
     let classes = [
         Some(kind),
         negative.then_some("neg"),

@@ -99,16 +99,20 @@ fn type_names(types: &[red_ale_core::AccountType]) -> Option<Vec<String>> {
 }
 
 impl OptionDb {
-    /// Every option in order, with its constraints, default and value.
+    /// Every option in order, with its constraints, default and value; options made internal are left out.
     pub fn describe(&self) -> Vec<OptionInfo> {
-        self.options().into_iter().map(OptionInfo::of).collect()
+        self.published().map(OptionInfo::of).collect()
+    }
+
+    fn published(&self) -> impl Iterator<Item = &ReportOption> {
+        self.options().into_iter().filter(|o| !o.is_made_internal())
     }
 
     /// The JSON Schema (2020-12) of the `options` param for these options: an object by section and name, each
     /// value in its option's wire form. A client may check its call against it before making it. `null`, which
     /// returns an option to its default, is left out.
     pub fn params_schema(&self) -> Value {
-        let sections = self.options().into_iter().fold(Map::new(), |mut sections, o| {
+        let sections = self.published().fold(Map::new(), |mut sections, o| {
             let empty = || json!({ "type": "object", "additionalProperties": false, "properties": {} });
             let entry = sections.entry(o.section().to_owned()).or_insert_with(empty);
             if let Some(props) = entry.get_mut("properties").and_then(Value::as_object_mut) {

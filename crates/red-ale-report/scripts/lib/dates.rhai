@@ -1,6 +1,6 @@
 // lib/dates: calendar stepping, date lists and the date fractions reports average with.
 //
-// Translated from 5.17:bindings/guile/date-utilities.scm (lines 176-499), cited below as DU. Its header:
+// Translated from 5.17:bindings/guile/date-utilities.scm (lines 123-499), cited below as DU. Its header:
 //
 // date-utilities.scm -- date utility functions.
 // Bryan Larsen (blarsen@ada-works.com)
@@ -84,6 +84,42 @@ fn date_to_twoweek_fraction(ctx, caltime) {
 /// `gnc:date-to-week-fraction` (DU:250-251), with GnuCash's `weekstart` (DU:244-248) from `ctx.week_start()`.
 fn date_to_week_fraction(ctx, caltime) {
     (rational(caltime, 86400) - 1 - ctx.week_start()) / 7
+}
+
+/// `gnc:date-to-week` (DU:253-254): the floor of `date_to_week_fraction`, worked in integers so it is exact.
+fn date_to_week(ctx, caltime) {
+    let week = 7 * 86400;
+    let n = caltime - (1 + ctx.week_start()) * 86400;
+    if n >= 0 { n / week } else { -((week - 1 - n) / week) }
+}
+
+/// `gnc:time64-get-week` (DU:144-145) through `gnc:date-get-week` (DU:123-125): the week of `t64`'s local day,
+/// counted as `date_to_week` counts it from that day's start. GnuCash's `gnc:date-get-week` takes a broken-down
+/// time; here it takes a time, as every function of this module does.
+fn date_get_week(ctx, t64) {
+    date_to_week(ctx, ctx.start_of_day(t64))
+}
+
+/// `gnc:date-get-week-year-string` (DU:169-173): the dates of the week `date_get_week` gives, from its fourth day
+/// to its tenth, as `ctx.print_date_interval` prints them. GnuCash counts the week's start as whole weeks of
+/// seconds from the epoch, then adds 3 and 9 days; so does this.
+fn date_get_week_year_string(ctx, t64) {
+    let begin = date_get_week(ctx, t64) * 7 * 86400;
+    ctx.print_date_interval(begin + 3 * 86400, begin + 9 * 86400)
+}
+
+/// `gnc:date-year-delta` (DU:201-217): the years from `caltime1` to `caltime2`, counting days as 366ths of a year
+/// with a non-leap year's days from day 59 on moved up one. GnuCash divides by `366.0`, a double; red-ale divides
+/// exactly (`design/reports.md` §12, "Floating point in GnuCash, exact in red-ale").
+fn date_year_delta(ctx, caltime1, caltime2) {
+    let lt1 = ctx.local(caltime1);
+    let lt2 = ctx.local(caltime2);
+    (lt2.year - lt1.year) + rational(year_day_366(lt2) - year_day_366(lt1), 366)
+}
+
+/// DU:209-216's `dayadj`: the day of the year, moved up one from day 59 in a non-leap year.
+private fn year_day_366(lt) {
+    if !leap_year(lt.year) && lt.yearday >= 59 { lt.yearday + 1 } else { lt.yearday }
 }
 
 /// `gnc:date-to-day-fraction` (DU:258-259): days since 28 February 1970. GnuCash divides by `3600.0`, a double;
@@ -292,6 +328,13 @@ fn deltasym_to_delta(ds) {
 /// `gnc:time64-start-day-time` (DU:479-485): local 00:00:00 of `t64`'s day.
 fn time64_start_day_time(ctx, t64) {
     ctx.start_of_day(t64)
+}
+
+/// `time64CanonicalDayTime` (`5.17:libgnucash/engine/gnc-date.cpp:404-410`): local noon of `t64`'s day, the time
+/// GnuCash's reports look prices and balances up at for a day.
+fn time64_canonical_day_time(ctx, t64) {
+    let lt = ctx.local(t64);
+    ctx.make_time(#{ year: lt.year, month: lt.month, day: lt.day, hour: 12 })
 }
 
 /// `gnc:time64-end-day-time` (DU:487-493): local 23:59:59 of `t64`'s day.

@@ -287,6 +287,7 @@ pub struct ReportOption {
     pub kind: OptionKind,
     default: OptionValue,
     value: OptionValue,
+    made_internal: bool,
 }
 
 impl ReportOption {
@@ -296,6 +297,7 @@ impl ReportOption {
             kind,
             value: default.clone(),
             default,
+            made_internal: false,
         }
     }
 
@@ -330,6 +332,21 @@ impl ReportOption {
 
     pub(super) fn reset(&mut self) {
         self.value = self.default.clone();
+    }
+
+    /// Whether the script hid the option with `o.make_internal` (GnuCash's `GncOptionUIType::INTERNAL` set by
+    /// `make_internal`, `5.17:libgnucash/engine/gnc-option-impl.hpp:110-111`).
+    pub fn is_made_internal(&self) -> bool {
+        self.made_internal
+    }
+
+    pub(super) fn set_default(&mut self, default: OptionValue) {
+        self.value = default.clone();
+        self.default = default;
+    }
+
+    pub(super) fn make_internal(&mut self) {
+        self.made_internal = true;
     }
 }
 
