@@ -49,8 +49,9 @@ fn pairs(v: &[(&str, &str)]) -> Vec<(String, String)> {
 /// The net worth chart keeps every option the entry sets except the currency and the end date (`end-prev-fin-year`,
 /// the end of the accounting period), which are the template's defaults; the
 /// Balance Sheet keeps GnuCash's GUID and name, reads the 2.x setter, the 4.x commodity form and the
-/// `end-accounting-period` spelling, and drops the unknown "Use Tabs". The two untranslated reports are skipped
-/// without their options being read: the budget entry's `(gnc-budget-lookup …)` is never looked at.
+/// `end-accounting-period` spelling, and drops the unknown "Use Tabs". The budget entry's `(gnc-budget-lookup …)` is
+/// read as data and its GUID kept, though this book has no such budget. The untranslated Transaction Report is
+/// skipped without its options being read.
 #[test]
 fn imports_saved_configurations() {
     let mut c = Charts::new("iso");
@@ -58,10 +59,10 @@ fn imports_saved_configurations() {
     assert_eq!(result["dryRun"], false);
     assert_eq!(
         skipped(&result),
-        pairs(&[("Transactions this month", "untranslated"), ("Household budget", "untranslated")])
+        pairs(&[("Transactions this month", "untranslated")])
     );
     let imported = result["imported"].as_array().unwrap();
-    assert_eq!(imported.len(), 2);
+    assert_eq!(imported.len(), 3);
 
     let net = &imported[0];
     assert_eq!(net["line"], 3);
@@ -78,7 +79,11 @@ fn imports_saved_configurations() {
     assert_eq!(net["options"], want);
     assert_eq!(net["ignored"], json!([]));
 
-    let sheet = &imported[1];
+    let budget = &imported[1];
+    assert_eq!(budget["configuration"]["name"], "Household budget");
+    assert_eq!(budget["options"], json!({ "General": { "Budget": "b0000000000000000000000000000001" } }));
+
+    let sheet = &imported[2];
     assert_eq!(sheet["configuration"]["guid"], BALANCE_SHEET_SAVED);
     assert_eq!(sheet["configuration"]["name"], "Year-end balance sheet");
     let want = json!({
@@ -96,9 +101,9 @@ fn imports_saved_configurations() {
     );
 
     let saved = config(&c)["reports"]["saved"].clone();
-    assert_eq!(saved.as_array().unwrap().len(), 2);
+    assert_eq!(saved.as_array().unwrap().len(), 3);
     assert_eq!(saved[0]["guid"], NET_WORTH_SAVED);
-    assert_eq!(saved[1]["options"], sheet["options"]);
+    assert_eq!(saved[2]["options"], sheet["options"]);
     let list = c.call("report.list", json!({}));
     assert!(
         list["reports"]
@@ -144,14 +149,14 @@ fn dry_run_writes_nothing_and_a_second_import_skips() {
     let result = import_reports(&mut c, true);
     assert_eq!(
         (result["dryRun"].as_bool(), result["imported"].as_array().unwrap().len()),
-        (Some(true), 2)
+        (Some(true), 3)
     );
     assert_eq!(config(&c), before);
     import_reports(&mut c, false);
     let again = import_reports(&mut c, false);
     assert_eq!(again["imported"], json!([]));
     let reasons: Vec<String> = skipped(&again).into_iter().map(|s| s.1).collect();
-    assert_eq!(reasons, ["exists", "untranslated", "untranslated", "exists"]);
+    assert_eq!(reasons, ["exists", "untranslated", "exists", "exists"]);
 }
 
 #[test]
@@ -162,7 +167,7 @@ fn name_conflicts_are_skipped() {
         json!({ "name": "Year-end balance sheet", "report": "Balance Sheet" }),
     );
     let result = import_reports(&mut c, false);
-    assert_eq!(skipped(&result)[2], ("Year-end balance sheet".to_owned(), "conflict".to_owned()));
+    assert_eq!(skipped(&result)[1], ("Year-end balance sheet".to_owned(), "conflict".to_owned()));
 }
 
 /// The imported configuration runs as the template with the same options set by hand.
@@ -170,7 +175,7 @@ fn name_conflicts_are_skipped() {
 fn imported_configurations_run_as_set_by_hand() {
     let mut c = Charts::open("charts-daily.gnucash", "iso");
     let imported = import_reports(&mut c, false);
-    [(NET_WORTH_SAVED, NET_WORTH_LINECHART, 0), (BALANCE_SHEET_SAVED, BALANCE_SHEET, 1)]
+    [(NET_WORTH_SAVED, NET_WORTH_LINECHART, 0), (BALANCE_SHEET_SAVED, BALANCE_SHEET, 2)]
         .iter()
         .for_each(|(saved, template, i)| {
             let by_import = c.call("report.run", json!({ "report": saved }));
@@ -196,7 +201,7 @@ fn malformed_entries_are_skipped_never_run() {
     let first = &result["skipped"][0];
     assert_eq!((first["reason"].as_str(), first["line"].as_u64()), (Some("malformed"), Some(3)));
     assert!(first["message"].as_str().unwrap().contains("not a literal value"), "{first}");
-    assert_eq!(result["imported"].as_array().unwrap().len(), 1, "the other entries still import");
+    assert_eq!(result["imported"].as_array().unwrap().len(), 2, "the other entries still import");
     assert!(!c.path().join("pwned").exists());
 
     let truncated = &text[..text.len() / 2];
