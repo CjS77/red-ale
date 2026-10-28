@@ -255,7 +255,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | Income Statement                  | Income and expense over a period (profit and loss) |    1.6     |  0.2   |
 |        | Multicolumn Balance Sheet and P&L | Balance sheet and P&L across several periods       |    3.6     |        |
 |   ✅   | Trial Balance                     | Debit and credit balances of every account         |    2.0     |  0.5   |
-|        | Cash Flow                         | Money into and out of chosen accounts              |    1.8     |        |
+|   ✅   | Cash Flow                         | Money into and out of chosen accounts              |    1.8     |  0.5   |
 |   ✅   | Equity Statement                  | Changes in equity over a period                    |    2.0     |  0.5   |
 |        | General Journal                   | Every transaction in date order                    |    2.0     |        |
 |        | General Ledger                    | Every split, grouped by account                    |    2.0     |        |
@@ -274,7 +274,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | Account pie charts            | Share of balances or flows by account                         |    1.6     |  0.2   |
 |   ✅   | Price chart                   | A commodity's price over time                                 |    1.6     |  0.2   |
 |        | Income/expense vs day of week | Totals by day of the week                                     |   1.8.3    |        |
-|        | Cash flow chart               | Cash in and out over time                                     |    3.0     |        |
+|   ✅   | Cash flow chart               | Cash in and out over time                                     |    3.0     |  0.5   |
 |        | Transaction Breakdown         | Splits of each transaction spread across account columns      |    5.7     |        |
 |   ✅   | Future scheduled transactions | What scheduled transactions add to each account over a range  |   2.4.1    |  0.4   |
 
