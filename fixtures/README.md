@@ -55,6 +55,9 @@ made, `c…` transactions, `d…` splits, `e…` prices, `f…` budgets), so a r
 | `net-days` | `net_barchart.py` | `standard/test/test-standard-net-barchart.scm:58-311`; its first three groups are the book of `test-standard-net-linechart.scm` | GPL-2.0-or-later (notice kept) |
 | `category-daily`, `-average`, `-multi`, `-liability` | `category_report.py` | `standard/test/test-standard-category-report.scm:81-318` | GPL-2.0-or-later (notice kept) |
 | `budget` | `budget.py` | `standard/test/test-budget.scm:66-69`: `create-test-data` and `gnc:create-budget-and-transactions` (`bindings/guile/test/test-engine-extras.scm:851-884`), the budget made through ctypes on `libgnc-engine.so` (the bindings do not wrap it), GUID `f…0` | GPL-2.0-or-later (notice kept) |
+| `stock-test-data` | `stock_test_data.py` | `create-stock-test-data` and its `stock-split` helper (`bindings/guile/test/test-engine-extras.scm:893-1059`), as `standard/test/test-portfolios.scm:52`, `:84` builds it | GPL-2.0-or-later (notice in test-engine-extras.scm kept; test-portfolios.scm has none and is cited under GnuCash's licence) |
+| `ifrs-cost-basis` | `ifrs_cost_basis.py` | `standard/test/test-ifrs-cost-basis.scm:54-243` | GPL-2.0-or-later (no notice; GnuCash's licence) |
+| `investment-lots`, `lots-reverse-split`, `lots-baseline`, `lots-reverse-split-sale`, `lots-postsplit-baseline` | `investment_lots.py` | books A to E of `standard/test/test-investment-lots.scm:59-369`; B to E keep their AAPL splits in one lot, GUID `1…0`, and A's unbalanced transactions add an Imbalance-USD account, given fixed GUIDs after each commit | GPL-2.0-or-later (no notice; GnuCash's licence) |
 
 Beside each book, `<book>.expected.json` lists every assertion of the GnuCash tests that run on it, for the report
 translators to turn into named checks: `settings` (now, time zone, locale, date format, report currency, user
