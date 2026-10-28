@@ -58,6 +58,7 @@ made, `c…` transactions, `d…` splits, `e…` prices, `f…` budgets), so a r
 | `adjusting-entries`, `-fx` | `adjusting_entries.py` | `create-test-data`, GBP's `#` and the three 2003 transfers of `standard/test/test-trial-balance.scm:54-76` (= `test-equity-statement.scm:54-75`); `-fx` adds the two foreign transfers of `test-trial-balance.scm:170-173` | GPL-2.0-or-later (notice kept) |
 | `cash-flow` | `cash_flow.py` | `standard/test/test-cash-flow.scm:14-144`, its three groups dated 2024-03-15 | GPL-2.0-or-later (no notice; GnuCash's licence) |
 | `cashflow-barchart` | `cash_flow.py` | `standard/test/test-cashflow-barchart.scm:51-195`, its three groups dated 2024-03-02 and -03 | GPL-2.0-or-later (notice kept) |
+| `balsheet-pnl-extras`, `-trading` | `balsheet_pnl_extras.py` | no GnuCash test: a small book for hand-worked Multicolumn Balance Sheet and P&L checks (expense accounts, a closing transaction, placeholders, an account with no splits, priced EUR and unpriced CHF), the second with trading accounts made by GnuCash's own commit; its figures are in the script's docstring | as red-ale |
 
 Beside each book, `<book>.expected.json` lists every assertion of the GnuCash tests that run on it, for the report
 translators to turn into named checks: `settings` (now, time zone, locale, date format, report currency, user
@@ -70,7 +71,7 @@ templates outside v0.2's list (`design/reports.md` §12). `test-cash-flow.scm` n
 `cash-flow-calc-money-in-out`'s result, so `cash-flow.expected.json`'s checks name the result item they `read`, and
 each run adds the equivalent Cash Flow `report`, worked from the report's source rather than GnuCash output. Checks
 with `"readAs": "number"` compare numbers the test parses from the cells, with the strings they imply under
-`implied`.
+`implied`. The `balsheet-pnl-extras` books have no `expected.json`: no GnuCash test runs on them.
 
 ```
 scripts/report-fixtures/build-all.sh               # every book into fixtures/reports, with its checks

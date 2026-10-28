@@ -14,6 +14,8 @@ fn every_report_fixture_is_listed() {
         "adjusting-entries-fx",
         "adjusting-entries",
         "average-balance",
+        "balsheet-pnl-extras-trading",
+        "balsheet-pnl-extras",
         "balsheet-pnl",
         "budget",
         "cash-flow",

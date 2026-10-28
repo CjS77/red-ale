@@ -12,6 +12,6 @@ PYTHONPATH=${RED_ALE_ORACLE_PYTHONPATH:-$HOME/.local/opt/gnucash-5.17/lib/python
 TZ=UTC
 export PYTHONPATH TZ
 for script in account_summary balsheet_pnl average_balance charts net_barchart category_report budget \
-        adjusting_entries cash_flow; do
+        adjusting_entries cash_flow balsheet_pnl_extras; do
     python3 "$here/$script.py" "$out"
 done
