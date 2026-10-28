@@ -10,6 +10,8 @@
 #
 #   red-ale-<target>.tar.gz
 #   red-ale-<target>.sha256   (checksum of that archive)
+#   install.sh                (the installer, fetched as releases/latest/download/install.sh; design/setup.md,
+#                              "Installation")
 #
 # red-ale is not pure Rust: rusqlite builds the bundled SQLite and ring has C and assembly, so every runner needs a
 # C compiler for its target. macOS has Xcode's clang; the musl jobs install musl-gcc.
@@ -56,6 +58,25 @@ jobs:
         with:
           changelog: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Checks install.sh on every run, and attaches it to a tagged release. A manual run releases nothing.
+  install-script:
+    needs: create-release
+    if: ${{ !cancelled() && (needs.create-release.result == 'success' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the release asset
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the script
+        run: |
+          sh -n install.sh
+          shellcheck --shell=sh install.sh
+      - name: Attach install.sh to the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" install.sh --clobber
 
   build:
     needs: create-release
