@@ -7,7 +7,7 @@
 
 use std::cmp::Ordering;
 
-use super::order::split_order;
+use super::order::{numeric_order, split_order};
 use super::{corr_account_code, corr_account_full_name};
 use crate::book_options::uses_split_action_for_num;
 use crate::{Book, Guid, Numeric, Split, Time64, Transaction};
@@ -17,9 +17,12 @@ use crate::{Book, Guid, Numeric, Split, Time64, Transaction};
 /// `Transaction.cpp:2875-2955` and `Account.cpp:5834-5845`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortKey {
-    /// `SPLIT_ACCT_FULLNAME`: `xaccSplitCompareAccountFullNames` (`5.17:libgnucash/engine/Split.cpp:1687-1709`). The
-    /// same account is equal; else the account paths are walked from the top and the first two accounts that differ
-    /// compare by name; an account whose path ends first (an ancestor) is less.
+    /// `SPLIT_ACCT_FULLNAME`: `xaccSplitCompareAccountFullNames` (`5.17:libgnucash/engine/Split.cpp:1687-1709`): the
+    /// account paths are walked from the top and compared by name, level by level; a path that ends first (an
+    /// ancestor) is less. GnuCash stops at the first level whose *accounts* differ and returns their names' order,
+    /// equal for two sibling accounts of the same name, which is not an order once their sub-accounts are compared
+    /// too (an account's split equals a same-named sibling's, which equals the account's child's, which is greater).
+    /// red-ale goes on to the next level's names, so it differs only below same-named siblings.
     AccountFullName,
     /// `SPLIT_ACCOUNT`, `ACCOUNT_CODE_`: the account codes, `""` when unset (`Account.cpp:308`), with `g_strcmp0`
     /// (`5.17:libgnucash/engine/qofquerycore.cpp:194-207`).
@@ -65,8 +68,8 @@ pub struct SortLevel {
 enum SortValue<'a> {
     /// No key.
     Nothing,
-    /// The account and its ancestors below the root, top first.
-    Path(Vec<(Guid, &'a str)>),
+    /// The names of the account and its ancestors below the root, top first.
+    Path(Vec<&'a str>),
     Text(String),
     Time(Time64),
     Number(Numeric),
@@ -133,15 +136,16 @@ fn sort_value<'a>(book: &'a Book, key: Option<SortKey>, t: &Transaction, s: &Spl
     }
 }
 
-/// `gnc_account_get_all_parents`, top first: the account and its ancestors below the root (`Account.cpp:3283-3290`).
-fn account_path(book: &Book, account: Option<Guid>) -> Vec<(Guid, &str)> {
+/// The names along `gnc_account_get_all_parents`, top first: the account and its ancestors below the root
+/// (`Account.cpp:3283-3290`).
+fn account_path(book: &Book, account: Option<Guid>) -> Vec<&str> {
     let Some(a) = account.and_then(|a| book.account(a)) else {
         return Vec::new();
     };
-    let mut path: Vec<(Guid, &str)> = std::iter::once(a)
+    let mut path: Vec<&str> = std::iter::once(a)
         .chain(book.ancestors(a.guid))
         .filter(|a| a.guid != book.root)
-        .map(|a| (a.guid, a.name.as_str()))
+        .map(|a| a.name.as_str())
         .collect();
     path.reverse();
     path
@@ -149,26 +153,13 @@ fn account_path(book: &Book, account: Option<Guid>) -> Vec<(Guid, &str)> {
 
 fn compare(a: &SortValue<'_>, b: &SortValue<'_>, split_order: impl FnOnce() -> Ordering) -> Ordering {
     match (a, b) {
-        (SortValue::Path(a), SortValue::Path(b)) => compare_paths(a, b),
+        (SortValue::Path(a), SortValue::Path(b)) => a.cmp(b),
         (SortValue::Text(a), SortValue::Text(b)) => a.cmp(b),
         (SortValue::Time(a), SortValue::Time(b)) => a.cmp(b),
-        (SortValue::Number(a), SortValue::Number(b)) => a.cmp_value(*b),
+        (SortValue::Number(a), SortValue::Number(b)) => numeric_order(*a, *b),
         (SortValue::Num(na, ra), SortValue::Num(nb, rb)) => na.cmp(nb).then_with(|| ra.cmp(rb)),
         (SortValue::SplitOrder, SortValue::SplitOrder) => split_order(),
         _ => Ordering::Equal,
-    }
-}
-
-/// `xaccSplitCompareAccountFullNames` on two paths (`5.17:libgnucash/engine/Split.cpp:1687-1709`): equal for the same
-/// account; at the first level whose accounts differ, their names; else the path that ends first is less.
-fn compare_paths(a: &[(Guid, &str)], b: &[(Guid, &str)]) -> Ordering {
-    if a.last().map(|x| x.0) == b.last().map(|x| x.0) {
-        return Ordering::Equal;
-    }
-    match a.iter().zip(b).find(|(x, y)| x.0 != y.0) {
-        Some((x, y)) => x.1.cmp(y.1),
-        None if a.len() <= b.len() => Ordering::Less,
-        None => Ordering::Greater,
     }
 }
 
@@ -269,6 +260,22 @@ mod tests {
         assert_eq!(txns(&by_name), [in_assets, in_bank, in_assets2]);
         let down = sorted(&f, &[level(SortKey::AccountFullName, false)], &[bank, assets2, assets]);
         assert_eq!(txns(&down), [in_assets2, in_bank, in_assets]);
+    }
+
+    #[test]
+    fn same_named_siblings_compare_by_the_names_below_them() {
+        let mut f = fixture();
+        let root = f.book.root;
+        let twin = add_account(&mut f, "Twin", root, None);
+        let other_twin = add_account(&mut f, "Twin", root, None);
+        let kid = add_account(&mut f, "Kid", twin, None);
+        let in_kid = post(&mut f, 1, |n| n.splits[0].account = kid);
+        let in_other = post(&mut f, 2, |n| n.splits[0].account = other_twin);
+        let in_twin = post(&mut f, 3, |n| n.splits[0].account = twin);
+        // GnuCash: Kid = Twin (other) by name, so Kid < Twin (other) by split order, Twin (other) < Twin by split
+        // order, and Twin < Kid as its ancestor: a cycle. By names, Kid's path is the longer.
+        let levels = [level(SortKey::AccountFullName, true), level(SortKey::Default, true)];
+        assert_eq!(txns(&sorted(&f, &levels, &[twin, other_twin, kid])), [in_other, in_twin, in_kid]);
     }
 
     #[test]
