@@ -1,0 +1,4132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<gnc-v2
+     xmlns:gnc="http://www.gnucash.org/XML/gnc"
+     xmlns:act="http://www.gnucash.org/XML/act"
+     xmlns:book="http://www.gnucash.org/XML/book"
+     xmlns:cd="http://www.gnucash.org/XML/cd"
+     xmlns:cmdty="http://www.gnucash.org/XML/cmdty"
+     xmlns:price="http://www.gnucash.org/XML/price"
+     xmlns:slot="http://www.gnucash.org/XML/slot"
+     xmlns:split="http://www.gnucash.org/XML/split"
+     xmlns:sx="http://www.gnucash.org/XML/sx"
+     xmlns:trn="http://www.gnucash.org/XML/trn"
+     xmlns:ts="http://www.gnucash.org/XML/ts"
+     xmlns:fs="http://www.gnucash.org/XML/fs"
+     xmlns:bgt="http://www.gnucash.org/XML/bgt"
+     xmlns:recurrence="http://www.gnucash.org/XML/recurrence"
+     xmlns:lot="http://www.gnucash.org/XML/lot"
+     xmlns:addr="http://www.gnucash.org/XML/addr"
+     xmlns:billterm="http://www.gnucash.org/XML/billterm"
+     xmlns:bt-days="http://www.gnucash.org/XML/bt-days"
+     xmlns:bt-prox="http://www.gnucash.org/XML/bt-prox"
+     xmlns:cust="http://www.gnucash.org/XML/cust"
+     xmlns:employee="http://www.gnucash.org/XML/employee"
+     xmlns:entry="http://www.gnucash.org/XML/entry"
+     xmlns:invoice="http://www.gnucash.org/XML/invoice"
+     xmlns:job="http://www.gnucash.org/XML/job"
+     xmlns:order="http://www.gnucash.org/XML/order"
+     xmlns:owner="http://www.gnucash.org/XML/owner"
+     xmlns:taxtable="http://www.gnucash.org/XML/taxtable"
+     xmlns:tte="http://www.gnucash.org/XML/tte"
+     xmlns:vendor="http://www.gnucash.org/XML/vendor">
+<gnc:count-data cd:type="book">1</gnc:count-data>
+<gnc:book version="2.0.0">
+<book:id type="guid">b0000000000000000000000000000000</book:id>
+<book:slots>
+  <slot>
+    <slot:key>features</slot:key>
+    <slot:value type="frame">
+      <slot>
+        <slot:key>Credit Notes</slot:key>
+        <slot:value type="string">Customer and vendor credit notes (requires at least GnuCash 2.5.0)</slot:value>
+      </slot>
+    </slot:value>
+  </slot>
+</book:slots>
+<gnc:count-data cd:type="commodity">1</gnc:count-data>
+<gnc:count-data cd:type="account">22</gnc:count-data>
+<gnc:count-data cd:type="transaction">68</gnc:count-data>
+<gnc:count-data cd:type="price">2</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncBillTerm">2</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncCustomer">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncEmployee">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncEntry">15</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncInvoice">8</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncJob">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncOrder">1</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncTaxTable">4</gnc:count-data>
+<gnc:count-data cd:type="gnc:GncVendor">1</gnc:count-data>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>CURRENCY</cmdty:space>
+  <cmdty:id>GBP</cmdty:id>
+  <cmdty:get_quotes/>
+  <cmdty:quote_source>currency</cmdty:quote_source>
+  <cmdty:quote_tz/>
+  <cmdty:slots>
+    <slot>
+      <slot:key>user_symbol</slot:key>
+      <slot:value type="string">#</slot:value>
+    </slot>
+  </cmdty:slots>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>CURRENCY</cmdty:space>
+  <cmdty:id>USD</cmdty:id>
+  <cmdty:get_quotes/>
+  <cmdty:quote_source>currency</cmdty:quote_source>
+  <cmdty:quote_tz/>
+</gnc:commodity>
+<gnc:commodity version="2.0.0">
+  <cmdty:space>template</cmdty:space>
+  <cmdty:id>template</cmdty:id>
+  <cmdty:name>template</cmdty:name>
+  <cmdty:xcode>template</cmdty:xcode>
+  <cmdty:fraction>1</cmdty:fraction>
+</gnc:commodity>
+<gnc:pricedb version="1">
+  <price>
+    <price:id type="guid">e0000000000000000000000000000001</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>GBP</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2000-02-15 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>3/2</price:value>
+  </price>
+  <price>
+    <price:id type="guid">e0000000000000000000000000000000</price:id>
+    <price:commodity>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>USD</cmdty:id>
+    </price:commodity>
+    <price:currency>
+      <cmdty:space>CURRENCY</cmdty:space>
+      <cmdty:id>GBP</cmdty:id>
+    </price:currency>
+    <price:time>
+      <ts:date>2000-01-15 00:00:00 +0000</ts:date>
+    </price:time>
+    <price:source>user:xfer-dialog</price:source>
+    <price:type>test</price:type>
+    <price:value>5/7</price:value>
+  </price>
+</gnc:pricedb>
+<gnc:account version="2.0.0">
+  <act:name>Root Account</act:name>
+  <act:id type="guid">a0000000000000000000000000000000</act:id>
+  <act:type>ROOT</act:type>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Root</act:name>
+  <act:id type="guid">a0000000000000000000000000000001</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000000</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Asset</act:name>
+  <act:id type="guid">a0000000000000000000000000000002</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Bank</act:name>
+  <act:id type="guid">a0000000000000000000000000000003</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000002</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>GBP Bank</act:name>
+  <act:id type="guid">a0000000000000000000000000000004</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:code>01-GBP</act:code>
+  <act:parent type="guid">a0000000000000000000000000000002</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>USD Bank</act:name>
+  <act:id type="guid">a0000000000000000000000000000005</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:code>02-USD</act:code>
+  <act:parent type="guid">a0000000000000000000000000000002</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Wallet</act:name>
+  <act:id type="guid">a0000000000000000000000000000006</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000002</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Income</act:name>
+  <act:id type="guid">a0000000000000000000000000000007</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:description>Salaries etc</act:description>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Income-GBP</act:name>
+  <act:id type="guid">a0000000000000000000000000000008</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:code>01-GBP</act:code>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Expenses</act:name>
+  <act:id type="guid">a0000000000000000000000000000009</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:code>EXP-001</act:code>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Liabilities</act:name>
+  <act:id type="guid">a000000000000000000000000000000a</act:id>
+  <act:type>LIABILITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Equity</act:name>
+  <act:id type="guid">a000000000000000000000000000000b</act:id>
+  <act:type>EQUITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000001</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Root</act:name>
+  <act:id type="guid">a000000000000000000000000000000c</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a0000000000000000000000000000000</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Asset</act:name>
+  <act:id type="guid">a000000000000000000000000000000d</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Bank</act:name>
+  <act:id type="guid">a000000000000000000000000000000e</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000d</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>VAT</act:name>
+  <act:id type="guid">a000000000000000000000000000000f</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>VAT-on-Purchases</act:name>
+  <act:id type="guid">a0000000000000000000000000000010</act:id>
+  <act:type>ASSET</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000f</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>VAT-on-Sales</act:name>
+  <act:id type="guid">a0000000000000000000000000000011</act:id>
+  <act:type>LIABILITY</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000f</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Income</act:name>
+  <act:id type="guid">a0000000000000000000000000000012</act:id>
+  <act:type>INCOME</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>Expense</act:name>
+  <act:id type="guid">a0000000000000000000000000000013</act:id>
+  <act:type>EXPENSE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000c</act:parent>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>A/Receivable</act:name>
+  <act:id type="guid">a0000000000000000000000000000014</act:id>
+  <act:type>RECEIVABLE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000c</act:parent>
+  <act:lots>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000000</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000000</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Invoice 0001</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000001</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000001</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Invoice 0002</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000004</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000004</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Credit Note 0005</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000007</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000007</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Invoice 0008</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+  </act:lots>
+</gnc:account>
+<gnc:account version="2.0.0">
+  <act:name>A/Payable</act:name>
+  <act:id type="guid">a0000000000000000000000000000015</act:id>
+  <act:type>PAYABLE</act:type>
+  <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </act:commodity>
+  <act:commodity-scu>100</act:commodity-scu>
+  <act:parent type="guid">a000000000000000000000000000000c</act:parent>
+  <act:lots>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000002</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000002</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Bill 0003</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000003</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000003</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Expense 0004</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000005</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000005</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Credit Note 0006</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+    <gnc:lot version="2.0.0">
+      <lot:id type="guid">10000000000000000000000000000006</lot:id>
+      <lot:slots>
+        <slot>
+          <slot:key>gncInvoice</slot:key>
+          <slot:value type="frame">
+            <slot>
+              <slot:key>invoice-guid</slot:key>
+              <slot:value type="guid">30000000000000000000000000000006</slot:value>
+            </slot>
+          </slot:value>
+        </slot>
+        <slot>
+          <slot:key>title</slot:key>
+          <slot:value type="string">Credit Note 0007</slot:value>
+        </slot>
+      </lot:slots>
+    </gnc:lot>
+  </act:lots>
+</gnc:account>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000001</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trn2</trn:num>
+  <trn:date-posted>
+    <ts:date>1969-12-31 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:02 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>desc-2</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1969-12-31</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">notes3</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Transaction Voided</slot:value>
+    </slot>
+    <slot>
+      <slot:key>void-reason</slot:key>
+      <slot:value type="string">void</slot:value>
+    </slot>
+    <slot>
+      <slot:key>void-time</slot:key>
+      <slot:value type="string">2024-03-15 12:00:02</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000002</split:id>
+      <split:reconciled-state>v</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>void-former-amount</slot:key>
+          <slot:value type="numeric">-1000/100</slot:value>
+        </slot>
+        <slot>
+          <slot:key>void-former-value</slot:key>
+          <slot:value type="numeric">-1000/100</slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000003</split:id>
+      <split:reconciled-state>v</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>void-former-amount</slot:key>
+          <slot:value type="numeric">1000/100</slot:value>
+        </slot>
+        <slot>
+          <slot:key>void-former-value</slot:key>
+          <slot:value type="numeric">1000/100</slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000002</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trn3</trn:num>
+  <trn:date-posted>
+    <ts:date>1969-12-31 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:03 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>desc-3</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1969-12-31</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000005</split:id>
+      <split:reconciled-state>c</split:reconciled-state>
+      <split:reconcile-date>
+        <ts:date>1970-03-01 00:00:00 +0000</ts:date>
+      </split:reconcile-date>
+      <split:value>2900/100</split:value>
+      <split:quantity>2900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000004</split:id>
+      <split:reconciled-state>c</split:reconciled-state>
+      <split:reconcile-date>
+        <ts:date>1970-03-01 00:00:00 +0000</ts:date>
+      </split:reconcile-date>
+      <split:value>-2900/100</split:value>
+      <split:quantity>-2900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000000</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trn1</trn:num>
+  <trn:date-posted>
+    <ts:date>1970-01-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:01 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>desc-1</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1970-01-01</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000001</split:id>
+      <split:memo>memo-3</split:memo>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>500/100</split:value>
+      <split:quantity>500/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000000</split:id>
+      <split:memo>memo-3</split:memo>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-500/100</split:value>
+      <split:quantity>-500/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000003</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trn4</trn:num>
+  <trn:date-posted>
+    <ts:date>1970-02-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:04 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>desc-4</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1970-02-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">notes2</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000007</split:id>
+      <split:memo>memo-1</split:memo>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1500/100</split:value>
+      <split:quantity>1500/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000006</split:id>
+      <split:memo>memo-1</split:memo>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1500/100</split:value>
+      <split:quantity>-1500/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000006</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trn7</trn:num>
+  <trn:date-posted>
+    <ts:date>1970-02-10 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:07 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>desc-7</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1970-02-10</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">notes1</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000d</split:id>
+      <split:memo>memo-2</split:memo>
+      <split:reconciled-state>y</split:reconciled-state>
+      <split:reconcile-date>
+        <ts:date>1970-03-01 00:00:00 +0000</ts:date>
+      </split:reconcile-date>
+      <split:value>800/100</split:value>
+      <split:quantity>800/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000c</split:id>
+      <split:memo>memo-2</split:memo>
+      <split:reconciled-state>y</split:reconciled-state>
+      <split:reconcile-date>
+        <ts:date>1970-03-01 00:00:00 +0000</ts:date>
+      </split:reconcile-date>
+      <split:value>-800/100</split:value>
+      <split:quantity>-800/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000007</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>1971-02-14 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:08 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$100bank -&gt; $80expenses + $20wallet</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1971-02-14</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">multisplit</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>8000/100</split:value>
+      <split:quantity>8000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000010</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2000/100</split:value>
+      <split:quantity>2000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000006</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10000/100</split:value>
+      <split:quantity>-10000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-01-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:13 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-01-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000019</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000e</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-01-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:15 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-01-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-01-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:14 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-01-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000010</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-02-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:17 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-02-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000022</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000021</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000012</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-02-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:19 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-02-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000026</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000025</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000011</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-02-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:18 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-02-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000024</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000023</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000014</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-03-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:21 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-03-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000029</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000016</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-03-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:23 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-03-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000015</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-03-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:22 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-03-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000018</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-04-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:25 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-04-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000032</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000031</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000001a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-04-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:27 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-04-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000036</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000035</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000019</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-04-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:26 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-04-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000034</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000033</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000001c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-05-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:29 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-05-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000003a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000039</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000001e</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-05-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:31 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-05-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000003e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000003d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000001d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-05-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:30 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-05-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000003c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000003b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000020</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-06-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:33 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-06-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000042</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000041</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000022</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-06-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:35 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-06-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000046</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000045</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000021</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-06-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:34 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-06-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000044</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000043</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000024</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-07-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:37 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-07-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000004a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000049</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000026</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-07-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:39 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-07-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000004e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000004d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000025</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-07-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:38 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-07-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000004c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000004b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000028</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-08-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:41 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-08-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000052</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000051</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000002a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-08-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:43 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-08-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000056</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000055</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000029</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-08-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:42 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-08-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000054</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000053</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000002c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-09-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:45 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-09-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000005a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000059</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000002e</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-09-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:47 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-09-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000005e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000005d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000002d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-09-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:46 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-09-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000005c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000005b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000030</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-10-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:49 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-10-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000062</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000061</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000032</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-10-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:51 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-10-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000066</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000065</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000031</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-10-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:50 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-10-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000064</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000063</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000034</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-11-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:53 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-11-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000006a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000069</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000036</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-11-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:55 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-11-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000006e</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000006d</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000035</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-11-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:54 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-11-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000006c</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000006b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000038</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-12-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:57 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$103 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-12-03</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000072</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10300/100</split:value>
+      <split:quantity>10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000071</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10300/100</split:value>
+      <split:quantity>-10300/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000003a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-12-09 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:59 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$109 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-12-09</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000076</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>10900/100</split:value>
+      <split:quantity>10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000075</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-10900/100</split:value>
+      <split:quantity>-10900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000007</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000039</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-12-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:58 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>$22 expense</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-12-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000074</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>2200/100</split:value>
+      <split:quantity>2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000073</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-2200/100</split:value>
+      <split:quantity>-2200/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000003</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000009</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2000-01-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:10 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>GBP 10 to USD 14</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2000-01-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000014</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1000/100</split:value>
+      <split:quantity>1400/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000013</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1000/100</split:value>
+      <split:quantity>-1000/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000a</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2000-02-15 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:11 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>USD 9 to GBP 6</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2000-02-15</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000016</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>900/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000015</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-900/100</split:value>
+      <split:quantity>-900/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000005</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-01-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:12 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-01-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000018</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000017</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000000f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-02-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:16 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-02-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000020</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000001f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000013</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-03-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:20 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-03-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000028</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000027</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000017</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-04-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:24 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-04-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000030</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000002f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000001b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-05-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:28 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-05-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000038</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000037</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000001f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-06-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:32 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-06-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000040</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000003f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000023</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-07-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:36 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-07-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000048</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000047</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000027</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-08-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:40 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-08-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000050</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000004f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000002b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-09-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:44 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-09-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000058</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000057</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000002f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-10-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:48 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-10-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000060</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000005f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000033</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-11-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:52 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-11-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000068</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000067</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000037</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>GBP</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>2024-12-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:56 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>#51 income</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>2024-12-08</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000070</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>5100/100</split:value>
+      <split:quantity>5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000004</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000006f</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-5100/100</split:value>
+      <split:quantity>-5100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000008</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000004</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trn5</trn:num>
+  <trn:date-posted>
+    <ts:date>1970-01-10 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:05 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>desc-5</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1970-01-10</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">Voided transaction</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Transaction Voided</slot:value>
+    </slot>
+    <slot>
+      <slot:key>void-reason</slot:key>
+      <slot:value type="string">any</slot:value>
+    </slot>
+    <slot>
+      <slot:key>void-time</slot:key>
+      <slot:value type="string">2024-03-15 12:00:05</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000008</split:id>
+      <split:reconciled-state>v</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>void-former-amount</slot:key>
+          <slot:value type="numeric">-1000/100</slot:value>
+        </slot>
+        <slot>
+          <slot:key>void-former-value</slot:key>
+          <slot:value type="numeric">-1000/100</slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000009</split:id>
+      <split:reconciled-state>v</split:reconciled-state>
+      <split:value>0/100</split:value>
+      <split:quantity>0/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+      <split:slots>
+        <slot>
+          <slot:key>void-former-amount</slot:key>
+          <slot:value type="numeric">1000/100</slot:value>
+        </slot>
+        <slot>
+          <slot:key>void-former-value</slot:key>
+          <slot:value type="numeric">1000/100</slot:value>
+        </slot>
+      </split:slots>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000005</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trn6</trn:num>
+  <trn:date-posted>
+    <ts:date>1970-01-10 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:06 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>desc-6</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1970-01-10</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>notes</slot:key>
+      <slot:value type="string">notes1</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000b</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1100/100</split:value>
+      <split:quantity>1100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000000a</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1100/100</split:value>
+      <split:quantity>-1100/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000a</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000008</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:date-posted>
+    <ts:date>1999-12-31 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:00:09 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>Closing</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>book_closing</slot:key>
+      <slot:value type="integer">1</slot:value>
+    </slot>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1999-12-31</gdate>
+      </slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000012</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>11100/100</split:value>
+      <split:quantity>11100/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000b</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000011</split:id>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-11100/100</split:value>
+      <split:quantity>-11100/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000009</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000043</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>trans-payment-num-1</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-10 00:00:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:08 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>cust-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">P</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000088</split:id>
+      <split:memo>trans-payment-memo-1</split:memo>
+      <split:action>Payment</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1747918/100</split:value>
+      <split:quantity>1747918/100</split:quantity>
+      <split:account type="guid">a000000000000000000000000000000e</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000089</split:id>
+      <split:memo>trans-payment-memo-1</split:memo>
+      <split:action>Payment</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1747918/100</split:value>
+      <split:quantity>-1747918/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000014</split:account>
+      <split:lot type="guid">10000000000000000000000000000007</split:lot>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000042</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0008</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-08 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:07 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>cust-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-08</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000007</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-08 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000085</split:id>
+      <split:memo>trans-posting-memo</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>1747918/100</split:value>
+      <split:quantity>1747918/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000014</split:account>
+      <split:lot type="guid">10000000000000000000000000000007</split:lot>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000086</split:id>
+      <split:memo>trans-posting-memo</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-111101/100</split:value>
+      <split:quantity>-111101/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000011</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000087</split:id>
+      <split:memo>trans-posting-memo</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-1636817/100</split:value>
+      <split:quantity>-1636817/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000012</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000003b</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0001</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-01 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:00 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>cust-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-01</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000000</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-01 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000077</split:id>
+      <split:memo>cust-invoice</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000014</split:account>
+      <split:lot type="guid">10000000000000000000000000000000</split:lot>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000078</split:id>
+      <split:memo>cust-invoice</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600/100</split:value>
+      <split:quantity>-600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000012</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000003c</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0002</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-02 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:01 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>cust-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-02</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000001</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-03 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000079</split:id>
+      <split:memo>job-invoice</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000014</split:account>
+      <split:lot type="guid">10000000000000000000000000000001</split:lot>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000007a</split:id>
+      <split:memo>job-invoice</split:memo>
+      <split:action>Invoice</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600/100</split:value>
+      <split:quantity>-600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000012</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000003f</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0005</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-05 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:04 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>cust-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-05</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000004</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-05 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000007f</split:id>
+      <split:memo>cust-credit-note</split:memo>
+      <split:action>Credit Note</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000012</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000080</split:id>
+      <split:memo>cust-credit-note</split:memo>
+      <split:action>Credit Note</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600/100</split:value>
+      <split:quantity>-600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000014</split:account>
+      <split:lot type="guid">10000000000000000000000000000004</split:lot>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000003d</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0003</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-03 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:02 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>vend-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-03</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000002</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-03 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000007b</split:id>
+      <split:memo>vendor-bill</split:memo>
+      <split:action>Bill</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000013</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000007c</split:id>
+      <split:memo>vendor-bill</split:memo>
+      <split:action>Bill</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600/100</split:value>
+      <split:quantity>-600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000015</split:account>
+      <split:lot type="guid">10000000000000000000000000000002</split:lot>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c000000000000000000000000000003e</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0004</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-04 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:03 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>emp-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-04</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000003</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-04 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000007d</split:id>
+      <split:memo>emp-bill</split:memo>
+      <split:action>Expense</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000013</split:account>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d000000000000000000000000000007e</split:id>
+      <split:memo>emp-bill</split:memo>
+      <split:action>Expense</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600/100</split:value>
+      <split:quantity>-600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000015</split:account>
+      <split:lot type="guid">10000000000000000000000000000003</split:lot>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000040</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0006</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-06 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:05 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>vend-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-06</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000005</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-06 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000081</split:id>
+      <split:memo>vend-credit-note</split:memo>
+      <split:action>Credit Note</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000015</split:account>
+      <split:lot type="guid">10000000000000000000000000000005</split:lot>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000082</split:id>
+      <split:memo>vend-credit-note</split:memo>
+      <split:action>Credit Note</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600/100</split:value>
+      <split:quantity>-600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000013</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:transaction version="2.0.0">
+  <trn:id type="guid">c0000000000000000000000000000041</trn:id>
+  <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </trn:currency>
+  <trn:num>0007</trn:num>
+  <trn:date-posted>
+    <ts:date>1980-09-07 10:59:00 +0000</ts:date>
+  </trn:date-posted>
+  <trn:date-entered>
+    <ts:date>2024-03-15 12:01:06 +0000</ts:date>
+  </trn:date-entered>
+  <trn:description>emp-1-name</trn:description>
+  <trn:slots>
+    <slot>
+      <slot:key>date-posted</slot:key>
+      <slot:value type="gdate">
+        <gdate>1980-09-07</gdate>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>gncInvoice</slot:key>
+      <slot:value type="frame">
+        <slot>
+          <slot:key>invoice-guid</slot:key>
+          <slot:value type="guid">30000000000000000000000000000006</slot:value>
+        </slot>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-date-due</slot:key>
+      <slot:value type="timespec">
+        <ts:date>1980-09-07 00:00:00 +0000</ts:date>
+      </slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-read-only</slot:key>
+      <slot:value type="string">Generated from an invoice. Try unposting the invoice.</slot:value>
+    </slot>
+    <slot>
+      <slot:key>trans-txn-type</slot:key>
+      <slot:value type="string">I</slot:value>
+    </slot>
+  </trn:slots>
+  <trn:splits>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000083</split:id>
+      <split:memo>emp-credit-note</split:memo>
+      <split:action>Credit Note</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>600/100</split:value>
+      <split:quantity>600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000015</split:account>
+      <split:lot type="guid">10000000000000000000000000000006</split:lot>
+    </trn:split>
+    <trn:split>
+      <split:id type="guid">d0000000000000000000000000000084</split:id>
+      <split:memo>emp-credit-note</split:memo>
+      <split:action>Credit Note</split:action>
+      <split:reconciled-state>n</split:reconciled-state>
+      <split:value>-600/100</split:value>
+      <split:quantity>-600/100</split:quantity>
+      <split:account type="guid">a0000000000000000000000000000013</split:account>
+    </trn:split>
+  </trn:splits>
+</gnc:transaction>
+<gnc:GncBillTerm version="2.0.0">
+  <billterm:guid type="guid">60000000000000000000000000000000</billterm:guid>
+  <billterm:name>billterm-name</billterm:name>
+  <billterm:desc>billterm-desc</billterm:desc>
+  <billterm:refcount>0</billterm:refcount>
+  <billterm:invisible>0</billterm:invisible>
+  <billterm:child type="guid">60000000000000000000000000000001</billterm:child>
+  <billterm:days>
+    <bt-days:due-days>8</bt-days:due-days>
+  </billterm:days>
+</gnc:GncBillTerm>
+<gnc:GncBillTerm version="2.0.0">
+  <billterm:guid type="guid">60000000000000000000000000000001</billterm:guid>
+  <billterm:name>billterm-name</billterm:name>
+  <billterm:desc>billterm-desc</billterm:desc>
+  <billterm:refcount>0</billterm:refcount>
+  <billterm:invisible>1</billterm:invisible>
+  <billterm:parent type="guid">60000000000000000000000000000000</billterm:parent>
+  <billterm:days>
+    <bt-days:due-days>8</bt-days:due-days>
+  </billterm:days>
+</gnc:GncBillTerm>
+<gnc:GncCustomer version="2.0.0">
+  <cust:guid type="guid">20000000000000000000000000000000</cust:guid>
+  <cust:name>cust-1-name</cust:name>
+  <cust:id>cust-1-id</cust:id>
+  <cust:addr version="2.0.0"/>
+  <cust:shipaddr version="2.0.0"/>
+  <cust:notes>cust-1-notes</cust:notes>
+  <cust:taxincluded>YES</cust:taxincluded>
+  <cust:active>1</cust:active>
+  <cust:discount>0/1</cust:discount>
+  <cust:credit>0/1</cust:credit>
+  <cust:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </cust:currency>
+  <cust:use-tt>0</cust:use-tt>
+</gnc:GncCustomer>
+<gnc:GncEmployee version="2.0.0">
+  <employee:guid type="guid">20000000000000000000000000000003</employee:guid>
+  <employee:username/>
+  <employee:id>emp-1-id</employee:id>
+  <employee:addr version="2.0.0">
+    <addr:name>emp-1-name</addr:name>
+  </employee:addr>
+  <employee:active>1</employee:active>
+  <employee:workday>0/1</employee:workday>
+  <employee:rate>0/1</employee:rate>
+  <employee:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </employee:currency>
+</gnc:GncEmployee>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000000</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>entry-1-desc</entry:description>
+  <entry:action>entry-1-action</entry:action>
+  <entry:notes>entry-1-notes</entry:notes>
+  <entry:qty>2/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>3/1</entry:i-price>
+  <entry:invoice type="guid">30000000000000000000000000000000</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000001</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>entry-inv-2-desc</entry:description>
+  <entry:action>entry-inv-2-action</entry:action>
+  <entry:notes>entry-inv-2-notes</entry:notes>
+  <entry:qty>2/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>3/1</entry:i-price>
+  <entry:invoice type="guid">30000000000000000000000000000001</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000002</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>entry-inv-3-desc</entry:description>
+  <entry:action>entry-inv-3-action</entry:action>
+  <entry:notes>entry-inv-3-notes</entry:notes>
+  <entry:qty>2/1</entry:qty>
+  <entry:invoice type="guid">30000000000000000000000000000002</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:b-acct type="guid">a0000000000000000000000000000013</entry:b-acct>
+  <entry:b-price>3/1</entry:b-price>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000003</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>entry-inv-4-desc</entry:description>
+  <entry:action>entry-inv-4-action</entry:action>
+  <entry:notes>entry-inv-4-notes</entry:notes>
+  <entry:qty>2/1</entry:qty>
+  <entry:invoice type="guid">30000000000000000000000000000003</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:b-acct type="guid">a0000000000000000000000000000013</entry:b-acct>
+  <entry:b-price>3/1</entry:b-price>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000004</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>entry-5-desc</entry:description>
+  <entry:action>entry-5-action</entry:action>
+  <entry:notes>entry-5-notes</entry:notes>
+  <entry:qty>-2/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>3/1</entry:i-price>
+  <entry:invoice type="guid">30000000000000000000000000000004</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000005</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>entry-inv-6-desc</entry:description>
+  <entry:action>entry-inv-6-action</entry:action>
+  <entry:notes>entry-inv-6-notes</entry:notes>
+  <entry:qty>-2/1</entry:qty>
+  <entry:invoice type="guid">30000000000000000000000000000005</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:b-acct type="guid">a0000000000000000000000000000013</entry:b-acct>
+  <entry:b-price>3/1</entry:b-price>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000006</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>entry-inv-7-desc</entry:description>
+  <entry:action>entry-inv-7-action</entry:action>
+  <entry:notes>entry-inv-7-notes</entry:notes>
+  <entry:qty>-2/1</entry:qty>
+  <entry:invoice type="guid">30000000000000000000000000000006</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:b-acct type="guid">a0000000000000000000000000000013</entry:b-acct>
+  <entry:b-price>3/1</entry:b-price>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000007</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=Y tax-included=N discount-type=VALUE discount-how=PRETAX</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>VALUE</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000008</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=N tax-included=Y discount-type=PERCENT discount-how=SAMETIME</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>SAMETIME</entry:i-disc-how>
+  <entry:i-taxable>0</entry:i-taxable>
+  <entry:i-taxincluded>1</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">40000000000000000000000000000009</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=Y tax-included=Y discount-type=PERCENT discount-how=POSTTAX</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>POSTTAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>1</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">4000000000000000000000000000000a</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=N tax-included=N discount-type=VALUE discount-how=POSTTAX</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>VALUE</entry:i-disc-type>
+  <entry:i-disc-how>POSTTAX</entry:i-disc-how>
+  <entry:i-taxable>0</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">4000000000000000000000000000000b</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=N tax-included=Y discount-type=VALUE discount-how=PRETAX</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>VALUE</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>0</entry:i-taxable>
+  <entry:i-taxincluded>1</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">4000000000000000000000000000000c</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=Y tax-included=N discount-type=PERCENT discount-how=SAMETIME</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>SAMETIME</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">4000000000000000000000000000000d</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=Y tax-included=N discount-type=VALUE discount-how=SAMETIME</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>VALUE</entry:i-disc-type>
+  <entry:i-disc-how>SAMETIME</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>0</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncEntry version="2.0.0">
+  <entry:guid type="guid">4000000000000000000000000000000e</entry:guid>
+  <entry:date>
+    <ts:date>2024-03-15 12:00:00 +0000</ts:date>
+  </entry:date>
+  <entry:entered>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </entry:entered>
+  <entry:description>taxable=Y tax-included=Y discount-type=PERCENT discount-how=PRETAX</entry:description>
+  <entry:action>action</entry:action>
+  <entry:qty>11/1</entry:qty>
+  <entry:i-acct type="guid">a0000000000000000000000000000012</entry:i-acct>
+  <entry:i-price>777/4</entry:i-price>
+  <entry:i-discount>7/2</entry:i-discount>
+  <entry:invoice type="guid">30000000000000000000000000000007</entry:invoice>
+  <entry:i-disc-type>PERCENT</entry:i-disc-type>
+  <entry:i-disc-how>PRETAX</entry:i-disc-how>
+  <entry:i-taxable>1</entry:i-taxable>
+  <entry:i-taxincluded>1</entry:i-taxincluded>
+  <entry:i-taxtable type="guid">50000000000000000000000000000003</entry:i-taxtable>
+  <entry:order type="guid">70000000000000000000000000000000</entry:order>
+</gnc:GncEntry>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000000</invoice:guid>
+  <invoice:id>0001</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">20000000000000000000000000000000</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-01 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-01 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:billing_id>inv-1-billing-id</invoice:billing_id>
+  <invoice:notes>inv-1-notes</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c000000000000000000000000000003b</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000000</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000014</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000001</invoice:guid>
+  <invoice:id>0002</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncJob</owner:type>
+    <owner:id type="guid">20000000000000000000000000000001</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-02 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-02 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:notes>inv-2-notes</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c000000000000000000000000000003c</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000001</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000014</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000002</invoice:guid>
+  <invoice:id>0003</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncVendor</owner:type>
+    <owner:id type="guid">20000000000000000000000000000002</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-03 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-03 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:notes>inv-3-notes</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c000000000000000000000000000003d</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000002</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000015</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000003</invoice:guid>
+  <invoice:id>0004</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncEmployee</owner:type>
+    <owner:id type="guid">20000000000000000000000000000003</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-04 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-04 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:notes>inv-4-notes</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c000000000000000000000000000003e</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000003</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000015</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000004</invoice:guid>
+  <invoice:id>0005</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">20000000000000000000000000000000</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-05 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-05 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:billing_id>inv-1-billing-id</invoice:billing_id>
+  <invoice:notes>inv-1-notes</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c000000000000000000000000000003f</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000004</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000014</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+  <invoice:slots>
+    <slot>
+      <slot:key>credit-note</slot:key>
+      <slot:value type="integer">1</slot:value>
+    </slot>
+  </invoice:slots>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000005</invoice:guid>
+  <invoice:id>0006</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncVendor</owner:type>
+    <owner:id type="guid">20000000000000000000000000000002</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-06 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-06 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:notes>inv-3-notes</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c0000000000000000000000000000040</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000005</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000015</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+  <invoice:slots>
+    <slot>
+      <slot:key>credit-note</slot:key>
+      <slot:value type="integer">1</slot:value>
+    </slot>
+  </invoice:slots>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000006</invoice:guid>
+  <invoice:id>0007</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncEmployee</owner:type>
+    <owner:id type="guid">20000000000000000000000000000003</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-07 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-07 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:notes>inv-4-notes</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c0000000000000000000000000000041</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000006</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000015</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+  <invoice:slots>
+    <slot>
+      <slot:key>credit-note</slot:key>
+      <slot:value type="integer">1</slot:value>
+    </slot>
+  </invoice:slots>
+</gnc:GncInvoice>
+<gnc:GncInvoice version="2.0.0">
+  <invoice:guid type="guid">30000000000000000000000000000007</invoice:guid>
+  <invoice:id>0008</invoice:id>
+  <invoice:owner version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">20000000000000000000000000000000</owner:id>
+  </invoice:owner>
+  <invoice:opened>
+    <ts:date>1980-09-08 12:00:00 +0000</ts:date>
+  </invoice:opened>
+  <invoice:posted>
+    <ts:date>1980-09-08 10:59:00 +0000</ts:date>
+  </invoice:posted>
+  <invoice:terms type="guid">60000000000000000000000000000001</invoice:terms>
+  <invoice:notes>tax=109/10%, discount=7/2, qty=11, price=777/4</invoice:notes>
+  <invoice:active>1</invoice:active>
+  <invoice:posttxn type="guid">c0000000000000000000000000000042</invoice:posttxn>
+  <invoice:postlot type="guid">10000000000000000000000000000007</invoice:postlot>
+  <invoice:postacc type="guid">a0000000000000000000000000000014</invoice:postacc>
+  <invoice:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </invoice:currency>
+</gnc:GncInvoice>
+<gnc:GncJob version="2.0.0">
+  <job:guid type="guid">20000000000000000000000000000001</job:guid>
+  <job:id>job-1-id</job:id>
+  <job:name>job-1-name</job:name>
+  <job:owner version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">20000000000000000000000000000000</owner:id>
+  </job:owner>
+  <job:active>1</job:active>
+</gnc:GncJob>
+<gnc:GncOrder version="2.0.0">
+  <order:guid type="guid">70000000000000000000000000000000</order:guid>
+  <order:id>order-id</order:id>
+  <order:owner version="2.0.0">
+    <owner:type>gncCustomer</owner:type>
+    <owner:id type="guid">20000000000000000000000000000000</owner:id>
+  </order:owner>
+  <order:opened>
+    <ts:date>1970-01-01 00:00:00 +0000</ts:date>
+  </order:opened>
+  <order:reference>order-ref</order:reference>
+  <order:active>1</order:active>
+</gnc:GncOrder>
+<gnc:GncTaxTable version="2.0.0">
+  <taxtable:guid type="guid">50000000000000000000000000000000</taxtable:guid>
+  <taxtable:name>10% vat on sales</taxtable:name>
+  <taxtable:refcount>1</taxtable:refcount>
+  <taxtable:invisible>0</taxtable:invisible>
+  <taxtable:entries>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">a0000000000000000000000000000011</tte:acct>
+      <tte:amount>10/1</tte:amount>
+      <tte:type>PERCENT</tte:type>
+    </gnc:GncTaxTableEntry>
+  </taxtable:entries>
+</gnc:GncTaxTable>
+<gnc:GncTaxTable version="2.0.0">
+  <taxtable:guid type="guid">50000000000000000000000000000001</taxtable:guid>
+  <taxtable:name>10% vat on purchases</taxtable:name>
+  <taxtable:refcount>1</taxtable:refcount>
+  <taxtable:invisible>0</taxtable:invisible>
+  <taxtable:entries>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">a0000000000000000000000000000010</tte:acct>
+      <tte:amount>10/1</tte:amount>
+      <tte:type>PERCENT</tte:type>
+    </gnc:GncTaxTableEntry>
+  </taxtable:entries>
+</gnc:GncTaxTable>
+<gnc:GncTaxTable version="2.0.0">
+  <taxtable:guid type="guid">50000000000000000000000000000002</taxtable:guid>
+  <taxtable:name>109/10% vat on sales</taxtable:name>
+  <taxtable:refcount>1</taxtable:refcount>
+  <taxtable:invisible>0</taxtable:invisible>
+  <taxtable:child type="guid">50000000000000000000000000000003</taxtable:child>
+  <taxtable:entries>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">a0000000000000000000000000000011</tte:acct>
+      <tte:amount>109/10</tte:amount>
+      <tte:type>PERCENT</tte:type>
+    </gnc:GncTaxTableEntry>
+  </taxtable:entries>
+</gnc:GncTaxTable>
+<gnc:GncTaxTable version="2.0.0">
+  <taxtable:guid type="guid">50000000000000000000000000000003</taxtable:guid>
+  <taxtable:name>109/10% vat on sales</taxtable:name>
+  <taxtable:refcount>0</taxtable:refcount>
+  <taxtable:invisible>1</taxtable:invisible>
+  <taxtable:parent type="guid">50000000000000000000000000000002</taxtable:parent>
+  <taxtable:entries>
+    <gnc:GncTaxTableEntry>
+      <tte:acct type="guid">a0000000000000000000000000000011</tte:acct>
+      <tte:amount>109/10</tte:amount>
+      <tte:type>PERCENT</tte:type>
+    </gnc:GncTaxTableEntry>
+  </taxtable:entries>
+</gnc:GncTaxTable>
+<gnc:GncVendor version="2.0.0">
+  <vendor:guid type="guid">20000000000000000000000000000002</vendor:guid>
+  <vendor:name>vend-1-name</vendor:name>
+  <vendor:id>vend-1-id</vendor:id>
+  <vendor:addr version="2.0.0"/>
+  <vendor:notes>vend-1-notes</vendor:notes>
+  <vendor:taxincluded>YES</vendor:taxincluded>
+  <vendor:active>1</vendor:active>
+  <vendor:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>USD</cmdty:id>
+  </vendor:currency>
+  <vendor:use-tt>0</vendor:use-tt>
+</gnc:GncVendor>
+</gnc:book>
+</gnc-v2>
+

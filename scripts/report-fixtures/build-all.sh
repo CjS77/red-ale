@@ -18,3 +18,4 @@ done
 for script in stock_test_data ifrs_cost_basis investment_lots; do
     python3 "$here/$script.py" "$out"
 done
+python3 "$here/transaction.py" "$out"

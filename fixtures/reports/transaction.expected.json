@@ -1,0 +1,1854 @@
+{
+  "fixture": "reports/transaction.gnucash",
+  "builtBy": "scripts/report-fixtures/transaction.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-transaction.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence; the book helpers' notice (test-engine-extras.scm) is kept in the scripts",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:34)",
+    "dateFormat": "ISO, set before every render (:70)",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": ".",
+    "userSymbols": { "GBP": "#" }
+  },
+  "accounts": {
+    "trep:Root": "a0000000000000000000000000000001",
+    "trep:Root.Asset": "a0000000000000000000000000000002",
+    "trep:Root.Asset.Bank": "a0000000000000000000000000000003",
+    "trep:Root.Asset.GBP Bank": "a0000000000000000000000000000004",
+    "trep:Root.Asset.USD Bank": "a0000000000000000000000000000005",
+    "trep:Root.Asset.Wallet": "a0000000000000000000000000000006",
+    "trep:Root.Income": "a0000000000000000000000000000007",
+    "trep:Root.Income-GBP": "a0000000000000000000000000000008",
+    "trep:Root.Expenses": "a0000000000000000000000000000009",
+    "trep:Root.Liabilities": "a000000000000000000000000000000a",
+    "trep:Root.Equity": "a000000000000000000000000000000b",
+    "invoice:Root": "a000000000000000000000000000000c",
+    "invoice:Root.Asset": "a000000000000000000000000000000d",
+    "invoice:Root.Asset.Bank": "a000000000000000000000000000000e",
+    "invoice:Root.VAT": "a000000000000000000000000000000f",
+    "invoice:Root.VAT.VAT-on-Purchases": "a0000000000000000000000000000010",
+    "invoice:Root.VAT.VAT-on-Sales": "a0000000000000000000000000000011",
+    "invoice:Root.Income": "a0000000000000000000000000000012",
+    "invoice:Root.Expense": "a0000000000000000000000000000013",
+    "invoice:Root.A/Receivable": "a0000000000000000000000000000014",
+    "invoice:Root.A/Payable": "a0000000000000000000000000000015"
+  },
+  "book": "The trep tree (trep-tests, :104-226) under the top-level account trep:Root, then the invoice tree of create-test-invoice-data (5.17:bindings/guile/test/test-engine-extras.scm:487-849) under a second top-level Root, as :1007 builds it into the same book. Accounts are named tree:full name. TT's lookups at :1012-1017 find Root.Asset.Bank and Root.Income in the trep tree (made first) and A/Receivable and A/Payable in the invoice tree. YEAR (:117) is 2024: the monthly transfers are posted on the 3rd, 8th, 9th and 15th of each month of 2024. The invoices 0001-0007 are posted on 1980-09-01..07 (0005-0007 credit notes), 0008 on 1980-09-08 and paid on 1980-09-10.",
+  "dates": { "start-cal-year": "2024-01-01 00:00:00 UTC for the pinned now", "end-cal-year": "2024-12-31 23:59:59 UTC for the pinned now" },
+  "optionValues": "Options are those in effect for the run: default-testing-options (:127-143) and the test's changes after it, cumulative until the test makes new options; they include options TT sets to the template's default. \"Every trep account\" is gnc-account-get-descendants of the book's root before the invoice tree exists: trep:Root and its descendants. {\"relative\": name} is resolved from now (see dates); {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight. Symbols are written without the quote. set-option! (:76-79) fails the test for an option the template lacks, so every option named exists.",
+  "cellSelection": "GnuCash reads text at HTML table positions with get-row-col (:73-74), sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table N of the document (table 1 is the Subtotal Table when shown, else the main table); row 0 is the <th> header row, row N the Nth row of <tbody> (negative from the end), null every row; column N the Nth cell (negative from the end), null every cell; the result is every text in document order, so empty cells drop out. \"dropFirst\" drops the first text (:667, cdr). \"xpath\" is an sxpath expression TT applies itself. \"cells\" lists selections compared by \"relation\". A check with \"count\" expects the number of nodes the xpath selects (th or td elements, empty ones included, or texts), \"countAtLeast\" a lower bound. \"relation\" says what GnuCash checks when it does not compare strings; \"implied\" gives the strings that satisfy it in this book where the note (design/notes/report-transaction-engine.md §4.3) works them out. \"expected\": [] means no table at all (a warning document).",
+  "renderOnly": [
+    { "line": 102, "template": "Transaction Report", "note": "null-test: renders with the template's defaults. In GnuCash's run the book is still empty; here the defaults select no account either, so it is the no-account warning in both" }
+  ],
+  "runs": [
+    {
+      "id": "general options",
+      "lines": "241-252",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single"
+      },
+      "checks": [
+        { "name": "default headers", "line": 244, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount"], "meaning": "Column headers" },
+        { "name": "grand total present", "line": 247, "select": { "table": 1, "row": -1, "column": 1 }, "expected": ["Grand Total"], "meaning": "The last row is the Grand Total" },
+        { "name": "grand total is $2,280.00", "line": 250, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$2,280.00"], "meaning": "Bank in 2024: twelve months of $103 + $109 - $22 (TT:219)" }
+      ]
+    },
+    {
+      "id": "test basic column headers, and original currency",
+      "lines": "255-277",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "never",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Currency/Common Currency": true,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly"
+      },
+      "checks": [
+        { "name": "default headers, indented, includes common-currency", "line": 266, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount (USD)", "Amount"], "meaning": "Headers; the indenting columns have no header text" },
+        { "name": "grand total present, no blank cells, and is $2,280 in both common-currency and original-currency", "line": 269, "select": { "table": 1, "row": -1, "column": null }, "expected": ["Grand Total", "$2,280.00", "$2,280.00"], "meaning": "Grand Total, converted and original" },
+        { "name": "account total present, and is $2,280 in original-currency", "line": 272, "select": { "table": 1, "row": -3, "column": -1 }, "expected": ["$2,280.00"], "meaning": "Bank's primary subtotal, original currency" },
+        { "name": "month total present, and is $190 in original-currency", "line": 275, "select": { "table": 1, "row": 6, "column": -1 }, "expected": ["$190.00"], "meaning": "January 2024's secondary subtotal: $103 + $109 - $22" }
+      ]
+    },
+    {
+      "id": "test column headers with original currency and running totals",
+      "lines": "281-287",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "never",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Currency/Common Currency": true,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly",
+        "Display/Running Totals": "all"
+      },
+      "checks": [
+        { "name": "default headers with all running totals, indented, includes common-currency", "line": 283, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount (USD)", "Running Secondary Subtotal (USD)", "Running Primary Subtotal (USD)", "Running Grand Total (USD)", "Amount", "Running Secondary Subtotal", "Running Primary Subtotal", "Running Grand Total"], "meaning": "Headers with every running total, converted columns first" }
+      ]
+    },
+    {
+      "id": "accounts filter expenses",
+      "lines": "293-303",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Account Name Filter": "Expenses"
+      },
+      "checks": [
+        { "name": "account name filter to 'expenses', sum = $31.00", "line": 301, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$31.00"], "meaning": "Only Root.Expenses: $5 + $15 + $11 in 1969-1970 (trn5 is void)" }
+      ]
+    },
+    {
+      "id": "accounts filter expen.es",
+      "lines": "305-309",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Account Name Filter": "Expen.es"
+      },
+      "checks": [
+        { "name": "account name filter to 'expen.es', blank report", "line": 307, "select": { "table": 1, "row": null, "column": null }, "expected": [], "meaning": "No account's full name contains 'Expen.es' as plain text: no table, the no-account warning" }
+      ]
+    },
+    {
+      "id": "accounts filter expen.es regex",
+      "lines": "311-315",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Account Name Filter": "Expen.es",
+        "Filter/Use regular expressions for account name filter": true
+      },
+      "checks": [
+        { "name": "account name filter to 'expen.es' and switch on regex filter, sum = $31.00", "line": 313, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$31.00"], "meaning": "The expression matches Root.Expenses" }
+      ]
+    },
+    {
+      "id": "accounts filter exclude expen.es regex",
+      "lines": "318-323",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Account Name Filter": "Expen.es",
+        "Filter/Use regular expressions for account name filter": true,
+        "Filter/Account Name Filter excludes matched strings": true
+      },
+      "checks": [
+        { "name": "account name filter to 'expen.es, regex, negated', sum = -$31.00", "line": 321, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["-$31.00"], "meaning": "Every account but Root.Expenses: the other sides of its splits" }
+      ]
+    },
+    {
+      "id": "accounts filter exclude expen.es",
+      "lines": "325-330",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Account Name Filter": "Expen.es",
+        "Filter/Use regular expressions for account name filter": false,
+        "Filter/Account Name Filter excludes matched strings": true
+      },
+      "checks": [
+        { "name": "account name filter to 'expen.es, negated', sum = $0.00", "line": 328, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$0.00"], "meaning": "Nothing matches as plain text, so every account is kept and the total is zero" }
+      ]
+    },
+    {
+      "id": "transaction filter to ponies",
+      "lines": "333-340",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Transaction Filter": "desc-3"
+      },
+      "checks": [
+        { "name": "transaction filter in bank to 'desc-3', sum = $29.00", "line": 338, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$29.00"], "meaning": "trn3" }
+      ]
+    },
+    {
+      "id": "transaction filter not.s?",
+      "lines": "342-346",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Transaction Filter": "not.s?"
+      },
+      "checks": [
+        { "name": "transaction filter in bank to 'not.s?', blank report", "line": 344, "select": { "table": 1, "row": null, "column": null }, "expected": [], "meaning": "No description, memo or notes contains 'not.s?' as plain text: no table, the no-transactions warning" }
+      ]
+    },
+    {
+      "id": "transaction filter not.s? regex",
+      "lines": "348-352",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Transaction Filter": "not.s?",
+        "Filter/Use regular expressions for transaction filter": true
+      },
+      "checks": [
+        { "name": "transaction filter in bank to 'not.s?' and switch regex, sum = -$23.00", "line": 350, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["-$23.00"], "meaning": "Bank splits whose transaction notes match (notes1, notes2, notes3): trn4 -$15 and trn7 -$8; trn2 is void" }
+      ]
+    },
+    {
+      "id": "negate transaction filter not.s?",
+      "lines": "354-358",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Transaction Filter": "not.s?",
+        "Filter/Use regular expressions for transaction filter": true,
+        "Filter/Transaction Filter excludes matched strings": true
+      },
+      "checks": [
+        { "name": "transaction filter in bank to 'not.s?' and switch regex, sum = -$23.00", "line": 356, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$24.00"], "meaning": "The other Bank splits: trn1 -$5 and trn3 +$29 (TT's test name is a copy of the one above)" }
+      ]
+    },
+    {
+      "id": "transaction filter insensitive",
+      "lines": "360-367",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Transaction Filter": "dEsC-3",
+        "Filter/Use regular expressions for transaction filter": false,
+        "Filter/Transaction Filter excludes matched strings": false,
+        "Filter/Transaction Filter is case insensitive": true
+      },
+      "checks": [
+        { "name": "transaction filter case insensitive", "line": 365, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$29.00"], "meaning": "trn3" }
+      ]
+    },
+    {
+      "id": "transaction filter regex case insensitive",
+      "lines": "369-374",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Transaction Filter": "NoT.S?",
+        "Filter/Use regular expressions for transaction filter": true,
+        "Filter/Transaction Filter excludes matched strings": false,
+        "Filter/Transaction Filter is case insensitive": true
+      },
+      "checks": [
+        { "name": "transaction filter regex case insensitive", "line": 372, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["-$23.00"], "meaning": "As at TT:350" }
+      ]
+    },
+    {
+      "id": "unreconciled",
+      "lines": "377-384",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Reconciled Status": "unreconciled"
+      },
+      "checks": [
+        { "name": "filter unreconciled only, sum = -$20.00", "line": 382, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["-$20.00"], "meaning": "trn1 -$5 and trn4 -$15" }
+      ]
+    },
+    {
+      "id": "cleared",
+      "lines": "386-390",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Reconciled Status": "cleared"
+      },
+      "checks": [
+        { "name": "filter cleared only, sum = $29.00", "line": 388, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$29.00"], "meaning": "trn3" }
+      ]
+    },
+    {
+      "id": "reconciled",
+      "lines": "392-396",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Reconciled Status": "reconciled"
+      },
+      "checks": [
+        { "name": "filter reconciled only, sum = -$8.00", "line": 394, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["-$8.00"], "meaning": "trn7" }
+      ]
+    },
+    {
+      "id": "including bank-income accts only",
+      "lines": "399-407",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Accounts/Filter By…": ["trep:Root.Income"],
+        "Accounts/Filter Type": "include"
+      },
+      "checks": [
+        { "name": "filter includes bank-income, sum = -$29.00", "line": 405, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$29.00"], "meaning": "Bank splits whose other split is in Income: trn3 (trn2 is void)" }
+      ]
+    },
+    {
+      "id": "bank exclude bank-income accts",
+      "lines": "409-413",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Accounts/Filter By…": ["trep:Root.Income"],
+        "Accounts/Filter Type": "exclude"
+      },
+      "checks": [
+        { "name": "filter excludes bank-income, sum = -$28.00", "line": 411, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["-$28.00"], "meaning": "trn1 -$5, trn4 -$15, trn7 -$8" }
+      ]
+    },
+    {
+      "id": "void only",
+      "lines": "416-423",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Void Transactions": "void-only"
+      },
+      "checks": [
+        { "name": "filter void-transactions only, sum = -$10.00", "line": 421, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$10.00"], "meaning": "trn2, shown at its former amount" }
+      ]
+    },
+    {
+      "id": "both void and non-void",
+      "lines": "425-429",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Void Transactions": "both"
+      },
+      "checks": [
+        { "name": "filter void-transactions only, sum = $11.00", "line": 427, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$11.00"], "meaning": "$1 of non-void Bank splits and trn2's former $10" }
+      ]
+    },
+    {
+      "id": "filter closing - exclude closing txns ",
+      "lines": "432-440",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Expenses"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1911-01-01" },
+        "General/End Date": { "absolute": "2012-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Closing transactions": "exclude-closing"
+      },
+      "checks": [
+        { "name": "filter exclude closing. bal = $111", "line": 438, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$111.00"], "meaning": "Expenses without the closing transaction: $5 + $15 + $11 + $80" }
+      ]
+    },
+    {
+      "id": "filter closing - include closing only",
+      "lines": "442-446",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Expenses"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1911-01-01" },
+        "General/End Date": { "absolute": "2012-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Closing transactions": "closing-only"
+      },
+      "checks": [
+        { "name": "filter closing only. bal = -$111", "line": 444, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["-$111.00"], "meaning": "The 1999-12-31 closing transaction" }
+      ]
+    },
+    {
+      "id": "filter closing - include both",
+      "lines": "448-452",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Expenses"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1911-01-01" },
+        "General/End Date": { "absolute": "2012-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Filter/Closing transactions": "include-both"
+      },
+      "checks": [
+        { "name": "filter include both. bal = $0", "line": 450, "select": { "table": 1, "row": -1, "column": -1 }, "expected": ["$0.00"], "meaning": "Both" }
+      ]
+    },
+    {
+      "id": "all columns off",
+      "lines": "459-472",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": false,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Date": false,
+        "Display/Reconciled Date": false,
+        "Display/Num": false,
+        "Display/Description": false,
+        "Display/Memo": false,
+        "Display/Notes": false,
+        "Display/Shares": false,
+        "Display/Price": false,
+        "Display/Account Balance": false,
+        "Display/Grand Total": false
+      },
+      "checks": [
+        { "name": "all display columns off, except amount and subtotals are enabled, there should be 2 columns", "line": 468, "select": { "xpath": "(// (table 1) // (tr 1) // th)" }, "count": 2, "meaning": "Header cells" },
+        { "name": "all display columns off, except amount and subtotals are enabled, there should be 2 columns", "line": 468, "select": { "xpath": "(// (table 1) // (tr 4) // td)" }, "count": 2, "meaning": "Cells of body row 4" },
+        { "name": "all display columns off, except amount and subtotals are enabled, there should be 2 columns", "line": 468, "select": { "xpath": "(// (table 1) // (tr -1) // td)" }, "count": 2, "meaning": "Cells of the last body row" }
+      ]
+    },
+    {
+      "id": "only amounts",
+      "lines": "474-483",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": false,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Date": false,
+        "Display/Reconciled Date": false,
+        "Display/Num": false,
+        "Display/Description": false,
+        "Display/Memo": false,
+        "Display/Notes": false,
+        "Display/Shares": false,
+        "Display/Price": false,
+        "Display/Account Balance": false,
+        "Display/Grand Total": false,
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Secondary Subtotal for Date Key": "none"
+      },
+      "checks": [
+        { "name": "all display columns off, and no subtotals, but amount enabled, there should be 1 column", "line": 479, "select": { "xpath": "(// (table 1) // (tr 1) // th)" }, "count": 1, "meaning": "Header cells" },
+        { "name": "all display columns off, and no subtotals, but amount enabled, there should be 1 column", "line": 479, "select": { "xpath": "(// (table 1) // (tr 4) // td)" }, "count": 1, "meaning": "Cells of body row 4" },
+        { "name": "all display columns off, and no subtotals, but amount enabled, there should be 1 column", "line": 479, "select": { "xpath": "(// (table 1) // (tr -1) // td)" }, "count": 1, "meaning": "Cells of the last body row" }
+      ]
+    },
+    {
+      "id": "disable hyperlinks",
+      "lines": "485-488",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": false,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Date": false,
+        "Display/Reconciled Date": false,
+        "Display/Num": false,
+        "Display/Description": false,
+        "Display/Memo": false,
+        "Display/Notes": false,
+        "Display/Shares": false,
+        "Display/Price": false,
+        "Display/Account Balance": false,
+        "Display/Grand Total": false,
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Secondary Subtotal for Date Key": "none",
+        "Display/Enable Links": false
+      },
+      "checks": [
+        { "name": "no anchor when disabling hyperlinks", "line": 487, "select": { "xpath": "(// a // *text*)" }, "count": 0, "meaning": "Texts inside <a> anywhere in the document" }
+      ]
+    },
+    {
+      "id": "enable hyperlinks",
+      "lines": "490-493",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": false,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Date": false,
+        "Display/Reconciled Date": false,
+        "Display/Num": false,
+        "Display/Description": false,
+        "Display/Memo": false,
+        "Display/Notes": false,
+        "Display/Shares": false,
+        "Display/Price": false,
+        "Display/Account Balance": false,
+        "Display/Grand Total": false,
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Secondary Subtotal for Date Key": "none",
+        "Display/Enable Links": true
+      },
+      "checks": [
+        { "name": "anchors exist when enabling hyperlinks", "line": 492, "select": { "xpath": "(// a // *text*)" }, "countAtLeast": 1, "meaning": "Some text inside <a>: the amounts link to their splits" }
+      ]
+    },
+    {
+      "id": "no columns",
+      "lines": "495-501",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": false,
+        "Display/Other Account Name": false,
+        "Display/Amount": "none",
+        "Display/Date": false,
+        "Display/Reconciled Date": false,
+        "Display/Num": false,
+        "Display/Description": false,
+        "Display/Memo": false,
+        "Display/Notes": false,
+        "Display/Shares": false,
+        "Display/Price": false,
+        "Display/Account Balance": false,
+        "Display/Grand Total": false,
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Secondary Subtotal for Date Key": "none",
+        "Display/Enable Links": true
+      },
+      "checks": [
+        { "name": "all display columns off, without amount nor subtotals, there should be 0 column", "line": 497, "select": { "xpath": "(// (table 1) // (tr 1) // th)" }, "count": 0, "meaning": "Header cells" },
+        { "name": "all display columns off, without amount nor subtotals, there should be 0 column", "line": 497, "select": { "xpath": "(// (table 1) // (tr 4) // td)" }, "count": 0, "meaning": "Cells of body row 4" },
+        { "name": "all display columns off, without amount nor subtotals, there should be 0 column", "line": 497, "select": { "xpath": "(// (table 1) // (tr -1) // td)" }, "count": 0, "meaning": "Cells of the last body row" }
+      ]
+    },
+    {
+      "id": "subtotals only",
+      "lines": "503-511",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": false,
+        "Display/Other Account Name": false,
+        "Display/Amount": "none",
+        "Display/Date": false,
+        "Display/Reconciled Date": false,
+        "Display/Num": false,
+        "Display/Description": false,
+        "Display/Memo": false,
+        "Display/Notes": false,
+        "Display/Shares": false,
+        "Display/Price": false,
+        "Display/Account Balance": false,
+        "Display/Grand Total": false,
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Primary Subtotal for Date Key": "weekly",
+        "Sorting/Secondary Subtotal": true,
+        "Sorting/Secondary Subtotal for Date Key": "weekly",
+        "Display/Enable Links": true
+      },
+      "checks": [
+        { "name": "all display columns including amount are disabled, but subtotals are enabled, there should be 1 column", "line": 508, "select": { "xpath": "(// (table 1) // (tr 1) // th)" }, "count": 1, "meaning": "Header cells" },
+        { "name": "all display columns including amount are disabled, but subtotals are enabled, there should be 1 column", "line": 508, "select": { "xpath": "(// (table 1) // (tr -1) // td)" }, "count": 1, "meaning": "Cells of the last body row" }
+      ]
+    },
+    {
+      "id": "all columns on",
+      "lines": "514-541",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Sorting/Primary Key": "reconciled-status",
+        "Display/Date": true,
+        "Display/Reconciled Date": true,
+        "Display/Num": true,
+        "Display/Description": true,
+        "Display/Memo": true,
+        "Display/Notes": true,
+        "Display/Shares": true,
+        "Display/Price": true,
+        "Display/Account Balance": true,
+        "Display/Grand Total": true,
+        "Display/Use Full Other Account Name": true,
+        "Display/Use Full Account Name": true,
+        "Display/Running Totals": "grand"
+      },
+      "checks": [
+        { "name": "all display columns on, displays correct columns", "line": 527, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Reconciled Date", "Num", "Description", "Memo/Notes", "Account", "Transfer from/to", "Shares", "Price", "Amount", "Account Balance", "Running Grand Total"], "meaning": "Every column" },
+        { "name": "reconciled dates must be 01/03/70 or whitespace", "line": 531, "select": { "table": 1, "row": null, "column": 2 }, "relation": "Each text, trimmed, is qof-print-date of 1970-03-01 under ISO, '1970-03-01', or empty", "meaning": "Only trn3 (cleared) and trn7 (reconciled) have a reconcile date" },
+        { "name": "reconciled status subtotal", "line": 538, "select": { "table": 1, "row": -3, "column": null }, "expected": ["Total For Unreconciled", "$0.00"], "meaning": "The last group, Unreconciled (state n sorts last, TE:204-212): both sides of trn1, trn4 and trn6 net to zero" }
+      ]
+    },
+    {
+      "id": "multiline",
+      "lines": "546-563",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1971-02-13" },
+        "General/End Date": { "absolute": "1971-02-15" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Detail Level": "multi-line",
+        "Display/Grand Total": false,
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Secondary Subtotal for Date Key": "none"
+      },
+      "checks": [
+        { "name": "multi line transaction with 1st split have same memo", "line": 556, "select": { "table": 1, "row": null, "column": 4 }, "relation": "All texts of column 4 are equal (apply string=?)", "meaning": "The 1971-02-14 multisplit transaction on Bank, one row per split; its Memo/Notes texts agree" },
+        { "name": "multi-line amounts must total to zero", "line": 561, "select": { "xpath": "(// (table 1) // tr // (td -1) // a // *text*)" }, "relation": "The texts, read keeping only digits, '-' and '.' (str->num, TT:56-61), sum to 0 (GnuCash: 0.0)", "meaning": "The linked amounts in each row's last cell: Bank -$100, Expenses $80, Wallet $20" }
+      ]
+    },
+    {
+      "id": "multiline, filtered out",
+      "lines": "566-571",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1971-02-13" },
+        "General/End Date": { "absolute": "1971-02-15" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Detail Level": "multi-line",
+        "Display/Grand Total": false,
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Secondary Subtotal for Date Key": "none",
+        "Accounts/Filter By…": ["trep:Root.Expenses"],
+        "Accounts/Filter Type": "exclude"
+      },
+      "checks": [
+        { "name": "multi-line has been excluded", "line": 569, "select": { "table": 1, "row": null, "column": null }, "expected": [], "meaning": "The only transaction has a split in Expenses: no table" }
+      ]
+    },
+    {
+      "id": "single column, with original currency headers",
+      "lines": "575-585",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.USD Bank", "trep:Root.Asset.GBP Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "2000-01-01" },
+        "General/End Date": { "absolute": "2000-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Currency/Common Currency": true,
+        "Currency/Show original currency amount": true
+      },
+      "checks": [
+        { "name": "single amount column, with original currency headers", "line": 582, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount (USD)", "Amount"], "meaning": "Headers" }
+      ]
+    },
+    {
+      "id": "dual column",
+      "lines": "587-614",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.USD Bank", "trep:Root.Asset.GBP Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "2000-01-01" },
+        "General/End Date": { "absolute": "2000-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "double",
+        "Currency/Common Currency": true,
+        "Currency/Show original currency amount": true,
+        "Display/Account Code": true,
+        "Display/Other Account Code": true
+      },
+      "checks": [
+        { "name": "dual amount headers", "line": 593, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Transfer from/to", "Debit (USD)", "Credit (USD)", "Debit", "Credit"], "meaning": "Headers" },
+        { "name": "Account Name and Code displayed", "line": 597, "select": { "table": 1, "row": 2, "column": 5 }, "expected": ["01-GBP Root.Asset.GBP Bank"], "meaning": "The account cell: code, then full name (Table for Exporting)" },
+        { "name": "Other Account Name and Code displayed", "line": 600, "select": { "table": 1, "row": 7, "column": 6 }, "expected": ["01-GBP GBP Bank"], "meaning": "The other account cell under USD Bank" },
+        { "name": "GBP original currency totals = #4", "line": 603, "select": { "table": 1, "row": 5, "column": 10 }, "relation": "Read keeping only digits, '-' and '.' (str->num, TT:56-61): (4.0)", "implied": ["#4.00"], "meaning": "GBP Bank's original Credit subtotal: -#10 + #6" },
+        { "name": "USD original currency totals = $5 (tests pricedb)", "line": 606, "select": { "table": 1, "row": 4, "column": 8 }, "relation": "Read keeping only digits, '-' and '.' (str->num, TT:56-61): (5.0)", "implied": ["$5.00"], "meaning": "GBP Bank's converted Credit subtotal: #10 at 1.4 is $14, less #6 at 1.5, $9" },
+        { "name": "USD original currency totals = $5 (tests pricedb)", "line": 606, "select": { "table": 1, "row": 9, "column": 7 }, "relation": "Read keeping only digits, '-' and '.' (str->num, TT:56-61): (5.0)", "implied": ["$5.00"], "meaning": "USD Bank's converted Debit subtotal: $14 - $9" },
+        { "name": "USD original currency totals = $5 (tests pricedb)", "line": 606, "select": { "table": 1, "row": 9, "column": 9 }, "relation": "Read keeping only digits, '-' and '.' (str->num, TT:56-61): (5.0)", "implied": ["$5.00"], "meaning": "USD Bank's original Debit subtotal" },
+        { "name": "USD grand totals are correct (tests pricedb)", "line": 612, "select": { "table": 1, "row": 11, "column": null }, "expected": ["Grand Total", "$0.00", "$5.00"], "meaning": "Grand Total: converted debits and credits both $23, so $0.00 in Credit (USD); originals in USD $5.00" }
+      ]
+    },
+    {
+      "id": "sign-reversal is none, correct signs of amounts?",
+      "lines": "620-634",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Sign Reverses": "none",
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Secondary Key": "description",
+        "Sorting/Secondary Subtotal": false
+      },
+      "checks": [
+        { "name": "sign-reversal is none, correct signs of amounts", "line": 631, "select": { "xpath": "(// (table 1) // tr // (td -1) // a // *text*)" }, "relation": "For each text, whether it contains no '-'", "implied": ["-$5.00", "$10.00", "$29.00", "-$15.00", "-$8.00", "$5.00", "$15.00", "$10.00", "$11.00", "-$10.00", "-$29.00", "-$10.00", "-$11.00", "$8.00"], "meaning": "Rows by account (Bank, Expenses, Income, Liabilities), then description desc-1..desc-7; void splits show their former amounts", "expected": [false, true, true, false, false, true, true, true, true, false, false, false, false, true] }
+      ]
+    },
+    {
+      "id": "sign-reversal is income-expense, correct signs of amounts?",
+      "lines": "636-641",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Sign Reverses": "income-expense",
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Secondary Key": "description",
+        "Sorting/Secondary Subtotal": false
+      },
+      "checks": [
+        { "name": "sign-reversal is income-expense, correct signs of amounts", "line": 638, "select": { "xpath": "(// (table 1) // tr // (td -1) // a // *text*)" }, "relation": "For each text, whether it contains no '-'", "implied": ["-$5.00", "$10.00", "$29.00", "-$15.00", "-$8.00", "-$5.00", "-$15.00", "-$10.00", "-$11.00", "$10.00", "$29.00", "-$10.00", "-$11.00", "$8.00"], "meaning": "Rows by account (Bank, Expenses, Income, Liabilities), then description desc-1..desc-7; void splits show their former amounts; Expenses and Income reversed", "expected": [false, true, true, false, false, false, false, false, false, true, true, false, false, true] }
+      ]
+    },
+    {
+      "id": "sign-reversal is credit-accounts, correct signs of amounts?",
+      "lines": "643-648",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Sign Reverses": "credit-accounts",
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Secondary Key": "description",
+        "Sorting/Secondary Subtotal": false
+      },
+      "checks": [
+        { "name": "sign-reversal is credit-accounts, correct signs of amounts", "line": 645, "select": { "xpath": "(// (table 1) // tr // (td -1) // a // *text*)" }, "relation": "For each text, whether it contains no '-'", "implied": ["-$5.00", "$10.00", "$29.00", "-$15.00", "-$8.00", "$5.00", "$15.00", "$10.00", "$11.00", "$10.00", "$29.00", "$10.00", "$11.00", "-$8.00"], "meaning": "Rows by account (Bank, Expenses, Income, Liabilities), then description desc-1..desc-7; void splits show their former amounts; Income and Liabilities reversed", "expected": [false, true, true, false, false, true, true, true, true, true, true, true, true, false] }
+      ]
+    },
+    {
+      "id": "dual columns",
+      "lines": "651-667",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Currency/Common Currency": true,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "date",
+        "Sorting/Primary Subtotal for Date Key": "none"
+      },
+      "checks": [
+        { "name": "dual amount column, with original currency headers", "line": 658, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Debit (USD)", "Credit (USD)", "Debit", "Credit"], "meaning": "Headers" },
+        { "name": "dual amount column, grand totals available", "line": 662, "select": { "table": 1, "row": -1, "column": null }, "expected": ["Grand Total", "$2,280.00", "$2,280.00"], "meaning": "Grand Total, converted and original Debit" },
+        { "name": "dual amount column, first transaction correct", "line": 665, "select": { "table": 1, "row": 1, "column": null, "dropFirst": true }, "expected": ["$103 income", "Root.Asset.Bank", "$103.00", "$103.00"], "meaning": "The first row without its first text (the date, 2024-01-03): 2024's first transaction on Bank" }
+      ]
+    },
+    {
+      "id": "running balance, default options",
+      "lines": "670-678",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Account Balance": true
+      },
+      "checks": [
+        { "name": "running balance, default sort", "line": 673, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount", "Running Balance"], "meaning": "Headers" },
+        { "name": "running balance, showing Balance b/f", "line": 676, "select": { "table": 1, "row": 1, "column": null }, "expected": ["Bank: Balance b/f", "-$99.00"], "meaning": "Bank's balance before 2024-01-01: $1 from 1969-1970 and -$100 from 1971" }
+      ]
+    },
+    {
+      "id": "running balance, primary sort by account code, secondary sort by date",
+      "lines": "680-688",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Account Balance": true,
+        "Sorting/Primary Key": "account-code",
+        "Sorting/Secondary Key": "date"
+      },
+      "checks": [
+        { "name": "running balance, secondary sort by date", "line": 683, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount", "Running Balance"], "meaning": "Headers" },
+        { "name": "running balance, showing Balance b/f", "line": 686, "select": { "table": 1, "row": 1, "column": null }, "expected": ["Bank: Balance b/f", "-$99.00"], "meaning": "As at TT:676" }
+      ]
+    },
+    {
+      "id": "running grand total",
+      "lines": "691-702",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Running Totals": "grand",
+        "Sorting/Primary Subtotal": false
+      },
+      "checks": [
+        { "name": "Last running grand total equals grand total", "line": 696, "select": { "cells": [{ "table": 1, "row": -3, "column": -1 }, { "table": 1, "row": -1, "column": -2 }] }, "relation": "The two selections are equal", "implied": ["$2,280.00"], "meaning": "The last running grand total and the Grand Total" },
+        { "name": "Row 9 running grand total matches row 8 running grand total + row 9 amount", "line": 699, "select": { "cells": [{ "table": 1, "row": 8, "column": -1 }, { "table": 1, "row": 9, "column": -2 }, { "table": 1, "row": 9, "column": -1 }] }, "relation": "Read keeping only digits and '-' (string-filter with char-set:digit and #\\-, so '$2,280.00' reads 228000): first + second = third", "meaning": "The running grand total accumulates the amounts" }
+      ]
+    },
+    {
+      "id": "sorting=date",
+      "lines": "722-726",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "date"
+      },
+      "checks": [
+        { "name": "dates are sorted", "line": 724, "select": { "table": 1, "row": null, "column": 1 }, "expected": ["1969-12-31", "1969-12-31", "1970-01-01", "1970-02-01", "1970-02-10"], "meaning": "Posted dates, ISO" }
+      ]
+    },
+    {
+      "id": "sorting=number",
+      "lines": "728-732",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "number"
+      },
+      "checks": [
+        { "name": "sort by number", "line": 730, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["trn1", "trn2", "trn3", "trn4", "trn7"], "meaning": "Numbers" }
+      ]
+    },
+    {
+      "id": "sorting=reconciled-status",
+      "lines": "734-738",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "reconciled-status"
+      },
+      "checks": [
+        { "name": "sort by reconciled status", "line": 736, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["desc-2", "desc-7", "desc-3", "desc-1", "desc-4"], "meaning": "Descriptions in the order v, y, c, n, n (TE:204-212)" }
+      ]
+    },
+    {
+      "id": "sorting=memo",
+      "lines": "740-744",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "memo"
+      },
+      "checks": [
+        { "name": "sort by memo", "line": 742, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["notes3", "memo-1", "memo-2", "memo-3"], "meaning": "Memo/Notes texts by memo: trn2 and trn3 have none (trn2 shows its notes), then trn4, trn7, trn1" }
+      ]
+    },
+    {
+      "id": "sorting=account-name",
+      "lines": "746-749",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "account-name"
+      },
+      "checks": [
+        { "name": "account names are sorted", "line": 748, "select": { "table": 1, "row": null, "column": 5 }, "relation": "The texts are in order by string<?", "meaning": "Account column" }
+      ]
+    },
+    {
+      "id": "sorting=corresponding-acc-name",
+      "lines": "751-755",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "corresponding-acc-name"
+      },
+      "checks": [
+        { "name": "sort by corresponding-acc-name", "line": 753, "select": { "table": 1, "row": null, "column": 6 }, "expected": ["Expenses", "Expenses", "Income", "Income", "Liabilities"], "meaning": "Transfer from/to" }
+      ]
+    },
+    {
+      "id": "sorting=trans-notes",
+      "lines": "757-761",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "notes"
+      },
+      "checks": [
+        { "name": "sort by transaction notes", "line": 759, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["memo-3", "memo-2", "memo-1", "notes3"], "meaning": "Memo/Notes texts ordered by notes: none (trn1, trn3), notes1 (trn7), notes2 (trn4), notes3 (trn2)" }
+      ]
+    },
+    {
+      "id": "sorting=amount",
+      "lines": "763-767",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Filter/Void Transactions": "both",
+        "Sorting/Primary Subtotal": false,
+        "Sorting/Primary Subtotal for Date Key": "none",
+        "Sorting/Secondary Key": "none",
+        "Sorting/Secondary Subtotal": false,
+        "Sorting/Primary Key": "amount"
+      },
+      "checks": [
+        { "name": "sort by amount", "line": 765, "select": { "xpath": "(// (table 1) // tr // (td -1) // a // *text*)" }, "expected": ["-$15.00", "-$8.00", "-$5.00", "$10.00", "$29.00"], "meaning": "Linked amounts in each row's last cell" }
+      ]
+    },
+    {
+      "id": "sorting=account-name, date-quarterly, subtotals only",
+      "lines": "769-782",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "quarterly",
+        "Display/Grand Total": true,
+        "Sorting/Show subtotals only (hide transactional data)": true
+      },
+      "checks": [
+        { "name": "sorting=account-name, date-quarterly, subtotals only", "line": 780, "select": { "table": 1, "row": null, "column": -1 }, "expected": ["$570.00", "$570.00", "$570.00", "$570.00", "$2,280.00", "$2,280.00"], "meaning": "Four quarters of 3 x $190, Bank's subtotal, the Grand Total (TT sets monthly at :775, then quarterly)" }
+      ]
+    },
+    {
+      "id": "sorting=date, friendly headers",
+      "lines": "784-804",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Display/Grand Total": true,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "quarterly",
+        "Sorting/Show Informal Debit/Credit Headers": true,
+        "Sorting/Show Account Description": false,
+        "Sorting/Show Account Code": false
+      },
+      "checks": [
+        { "name": "expense acc friendly headers", "line": 799, "select": { "table": 1, "row": 69, "column": null }, "expected": ["Expenses", "Expense", "Rebate"], "meaning": "Expenses' subheading with informal Debit/Credit labels: rows 1-46 are Bank, 47-68 GBP Bank" },
+        { "name": "income acc friendly headers", "line": 802, "select": { "table": 1, "row": 91, "column": null }, "expected": ["Income", "Charge", "Income"], "meaning": "Income's subheading" }
+      ]
+    },
+    {
+      "id": "sorting=date, friendly headers with acct desc/code",
+      "lines": "806-814",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root", "trep:Root.Asset", "trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.Wallet", "trep:Root.Income", "trep:Root.Income-GBP", "trep:Root.Expenses", "trep:Root.Liabilities", "trep:Root.Equity"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Display/Grand Total": true,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "quarterly",
+        "Sorting/Show Informal Debit/Credit Headers": true,
+        "Sorting/Show Account Description": true,
+        "Sorting/Show Account Code": true
+      },
+      "checks": [
+        { "name": "expense acc friendly headers", "line": 809, "select": { "table": 1, "row": 69, "column": null }, "expected": ["EXP-001 Expenses", "Expense", "Rebate"], "meaning": "With the account code" },
+        { "name": "income acc friendly headers", "line": 812, "select": { "table": 1, "row": 91, "column": null }, "expected": ["Income: Salaries etc", "Charge", "Income"], "meaning": "With the account description" }
+      ]
+    },
+    {
+      "id": "sorting=date quarterly",
+      "lines": "816-822",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Display/Grand Total": false,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "quarterly",
+        "Sorting/Show Informal Debit/Credit Headers": true,
+        "Sorting/Show Account Description": true,
+        "Sorting/Show Account Code": true,
+        "Sorting/Show subtotals only (hide transactional data)": true
+      },
+      "checks": [
+        { "name": "quarterly subtotals are correct", "line": 820, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["$570.00", "$570.00", "$570.00", "$570.00"], "meaning": "Bank's quarters, Debit" }
+      ]
+    },
+    {
+      "id": "sorting=date monthly",
+      "lines": "824-828",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Display/Grand Total": false,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly",
+        "Sorting/Show Informal Debit/Credit Headers": true,
+        "Sorting/Show Account Description": true,
+        "Sorting/Show Account Code": true,
+        "Sorting/Show subtotals only (hide transactional data)": true
+      },
+      "checks": [
+        { "name": "monthly subtotals are correct", "line": 826, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00"], "meaning": "Bank's months" }
+      ]
+    },
+    {
+      "id": "sorting=date yearly",
+      "lines": "830-834",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Display/Grand Total": false,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "yearly",
+        "Sorting/Show Informal Debit/Credit Headers": true,
+        "Sorting/Show Account Description": true,
+        "Sorting/Show Account Code": true,
+        "Sorting/Show subtotals only (hide transactional data)": true
+      },
+      "checks": [
+        { "name": "yearly subtotals are correct", "line": 832, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["$2,280.00"], "meaning": "Bank's year" }
+      ]
+    },
+    {
+      "id": "sorting=date (daily)",
+      "lines": "836-844",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "absolute": "1969-12-31" },
+        "General/End Date": { "absolute": "1972-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Display/Grand Total": false,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "daily",
+        "Sorting/Show Informal Debit/Credit Headers": true,
+        "Sorting/Show Account Description": true,
+        "Sorting/Show Account Code": true,
+        "Sorting/Show subtotals only (hide transactional data)": false,
+        "Filter/Void Transactions": "both"
+      },
+      "checks": [
+        { "name": "daily subtotals are correct", "line": 842, "select": { "table": 1, "row": 5, "column": 4 }, "expected": ["$39.00"], "meaning": "The daily subtotal of 1969-12-31: trn2's former $10 and trn3's $29" }
+      ]
+    },
+    {
+      "id": "sorting=date weekly",
+      "lines": "846-854",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": true,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": false,
+        "General/Start Date": { "absolute": "1969-12-31" },
+        "General/End Date": { "absolute": "1972-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "double",
+        "Display/Grand Total": false,
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "weekly",
+        "Sorting/Show Informal Debit/Credit Headers": true,
+        "Sorting/Show Account Description": true,
+        "Sorting/Show Account Code": true,
+        "Sorting/Show subtotals only (hide transactional data)": true,
+        "Filter/Void Transactions": "both"
+      },
+      "checks": [
+        { "name": "weekly subtotals are correct (1)", "line": 849, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["$34.00", "$89.00"], "meaning": "Column 4 texts: $34 for the week holding 1969-12-31 and 1970-01-01 (trn2's former $10 + trn3's $29 - trn1's $5; weeks as GnuCash groups them at UTC, fact 8 of the note), and $89 for Bank's net total of -$89" },
+        { "name": "weekly subtotals are correct (2)", "line": 852, "select": { "table": 1, "row": null, "column": 5 }, "expected": ["$15.00", "$8.00", "$100.00"], "meaning": "Column 5 texts: the weeks of trn4 and trn7 and of the 1971 multisplit" }
+      ]
+    },
+    {
+      "id": "running subtotals",
+      "lines": "857-883",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Display/Running Totals": "sub",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly"
+      },
+      "checks": [
+        { "name": "Running subtotal columns are present", "line": 866, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount", "Running Secondary Subtotal", "Running Primary Subtotal"], "meaning": "Headers" },
+        { "name": "Last running primary subtotal equals primary subtotal", "line": 870, "select": { "cells": [{ "table": 1, "row": -3, "column": -1 }, { "table": 1, "row": -1, "column": -3 }] }, "relation": "The two selections are equal", "meaning": "Bank's last running primary subtotal and its subtotal row" },
+        { "name": "Row 10 running primary subtotal matches row 9 running primary subtotal + row 10 amount", "line": 873, "select": { "cells": [{ "table": 1, "row": 9, "column": -1 }, { "table": 1, "row": 10, "column": -3 }, { "table": 1, "row": 10, "column": -1 }] }, "relation": "Read keeping only digits and '-' (string-filter with char-set:digit and #\\-, so '$2,280.00' reads 228000): first + second = third", "meaning": "The running primary subtotal accumulates" },
+        { "name": "In first secondary group, last running secondary subtotal equals secondary subtotal", "line": 877, "select": { "cells": [{ "table": 1, "row": 5, "column": -2 }, { "table": 1, "row": 6, "column": -3 }] }, "relation": "The two selections are equal", "meaning": "January's last running secondary subtotal and January's subtotal row" },
+        { "name": "Row 10 running secondary subtotal matches row 9 running secondary subtotal + row 10 amount", "line": 880, "select": { "cells": [{ "table": 1, "row": 9, "column": -2 }, { "table": 1, "row": 10, "column": -3 }, { "table": 1, "row": 10, "column": -2 }] }, "relation": "Read keeping only digits and '-' (string-filter with char-set:digit and #\\-, so '$2,280.00' reads 228000): first + second = third", "meaning": "The running secondary subtotal accumulates" }
+      ]
+    },
+    {
+      "id": "all running totals",
+      "lines": "885-891",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Display/Running Totals": "all",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly"
+      },
+      "checks": [
+        { "name": "All running total columns are present", "line": 888, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount", "Running Secondary Subtotal", "Running Primary Subtotal", "Running Grand Total"], "meaning": "Headers" }
+      ]
+    },
+    {
+      "id": "no running totals",
+      "lines": "893-898",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Grand Total": false,
+        "Display/Running Totals": "none",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly"
+      },
+      "checks": [
+        { "name": "No running total columns are present", "line": 896, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Date", "Num", "Description", "Memo/Notes", "Account", "Amount"], "meaning": "Headers" }
+      ]
+    },
+    {
+      "id": "show subtotals only, single column",
+      "lines": "902-920",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "single",
+        "Display/Date": true,
+        "Display/Reconciled Date": true,
+        "Display/Num": true,
+        "Display/Description": true,
+        "Display/Memo": true,
+        "Display/Notes": true,
+        "Display/Shares": true,
+        "Display/Price": true,
+        "Display/Account Balance": true,
+        "Display/Grand Total": true,
+        "Display/Use Full Other Account Name": true,
+        "Display/Use Full Account Name": true,
+        "Display/Running Totals": "all",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly",
+        "Sorting/Show subtotals only (hide transactional data)": true,
+        "Currency/Common Currency": true,
+        "Currency/Show original currency amount": true
+      },
+      "checks": [
+        { "name": "all display columns on with single amount; show subtotals only, so only amount columns are shown", "line": 918, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Amount (USD)", "Amount"], "meaning": "Only the amount columns have headers" }
+      ]
+    },
+    {
+      "id": "show subtotals only, dual column",
+      "lines": "922-926",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": true,
+        "Display/Amount": "double",
+        "Display/Date": true,
+        "Display/Reconciled Date": true,
+        "Display/Num": true,
+        "Display/Description": true,
+        "Display/Memo": true,
+        "Display/Notes": true,
+        "Display/Shares": true,
+        "Display/Price": true,
+        "Display/Account Balance": true,
+        "Display/Grand Total": true,
+        "Display/Use Full Other Account Name": true,
+        "Display/Use Full Account Name": true,
+        "Display/Running Totals": "all",
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly",
+        "Sorting/Show subtotals only (hide transactional data)": true,
+        "Currency/Common Currency": true,
+        "Currency/Show original currency amount": true
+      },
+      "checks": [
+        { "name": "all display columns on with dual amount; show subtotals only, so only debit/credit columns are shown", "line": 924, "select": { "table": 1, "row": 0, "column": null }, "expected": ["Debit (USD)", "Credit (USD)", "Debit", "Credit"], "meaning": "Only the amount columns have headers" }
+      ]
+    },
+    {
+      "id": "subtotal table",
+      "lines": "933-969",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Income-GBP", "trep:Root.Income", "trep:Root.Expenses"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "relative": "start-cal-year" },
+        "General/End Date": { "relative": "end-cal-year" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Subtotal Table": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly"
+      },
+      "checks": [
+        { "name": "summary bank-row is correct", "line": 943, "select": { "table": 1, "row": 1, "column": null }, "expected": ["Bank", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$190.00", "$2,280.00", "$190.00"], "meaning": "Table 1 is the Subtotal Table: Bank by month of 2024, its total and average" },
+        { "name": "summary gbp bank-row is correct", "line": 947, "select": { "table": 1, "row": 2, "column": null }, "expected": ["GBP Bank", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#51.00", "#612.00", "#51.00"], "meaning": "GBP Bank, in GBP with the user symbol #" },
+        { "name": "summary expense-row is correct", "line": 951, "select": { "table": 1, "row": 3, "column": null }, "expected": ["Expenses", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$22.00", "$264.00", "$22.00"], "meaning": "Expenses" },
+        { "name": "summary income-row is correct", "line": 955, "select": { "table": 1, "row": 4, "column": null }, "expected": ["Income", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$212.00", "-$2,544.00", "-$212.00"], "meaning": "Income" },
+        { "name": "summary gbp income-row is correct", "line": 960, "select": { "table": 1, "row": 5, "column": null }, "expected": ["Income-GBP", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#51.00", "-#612.00", "-#51.00"], "meaning": "Income-GBP" },
+        { "name": "summary gbp total-row is correct", "line": 964, "select": { "table": 1, "row": 6, "column": null }, "expected": ["Total", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00", "#0.00"], "meaning": "The Total row's first line: GBP" },
+        { "name": "summary total-row is correct", "line": 967, "select": { "table": 1, "row": 7, "column": null }, "expected": ["$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00", "$0.00"], "meaning": "The Total row's second line: USD, with an empty label" }
+      ]
+    },
+    {
+      "id": "sparse subtotal table",
+      "lines": "971-1003",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Income-GBP", "trep:Root.Income", "trep:Root.Expenses"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Subtotal Table": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly"
+      },
+      "checks": [
+        { "name": "sparse summary-table - row 1", "line": 974, "select": { "table": 1, "row": 1, "column": null }, "expected": ["Bank", "$29.00", "-$5.00", "-$23.00", "$1.00", "$0.33"], "meaning": "Bank by month with data (1969-12, 1970-01, 1970-02), total, average over the three columns" },
+        { "name": "sparse summary-table - row 2", "line": 977, "select": { "table": 1, "row": 2, "column": null }, "expected": ["Expenses", "$16.00", "$15.00", "$31.00", "$10.33"], "meaning": "Expenses has nothing in 1969-12 (an empty cell)" },
+        { "name": "sparse summary-table - row 3", "line": 980, "select": { "table": 1, "row": 3, "column": null }, "expected": ["Income", "-$29.00", "-$29.00", "-$9.67"], "meaning": "Income only in 1969-12" },
+        { "name": "sparse summary-table - row 4", "line": 983, "select": { "table": 1, "row": 4, "column": null }, "expected": ["Total", "$0.00", "$11.00", "-$8.00", "$3.00", "$1.00"], "meaning": "Totals per column" },
+        { "name": "sparse summary-table - col 1", "line": 986, "select": { "table": 1, "row": null, "column": 1 }, "expected": ["Bank", "Expenses", "Income", "Total"], "meaning": "Row labels" },
+        { "name": "sparse summary-table - col 2", "line": 989, "select": { "table": 1, "row": null, "column": 2 }, "expected": ["$29.00", "-$29.00", "$0.00"], "meaning": "1969-12" },
+        { "name": "sparse summary-table - col 3", "line": 992, "select": { "table": 1, "row": null, "column": 3 }, "expected": ["-$5.00", "$16.00", "$11.00"], "meaning": "1970-01" },
+        { "name": "sparse summary-table - col 4", "line": 995, "select": { "table": 1, "row": null, "column": 4 }, "expected": ["-$23.00", "$15.00", "-$8.00"], "meaning": "1970-02" },
+        { "name": "sparse summary-table - col 5", "line": 998, "select": { "table": 1, "row": null, "column": 5 }, "expected": ["$1.00", "$31.00", "-$29.00", "$3.00"], "meaning": "Total" },
+        { "name": "sparse summary-table - col 6 average", "line": 1001, "select": { "table": 1, "row": null, "column": 6 }, "expected": ["$0.33", "$10.33", "-$9.67", "$1.00"], "meaning": "Average: the total over the three columns (fact 14 of the note)" }
+      ]
+    },
+    {
+      "id": "show invoice",
+      "lines": "1007-1021",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank", "invoice:Root.A/Receivable", "invoice:Root.A/Payable", "trep:Root.Income"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1980-09-01" },
+        "General/End Date": { "absolute": "1980-09-07" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Invoice": true
+      },
+      "checks": [
+        { "name": "retrieve invoice IDs from trep", "line": 1019, "select": { "table": 1, "row": null, "column": 5 }, "expected": ["0003", "0004", "0006", "0007", "0001", "0002", "0005"], "meaning": "Invoice IDs: A/Payable's (0003, 0004, 0006, 0007) before A/Receivable's (0001, 0002, 0005), each by date" }
+      ]
+    },
+    {
+      "id": "csv-export",
+      "lines": "1025-1050",
+      "template": "Transaction Report",
+      "templateGuid": "2fe3b9833af044abb929a88d5a59620f",
+      "exportType": "csv",
+      "options": {
+        "Accounts/Accounts": ["trep:Root.Asset.Bank", "trep:Root.Asset.USD Bank", "trep:Root.Asset.GBP Bank", "trep:Root.Income-GBP", "trep:Root.Income", "trep:Root.Expenses"],
+        "Sorting/Add indenting columns": false,
+        "General/Add options summary": "always",
+        "General/Table for Exporting": true,
+        "General/Start Date": { "absolute": "1969-01-01" },
+        "General/End Date": { "absolute": "1970-12-31" },
+        "Display/Account Name": true,
+        "Display/Other Account Name": false,
+        "Display/Amount": "single",
+        "Display/Subtotal Table": true,
+        "Currency/Common Currency": true,
+        "Currency/Report's currency": "GBP",
+        "Currency/Show original currency amount": true,
+        "Sorting/Primary Key": "account-name",
+        "Sorting/Primary Subtotal": true,
+        "Sorting/Secondary Key": "date",
+        "Sorting/Secondary Subtotal for Date Key": "monthly"
+      },
+      "checks": [
+        { "name": "csv output has no export error", "line": 1046, "select": { "export": "error" }, "meaning": "gnc:html-document-export-error of the document is #f", "expected": null },
+        { "name": "csv output is valid", "line": 1048, "select": { "export": "string" }, "expected": "\"from\",\"1969-01-01\"\n\"to\",\"1970-12-31\"\n\"Amount (GBP)\",2.15\n\"Amount\",3.0", "meaning": "The CSV: the dates, then the grand totals. Every USD split converts at the 2000-01-15 price (USD in GBP 10/14) and rounds to GBP's SCU: 20.71 - 3.57 - 10.71 - 5.71 + 3.57 + 7.86 + 10.71 - 20.71 = 2.15; the originals are USD 3, printed as a double" }
+      ]
+    }
+  ],
+  "libraryChecks": [
+    { "name": "gnc:lists->csv empty", "line": 1055, "function": "gnc:lists->csv", "input": [[]], "expected": "", "meaning": "One empty row" },
+    { "name": "gnc:lists->csv simple", "line": 1058, "function": "gnc:lists->csv", "input": [["from", "01/01/2010"]], "expected": "\"from\",\"01/01/2010\"", "meaning": "Strings are quoted" },
+    { "name": "gnc:lists->csv complex", "line": 1062, "function": "gnc:lists->csv", "input": [["from", "01/01/2010"], ["to", "31/12/2010"], ["total", 23500, 30000, { "rational": "25/7" }, { "symbol": "sym" }]], "expected": "\"from\",\"01/01/2010\",,,\n\"to\",\"31/12/2010\",,,\n\"total\",23500.0,30000.0,3.5714285714285716,sym", "meaning": "Rows padded to the longest; numbers printed as doubles (exact->inexact); a symbol printed bare. red-ale's export cells are strings, numbers or null, so the symbol cell has no counterpart: test it as the other cells" }
+  ],
+  "notCarried": [
+    { "line": 1070, "name": "gnc:lists->csv improper list", "why": "An improper list raises an error in Guile; red-ale's export rows are arrays and cannot be improper" }
+  ]
+}

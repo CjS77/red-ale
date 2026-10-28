@@ -33,8 +33,10 @@ fn every_report_fixture_is_listed() {
         "lots-reverse-split-sale",
         "lots-reverse-split",
         "net-days",
+        "reconcile",
         "stock-test-data",
         "test-data",
+        "transaction",
     ];
     assert_eq!(names, expected.map(|n| format!("reports/{n}.gnucash")));
 }
