@@ -52,7 +52,13 @@ impl DateFormat {
         let icu = (self == Self::Locale && !locale.is_c(Category::Messages))
             .then(|| locale.date_interval(civil(from)?, civil(to)?))
             .flatten();
-        icu.unwrap_or_else(|| format!("{} to {}", self.print(from, locale), self.print(to, locale)))
+        icu.unwrap_or_else(|| self.print_range(from, to, locale))
+    }
+
+    /// `<from> to <to>`, each as `qof-print-date` prints it: the Multicolumn P&L's column headers
+    /// (`5.17:gnucash/report/reports/standard/balsheet-pnl.scm:1140-1153`), and the interval form when ICU has none.
+    pub fn print_range(self, from: Date, to: Date, locale: &Locale) -> String {
+        format!("{} to {}", self.print(from, locale), self.print(to, locale))
     }
 }
 

@@ -40,6 +40,11 @@ pub struct Column {
     /// and totals furthest right (`5.17:gnucash/report/html-acct-table.scm:870-923`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub levels: Option<u32>,
+    /// The heading as stacked lines, top first, when it takes several header rows: GnuCash's multi-row column headers
+    /// (`gnc:html-table-set-multirow-col-headers!`, `5.17:gnucash/report/reports/standard/txn-columns.scm:170-174`).
+    /// `label` still names the column for a client that reads one line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_lines: Option<Vec<String>>,
 }
 
 /// What a column holds.
@@ -110,13 +115,13 @@ pub enum RowRole {
     Spacer,
 }
 
-/// A cell. It holds exactly one of `text`, `monetary`, `commodities`, `number`, `price` and `date`; the display fields
-/// are filled in by the host.
+/// A cell. It holds exactly one of `text`, `monetary`, `commodities`, `number`, `price`, `date` and `anchors`; the
+/// display fields are filled in by the host.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(extend("oneOf" = [
     { "required": ["text"] }, { "required": ["monetary"] }, { "required": ["commodities"] },
-    { "required": ["number"] }, { "required": ["price"] }, { "required": ["date"] }
+    { "required": ["number"] }, { "required": ["price"] }, { "required": ["date"] }, { "required": ["anchors"] }
 ]))]
 pub struct Cell {
     /// Text.
@@ -138,6 +143,13 @@ pub struct Cell {
     /// An instant.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<Timestamp>,
+    /// Pieces of text, each linked, shown one per line: the Transaction Report's invoice cell
+    /// (`5.17:gnucash/report/trep-engine.scm:1036-1049`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchors: Option<Vec<Anchor>>,
+    /// For a `date`: the end of the period it starts, shown `<date> to <until>`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<Timestamp>,
     /// For a `number`: decimals shown, default 2.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub places: Option<u32>,
@@ -153,7 +165,10 @@ pub struct Cell {
     /// Host: for a `date`, its local date `YYYY-MM-DD` in the run's time zone.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_date: Option<String>,
-    /// Host: the figure as text, for `monetary`, `number`, `price` and `date` cells.
+    /// Host: for a `date` with `until`, the local date of `until`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_until: Option<String>,
+    /// Host: the figure as text, for `monetary`, `number`, `price` and `date` cells; `<date> to <until>` for a period.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display: Option<String>,
     /// The account the cell names or links to.
@@ -189,6 +204,8 @@ pub enum CellContent<'a> {
     Price(&'a Rational),
     /// An instant.
     Date(Timestamp),
+    /// Linked pieces of text.
+    Anchors(&'a [Anchor]),
 }
 
 impl Cell {
@@ -217,6 +234,7 @@ impl Cell {
             self.number.as_ref().map(CellContent::Number),
             self.price.as_ref().map(CellContent::Price),
             self.date.map(CellContent::Date),
+            self.anchors.as_deref().map(CellContent::Anchors),
         ]
         .into_iter()
         .flatten()
@@ -254,20 +272,49 @@ pub struct CommodityLine {
     pub converted_display: Option<String>,
 }
 
-/// Something a client can open: an account register (`5.17:gnucash/report/html-utilities.scm:82-88`) or another
-/// report, GnuCash's drill-down (`5.17:gnucash/report/reports/standard/category-barchart.scm:589-609`). GnuCash makes
-/// a report instance for a report link at render time; red-ale only describes it, and a client runs it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+/// One linked piece of text in an `anchors` cell.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Anchor {
+    /// The text shown.
+    pub text: String,
+    /// Where it leads.
+    pub link: Link,
+}
+
+/// Something a client can open, as GnuCash's anchors (`5.17:gnucash/report/html-utilities.scm:82-128`): an account,
+/// split or transaction in a register, an invoice, a price, a linked document, or another report, GnuCash's
+/// drill-down (`5.17:gnucash/report/reports/standard/category-barchart.scm:589-609`). GnuCash makes a report instance
+/// for a report link at render time; red-ale only describes it, and a client runs it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum Link {
-    /// `{ "account": "<guid>" }`.
+    /// `{ "account": "<guid>" }`: the account's register (`gnc:account-anchor-text`, `:85-88`).
     Account(Id),
     /// `{ "report": { "template": "<guid>", "options": { … } } }`.
     Report(ReportLink),
+    /// `{ "split": "<guid>" }`: the split in its account's register (`gnc:split-anchor-text`, `:90-91`).
+    Split(Id),
+    /// `{ "transaction": "<guid>" }`: the transaction in a register (`gnc:transaction-anchor-text`, `:93-94`).
+    Transaction(Id),
+    /// `{ "invoice": "<guid>" }`: an invoice, bill or voucher (`gnc:invoice-anchor-text`, `:127-128`).
+    Invoice(Id),
+    /// `{ "price": "<guid>" }`: a price in the price database (`gnc:price-anchor-text`, `:107-110`).
+    Price(Id),
+    /// `{ "docLink": "<uri>" }`: a transaction's or invoice's linked document (`gnc:transaction-doclink-anchor-text`,
+    /// `:96-100`). Described only: a page shows its text unlinked, so an exported page points at no file.
+    DocLink(String),
+}
+
+impl Link {
+    /// Whether a page marks the link for a client to wire up; a linked document is described in the result only.
+    pub fn is_live(&self) -> bool {
+        !matches!(self, Self::DocLink(_))
+    }
 }
 
 /// A link to a report run.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReportLink {
     /// The template to run.

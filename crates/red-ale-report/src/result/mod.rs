@@ -20,7 +20,7 @@ use serde_json::{Map, Value};
 
 pub use chart::{Axis, AxisFormat, Chart, ChartType, Color, Marker, PlotSize, Point, Scale, Series, SeriesKind, Tooltip};
 pub use finish::{DisplayContext, RunInfo};
-pub use table::{Align, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, ReportLink, Row, RowRole, Table};
+pub use table::{Align, Anchor, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, ReportLink, Row, RowRole, Table};
 
 use crate::error::ResultError;
 use crate::number::Rational;
@@ -126,6 +126,8 @@ pub enum Block {
     Chart(Box<Chart>),
     /// Blocks laid out side by side: the one-row layout tables of the two-column Balance Sheet and Income Statement.
     Group(GroupBlock),
+    /// A bulleted list (`gnc:html-markup-ul`, `5.17:gnucash/report/html-text.scm:210-215`).
+    List(ListBlock),
     /// Set by the host only: the options that differ from their defaults (`gnc:html-render-options-changed`).
     OptionsSummary(OptionsSummary),
 }
@@ -139,6 +141,10 @@ pub struct TextBlock {
     /// What the text is.
     #[serde(default)]
     pub role: TextRole,
+    /// Something the text leads to, such as the Multicolumn statements' "Barchart" report
+    /// (`5.17:gnucash/report/reports/standard/balsheet-pnl.scm:1079-1083`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<Link>,
 }
 
 /// The role of a text block.
@@ -170,6 +176,25 @@ pub struct WarningBlock {
 pub struct GroupBlock {
     /// The blocks, left to right.
     pub blocks: Vec<Block>,
+}
+
+/// A bulleted list: the Cash Flow's selected accounts (`5.17:gnucash/report/reports/standard/cash-flow.scm:253-262`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ListBlock {
+    /// The items, in order.
+    pub items: Vec<ListItem>,
+}
+
+/// One item of a list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ListItem {
+    /// The text.
+    pub text: String,
+    /// The account the item names, which links to its register (`gnc:html-account-anchor`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<Id>,
 }
 
 /// The options summary the host appends when "Add options summary" is `always`.
@@ -260,6 +285,7 @@ fn locate_in_block(block: &Value, path: &str) -> Option<ResultError> {
         "table" => from_json_at::<Table>(inner, path).err(),
         "chart" => from_json_at::<Chart>(inner, path).err(),
         "group" => from_json_at::<GroupBlock>(inner, path).err(),
+        "list" => from_json_at::<ListBlock>(inner, path).err(),
         "optionsSummary" => from_json_at::<OptionsSummary>(inner, path).err(),
         _ => None,
     }

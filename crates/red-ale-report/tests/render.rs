@@ -329,6 +329,66 @@ fn hostile_text_is_escaped_everywhere() {
     );
 }
 
+/// The additions of `redAleApi` 0.5.0: a text block's link, a list, a column header in stacked lines, an `anchors`
+/// cell, a date period and the new link kinds; a linked document is text only.
+fn additions() -> ReportResult {
+    let invoice = |text: &str, guid: &str| json!({ "text": text, "link": { "invoice": guid } });
+    result(
+        "Additions",
+        json!([ { "blocks": [
+            { "kind": "text", "text": "Barchart", "link": { "report": { "template": BANK, "options": {} } } },
+            { "kind": "text", "text": "Receipt", "role": "note", "link": { "docLink": "file:///home/me/receipt.pdf" } },
+            { "kind": "list", "items": [ { "text": "Bank <1>", "account": BANK }, { "text": "Cash\nin hand" } ] },
+            { "kind": "table",
+              "columns": [ { "label": "Date", "role": "date" }, { "label": "Num", "role": "text" },
+                           { "label": "Assets:Bank", "labelLines": ["Assets", "Bank"], "role": "amount" },
+                           { "label": "Savings", "labelLines": ["Savings"], "role": "amount", "levels": 2 } ],
+              "rows": [
+                { "cells": [ { "date": "2024-01-01T00:00:00Z", "until": "2024-12-31T23:59:59Z", "localDate": "2024-01-01",
+                               "localUntil": "2024-12-31", "display": "01/01/2024 to 12/31/2024" },
+                             { "anchors": [ invoice("000002", SAVINGS), invoice("000001", BANK) ] },
+                             { "monetary": { "amount": "5", "commodity": "CURRENCY::USD" }, "rounded": "5", "display": "$5.00",
+                               "link": { "split": SAVINGS } },
+                             { "price": "2", "currency": "CURRENCY::USD", "display": "$2.00", "link": { "price": BANK } } ] },
+                { "role": "total",
+                  "cells": [ { "text": "L", "link": { "docLink": "file:///home/me/receipt.pdf" } },
+                             { "anchors": [ { "text": "doc", "link": { "docLink": "https://example.com/x" } } ] },
+                             { "text": "t", "link": { "transaction": BANK } }, null ] }
+              ] }
+        ] } ]),
+    )
+}
+
+#[test]
+fn additions_render_with_links_as_data_attributes() {
+    let html = page(&additions(), None);
+    golden("additions", &html);
+    assert!(html.contains("<p data-link=\"{&quot;report&quot;:"));
+    assert!(html.contains("<p class=\"note\">Receipt</p>"));
+    assert!(!html.contains("receipt.pdf") && !html.contains("example.com"), "linked documents are text only");
+    let list = format!(
+        "<ul class=\"list\">\n<li data-account=\"{BANK}\"><span class=\"link\">Bank &lt;1&gt;</span></li>\n{}",
+        "<li>Cash<br>in hand</li>\n</ul>"
+    );
+    assert!(html.contains(&list));
+    let (left, right) = ("<th class=\"column-heading-left\">", "<th class=\"column-heading-right\"");
+    let head = format!(
+        "<tr>{left}Date</th>{left}Num</th>{right}>Assets</th>{right} colspan=\"2\">Savings</th></tr>\n\
+         <tr>{left}</th>{left}</th>{right}>Bank</th>{right} colspan=\"2\"></th></tr>"
+    );
+    assert!(html.contains(&head));
+    let invoice = |guid: &str, id: &str| format!("<span class=\"link\" data-link=\"{{&quot;invoice&quot;:&quot;{guid}&quot;}}\">{id}</span>");
+    let invoices = format!("<td class=\"text-cell\">{}<br>{}</td>", invoice(SAVINGS, "000002"), invoice(BANK, "000001"));
+    assert!(html.contains(&invoices));
+    assert!(html.contains("<td class=\"date-cell\">01/01/2024 to 12/31/2024</td>"));
+    assert!(html.contains("<td class=\"total-label-cell\">L</td><td class=\"total-label-cell\">doc</td>"));
+    let mut no_links = StyleSheet::new("No links", StyleSheetTemplate::Plain);
+    no_links.apply(&json!({ "General": { "Enable Links": false } })).unwrap();
+    let html = page(&additions(), Some(&no_links));
+    assert!(!html.contains("data-account") && !html.contains("data-link") && !html.contains("class=\"link\""));
+    assert!(html.contains("000002<br>000001"));
+}
+
 #[test]
 fn a_missing_style_sheet_renders_with_the_base_look() {
     let sheets = StyleSheets::predefined();

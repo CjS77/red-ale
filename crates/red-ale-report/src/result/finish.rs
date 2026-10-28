@@ -50,6 +50,12 @@ impl DisplayContext<'_> {
         Ok((shown.rounded, shown.display))
     }
 
+    fn local_date(&self, t: Timestamp, path: &str) -> Result<Date, ResultError> {
+        self.zone
+            .local_date(t.0)
+            .ok_or_else(|| ResultError::new(path, "outside the supported range"))
+    }
+
     /// A date as `reports.dateFormat` prints it under the Locale.
     pub(crate) fn print_date(&self, day: Date) -> String {
         self.date_format.print(day, &self.locale)
@@ -102,7 +108,7 @@ fn fill_blocks(blocks: &mut [Block], path: &str, ctx: &DisplayContext<'_>) -> Fi
             }),
             Block::Chart(c) => fill_chart(c, &at, ctx),
             Block::Group(g) => fill_blocks(&mut g.blocks, &format!("{at}.blocks"), ctx),
-            Block::Text(_) | Block::Warning(_) | Block::OptionsSummary(_) => Ok(()),
+            Block::Text(_) | Block::Warning(_) | Block::List(_) | Block::OptionsSummary(_) => Ok(()),
         }
     })
 }
@@ -118,11 +124,13 @@ fn fill_cell(cell: &mut Cell, path: &str, ctx: &DisplayContext<'_>) -> Fill {
         let currency = ctx.commodity(&currency.0, &format!("{path}.currency"))?;
         cell.display = Some(display_price(p, &currency, &ctx.locale.conventions()));
     } else if let Some(t) = cell.date {
-        let day = ctx
-            .zone
-            .local_date(t.0)
-            .ok_or_else(|| ResultError::new(format!("{path}.date"), "outside the supported range"))?;
+        let day = ctx.local_date(t, &format!("{path}.date"))?;
         (cell.local_date, cell.display) = (Some(day.to_file_string()), Some(ctx.print_date(day)));
+        if let Some(until) = cell.until {
+            let end = ctx.local_date(until, &format!("{path}.until"))?;
+            cell.local_until = Some(end.to_file_string());
+            cell.display = Some(ctx.date_format.print_range(day, end, &ctx.locale));
+        }
     } else if let Some(lines) = &mut cell.commodities {
         lines
             .iter_mut()

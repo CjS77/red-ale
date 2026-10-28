@@ -298,3 +298,96 @@ fn finished_results_need_their_host_fields() {
     wrong.version = "9.0.0".into();
     assert_eq!(wrong.validate().unwrap_err().path, "version");
 }
+
+const SPLIT: &str = "5b1c0000000000000000000000000001";
+
+/// A draft with each addition of `redAleApi` 0.5.0: the new link kinds, an `anchors` cell, a date period, a column
+/// with `labelLines`, a text block's link and a list block.
+fn additions_json() -> Value {
+    json!({
+        "title": "Additions",
+        "sections": [{
+            "blocks": [
+                { "kind": "text", "text": "Barchart", "link": { "report": { "template": BANK, "options": {} } } },
+                { "kind": "list", "items": [ { "text": "Bank", "account": BANK }, { "text": "Cash" } ] },
+                {
+                    "kind": "table",
+                    "columns": [ { "label": "Date", "role": "date" },
+                                 { "label": "Assets:Bank", "labelLines": ["Assets", "Bank"], "role": "amount" },
+                                 { "label": "Invoice", "role": "text" } ],
+                    "rows": [
+                        { "cells": [ { "date": "2024-01-01T00:00:00Z", "until": "2024-12-31T23:59:59Z" },
+                                     { "monetary": { "amount": "5", "commodity": "USD" }, "link": { "split": SPLIT } },
+                                     { "anchors": [ { "text": "000002", "link": { "invoice": SPLIT } },
+                                                    { "text": "000001", "link": { "invoice": BANK } } ] } ] },
+                        { "cells": [ { "text": "L", "link": { "docLink": "file:///receipts/1.pdf" } },
+                                     { "price": "2", "currency": "USD", "link": { "price": SPLIT } },
+                                     { "text": "t", "link": { "transaction": SPLIT } } ] }
+                    ]
+                }
+            ]
+        }]
+    })
+}
+
+fn finish_additions(v: &Value) -> Result<ReportResult, ResultError> {
+    let book = book();
+    let zone = TimeZone::utc();
+    let ctx = DisplayContext {
+        book: &book,
+        zone: &zone,
+        date_format: DateFormat::Locale,
+        locale: Locale::c(),
+    };
+    ReportDraft::from_json(v)?.finish(run(), &ctx)
+}
+
+/// A date with `until` shows `<from> to <until>`, each as `qof-print-date` prints it
+/// (`5.17:gnucash/report/reports/standard/balsheet-pnl.scm:1140-1153`); the other additions round-trip.
+#[test]
+fn additions_finish_and_round_trip() {
+    let r = finish_additions(&additions_json()).unwrap();
+    r.validate().unwrap();
+    let Block::Table(t) = &r.sections[0].blocks[2] else {
+        panic!("not a table")
+    };
+    let period = t.rows[0].cells[0].as_ref().unwrap();
+    assert_eq!(
+        (period.local_date.as_deref(), period.local_until.as_deref(), period.display.as_deref()),
+        (Some("2024-01-01"), Some("2024-12-31"), Some("01/01/24 to 12/31/24"))
+    );
+    let v = serde_json::to_value(&r).unwrap();
+    assert_eq!(v["sections"][0]["blocks"][2]["rows"][1]["cells"][0]["link"], json!({ "docLink": "file:///receipts/1.pdf" }));
+    assert_eq!(v["sections"][0]["blocks"][2]["columns"][1]["labelLines"], json!(["Assets", "Bank"]));
+    assert_eq!(ReportResult::from_json(&v).unwrap(), r);
+}
+
+#[test]
+fn additions_are_validated() {
+    // Each case edits the additions draft at a path below block `n`, and names the path the error must give.
+    let cases: [(usize, &str, Value, &str); 10] = [
+        (0, "/link", json!({ "docLink": "" }), "link.docLink"),
+        (2, "/columns/1/labelLines", json!([]), "columns[1].labelLines"),
+        (2, "/rows/0/cells/0/until", json!("2023-12-31T00:00:00Z"), "rows[0].cells[0].until"),
+        (2, "/rows/0/cells/1/until", json!("2025-01-01T00:00:00Z"), "rows[0].cells[1].until"),
+        (2, "/rows/0/cells/0/localUntil", json!("2024-12-31"), "rows[0].cells[0].localUntil"),
+        (2, "/rows/0/cells/2/anchors", json!([]), "rows[0].cells[2].anchors"),
+        (2, "/rows/0/cells/2/link", json!({ "invoice": BANK }), "rows[0].cells[2]"),
+        (2, "/rows/0/cells/2/display", json!("x"), "rows[0].cells[2].display"),
+        (2, "/rows/0/cells/2/anchors/0/link", json!({ "docLink": "" }), "rows[0].cells[2].anchors[0].link.docLink"),
+        (2, "/rows/1/cells/0/link", json!({ "docLink": "" }), "rows[1].cells[0].link.docLink"),
+    ];
+    cases.into_iter().for_each(|(block, at, value, path)| {
+        let (parent, last) = at.rsplit_once('/').unwrap();
+        let mut v = additions_json();
+        let target = v.pointer_mut(&format!("/sections/0/blocks/{block}{parent}")).unwrap();
+        match last.parse::<usize>() {
+            Ok(i) => target[i] = value,
+            Err(_) => target[last] = value,
+        }
+        let e = ReportDraft::from_json(&v).unwrap().validate().unwrap_err();
+        assert_eq!(e.path, format!("sections[0].blocks[{block}].{path}"), "{at}");
+    });
+    let e = finish_additions(&json!({ "title": "t", "sections": [{ "blocks": [{ "kind": "list", "items": [{ "txt": "a" }] }] }] }));
+    assert_eq!(e.unwrap_err().path, "sections[0].blocks[0].items[0].txt");
+}
