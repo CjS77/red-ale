@@ -144,6 +144,26 @@ fn the_first_save_sets_the_iso_dates_feature() {
     assert!(has_iso_dates(&path));
 }
 
+/// An SQLite session's journal replays into the next session, as an XML book's does (`design/sql-fidelity.md` §6).
+#[test]
+fn an_sqlite_book_s_journal_replays() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "sqlite/gnucash/sample1.gnucash");
+    let mut lost = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    describe_first(&mut lost, "Journaled");
+    let journal = lost.journal_path().unwrap().to_owned();
+    drop(lost);
+
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    assert_ne!(session.book().transactions[0].description.as_deref(), Some("Journaled"));
+    let report = session.replay_journal(&journal, false).unwrap();
+    assert_eq!(report.updated.len(), 1, "{report:?}");
+    session.save(None).unwrap();
+    session.close(false).unwrap();
+    let read = Session::open(path.to_str().unwrap(), true, Settings::default()).unwrap();
+    assert_eq!(read.book().transactions[0].description.as_deref(), Some("Journaled"));
+}
+
 /// Retention treats an SQLite book's backups as an XML book's: by name and age (`design/sql-fidelity.md` §6).
 #[test]
 fn retention_removes_an_sqlite_book_s_backups() {
