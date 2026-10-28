@@ -294,7 +294,7 @@ hand-worked cases for the rest, each citing the 5.17 lines it follows (§5).
 |:------:|----------------------------------------|---------------------------------------------------------------------------------------------------------|
 |   ✅   | Mutations walk their maps in order     | `red_ale_core::diff::changes`, used by `Session::try_mutate` and the trading-account commit; a property test checks it against lookups |
 |   ✅   | Clippy after `cargo fmt`               | The formatting commit left pedantic lints failing; fixed without changing behaviour                     |
-|        | The `sql-book` message                 | `crates/red-ale-service/src/error.rs:41` says SQLite arrives in v0.3. SQLite files no longer get it; for database URIs it names v0.7 |
+|   ✅   | The `sql-book` message                 | Names v0.7 for database URIs (`mysql://`, `postgres://`, `postgresql://`) only, refused in `resolve_path` before anything is touched; SQLite files and `sqlite3://` never reach it (`crates/red-ale-service/src/error.rs:43-48`, `session.rs:150-174`; `tests/session.rs`, `database_server_books_are_refused_before_anything_happens`) |
 
 ## Carried forward from v0.3
 
