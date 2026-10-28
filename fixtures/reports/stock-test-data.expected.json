@@ -1,0 +1,123 @@
+{
+  "fixture": "reports/stock-test-data.gnucash",
+  "builtBy": "scripts/report-fixtures/stock_test_data.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-portfolios.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence; the book is create-stock-test-data of test-engine-extras.scm, whose notice the script keeps",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:21)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no checked cell shows a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Asset": "a0000000000000000000000000000002",
+    "Root.Asset.Bank": "a0000000000000000000000000000003",
+    "Root.Income": "a0000000000000000000000000000004",
+    "Root.Expenses": "a0000000000000000000000000000005",
+    "Root.Equity": "a0000000000000000000000000000006",
+    "Root.Broker": "a0000000000000000000000000000007",
+    "Root.Broker.AAPL": "a0000000000000000000000000000008",
+    "Root.Broker.MSFT": "a0000000000000000000000000000009",
+    "Root.Broker.TSLA": "a000000000000000000000000000000a"
+  },
+  "book": "create-stock-test-data (5.17:bindings/guile/test/test-engine-extras.scm:952-1059), which both test groups build afresh (:52, :84); one book serves both. AAPL, MSFT and TSLA are NASDAQ commodities with SCU 1; only AAPL trades. The 1981-03-01 sale of 1/2 share is stored as -1 (SCU 1, rounded half up), so AAPL holds 42 shares from then on. Prices of AAPL in USD: 100 (1980-02-01), 200 (1980-03-01), 400 (1980-05-01), 50 (1981-01-01) and 6 (1981-03-01) from the transactions (source user:xfer-dialog, type test), and 40, 4 and 12 from the stock splits of 1980-10-01, 1980-11-01 and 1980-12-01 (source user:stock-split, type unknown), all at midnight UTC.",
+  "dates": "No date in the book depends on now. Both templates' Date option defaults to the end of the accounting period (5.17:gnucash/report/options-utilities.scm:48-51), which with no preferences is the end of today: for the pinned now, 2024-03-15 23:59:59 UTC. The runs that keep the default (portfolio-latest and the three advanced runs) give the same figures for any now after 1981-04-01. pricedb-latest looks up prices at now; Advanced Portfolio's default pricedb-nearest at local noon of the Date (2024-03-15 12:00:00 UTC); both find the $6.00 of 1981-03-01.",
+  "optionValues": "Options are those changed from the template's defaults and in effect for the run: the portfolio runs change one options object step by step (:53-78), the advanced runs another (:85-107). {\"absolute\": day} is gnc-dmy2time64 of that day, local (here UTC) midnight.",
+  "cellSelection": "GnuCash reads text at HTML table positions with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109): table 1, row 1 (the first data row, AAPL's), every <td> cell, giving every text node in document order. Whitespace is trimmed when parsing (:84), so Advanced Portfolio's marker cell, \" \" when the price comes from the price list, gives no text. Columns, Investment Portfolio (5.17:gnucash/report/reports/standard/portfolio.scm:242-249): Account, Symbol, Listing, Units, Price, Value. Advanced Portfolio with defaults (standard/advanced-portfolio.scm:852-1173): Account, Symbol, Listing, Shares, Price, marker, Basis, Value, Money In, Money Out, Realized Gain, Unrealized Gain, Total Gain, Rate of Gain, Income, Brokerage Fees, Total Return, Rate of Return.",
+  "renderOnly": [
+    { "line": 26, "template": "Investment Portfolio", "templateGuid": "4a6b82e8678c4f3d9e85d9f09634ca89", "note": "null-test: renders with default options on an empty book, before create-stock-test-data" },
+    { "line": 27, "template": "Advanced Portfolio", "templateGuid": "21d7cfc59fc74f22887596ebde7e462d", "note": "null-test: renders with default options on an empty book" }
+  ],
+  "runs": [
+    {
+      "id": "portfolio-latest",
+      "lines": "54-58",
+      "template": "Investment Portfolio",
+      "templateGuid": "4a6b82e8678c4f3d9e85d9f09634ca89",
+      "options": {
+        "General/Price Source": "pricedb-latest"
+      },
+      "checks": [
+        { "name": "portfolio: pricedb-latest", "line": 56, "select": { "table": 1, "row": 1, "column": null }, "expected": ["AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$252.00"], "meaning": "AAPL at the default Date: 42 shares at the latest price, $6.00 (1981-03-01)" }
+      ]
+    },
+    {
+      "id": "portfolio-nearest",
+      "lines": "60-65",
+      "template": "Investment Portfolio",
+      "templateGuid": "4a6b82e8678c4f3d9e85d9f09634ca89",
+      "options": {
+        "General/Price Source": "pricedb-nearest",
+        "General/Date": { "absolute": "1980-03-01" }
+      },
+      "checks": [
+        { "name": "portfolio: pricedb-nearest", "line": 63, "select": { "table": 1, "row": 1, "column": null }, "expected": ["AAPL", "AAPL", "NASDAQ", "2.00", "$200.00", "$400.00"], "meaning": "AAPL at the end of 1980-03-01: 2 shares at the price nearest local noon of that day, $200.00" }
+      ]
+    },
+    {
+      "id": "portfolio-average-cost",
+      "lines": "67-72",
+      "template": "Investment Portfolio",
+      "templateGuid": "4a6b82e8678c4f3d9e85d9f09634ca89",
+      "options": {
+        "General/Price Source": "average-cost",
+        "General/Date": { "absolute": "1980-09-01" }
+      },
+      "checks": [
+        { "name": "portfolio: average-cost", "line": 70, "select": { "table": 1, "row": 1, "column": null }, "expected": ["AAPL", "AAPL", "NASDAQ", "1.00", "$200.00", "$200.00"], "meaning": "AAPL at the end of 1980-09-01: 1 share, priced by 10,000 units through gnc:case-exchange-fn's average-cost conversion, divided by 10,000 and rounded to 5 significant figures (portfolio.scm:191-200)" }
+      ]
+    },
+    {
+      "id": "portfolio-weighted-average",
+      "lines": "74-78",
+      "template": "Investment Portfolio",
+      "templateGuid": "4a6b82e8678c4f3d9e85d9f09634ca89",
+      "options": {
+        "General/Price Source": "weighted-average",
+        "General/Date": { "absolute": "1980-09-01" }
+      },
+      "checks": [
+        { "name": "portfolio: weighted-average", "line": 76, "select": { "table": 1, "row": 1, "column": null }, "expected": ["AAPL", "AAPL", "NASDAQ", "1.00", "$233.33", "$233.33"], "meaning": "AAPL at the end of 1980-09-01: 1 share, priced by 10,000 units through gnc:case-exchange-fn's weighted-average conversion, divided by 10,000 and rounded to 5 significant figures (portfolio.scm:191-200)" }
+      ]
+    },
+    {
+      "id": "advanced-average",
+      "lines": "86-91",
+      "template": "Advanced Portfolio",
+      "templateGuid": "21d7cfc59fc74f22887596ebde7e462d",
+      "options": {},
+      "checks": [
+        { "name": "advanced: average basis", "line": 87, "select": { "table": 1, "row": 1, "column": null }, "expected": ["AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$484.88", "$252.00", "$800.00", "$543.00", "$227.88", "-$232.88", "-$5.00", "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%"], "meaning": "AAPL with the defaults (average-cost basis, fees in basis, pricedb-nearest): shares, price, basis, value, money in, money out, realized gain, unrealized gain, total gain, rate of gain, income, brokerage fees, total return, rate of return. -0.63% and -0.13% are -5/800 and -1/800, ties rounded half away from zero" }
+      ]
+    },
+    {
+      "id": "advanced-fifo",
+      "lines": "93-99",
+      "template": "Advanced Portfolio",
+      "templateGuid": "21d7cfc59fc74f22887596ebde7e462d",
+      "options": {
+        "General/Basis calculation method": "fifo-basis"
+      },
+      "checks": [
+        { "name": "advanced: fifo basis", "line": 95, "select": { "table": 1, "row": 1, "column": null }, "expected": ["AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$543.94", "$252.00", "$800.00", "$543.00", "$286.94", "-$291.94", "-$5.00", "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%"], "meaning": "AAPL with a first-in first-out basis" }
+      ]
+    },
+    {
+      "id": "advanced-filo",
+      "lines": "101-107",
+      "template": "Advanced Portfolio",
+      "templateGuid": "21d7cfc59fc74f22887596ebde7e462d",
+      "options": {
+        "General/Basis calculation method": "filo-basis"
+      },
+      "checks": [
+        { "name": "advanced: filo basis", "line": 103, "select": { "table": 1, "row": 1, "column": null }, "expected": ["AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$400.00", "$252.00", "$800.00", "$543.00", "$143.00", "-$148.00", "-$5.00", "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%"], "meaning": "AAPL with a last-in first-out basis" }
+      ]
+    }
+  ]
+}
