@@ -40,7 +40,9 @@ Dates are pinned to the now of `design/reports.md` section 13, 2024-03-15 12:00:
 - `(current-time)` dates the invoice entries: 2024-03-15, stored as noon, 12:00:00 UTC (`invoice_data.py`). Each
   invoice is opened on its posting day (1980-09-01 to -08), which the test leaves unset (`invoice_data.py`).
 - The Reconciliation Report's default dates (`standard/reconcile-report.scm:42-47`), used only by its render-only
-  run (TT:1108-1109), read `start-prev-quarter` 2023-10-01 00:00:00 to `today` 2024-03-15 23:59:59 UTC.
+  run (TT:1108-1109), read `start-prev-quarter` 2023-12-15 00:00:00 to `today` 2024-03-15 23:59:59 UTC: quarters
+  count from the start of the accounting period, today with no preferences
+  (`5.17:libgnucash/engine/gnc-option-date.cpp:519-596`).
 
 Every other date is absolute in the test (1969-2000 transfers, 1980 invoices).
 

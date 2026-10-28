@@ -257,10 +257,10 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | Trial Balance                     | Debit and credit balances of every account         |    2.0     |  0.5   |
 |   ✅   | Cash Flow                         | Money into and out of chosen accounts              |    1.8     |  0.5   |
 |   ✅   | Equity Statement                  | Changes in equity over a period                    |    2.0     |  0.5   |
-|        | General Journal                   | Every transaction in date order                    |    2.0     |        |
-|        | General Ledger                    | Every split, grouped by account                    |    2.0     |        |
+|   ✅   | General Journal                   | Every transaction in date order                    |    2.0     |  0.5   |
+|   ✅   | General Ledger                    | Every split, grouped by account                    |    2.0     |  0.5   |
 |   ✅   | Transaction Report                | Filtered, sorted and subtotalled list of splits    |   1.6.1    |  0.5   |
-|        | Reconciliation Report             | Reconciled and outstanding splits per account      |    3.6     |        |
+|   ✅   | Reconciliation Report             | Reconciled and outstanding splits per account      |    3.6     |  0.5   |
 |   ❌   | Register report                   | Prints an account register                         |    1.6     |        |
 
 ### Analysis and charts
