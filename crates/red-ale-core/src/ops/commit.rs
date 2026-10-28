@@ -176,7 +176,13 @@ pub fn set_notes(t: &mut Transaction, notes: Option<&str>) {
 /// Stable sort putting splits with value ≥ 0 before those with value < 0 (`xaccTransSortSplits`,
 /// `5.17:libgnucash/engine/Transaction.cpp:540-553`).
 pub fn sort_splits(t: &mut Transaction) {
-    t.splits.sort_by_key(|s| s.value.is_negative());
+    sort_as_splits(&mut t.splits, |s| s);
+}
+
+/// Sort anything that stands for a transaction's splits as [`sort_splits`] sorts the splits, for a reader that must
+/// put something else in the same order, such as each split's element in the file.
+pub fn sort_as_splits<T>(items: &mut [T], split: impl Fn(&T) -> &Split) {
+    items.sort_by_key(|i| split(i).value.is_negative());
 }
 
 /// Build a split for a transaction in `currency`, applying the rounding rules.
