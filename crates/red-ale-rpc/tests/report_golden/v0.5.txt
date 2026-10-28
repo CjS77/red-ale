@@ -118,3 +118,87 @@ cashflow-barchart locale Cash Flow	5214 c9b7d2ed3b866cae
 cashflow-barchart locale Cash Flow Barchart	3635 e178c0959d3418ea
 cashflow-barchart locale Equity Statement	4616 dd34d753455bd87a
 cashflow-barchart locale Trial Balance	8324 f97395f4b8f7d43b
+average-balance us Balance Sheet (Multicolumn)	5960 dad3b5efacf015c4
+average-balance us Income Statement (Multicolumn)	5302 4682b312e18c9aac
+average-balance locale Balance Sheet (Multicolumn)	5956 eaf010a63c2be77c
+average-balance locale Income Statement (Multicolumn)	5294 c3e1f60c265105b4
+balsheet-pnl us Balance Sheet (Multicolumn)	12510 19fe7a824d92ff2a
+balsheet-pnl us Income Statement (Multicolumn)	6659 ab9a47b7309ecb5e
+balsheet-pnl locale Balance Sheet (Multicolumn)	12506 a16360ae349986a2
+balsheet-pnl locale Income Statement (Multicolumn)	6651 92af09b4f9453ce6
+budget us Balance Sheet (Multicolumn)	8369 f17f992a2ce956e8
+budget us Income Statement (Multicolumn)	8397 05ac94214324516f
+budget locale Balance Sheet (Multicolumn)	8365 47a91d513eedc5d0
+budget locale Income Statement (Multicolumn)	8389 680c630753366fd7
+category-average us Balance Sheet (Multicolumn)	5243 170a8227f78a17d2
+category-average us Income Statement (Multicolumn)	7005 78a8aac546390b52
+category-average locale Balance Sheet (Multicolumn)	5239 1543b509abb7986a
+category-average locale Income Statement (Multicolumn)	6997 250da4b298776d7a
+category-daily us Balance Sheet (Multicolumn)	5233 4b7e488e925aceac
+category-daily us Income Statement (Multicolumn)	7008 00de9184bb59997a
+category-daily locale Balance Sheet (Multicolumn)	5229 d45d3cf2b2509004
+category-daily locale Income Statement (Multicolumn)	7000 f32ac539accf78d2
+category-liability us Balance Sheet (Multicolumn)	5940 f953b57deaaf738a
+category-liability us Income Statement (Multicolumn)	5278 8b83804a2ced905c
+category-liability locale Balance Sheet (Multicolumn)	5936 a738584e5007a7a2
+category-liability locale Income Statement (Multicolumn)	5270 e2c659a1750b46e4
+category-multi us Balance Sheet (Multicolumn)	5676 5d18bec3900f4a1a
+category-multi us Income Statement (Multicolumn)	14479 c2129465a0518380
+category-multi locale Balance Sheet (Multicolumn)	5672 a8d95ea6c9728452
+category-multi locale Income Statement (Multicolumn)	14471 614fa2b4a35f6188
+charts-daily us Balance Sheet (Multicolumn)	7963 62d4a77c154b418f
+charts-daily us Income Statement (Multicolumn)	7145 1bdd6a2819719df0
+charts-daily locale Balance Sheet (Multicolumn)	7959 93878676b48899f7
+charts-daily locale Income Statement (Multicolumn)	7137 58c0e743a5e2fe28
+charts-net us Balance Sheet (Multicolumn)	8054 3c070485b61f524a
+charts-net us Income Statement (Multicolumn)	7145 1bdd6a2819719df0
+charts-net locale Balance Sheet (Multicolumn)	8050 a04457bb42b63e32
+charts-net locale Income Statement (Multicolumn)	7137 58c0e743a5e2fe28
+net-days us Balance Sheet (Multicolumn)	8488 879871a672c5986b
+net-days us Income Statement (Multicolumn)	15617 54b6870eec862a6b
+net-days locale Balance Sheet (Multicolumn)	8484 00fc15768dc1c363
+net-days locale Income Statement (Multicolumn)	15609 c168a23b7a576303
+test-data us Balance Sheet (Multicolumn)	8362 0265f60e072923f8
+test-data us Income Statement (Multicolumn)	8394 344112c981c7962d
+test-data locale Balance Sheet (Multicolumn)	8358 c6d12ba862a7d3f0
+test-data locale Income Statement (Multicolumn)	8386 7e4a5518239b69e5
+adjusting-entries us Balance Sheet (Multicolumn)	8369 c124abf85e180e55
+adjusting-entries us Income Statement (Multicolumn)	8394 344112c981c7962d
+adjusting-entries locale Balance Sheet (Multicolumn)	8365 b8c673d16205574d
+adjusting-entries locale Income Statement (Multicolumn)	8386 7e4a5518239b69e5
+adjusting-entries-fx us Balance Sheet (Multicolumn)	8369 6e37c4324620f893
+adjusting-entries-fx us Income Statement (Multicolumn)	8394 344112c981c7962d
+adjusting-entries-fx locale Balance Sheet (Multicolumn)	8365 9d2c66c2665cab5b
+adjusting-entries-fx locale Income Statement (Multicolumn)	8386 7e4a5518239b69e5
+cash-flow us Balance Sheet (Multicolumn)	8841 3e01e79d60e2ee69
+cash-flow us Income Statement (Multicolumn)	7540 eddb3036a6fb51ea
+cash-flow locale Balance Sheet (Multicolumn)	8837 47fba970ad9637c1
+cash-flow locale Income Statement (Multicolumn)	7532 118fe913f3a78822
+cashflow-barchart us Balance Sheet (Multicolumn)	9042 d97c0fdb3b112f6b
+cashflow-barchart us Income Statement (Multicolumn)	11515 9519200a2ed51fcb
+cashflow-barchart locale Balance Sheet (Multicolumn)	9038 56bdc1e7de67a3c3
+cashflow-barchart locale Income Statement (Multicolumn)	11507 843d08c2c232a153
+balsheet-pnl-extras us Balance Sheet (Multicolumn)	8988 b4804fa6a2ff2f16
+balsheet-pnl-extras us Cash Flow	5095 5e1bb3794c9bf839
+balsheet-pnl-extras us Cash Flow Barchart	3635 e178c0959d3418ea
+balsheet-pnl-extras us Equity Statement	4632 e71dafe7598c589a
+balsheet-pnl-extras us Income Statement (Multicolumn)	11680 fca186b0beaaaefb
+balsheet-pnl-extras us Trial Balance	7962 9eb174b8901b86e7
+balsheet-pnl-extras locale Balance Sheet (Multicolumn)	8984 855a1449c3744ede
+balsheet-pnl-extras locale Cash Flow	5087 91a2a119f80b4781
+balsheet-pnl-extras locale Cash Flow Barchart	3635 e178c0959d3418ea
+balsheet-pnl-extras locale Equity Statement	4620 84b29bbb711a2602
+balsheet-pnl-extras locale Income Statement (Multicolumn)	11672 248a72cb9a6b37c3
+balsheet-pnl-extras locale Trial Balance	7958 1d5791db59170277
+balsheet-pnl-extras-trading us Balance Sheet (Multicolumn)	10614 918ab50244f0c03d
+balsheet-pnl-extras-trading us Cash Flow	5095 5e1bb3794c9bf839
+balsheet-pnl-extras-trading us Cash Flow Barchart	3635 e178c0959d3418ea
+balsheet-pnl-extras-trading us Equity Statement	4632 e71dafe7598c589a
+balsheet-pnl-extras-trading us Income Statement (Multicolumn)	11788 d0c142c625991412
+balsheet-pnl-extras-trading us Trial Balance	7962 9eb174b8901b86e7
+balsheet-pnl-extras-trading locale Balance Sheet (Multicolumn)	10610 f8371204a7a4e4f5
+balsheet-pnl-extras-trading locale Cash Flow	5087 91a2a119f80b4781
+balsheet-pnl-extras-trading locale Cash Flow Barchart	3635 e178c0959d3418ea
+balsheet-pnl-extras-trading locale Equity Statement	4620 84b29bbb711a2602
+balsheet-pnl-extras-trading locale Income Statement (Multicolumn)	11780 3b611b9672ac3afa
+balsheet-pnl-extras-trading locale Trial Balance	7958 1d5791db59170277
