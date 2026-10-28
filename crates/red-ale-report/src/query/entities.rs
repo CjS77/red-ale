@@ -1,17 +1,21 @@
-//! The `Split`, `Transaction`, `Commodity` and `Price` handles (`design/reports.md` §5, "Split, Transaction,
+//! The `Split`, `Transaction`, `Commodity`, `Price` and `Lot` handles (`design/reports.md` §5, "Split, Transaction,
 //! Commodity, Price").
 
 use std::rc::Rc;
 
 use red_ale_core::ops::balances::{Balances, Total};
+use red_ale_core::ops::business::payments::lot_invoice;
 use red_ale_core::ops::commodities::{display_symbol, is_iso_namespace, lookup};
+use red_ale_core::ops::doc_links::doc_link;
 use red_ale_core::ops::transactions::find::share_price;
+use red_ale_core::ops::transactions::void::{void_former_amount, void_former_value};
+use red_ale_core::ops::transactions::{corr_account_code, corr_account_full_name, other_split};
 use red_ale_core::transaction::slot_paths;
 use red_ale_core::{Commodity, Price, Split, Transaction};
-use rhai::{Array, Dynamic, Engine, INT};
+use rhai::{Array, Dynamic, Engine, INT, Map};
 
 use super::book::numeric;
-use super::{BookHandle, CommodityHandle, Fallible, PriceHandle, SplitHandle, TransactionHandle, script_error};
+use super::{BookHandle, CommodityHandle, Fallible, LotHandle, PriceHandle, SplitHandle, TransactionHandle, script_error};
 use crate::number::Rational;
 
 pub(super) fn register(engine: &mut Engine) {
@@ -19,6 +23,7 @@ pub(super) fn register(engine: &mut Engine) {
     transaction(engine);
     commodity(engine);
     price(engine);
+    lot(engine);
 }
 
 fn text(s: Option<&str>) -> String {
@@ -57,6 +62,35 @@ fn split(engine: &mut Engine) {
     engine.register_get("sharePrice", field(|_, s| numeric(share_price(s)).map(Dynamic::from)));
     engine.register_get("balance", |s: &mut SplitHandle| running(s, Total::Balance));
     engine.register_get("noclosingBalance", |s: &mut SplitHandle| running(s, Total::Noclosing));
+    engine.register_get("voidFormerAmount", field(|_, s| numeric(void_former_amount(s)).map(Dynamic::from)));
+    engine.register_get("voidFormerValue", field(|_, s| numeric(void_former_value(s)).map(Dynamic::from)));
+    split_relations(engine);
+}
+
+/// The reads of a split that look past it: at its transaction's other splits, its account's book or its lot.
+fn split_relations(engine: &mut Engine) {
+    engine.register_get("otherSplit", |s: &mut SplitHandle| -> Fallible<Dynamic> {
+        let (t, split) = s.get()?;
+        let other = other_split(s.snap.book(), t, split.guid);
+        Ok(other.map_or(Dynamic::UNIT, |o| Dynamic::from(BookHandle(Rc::clone(&s.snap)).split(t, o))))
+    });
+    engine.register_get("corrAccountFullName", |s: &mut SplitHandle| -> Fallible<String> {
+        let (t, split) = s.get()?;
+        Ok(corr_account_full_name(s.snap.book(), t, split.guid))
+    });
+    engine.register_get("corrAccountCode", |s: &mut SplitHandle| -> Fallible<String> {
+        let (t, split) = s.get()?;
+        Ok(corr_account_code(s.snap.book(), t, split.guid))
+    });
+    engine.register_get("lot", |s: &mut SplitHandle| -> Fallible<Dynamic> {
+        let lot = s.get()?.1.lot.filter(|g| s.snap.book().lot(*g).is_some());
+        Ok(lot.map_or(Dynamic::UNIT, |guid| {
+            Dynamic::from(LotHandle {
+                snap: Rc::clone(&s.snap),
+                guid,
+            })
+        }))
+    });
 }
 
 /// A running total GnuCash keeps on the split (`xaccSplitGetBalance`, `xaccSplitGetNoclosingBalance`,
@@ -86,6 +120,7 @@ fn transaction(engine: &mut Engine) {
     engine.register_get("notes", field(|t| text(t.slots.get_str(slot_paths::NOTES)).into()));
     engine.register_get("isClosing", field(|t| Dynamic::from(t.is_closing())));
     engine.register_get("isVoid", field(|t| Dynamic::from(t.is_void())));
+    engine.register_get("docLink", field(|t| text(doc_link(&t.slots)).into()));
     engine.register_get(
         "splitCount",
         field(|t| Dynamic::from(INT::try_from(t.splits.len()).unwrap_or(INT::MAX))),
@@ -139,4 +174,21 @@ fn price(engine: &mut Engine) {
     engine.register_get("source", field(|p| Ok(text(p.source.as_deref()).into())));
     engine.register_get("type", field(|p| Ok(text(p.price_type.as_deref()).into())));
     engine.register_get("value", field(|p| numeric(p.value).map(Dynamic::from)));
+}
+
+fn lot(engine: &mut Engine) {
+    engine.register_type_with_name::<LotHandle>("Lot");
+    engine.register_fn("==", |a: &mut LotHandle, b: LotHandle| a.guid == b.guid);
+    engine.register_fn("!=", |a: &mut LotHandle, b: LotHandle| a.guid != b.guid);
+    engine.register_fn("to_string", |l: &mut LotHandle| format!("Lot({})", l.guid));
+    engine.register_get("guid", |l: &mut LotHandle| l.guid.to_string());
+    // `gncInvoiceGetInvoiceFromLot`: the invoice the lot's `gncInvoice/invoice-guid` slot names.
+    engine.register_get("invoice", |l: &mut LotHandle| -> Dynamic {
+        lot_invoice(l.snap.book(), l.guid).map_or(Dynamic::UNIT, |i| {
+            let map: Map = [("guid".into(), i.guid.to_string().into()), ("id".into(), i.id.clone().into())]
+                .into_iter()
+                .collect();
+            Dynamic::from(map)
+        })
+    });
 }
