@@ -1,0 +1,63 @@
+{
+  "fixture": "reports/lots-reverse-split.gnucash",
+  "builtBy": "scripts/report-fixtures/investment_lots.py",
+  "test": "5.17:gnucash/report/reports/standard/test/test-investment-lots.scm",
+  "licence": "GPL-2.0-or-later: the test has no notice of its own and is cited under GnuCash's licence",
+  "settings": {
+    "now": "2024-03-15T12:00:00Z",
+    "timeZone": "UTC",
+    "locale": "C (:15)",
+    "dateFormat": "not set: GnuCash's default, locale, which under C is %m/%d/%y; no check reads a date",
+    "reportCurrency": "USD",
+    "reverseBalancedAccounts": "none",
+    "accountingPeriod": "today to today",
+    "accountSeparator": "."
+  },
+  "accounts": {
+    "Root": "a0000000000000000000000000000001",
+    "Root.Assets": "a0000000000000000000000000000002",
+    "Root.Assets.Broker": "a0000000000000000000000000000003",
+    "Root.Assets.Broker.Cash": "a0000000000000000000000000000004",
+    "Root.Assets.Broker.AAPL": "a0000000000000000000000000000005"
+  },
+  "lots": {
+    "Root.Assets.Broker.AAPL": ["10000000000000000000000000000000"]
+  },
+  "book": "Book B, create-reverse-split-lot-test-data (:124-184): AAPL (NASDAQ, SCU 1). 2020-01-01 \"Buy AAPL lot\": AAPL +100 for $5,000 against Cash -$5,000. 2020-02-01 \"Reverse Split\": AAPL -50, value 0, split-type \"stock-split\", action \"Split\". Both AAPL splits are in one untitled lot; no prices. AAPL holds 50 shares. GnuCash's engine gives the lot a balance of 0 and calls it closed: gnc_lot_get_balance sums adjusted amounts, and the reverse split scales the buy's to 50 while keeping its own -50 (5.17:libgnucash/engine/Account.cpp:2285-2308, gnc-lot.cpp:505-511). Investment Lots reads raw amounts and never the engine's balance.",
+  "dates": "No date in the book depends on now. Every run keeps the default Start date and End date, start-accounting-period and today (5.17:gnucash/report/reports/standard/investment-lots.scm:353-359); with no preferences both are today, taken at the end of the day (:667-672): 2024-03-15 23:59:59 UTC for the pinned now. Both splits fall before the window, as in GnuCash's own run on any date after 2020.",
+  "optionValues": "Every run uses the template's default options.",
+  "cellSelection": "GnuCash reads text with sxml->table-row-col (5.17:gnucash/report/test/test-report-extras.scm:96-109) after stripping <script> elements (:40-42). Row 0 selects every <th> text of table 1, in document order: the test's header list (:737). \"columnOfHeader\": L stands for (sxml->table-row-col sxml 1 #f N), the texts of the Nth <td> of every row, where N is the 1-based position of the first text equal to L in the header list (find-col-index, :371-376); when no text equals L the test uses the empty list (:745-747, :770-775).",
+  "checkShapes": "\"contains\": the selected texts include this string. \"noneEqual\": no selected text equals it. \"noneContain\": no selected text contains it. \"always\": the assertion is the constant #t. \"equalTo\": the selected texts equal, as lists, those the same selection gives for the named run of another fixture.",
+  "runs": [
+    {
+      "id": "reverse-split-regression",
+      "lines": "733-760",
+      "template": "Investment Lots",
+      "templateGuid": "ab2acc24afd14630a551f98f1a35fa81",
+      "options": {},
+      "checks": [
+        { "name": "found-sold-splits-column", "line": 741, "select": { "table": 1, "row": 0, "column": null }, "contains": "Sold Splits", "meaning": "The header has a Sold Splits column" },
+        { "name": "realized-gain-column-optional-when-no-sales", "line": 742, "always": true, "meaning": "No assertion: (test-assert ... #t)" },
+        { "name": "no-sold-split-count-one", "line": 749, "select": { "table": 1, "row": null, "columnOfHeader": "Sold Splits" }, "noneEqual": "1", "meaning": "The reverse split is not counted as a sale" },
+        { "name": "no-phantom-negative-realized-loss", "line": 755, "select": { "table": 1, "row": null, "columnOfHeader": "Realized Gain" }, "noneContain": "(", "meaning": "No realized loss is shown for the reverse split" }
+      ]
+    },
+    {
+      "id": "reverse-split-vs-baseline",
+      "lines": "779-795",
+      "template": "Investment Lots",
+      "templateGuid": "ab2acc24afd14630a551f98f1a35fa81",
+      "options": {},
+      "checks": [
+        { "name": "sold-splits-equal-baseline-vs-reverse", "line": 792, "select": { "table": 1, "row": null, "columnOfHeader": "Sold Splits" }, "equalTo": { "fixture": "reports/lots-baseline.gnucash", "run": "baseline-lot" }, "meaning": "Sold Splits as in the book without the reverse split" },
+        { "name": "realized-gain-equal-baseline-vs-reverse", "line": 794, "select": { "table": 1, "row": null, "columnOfHeader": "Realized Gain" }, "equalTo": { "fixture": "reports/lots-baseline.gnucash", "run": "baseline-lot" }, "meaning": "Realized Gain as in the book without the reverse split" }
+      ]
+    }
+  ],
+  "codeReading": "From design/notes/report-investments.md 4.6, read from the Scheme and not run: (1) with the default \"Group gains by age\" of gains-only the realized gain headers are \"ST Realized Gain\" and \"LT Realized Gain\" (investment-lots.scm:124-126, :1046-1050), so no text equals \"Realized Gain\" and both Realized Gain selections are empty lists; (2) the account name heads each account's rows in a column-heading-left cell, which the plain style sheet writes as <th> (5.17:gnucash/report/stylesheets/plain.scm:105-112), so the header list starts with it and \"Sold Splits\" stands one position after its column: the selection reads the column to its right, Sold Amount; (3) the window holds no split, so nothing is sold in it. The assertions hold for any of these readings.",
+  "workedFromCode": {
+    "source": "design/notes/report-investments.md 4.6: hand-worked from the Scheme, not run, and not GnuCash's assertions. The book agrees with their inputs: one lot holding both splits, 50 shares held, no prices.",
+    "run": "reverse-split-regression",
+    "figures": { "End Amount": "50. AAPL", "End Basis": "$5,000.00", "LT Unrealized Gain": "-$5,000.00", "Unrealized CAGR": "-100.0%", "price line": "No price found" }
+  }
+}
