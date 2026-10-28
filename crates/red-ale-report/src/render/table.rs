@@ -1,13 +1,14 @@
 //! Tables of the report result as HTML (`design/reports.md` §8, "Tables"): an amount column with `levels` becomes
-//! that many cell columns, GnuCash's staircase; a `commodities` cell becomes a small nested table; links become data
-//! attributes, never `href`s.
+//! that many cell columns, GnuCash's staircase; a `commodities` cell becomes a small nested table; a column's
+//! `labelLines` become stacked header rows; links become data attributes, never `href`s, and a linked document's link
+//! becomes nothing.
 
 use red_ale_locale::Conventions;
 
 use super::look::Look;
 use super::text::{escape, escape_lines};
 use crate::number::{Rational, display_exact};
-use crate::result::{Align, Cell, CellContent, Column, ColumnRole, Row, RowRole, Table};
+use crate::result::{Align, Anchor, Cell, CellContent, Column, ColumnRole, Link, Row, RowRole, Table};
 
 /// The most staircase positions or spanned columns drawn, so a malformed result cannot blow up the page.
 const MAX_WIDTH: usize = 64;
@@ -20,7 +21,8 @@ pub(super) fn table(t: &Table, look: &Look) -> String {
         .collect();
     let total: usize = widths.iter().sum::<usize>().max(1);
     let caption = t.title.as_ref().map(|title| format!("<caption>{}</caption>", escape(title)));
-    let head = t.columns.iter().any(|c| !c.label.is_empty()).then(|| head(&t.columns, &widths));
+    let labelled = |c: &Column| !c.label.is_empty() || c.label_lines.iter().flatten().any(|l| !l.is_empty());
+    let head = t.columns.iter().any(labelled).then(|| head(&t.columns, &widths));
     let rows = t.rows.iter().scan(0_usize, |striped, row| {
         let alternate = matches!(row.role, RowRole::Data | RowRole::Account) && {
             *striped += 1;
@@ -69,20 +71,24 @@ fn colspan(n: usize) -> String {
     if n > 1 { format!(" colspan=\"{n}\"") } else { String::new() }
 }
 
+/// The header: one row, or as many as the most `labelLines` of a column, GnuCash's multi-row column headers; a column
+/// without lines shows its label in the first row.
 fn head(columns: &[Column], widths: &[usize]) -> String {
-    let cells: Vec<String> = columns
-        .iter()
-        .zip(widths)
-        .map(|(c, w)| {
-            format!(
-                "<th class=\"column-heading-{}\"{}>{}</th>",
-                align_name(align_of(c)),
-                colspan(*w),
-                escape_lines(&c.label)
-            )
-        })
-        .collect();
-    format!("<thead>\n<tr>{}</tr>\n</thead>", cells.concat())
+    let rows = columns.iter().filter_map(|c| c.label_lines.as_ref().map(Vec::len)).max().unwrap_or(1);
+    let line = |c: &'_ Column, k: usize| match &c.label_lines {
+        Some(lines) => lines.get(k).map_or(String::new(), |l| escape_lines(l)),
+        None if k == 0 => escape_lines(&c.label),
+        None => String::new(),
+    };
+    let row = |k: usize| {
+        let cells: Vec<String> = columns
+            .iter()
+            .zip(widths)
+            .map(|(c, w)| format!("<th class=\"column-heading-{}\"{}>{}</th>", align_name(align_of(c)), colspan(*w), line(c, k)))
+            .collect();
+        format!("<tr>{}</tr>", cells.concat())
+    };
+    format!("<thead>\n{}\n</thead>", (0..rows).map(row).collect::<Vec<_>>().join("\n"))
 }
 
 /// The role's name, as in the result's JSON.
@@ -169,13 +175,13 @@ fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize,
     let content = cell.content();
     let total = is_total(row.role);
     let label_column = column.is_some_and(|c| c.role == ColumnRole::Label);
-    let text = matches!(content, Some(CellContent::Text(_)) | None);
+    let text = matches!(content, Some(CellContent::Text(_) | CellContent::Anchors(_)) | None);
     let kind = match content {
-        Some(CellContent::Text(_)) | None if total => "total-label-cell",
-        Some(CellContent::Text(_)) | None => "text-cell",
+        _ if text && total => "total-label-cell",
+        _ if text => "text-cell",
         Some(CellContent::Date(_)) => "date-cell",
-        Some(_) if total => "total-number-cell",
-        Some(_) => "number-cell",
+        _ if total => "total-number-cell",
+        _ => "number-cell",
     };
     let negative = match content {
         Some(CellContent::Monetary(m)) => m.amount.is_negative(),
@@ -203,7 +209,7 @@ fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize,
     format!(
         "<td class=\"{class}\"{}{depth}{data}>{}{}</td>",
         colspan(span),
-        linked(cell, look, content_html(cell, &look.numbers)),
+        linked(cell, look, content_html(cell, look)),
         footnote_mark(cell, notes)
     )
 }
@@ -213,29 +219,44 @@ fn data_attributes(cell: &Cell, look: &Look) -> String {
         return String::new();
     }
     let account = cell.account.map(|a| format!(" data-account=\"{}\"", a.0));
-    let link = cell
-        .link
-        .as_ref()
+    account.into_iter().chain(link_data(cell.link.as_ref(), look)).collect()
+}
+
+/// ` data-link` with the link's JSON, while links are on; nothing for a linked document, which the result only
+/// describes (`design/reports.md` §8).
+pub(super) fn link_data(link: Option<&Link>, look: &Look) -> Option<String> {
+    link.filter(|l| look.links && l.is_live())
         .and_then(|l| serde_json::to_string(l).ok())
-        .map(|json| format!(" data-link=\"{}\"", escape(&json)));
-    account.into_iter().chain(link).collect()
+        .map(|json| format!(" data-link=\"{}\"", escape(&json)))
 }
 
 /// Content that names an account or links somewhere, marked so the link font and colour apply, as GnuCash's `<a>`
 /// would be; with links off, plain text, as GnuCash drops the `<a>` tag.
 fn linked(cell: &Cell, look: &Look, html: String) -> String {
-    if look.links && (cell.account.is_some() || cell.link.is_some()) {
+    if look.links && (cell.account.is_some() || cell.link.as_ref().is_some_and(Link::is_live)) {
         format!("<span class=\"link\">{html}</span>")
     } else {
         html
     }
 }
 
-fn content_html(cell: &Cell, numbers: &Conventions) -> String {
+/// An `anchors` cell's text, one anchor per line, as the Transaction Report's invoice cell
+/// (`5.17:gnucash/report/trep-engine.scm:1036-1049`).
+fn anchors_html(anchors: &[Anchor], look: &Look) -> String {
+    let one = |a: &Anchor| match link_data(Some(&a.link), look) {
+        Some(data) => format!("<span class=\"link\"{data}>{}</span>", escape_lines(&a.text)),
+        None => escape_lines(&a.text),
+    };
+    anchors.iter().map(one).collect::<Vec<_>>().join("<br>")
+}
+
+fn content_html(cell: &Cell, look: &Look) -> String {
+    let numbers: &Conventions = &look.numbers;
     let shown = |display: &Option<String>, exact: &dyn Fn() -> String| escape(&display.clone().unwrap_or_else(exact)).into_owned();
     let display_exact = |v: &Rational| display_exact(v, numbers);
     match cell.content() {
         Some(CellContent::Text(text)) => escape_lines(text),
+        Some(CellContent::Anchors(anchors)) => anchors_html(anchors, look),
         Some(CellContent::Monetary(m)) => shown(&cell.display, &|| display_exact(&m.amount)),
         Some(CellContent::Number(n) | CellContent::Price(n)) => shown(&cell.display, &|| display_exact(n)),
         Some(CellContent::Date(t)) => shown(&cell.display, &|| {

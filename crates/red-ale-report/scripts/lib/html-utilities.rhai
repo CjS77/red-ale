@@ -1,6 +1,6 @@
-// lib/html-utilities: chart colours, the exchange-rates table and the warnings reports show instead of figures.
+// lib/html-utilities: anchors, chart colours, the exchange-rates table and the warnings reports show instead of figures.
 //
-// Translated from 5.17:gnucash/report/html-utilities.scm (lines 226-381), cited below as HU. Its header:
+// Translated from 5.17:gnucash/report/html-utilities.scm (lines 188-381), cited below as HU. Its header:
 //
 // html-utilities.scm: Useful functions when using the HTML generator.
 //
@@ -45,6 +45,50 @@ fn assign_colors(num_colors) {
         result.push(base_colors[i % base_colors.len()]);
     }
     result
+}
+
+/// `gnc:html-split-anchor` (HU:195-200): `cell` linked to `split` in its register, unlinked when the split has no
+/// account.
+fn html_split_anchor(split, cell) {
+    if type_of(split.account) != "()" {
+        cell.link = #{ split: split };
+    }
+    cell
+}
+
+/// `gnc:html-transaction-anchor` (HU:202-205): `cell` linked to `trans`.
+fn html_transaction_anchor(trans, cell) {
+    cell.link = #{ transaction: trans };
+    cell
+}
+
+/// `gnc:html-transaction-doclink-anchor` and `gnc:html-invoice-doclink-anchor` (HU:207-215): `cell` linked to the
+/// document at `uri`, the transaction's or invoice's linked document, which GnuCash looks up from its GUID.
+fn html_doclink_anchor(uri, cell) {
+    cell.link = #{ docLink: uri };
+    cell
+}
+
+/// `gnc:html-price-anchor` (HU:217-224): a price cell of `price`'s value in `currency`, linked to it; with no price,
+/// `value` unlinked.
+fn html_price_anchor(price, currency, value) {
+    if type_of(price) == "()" {
+        return #{ price: value, currency: currency };
+    }
+    #{ price: if type_of(value) == "()" { price.value } else { value }, currency: currency, link: #{ price: price } }
+}
+
+/// An invoice's anchor in an `anchors` cell, as the Transaction Report's invoice cell writes one
+/// (`5.17:gnucash/report/trep-engine.scm:1036-1049`): `text`, its ID, linked to the invoice with GUID `invoice`
+/// (`gnc:invoice-anchor-text`, HU:127-128).
+fn invoice_anchor(invoice, text) {
+    #{ text: text, link: #{ invoice: invoice } }
+}
+
+/// `gnc:html-markup-ul` (`5.17:gnucash/report/html-text.scm:210-215`): a list block of `items`, each a text or a map
+/// `#{ text, account }` (an account anchor, as `gnc:html-account-anchor` makes, HU:188-193).
+fn html_markup_ul(items) {
+    #{ kind: "list", items: items.map(|i| if type_of(i) == "string" { #{ text: i } } else { i }) }
 }
 
 /// `gnc:html-make-rates-table` (HU:257-274): a table of the price in `currency` of one unit of each commodity the

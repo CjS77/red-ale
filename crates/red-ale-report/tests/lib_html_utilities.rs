@@ -117,3 +117,48 @@ fn warnings() {
         .collect();
     assert_eq!(got, want.map(|(t, x)| (t.to_owned(), x.to_owned())));
 }
+
+/// The anchors (HU:188-224) as cells, links and blocks of the result: a split, a transaction, a price, an invoice
+/// and a linked document, and `gnc:html-markup-ul` as a list block; the host fills a date period's display.
+#[test]
+fn anchors_build_links_and_lists() {
+    let got = blocks(
+        r#"
+        let funds = book.account("Root:Asset:Broker:Funds");
+        let bank = funds.parent;
+        let split = funds.splits()[0];
+        let price = book.prices(funds.commodity, usd)[0];
+        let day = |m, d| ctx.make_time(#{ year: 2024, month: m, day: d });
+        let cells = [html::html_split_anchor(split, #{ monetary: monetary(usd, split.amount) }),
+                     html::html_transaction_anchor(split.transaction, #{ text: "t" }),
+                     html::html_doclink_anchor("file:///r.pdf", #{ text: "L" }),
+                     html::html_price_anchor(price, usd, ()),
+                     html::html_price_anchor((), usd, rational(3)),
+                     #{ anchors: [html::invoice_anchor(split.guid, "000001")] },
+                     // `until` is a Rhai keyword, so the key is quoted.
+                     #{ date: day.call(1, 1), "until": day.call(12, 31) }];
+        let columns = cells.map(|c| #{ label: "", role: "text" });
+        columns[0].labelLines = ["Asset", "Broker"];
+        let blocks = [#{ kind: "text", text: "Barchart", link: #{ account: bank } },
+                      html::html_markup_ul(["Cash", #{ text: bank.name, account: bank }]),
+                      #{ kind: "table", columns: columns, rows: [#{ cells: cells }] },
+                      #{ kind: "text", text: `${split.guid} ${split.transaction.guid} ${price.guid}` }];
+    "#,
+    );
+    let ids: Vec<&str> = got[3]["text"].as_str().unwrap().split(' ').collect();
+    let ids = json!({ "split": ids[0], "transaction": ids[1], "price": ids[2] });
+    let cells = &got[2]["rows"][0]["cells"];
+    assert_eq!(cells[0]["link"], json!({ "split": ids["split"] }));
+    assert_eq!(cells[1]["link"], json!({ "transaction": ids["transaction"] }));
+    assert_eq!(cells[2]["link"], json!({ "docLink": "file:///r.pdf" }));
+    assert_eq!(cells[3]["link"], json!({ "price": ids["price"] }));
+    assert!(cells[3]["display"].is_string());
+    assert_eq!(cells[4].get("link"), None);
+    assert_eq!(cells[4]["display"], "$3.00");
+    assert_eq!(cells[5]["anchors"], json!([{ "text": "000001", "link": { "invoice": ids["split"] } }]));
+    assert_eq!(cells[6]["display"], "01/01/24 to 12/31/24");
+    assert_eq!(got[2]["columns"][0]["labelLines"], json!(["Asset", "Broker"]));
+    assert_eq!(got[1]["items"][0], json!({ "text": "Cash" }));
+    assert_eq!(got[1]["items"][1]["text"], "Broker");
+    assert_eq!(got[0]["link"]["account"], got[1]["items"][1]["account"]);
+}

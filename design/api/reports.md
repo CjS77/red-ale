@@ -37,7 +37,11 @@ for a saved configuration.
 
 `Options` (a param): `{ "<section>": { "<name>": <value> } }`, only the options to change; wire forms in §6.
 
-`ReportResult`: the published language of §7, listed in `api.schema`.
+`ReportResult`: the published language of §7, listed in `api.schema`. Additions in `redAleApi` 0.5.0, each an optional
+field or a new kind (`api.md`, "Versioning"): link kinds `split`, `transaction`, `invoice`,
+`price` and `docLink` (§7, "Links"); `anchors` cells and `until` on date cells, with the host's `localUntil` (§7,
+"Tables"); `labelLines` on columns; `link` on text blocks; `list` blocks (§7, "Blocks"). `report.export` renders a
+`docLink` as plain text (§8).
 
 ## Methods
 

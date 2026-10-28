@@ -151,6 +151,17 @@
               "description": "What the text is.",
               "$ref": "#/$defs/TextRole",
               "default": "paragraph"
+            },
+            "link": {
+              "description": "Something the text leads to, such as the Multicolumn statements' \"Barchart\" report\n(`5.17:gnucash/report/reports/standard/balsheet-pnl.scm:1079-1083`).",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Link"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -345,6 +356,28 @@
           ]
         },
         {
+          "description": "A bulleted list (`gnc:html-markup-ul`, `5.17:gnucash/report/html-text.scm:210-215`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "list"
+            },
+            "items": {
+              "description": "The items, in order.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ListItem"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "items"
+          ]
+        },
+        {
           "description": "Set by the host only: the options that differ from their defaults (`gnc:html-render-options-changed`).",
           "type": "object",
           "properties": {
@@ -388,6 +421,133 @@
         }
       ]
     },
+    "Link": {
+      "description": "Something a client can open, as GnuCash's anchors (`5.17:gnucash/report/html-utilities.scm:82-128`): an account,\nsplit or transaction in a register, an invoice, a price, a linked document, or another report, GnuCash's\ndrill-down (`5.17:gnucash/report/reports/standard/category-barchart.scm:589-609`). GnuCash makes a report instance\nfor a report link at render time; red-ale only describes it, and a client runs it.",
+      "oneOf": [
+        {
+          "description": "`{ \"account\": \"<guid>\" }`: the account's register (`gnc:account-anchor-text`, `:85-88`).",
+          "type": "object",
+          "properties": {
+            "account": {
+              "description": "A GUID: 32 hexadecimal digits.",
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          "required": [
+            "account"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "`{ \"report\": { \"template\": \"<guid>\", \"options\": { … } } }`.",
+          "type": "object",
+          "properties": {
+            "report": {
+              "$ref": "#/$defs/ReportLink"
+            }
+          },
+          "required": [
+            "report"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "`{ \"split\": \"<guid>\" }`: the split in its account's register (`gnc:split-anchor-text`, `:90-91`).",
+          "type": "object",
+          "properties": {
+            "split": {
+              "description": "A GUID: 32 hexadecimal digits.",
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          "required": [
+            "split"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "`{ \"transaction\": \"<guid>\" }`: the transaction in a register (`gnc:transaction-anchor-text`, `:93-94`).",
+          "type": "object",
+          "properties": {
+            "transaction": {
+              "description": "A GUID: 32 hexadecimal digits.",
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          "required": [
+            "transaction"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "`{ \"invoice\": \"<guid>\" }`: an invoice, bill or voucher (`gnc:invoice-anchor-text`, `:127-128`).",
+          "type": "object",
+          "properties": {
+            "invoice": {
+              "description": "A GUID: 32 hexadecimal digits.",
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          "required": [
+            "invoice"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "`{ \"price\": \"<guid>\" }`: a price in the price database (`gnc:price-anchor-text`, `:107-110`).",
+          "type": "object",
+          "properties": {
+            "price": {
+              "description": "A GUID: 32 hexadecimal digits.",
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          "required": [
+            "price"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "`{ \"docLink\": \"<uri>\" }`: a transaction's or invoice's linked document (`gnc:transaction-doclink-anchor-text`,\n`:96-100`). Described only: a page shows its text unlinked, so an exported page points at no file.",
+          "type": "object",
+          "properties": {
+            "docLink": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "docLink"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ReportLink": {
+      "description": "A link to a report run.",
+      "type": "object",
+      "properties": {
+        "template": {
+          "description": "The template to run.",
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{32}$"
+        },
+        "options": {
+          "description": "The options to change, in the form `report.run` takes.",
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "template"
+      ]
+    },
     "Column": {
       "description": "A column.",
       "type": "object",
@@ -420,6 +580,16 @@
           ],
           "format": "uint32",
           "minimum": 0
+        },
+        "labelLines": {
+          "description": "The heading as stacked lines, top first, when it takes several header rows: GnuCash's multi-row column headers\n(`gnc:html-table-set-multirow-col-headers!`, `5.17:gnucash/report/reports/standard/txn-columns.scm:170-174`).\n`label` still names the column for a client that reads one line.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false,
@@ -562,7 +732,7 @@
       ]
     },
     "Cell": {
-      "description": "A cell. It holds exactly one of `text`, `monetary`, `commodities`, `number`, `price` and `date`; the display fields\nare filled in by the host.",
+      "description": "A cell. It holds exactly one of `text`, `monetary`, `commodities`, `number`, `price`, `date` and `anchors`; the\ndisplay fields are filled in by the host.",
       "type": "object",
       "properties": {
         "text": {
@@ -623,6 +793,24 @@
           ],
           "format": "date-time"
         },
+        "anchors": {
+          "description": "Pieces of text, each linked, shown one per line: the Transaction Report's invoice cell\n(`5.17:gnucash/report/trep-engine.scm:1036-1049`).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Anchor"
+          }
+        },
+        "until": {
+          "description": "For a `date`: the end of the period it starts, shown `<date> to <until>`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
         "places": {
           "description": "For a `number`: decimals shown, default 2.",
           "type": [
@@ -664,8 +852,15 @@
             "null"
           ]
         },
+        "localUntil": {
+          "description": "Host: for a `date` with `until`, the local date of `until`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "display": {
-          "description": "Host: the figure as text, for `monetary`, `number`, `price` and `date` cells.",
+          "description": "Host: the figure as text, for `monetary`, `number`, `price` and `date` cells; `<date> to <until>` for a period.",
           "type": [
             "string",
             "null"
@@ -743,6 +938,11 @@
         {
           "required": [
             "date"
+          ]
+        },
+        {
+          "required": [
+            "anchors"
           ]
         }
       ]
@@ -824,58 +1024,23 @@
         "monetary"
       ]
     },
-    "Link": {
-      "description": "Something a client can open: an account register (`5.17:gnucash/report/html-utilities.scm:82-88`) or another\nreport, GnuCash's drill-down (`5.17:gnucash/report/reports/standard/category-barchart.scm:589-609`). GnuCash makes\na report instance for a report link at render time; red-ale only describes it, and a client runs it.",
-      "oneOf": [
-        {
-          "description": "`{ \"account\": \"<guid>\" }`.",
-          "type": "object",
-          "properties": {
-            "account": {
-              "description": "A GUID: 32 hexadecimal digits.",
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{32}$"
-            }
-          },
-          "required": [
-            "account"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "description": "`{ \"report\": { \"template\": \"<guid>\", \"options\": { … } } }`.",
-          "type": "object",
-          "properties": {
-            "report": {
-              "$ref": "#/$defs/ReportLink"
-            }
-          },
-          "required": [
-            "report"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "ReportLink": {
-      "description": "A link to a report run.",
+    "Anchor": {
+      "description": "One linked piece of text in an `anchors` cell.",
       "type": "object",
       "properties": {
-        "template": {
-          "description": "The template to run.",
-          "type": "string",
-          "pattern": "^[0-9a-fA-F]{32}$"
+        "text": {
+          "description": "The text shown.",
+          "type": "string"
         },
-        "options": {
-          "description": "The options to change, in the form `report.run` takes.",
-          "type": "object",
-          "additionalProperties": true,
-          "default": {}
+        "link": {
+          "description": "Where it leads.",
+          "$ref": "#/$defs/Link"
         }
       },
       "additionalProperties": false,
       "required": [
-        "template"
+        "text",
+        "link"
       ]
     },
     "ChartType": {
@@ -1230,6 +1395,28 @@
         }
       },
       "additionalProperties": false
+    },
+    "ListItem": {
+      "description": "One item of a list.",
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "The text.",
+          "type": "string"
+        },
+        "account": {
+          "description": "The account the item names, which links to its register (`gnc:html-account-anchor`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-fA-F]{32}$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
     },
     "OptionsSummaryRow": {
       "description": "One changed option in the options summary.",

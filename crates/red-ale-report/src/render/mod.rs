@@ -28,7 +28,7 @@ pub use sheet::{
 use look::{Line, Look};
 use text::{escape, escape_lines};
 
-use crate::result::{Block, LogEntry, LogLevel, OptionsSummary, ReportResult, Section, TextBlock, TextRole};
+use crate::result::{Block, ListBlock, LogEntry, LogLevel, OptionsSummary, ReportResult, Section, TextBlock, TextRole};
 use crate::settings::DateFormat;
 
 /// What the page needs besides the result and the style sheet: how to print the run's date, which header and footer
@@ -163,7 +163,8 @@ fn section(s: &Section, index: usize, look: &Look) -> String {
 /// A block; `path` is its position (`0-2`, `0-2-1` inside a group), which names a chart's `id`.
 fn block(b: &Block, path: &str, look: &Look) -> String {
     match b {
-        Block::Text(t) => text_block(t),
+        Block::Text(t) => text_block(t, look),
+        Block::List(l) => list(l, look),
         Block::Warning(w) => {
             format!(
                 "<div class=\"warning\" role=\"note\"><h3>{}</h3><p>{}</p></div>",
@@ -189,12 +190,34 @@ fn block(b: &Block, path: &str, look: &Look) -> String {
     }
 }
 
-fn text_block(t: &TextBlock) -> String {
+/// A text block; a link, while links are on, is a data attribute on its element and marks the text as a link.
+fn text_block(t: &TextBlock, look: &Look) -> String {
+    let data = table::link_data(t.link.as_ref(), look);
+    let text = match &data {
+        Some(_) => format!("<span class=\"link\">{}</span>", escape_lines(&t.text)),
+        None => escape_lines(&t.text),
+    };
+    let data = data.unwrap_or_default();
     match t.role {
-        TextRole::Heading => format!("<h3 class=\"text-heading\">{}</h3>", escape_lines(&t.text)),
-        TextRole::Paragraph => format!("<p>{}</p>", escape_lines(&t.text)),
-        TextRole::Note => format!("<p class=\"note\">{}</p>", escape_lines(&t.text)),
+        TextRole::Heading => format!("<h3 class=\"text-heading\"{data}>{text}</h3>"),
+        TextRole::Paragraph => format!("<p{data}>{text}</p>"),
+        TextRole::Note => format!("<p class=\"note\"{data}>{text}</p>"),
     }
+}
+
+/// A list block as `<ul>`, as `gnc:html-markup-ul` writes one (`5.17:gnucash/report/html-text.scm:210-215`); an
+/// item naming an account carries it as `data-account`, as table cells do.
+fn list(l: &ListBlock, look: &Look) -> String {
+    let item = |text: &str, account: Option<String>| match account {
+        Some(a) => format!("<li data-account=\"{a}\"><span class=\"link\">{}</span></li>", escape_lines(text)),
+        None => format!("<li>{}</li>", escape_lines(text)),
+    };
+    let items = l
+        .items
+        .iter()
+        .map(|i| item(&i.text, i.account.filter(|_| look.links).map(|a| a.0.to_string())));
+    let parts = std::iter::once("<ul class=\"list\">".to_owned()).chain(items).chain(["</ul>".to_owned()]);
+    parts.collect::<Vec<_>>().join("\n")
 }
 
 /// `gnc:html-render-options-changed` (`5.17:gnucash/report/html-utilities.scm:298-348`): `Section / Name: value`.
