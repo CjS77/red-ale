@@ -202,3 +202,51 @@ balsheet-pnl-extras-trading locale Cash Flow Barchart	3635 e178c0959d3418ea
 balsheet-pnl-extras-trading locale Equity Statement	4620 84b29bbb711a2602
 balsheet-pnl-extras-trading locale Income Statement (Multicolumn)	11780 3b611b9672ac3afa
 balsheet-pnl-extras-trading locale Trial Balance	7958 1d5791db59170277
+average-balance us Investment Portfolio	4032 828c26c25e3174bd
+average-balance locale Investment Portfolio	4028 9d197778d9b37251
+balsheet-pnl us Investment Portfolio	4617 afd3ec44f35ca9cb
+balsheet-pnl locale Investment Portfolio	4613 e43e85233405c1b7
+budget us Investment Portfolio	4032 828c26c25e3174bd
+budget locale Investment Portfolio	4028 9d197778d9b37251
+category-average us Investment Portfolio	4518 e8e5780edda635ff
+category-average locale Investment Portfolio	4514 7e4b41413f5e791b
+category-daily us Investment Portfolio	4512 f5f78cd40a451987
+category-daily locale Investment Portfolio	4508 1fe4a2b6e899cc83
+category-liability us Investment Portfolio	4512 58ffe4590e11933c
+category-liability locale Investment Portfolio	4508 dd8f0680b7ca4fb0
+category-multi us Investment Portfolio	4032 828c26c25e3174bd
+category-multi locale Investment Portfolio	4028 9d197778d9b37251
+charts-daily us Investment Portfolio	4032 828c26c25e3174bd
+charts-daily locale Investment Portfolio	4028 9d197778d9b37251
+charts-net us Investment Portfolio	4032 828c26c25e3174bd
+charts-net locale Investment Portfolio	4028 9d197778d9b37251
+net-days us Investment Portfolio	4506 591af58740e8c2c5
+net-days locale Investment Portfolio	4502 e30cfd08b54628a1
+test-data us Investment Portfolio	4032 828c26c25e3174bd
+test-data locale Investment Portfolio	4028 9d197778d9b37251
+adjusting-entries us Investment Portfolio	4032 828c26c25e3174bd
+adjusting-entries locale Investment Portfolio	4028 9d197778d9b37251
+adjusting-entries-fx us Investment Portfolio	4032 828c26c25e3174bd
+adjusting-entries-fx locale Investment Portfolio	4028 9d197778d9b37251
+cash-flow us Investment Portfolio	4032 828c26c25e3174bd
+cash-flow locale Investment Portfolio	4028 9d197778d9b37251
+cashflow-barchart us Investment Portfolio	4032 828c26c25e3174bd
+cashflow-barchart locale Investment Portfolio	4028 9d197778d9b37251
+balsheet-pnl-extras us Investment Portfolio	4032 828c26c25e3174bd
+balsheet-pnl-extras locale Investment Portfolio	4028 9d197778d9b37251
+balsheet-pnl-extras-trading us Investment Portfolio	4032 828c26c25e3174bd
+balsheet-pnl-extras-trading locale Investment Portfolio	4028 9d197778d9b37251
+stock-test-data us Balance Sheet (Multicolumn)	7989 ed520f2ec63a5bac
+stock-test-data us Cash Flow	4928 c531555c901e27d9
+stock-test-data us Cash Flow Barchart	3635 e178c0959d3418ea
+stock-test-data us Equity Statement	4632 071377eb3586f60e
+stock-test-data us Income Statement (Multicolumn)	7145 8498e79ca0fe7113
+stock-test-data us Investment Portfolio	4608 ad57a36b3c6082c2
+stock-test-data us Trial Balance	6397 8934e3f9a782f146
+stock-test-data locale Balance Sheet (Multicolumn)	7985 d3938d1c7fc9ded4
+stock-test-data locale Cash Flow	4920 d846c7f4c554e831
+stock-test-data locale Cash Flow Barchart	3635 e178c0959d3418ea
+stock-test-data locale Equity Statement	4620 c8d86eae02b0ba92
+stock-test-data locale Income Statement (Multicolumn)	7137 00eb210d830a605b
+stock-test-data locale Investment Portfolio	4604 f18d0f5be42d1946
+stock-test-data locale Trial Balance	6393 c10becda38215a76

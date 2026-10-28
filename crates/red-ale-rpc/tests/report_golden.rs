@@ -78,6 +78,7 @@ const V05_REPORTS: &[&str] = &[
     "Cash Flow Barchart",
     "Balance Sheet (Multicolumn)",
     "Income Statement (Multicolumn)",
+    "Investment Portfolio",
 ];
 
 /// The fixture books added in v0.5, on which `v0.5.txt` records the v0.5 reports besides `BOOKS`.
@@ -88,6 +89,7 @@ const V05_BOOKS: &[&str] = &[
     "cashflow-barchart",
     "balsheet-pnl-extras",
     "balsheet-pnl-extras-trading",
+    "stock-test-data",
 ];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
