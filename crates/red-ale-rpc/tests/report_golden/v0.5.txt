@@ -118,3 +118,43 @@ cashflow-barchart locale Cash Flow	5214 c9b7d2ed3b866cae
 cashflow-barchart locale Cash Flow Barchart	3635 e178c0959d3418ea
 cashflow-barchart locale Equity Statement	4616 dd34d753455bd87a
 cashflow-barchart locale Trial Balance	8324 f97395f4b8f7d43b
+average-balance us Transaction Report	3722 6935fd70da4b08c8
+average-balance locale Transaction Report	3722 6935fd70da4b08c8
+balsheet-pnl us Transaction Report	3722 6935fd70da4b08c8
+balsheet-pnl locale Transaction Report	3722 6935fd70da4b08c8
+budget us Transaction Report	3722 6935fd70da4b08c8
+budget locale Transaction Report	3722 6935fd70da4b08c8
+category-average us Transaction Report	3722 6935fd70da4b08c8
+category-average locale Transaction Report	3722 6935fd70da4b08c8
+category-daily us Transaction Report	3722 6935fd70da4b08c8
+category-daily locale Transaction Report	3722 6935fd70da4b08c8
+category-liability us Transaction Report	3722 6935fd70da4b08c8
+category-liability locale Transaction Report	3722 6935fd70da4b08c8
+category-multi us Transaction Report	3722 6935fd70da4b08c8
+category-multi locale Transaction Report	3722 6935fd70da4b08c8
+charts-daily us Transaction Report	3722 6935fd70da4b08c8
+charts-daily locale Transaction Report	3722 6935fd70da4b08c8
+charts-net us Transaction Report	3722 6935fd70da4b08c8
+charts-net locale Transaction Report	3722 6935fd70da4b08c8
+net-days us Transaction Report	3722 6935fd70da4b08c8
+net-days locale Transaction Report	3722 6935fd70da4b08c8
+test-data us Transaction Report	3722 6935fd70da4b08c8
+test-data locale Transaction Report	3722 6935fd70da4b08c8
+adjusting-entries us Transaction Report	3722 6935fd70da4b08c8
+adjusting-entries locale Transaction Report	3722 6935fd70da4b08c8
+adjusting-entries-fx us Transaction Report	3722 6935fd70da4b08c8
+adjusting-entries-fx locale Transaction Report	3722 6935fd70da4b08c8
+cash-flow us Transaction Report	3722 6935fd70da4b08c8
+cash-flow locale Transaction Report	3722 6935fd70da4b08c8
+cashflow-barchart us Transaction Report	3722 6935fd70da4b08c8
+cashflow-barchart locale Transaction Report	3722 6935fd70da4b08c8
+transaction us Cash Flow	5341 dd7811312ca1041f
+transaction us Cash Flow Barchart	6130 ff686923e96484cc
+transaction us Equity Statement	4634 6d4995d230096bd1
+transaction us Transaction Report	3722 6935fd70da4b08c8
+transaction us Trial Balance	9147 2c0ca52614a8ee72
+transaction locale Cash Flow	5333 79ec254170561827
+transaction locale Cash Flow Barchart	6114 ccfd0b5e58f36ec0
+transaction locale Equity Statement	4622 f650b8f5a96d30b1
+transaction locale Transaction Report	3722 6935fd70da4b08c8
+transaction locale Trial Balance	9143 e7ac28071c6ed8c2

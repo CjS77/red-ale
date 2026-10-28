@@ -740,11 +740,15 @@ fn the_table(result: &Value) -> Value {
 fn shown(table: &Value) -> Vec<String> {
     let cell = |c: &Value| match c {
         Value::Null => "-".to_owned(),
-        c if c["anchors"].is_array() => c["anchors"].as_array().unwrap().iter().map(|a| a["text"].as_str().unwrap()).collect::<Vec<_>>().join(","),
+        c if c["anchors"].is_array() => {
+            let anchors = c["anchors"].as_array().unwrap();
+            anchors.iter().map(|a| a["text"].as_str().unwrap()).collect::<Vec<_>>().join(",")
+        }
         c => c["display"].as_str().or_else(|| c["text"].as_str()).unwrap().to_owned(),
     };
     let head = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect::<Vec<_>>().join("|");
-    let rows = table["rows"].as_array().unwrap().iter().map(|r| r["cells"].as_array().unwrap().iter().map(cell).collect::<Vec<_>>().join("|"));
+    let row = |r: &Value| r["cells"].as_array().unwrap().iter().map(cell).collect::<Vec<_>>().join("|");
+    let rows = table["rows"].as_array().unwrap().iter().map(row);
     std::iter::once(head).chain(rows).collect()
 }
 
@@ -785,7 +789,8 @@ fn csv_export_errors() {
 fn custom_calculated_cells() {
     let funds = r#"#{ custom_calculated_cells: |options| [
         trep::calc_cell("Funds In", |s, tr| if s.amount > 0 { monetary(s.account.commodity, s.amount) }, false, true, false, (), true),
-        trep::calc_cell("Funds Out", |s, tr| if s.amount > 0 { () } else { monetary(s.account.commodity, -s.amount) }, false, true, false, (), false),
+        trep::calc_cell("Funds Out", |s, tr| if s.amount > 0 { () } else { monetary(s.account.commodity, -s.amount) },
+                        false, true, false, (), false),
     ] }"#;
     let options = bank_1969_1970(&json!({ "Sorting": { "Primary Subtotal": false }, "Display": { "Grand Total": true } }));
     let table = the_table(&render_on(host(), funds, &options, None));
@@ -793,9 +798,13 @@ fn custom_calculated_cells() {
     assert_eq!(rows[0], "Date|Num|Description|Memo/Notes|Transfer from/to|Funds In|Funds Out");
     assert_eq!(rows[1], "12/31/69|trn3|desc-3|-|Income|$29.00|-");
     assert_eq!(rows.last().unwrap(), "Grand Total|$29.00|$28.00");
-    let legacy = r#"#{ custom_calculated_cells: |options| [["Value", |s| monetary(s.account.commodity, s.value), true, true, false, ()]] }"#;
+    let legacy = r#"#{ custom_calculated_cells: |options|
+        [["Value", |s| monetary(s.account.commodity, s.value), true, true, false, ()]] }"#;
     let rows = shown(&the_table(&render_on(host(), legacy, &options, None)));
-    assert_eq!((rows[0].as_str(), rows.last().unwrap().as_str()), ("Date|Num|Description|Memo/Notes|Transfer from/to|Value", "Grand Total|$1.00"));
+    assert_eq!(
+        (rows[0].as_str(), rows.last().unwrap().as_str()),
+        ("Date|Num|Description|Memo/Notes|Transfer from/to|Value", "Grand Total|$1.00")
+    );
     let broken = r#"#{ custom_calculated_cells: |options| [#{ heading: "Broken" }] }"#;
     let result = render_on(host(), broken, &options, None);
     assert_eq!(shown(&the_table(&result))[0], "Date|Num|Description|Memo/Notes|Transfer from/to|Debit|Credit");
@@ -832,7 +841,8 @@ fn the_empty_report_message_follows_the_no_account_warning() {
         result["sections"][0]["blocks"].as_array().unwrap().iter().map(|b| b["kind"].as_str().unwrap().to_owned()).collect::<Vec<_>>()
     };
     assert_eq!(kinds(&json!({})), ["warning", "text"]);
-    let bad_regex = bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "(", "Use regular expressions for transaction filter": true } }));
+    let bad_regex =
+        bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "(", "Use regular expressions for transaction filter": true } }));
     assert_eq!(kinds(&bad_regex), ["warning", "text"]);
     assert_eq!(kinds(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))), ["warning"]);
     assert_eq!(kinds(&bank_1969_1970(&json!({}))), ["text", "table"]);
