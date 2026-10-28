@@ -230,3 +230,34 @@
   )
 )
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Options for saved report "Customers this year", based on template "4166a20981985fd2b07ff8cb3b7d384e"
+(let ()
+  (define (options-gen)
+    (let
+         (
+           (options (gnc:report-template-new-options/report-guid "4166a20981985fd2b07ff8cb3b7d384e" "Customer Summary"))
+           (new-embedded-report-ids '()) ;; only used with Multicolumn View Reports
+         )
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Start Date")))
+  ((lambda (o) (if o (gnc:option-set-value o '(relative . start-cal-year)))) option))
+
+
+      options
+    )
+  )
+  (gnc:define-report
+    'version 1
+    'name "Customers this year"
+    'report-guid "9d4e5f6a7b8c49d0a1b2c3d4e5f6a7b8"
+    'parent-type "4166a20981985fd2b07ff8cb3b7d384e"
+    'options-generator options-gen
+    'menu-path (list gnc:menuname-custom)
+    'renderer (gnc:report-template-renderer/report-guid "4166a20981985fd2b07ff8cb3b7d384e" "Customer Summary")
+  )
+)
