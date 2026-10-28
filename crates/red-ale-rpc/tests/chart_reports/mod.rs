@@ -45,6 +45,11 @@ impl Charts {
         charts
     }
 
+    /// The SQLite copy GnuCash 5.17 saved of `fixture` (`fixtures/sqlite/reports/`), open for writing.
+    pub fn open_sqlite(fixture: &str, date_format: &str) -> Self {
+        Self::open(&format!("../sqlite/reports/{fixture}"), date_format)
+    }
+
     /// No book yet.
     pub fn new(date_format: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
@@ -293,9 +298,22 @@ fn check(view: &TableView, html: &str, id: &str, c: &Value) {
         .iter()
         .map(|e| e.as_str().unwrap().to_owned())
         .collect();
+    if c["readAs"] == "number" {
+        let numbers = |v: &[String]| v.iter().map(|s| str_to_num(s)).collect::<Vec<_>>();
+        assert_eq!(numbers(&got), numbers(&want), "{what}: {got:?}");
+        return;
+    }
     assert_eq!(got, want, "{what}");
     want.iter()
         .for_each(|w| assert!(html.contains(&escaped(w)), "{what}: {w} is not in the HTML"));
+}
+
+/// A cell read as a number the way `str->num` of `5.17:gnucash/report/reports/standard/test/test-cashflow-barchart.scm:43-49`
+/// reads it: only digits, `-` and `.` kept. The result is that text with trailing zeros of a fraction dropped, so
+/// `"$1.00"` and `"1.0"` both read `1`, compared exactly without floating point.
+fn str_to_num(s: &str) -> String {
+    let kept: String = s.chars().filter(|c| c.is_ascii_digit() || *c == '-' || *c == '.').collect();
+    if kept.contains('.') { kept.trim_end_matches('0').trim_end_matches('.').to_owned() } else { kept }
 }
 
 /// A relation check: the implied text of each column, row by row.
