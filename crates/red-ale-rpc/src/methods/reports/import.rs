@@ -8,16 +8,17 @@
 
 use red_ale_core::Guid;
 use red_ale_report::error::OptionError;
-use red_ale_report::import::{self, Malformed, OptionForm, SavedReportForm, StyleSheetForm, WireOptions};
-use red_ale_report::options::{GENERAL, OptionDb, STYLESHEET, ValueContext};
+use red_ale_report::engine::TemplateInfo;
+use red_ale_report::import::{self, EmbeddedForm, Malformed, OptionForm, SavedReportForm, StyleSheetForm, WireOptions};
+use red_ale_report::options::{GENERAL, STYLESHEET, ValueContext};
 use red_ale_report::render::{PREDEFINED, StyleSheet, StyleSheetTemplate, left_out};
 use red_ale_service::reports::{SavedReport, StyleSheetRecord};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::style_sheets::{self as sheets, StyleSheetInfo, record};
-use super::{On, ReportInfo, ReportOptions, Reports, configurations};
+use super::{On, ReportInfo, ReportOptions, Reports, configurations, empty_book};
 use crate::dispatch::Context;
 use crate::error::RpcError;
 
@@ -74,12 +75,17 @@ pub struct SkippedEntry {
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IgnoredOption {
+    /// For an option of a Multicolumn View's embedded report, that report's position in the view's report-list, from
+    /// 0 (v0.5).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub child: Option<usize>,
     /// The option's section.
     pub section: String,
     /// The option's name.
     pub name: String,
     /// `unknown-option`: the template has no such option, and GnuCash ignores it too. `not-rendered`: kept in the
-    /// Configuration, with no effect in red-ale (a style sheet's images).
+    /// Configuration, with no effect in red-ale (a style sheet's images). `unsaved-children` (v0.5): the report-list
+    /// of a Multicolumn View embedded in another, whose own children GnuCash does not save.
     pub reason: String,
 }
 
@@ -146,8 +152,9 @@ impl SkippedEntry {
     }
 }
 
-fn ignored(wire: &WireOptions) -> Vec<IgnoredOption> {
+fn ignored(wire: &WireOptions, child: Option<usize>) -> Vec<IgnoredOption> {
     let one = |(section, name, why): &(String, String, import::Ignored)| IgnoredOption {
+        child,
         section: section.clone(),
         name: name.clone(),
         reason: why.name().to_owned(),
@@ -224,6 +231,7 @@ impl Reports {
             return Err(skip(SkipReason::Untranslated, message));
         };
         let forms = e.options.as_ref().map_err(|m| skip(SkipReason::Malformed, m.clone()))?;
+        let children = self.embedded(e.embedded.as_deref().unwrap_or_default()).map_err(|(r, m)| skip(r, m))?;
         if taken.iter().any(|s| s.guid == guid) {
             return Err(skip(
                 SkipReason::Exists,
@@ -237,11 +245,15 @@ impl Reports {
             ));
         }
         let mut sheets = self.sheets.names();
-        sheets.extend(named_style_sheet(forms).filter(|n| !sheets.contains(n)));
-        let db = self
-            .defaults(template, &sheets, on)
-            .map_err(|err| skip(SkipReason::InvalidOption, err.message))?;
-        let (changed, wire) = configure(db, forms, on).map_err(|err| skip(SkipReason::InvalidOption, option_message(&err)))?;
+        let named = [forms.as_slice()].into_iter().chain(children.iter().map(|(c, _)| c.options.as_slice()));
+        named.filter_map(named_style_sheet).for_each(|n| {
+            if !sheets.contains(&n) {
+                sheets.push(n);
+            }
+        });
+        let (changed, ignored) = self
+            .configure(template, forms, &children, &sheets, on)
+            .map_err(|message| skip(SkipReason::InvalidOption, message))?;
         let saved = SavedReport {
             guid,
             name: e.name.clone(),
@@ -255,24 +267,82 @@ impl Reports {
             line: e.line,
             configuration,
             options,
-            ignored: ignored(&wire),
+            ignored,
         };
         Ok((saved, imported))
     }
+
+    /// The template of each of a Multicolumn View's embedded reports. One red-ale has not translated makes the whole
+    /// entry `untranslated`, so importing again once it is translated adds the view whole
+    /// (`design/notes/report-statements-charts.md`, Q5).
+    fn embedded<'e>(&self, children: &'e [EmbeddedForm]) -> Result<Vec<(&'e EmbeddedForm, &TemplateInfo)>, (SkipReason, String)> {
+        children
+            .iter()
+            .enumerate()
+            .map(|(i, child)| {
+                let guid = Guid::parse(&child.template)
+                    .map_err(|_| (SkipReason::Malformed, format!("embedded report {i}: its template must be a GUID")))?;
+                let template = self.registry.template(guid).ok_or_else(|| {
+                    let message = format!(
+                        "red-ale has no translation of the report template {} ({:?}) of embedded report {i}",
+                        child.template, child.template_name
+                    );
+                    (SkipReason::Untranslated, message)
+                })?;
+                Ok((child, template))
+            })
+            .collect()
+    }
+
+    /// The options that differ from the template's defaults once the entry's values are set, a view's children among
+    /// them as placements of their templates with their options, and the options left out. Children are checked as
+    /// `report.saveConfiguration` checks them. Read without a Book.
+    fn configure(
+        &self,
+        template: &TemplateInfo,
+        forms: &[OptionForm],
+        children: &[(&EmbeddedForm, &TemplateInfo)],
+        sheets: &[&str],
+        on: &On<'_>,
+    ) -> Result<(Map<String, Value>, Vec<IgnoredOption>), String> {
+        let mut db = self.defaults(template, sheets, on).map_err(|e| e.message)?;
+        let wire = import::to_wire(&db, forms, |_, _| false).map_err(|e| option_message(&e))?;
+        let mut dropped = ignored(&wire, None);
+        let mut changes = wire.options;
+        let placements = children
+            .iter()
+            .enumerate()
+            .map(|(i, (child, t))| {
+                let in_child = |message: String| format!("embedded report {i}: {message}");
+                let db = self.defaults(t, sheets, on).map_err(|e| in_child(e.message))?;
+                let wire = import::to_wire(&db, &child.options, |_, _| false).map_err(|e| in_child(option_message(&e)))?;
+                dropped.extend(ignored(&wire, Some(i)));
+                Ok(json!({ "report": t.guid.0.to_string(), "options": wire.options, "colspan": child.colspan, "rowspan": child.rowspan }))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        if !placements.is_empty() {
+            let general = changes.entry(REPORT_LIST.0).or_insert_with(|| json!({}));
+            general[REPORT_LIST.1] = Value::Array(placements);
+        }
+        let changes = Value::Object(changes);
+        let values = ValueContext { book: None, zone: on.zone };
+        let book = empty_book();
+        let run = self.run_context(&book, on.now, on.zone, sheets, self.locale(None).map_err(|e| e.message)?);
+        db.apply(&changes, &values)
+            .and_then(|()| self.registry.check_children(&mut db, &changes, &run, &values))
+            .map_err(|e| option_message(&e))?;
+        Ok((db.changed(), dropped))
+    }
 }
+
+/// A Multicolumn View's children option (`5.17:gnucash/report/reports/standard/view-column.scm:42`).
+const REPORT_LIST: (&str, &str) = ("__general", "report-list");
 
 /// The style sheet an entry's General/"Stylesheet" option names, so it is a choice even before that style sheet is
 /// imported; it then renders with the base look, as for a deleted one (`design/reports.md` §8).
 fn named_style_sheet(forms: &[OptionForm]) -> Option<&str> {
     let form = forms.iter().find(|f| f.section == GENERAL && f.name == STYLESHEET)?;
     form.value.as_symbol().or_else(|| form.value.as_str())
-}
-
-/// The options that differ from the defaults once the entry's values are set, and the wire values.
-fn configure(mut db: OptionDb, forms: &[OptionForm], on: &On<'_>) -> Result<(Map<String, Value>, WireOptions), OptionError> {
-    let wire = import::to_wire(&db, forms, |_, _| false)?;
-    db.apply(&Value::Object(wire.options.clone()), &ValueContext { book: None, zone: on.zone })?;
-    Ok((db.changed(), wire))
 }
 
 /// Import style sheets. An entry for a predefined style sheet holds changes to it; one with a new name is a user
@@ -341,7 +411,7 @@ fn style_sheet_entry(e: StyleSheetForm, records: &[StyleSheetRecord]) -> Result<
         ImportedStyleSheet {
             line: e.line,
             style_sheet: StyleSheetInfo::of(&sheet),
-            ignored: ignored(&wire),
+            ignored: ignored(&wire, None),
         },
     ))
 }

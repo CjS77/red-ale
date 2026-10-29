@@ -17,6 +17,31 @@
 //!     'renderer (gnc:report-template-renderer/report-guid "<template guid>" "<template name>")))
 //! ```
 //!
+//! A Multicolumn View's entry (`gnc:report-serialize-embedded`, `5.17:gnucash/report/report-core.scm:567-618`) has
+//! more inside `options-gen`. Among its option forms, `__general`/`report-list` holds the saving session's report
+//! instance ids with each child's spans, `'((<id> <wide> <high> #f) …)`; after them comes one form per child, in
+//! placement order, then one form that puts the new instances' ids in place of the saved ones, written even when
+//! there are no children:
+//!
+//! ```scheme
+//! (let ((options (gnc:report-template-new-options/report-guid "<template guid>" "<template name>")))
+//!   <option forms>
+//!   (set! new-embedded-report-ids
+//!     (append new-embedded-report-ids
+//!       (list (gnc:restore-report-by-guid-with-custom-template #f "<template guid>" "<template name>"
+//!                                                              "<saved configuration guid, or empty>" options)))))
+//! (let* ((option (gnc-lookup-option (gnc:optiondb options) "__general" "report-list"))
+//!        (saved-report-list (GncOption-get-value option)))
+//!   ((lambda (option)
+//!      (if option ((gnc:option-setter option)
+//!                  (map (lambda (x y) (cons x (cdr y))) new-embedded-report-ids saved-report-list))))
+//!    option))
+//! ```
+//!
+//! 3.x and 4.x wrote the last form with `(gnc:lookup-option options …)` and `(gnc:option-value option)`
+//! (`4.14:gnucash/report/report-core.scm:586-600`). Only a view's own children are written: a child that is itself a
+//! view keeps its report-list of instance ids among its option forms, and its own children are not saved.
+//!
 //! A style sheet (`gnc:save-style-sheet-options`, `5.17:gnucash/report/html-style-sheet.scm:145-166`):
 //!
 //! ```scheme
@@ -65,8 +90,29 @@ pub struct SavedReportForm {
     pub guid: String,
     /// The GUID of the template it configures (`'parent-type`), as written.
     pub template: String,
-    /// The options it sets, or why they cannot be read.
+    /// The options it sets, or why they cannot be read. A Multicolumn View's report-list is not among them: it is read
+    /// into `embedded`.
     pub options: Result<Vec<OptionForm>, String>,
+    /// A Multicolumn View's children, in placement order; `None` for an entry that is not a view, or whose options
+    /// cannot be read.
+    pub embedded: Option<Vec<EmbeddedForm>>,
+}
+
+/// One child of a saved Multicolumn View: a copy of a report's options, as GnuCash makes one when the child is added
+/// (`5.17:gnucash/report/report-core.scm:389-409`). The saved configuration it was copied from, if any, is not kept:
+/// the options are complete without it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddedForm {
+    /// The GUID of its report template, as written.
+    pub template: String,
+    /// The template's name, as written.
+    pub template_name: String,
+    /// The options it sets.
+    pub options: Vec<OptionForm>,
+    /// The columns it spans (GnuCash's `wide`).
+    pub colspan: u32,
+    /// The rows it spans (GnuCash's `high`).
+    pub rowspan: u32,
 }
 
 /// A style sheet as GnuCash wrote it.
@@ -113,13 +159,17 @@ pub fn saved_report(form: &Form) -> Result<SavedReportForm, Malformed> {
             "gnc:define-report needs 'name, 'report-guid and 'parent-type strings".to_owned(),
         ));
     };
-    let options = options_gen(define_gen, &template);
+    let (options, embedded) = match options_gen(define_gen, &template) {
+        Ok((options, embedded)) => (Ok(options), embedded),
+        Err(message) => (Err(message), None),
+    };
     Ok(SavedReportForm {
         line: form.line,
         name,
         guid,
         template,
         options,
+        embedded,
     })
 }
 
@@ -233,9 +283,12 @@ fn define_report_keys(d: &Datum) -> Matched<Vec<(&str, &Datum)>> {
         .collect()
 }
 
+/// The option forms, and a view's children.
+type Body = (Vec<OptionForm>, Option<Vec<EmbeddedForm>>);
+
 /// `(define (options-gen) (let ((options (gnc:report-template-new-options/report-guid "<template>" "<name>")) …)
-/// <option forms> options))`.
-fn options_gen(d: &Datum, template: &str) -> Matched<Vec<OptionForm>> {
+/// <option forms> [<embedded report forms> <update form>] options))`.
+fn options_gen(d: &Datum, template: &str) -> Matched<Body> {
     let shape = || "expected (define (options-gen) (let ((options …)) … options))".to_owned();
     let [define, head, body] = d.as_list().ok_or_else(shape)? else {
         return Err(shape());
@@ -247,9 +300,129 @@ fn options_gen(d: &Datum, template: &str) -> Matched<Vec<OptionForm>> {
     let (bindings, forms) = let_parts(body).ok_or_else(shape)?;
     check_bindings(bindings, template)?;
     match forms.split_last() {
-        Some((last, option_forms)) if last.is_symbol("options") => option_list(option_forms),
+        Some((last, body)) if last.is_symbol("options") => options_body(body),
         _ => Err(shape()),
     }
+}
+
+/// A Multicolumn View's children option (`5.17:gnucash/report/reports/standard/view-column.scm:42`).
+const REPORT_LIST: (&str, &str) = ("__general", "report-list");
+
+const NEW_OPTIONS: &str = "gnc:report-template-new-options/report-guid";
+
+/// The forms of `options-gen`'s body: option forms and, for a view, its embedded reports and the update form. Each
+/// child takes its spans from the report-list at its position.
+fn options_body(forms: &[Datum]) -> Matched<Body> {
+    let Some((_, forms)) = forms.split_last().filter(|(last, _)| is_update_form(last)) else {
+        return Ok((option_list(forms)?, None));
+    };
+    let at = forms.iter().position(is_embedded_form).unwrap_or(forms.len());
+    let (option_forms, embedded_forms) = forms.split_at(at);
+    let mut options = option_list(option_forms)?;
+    let embedded = embedded_forms.iter().map(embedded_form).collect::<Matched<Vec<_>>>()?;
+    let spans = match options.iter().position(|o| (o.section.as_str(), o.name.as_str()) == REPORT_LIST) {
+        Some(i) => report_list_spans(&options.remove(i).value)?,
+        None => Vec::new(),
+    };
+    if spans.len() != embedded.len() {
+        return Err(format!(
+            "the report-list places {} reports, and {} embedded reports follow it",
+            spans.len(),
+            embedded.len()
+        ));
+    }
+    let children = embedded
+        .into_iter()
+        .zip(spans)
+        .map(|(child, (colspan, rowspan))| EmbeddedForm { colspan, rowspan, ..child })
+        .collect();
+    Ok((options, Some(children)))
+}
+
+/// The form that puts the restored children's ids in the view's report-list, 5.17's or 3.x and 4.x's, matched whole.
+fn is_update_form(d: &Datum) -> bool {
+    const LOOKUPS: [(&str, &str); 2] = [
+        (
+            r#"(gnc-lookup-option (gnc:optiondb options) "__general" "report-list")"#,
+            "(GncOption-get-value option)",
+        ),
+        (r#"(gnc:lookup-option options "__general" "report-list")"#, "(gnc:option-value option)"),
+    ];
+    LOOKUPS.iter().any(|(lookup, value)| {
+        let text = format!(
+            "(let* ((option {lookup}) (saved-report-list {value})) ((lambda (option) (if option ((gnc:option-setter option) \
+             (map (lambda (x y) (cons x (cdr y))) new-embedded-report-ids saved-report-list)))) option))"
+        );
+        super::sexp::read_one(&text).is_ok_and(|expected| expected == *d)
+    })
+}
+
+/// Whether `d` binds `options` as an embedded report's form does, where an option form binds `option`.
+fn is_embedded_form(d: &Datum) -> bool {
+    let_parts(d).is_some_and(|(bindings, _)| matches!(bindings, [b] if binding_call(b, "options", NEW_OPTIONS).is_some()))
+}
+
+/// One embedded report's form, its spans not yet known.
+fn embedded_form(d: &Datum) -> Matched<EmbeddedForm> {
+    let shape = || format!("not an embedded report form GnuCash writes: {}", short(d));
+    let (bindings, body) = let_parts(d).ok_or_else(shape)?;
+    let new_options = match bindings {
+        [b] => binding_call(b, "options", NEW_OPTIONS),
+        _ => None,
+    };
+    let Some([template, name]) = new_options else { return Err(shape()) };
+    let (Some(template), Some(name)) = (template.as_str(), name.as_str()) else {
+        return Err(shape());
+    };
+    let Some((_, option_forms)) = body.split_last().filter(|(restore, _)| restores(restore, template, name)) else {
+        return Err(shape());
+    };
+    Ok(EmbeddedForm {
+        template: template.to_owned(),
+        template_name: name.to_owned(),
+        options: option_list(option_forms)?,
+        colspan: 0,
+        rowspan: 0,
+    })
+}
+
+/// `(set! new-embedded-report-ids (append new-embedded-report-ids (list (gnc:restore-report-by-guid-with-custom-template
+/// #f "<template>" "<name>" "<custom template>" options))))`.
+fn restores(d: &Datum, template: &str, name: &str) -> bool {
+    const IDS: &str = "new-embedded-report-ids";
+    let restore = |d: &Datum| match d.as_list() {
+        Some([f, id, t, n, custom, options]) => {
+            f.is_symbol("gnc:restore-report-by-guid-with-custom-template")
+                && *id == Datum::Bool(false)
+                && t.as_str() == Some(template)
+                && n.as_str() == Some(name)
+                && custom.as_str().is_some()
+                && options.is_symbol("options")
+        }
+        _ => false,
+    };
+    let listed = |d: &Datum| matches!(d.as_list(), Some([l, r]) if l.is_symbol("list") && restore(r));
+    let appended = |d: &Datum| matches!(d.as_list(), Some([a, ids, l]) if a.is_symbol("append") && ids.is_symbol(IDS) && listed(l));
+    matches!(d.as_list(), Some([set, ids, a]) if set.is_symbol("set!") && ids.is_symbol(IDS) && appended(a))
+}
+
+/// The `(wide, high)` of each `(<id> <wide> <high> #f)` of a saved report-list (`5.17:bindings/guile/gnc-optiondb.i:304-321`).
+fn report_list_spans(d: &Datum) -> Matched<Vec<(u32, u32)>> {
+    let count = |d: &Datum| match d {
+        Datum::Number(n) if n.is_integer() => n.to_string().parse::<u32>().ok(),
+        _ => None,
+    };
+    let span = |item: &Datum| match item.as_list() {
+        Some([id, wide, high, rest @ ..]) if count(id).is_some() && matches!(rest, [] | [Datum::Bool(false)]) => count(wide).zip(count(high)),
+        _ => None,
+    };
+    let items = d
+        .as_list()
+        .ok_or_else(|| format!("report-list: expected ((<id> <wide> <high> #f) …), got {}", short(d)))?;
+    items
+        .iter()
+        .map(|item| span(item).ok_or_else(|| format!("report-list: not a placement (<id> <wide> <high> #f): {}", short(item))))
+        .collect()
 }
 
 /// `((options (gnc:report-template-new-options/report-guid "<template>" "<name>")) (new-embedded-report-ids '()))`,
@@ -481,6 +654,61 @@ mod tests {
         assert!(saved_report(&first("(let () (define (options-gen) options))")).is_err());
         let unknown_key = SAVED.replace("'version 1", "'evil 1");
         assert!(saved_report(&first(&unknown_key)).is_err());
+    }
+
+    /// The fixture's saved Multicolumn View, written as `gnc:report-serialize-embedded` writes one
+    /// (5.17:gnucash/report/report-core.scm:567-618).
+    fn view(edit: impl Fn(String) -> String) -> SavedReportForm {
+        let text = include_str!("../../../../fixtures/gnucash-userdata/saved-reports-2.8");
+        let at = text.find(";; Options for saved report \"Board pack\"").unwrap();
+        saved_report(&first(&edit(text[at..].to_owned()))).unwrap()
+    }
+
+    #[test]
+    fn reads_a_saved_view_and_its_embedded_reports() {
+        let entry = view(|t| t);
+        let names = |o: &[OptionForm]| o.iter().map(|o| format!("{}/{}", o.section, o.name)).collect::<Vec<_>>();
+        assert_eq!(names(entry.options.as_ref().unwrap()), ["General/Report name", "General/Number of columns"]);
+        let children = entry.embedded.unwrap();
+        let shape = |c: &EmbeddedForm| (c.template.clone(), c.template_name.clone(), c.colspan, c.rowspan, c.options.len());
+        assert_eq!(
+            children.iter().map(shape).collect::<Vec<_>>(),
+            [
+                ("3298541c236b494998b236dfad6ad752".to_owned(), "Account Summary".to_owned(), 1, 1, 3),
+                ("c4173ac99b2b448289bf4d11c731af13".to_owned(), "Balance Sheet".to_owned(), 1, 2, 2),
+                ("d8ba4a2e89e8479ca9f6eccdeb164588".to_owned(), "Multicolumn View".to_owned(), 2, 1, 2),
+            ]
+        );
+        assert_eq!(
+            names(&children[2].options),
+            ["General/Number of columns", "__general/report-list"],
+            "a nested view's report-list stays an option"
+        );
+        assert_eq!(saved_report(&first(SAVED)).unwrap().embedded, None, "not a view");
+    }
+
+    #[test]
+    fn reads_the_4_x_update_form() {
+        let old = view(|t| {
+            t.replace("(gnc-lookup-option (gnc:optiondb options) \"__general\"", "(gnc:lookup-option options \"__general\"")
+                .replace("(GncOption-get-value option)", "(gnc:option-value option)")
+        });
+        assert_eq!(old.embedded.map(|c| c.len()), Some(3));
+    }
+
+    #[test]
+    fn refuses_embedded_reports_not_as_gnucash_writes_them() {
+        let refused = |from: &str, to: &str| view(|t| t.replacen(from, to, 1)).options.unwrap_err();
+        assert!(refused("(13 1 2 #f) ", "").contains("places 2 reports, and 3 embedded reports"));
+        assert!(refused("(14 2 1 #f)", "(14 2 1 x)").contains("not a placement"));
+        assert!(refused("(14 2 1 #f)", "(14 2.5 1 #f)").contains("not a placement"));
+        assert!(refused("'2)", "(launch))").contains("not a literal value"), "an embedded option's value");
+        let other_template = "#f \"c4173ac99b2b448289bf4d11c731af13\" \"Income Statement\"";
+        assert!(refused("#f \"c4173ac99b2b448289bf4d11c731af13\" \"Balance Sheet\"", other_template).contains("not an embedded report form"));
+        assert!(refused("(set! new-embedded-report-ids", "(set! other-ids").contains("not an embedded report form"));
+        let update = "(map (lambda (x y) (cons x (cdr y))) new-embedded-report-ids saved-report-list)";
+        let wrong = refused(update, "(launch)");
+        assert!(wrong.contains("not an option form"), "without the update form, nothing is a view's: {wrong}");
     }
 
     /// What `gnc:save-style-sheet-options` writes (5.17:gnucash/report/html-style-sheet.scm:145-166).

@@ -12,7 +12,7 @@ pub mod forms;
 pub mod sexp;
 pub mod values;
 
-pub use forms::{Malformed, OptionForm, SavedReportForm, StyleSheetForm};
+pub use forms::{EmbeddedForm, Malformed, OptionForm, SavedReportForm, StyleSheetForm};
 pub use values::{Ignored, WireOptions, to_wire};
 
 /// Every entry of a `saved-reports-2.8` or `saved-reports-2.4` file, in file order. Text that cannot be read as data
