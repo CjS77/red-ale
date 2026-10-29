@@ -621,6 +621,12 @@ commodity with SCU 10000.
 | Investment Lots | book D in a window from 2019-12-31 to 2020-12-31 (*worked*: bought `100. AAPL` `$5,000.00` `$50.00`; Sold Splits `1`, `25. AAPL`, `$2,500.00`, `$3,000.00`, `$120.00`; ST Realized `$500.00`, Realized CAGR `204.1%`; End `25. AAPL` `$2,500.00`, ST Unrealized `-$2,500.00`, `-100.0%`); the Start date's own trades outside; `gains-and-sales` and `no`; ROI; GUID; blanks off; the long-term threshold with the leap rule, threshold 0 and a fraction; several purchases (ages, Opened, warning); a forward split as a purchase; negative balance; a sale against an empty lot; gains split matching and not; unassigned splits in both modes; balance mismatch; "only accounts with warnings"; the include options; closed lots; every price source incl. a future latest, an inverted, a third-currency and the uninverted quirk; no price; mnemonic and long names off; chart variants; no accounts; title |
 | IFRS cost basis | format off; short style off; commissions not capitalised; dividends, return of capital (reclassification), notional distributions, compensatory types, reverse split with cash in lieu, `Unknown`, both ERROR rows; fx ≠ 1; End Date's day excluded, Start Date's included; another filter and split-action-for-num; Dividend = Cap Gains; no STOCK account; the `(< 0 #f)` failure |
 
+Found while translating IFRS cost basis: two of its transaction types can never be reported. "Reverse split w/ cash in
+lieu for fractionals" is matched first by "Sell" among the long types and by "Cover Buy" among the short ones, so such
+a transaction reads "Sell" (`standard/ifrs-cost-basis.scm`'s type tables; the hand-worked test shows it). A purchase
+whose fee goes to the Fees account matches no type and reads "Unknown", since Open Long and Buy require the expensed
+fee to be empty or zero; GnuCash's fixture always capitalises purchase fees, so its test never meets this.
+
 ---
 
 ## 10. Item 7 settled: rows missing from `features.md`
