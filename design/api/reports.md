@@ -76,7 +76,12 @@ field or a new kind (`api.md`, "Versioning"): link kinds `split`, `transaction`,
 (`bankers`, `halfUp`) and `numberFormat` (`share`) on number cells (§7, "Tables"), and `exportError` on the result
 (§7, "Top level"). Then, for the Multicolumn View: `grid` blocks, whose cells hold each child's result (the shape
 `report.run` returns, less `version` and `now`) or a "Report error" warning (§7, "Blocks"); `configuration` on report
-links; and options summary rows with an empty `section`, the view's `Embedded Report` rows.
+links; and options summary rows with an empty `section`, the view's `Embedded Report` rows. Additions in `redAleApi`
+0.6.0, for the Printable Invoice: `numberFormat: "exact"` on number cells, every figure printed unrounded (§7,
+"Tables"); `class` on blocks and cells, class names for the report's CSS (§7, "Blocks"); `css` on the result, the
+report's own CSS, left out with a `debug` log entry when the CSS template would refuse it (§7, "Top level"); and
+`image` blocks, whose `src` starts `file:///` and which `report.export` writes as the page's one image (§8). The
+server never reads the picture's file.
 
 A view's children run inside its `report.run` or `report.export`, with the same Book, `now`, Locale and settings,
 under one run time limit for all of them. A child that no longer exists, fails, would nest deeper than 4 or past the

@@ -419,7 +419,7 @@ GnuCash's report files).
 
 Detail: [`reports.md`](reports.md#14-deviations-from-gnucash). Section numbers (§6, §15, "section 2") are
 `reports.md`'s; report paths (`standard/…`, `report/…`, `example/…`) are under `gnucash/report/reports/` and
-`gnucash/report/` at 5.17. "(v0.5)" marks rows added with v0.5's reports.
+`gnucash/report/` at 5.17. "(v0.5)" and "(v0.6)" mark rows added with those versions' reports.
 
 | What | GnuCash 5.17 | red-ale | Why |
 |------|--------------|---------|-----|
@@ -489,3 +489,8 @@ Detail: [`reports.md`](reports.md#14-deviations-from-gnucash). Section numbers (
 | Investment Lots: an untitled lot with "Warn if a lot has a blank title" (v0.5) | A Guile error: `string-trim` of the `#f` that `gnc-lot-get-title` gives (`standard/investment-lots.scm:1577-1580`) | The blank-title warning | An untitled lot is blank; the report runs |
 | Investment Lots: an account total's shares when the account has no lot (v0.5) | Printed with the default print info of a commodity of `'()`: the locale's default currency (`standard/investment-lots.scm:810-813`) | Printed in the report's currency | red-ale has no default-currency preference; the report's currency stands in |
 | Investment Lots' chart with no account selected (v0.5) | A chart it never set up, with no data (`standard/investment-lots.scm:2266-2298`) | No chart | There is nothing to draw |
+| The Printable Invoice's page (v0.6) | No title, and one `div.main-table` holding a two-column table (`standard/invoice.scm:797-869`) whose entries table has rows of different widths: *n* cells for an entry, 1 + max(3, *n*) for a total, max(3, *n*) for a payment (`:601-606`, `:670-678`) | An empty title; the main table's rows as blocks in order: a heading of class `invoice-title`, a group per layout row (the right-hand block's class starting `div-align-right`), the entries table and the notes. The entries table declares 1 + max(3, *n*) columns, the shown ones headed, and pads shorter rows with empty cells at the end | The report result has no layout tables and every row covers its table; the figures sit in the columns GnuCash's browser puts them in |
+| An invoice option in the options summary (v0.6) | `#<swig-pointer …>`, different at every run: `disp` has no case for an invoice (`report/html-utilities.scm:302-323`) | The document's GUID | The same bytes for the same run |
+| The invoice's picture (v0.6) | `<img src=…>` with the address quoted as a Scheme string (`report/html-text.scm:227-231`) | The address HTML-escaped | Every text on a page is HTML-escaped (`reports.md` §8) |
+| An invoice whose owner is not a job, with Job Details on (v0.6) | `gncJobGetID` of the null job `gncOwnerGetJob` gives (`standard/invoice.scm:238-239`; `5.17:libgnucash/engine/gncOwner.c:376-381`); GnuCash's own test shows no job rows for such documents (`standard/test/test-invoice.scm:85-90`) | No job, so no job rows | As GnuCash's test runs show |
+| `ctx.print_time` with a time directive (v0.6) | `gnc-print-time64` prints any `strftime` directive (`5.17:libgnucash/engine/gnc-date.cpp:370-385`) | Date directives only; any other is printed as written | Reports print dates: the Book's Fancy Date Format, which the invoice reads, is built from day, month and year (`5.17:gnucash/gnome-utils/gnc-date-format.c:458-461`) |

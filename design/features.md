@@ -316,7 +316,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ❌   | Receivable and payable aging          | Amounts owed by age bracket                            |    1.8     |        |
 |   ❌   | Customer Summary                      | Sales, costs and profit per customer                   |   2.4.1    |        |
 |   ❌   | Job Report                            | Documents and payments for one job                     |    2.4     |        |
-|        | Printable invoice                     | Standard invoice layout                                |    1.8     |        |
+|   ✅   | Printable invoice                     | Standard invoice layout                                |    1.8     |  0.6   |
 |   ❌   | Fancy invoice                         | Invoice layout with company details and styling        |   1.8.5    |        |
 |   ❌   | Easy invoice                          | Simplified invoice layout                              |    2.0     |        |
 |   ❌   | Tax invoice                           | Configurable invoice layout showing tax                |    2.4     |        |
