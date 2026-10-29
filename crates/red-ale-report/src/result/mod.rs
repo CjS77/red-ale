@@ -10,6 +10,7 @@
 
 mod chart;
 mod finish;
+mod grid;
 mod table;
 mod validate;
 
@@ -20,6 +21,7 @@ use serde_json::{Map, Value};
 
 pub use chart::{Axis, AxisFormat, Chart, ChartType, Color, Marker, PlotSize, Point, Scale, Series, SeriesKind, Tooltip};
 pub use finish::{DisplayContext, RunInfo};
+pub use grid::{EmbeddedResult, GridBlock, GridCell, GridRow};
 pub use table::{
     Align, Anchor, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, NumberFormat, NumberRounding, ReportLink, Row, RowRole, Table,
 };
@@ -137,6 +139,8 @@ pub enum Block {
     Group(GroupBlock),
     /// A bulleted list (`gnc:html-markup-ul`, `5.17:gnucash/report/html-text.scm:210-215`).
     List(ListBlock),
+    /// A Multicolumn View's children in rows of cells (`5.17:gnucash/report/reports/standard/view-column.scm:51-159`).
+    Grid(GridBlock),
     /// Set by the host only: the options that differ from their defaults (`gnc:html-render-options-changed`).
     OptionsSummary(OptionsSummary),
 }
@@ -218,11 +222,11 @@ pub struct OptionsSummary {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OptionsSummaryRow {
-    /// The option's section.
+    /// The option's section; empty for a view's `Embedded Report` rows (v0.5), which name no option.
     pub section: String,
-    /// The option's name.
+    /// The option's name, or `Embedded Report`.
     pub name: String,
-    /// Its value as text.
+    /// Its value as text; for an `Embedded Report` row, the child's "Report name".
     pub value: String,
 }
 
@@ -295,6 +299,7 @@ fn locate_in_block(block: &Value, path: &str) -> Option<ResultError> {
         "chart" => from_json_at::<Chart>(inner, path).err(),
         "group" => from_json_at::<GroupBlock>(inner, path).err(),
         "list" => from_json_at::<ListBlock>(inner, path).err(),
+        "grid" => from_json_at::<GridBlock>(inner, path).err(),
         "optionsSummary" => from_json_at::<OptionsSummary>(inner, path).err(),
         _ => None,
     }

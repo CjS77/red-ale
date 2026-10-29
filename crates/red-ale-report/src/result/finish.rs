@@ -74,6 +74,12 @@ impl ReportDraft {
     /// Check the draft, then complete it: the run's fields, and the display form of every cell and chart value.
     pub fn finish(self, run: RunInfo, ctx: &DisplayContext<'_>) -> Result<ReportResult, ResultError> {
         self.validate()?;
+        self.complete(run, ctx)
+    }
+
+    /// [`ReportDraft::finish`] of a draft already validated, whose grid cells the host has since filled with their
+    /// children's finished results; those are left as they are.
+    pub(crate) fn complete(self, run: RunInfo, ctx: &DisplayContext<'_>) -> Result<ReportResult, ResultError> {
         let mut sections = self.sections;
         fill_sections(&mut sections, ctx)?;
         let result = ReportResult {
@@ -112,7 +118,7 @@ fn fill_blocks(blocks: &mut [Block], path: &str, ctx: &DisplayContext<'_>) -> Fi
             }),
             Block::Chart(c) => fill_chart(c, &at, ctx),
             Block::Group(g) => fill_blocks(&mut g.blocks, &format!("{at}.blocks"), ctx),
-            Block::Text(_) | Block::Warning(_) | Block::List(_) | Block::OptionsSummary(_) => Ok(()),
+            Block::Text(_) | Block::Warning(_) | Block::List(_) | Block::Grid(_) | Block::OptionsSummary(_) => Ok(()),
         }
     })
 }

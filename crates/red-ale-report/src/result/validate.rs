@@ -2,8 +2,9 @@
 
 use super::chart::AxisFormat;
 use super::{
-    Anchor, Block, Cell, CellContent, Chart, ChartType, Column, ColumnRole, Link, PlotSize, Row, RowRole, Section, Series, Table,
+    Anchor, Block, Cell, CellContent, Chart, ChartType, Column, ColumnRole, GridBlock, Link, PlotSize, Row, RowRole, Section, Series, Table,
 };
+use crate::options::SPAN_MAX;
 use crate::error::ResultError;
 
 /// Whether the host has filled in its fields yet.
@@ -38,10 +39,15 @@ fn host_field(present: bool, stage: Stage, path: &str) -> Check {
 }
 
 pub(super) fn sections(sections: &[Section], stage: Stage) -> Check {
+    sections_at("", sections, stage)
+}
+
+/// The sections at `prefix`: empty at the top, `….result.` inside a grid cell.
+fn sections_at(prefix: &str, sections: &[Section], stage: Stage) -> Check {
     sections
         .iter()
         .enumerate()
-        .try_for_each(|(i, s)| blocks(&s.blocks, &format!("sections[{i}].blocks"), stage))
+        .try_for_each(|(i, s)| blocks(&s.blocks, &format!("{prefix}sections[{i}].blocks"), stage))
 }
 
 fn blocks(blocks: &[Block], path: &str, stage: Stage) -> Check {
@@ -58,12 +64,36 @@ fn block(b: &Block, path: &str, stage: Stage) -> Check {
         Block::Table(t) => table(t, path, stage),
         Block::Chart(c) => chart(c, path, stage),
         Block::Group(g) => blocks(&g.blocks, &format!("{path}.blocks"), stage),
+        Block::Grid(g) => grid(g, path, stage),
         Block::OptionsSummary(_) => ensure(
             stage == Stage::Finished,
             &format!("{path}.kind"),
             "the options summary is added by the host",
         ),
     }
+}
+
+/// A grid's cells span 0 to 100 rows and columns. A script leaves each cell's host fields out; in a finished result
+/// each cell holds its child's result or a warning, not both, and the child's result is valid in turn.
+fn grid(g: &GridBlock, path: &str, stage: Stage) -> Check {
+    g.rows.iter().enumerate().try_for_each(|(r, row)| {
+        row.cells.iter().enumerate().try_for_each(|(c, cell)| {
+            let at = format!("{path}.rows[{r}].cells[{c}]");
+            let max = u32::from(SPAN_MAX);
+            ensure(cell.rowspan <= max, &format!("{at}.rowspan"), "spans at most 100 rows")?;
+            ensure(cell.colspan <= max, &format!("{at}.colspan"), "spans at most 100 columns")?;
+            let host_only = "set by the host; a script must leave it out";
+            ensure(stage == Stage::Finished || cell.link.is_none(), &format!("{at}.link"), host_only)?;
+            match (&cell.result, &cell.warning, stage) {
+                (None, None, Stage::Draft) | (None, Some(_), Stage::Finished) => Ok(()),
+                (Some(_), _, Stage::Draft) => fail(&format!("{at}.result"), host_only),
+                (_, Some(_), Stage::Draft) => fail(&format!("{at}.warning"), host_only),
+                (Some(_), Some(_), Stage::Finished) => fail(&at, "holds a result or a warning, not both"),
+                (None, None, Stage::Finished) => fail(&at, "missing its result or warning; the host fills it in"),
+                (Some(child), None, Stage::Finished) => sections_at(&format!("{at}.result."), &child.sections, stage),
+            }
+        })
+    })
 }
 
 /// A link to a linked document names one.

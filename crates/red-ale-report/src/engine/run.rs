@@ -3,6 +3,7 @@
 
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Instant;
 
 use red_ale_core::formula::NumberFormat;
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd, book_fiscal_year_end, period_bounds};
@@ -12,7 +13,7 @@ use red_ale_locale::{Conventions, Locale};
 use rhai::{AST, Dynamic, Engine};
 use serde_json::Value;
 
-use super::children::Configurations;
+use super::children::{Configurations, Embed, Tree};
 use super::context::ContextHandle;
 use super::convert::{from_json, to_json};
 use super::errors::{Failure, from_eval, from_parse};
@@ -20,10 +21,10 @@ use super::log::Log;
 use super::options::{OptionBuilder, Resolve, resolve};
 use super::registry::{Registry, TemplateInfo, TemplateKind, call};
 use super::resolver::Defined;
-use super::setup::{Setup, engine};
+use super::setup::{Setup, deadline, engine};
 use crate::error::{ReportError, ResultError};
 use crate::limits::Limit;
-use crate::options::{ChoiceKey, GENERAL, OPTIONS_SUMMARY, OptionDb, OptionValue, ReportOption, ValueContext};
+use crate::options::{ChoiceKey, GENERAL, OPTIONS_SUMMARY, OptionDb, OptionValue, Placement, ReportOption, ValueContext};
 use crate::query::{BookHandle, Snapshot};
 use crate::result::{Block, DisplayContext, OptionsSummary, ReportDraft, ReportIdentity, ReportResult, RunInfo, Section};
 use crate::settings::ReportSettings;
@@ -75,14 +76,14 @@ impl Registry {
     /// A template's options with their defaults, GnuCash's three General options included: what `report.options`
     /// describes. Defaults that depend on the Book are computed from `ctx.book`.
     pub fn options(&self, template: &TemplateInfo, ctx: &RunContext<'_>) -> Result<OptionDb, ReportError> {
-        Run::start(self, template, ctx)?.declare(ctx)
+        Run::start(self, template, ctx, deadline(&self.limits()))?.declare(ctx)
     }
 
     /// Run a template: declare its options, apply a saved configuration's values (its GUID and stored values), then the
     /// caller's `changes`, each `{ section: { name: value } }` in wire form, render, and finish the result. An invalid
     /// value is `report-option` and nothing runs; the children the caller's changes name are checked
-    /// ([`Registry::check_children`]), a saved configuration's are not. The Book is read through a snapshot and never
-    /// changes.
+    /// ([`Registry::check_children`]), a saved configuration's are not. The children a `grid` block places are run
+    /// then, under the run's one deadline. The Book is read through a snapshot and never changes.
     pub fn run(
         &self,
         template: &TemplateInfo,
@@ -90,7 +91,21 @@ impl Registry {
         changes: Option<&Value>,
         ctx: &RunContext<'_>,
     ) -> Result<ReportResult, ReportError> {
-        let run = Run::start(self, template, ctx)?;
+        let tree = Tree::new(deadline(&self.limits()), saved.map(|(guid, _)| guid));
+        self.run_in(template, saved, changes, ctx, &Embed { tree: &tree, depth: 0 })
+    }
+
+    /// [`Registry::run`] at `embed.depth` of a run's tree: the top-level run checks its caller's children, a child
+    /// run applies what its view gives it.
+    pub(super) fn run_in(
+        &self,
+        template: &TemplateInfo,
+        saved: Option<(Guid, &Value)>,
+        changes: Option<&Value>,
+        ctx: &RunContext<'_>,
+        embed: &Embed<'_>,
+    ) -> Result<ReportResult, ReportError> {
+        let run = Run::start(self, template, ctx, embed.tree.deadline)?;
         let mut db = run.declare(ctx)?;
         let values = ValueContext {
             book: Some(ctx.book),
@@ -99,11 +114,24 @@ impl Registry {
         saved.iter().try_for_each(|(_, stored)| db.apply(stored, &values))?;
         if let Some(changes) = changes {
             db.apply(changes, &values)?;
-            self.check_children(&mut db, changes, ctx, &values)?;
+            if embed.depth == 0 {
+                self.check_children(&mut db, changes, ctx, &values)?;
+            }
         }
         let rendered = run.render(&db, ctx)?;
-        run.finish(&rendered, &db, saved.map(|(guid, _)| guid), ctx)
+        run.finish(&rendered, &db, saved.map(|(guid, _)| guid), ctx, embed)
     }
+}
+
+/// The children of the run's report placement option: GnuCash's `__general`/`report-list`; none without one.
+fn placements(db: &OptionDb) -> &[Placement] {
+    db.options()
+        .into_iter()
+        .find_map(|o| match o.value() {
+            OptionValue::Placements(children) => Some(children.as_slice()),
+            _ => None,
+        })
+        .unwrap_or_default()
 }
 
 /// The monetary decimal point and group separator GnuCash's expression parser reads numbers in, with
@@ -118,7 +146,7 @@ fn formula_format(conv: &Conventions) -> NumberFormat {
 }
 
 impl<'r> Run<'r> {
-    fn start(registry: &'r Registry, template: &'r TemplateInfo, ctx: &RunContext<'_>) -> Result<Self, ReportError> {
+    fn start(registry: &'r Registry, template: &'r TemplateInfo, ctx: &RunContext<'_>, deadline: Instant) -> Result<Self, ReportError> {
         let limits = registry.limits();
         let conventions = ctx.locale.conventions();
         let snap = Snapshot::new(ctx.book, ctx.now, ctx.zone.clone(), formula_format(&conventions));
@@ -131,6 +159,7 @@ impl<'r> Run<'r> {
             log: log.clone(),
             conventions,
             defined: defined.clone(),
+            deadline,
         });
         let ast = registry.compile(&engine, &template.script, &defined).map_err(|e| {
             let report = template.guid.0.to_string();
@@ -217,6 +246,7 @@ impl<'r> Run<'r> {
         db: &OptionDb,
         configuration: Option<Guid>,
         ctx: &RunContext<'_>,
+        embed: &Embed<'_>,
     ) -> Result<ReportResult, ReportError> {
         let display = DisplayContext {
             book: ctx.book,
@@ -234,16 +264,20 @@ impl<'r> Run<'r> {
             options: db.values(),
             log: self.log.entries(),
         };
-        let finished = to_json(rendered)
+        let mut draft = to_json(rendered)
             .and_then(|json| ReportDraft::from_json(&json))
-            .and_then(|draft| draft.finish(run, &display));
-        let mut result = finished.map_err(|e| self.invalid(e))?;
+            .and_then(|draft| draft.validate().map(|()| draft))
+            .map_err(|e| self.invalid(e))?;
+        let placements = placements(db);
+        let invalid = |e| self.invalid(e);
+        let embedded = self.registry.fill_grids(&mut draft.sections, placements, ctx, embed, &invalid)?;
+        let mut result = draft.complete(run, &display).map_err(|e| self.invalid(e))?;
         if ctx.export.is_none() {
             result.export = None;
         }
         let summary = db.get(GENERAL, OPTIONS_SUMMARY).map(ReportOption::value);
         if summary.is_some_and(|v| *v != OptionValue::Key(ChoiceKey::from("never"))) {
-            let rows = db.summary(&display);
+            let rows = embedded.into_iter().chain(db.summary(&display)).collect();
             result.sections.push(Section {
                 title: None,
                 blocks: vec![Block::OptionsSummary(OptionsSummary { rows })],
