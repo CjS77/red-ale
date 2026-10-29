@@ -278,6 +278,20 @@ See [`setup.md`](setup.md).
 | **red-ale entry** | The one server entry `red-ale setup` owns in a Harness config, keyed by the name `red-ale`. |
 | **Setup plan** | What `red-ale setup` will do to each Harness config, shown before anything is changed. |
 
+## The Manual
+
+See [`manual.md`](manual.md).
+
+| Term | Meaning |
+|------|---------|
+| **Manual** | red-ale's user documentation: every Page, compiled into the binary and served through the API, MCP, the CLI and the website. **⚠** Not the design documents in `design/`, which are for red-ale's developers. |
+| **Page** | One unit of the Manual, with a stable Page ID, a kind, a title, a one-line summary and a Markdown body. |
+| **Page ID** | A Page's stable name, such as `method/transaction.post`, `guide/reconcile-an-account` or `concept/value-and-amount`. Kept within a major version, so links from agents and other sites keep working. |
+| **Reference page** | The Page for one method, error code or report template, generated from the registries and completed by hand. |
+| **Guide** | A Page that shows how to do one task, as a sequence of method calls. |
+| **Concept page** | A Page that explains an idea the methods rely on. |
+| **Example** | A method call with its params and expected result, inside a Page, that the tests run. **⚠** A test, not sample data. |
+
 ## red-ale
 
 | Term | Meaning |

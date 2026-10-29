@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+#
+# The hand-kept supplement to help.search's synonym table, which is otherwise generated from the glossary's
+# warnings (crates/red-ale-docs/src/synonyms.rs). Words users or GnuCash say that the glossary does not record,
+# one mapping per line: `phrase => the Manual's term`. Keep it short: a word that belongs in the glossary goes there.
+bill => business document
+voucher => business document
+sx => scheduled transaction
+register => transaction
+ledger => transaction
+quantity => amount
+shares => amount
+open file => book open
+save file => book save
