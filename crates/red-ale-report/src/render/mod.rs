@@ -2,7 +2,8 @@
 //!
 //! [`html`] turns a finished [`ReportResult`] into one self-contained HTML5 document: inline CSS only, charts as
 //! inline SVG, no script, no external resource and no `href`, every piece of text escaped, and the same bytes for the
-//! same result, style sheet and context. The renderer reads only the result and the style sheet, never the Book, so a
+//! same result, style sheet and context. The one exception is an `image` block, a `file:///` picture the browser
+//! may show (v0.6). The renderer reads only the result and the style sheet, never the Book, so a
 //! result a client got as JSON renders the same way.
 //!
 //! - [`csv`]: a result's export rows as GnuCash's CSV export writes them.
@@ -68,7 +69,7 @@ pub fn html(result: &ReportResult, sheet: Option<&StyleSheet>, ctx: &RenderConte
         "<meta charset=\"utf-8\">".to_owned(),
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">".to_owned(),
         format!("<title>{}</title>", escape(&result.title)),
-        format!("<style>\n{}\n</style>", css::stylesheet(&look)),
+        format!("<style>\n{}{}\n</style>", css::stylesheet(&look), report_css(result)),
         "</head>".to_owned(),
         format!("<body class=\"sheet-{template}\">"),
         "<div class=\"report\">".to_owned(),
@@ -98,6 +99,19 @@ pub fn missing_style_sheet(name: &str) -> LogEntry {
         source: None,
         line: None,
     }
+}
+
+/// The report's own CSS after the style sheet's, as GnuCash's style sheets append a document's style text
+/// (`5.17:gnucash/report/html-fonts.scm:162-192`); nothing when the result has none, or has text the CSS template
+/// refuses, which a host never puts in a result but a client might send.
+fn report_css(result: &ReportResult) -> String {
+    result
+        .css
+        .as_deref()
+        .map(str::trim_end)
+        .filter(|c| !c.is_empty() && check_css(c).is_ok())
+        .map(|c| format!("\n{c}"))
+        .unwrap_or_default()
 }
 
 fn masthead(heading: &str, lines: &[Line], result: &ReportResult, ctx: &RenderContext<'_>) -> String {
@@ -163,8 +177,18 @@ fn section(s: &Section, path: &str, look: &Look) -> String {
     format!("<section>\n{}\n</section>", body.join("\n"))
 }
 
-/// A block; `path` is its position (`0-2`, `0-2-1` inside a group), which names a chart's `id`.
+/// A block; `path` is its position (`0-2`, `0-2-1` inside a group), which names a chart's `id`. A block with class
+/// names is wrapped in a `div` of those classes, the block's own element its only child, so the report's CSS can
+/// select `.entries-table > table`; a table's classes join its wrapper's.
 fn block(b: &Block, path: &str, look: &Look) -> String {
+    let html = element(b, path, look);
+    match b.class() {
+        Some(class) if !matches!(b, Block::Table(_)) => format!("<div class=\"{}\">\n{html}\n</div>", escape(class)),
+        _ => html,
+    }
+}
+
+fn element(b: &Block, path: &str, look: &Look) -> String {
     match b {
         Block::Text(t) => text_block(t, look),
         Block::List(l) => list(l, look),
@@ -175,7 +199,13 @@ fn block(b: &Block, path: &str, look: &Look) -> String {
                 escape_lines(&w.text)
             )
         }
-        Block::Table(t) => format!("<div class=\"table-wrap\">\n{}\n</div>", table::table(t, look)),
+        Block::Table(t) => {
+            let class = t.class.as_ref().map(|c| format!(" {}", escape(c))).unwrap_or_default();
+            format!("<div class=\"table-wrap{class}\">\n{}\n</div>", table::table(t, look))
+        }
+        // `gnc:html-markup-img` (`5.17:gnucash/report/html-text.scm:227-231`), the address escaped as HTML where
+        // GnuCash quotes it as a Scheme string.
+        Block::Image(i) => format!("<img src=\"{}\">", escape(&i.src)),
         Block::Chart(c) => format!(
             "<figure class=\"chart\">\n{}\n</figure>",
             svg::chart(c, &format!("chart-{path}"), look.numbers)

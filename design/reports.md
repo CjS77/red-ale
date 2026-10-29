@@ -903,6 +903,10 @@ rest of the API. It carries data, not markup: exact figures with their display f
 `render()` returns it as a Rhai map of the same shape, without the fields the host fills in (marked *host*). The host
 checks it against the schema and fills those fields; a mismatch is a `report-result` error naming the path.
 
+**Class names** (v0.6). Every block but `optionsSummary`, and every cell, may have `class`: names for the report's
+own CSS (`css`), as GnuCash's invoice styles its layout by the classes of its `div`s and cells
+(`standard/invoice.scm:36-45`). They change no figure.
+
 Beyond the schema, a result is valid when every cell holds exactly one content (`text`, `monetary`, `commodities`,
 `number`, `price`, `date` or `anchors`), `places` and `suffix` appear only on number cells and `currency` on every price
 cell and nowhere else, `until` only on date cells and not before the date, an `anchors` cell has at least one anchor
@@ -911,7 +915,9 @@ covers exactly the table's columns (a `null` cell covers one, a cell its `span`)
 `levels` of the table's amount columns, `levels` appears only on amount columns, a chart's series have one value per
 label (scatter series have `points` instead), `colors` and `links` have one entry per value, a `currency` axis names
 its `commodity`, a pie chart has one series, plot sizes are 1–100 % or at least one pixel, and no *host* field is set
-by the script. `optionsSummary` blocks come only from the host.
+by the script. `optionsSummary` blocks come only from the host. A `class` (v0.6) is one or more names separated by
+single spaces, each a letter then letters, digits, `-` and `_`; an `image` block's `src` starts `file:///`; an
+`exact` number cell has no `places` and no `rounding`.
 
 ### Top level
 
@@ -938,6 +944,7 @@ by the script. `optionsSummary` blocks come only from the host.
 | `options` | *host*. Every option's value, in wire form, so the result says exactly what produced it |
 | `sections` | Ordered sections, each an optional `title` and ordered `blocks` |
 | `export` | Optional (v0.3). Set only when `ctx.export_type()` is `"csv"`: the rows GnuCash hands `gnc:lists->csv` (`report/trep-engine.scm:463-512`), each a list of cells that are a string, an exact number or `null`. The host turns them into the CSV of `report.exportCsv`; `report.run` never carries them |
+| `css` | Optional (v0.6). The report's own CSS, which a page appends after the style sheet's: GnuCash's `gnc:html-document-set-style-text!`, which the invoice fills from its Layout › CSS option (`standard/invoice.scm:795`). Text the CSS template refuses (section 8) is left out of the result by the host, with a `debug` log entry naming the reason: the host cannot tell which option fed it, and the figures do not depend on it (`notes/report-invoice.md` §6 Q3) |
 | `exportError` | Optional (v0.5). Set only when `ctx.export_type()` is `"csv"`, instead of `export`: why there is nothing to export ("No splits found"), GnuCash's `gnc:html-document-set-export-error` (`report/trep-engine.scm:2524`, `:2605`, `:2641`). `report.exportCsv` answers it with `invalid`, `data.reason: "export-error"` and the message. A draft with both is a `report-result` error |
 | `log` | *host*. The report log |
 
@@ -952,6 +959,7 @@ by the script. `optionsSummary` blocks come only from the host.
 | `list` (v0.5) | `items: [{ text, account? }]`, an item with `account` naming (and linking to) that account | `gnc:html-markup-ul` (`report/html-text.scm:210-215`): the Cash Flow's selected accounts (`standard/cash-flow.scm:253-262`) |
 | `group` | `blocks`, laid out side by side | the one-row layout tables of the two-column Balance Sheet and Income Statement (`standard/balance-sheet.scm:503-513`, `standard/income-statement.scm:483-536`) |
 | `grid` (v0.5) | `width` (a Rational, the view's "Number of columns", GnuCash's `table-width`) and `rows: [{ cells: [GridCell] }]`, below | the table of `standard/view-column.scm:51-159` |
+| `image` (v0.6) | `src`: `file:///` and a file name, as GnuCash's `make-file-url` writes it (`report/report-utilities.scm:1028-1031`) | `gnc:html-markup-img`: the invoice's `picture` layout choice (`standard/invoice.scm:300-308`). The server never reads the file |
 | `optionsSummary` | *host*. `rows: [{ section, name, value }]`; a Multicolumn View's summary starts with one row per child, `section` empty, `name` `Embedded Report` and `value` the child's "Report name" (its GUID when it did not run), as GnuCash lists them first (`report/html-utilities.scm:339-343`) | `gnc:html-render-options-changed` |
 
 **Grid cells** (v0.5). A Multicolumn View's script lays out its children by GnuCash's rules (`notes/report-statements-charts.md`
@@ -1026,7 +1034,7 @@ colour (section 8).
 | text | `text` | the text |
 | monetary | `monetary: { amount: Rational, commodity }` | `rounded` (Amount at the commodity's SCU, banker's rounding) and `display`, section 3 |
 | commodities | `commodities: [{ monetary, converted }]` | each line's `display` and `convertedDisplay` |
-| number | `number: Rational`, `places` (default 2), `suffix`; `rounding` (v0.5): `bankers` (default) or `halfUp`; `numberFormat` (v0.5): `share` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer. `rounding: "halfUp"` rounds ties away from zero, for the rates GnuCash prints from doubles with Guile's `~,nf` (`standard/advanced-portfolio.scm:914-922`; `3.625` is `3.63`). `numberFormat: "share"` is GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): exactly `places` decimals, the magnitude rounded half up (`:1105-1145`, so ties go away from zero), grouped with the Locale's numeric separators, the point always printed (`1,234.568`, `100.`); it takes no `rounding` |
+| number | `number: Rational`, `places` (default 2), `suffix`; `rounding` (v0.5): `bankers` (default) or `halfUp`; `numberFormat` (v0.5): `share`, or (v0.6) `exact` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer. `rounding: "halfUp"` rounds ties away from zero, for the rates GnuCash prints from doubles with Guile's `~,nf` (`standard/advanced-portfolio.scm:914-922`; `3.625` is `3.63`). `numberFormat: "share"` is GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): exactly `places` decimals, the magnitude rounded half up (`:1105-1145`, so ties go away from zero), grouped with the Locale's numeric separators, the point always printed (`1,234.568`, `100.`); it takes no `rounding`. `numberFormat: "exact"` (v0.6) is `xaccPrintAmount` with `gnc_default_print_info(FALSE)` (`gnc-ui-util.cpp:833-860`), which the invoice uses for quantities and percentage discounts (`report/html-style-info.scm:217-218`): at least the Locale's `frac_digits` decimals, no maximum and no rounding, grouped, a remainder that is not decimal as `w + n/d` (`1/8` is `0.125`, `4/3` is `1 + 1/3`, `1/3` is `1/3`, `:1237-1242`); it takes no `places` and no `rounding`, and `suffix` still applies (`2.50 %`) |
 | price | `price: Rational`, `currency` | `display` with the currency's price print info |
 | date | `date: Time64` (a Timestamp on the wire); `until` (v0.5, optional): the end of the period it starts | `localDate` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat`; with `until`, also `localUntil`, and `display` is `<date> to <until>`, each as `qof-print-date` prints it, as the Multicolumn P&L's column headers (`standard/balsheet-pnl.scm:1140-1153`) |
 | anchors (v0.5) | `anchors: [{ text, link }]` | none: the texts, one per line. The Transaction Report's invoice cell (`report/trep-engine.scm:1036-1049`) |
@@ -1146,6 +1154,15 @@ figures must match GnuCash's, the markup need not.
 
 - `<!DOCTYPE html>`, `<html lang="en">`, `<meta charset="utf-8">`, the `title`, one `<style>` element, then the body.
   No `<script>`, no external stylesheet, font, image or URL of any kind, so the page works offline and leaks nothing.
+  **The one exception** (v0.6) is an `image` block, written only when a script puts one in the result: an
+  `<img src="file:///…">`, the src HTML-escaped and otherwise as given (GnuCash quotes it as a Scheme string,
+  `report/html-text.scm:227-231`). It may name a local file, but the `file:///` prefix means the page never fetches
+  anything from the network, and red-ale never reads the file ([`milestone6.md`](milestone6.md), "Decided", item 4).
+  An empty Picture Location gives `file:///`, which a browser shows as a broken image, as in GnuCash.
+- **The report's CSS** (v0.6), a result's `css`, goes in the same `<style>` element after the style sheet's CSS, on
+  a line of its own, trailing whitespace trimmed, as GnuCash's style sheets append a document's style text
+  (`report/html-fonts.scm:162-192`). It passes the CSS template's rule (below) or is not written: a host never puts
+  refused CSS in a result, but a client may hand the renderer one from elsewhere.
 - Every piece of text from the Book, an option or a script is HTML-escaped. GnuCash inserts some text raw
   (preparer, footer and comments in the style sheets, `report/html-text.scm:239-245`); red-ale never does.
 - **Deterministic bytes.** Elements and attributes are written in a fixed order, numbers in a fixed form, IDs from
@@ -1175,6 +1192,9 @@ figures must match GnuCash's, the markup need not.
   make the header as many rows as the most lines, a column without them showing its label in the first row. A
   table with no columns has no header and empty rows (v0.5).
 - A `list` block is a `<ul>`; an item naming an account carries `data-account` and shows as a link.
+- **Class names** (v0.6). A block with a `class` is wrapped in `<div class="…">` whose only child is the block's own
+  element, so the invoice's `.entries-table > table` matches; a table's classes join its `table-wrap` wrapper's
+  (`<div class="table-wrap entries-table">`). A cell's classes follow its own in its `<td>`'s class list.
 - **Negative figures** get the class `neg`, coloured red when the style sheet's "Negative Values in Red" is on
   (`report/html-fonts.scm:116-119`).
 - A `group` block is a CSS grid of its blocks side by side, stacking on narrow screens.

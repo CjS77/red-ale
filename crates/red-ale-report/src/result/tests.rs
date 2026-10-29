@@ -486,7 +486,7 @@ fn additions_b_are_validated() {
     assert_eq!(ReportDraft::from_json(&v).unwrap().validate().unwrap_err().path, "exportError");
     let mut v = additions_b_json();
     v["sections"][0]["blocks"][0]["rows"][0]["cells"][0]["numberFormat"] = json!("plain");
-    assert!(ReportDraft::from_json(&v).is_err(), "share is the one number format");
+    assert!(ReportDraft::from_json(&v).is_err(), "share and exact are the number formats");
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -542,4 +542,107 @@ fn grid_cells_leave_their_children_to_the_host() {
         finished(one).unwrap_err().path,
         format!("{prefix}.result.sections[0].blocks[0].link.docLink")
     );
+}
+
+/// A draft with the `redAleApi` 0.6.0 additions the Printable Invoice needs: the exact number display, class names on
+/// blocks and cells, the report's CSS and an image block.
+fn additions_c_json() -> Value {
+    json!({
+        "title": "",
+        "css": ".entries-table > table { width: 100% }\n",
+        "sections": [{
+            "blocks": [
+                { "kind": "text", "text": "Invoice #0001", "role": "heading", "class": "invoice-title" },
+                { "kind": "image", "src": "file:///logo.png", "class": "picture" },
+                { "kind": "group", "class": "main-table", "blocks": [ { "kind": "warning", "title": "t", "text": "x", "class": "w" } ] },
+                {
+                    "kind": "table", "class": "entries-table",
+                    "columns": [ { "label": "Quantity", "role": "amount" }, { "label": "Discount", "role": "amount" } ],
+                    "rows": [
+                        { "cells": [ { "number": "1/8", "numberFormat": "exact", "class": "qty" },
+                                     { "number": "1/3", "numberFormat": "exact", "suffix": " %" } ] },
+                        { "cells": [ { "number": "2", "numberFormat": "exact" },
+                                     { "number": "-1234.5", "numberFormat": "exact", "class": "a b-c d_1" } ] }
+                    ]
+                }
+            ]
+        }]
+    })
+}
+
+/// The exact display is `xaccPrintAmount` with `gnc_default_print_info(FALSE)`
+/// (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-860`, `:1083-1180`): at least `frac_digits` decimals, no maximum,
+/// no rounding, a remainder that is not decimal as `w + n/d`.
+#[test]
+fn additions_c_finish_and_round_trip() {
+    let r = finish_additions(&additions_c_json()).unwrap();
+    r.validate().unwrap();
+    let Block::Table(t) = &r.sections[0].blocks[3] else {
+        panic!("not a table")
+    };
+    let shown: Vec<Option<&str>> = t
+        .rows
+        .iter()
+        .flat_map(|row| row.cells.iter().map(|c| c.as_ref().unwrap().display.as_deref()))
+        .collect();
+    assert_eq!(shown, [Some("0.125"), Some("1/3 %"), Some("2.00"), Some("-1,234.50")]);
+    assert_eq!(r.css.as_deref(), Some(".entries-table > table { width: 100% }\n"));
+    assert_eq!(r.sections[0].blocks[0].class(), Some("invoice-title"));
+    assert_eq!(r.log.len(), 1, "no entry for CSS that passes");
+    let v = serde_json::to_value(&r).unwrap();
+    assert_eq!(
+        v["sections"][0]["blocks"][1],
+        json!({ "kind": "image", "src": "file:///logo.png", "class": "picture" })
+    );
+    assert_eq!(ReportResult::from_json(&v).unwrap(), r);
+    let plain = serde_json::to_value(finished()).unwrap();
+    assert!(plain.get("css").is_none(), "absent unless a report sets it");
+}
+
+#[test]
+fn additions_c_are_validated() {
+    let cases: [(&str, Value, &str); 7] = [
+        ("/0/class", json!("invoice  title"), "sections[0].blocks[0].class"),
+        ("/0/class", json!(""), "sections[0].blocks[0].class"),
+        ("/1/class", json!("1st"), "sections[0].blocks[1].class"),
+        ("/2/blocks/0/class", json!("a\"b"), "sections[0].blocks[2].blocks[0].class"),
+        ("/1/src", json!("https://example.com/logo.png"), "sections[0].blocks[1].src"),
+        (
+            "/3/rows/0/cells/0/places",
+            json!(2),
+            "sections[0].blocks[3].rows[0].cells[0].places",
+        ),
+        (
+            "/3/rows/0/cells/1/class",
+            json!("x y "),
+            "sections[0].blocks[3].rows[0].cells[1].class",
+        ),
+    ];
+    cases.into_iter().for_each(|(at, value, path)| {
+        let (parent, last) = at.rsplit_once('/').unwrap();
+        let mut v = additions_c_json();
+        v.pointer_mut(&format!("/sections/0/blocks{parent}")).unwrap()[last] = value;
+        let e = ReportDraft::from_json(&v).unwrap().validate().unwrap_err();
+        assert_eq!(e.path, path, "{at}");
+    });
+    let mut v = additions_c_json();
+    v["sections"][0]["blocks"][3]["rows"][0]["cells"][0]["rounding"] = json!("halfUp");
+    let e = ReportDraft::from_json(&v).unwrap().validate().unwrap_err();
+    assert_eq!(e.path, "sections[0].blocks[3].rows[0].cells[0].rounding");
+}
+
+/// CSS the CSS template refuses (`design/reports.md` §8) is left out of the result with a `debug` log entry, as the
+/// note's open question 3 settles; a finished result carrying it is invalid.
+#[test]
+fn refused_css_is_left_out_with_a_log_entry() {
+    let mut v = additions_c_json();
+    v["css"] = json!(".picture { background: URL(https://example.com/x.png) }");
+    let r = finish_additions(&v).unwrap();
+    assert_eq!(r.css, None);
+    let entry = r.log.last().unwrap();
+    assert_eq!(entry.level, LogLevel::Debug);
+    assert_eq!(entry.text, "the report's CSS was left out: CSS may not contain \"url(\"");
+    let mut bad = r;
+    bad.css = Some("</style><script>".into());
+    assert_eq!(bad.validate().unwrap_err().path, "css");
 }

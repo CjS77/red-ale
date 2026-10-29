@@ -7,14 +7,15 @@ use red_ale_locale::{Conventions, Locale};
 use super::chart::{Axis, AxisFormat};
 use super::validate::Stage;
 use super::{
-    Block, Cell, Chart, CommodityLine, LogEntry, NumberFormat, NumberRounding, OptionValues, RESULT_VERSION, ReportDraft, ReportIdentity,
-    ReportResult, Section,
+    Block, Cell, Chart, CommodityLine, LogEntry, LogLevel, NumberFormat, NumberRounding, OptionValues, RESULT_VERSION, ReportDraft,
+    ReportIdentity, ReportResult, Section,
 };
 use crate::error::ResultError;
 use crate::number::{
     CommodityFormat, Monetary, Rational, Rounding, display_exact, display_monetary, display_number, display_number_rounded, display_price,
-    display_share,
+    display_share, display_unrounded,
 };
+use crate::render::check_css;
 use crate::settings::DateFormat;
 use crate::wire::Timestamp;
 
@@ -83,6 +84,10 @@ impl ReportDraft {
     pub(crate) fn complete(self, run: RunInfo, ctx: &DisplayContext<'_>) -> Result<ReportResult, ResultError> {
         let mut sections = self.sections;
         fill_sections(&mut sections, ctx)?;
+        let refused = self.css.as_deref().and_then(refused_css);
+        let css = if refused.is_some() { None } else { self.css };
+        let mut log = run.log;
+        log.extend(refused);
         let result = ReportResult {
             version: RESULT_VERSION.to_owned(),
             report: run.report,
@@ -91,13 +96,25 @@ impl ReportDraft {
             now: Timestamp(run.now),
             options: run.options,
             sections,
-            log: run.log,
+            log,
             export: self.export,
             export_error: self.export_error,
+            css,
         };
         super::validate::sections(&result.sections, Stage::Finished)?;
         Ok(result)
     }
+}
+
+/// The log entry for a report's CSS that the CSS template's rule refuses (`design/reports.md` §8), which the result
+/// then leaves out, as GnuCash's CSS style sheet leaves out refused text (`5.17:gnucash/report/stylesheets/css.scm:204-209`).
+fn refused_css(css: &str) -> Option<LogEntry> {
+    check_css(css).err().map(|reason| LogEntry {
+        level: LogLevel::Debug,
+        text: format!("the report's CSS was left out: {reason}"),
+        source: None,
+        line: None,
+    })
 }
 
 fn fill_sections(sections: &mut [Section], ctx: &DisplayContext<'_>) -> Fill {
@@ -119,7 +136,7 @@ fn fill_blocks(blocks: &mut [Block], path: &str, ctx: &DisplayContext<'_>) -> Fi
             }),
             Block::Chart(c) => fill_chart(c, &at, ctx),
             Block::Group(g) => fill_blocks(&mut g.blocks, &format!("{at}.blocks"), ctx),
-            Block::Text(_) | Block::Warning(_) | Block::List(_) | Block::Grid(_) | Block::OptionsSummary(_) => Ok(()),
+            Block::Text(_) | Block::Warning(_) | Block::List(_) | Block::Grid(_) | Block::Image(_) | Block::OptionsSummary(_) => Ok(()),
         }
     })
 }
@@ -155,6 +172,7 @@ fn fill_cell(cell: &mut Cell, path: &str, ctx: &DisplayContext<'_>) -> Fill {
 fn number_display(n: &Rational, cell: &Cell, conv: &Conventions) -> String {
     match (cell.number_format, cell.rounding) {
         (Some(NumberFormat::Share), _) => display_share(n, cell.places, conv),
+        (Some(NumberFormat::Exact), _) => display_unrounded(n, conv),
         (None, Some(NumberRounding::HalfUp)) => display_number_rounded(n, cell.places, Rounding::HalfUp, conv),
         (None, Some(NumberRounding::Bankers) | None) => display_number(n, cell.places, conv),
     }

@@ -356,8 +356,9 @@ document gives (§1.2).
   decimal" preference, which red-ale does not have, is off by default. The quantity and a percentage discount are
   `xaccPrintAmount` with `gnc-default-print-info #f` (`:217-218`): at least the Locale's `frac_digits` decimals (2
   under C), **no maximum and no rounding**, grouped, a non-decimal remainder as `w + n/d`
-  (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:834-860`, `:1083-1180`). So 1/8 prints `0.125` and 1/3 prints
-  `0 + 1/3`. No red-ale cell prints this way: number cells round to `places` (§3.2).
+  (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:834-860`, `:1083-1180`). So 1/8 prints `0.125`, 4/3 prints `1 + 1/3`
+  and 1/3 prints `1/3`, a whole part of 0 being left out (`:1237-1242`). No red-ale cell prints this way: number
+  cells round to `places` (§3.2).
 - No other arithmetic: the report adds the total and the payments in a commodity collector, exactly.
 
 ### 1.8 GnuCash's test (`standard/test/test-invoice.scm`)

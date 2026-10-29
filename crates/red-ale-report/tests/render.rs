@@ -397,6 +397,51 @@ fn additions_render_with_links_as_data_attributes() {
     assert!(html.contains("000002<br>000001"));
 }
 
+/// The additions of `redAleApi` 0.6.0: the report's CSS, class names on blocks and cells, a picture and the exact
+/// number display.
+fn additions_c(css: &str) -> ReportResult {
+    let mut r = result(
+        "",
+        json!([ { "blocks": [
+            { "kind": "text", "text": "Invoice #0001", "role": "heading", "class": "invoice-title" },
+            { "kind": "group", "class": "main-table", "blocks": [
+                { "kind": "text", "text": "Acme & Co" },
+                { "kind": "image", "src": "file:///home/me/logo&co.png", "class": "picture" } ] },
+            { "kind": "table", "class": "entries-table",
+              "columns": [ { "label": "Quantity", "role": "amount" }, { "label": "Total", "role": "amount" } ],
+              "rows": [ { "cells": [ { "number": "1/8", "numberFormat": "exact", "display": "0.125", "class": "qty" },
+                                     usd("6", "$6.00") ] } ] },
+            { "kind": "image", "src": "file:///" }
+        ] } ]),
+    );
+    r.css = Some(css.to_owned());
+    r
+}
+
+#[test]
+fn additions_c_render_classes_css_and_pictures() {
+    let html = page(&additions_c(".entries-table > table { width: 100% }\n"), None);
+    golden("additions-c", &html);
+    assert!(html.contains("\n.entries-table > table { width: 100% }\n</style>"));
+    assert!(html.contains("<div class=\"invoice-title\">\n<h3 class=\"text-heading\">Invoice #0001</h3>\n</div>"));
+    assert!(html.contains("<div class=\"main-table\">\n<div class=\"group\">"));
+    assert!(html.contains("<div class=\"picture\">\n<img src=\"file:///home/me/logo&amp;co.png\">\n</div>"));
+    assert!(html.contains("<div class=\"table-wrap entries-table\">\n<table class=\"report-table\">"));
+    assert!(html.contains("<td class=\"number-cell qty\">0.125</td>"));
+    assert!(html.contains("<img src=\"file:///\">"), "an empty Picture Location, as in GnuCash");
+    let plain = page(&balance_sheet(), None);
+    assert!(plain.contains("<div class=\"table-wrap\">") && !plain.contains("<img"));
+}
+
+/// A host leaves refused CSS out of the result; a result from elsewhere that carries it still renders without it.
+#[test]
+fn refused_css_in_a_result_is_not_written() {
+    let html = page(&additions_c("p { color: red }\n@import 'x.css';"), None);
+    assert!(!html.contains("color: red") && !html.contains("@import"));
+    let unstyled = page(&additions_c(""), None);
+    assert_eq!(html, unstyled);
+}
+
 #[test]
 fn a_missing_style_sheet_renders_with_the_base_look() {
     let sheets = StyleSheets::predefined();
@@ -411,9 +456,25 @@ fn a_missing_style_sheet_renders_with_the_base_look() {
 
 // ---- Checks every page passes ----
 
-/// No script, nothing that loads, and well-formed markup with SVG inside its viewBox.
+/// The page with each picture taken out: an `<img src="file:///…">`, the one thing a page may name
+/// (`design/reports.md` §8).
+fn without_pictures(lower: &str) -> String {
+    lower
+        .split("<img src=\"file:///")
+        .enumerate()
+        .map(|(i, part)| {
+            if i == 0 {
+                part
+            } else {
+                part.find("\">").map_or(part, |end| &part[end + 2..])
+            }
+        })
+        .collect()
+}
+
+/// No script, nothing that loads except a `file:///` picture, and well-formed markup with SVG inside its viewBox.
 fn check_page(html: &str) {
-    let lower = html.to_ascii_lowercase();
+    let lower = without_pictures(&html.to_ascii_lowercase());
     [
         "<script",
         "<iframe",
@@ -451,7 +512,7 @@ fn check_page(html: &str) {
     svgs(html).iter().for_each(|svg| check_svg(svg));
 }
 
-const VOID: [&str; 4] = ["meta", "br", "hr", "!DOCTYPE"];
+const VOID: [&str; 5] = ["meta", "br", "hr", "img", "!DOCTYPE"];
 
 /// A simple XML-ish parse: every tag closes in order (HTML's void elements excepted), attribute values are quoted,
 /// and every `&` starts an entity.

@@ -344,6 +344,12 @@ fn round_places(value: &Rational, places: u32, mode: Rounding) -> Rational {
     value.round_to(denom, mode).unwrap_or_else(|_| value.clone())
 }
 
+/// `xaccPrintAmount` with `gnc_default_print_info(FALSE)` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-860`): at
+/// least the Locale's `frac_digits` decimals, no maximum and no rounding, grouped, no symbol: `0.125`, `2.00`, `1/3`, `1 + 1/3`.
+pub fn display_unrounded(value: &Rational, conv: &Conventions) -> String {
+    format_amount(value, &PrintInfo::plain(u32::from(conv.frac_digits)), conv)
+}
+
 /// The exact value, grouped, with as many decimals as it needs and no trailing decimal point, or `w + n/d`: how chart
 /// hover labels and ticks show a `number` axis.
 pub fn display_exact(value: &Rational, conv: &Conventions) -> String {

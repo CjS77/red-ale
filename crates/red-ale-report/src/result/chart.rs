@@ -51,6 +51,9 @@ pub struct Chart {
     /// Hover label behaviour.
     #[serde(default)]
     pub tooltip: Tooltip,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 fn yes() -> bool {

@@ -2,10 +2,12 @@
 
 use super::chart::AxisFormat;
 use super::{
-    Anchor, Block, Cell, CellContent, Chart, ChartType, Column, ColumnRole, GridBlock, Link, PlotSize, Row, RowRole, Section, Series, Table,
+    Anchor, Block, Cell, CellContent, Chart, ChartType, Column, ColumnRole, GridBlock, Link, NumberFormat, PlotSize, Row, RowRole, Section,
+    Series, Table,
 };
 use crate::error::ResultError;
 use crate::options::SPAN_MAX;
+use crate::render::check_css;
 
 /// Whether the host has filled in its fields yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,7 +59,26 @@ fn blocks(blocks: &[Block], path: &str, stage: Stage) -> Check {
         .try_for_each(|(i, b)| block(b, &format!("{path}[{i}]"), stage))
 }
 
+/// A result's `css` passes the CSS template's rule (`design/reports.md` §8): the host leaves out any that does not.
+pub(super) fn css(css: Option<&str>) -> Check {
+    css.map_or(Ok(()), |c| check_css(c).or_else(|reason| fail("css", reason)))
+}
+
+/// Class names: one or more, separated by single spaces, each a letter then letters, digits, `-` and `_`.
+fn class_list(class: Option<&str>, path: &str) -> Check {
+    let name = |n: &str| {
+        let mut chars = n.chars();
+        chars.next().is_some_and(|c| c.is_ascii_alphabetic()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    };
+    ensure(
+        class.is_none_or(|c| c.split(' ').all(name)),
+        path,
+        "class names are separated by single spaces, each a letter then letters, digits, '-' and '_'",
+    )
+}
+
 fn block(b: &Block, path: &str, stage: Stage) -> Check {
+    class_list(b.class(), &format!("{path}.class"))?;
     match b {
         Block::Text(t) => t.link.as_ref().map_or(Ok(()), |l| link(l, &format!("{path}.link"))),
         Block::Warning(_) | Block::List(_) => Ok(()),
@@ -65,6 +86,11 @@ fn block(b: &Block, path: &str, stage: Stage) -> Check {
         Block::Chart(c) => chart(c, path, stage),
         Block::Group(g) => blocks(&g.blocks, &format!("{path}.blocks"), stage),
         Block::Grid(g) => grid(g, path, stage),
+        Block::Image(i) => ensure(
+            i.src.starts_with("file:///"),
+            &format!("{path}.src"),
+            "a picture's address starts with file:///",
+        ),
         Block::OptionsSummary(_) => ensure(
             stage == Stage::Finished,
             &format!("{path}.kind"),
@@ -181,6 +207,7 @@ fn cell(c: &Cell, path: &str, stage: Stage) -> Check {
         )
     })?;
     ensure(c.span != Some(0), &format!("{path}.span"), "span must be at least 1")?;
+    class_list(c.class.as_deref(), &format!("{path}.class"))?;
     c.link.as_ref().map_or(Ok(()), |l| link(l, &format!("{path}.link")))?;
     period(c, content, path, stage)?;
     let is_number = matches!(content, CellContent::Number(_));
@@ -190,11 +217,7 @@ fn cell(c: &Cell, path: &str, stage: Stage) -> Check {
         path,
         "places, suffix, rounding and numberFormat belong to number cells",
     )?;
-    ensure(
-        c.number_format.is_none() || c.rounding.is_none(),
-        &format!("{path}.rounding"),
-        "a share display rounds half up; it takes no rounding",
-    )?;
+    number_format(c, path)?;
     ensure(
         c.places.is_none_or(|p| p <= MAX_PLACES),
         &format!("{path}.places"),
@@ -216,6 +239,23 @@ fn cell(c: &Cell, path: &str, stage: Stage) -> Check {
     host_or_absent(c.rounded.is_some(), rounded, stage, &format!("{path}.rounded"))?;
     host_or_absent(c.local_date.is_some(), local_date, stage, &format!("{path}.localDate"))?;
     host_or_absent(c.display.is_some(), display, stage, &format!("{path}.display"))
+}
+
+/// A share display rounds half up and takes no `rounding`; an exact display rounds nothing and takes no `places`
+/// either.
+fn number_format(c: &Cell, path: &str) -> Check {
+    match c.number_format {
+        Some(NumberFormat::Share) => ensure(
+            c.rounding.is_none(),
+            &format!("{path}.rounding"),
+            "a share display rounds half up; it takes no rounding",
+        ),
+        Some(NumberFormat::Exact) => {
+            ensure(c.places.is_none(), &format!("{path}.places"), "an exact display has no places")?;
+            ensure(c.rounding.is_none(), &format!("{path}.rounding"), "an exact display rounds nothing")
+        }
+        None => Ok(()),
+    }
 }
 
 /// `until` belongs to a date cell and is not before its date; the host fills `localUntil` for it.

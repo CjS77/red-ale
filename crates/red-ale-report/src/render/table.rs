@@ -212,8 +212,9 @@ fn td(cell: &Cell, column: Option<&Column>, row: &Row, look: &Look, span: usize,
             Align::Right => "align-right",
             Align::Center => "align-center",
         }),
+        cell.class.as_deref(),
     ];
-    let class = classes.into_iter().flatten().collect::<Vec<_>>().join(" ");
+    let class = escape(&classes.into_iter().flatten().collect::<Vec<_>>().join(" ")).into_owned();
     let depth = row
         .depth
         .filter(|d| *d > 0 && label_column)
