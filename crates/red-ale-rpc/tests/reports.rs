@@ -720,3 +720,34 @@ fn report_placements_name_existing_reports_and_round_trip_in_saved_configuration
         "set again, it is checked"
     );
 }
+
+/// The script of the Guide "Write your own report" (`docs/guides/write-your-own-report.md`): its first `rhai` block.
+fn guide_script() -> String {
+    let guide = include_str!("../../../docs/guides/write-your-own-report.md");
+    let (_, rest) = guide.split_once("```rhai\n").expect("the Guide has a rhai block");
+    let (script, _) = rest.split_once("```").expect("the rhai block ends");
+    script.to_string()
+}
+
+/// The Guide's Examples cannot put a file in the report directory, so its script runs here: it loads, lists as a User
+/// report, and runs and exports on a book, so the Guide can't fall behind the engine (`design/milestone6.md`).
+#[test]
+fn the_write_your_own_report_guides_script_loads_and_runs() {
+    let mut s = Setup::new();
+    std::fs::write(s.dir.path().join("reports/asset-balances.rhai"), guide_script()).unwrap();
+    let list = s.call("report.list", json!({}));
+    let guide = listed(&list).into_iter().find(|r| r["name"] == "Asset Balances").cloned();
+    let guide = guide.unwrap_or_else(|| panic!("not listed: {}", list["problems"]));
+    assert_eq!(
+        (guide["kind"].as_str(), guide["script"].as_str()),
+        (Some("user"), Some("./asset-balances.rhai"))
+    );
+    s.open(true);
+    let run = s.call("report.run", json!({ "report": "Asset Balances" }));
+    assert_eq!(run["title"], "Asset Balances");
+    let rows = run["sections"][0]["blocks"][0]["rows"].as_array().unwrap();
+    assert!(!rows.is_empty(), "the fixture has asset accounts: {run}");
+    assert!(rows.iter().all(|r| r["cells"][1]["display"].is_string()), "{rows:?}");
+    let html = s.call("report.export", json!({ "report": "Asset Balances" }))["html"].clone();
+    assert!(html.as_str().unwrap().contains("Asset Balances"));
+}
