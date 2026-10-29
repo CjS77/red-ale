@@ -559,6 +559,60 @@ fn budget_options_round_trip_by_guid() {
     assert_eq!(value_of(&none, "General", "Budget"), Value::Null, "no budget to default to");
 }
 
+/// An invoice option holds a document's GUID or `null` (`5.17:libgnucash/engine/gnc-option-impl.cpp:259-284`), any
+/// GUID kept as a budget's is; the summary shows the GUID where GnuCash's `disp` prints a pointer. An image option
+/// is a string, never read as a file.
+#[test]
+fn invoice_and_image_options_read_and_write_their_wire_form() {
+    let (book, zone) = (book(), TimeZone::utc());
+    let mut db = OptionDb::new();
+    db.invoice(c("General", "Invoice Number", "x"), None).unwrap();
+    db.image(c("Layout", "Picture Location", "zy"), String::new()).unwrap();
+    assert_eq!(value_of(&db, "General", "Invoice Number"), Value::Null);
+    let set = json!({ "General": { "Invoice Number": guid(9).to_string() }, "Layout": { "Picture Location": "/no/such/logo.png" } });
+    db.apply(&set, &ctx_with(Some(&book), &zone)).unwrap();
+    assert_eq!(Value::Object(db.changed()), set, "a GUID naming no document is kept");
+    db.apply(&json!({ "General": { "Invoice Number": null } }), &ctx_with(Some(&book), &zone))
+        .unwrap();
+    assert_eq!(
+        value_of(&db, "General", "Invoice Number"),
+        Value::Null,
+        "null resets it to no document"
+    );
+    let refused = [json!("0001"), json!(7), json!(["x"])];
+    refused.into_iter().for_each(|v| {
+        let change = json!({ "General": { "Invoice Number": v } });
+        assert!(db.apply(&change, &ctx_with(Some(&book), &zone)).is_err(), "{change}");
+    });
+    db.apply(&json!({ "Layout": { "Picture Location": null } }), &ctx_with(Some(&book), &zone))
+        .unwrap();
+    assert_eq!(
+        value_of(&db, "Layout", "Picture Location"),
+        json!(""),
+        "null resets it, as for every option"
+    );
+    let types: Vec<String> = db.describe().into_iter().map(|o| o.option_type).collect();
+    assert_eq!(types, ["invoice", "image"]);
+    let schema = db.params_schema();
+    assert_eq!(
+        schema["properties"]["General"]["properties"]["Invoice Number"]["type"],
+        json!(["string", "null"])
+    );
+    assert_eq!(
+        schema["properties"]["Layout"]["properties"]["Picture Location"]["type"],
+        json!("string")
+    );
+    db.apply(&set, &ctx_with(Some(&book), &zone)).unwrap();
+    let rows = db.summary(&DisplayContext {
+        book: &book,
+        zone: &zone,
+        date_format: DateFormat::Iso,
+        locale: red_ale_locale::Locale::c(),
+    });
+    let values: Vec<&str> = rows.iter().map(|r| r.value.as_str()).collect();
+    assert_eq!(values, [guid(9).to_string().as_str(), "/no/such/logo.png"]);
+}
+
 /// `GncOption-set-default-value` sets the default and the value (`5.17:libgnucash/engine/gnc-option-impl.cpp:87-91`);
 /// red-ale refuses an option that does not exist and a default the option's checks would replace.
 #[test]

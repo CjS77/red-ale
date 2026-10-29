@@ -47,6 +47,9 @@ fn disp(value: &OptionValue, ctx: &DisplayContext<'_>) -> String {
         // `gnc-budget-get-name`; no budget is #f, which `disp` shows as a boolean.
         OptionValue::Budget(None) => "Disabled".to_owned(),
         OptionValue::Budget(Some(g)) => ctx.book.budget(*g).map_or_else(|| g.to_string(), |b| b.name.clone()),
+        // `disp` has no case for an invoice and shows a pointer that differs at every run
+        // (`5.17:gnucash/report/html-utilities.scm:302-323`); red-ale shows the GUID.
+        OptionValue::Invoice(g) => g.map_or_else(|| "null".to_owned(), |g| g.to_string()),
         // Each child is `(id wide high #f)` to Scheme (`5.17:bindings/guile/gnc-optiondb.i:304-321`), a list `disp`
         // joins, the report's GUID in place of the instance id.
         OptionValue::Placements(children) => list(

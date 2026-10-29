@@ -8,7 +8,7 @@
 //! | Option | Written as |
 //! |--------|------------|
 //! | boolean | `#t`, `#f` |
-//! | string, text, font, pixmap | `"…"` |
+//! | string, text, font, pixmap (image) | `"…"` |
 //! | colour | `'(r g b a)`, components 0 to 255 written as `0.0`–`255.0` (`:1310-1328`), read by truncating each (`:330-346`) |
 //! | multichoice | `'symbol`, `'"string"` or `'3`, matched against the choices by its text (`:996-1033`) |
 //! | list | `'(a b)`, or `'#f` with none (`:1073-1081`) |
@@ -16,7 +16,7 @@
 //! | plot size | `'(percent . 50)`, `'(pixels . 500)`: the number alone decides, above 100 is pixels (`:1376-1384`) |
 //! | date | `'(absolute . <seconds>)`, `'(relative . <name>)` (`5.17:libgnucash/engine/gnc-option-impl.cpp:967-984`) |
 //! | account list | `'("<guid>" …)`, `'""` when empty (`:1226-1240`) |
-//! | account | `"<guid>"` |
+//! | account, invoice | `"<guid>"`, `""` for none |
 //! | currency | `"USD"` (5.17), `'(commodity-scm "CURRENCY" "USD")` (4.x) |
 //! | commodity | `'(commodity-scm "<namespace>" "<mnemonic>")` (`:1249-1263`) |
 //! | budget | `(gnc-budget-lookup "<guid>" (gnc-get-current-book))` (`5.17:bindings/guile/options.scm:150-160`) |
@@ -110,7 +110,7 @@ fn value(kind: &OptionKind, default: &OptionValue, d: &Datum) -> Converted<Value
     match kind {
         OptionKind::Boolean => boolean(d),
         OptionKind::Internal if matches!(default, OptionValue::Bool(_)) => boolean(d),
-        OptionKind::String | OptionKind::Text | OptionKind::Font | OptionKind::Internal => string(d).map(Value::from),
+        OptionKind::String | OptionKind::Text | OptionKind::Font | OptionKind::Image | OptionKind::Internal => string(d).map(Value::from),
         OptionKind::Color => color(d),
         OptionKind::Multichoice { choices } => choice(choices, d),
         OptionKind::List { choices } => list(choices, d),
@@ -118,7 +118,8 @@ fn value(kind: &OptionKind, default: &OptionValue, d: &Datum) -> Converted<Value
         OptionKind::PlotSize => plot_size(d),
         OptionKind::Date { .. } => date(d),
         OptionKind::AccountList { .. } => account_list(d),
-        OptionKind::AccountSel { .. } => account(d),
+        // An invoice is a QOF instance like an account: its GUID's text, `""` for none (`gnc-optiondb.i:1242-1247`).
+        OptionKind::AccountSel { .. } | OptionKind::Invoice => account(d),
         OptionKind::Currency | OptionKind::Commodity => commodity(d).map(Value::from),
         OptionKind::Budget => budget_lookup(d)
             .map(Value::from)
@@ -355,6 +356,8 @@ mod tests {
         db.commodity(c("commodity"), CommodityRef::currency("USD")).unwrap();
         db.internal(c("internal"), OptionValue::Bool(false)).unwrap();
         db.budget(c("budget"), None).unwrap();
+        db.invoice(c("invoice"), None).unwrap();
+        db.image(c("image"), String::new()).unwrap();
         db
     }
 
@@ -435,6 +438,8 @@ mod tests {
         assert_eq!(wire("budget", &lookup).unwrap(), json!(guid));
         assert!(wire("budget", &format!("\"{guid}\"")).is_err(), "GnuCash writes only the lookup");
         assert!(wire("account", &lookup).is_err(), "the lookup sets only a budget option");
+        assert_eq!(wire("invoice", &format!("\"{guid}\"")).unwrap(), json!(guid));
+        assert_eq!(wire("image", r#""/home/me/logo.png""#).unwrap(), json!("/home/me/logo.png"));
     }
 
     #[test]

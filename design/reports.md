@@ -761,6 +761,8 @@ Option types used by the reports in scope and the style sheets, and their wire v
 | `currency`, `commodity` | `GncOptionCommodityValue`, stored by namespace and mnemonic (`gnc-option-impl.hpp:215-259`) | CommodityId | Commodity |
 | `internal` | `gnc_register_internal_option` | string or bool | |
 | `budget` | `GncOptionQofInstanceValue` with the budget UI type (`5.17:libgnucash/engine/gnc-optiondb.cpp:657-665`) (v0.4) | the budget's GUID; `null` when the Book has none to default to | Budget or `()` (also for a budget since deleted) |
+| `invoice` (v0.6) | `GncOptionQofInstanceValue` with UI `INVOICE` (`5.17:libgnucash/engine/gnc-optiondb.cpp:915-923`), serialized as the GUID (`5.17:libgnucash/engine/gnc-option-impl.cpp:259-284`) | a business document's GUID, or `null` (the default) for none. Any GUID is kept, as a budget's is: a saved configuration may be made with no Book open | Invoice, or `()` for none and for a GUID that names no document of the Book, as GnuCash's failed lookup leaves the option at `'()` |
+| `image` (v0.6) | `GncOptionValue<std::string>` with UI `PIXMAP` (`gnc-optiondb.cpp:725-732`) | a string: a picture's file name, which the server never reads (section 8) | string |
 | `reportPlacement` | `GncOptionValue<GncOptionReportPlacementVec>`, UI `REPORT_PLACEMENT`: `(id, wide, high)` per child, `id` a report instance of the session (`5.17:libgnucash/engine/gnc-option.hpp:71-72`) (v0.5) | array of `{ report, options?, colspan, rowspan }`, below | the wire form: an array of maps |
 
 **Report placements** are a Multicolumn View's children, GnuCash's `__general`/`report-list`
@@ -822,6 +824,8 @@ The builder passed to `options()` mirrors GnuCash's `gnc-register-*-option` func
 | `o.currency(…, default)`, `o.commodity(…, default)` | `gnc-register-currency-option`, `-commodity-option` |
 | `o.internal(…, default)` | `gnc_register_internal_option` |
 | `o.budget(…, default)` | `gnc-register-budget-option`; `default` is a Budget or `()`, which reports take from `book.default_budget()` (v0.4) |
+| `o.invoice(…, default)` (v0.6) | `gnc-register-invoice-option`; `default` is an Invoice or `()`, which the Printable Invoice passes (`standard/invoice.scm:391-393`) |
+| `o.image(…, default)` (v0.6) | `gnc-register-pixmap-option` (`standard/invoice.scm:405-407`) |
 | `o.complex_boolean(…, default, callback)`, `o.multichoice_callback(…, default, choices, callback)` | `gnc-register-complex-boolean-option`, `-multichoice-callback-option` (`5.17:bindings/guile/gnc-optiondb.i:1664-1710`): a boolean and a multichoice like any other, saved as one. The callback (a function or `()`) is GnuCash's dialog hook, which in every report only makes other options selectable; red-ale has no dialog and never calls it (v0.4) |
 | `o.set_default_section(s)` | `GncOptionDBPtr-set-default-section` |
 | `o.set_default(section, name, value)` | `GncOption-set-default-value` (`5.17:bindings/guile/gnc-optiondb.i:1500-1611`): the default and the value both become `value`, given in the form the option's declaration takes its default (`5.17:libgnucash/engine/gnc-option-impl.cpp:87-91`). A value the declaration would have replaced (a key that is not a choice, a number out of range) is refused. GnuCash ignores an option that does not exist; red-ale makes it a `report-script` error, so a misspelt name is found, and the translations leave out GnuCash's calls on options that do not exist (`notes/report-transaction-engine.md` §7, Q6) (v0.5) |
@@ -838,7 +842,9 @@ Every template also gets GnuCash's three General options, unless its generator d
 (`gnc:report-template-new-options`, `report/report-core.scm:298-335`): "Report name" (key `0a`, default the
 template name), "Stylesheet" (`0b`, a multichoice over the style sheets, default `Default`) and "Add options
 summary" (`0c`, `always` or `never`, default `never`). With `always`, the host appends a table of every option whose
-value differs from its default, as `gnc:html-render-options-changed` does (`report/html-utilities.scm:298-345`).
+value differs from its default, as `gnc:html-render-options-changed` does (`report/html-utilities.scm:298-345`). An
+`invoice` value shows as its GUID: GnuCash's `disp` has no case for one and prints a pointer that differs at every
+run (section 14).
 
 In a script, `opts.get(section, name)` returns the value (dates already turned into Time64, as
 `gnc:date-option-absolute-time` does, `5.17:bindings/guile/options.scm:335-340`), and `opts.raw(section, name)` the

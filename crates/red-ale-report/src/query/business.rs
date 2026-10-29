@@ -68,6 +68,11 @@ fn optional<T: Clone + 'static>(value: Option<T>) -> Dynamic {
 }
 
 impl InvoiceHandle {
+    /// The document's GUID.
+    pub fn guid(&self) -> Guid {
+        self.guid
+    }
+
     fn get(&self) -> Fallible<&Invoice> {
         get_invoice(&self.snap, self.guid)
     }
@@ -107,7 +112,7 @@ impl EntryHandle {
 }
 
 impl BookHandle {
-    fn invoice(&self, guid: Guid) -> InvoiceHandle {
+    pub(crate) fn invoice(&self, guid: Guid) -> InvoiceHandle {
         InvoiceHandle {
             snap: Rc::clone(&self.0),
             guid,
