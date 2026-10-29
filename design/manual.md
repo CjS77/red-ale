@@ -283,7 +283,9 @@ Decided while building `red-ale-docs` and the `help.*` methods ([`api/help.md`](
 - **Synonyms.** The glossary is compiled into `red-ale-docs` and parsed when the Manual is built: no generated copy
   to keep in step, and the parser is unit-tested. The supplement is `docs/synonyms.txt`.
 - **Search** is BM25F: BM25 with each field (title, method name, summary, body) weighted and normalised by its own
-  length, so a long Reference page still ranks first for its own method's name.
+  length, so a long Reference page still ranks first for its own method's name. A field's average length is taken
+  over the Pages that have it (only method Pages have a method name), and the method name weighs twice the title, so
+  `book-already-open` does not outrank `book.open` for "open a book".
 - **Coverage while writing.** `docs/coverage-pending.txt` lists the gaps known to be open, one `<page-id> <what>`
   per line; the coverage test fails on a gap not listed and on a listed one that is closed, so the list only
   shrinks. Reports, like methods, need a hand-written part and an Example. The check that every glossary term a Page
