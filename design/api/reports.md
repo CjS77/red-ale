@@ -37,6 +37,22 @@ for a saved configuration.
 
 `Options` (a param): `{ "<section>": { "<name>": <value> } }`, only the options to change; wire forms in §6.
 
+Option type `reportPlacement` (`redAleApi` 0.5.0, additive: a new `type` value of `OptionInfo`): a Multicolumn View's
+children, GnuCash's `__general`/`report-list`, an array in placement order of
+
+| Field | Meaning |
+|-------|---------|
+| `report` | Required. The GUID of a report template or saved configuration; not a name |
+| `options` | Only with a template's GUID: changes over its defaults, as `report.run` takes them. Stored as the values that differ from the defaults |
+| `colspan`, `rowspan` | Integers 0–100, default 1: GnuCash's `wide` and `high` |
+
+Its default is `[]`. When a caller sets it (`report.run`, `report.export`, `report.saveConfiguration`,
+`report.updateConfiguration`), every child is checked: a GUID that names no template or saved configuration,
+`options` given with a saved configuration's GUID, and a template child's option that its template refuses are
+`report-option`, `data.section` `__general`, `data.name` `report-list`, and `data.reason` starting `child <n>: `
+with the child's position from 0. A saved configuration's stored children are not checked again: one deleted since
+renders a warning in its cell when the view runs ([`../reports.md`](../reports.md) §6).
+
 `ReportResult`: the published language of §7, listed in `api.schema`. Additions in `redAleApi` 0.5.0, each an optional
 field or a new kind (`api.md`, "Versioning"): link kinds `split`, `transaction`, `invoice`,
 `price` and `docLink` (§7, "Links"); `anchors` cells and `until` on date cells, with the host's `localUntil` (§7,
@@ -292,6 +308,7 @@ file on the caller's side into the `text` param; giving `text` as well is a usag
 | CSV export target | A file the GUI writes | CSV returned; only the CLI writes, on its side | The server never writes caller-named paths |
 | Name clash on save | A number is appended | `conflict` | The caller gets the name it asked for |
 | Invalid option value | Logged, option unchanged | `report-option` | A typo never runs a different report |
+| A Multicolumn View's children | Report instances of the session; a saved configuration's options are copied into the new instance | Template or saved configuration GUIDs; a saved configuration child follows its later changes | Children stay put across restarts (`../notes/report-statements-charts.md` Q4) |
 | `gnucash-cli --report run` failure | Exit status 0, error on standard error (`5.17:gnucash/gnucash-commands.cpp:234-250`) | An error response; the CLI exits with status 2 | Failures are visible |
 | Export target | A file the GUI or CLI writes | HTML returned; only the CLI writes, on its side | The server never writes caller-named paths |
 

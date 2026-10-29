@@ -23,7 +23,8 @@ impl OptionDb {
 }
 
 /// GnuCash's `disp`: booleans as Enabled or Disabled, lists joined with `, `, a date as `absolute . <date>` or
-/// `relative . <name>`, a commodity by mnemonic, an account by full name, a budget by name, anything else as Scheme's `display` shows it.
+/// `relative . <name>`, a commodity by mnemonic, an account by full name, a budget by name, a report placement as
+/// its list of `id, wide, high, Disabled`, anything else as Scheme's `display` shows it.
 fn disp(value: &OptionValue, ctx: &DisplayContext<'_>) -> String {
     let account = |g: &red_ale_core::Guid| ctx.book.full_name(*g).unwrap_or_else(|| g.to_string());
     let list = |items: Vec<String>| if items.is_empty() { "null".to_owned() } else { items.join(", ") };
@@ -46,6 +47,14 @@ fn disp(value: &OptionValue, ctx: &DisplayContext<'_>) -> String {
         // `gnc-budget-get-name`; no budget is #f, which `disp` shows as a boolean.
         OptionValue::Budget(None) => "Disabled".to_owned(),
         OptionValue::Budget(Some(g)) => ctx.book.budget(*g).map_or_else(|| g.to_string(), |b| b.name.clone()),
+        // Each child is `(id wide high #f)` to Scheme (`5.17:bindings/guile/gnc-optiondb.i:304-321`), a list `disp`
+        // joins, the report's GUID in place of the instance id.
+        OptionValue::Placements(children) => list(
+            children
+                .iter()
+                .map(|p| format!("{}, {}, {}, Disabled", p.report, p.colspan, p.rowspan))
+                .collect(),
+        ),
     }
 }
 

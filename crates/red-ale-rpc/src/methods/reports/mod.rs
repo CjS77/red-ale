@@ -22,7 +22,7 @@ use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::{Book, FixedEnv, Guid, Time64, TimeZone};
 use red_ale_locale::Locale;
 use red_ale_report::ReportError;
-use red_ale_report::engine::{Registry, RunContext, ScriptSource, TemplateInfo, TemplateKind};
+use red_ale_report::engine::{Configurations, Registry, RunContext, ScriptSource, TemplateInfo, TemplateKind};
 use red_ale_report::library::Library;
 use red_ale_report::limits::{Limit, Limits};
 use red_ale_report::options::{GENERAL, OptionDb, STYLESHEET, ValueContext};
@@ -32,7 +32,7 @@ use red_ale_service::config::Config;
 use red_ale_service::reports::{SavedReport, ScriptProblem, StyleSheetRecord, load_report_scripts};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::dispatch::{Context, Effect, Method, method};
 use crate::error::{RpcError, codes};
@@ -375,8 +375,9 @@ impl Reports {
         choices
     }
 
-    /// A template's options with a saved configuration's values, then `changes`, applied. Defaults that depend on
-    /// the Book come from `book`, or from an empty Book; without a Book, accounts can be named only by GUID.
+    /// A template's options with a saved configuration's values, then `changes`, applied, and the children `changes`
+    /// name checked. Defaults that depend on the Book come from `book`, or from an empty Book; without a Book,
+    /// accounts can be named only by GUID.
     fn configured(
         &self,
         template: &TemplateInfo,
@@ -384,7 +385,16 @@ impl Reports {
         changes: Option<&Value>,
         on: &On<'_>,
     ) -> Result<OptionDb, RpcError> {
-        let mut db = self.defaults(template, &self.style_sheet_choices(saved), on)?;
+        let style_sheets = self.style_sheet_choices(saved);
+        let empty;
+        let book = if let Some(book) = on.book {
+            book
+        } else {
+            empty = empty_book();
+            &empty
+        };
+        let run = self.run_context(book, on.now, on.zone, &style_sheets, self.locale(None)?);
+        let mut db = self.registry.options(template, &run)?;
         let values = ValueContext {
             book: on.book,
             zone: on.zone,
@@ -395,6 +405,11 @@ impl Reports {
             .chain(changes)
             .try_for_each(|c| db.apply(c, &values))
             .map_err(ReportError::from)?;
+        if let Some(changes) = changes {
+            self.registry
+                .check_children(&mut db, changes, &run, &values)
+                .map_err(ReportError::from)?;
+        }
         Ok(db)
     }
 
@@ -405,7 +420,7 @@ impl Reports {
         let book = if let Some(book) = on.book {
             book
         } else {
-            empty = Book::new_empty(&mut FixedEnv::new(Time64(0), 0));
+            empty = empty_book();
             &empty
         };
         Ok(self
@@ -432,8 +447,20 @@ impl Reports {
             fiscal_year_end: self.fiscal_year_end,
             style_sheets,
             export: None,
+            configurations: self,
         }
     }
+}
+
+impl Configurations for Reports {
+    fn configuration(&self, guid: Guid) -> Option<(Guid, &Map<String, Value>)> {
+        self.saved.iter().find(|s| s.guid == guid).map(|s| (s.template, &s.options))
+    }
+}
+
+/// The Book options are described against when none is open.
+fn empty_book() -> Book {
+    Book::new_empty(&mut FixedEnv::new(Time64(0), 0))
 }
 
 /// What option values are read against.

@@ -274,6 +274,9 @@ pub(super) fn register_builder(engine: &mut Engine) {
     engine.register_fn("make_internal", |o: &mut OptionBuilder, s: &str, n: &str| {
         declare(o.db.borrow_mut().make_internal(s, n))
     });
+    engine.register_fn("report_placement", |o: &mut OptionBuilder, s: &str, n: &str| {
+        declare(o.db.borrow_mut().report_placement(s, n))
+    });
     // `gnc-default-report-currency`, the default of `gnc:options-add-currency!`
     // (`5.17:gnucash/report/options-utilities.scm:124-130`): the report settings' currency, since `options()` has no
     // run context.
@@ -386,6 +389,8 @@ fn script_value(o: &OptionBuilder, kind: &OptionKind, d: &Dynamic) -> Fallible<O
         OptionKind::AccountSel { .. } => OptionValue::Account(Some(account_arg(book, d)?)),
         OptionKind::Currency | OptionKind::Commodity => OptionValue::Commodity(commodity_arg(book, d)?),
         OptionKind::Budget => OptionValue::Budget(budget_value(d)?),
+        OptionKind::ReportPlacement if array()?.is_empty() => OptionValue::Placements(Vec::new()),
+        OptionKind::ReportPlacement => return Err(script_error("a report placement option defaults to no reports, []")),
     })
 }
 
@@ -464,7 +469,12 @@ pub(crate) fn resolve(db: &OptionDb, r: &Resolve<'_>) -> Result<OptionsHandle, R
         .into_iter()
         .map(|o| {
             let raw = wire.get(o.section()).and_then(|s| s.get(o.name())).cloned().unwrap_or(Value::Null);
-            Ok(((o.section().to_owned(), o.name().to_owned()), (value(o, r)?, raw)))
+            let script = match o.kind {
+                // The wire form: `[#{ report, options?, colspan, rowspan }, …]`.
+                OptionKind::ReportPlacement => rhai::serde::to_dynamic(&raw).map_err(|e| ReportError::Internal(e.to_string()))?,
+                _ => value(o, r)?,
+            };
+            Ok(((o.section().to_owned(), o.name().to_owned()), (script, raw)))
         })
         .collect::<Result<BTreeMap<_, _>, ReportError>>()?;
     Ok(OptionsHandle(Rc::new(values)))
@@ -492,7 +502,7 @@ fn value(o: &ReportOption, r: &Resolve<'_>) -> Result<Dynamic, ReportError> {
         (OptionValue::Budget(g), _) => g
             .filter(|g| r.book.0.book().budget(*g).is_some())
             .map_or(Dynamic::UNIT, |g| Dynamic::from(r.book.budget(g))),
-        (OptionValue::Accounts(_) | OptionValue::Account(_), _) => Dynamic::UNIT,
+        (OptionValue::Accounts(_) | OptionValue::Account(_) | OptionValue::Placements(_), _) => Dynamic::UNIT,
     })
 }
 

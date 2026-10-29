@@ -8,7 +8,8 @@ use serde_json::{Map, Value, json};
 
 use super::db::OptionDb;
 use super::model::{
-    Choice, ChoiceKey, DateUi, OptionKind, OptionValue, PLOT_SIZE_MAX, PLOT_SIZE_MIN, PLOT_SIZE_PERCENT_MAX, ReportOption, relative_name,
+    Choice, ChoiceKey, DateUi, OptionKind, OptionValue, PLOT_SIZE_MAX, PLOT_SIZE_MIN, PLOT_SIZE_PERCENT_MAX, ReportOption, SPAN_MAX,
+    relative_name,
 };
 use super::value::write;
 use crate::number::{Rational, Rounding};
@@ -24,7 +25,7 @@ pub struct OptionInfo {
     /// The sort tag.
     pub key: String,
     /// The type: `boolean`, `string`, `text`, `font`, `color`, `multichoice`, `list`, `numberRange`, `plotSize`,
-    /// `date`, `accountList`, `accountSel`, `currency`, `commodity`, `budget` or `internal`.
+    /// `date`, `accountList`, `accountSel`, `currency`, `commodity`, `budget`, `internal` or `reportPlacement`.
     #[serde(rename = "type")]
     pub option_type: String,
     /// Help text.
@@ -165,7 +166,28 @@ fn kind_schema(kind: &OptionKind, default: &OptionValue) -> Value {
             }
             schema
         }
+        OptionKind::ReportPlacement => placement_schema(),
     }
+}
+
+fn placement_schema() -> Value {
+    let span = |what: &str| {
+        json!({ "type": "integer", "minimum": 0, "maximum": SPAN_MAX, "default": 1, "description": format!("The {what} it spans.") })
+    };
+    json!({ "type": "array", "items": {
+        "type": "object",
+        "properties": {
+            "report": { "type": "string", "description": "The GUID of a report template or saved report configuration." },
+            "options": {
+                "type": "object", "additionalProperties": { "type": "object" },
+                "description": "Only with a template's GUID: changes over its defaults, by section and name, as report.run takes them."
+            },
+            "colspan": span("columns"),
+            "rowspan": span("rows")
+        },
+        "required": ["report"],
+        "additionalProperties": false
+    } })
 }
 
 fn keys(choices: &[Choice]) -> Vec<Value> {

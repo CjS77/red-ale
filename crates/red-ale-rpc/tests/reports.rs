@@ -588,3 +588,96 @@ fn an_export_error_answers_export_csv() {
     assert_eq!(err.message, "No splits found");
     assert_eq!(err.data.unwrap(), json!({ "reason": "export-error", "message": "No splits found" }));
 }
+
+/// A Multicolumn View's options, as `view-column.scm` declares them (`5.17:gnucash/report/reports/standard/view-column.scm:39-47`),
+/// in a test template: the children are an option (`design/notes/report-statements-charts.md` §8.4).
+const VIEW_SCRIPT: &str = r#"
+fn templates() { [#{ guid: "0000000000000000000000000000a007", name: "View" }] }
+fn options(params, o, book) {
+    o.report_placement("__general", "report-list");
+    o.number_range("General", "Number of columns", "a", "Number of columns before wrapping to a new row.", 1, 0, 20, 1);
+}
+fn render(params, book, opts, ctx) {
+    #{ title: `${opts.get("__general", "report-list").len()} children`, sections: [] }
+}
+"#;
+
+fn report_option_reason(err: RpcError) -> String {
+    assert_eq!(err.code, codes::REPORT_OPTION, "{err}");
+    let data = err.data.unwrap();
+    assert_eq!((data["section"].as_str(), data["name"].as_str()), (Some("__general"), Some("report-list")));
+    data["reason"].as_str().unwrap().to_owned()
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn report_placements_name_existing_reports_and_round_trip_in_saved_configurations() {
+    let mut s = Setup::new();
+    std::fs::write(s.dir.path().join("reports/view.rhai"), VIEW_SCRIPT).unwrap();
+    let options = s.call("report.options", json!({ "report": "View" }));
+    let list = options["options"].as_array().unwrap().iter().find(|o| o["name"] == "report-list").unwrap();
+    assert_eq!(
+        (list["section"].clone(), list["type"].clone(), list["default"].clone()),
+        (json!("__general"), json!("reportPlacement"), json!([]))
+    );
+    let schema = &options["paramsSchema"]["properties"]["__general"]["properties"]["report-list"];
+    assert_eq!(schema["items"]["required"], json!(["report"]));
+
+    let deep = s.call(
+        "report.saveConfiguration",
+        json!({ "name": "Deep", "report": LISTING, "options": { "Display": { "Levels": 4 } } }),
+    )["guid"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let children = json!([
+        { "report": LISTING, "options": { "Display": { "Levels": 3, "Show Chart": true } }, "colspan": 2 },
+        { "report": deep, "rowspan": 0 },
+    ]);
+    let view = s.call(
+        "report.saveConfiguration",
+        json!({ "name": "Two", "report": "View", "options": { "__general": { "report-list": children } } }),
+    );
+    assert_eq!(view["template"], "0000000000000000000000000000a007");
+    let stored = json!([
+        { "report": LISTING, "options": { "Display": { "Levels": 3 } }, "colspan": 2, "rowspan": 1 },
+        { "report": deep, "colspan": 1, "rowspan": 0 },
+    ]);
+    let saved = s.config()["reports"]["saved"][1].clone();
+    assert_eq!(
+        saved["options"],
+        json!({ "__general": { "report-list": stored } }),
+        "children are stored as set, a template child's options as they differ from its defaults"
+    );
+    let described = s.call("report.options", json!({ "report": "Two" }));
+    let value = described["options"].as_array().unwrap().iter().find(|o| o["name"] == "report-list").unwrap()["value"].clone();
+    assert_eq!(value, stored);
+
+    let unknown = json!([{ "report": LISTING }, { "report": "0000000000000000000000000000ffff" }]);
+    let err = s.err("report.saveConfiguration", json!({ "name": "Bad", "report": "View", "options": { "__general": { "report-list": unknown } } }));
+    assert_eq!(
+        report_option_reason(err),
+        "child 1: no report template or saved report configuration has GUID 0000000000000000000000000000ffff"
+    );
+    s.open(true);
+    let with_options = json!([{ "report": deep, "options": { "Display": { "Levels": 5 } } }]);
+    let err = s.err("report.run", json!({ "report": "View", "options": { "__general": { "report-list": with_options } } }));
+    assert!(report_option_reason(err).starts_with("child 0: "), "options go only with a template");
+    let invalid = json!([{ "report": LISTING, "options": { "Display": { "Levels": 0 } } }]);
+    let err = s.err("report.updateConfiguration", json!({ "configuration": "Two", "options": { "__general": { "report-list": invalid } } }));
+    assert_eq!(report_option_reason(err), "child 0: Account Listing option Display/Levels: 0 is outside 1 to 10");
+
+    s.call("report.deleteConfiguration", json!({ "configuration": "Deep" }));
+    s.call(
+        "report.updateConfiguration",
+        json!({ "configuration": "Two", "options": { "General": { "Number of columns": 2 } } }),
+    );
+    assert_eq!(
+        s.config()["reports"]["saved"][0]["options"]["__general"]["report-list"],
+        stored,
+        "a child deleted since is kept: running the view warns in its cell"
+    );
+    assert_eq!(s.call("report.run", json!({ "report": "Two" }))["title"], "2 children");
+    let err = s.err("report.run", json!({ "report": "Two", "options": { "__general": { "report-list": stored } } }));
+    assert!(report_option_reason(err).starts_with("child 1: no report"), "set again, it is checked");
+}

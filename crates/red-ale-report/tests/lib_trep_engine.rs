@@ -723,7 +723,7 @@ fn render_on(host: &Host, hooks: &str, options: &Value, export: Option<&str>) ->
     let mut ctx = host.ctx();
     ctx.export = export;
     let t = reg.find(GUID).unwrap();
-    let result = reg.run(t, &[options], None, &ctx).unwrap_or_else(|e| panic!("{e:?}"));
+    let result = reg.run(t, None, Some(options), &ctx).unwrap_or_else(|e| panic!("{e:?}"));
     serde_json::to_value(result).unwrap()
 }
 
