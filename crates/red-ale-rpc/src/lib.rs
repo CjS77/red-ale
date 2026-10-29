@@ -8,6 +8,7 @@
 
 pub mod dispatch;
 pub mod error;
+pub mod manual;
 pub mod methods;
 pub mod quote_fetches;
 pub mod server;
@@ -17,4 +18,4 @@ pub use dispatch::{Context, Dispatcher, Effect, Method, Origin, Target, method};
 pub use error::{RpcError, codes};
 
 /// The version of the API's schema. Within a major version, changes are additive only.
-pub const API_VERSION: &str = "0.5.0";
+pub const API_VERSION: &str = "0.6.0";

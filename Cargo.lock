@@ -1945,6 +1945,7 @@ dependencies = [
  "jsonrpsee",
  "proptest",
  "red-ale-core",
+ "red-ale-docs",
  "red-ale-export",
  "red-ale-import",
  "red-ale-locale",

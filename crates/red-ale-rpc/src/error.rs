@@ -84,6 +84,11 @@ pub mod codes {
     /// evaluated for an instance.
     pub const FORMULA: i32 = 6000;
 
+    /// The stable name of a code.
+    pub fn name(code: i32) -> Option<&'static str> {
+        ALL.iter().find(|(c, _)| *c == code).map(|(_, name)| *name)
+    }
+
     /// Every code with its name, for the schema document.
     pub const ALL: [(i32, &str); 32] = [
         (PARSE_ERROR, "parse-error"),
@@ -148,6 +153,24 @@ impl RpcError {
     #[must_use]
     pub fn with_data(mut self, data: Value) -> Self {
         self.data = Some(data);
+        self
+    }
+
+    /// The same error with `data.help`, the Page ID of the Manual's Page that explains it (`error/<name>`), unless
+    /// it already names one, its code has no name, or its data is not an object. Every door's errors carry it.
+    #[must_use]
+    pub fn with_help(mut self) -> Self {
+        let Some(name) = codes::name(self.code) else {
+            return self;
+        };
+        let page = Value::String(red_ale_docs::error_page_id(name));
+        match &mut self.data {
+            None => self.data = Some(json!({ "help": page })),
+            Some(Value::Object(data)) => {
+                data.entry("help").or_insert(page);
+            }
+            Some(_) => {}
+        }
         self
     }
 

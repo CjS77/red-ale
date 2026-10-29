@@ -10,7 +10,7 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale-xml` | XML file format | Anti-corruption layer: parses an XML Book file into a core `Book` plus the Residue it does not model, and writes them back as GnuCash 5.17 does. | core |
 | `red-ale-sql` | SQL file format (v0.4) | Anti-corruption layer: reads an SQLite Book into a core `Book` plus the SQL Residue, and writes a save's changed rows back in one SQL transaction, read back before it commits, as GnuCash 5.17 would write them; GnuCash's `gnclock` row and the online backup copy ([`sql-fidelity.md`](sql-fidelity.md)). Only SQLite in v0.4, written so a second SQL dialect fits beside it. | core |
 | `red-ale-service` | Book sessions | Use cases over an open Book: open, lock, read-only triggers, atomic mutations, journal, save, backups, replay. Since v0.4 both formats sit behind its `Backend` trait ([`sql-fidelity.md`](sql-fidelity.md) §2). | core, xml, sql, locale |
-| `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. Holds the open book's Quote fetches and stores their prices. | core, service, report, locale, export, quotes |
+| `red-ale-rpc` | Published language | The JSON-RPC 2.0 methods, their schemas and error codes, and a transport-free dispatcher; plus the `jsonrpsee` server. Holds the open book's Quote fetches and stores their prices. Builds and serves the Manual (`help.*`). | core, service, report, locale, export, quotes, docs |
 | `red-ale-mcp` | MCP adapter | Conformist to the MCP specification: one tool per JSON-RPC method, served over stdio, each call run through the `Dispatcher`. No logic of its own ([`mcp.md`](mcp.md)). | rpc |
 | `red-ale` | Binary | `red-ale serve` (the JSON-RPC server), `red-ale mcp` (the MCP server) and the CLI front end. The only crate that uses `anyhow`. | rpc, mcp, service |
 | `red-ale-report` | Reports (v0.2) | The Rhai report engine and its sandbox, the read-only query API, report options, the report result (a published language), and the HTML and SVG renderer with its style sheets. Built-in report scripts are compiled in. Pure: no I/O; script sources and settings come in as values. | core, locale |
@@ -18,6 +18,7 @@ Each bounded context is one crate with its own model. A crate uses another only 
 | `red-ale-export` | Export (v0.3) | The CSV exports of the account tree and transactions, translated from GnuCash (`design/api/export.md`). Pure: no I/O; reads the Book and returns text. Numbers print through the report renderer's `xaccPrintAmount` translation under a Locale. Export accounts, which writes a file, is the XML backend's writer and the service's use case. | core, report, locale |
 | `red-ale-locale` | Locales (v0.3) | The Locale table generated from glibc's locale sources (number format, `D_FMT`, day and month names) and GnuCash's view of it (`gnc_localeconv`); the first day of the week and date intervals from ICU4X. Pure data and lookups: the environment comes in as a function. | — |
 | `red-ale-quotes` | Online quotes (v0.3) | The only crate that reaches the network ([`api/quotes.md`](api/quotes.md)). `format`: one parser per Quote service response format, pure functions from an answer's bytes to a quote record, with numbers read as text (`json_text`); `plan`: the requests for a commodity from the Configuration's Quote services and sources, keys bound to their hosts (`secret`); `fetch`: runs a Quote fetch's requests over HTTP on its own thread and tokio runtime. Which commodities are fetched and how a quote record becomes a Price are pure and live in `red-ale-core` (`ops::quotes`). | core, service |
+| `red-ale-docs` | The Manual (v0.6) | The Manual's model and everything that reads it ([`manual.md`](manual.md)): Pages generated from the `api.schema` document and the report templates, merged with the hand-written Pages of `docs/` (compiled in by its build script), Examples, rendering as Markdown or text for a door, BM25 search with the glossary's synonyms, and coverage checks. Pure: no I/O; the registries come in as data. Its licence is `GPL-3.0-or-later AND GFDL-1.1-no-invariants-or-later`, as it packages `docs/`. | — |
 | `red-ale-testkit` | Testing | Fixture paths, temporary books, a deterministic dispatcher, the GnuCash oracle harness, and a Quote service on 127.0.0.1 serving recorded answers. Used only by tests. | core, xml, sql, service, rpc |
 
 The core reaches the outside world only through `Env`: the clock, fresh GUIDs and the Local time zone. The zone is a
@@ -28,7 +29,9 @@ files once per process, in GnuCash's order, and hands the zone to every session'
 `red-ale-report` arrives in v0.2 (see [`reports.md`](reports.md)); `red-ale-rpc` depends on it for the `report.*`
 methods, and `red-ale-service` reads the report directory and keeps saved report configurations in the
 Configuration. `red-ale-sql` arrives in v0.4 as a second Backend beside `red-ale-xml`; the Session reaches either
-through the `Backend` trait in `red-ale-service`.
+through the `Backend` trait in `red-ale-service`. `red-ale-docs` arrives in v0.6: it depends on no red-ale crate, so
+`red-ale-rpc` hands it the schema document and the built-in report templates and serves the Manual it builds
+(`red_ale_rpc::manual::manual()`), and every other door reads that same Manual.
 
 ## Context map
 
@@ -165,4 +168,5 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `regex` | core, rpc | GnuCash's `GncNumeric(std::string)` and `GncDate` patterns; the `--namespace` pattern of a Quote fetch |
 | `rusqlite` (`libsqlite3-sys`) | sql | SQLite books, with `bundled` so the SQLite version is pinned, not the system's, and `backup` for the online backup API; default features off (MIT; SQLite itself is public domain). **`bundled` compiles SQLite's C amalgamation with `cc`**, a second C library in the build beside `ring`; pure-Rust SQLite engines are not yet ready to trust with a user's books ([`milestone4.md`](milestone4.md), "Decided" item 3). No system SQLite is linked |
 | `rustix` | service | the host name for an SQL book's `gnclock` row (`uname`'s node name, as `gethostname` gives), without `unsafe`; feature `system` only, already in the build through `tempfile` |
+| `pulldown-cmark` | docs | Markdown parsing for the Manual: its text rendering and the links the coverage checks follow (MIT; default features off, the static site adds `html`) |
 | `proptest`, `tempfile` | tests | property tests and temp directories |

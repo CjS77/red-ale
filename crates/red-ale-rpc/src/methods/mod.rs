@@ -14,6 +14,7 @@ pub mod commodities;
 pub mod config;
 pub mod doc_links;
 pub mod export;
+pub mod help;
 pub mod import;
 pub mod import_map;
 pub mod lots;
@@ -54,6 +55,7 @@ pub fn all() -> Vec<Method> {
         scheduled::methods(),
         since_last_run::methods(),
         export::methods(),
+        help::methods(),
     ]
     .into_iter()
     .flatten()

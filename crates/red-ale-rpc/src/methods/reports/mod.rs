@@ -20,14 +20,16 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use red_ale_core::ops::period::{AccountingPeriod, FiscalYearEnd};
 use red_ale_core::{Book, FixedEnv, Guid, Time64, TimeZone};
+use red_ale_docs::{ReportOption, ReportTemplate};
 use red_ale_locale::Locale;
 use red_ale_report::ReportError;
 use red_ale_report::engine::{Configurations, Registry, RunContext, ScriptSource, TemplateInfo, TemplateKind};
 use red_ale_report::library::Library;
 use red_ale_report::limits::{Limit, Limits};
-use red_ale_report::options::{GENERAL, OptionDb, STYLESHEET, ValueContext};
+use red_ale_report::options::{GENERAL, OptionDb, OptionInfo, STYLESHEET, ValueContext};
 use red_ale_report::render::{StyleSheetEntry, StyleSheets};
 use red_ale_report::settings::ReportSettings;
+use red_ale_service::Settings;
 use red_ale_service::config::Config;
 use red_ale_service::reports::{SavedReport, ScriptProblem, StyleSheetRecord, load_report_scripts};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -277,8 +279,17 @@ struct Reports {
 impl Reports {
     fn load(ctx: &Context) -> Result<Self, RpcError> {
         let config = ctx.settings.config.load()?;
-        let settings = settings(&config)?;
         let (user, unread) = user_scripts(ctx, &config)?;
+        Self::from_config(config, user, unread)
+    }
+
+    /// The built-in library alone, under the default Configuration.
+    fn builtin() -> Result<Self, RpcError> {
+        Self::from_config(Settings::default().config.load()?, Vec::new(), Vec::new())
+    }
+
+    fn from_config(config: Config, user: Vec<ScriptSource>, unread: Vec<ScriptProblem>) -> Result<Self, RpcError> {
+        let settings = settings(&config)?;
         let registry = registry(user, limits(&config)?)?;
         Ok(Self {
             saved: config.saved_reports()?,
@@ -455,6 +466,49 @@ impl Reports {
 impl Configurations for Reports {
     fn configuration(&self, guid: Guid) -> Option<(Guid, &Map<String, Value>)> {
         self.saved.iter().find(|s| s.guid == guid).map(|s| (s.template, &s.options))
+    }
+}
+
+/// Every built-in report template as the Manual's report Pages show it: its options at their defaults, described as
+/// `report.options` describes them with no book open, under the default Configuration, in UTC at the epoch. None
+/// when the library does not load; a template whose options can't be described has none listed. Either is a bug in
+/// a built-in script, which the report tests catch.
+pub(crate) fn builtin_templates() -> Vec<ReportTemplate> {
+    let Ok(reports) = Reports::builtin() else {
+        return Vec::new();
+    };
+    let zone = TimeZone::utc();
+    let on = On {
+        book: None,
+        now: Time64(0),
+        zone: &zone,
+    };
+    let sheets = reports.style_sheet_choices(None);
+    reports
+        .registry
+        .templates()
+        .into_iter()
+        .filter(|t| t.kind == TemplateKind::Builtin)
+        .map(|t| ReportTemplate {
+            guid: t.guid.0.to_string(),
+            name: t.name.clone(),
+            script: t.script.clone(),
+            menu_tip: t.menu_tip.clone(),
+            options: reports
+                .defaults(t, &sheets, &on)
+                .map(|db| db.describe().into_iter().map(manual_option).collect())
+                .unwrap_or_default(),
+        })
+        .collect()
+}
+
+fn manual_option(o: OptionInfo) -> ReportOption {
+    ReportOption {
+        section: o.section,
+        name: o.name,
+        option_type: o.option_type,
+        help: o.help,
+        default: o.default,
     }
 }
 
