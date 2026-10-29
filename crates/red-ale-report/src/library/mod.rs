@@ -16,6 +16,7 @@ macro_rules! scripts {
 /// and end in `.rhai`. Add a line here for each new file.
 const BUILTIN: &[(&str, &str)] = scripts![
     "example/average-balance.rhai",
+    "example/daily-reports.rhai",
     "lib/accounts.rhai",
     "lib/acct-table.rhai",
     "lib/balances.rhai",
@@ -59,7 +60,7 @@ const BUILTIN: &[(&str, &str)] = scripts![
 /// The GUIDs and names of the GnuCash 5.17 templates red-ale translates (`design/reports.md` §11). A built-in
 /// template with one of these GUIDs must have its name, and one with one of these names its GUID, so a GUID or name
 /// given to `gnucash-cli --report run` names the same report in red-ale.
-pub const GNUCASH_TEMPLATES: [(&str, &str); 41] = [
+pub const GNUCASH_TEMPLATES: [(&str, &str); 43] = [
     ("3298541c236b494998b236dfad6ad752", "Account Summary"),
     ("c4173ac99b2b448289bf4d11c731af13", "Balance Sheet"),
     ("0b81a3bdfd504aff849ec2e8630524bc", "Income Statement"),
@@ -101,6 +102,8 @@ pub const GNUCASH_TEMPLATES: [(&str, &str); 41] = [
     ("21d7cfc59fc74f22887596ebde7e462d", "Advanced Portfolio"),
     ("15d5b744176c4625a703720338725291", "IFRS weighted-average cost basis report"),
     ("03603f0443494a6fa790b417f35d90d4", "Transaction Breakdown Report"),
+    ("5e2d129f28d14df881c3e47e3053f604", "Income vs. Day of Week"),
+    ("dde49fed4ca940959ae7d01b72742530", "Expenses vs. Day of Week"),
 ];
 
 /// A set of built-in scripts: the library compiled into red-ale, or, for tests, any scripts laid out the same way.

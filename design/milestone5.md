@@ -88,7 +88,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 |   ✅   | Cash Flow                         | `standard/cash-flow.scm` (`f8748b813fab4220ba26e743aedf38da`)                                                      |        346 | `test-cash-flow.scm`         |
 |   ✅   | Equity Statement                  | `standard/equity-statement.scm` (`c2a996c8970f43448654ca84f17dda24`)                                               |        510 | `test-equity-statement.scm`  |
 |   ✅   | Multicolumn Balance Sheet and P&L: Balance Sheet (Multicolumn), Income Statement (Multicolumn) | `standard/balsheet-pnl.scm` (`065d5d5a77ba11e8b31e83ada73c5eea`, `0e94fd0277ba11e8825d43e27232c9d4`)               |      1,261 | `test-balsheet-pnl.scm`      |
-|        | Income/expense vs day of week     | `example/daily-reports.scm` (`5e2d129f28d14df881c3e47e3053f604`, `dde49fed4ca940959ae7d01b72742530`)               |        310 |                              |
+|   ✅   | Income/expense vs day of week     | `example/daily-reports.scm` (`5e2d129f28d14df881c3e47e3053f604`, `dde49fed4ca940959ae7d01b72742530`)               |        310 |                              |
 |   ✅   | Cash flow chart                   | `standard/cashflow-barchart.scm` (`5426e4d987f6444387fe70880e5b28a0`)                                              |        350 | `test-cashflow-barchart.scm` |
 |   ✅   | Investment Portfolio              | `standard/portfolio.scm` (`4a6b82e8678c4f3d9e85d9f09634ca89`)                                                      |        292 | `test-portfolios.scm`        |
 |   ✅   | Advanced Portfolio                | `standard/advanced-portfolio.scm` (`21d7cfc59fc74f22887596ebde7e462d`)                                             |      1,190 | `test-portfolios.scm`        |
@@ -186,7 +186,7 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
    Reconciliation Report on it; the General Journal on `lib/register`.
 3. ✅ **Statements:** Trial Balance, Cash Flow, Equity Statement, Multicolumn Balance Sheet and P&L.
 4. ✅ **Transaction Breakdown.**
-5. **Analysis charts:** Income/expense vs day of week, Cash flow chart.
+5. ✅ **Analysis charts:** Income/expense vs day of week, Cash flow chart.
 6. **Investment reports:** Investment Portfolio, Advanced Portfolio, IFRS cost basis, Investment Lots.
 7. **Multicolumn reports**, last, once there are many reports to combine.
 8. **Distribution**, alongside the reports if it is in: the release, `setup` and the install script.
