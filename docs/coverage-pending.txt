@@ -227,8 +227,6 @@ report/cash-flow example
 report/cash-flow text
 report/cash-flow-barchart example
 report/cash-flow-barchart text
-report/dashboard example
-report/dashboard text
 report/equity-statement example
 report/equity-statement text
 report/expense-accounts example
