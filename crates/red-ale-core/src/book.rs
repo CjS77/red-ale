@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 
 use crate::business::Business;
 use crate::scheduled::{ScheduledTransaction, Templates};
-use crate::{Account, Budget, Commodity, CommodityRef, Frame, Guid, Lot, Price, Time64, TimeZone, Transaction};
+use crate::{Account, Budget, Commodity, CommodityRef, DomainError, Frame, Guid, Lot, Price, Time64, TimeZone, Transaction};
 
 /// Supplies what domain operations need from the outside world: the time, the local time zone and fresh GUIDs. The
 /// service passes a real one; tests pass a deterministic one, which keeps the core pure.
@@ -227,5 +227,32 @@ impl Book {
             .values()
             .map(AsRef::as_ref)
             .find(|t| t.splits.iter().any(|s| s.guid == split))
+    }
+
+    /// The GUIDs both a transaction and a template transaction have, in the order of the smaller of the two maps.
+    /// GnuCash keeps both kinds in the Book's one transaction collection
+    /// (`5.17:libgnucash/engine/Transaction.cpp:473-478`), where the second of a GUID replaces the first
+    /// (`5.17:libgnucash/engine/qofid.cpp:95-106`), and in one SQL table (`5.17:libgnucash/backend/sql/gnc-transaction-sql.cpp:68`).
+    /// Costs a lookup per entry of the smaller map, which is the templates' in any real Book.
+    pub fn shared_transaction_guids(&self) -> impl Iterator<Item = Guid> + '_ {
+        let (few, many) = if self.templates.transactions.len() <= self.transactions.len() {
+            (&self.templates.transactions, &self.transactions)
+        } else {
+            (&self.transactions, &self.templates.transactions)
+        };
+        few.keys().filter(|g| many.contains_key(*g)).copied()
+    }
+
+    /// Whether a transaction and a template transaction both have `guid`.
+    pub fn shares_transaction_guid(&self, guid: Guid) -> bool {
+        self.transactions.contains_key(&guid) && self.templates.transactions.contains_key(&guid)
+    }
+
+    /// Refuse a Book in which a transaction and a template transaction share a GUID: GnuCash would find only one of
+    /// them ([`Book::shared_transaction_guids`]).
+    pub fn check_transaction_guids(&self) -> Result<(), DomainError> {
+        self.shared_transaction_guids()
+            .next()
+            .map_or(Ok(()), |guid| Err(DomainError::SharedGuid { guid }))
     }
 }

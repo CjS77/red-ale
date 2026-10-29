@@ -118,6 +118,22 @@ fn refusals_have_stable_codes() {
     assert_eq!(d.call("book.save", json!({})).unwrap_err().code, codes::READ_ONLY);
 }
 
+/// A book in which a transaction and a template transaction share a GUID is not saved: `invalid`, naming the GUID.
+#[test]
+fn a_save_of_a_shared_transaction_guid_is_invalid() {
+    let dir = tempfile::tempdir().unwrap();
+    let (first, template) = ("f485efcd743943ddb6eede20c1d22c05", "68bf5e7740392eb15a079ee99f18a357");
+    let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash")).unwrap();
+    let path = dir.path().join("book.gnucash");
+    std::fs::write(&path, text.replacen(first, template, 1)).unwrap();
+    let mut d = Dispatcher::new(Settings::default());
+    d.call("book.open", json!({ "path": path.display().to_string() })).unwrap();
+    let e = d.call("book.save", json!({})).unwrap_err();
+    assert_eq!(e.code, codes::INVALID, "{e}");
+    assert_eq!(e.data, Some(json!({ "reason": "shared-guid", "guid": template })));
+    d.call("book.close", json!({ "discard": true })).unwrap();
+}
+
 #[test]
 fn sqlite_books_open_for_writing_locked_and_say_their_format() {
     let dir = tempfile::tempdir().unwrap();

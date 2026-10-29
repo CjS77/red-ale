@@ -373,6 +373,7 @@ impl Session {
                 .iter()
                 .filter_map(Change::after)
                 .try_for_each(|t| check_transaction(&next, t))?;
+            check_new_shared_guids(&self.book, &next)?;
             self.backend.check_storable(&self.book, &next)?;
             journal_records(&self.book, &next, &changes, self.env.now())
         };
@@ -387,13 +388,15 @@ impl Session {
     }
 
     /// Save the book. `compress` overrides the file's current compression. The Backend writes the book and checks
-    /// what it wrote before the old file is touched; a mismatch refuses the save.
+    /// what it wrote before the old file is touched; a mismatch refuses the save. A Book in which a transaction and
+    /// a template transaction share a GUID, read so from an XML file, is refused before anything is written.
     pub fn save(&mut self, compress: Option<bool>) -> Result<SaveReport, ServiceError> {
         if let Some(reason) = self.read_only.first() {
             return Err(ServiceError::ReadOnly {
                 reason: reason.to_string(),
             });
         }
+        self.book.check_transaction_guids()?;
         let prepared = if self.dirty { self.backend.prepare_save(&self.book) } else { None };
         let book = prepared.as_ref().unwrap_or(&self.book);
         let options = SaveOptions { compress };
@@ -474,6 +477,16 @@ fn journal_records(old: &Book, new: &Book, changes: &[TxnChange<'_>], now: Time6
 
 fn transaction_changes<'a>(old: &'a Book, new: &'a Book) -> Vec<TxnChange<'a>> {
     changes(&old.transactions, &new.transactions)
+}
+
+/// Refuse a Mutation that gives a transaction and a template transaction the same GUID, which no save could write
+/// ([`Book::shared_transaction_guids`]). One the Book already had, read from an XML file, does not stop a Mutation,
+/// which may be the one removing it.
+fn check_new_shared_guids(before: &Book, after: &Book) -> Result<(), ServiceError> {
+    after
+        .shared_transaction_guids()
+        .find(|g| !before.shares_transaction_guid(*g))
+        .map_or(Ok(()), |guid| Err(DomainError::SharedGuid { guid }.into()))
 }
 
 /// The invariants every changed transaction must meet.
@@ -631,5 +644,45 @@ mod tests {
         assert_eq!(seen.saves[0], (read, first.clone()));
         assert_eq!(seen.saves[1].0, first);
         assert_eq!(&seen.saves[1].1, session.book());
+    }
+
+    /// The template transaction of `synthetic/rich.gnucash`.
+    const TEMPLATE: &str = "68bf5e7740392eb15a079ee99f18a357";
+
+    /// `book` with its first transaction given the GUID of its template transaction.
+    fn with_shared_guid(book: &Book) -> Book {
+        let template = Guid::parse(TEMPLATE).unwrap();
+        let mut shared = book.clone();
+        let (_, first) = shared.transactions.shift_remove_index(0).unwrap();
+        let mut t = (*first).clone();
+        t.guid = template;
+        shared.transactions.insert(template, Arc::new(t));
+        shared
+    }
+
+    /// No Mutation can give an SQLite book a GUID a template transaction has (`tests/shared_guid.rs`), and its table
+    /// can't hold one, so the Book is set here. Before the check, the backup was made and SQLite's primary key then
+    /// refused the save as a `file-format` error.
+    #[test]
+    fn an_sqlite_save_of_a_shared_guid_is_refused_before_anything_is_written() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("book.gnucash");
+        let fixture = format!("{}/../../fixtures/sqlite/synthetic/rich.gnucash", env!("CARGO_MANIFEST_DIR"));
+        std::fs::copy(fixture, &path).unwrap();
+        let mut session = Session::open(&path.display().to_string(), false, Settings::default()).unwrap();
+        let read = session.book().clone();
+        session.book = with_shared_guid(&read);
+        session.dirty = true;
+        let bytes = std::fs::read(&path).unwrap();
+        let err = session.save(None).unwrap_err();
+        assert!(
+            matches!(err, ServiceError::Domain(DomainError::SharedGuid { guid }) if guid.to_string() == TEMPLATE),
+            "{err}"
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), bytes, "nothing written");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1, "no backup");
+        assert!(session.is_dirty());
+        session.book = read;
+        session.save(None).unwrap();
     }
 }

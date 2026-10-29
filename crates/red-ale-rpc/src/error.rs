@@ -190,6 +190,9 @@ impl From<DomainError> for RpcError {
             DomainError::BeforeReadOnlyThreshold { date, threshold } => {
                 Self::new(codes::INVALID, message).with_data(auto_read_only(date, threshold))
             }
+            DomainError::SharedGuid { guid } => {
+                Self::new(codes::INVALID, message).with_data(json!({ "reason": "shared-guid", "guid": guid.to_string() }))
+            }
         }
     }
 }
