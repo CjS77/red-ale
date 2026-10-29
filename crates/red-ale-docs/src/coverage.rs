@@ -150,15 +150,16 @@ pub fn checklist_pages(manual: &Manual, checklist: &[ChecklistRow]) -> Vec<Gap> 
 
 /// Every term a Concept page uses is a glossary term. A Concept page marks a term by writing it in bold; bold that
 /// opens a list item (a label), holds code, ends with `.`, `!`, `?` or `:` (a sentence or a lead-in), or runs past
-/// four words is not a term. A term is defined when its search words equal a glossary term's or those of a name a ⚠ note gives one, so
-/// case, plurals and small words like "the" don't count. The gap is `term <bold text>`.
+/// four words is not a term. A term is defined when its search words equal those of a phrase the glossary defines
+/// ([`synonyms::terms_of_glossary`]), so case, plurals and small words like "the" don't count. The gap is
+/// `term <bold text>`.
 pub fn terms(manual: &Manual, glossary: &BTreeSet<Vec<String>>) -> Vec<Gap> {
     let mut gaps: Vec<Gap> = manual
         .pages_of(Kind::Concept)
         .flat_map(|p| {
             bold_terms(&p.body)
                 .into_iter()
-                .filter(|t| !glossary.contains(&words(t)))
+                .filter(|t| !glossary.contains(&words(t)) && !glossary.contains(&singular_es(words(t))))
                 .map(|t| gap(p, format!("term {t}")))
                 .collect::<Vec<_>>()
         })
@@ -166,6 +167,18 @@ pub fn terms(manual: &Manual, glossary: &BTreeSet<Vec<String>>) -> Vec<Gap> {
     gaps.sort();
     gaps.dedup();
     gaps
+}
+
+/// Search words with the plurals in `-es` that the search's stemmer only cuts to `-e` (`matches` to `matche`) made
+/// singular (`match`). Stemming them in search itself would change its ranking.
+fn singular_es(words: Vec<String>) -> Vec<String> {
+    words
+        .into_iter()
+        .map(|w| match w.strip_suffix('e') {
+            Some(base) if ["ch", "sh", "ss", "x"].iter().any(|e| base.ends_with(e)) => base.to_owned(),
+            _ => w,
+        })
+        .collect()
 }
 
 /// The bold phrases of a Markdown body that are terms rather than emphasis or labels ([`terms`]).
@@ -283,5 +296,10 @@ mod tests {
             **Lead-in:** **one two three four five** **⚠** **unrealised *gain***, **Import\nproposal**.\n\n\
             - **Label**: an item with a **Lot**.\n- A **Price** in an item.\n";
         assert_eq!(bold_terms(body), ["Split", "unrealised gain", "Import proposal", "Lot", "Price"]);
+    }
+
+    #[test]
+    fn es_plurals_are_singular() {
+        assert_eq!(singular_es(words("Candidate matches, taxes")), ["candidate", "match", "tax"]);
     }
 }

@@ -64,20 +64,13 @@ fn camel_parts(word: &str) -> Vec<String> {
     parts
 }
 
-/// A light English stemmer: plurals to singular (`entries` to `entry`, `books` to `book`, `matches` to `match`).
+/// A light English stemmer: plurals to singular (`entries` to `entry`, `books` to `book`).
 fn stem(word: &str) -> String {
     let n = word.chars().count();
     if n > 4
         && let Some(base) = word.strip_suffix("ies")
     {
         return format!("{base}y");
-    }
-    if let Some(base) = ["ches", "shes", "sses", "xes"]
-        .iter()
-        .find(|e| word.ends_with(*e))
-        .and_then(|_| word.strip_suffix("es"))
-    {
-        return base.to_owned();
     }
     let keeps_s = ["ss", "us", "is"].iter().any(|e| word.ends_with(e));
     match word.strip_suffix('s') {
@@ -231,10 +224,6 @@ mod tests {
     #[test]
     fn words_are_normalised() {
         assert_eq!(words("The Entries of Books, a class"), ["entry", "book", "class"]);
-        assert_eq!(
-            words("Candidate matches, taxes and classes"),
-            ["candidate", "match", "tax", "class"]
-        );
         assert_eq!(
             terms("Use transaction.post or closeBooks."),
             ["use", "transaction", "post", "closebook", "transaction.post", "close", "book"]
