@@ -3,37 +3,6 @@
 # Gaps in the Manual known to be open while it is being written: one per line, `<page-id> <what>`, as the coverage
 # checks print them (crates/red-ale-docs/src/coverage.rs). The list may only shrink: crates/red-ale-rpc/tests/
 # manual_coverage.rs fails on a gap missing from it and on an entry that is no longer a gap.
-error/arithmetic text
-error/backup-failed text
-error/book-already-open text
-error/book-changed text
-error/book-locked text
-error/cannot-lock text
-error/conflict text
-error/file-exists text
-error/file-format text
-error/formula text
-error/import-file text
-error/internal-error text
-error/invalid text
-error/invalid-params text
-error/invalid-request text
-error/io-error text
-error/method-not-found text
-error/network-disabled text
-error/no-book text
-error/not-found text
-error/parse-error text
-error/read-only text
-error/report-limit text
-error/report-load text
-error/report-option text
-error/report-result text
-error/report-script text
-error/save-verification text
-error/sql-book text
-error/unsaved-changes text
-error/unsupported-uri text
 method/account.cascade example
 method/account.cascade text
 method/account.checkBalanceLimit example
