@@ -7,6 +7,7 @@ use red_ale_core::time::{PeriodBounds, RelativeDate, relative_date};
 use red_ale_core::{AccountType, CommodityRef, Guid, Time64, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::number::Rational;
 use crate::result::PlotSize;
@@ -22,6 +23,10 @@ pub const PLOT_SIZE_MIN: u32 = 10;
 pub const PLOT_SIZE_MAX: u32 = 65_535;
 /// The largest plot size read as a percentage; above it a size is in pixels (`5.17:bindings/guile/gnc-optiondb.i:1094-1108`).
 pub const PLOT_SIZE_PERCENT_MAX: u32 = 100;
+
+/// The largest column or row span of a report placement, as GnuCash's size dialog allows
+/// (`5.17:gnucash/gtkbuilder/dialog-report.glade:5-10`).
+pub const SPAN_MAX: u8 = 100;
 
 /// What identifies and describes an option: GnuCash's `OptionClassifier` (`5.17:libgnucash/engine/gnc-option-impl.hpp:69-76`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -217,6 +222,9 @@ pub enum OptionKind {
     Budget,
     /// An option scripts keep for themselves, never shown in GnuCash's dialog: a string or a boolean.
     Internal,
+    /// The reports a Multicolumn View shows and their spans (`gnc-register-report-placement-option`,
+    /// `5.17:libgnucash/engine/gnc-optiondb.cpp:1101-1112`).
+    ReportPlacement,
 }
 
 impl OptionKind {
@@ -239,6 +247,7 @@ impl OptionKind {
             Self::Commodity => "commodity",
             Self::Budget => "budget",
             Self::Internal => "internal",
+            Self::ReportPlacement => "reportPlacement",
         }
     }
 
@@ -276,6 +285,23 @@ pub enum OptionValue {
     Commodity(CommodityRef),
     /// A budget's GUID; `None` when the Book has no budget to default to.
     Budget(Option<Guid>),
+    /// Report placements, in order.
+    Placements(Vec<Placement>),
+}
+
+/// One child of a report placement option: GnuCash's `GncOptionReportPlacement` (`(id, wide, high)`,
+/// `5.17:libgnucash/engine/gnc-option.hpp:71-72`), naming a report by GUID where GnuCash names a report instance of
+/// its session (`design/notes/report-statements-charts.md` §8.4).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Placement {
+    /// A report template or a saved report configuration.
+    pub report: Guid,
+    /// Only with a template: changes over its defaults, by section and name in wire form. Never empty.
+    pub options: Option<Map<String, Value>>,
+    /// The columns it spans, 0 to [`SPAN_MAX`] (GnuCash's `wide`).
+    pub colspan: u8,
+    /// The rows it spans, 0 to [`SPAN_MAX`] (GnuCash's `high`).
+    pub rowspan: u8,
 }
 
 /// A declared option with its default and current value.

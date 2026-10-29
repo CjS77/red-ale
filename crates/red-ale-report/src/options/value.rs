@@ -8,7 +8,7 @@ use serde_json::{Map, Value, json};
 
 use super::model::{
     Choice, ChoiceKey, DateUi, DateValue, MAX_TIME, MIN_TIME, OptionKind, OptionValue, PLOT_SIZE_MAX, PLOT_SIZE_MIN, PLOT_SIZE_PERCENT_MAX,
-    parse_relative, relative_name,
+    Placement, SPAN_MAX, parse_relative, relative_name,
 };
 use crate::number::Rational;
 use crate::result::PlotSize;
@@ -49,6 +49,7 @@ pub(super) fn read(kind: &OptionKind, default: &OptionValue, json: &Value, ctx: 
         OptionKind::Currency => commodity(json, true, ctx).map(OptionValue::Commodity),
         OptionKind::Commodity => commodity(json, false, ctx).map(OptionValue::Commodity),
         OptionKind::Budget => string(json).and_then(budget).map(|g| OptionValue::Budget(Some(g))),
+        OptionKind::ReportPlacement => placements(json).map(OptionValue::Placements),
     }
 }
 
@@ -67,7 +68,19 @@ pub(super) fn write(value: &OptionValue) -> Value {
         OptionValue::Account(g) => g.map_or(Value::Null, |g| Value::String(g.to_string())),
         OptionValue::Commodity(c) => Value::String(c.to_string()),
         OptionValue::Budget(g) => g.map_or(Value::Null, |g| Value::String(g.to_string())),
+        OptionValue::Placements(list) => Value::Array(list.iter().map(placement_json).collect()),
     }
+}
+
+fn placement_json(p: &Placement) -> Value {
+    let mut fields = Map::new();
+    fields.insert("report".into(), Value::String(p.report.to_string()));
+    if let Some(options) = &p.options {
+        fields.insert("options".into(), Value::Object(options.clone()));
+    }
+    fields.insert("colspan".into(), Value::from(p.colspan));
+    fields.insert("rowspan".into(), Value::from(p.rowspan));
+    Value::Object(fields)
 }
 
 fn key_json(k: &ChoiceKey) -> Value {
@@ -303,6 +316,60 @@ fn commodity(json: &Value, currency: bool, ctx: &ValueContext<'_>) -> Read<Commo
             .ok_or_else(|| format!("unknown commodity {id}")),
         None => Ok(id),
     }
+}
+
+/// An array of `{ report, options?, colspan?, rowspan? }`. Only the shape is read here: whether each report exists and
+/// takes its options is the host's check (`Registry::check_children`), which needs the other reports.
+fn placements(json: &Value) -> Read<Vec<Placement>> {
+    let items = json
+        .as_array()
+        .ok_or_else(|| format!("expected an array of {{report, options?, colspan, rowspan}}, got {json}"))?;
+    items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| placement(item).map_err(|e| format!("child {i}: {e}")))
+        .collect()
+}
+
+fn placement(json: &Value) -> Read<Placement> {
+    let fields = json
+        .as_object()
+        .ok_or_else(|| format!("expected an object {{report, options?, colspan, rowspan}}, got {json}"))?;
+    let unknown = fields.keys().find(|k| !["report", "options", "colspan", "rowspan"].contains(&k.as_str()));
+    if let Some(k) = unknown {
+        return Err(format!("unknown field {k:?}"));
+    }
+    let report = string(fields.get("report").ok_or("a child needs its report")?)?;
+    let report = Guid::parse(report.trim()).map_err(|_| format!("{report:?} is not the GUID of a report"))?;
+    let options = fields.get("options").filter(|o| !o.is_null()).map(child_options).transpose()?;
+    Ok(Placement {
+        report,
+        options: options.filter(|o| !o.is_empty()),
+        colspan: span(fields.get("colspan"))?,
+        rowspan: span(fields.get("rowspan"))?,
+    })
+}
+
+/// A child's options as `report.run` takes them: an object by section and name. Their values are checked against the
+/// child's template by the host.
+fn child_options(json: &Value) -> Read<Map<String, Value>> {
+    let sections = json
+        .as_object()
+        .ok_or_else(|| format!("options must be an object by section and name, got {json}"))?;
+    match sections.iter().find(|(_, names)| !names.is_object()) {
+        Some((section, _)) => Err(format!("options section {section:?} must be an object by option name")),
+        None => Ok(sections.clone()),
+    }
+}
+
+/// A span, 0 to 100 as GnuCash stores it; 1 when absent.
+fn span(json: Option<&Value>) -> Read<u8> {
+    json.map_or(Ok(1), |v| {
+        v.as_u64()
+            .and_then(|n| u8::try_from(n).ok())
+            .filter(|n| *n <= SPAN_MAX)
+            .ok_or_else(|| format!("a span is an integer 0 to {SPAN_MAX}, got {v}"))
+    })
 }
 
 /// Put a wire value under its section and name.

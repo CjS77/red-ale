@@ -105,6 +105,7 @@ impl Host {
             fiscal_year_end: self.fiscal_year_end,
             style_sheets: &["Default", "Easy"],
             export: None,
+            configurations: &(),
         }
     }
 
@@ -113,7 +114,7 @@ impl Host {
         let t = registry
             .find(reference)
             .unwrap_or_else(|e| panic!("{e:?}: {:?}", registry.problems()));
-        registry.run(t, &[options], None, &self.ctx())
+        registry.run(t, None, Some(options), &self.ctx())
     }
 }
 

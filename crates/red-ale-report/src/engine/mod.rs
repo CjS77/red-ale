@@ -12,6 +12,7 @@
 //!
 //! Each run builds its own `Engine` over a snapshot of the Book; nothing is shared between runs.
 
+mod children;
 // Functions registered with Rhai take their arguments by value: Rhai passes owned values to every parameter but
 // the first.
 #[allow(clippy::needless_pass_by_value)]
@@ -31,6 +32,7 @@ mod resolver;
 mod run;
 mod setup;
 
+pub use children::Configurations;
 pub use context::ContextHandle;
 pub use memo::Memo;
 pub use options::{OptionBuilder, OptionsHandle};

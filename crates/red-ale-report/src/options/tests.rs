@@ -598,3 +598,138 @@ fn an_option_made_internal_is_kept_but_not_published() {
     assert_eq!(reason_on(&mut db, &json!({ "Display": { "Show Totals": null } })), "internal option");
     assert_eq!(db.make_internal("Display", "Running Balance").unwrap_err().reason, "unknown option");
 }
+
+/// `db()` with a Multicolumn View's report-list.
+fn view() -> OptionDb {
+    let mut db = db();
+    db.report_placement("__general", "report-list").unwrap();
+    db
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn placements(children: Value) -> Value {
+    json!({ "__general": { "report-list": children } })
+}
+
+#[test]
+fn report_placements_read_and_write_their_wire_form() {
+    let mut db = view();
+    assert_eq!(value_of(&db, "__general", "report-list"), json!([]));
+    let (a, b) = (guid(0xa1).to_string(), guid(0xb2).to_string());
+    let children = json!([
+        { "report": a, "rowspan": 2 },
+        { "report": b, "options": { "General": { "Report name": "Mine" } }, "colspan": 0, "rowspan": 100 },
+        { "report": a, "options": {} },
+    ]);
+    apply(&mut db, &placements(children)).unwrap();
+    let want = json!([
+        { "report": a, "colspan": 1, "rowspan": 2 },
+        { "report": b, "options": { "General": { "Report name": "Mine" } }, "colspan": 0, "rowspan": 100 },
+        { "report": a, "colspan": 1, "rowspan": 1 },
+    ]);
+    assert_eq!(value_of(&db, "__general", "report-list"), want, "spans default to 1; empty options are none");
+    assert_eq!(db.changed()["__general"]["report-list"], want, "a saved configuration keeps the children");
+    let mut again = view();
+    apply(&mut again, &placements(want)).unwrap();
+    assert_eq!(again, db, "the written form reads back");
+    apply(&mut db, &placements(Value::Null)).unwrap();
+    assert!(db.changed().get("__general").is_none());
+}
+
+#[test]
+fn malformed_report_placements_are_refused_naming_the_child() {
+    let a = guid(0xa1).to_string();
+    let cases = [
+        (json!({ "report": a }), "expected an array"),
+        (
+            json!([{ "report": a }, { "report": "Balance Sheet" }]),
+            "child 1: \"Balance Sheet\" is not the GUID of a report",
+        ),
+        (json!([{ "colspan": 1 }]), "child 0: a child needs its report"),
+        (json!([{ "report": a, "wide": 1 }]), "child 0: unknown field \"wide\""),
+        (json!([{ "report": a, "colspan": 101 }]), "child 0: a span is an integer 0 to 100, got 101"),
+        (json!([{ "report": a, "rowspan": -1 }]), "child 0: a span is an integer 0 to 100, got -1"),
+        (json!([{ "report": a, "rowspan": "2" }]), "child 0: a span is an integer 0 to 100"),
+        (json!([{ "report": a, "options": [] }]), "child 0: options must be an object"),
+        (
+            json!([{ "report": a, "options": { "General": 1 } }]),
+            "child 0: options section \"General\" must be an object",
+        ),
+        (json!(["x"]), "child 0: expected an object"),
+    ];
+    cases.into_iter().for_each(|(children, want)| {
+        let mut db = view();
+        let e = apply(&mut db, &placements(children.clone())).unwrap_err();
+        assert_eq!((e.section.as_str(), e.name.as_str()), ("__general", "report-list"));
+        assert!(e.reason.starts_with(want), "{children}: {}", e.reason);
+    });
+}
+
+#[test]
+fn report_placements_are_described_and_summarised() {
+    let mut db = view();
+    let info = db.describe().into_iter().find(|o| o.name == "report-list").unwrap();
+    assert_eq!(
+        (info.section.as_str(), info.key.as_str(), info.option_type.as_str()),
+        ("__general", "no_key", "reportPlacement")
+    );
+    assert_eq!((info.default.clone(), info.value), (json!([]), json!([])));
+    let schema = &db.params_schema()["properties"]["__general"]["properties"]["report-list"];
+    assert_eq!((schema["type"].clone(), schema["default"].clone()), (json!("array"), json!([])));
+    let item = &schema["items"];
+    assert_eq!(item["required"], json!(["report"]));
+    assert_eq!(item["additionalProperties"], json!(false));
+    let spans = (&item["properties"]["colspan"], &item["properties"]["rowspan"]);
+    assert_eq!((spans.0["minimum"].clone(), spans.1["maximum"].clone()), (json!(0), json!(100)));
+
+    let (a, b) = (guid(0xa1), guid(0xb2));
+    let children = json!([{ "report": a.to_string(), "rowspan": 2 }, { "report": b.to_string(), "colspan": 3 }]);
+    apply(&mut db, &placements(children)).unwrap();
+    let book = book();
+    let zone = TimeZone::utc();
+    let rows = db.summary(&DisplayContext {
+        book: &book,
+        zone: &zone,
+        date_format: DateFormat::Iso,
+        locale: red_ale_locale::Locale::c(),
+    });
+    let row = rows.iter().find(|r| r.name == "report-list").unwrap();
+    assert_eq!(row.section, "__general");
+    assert_eq!(
+        row.value,
+        format!("{a}, 1, 2, Disabled, {b}, 3, 1, Disabled"),
+        "GnuCash's disp of ((id wide high #f) …)"
+    );
+}
+
+#[test]
+fn children_are_checked_only_where_changes_set_them() {
+    let (a, b) = (guid(0xa1), guid(0xb2));
+    let mut db = view();
+    let children = placements(json!([{ "report": a.to_string() }, { "report": b.to_string(), "options": { "S": { "N": 1 } } }]));
+    apply(&mut db, &children).unwrap();
+    let check = |p: &Placement| {
+        if p.report == b {
+            Err("unknown".to_owned())
+        } else {
+            Ok(Placement { colspan: 9, ..p.clone() })
+        }
+    };
+    let before = db.clone();
+    let e = db.check_placements(&children, &check).unwrap_err();
+    assert_eq!((e.name.as_str(), e.reason.as_str()), ("report-list", "child 1: unknown"));
+    assert_eq!(db, before, "a refused child changes nothing");
+    db.check_placements(&json!({ "General": { "Report name": "x" } }), &check).unwrap();
+    db.check_placements(&placements(Value::Null), &check).unwrap();
+    assert_eq!(db, before, "values the changes do not set are not checked");
+
+    let mut one = view();
+    let first = placements(json!([{ "report": a.to_string() }]));
+    apply(&mut one, &first).unwrap();
+    one.check_placements(&first, &check).unwrap();
+    assert_eq!(
+        value_of(&one, "__general", "report-list")[0]["colspan"],
+        9,
+        "the child is kept as the check gives it"
+    );
+}

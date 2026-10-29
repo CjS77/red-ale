@@ -6,7 +6,7 @@ use red_ale_core::time::RelativeDate;
 use red_ale_core::{AccountType, Book, CommodityRef, Guid};
 use serde_json::{Map, Value};
 
-use super::model::{Choice, ChoiceKey, Classifier, DateUi, DateValue, OptionKind, OptionValue, ReportOption};
+use super::model::{Choice, ChoiceKey, Classifier, DateUi, DateValue, OptionKind, OptionValue, Placement, ReportOption};
 use super::value::{self, ValueContext, check_time, insert};
 use crate::error::OptionError;
 use crate::number::Rational;
@@ -174,6 +174,16 @@ impl OptionDb {
         self.register(c, OptionKind::Internal, default)
     }
 
+    /// `gnc-register-report-placement-option` (`5.17:libgnucash/engine/gnc-optiondb.cpp:1101-1112`): the reports a
+    /// Multicolumn View shows, empty by default. GnuCash gives it key `no_key` and help `nodoc_string`, since its
+    /// dialog has a page of its own; red-ale keeps the key and publishes a help text, as `report.options` shows it.
+    pub fn report_placement(&mut self, section: &str, name: &str) -> Declared {
+        let help = "The reports to show, in order: each a report template or saved report configuration by GUID, with \
+                    the columns and rows it spans.";
+        let c = Classifier::new(section, name, "no_key", help);
+        self.register(c, OptionKind::ReportPlacement, OptionValue::Placements(Vec::new()))
+    }
+
     /// `GncOptionDBPtr-set-default-section`: the section a dialog opens on.
     pub fn set_default_section(&mut self, section: &str) {
         self.default_section = Some(section.to_owned());
@@ -306,6 +316,35 @@ impl OptionDb {
         Ok((index, Some(value)))
     }
 
+    /// Pass each child of every report placement option `changes` sets (an option it resets is left alone) through
+    /// `check`, which gives the child as it is kept, or why it is refused. The first refusal is the error, naming the
+    /// child's position from 0; nothing changes then. Values a saved configuration stores are not checked again, so a
+    /// child deleted since is a warning when the report runs, not an error (`design/notes/report-statements-charts.md`,
+    /// Q7).
+    pub fn check_placements(&mut self, changes: &Value, check: &dyn Fn(&Placement) -> Result<Placement, String>) -> Result<(), OptionError> {
+        let set = |o: &ReportOption| {
+            o.kind == OptionKind::ReportPlacement && changes.get(o.section()).and_then(|s| s.get(o.name())).is_some_and(|v| !v.is_null())
+        };
+        let checked = self
+            .options
+            .iter()
+            .enumerate()
+            .filter(|(_, o)| set(o))
+            .map(|(index, o)| {
+                let OptionValue::Placements(children) = o.value() else {
+                    return Ok((index, Vec::new()));
+                };
+                let fail = |i: usize, reason: String| OptionError::new(o.section(), o.name(), format!("child {i}: {reason}"));
+                let kept = children.iter().enumerate().map(|(i, p)| check(p).map_err(|r| fail(i, r)));
+                Ok((index, kept.collect::<Result<Vec<_>, _>>()?))
+            })
+            .collect::<Result<Vec<_>, OptionError>>()?;
+        checked
+            .into_iter()
+            .for_each(|(index, children)| self.options[index].set(OptionValue::Placements(children)));
+        Ok(())
+    }
+
     /// Every option's value in wire form, in order: the `options` of a report result.
     pub fn values(&self) -> OptionValues {
         self.collect(|_| true)
@@ -375,6 +414,7 @@ fn checked_default(kind: &OptionKind, default: OptionValue) -> Result<OptionValu
         | (OptionKind::PlotSize, OptionValue::PlotSize(_))
         | (OptionKind::Commodity, OptionValue::Commodity(_))
         | (OptionKind::Budget, OptionValue::Budget(_))
+        | (OptionKind::ReportPlacement, OptionValue::Placements(_))
         | (OptionKind::AccountSel { .. }, OptionValue::Account(_)) => Ok(default),
         (OptionKind::Currency, OptionValue::Commodity(c)) if c.is_currency() => Ok(default),
         (OptionKind::Currency, OptionValue::Commodity(c)) => Err(format!("{c} is not a currency")),

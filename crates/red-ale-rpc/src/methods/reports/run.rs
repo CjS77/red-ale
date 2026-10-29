@@ -290,8 +290,7 @@ impl Reports {
         let (template, saved) = self.resolve(self.find(&report.0)?)?;
         let now = at.now.map_or_else(|| env.now(), |t| t.0);
         let names = self.style_sheet_choices(saved);
-        let saved_options = saved.map(|s| Value::Object(s.options.clone()));
-        let changes: Vec<&Value> = saved_options.iter().chain(options.map(|o| &o.0)).collect();
+        let saved_options = saved.map(|s| (s.guid, Value::Object(s.options.clone())));
         if let Some(export) = at.export.filter(|e| !template.export_types.iter().any(|t| t == e)) {
             let message = format!(
                 "{} has no {export} export; only the net and category charts have one",
@@ -303,7 +302,8 @@ impl Reports {
             export: at.export,
             ..self.run_context(book, now, env.zone(), &names, at.locale)
         };
-        Ok(self.registry.run(template, &changes, saved.map(|s| s.guid), &run)?)
+        let saved = saved_options.as_ref().map(|(guid, stored)| (*guid, stored));
+        Ok(self.registry.run(template, saved, options.map(|o| &o.0), &run)?)
     }
 
     /// The style sheet to render `result` through: `chosen`, which must exist, else the one its General/"Stylesheet"

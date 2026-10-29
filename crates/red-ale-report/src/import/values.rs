@@ -115,6 +115,9 @@ fn value(kind: &OptionKind, default: &OptionValue, d: &Datum) -> Converted<Value
         OptionKind::Budget => budget_lookup(d)
             .map(Value::from)
             .ok_or_else(|| format!("expected (gnc-budget-lookup \"<guid>\" (gnc-get-current-book)), got {d}")),
+        // Its literal names the session's report instances, which only the embedded-report forms that follow it in
+        // the file give meaning (`design/notes/report-statements-charts.md` §8.7).
+        OptionKind::ReportPlacement => Err(format!("a report-list is read only with its embedded reports, got {d}")),
     }
 }
 

@@ -20,7 +20,7 @@ pub use db::{END_DATES, GENERAL, OPTIONS_SUMMARY, OptionDb, REPORT_NAME, START_D
 pub use describe::OptionInfo;
 pub use model::{
     Choice, ChoiceKey, Classifier, DateUi, DateValue, MAX_TIME, MIN_TIME, OptionKind, OptionValue, PLOT_SIZE_MAX, PLOT_SIZE_MIN,
-    PLOT_SIZE_PERCENT_MAX, ReportOption, parse_relative, relative_name,
+    PLOT_SIZE_PERCENT_MAX, Placement, ReportOption, SPAN_MAX, parse_relative, relative_name,
 };
 pub use value::ValueContext;
 

@@ -12,6 +12,7 @@ use red_ale_locale::{Conventions, Locale};
 use rhai::{AST, Dynamic, Engine};
 use serde_json::Value;
 
+use super::children::Configurations;
 use super::context::ContextHandle;
 use super::convert::{from_json, to_json};
 use super::errors::{Failure, from_eval, from_parse};
@@ -55,6 +56,8 @@ pub struct RunContext<'a> {
     /// `ctx.export_type()`, as GnuCash passes `export-type` to a renderer (`5.17:gnucash/report/report-core.scm:722`);
     /// `None` for a plain run, whose result then has no export.
     pub export: Option<&'a str>,
+    /// The saved report configurations the children of a report placement option may name; `&()` for none.
+    pub configurations: &'a dyn Configurations,
 }
 
 /// A template's engine and compiled script, over one snapshot.
@@ -75,14 +78,16 @@ impl Registry {
         Run::start(self, template, ctx)?.declare(ctx)
     }
 
-    /// Run a template: declare its options, apply each set of `changes` in turn (a saved configuration's, then the
-    /// caller's; each `{ section: { name: value } }` in wire form), render, and finish the result. An invalid value
-    /// is `report-option` and nothing runs. The Book is read through a snapshot and never changes.
+    /// Run a template: declare its options, apply a saved configuration's values (its GUID and stored values), then the
+    /// caller's `changes`, each `{ section: { name: value } }` in wire form, render, and finish the result. An invalid
+    /// value is `report-option` and nothing runs; the children the caller's changes name are checked
+    /// ([`Registry::check_children`]), a saved configuration's are not. The Book is read through a snapshot and never
+    /// changes.
     pub fn run(
         &self,
         template: &TemplateInfo,
-        changes: &[&Value],
-        configuration: Option<Guid>,
+        saved: Option<(Guid, &Value)>,
+        changes: Option<&Value>,
         ctx: &RunContext<'_>,
     ) -> Result<ReportResult, ReportError> {
         let run = Run::start(self, template, ctx)?;
@@ -91,9 +96,13 @@ impl Registry {
             book: Some(ctx.book),
             zone: ctx.zone,
         };
-        changes.iter().try_for_each(|c| db.apply(c, &values))?;
+        saved.iter().try_for_each(|(_, stored)| db.apply(stored, &values))?;
+        if let Some(changes) = changes {
+            db.apply(changes, &values)?;
+            self.check_children(&mut db, changes, ctx, &values)?;
+        }
         let rendered = run.render(&db, ctx)?;
-        run.finish(&rendered, &db, configuration, ctx)
+        run.finish(&rendered, &db, saved.map(|(guid, _)| guid), ctx)
     }
 }
 

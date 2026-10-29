@@ -690,6 +690,20 @@ Option types used by the reports in scope and the style sheets, and their wire v
 | `currency`, `commodity` | `GncOptionCommodityValue`, stored by namespace and mnemonic (`gnc-option-impl.hpp:215-259`) | CommodityId | Commodity |
 | `internal` | `gnc_register_internal_option` | string or bool | |
 | `budget` | `GncOptionQofInstanceValue` with the budget UI type (`5.17:libgnucash/engine/gnc-optiondb.cpp:657-665`) (v0.4) | the budget's GUID; `null` when the Book has none to default to | Budget or `()` (also for a budget since deleted) |
+| `reportPlacement` | `GncOptionValue<GncOptionReportPlacementVec>`, UI `REPORT_PLACEMENT`: `(id, wide, high)` per child, `id` a report instance of the session (`5.17:libgnucash/engine/gnc-option.hpp:71-72`) (v0.5) | array of `{ report, options?, colspan, rowspan }`, below | the wire form: an array of maps |
+
+**Report placements** are a Multicolumn View's children, GnuCash's `__general`/`report-list`
+([`notes/report-statements-charts.md`](notes/report-statements-charts.md) §8.4). `report` is the GUID of a template
+or a saved configuration, never a name: names change and clash. `options`, only with a template's GUID, are changes
+over that template's defaults as `report.run` takes them; a saved configuration child runs with its own values and is
+a reference, following its later changes, where GnuCash copies a report's options into a new instance. `colspan`
+and `rowspan` are GnuCash's `wide` and `high`, integers 0 to 100 as its size dialog allows
+(`5.17:gnucash/gtkbuilder/dialog-report.glade:5-10`), default 1. An empty `options` is the same as none. The shape is
+read with the other values; the children are then checked by the host (below). In the options summary a changed
+report-list shows as GnuCash's `disp` shows its list of `(id wide high #f)` (`5.17:bindings/guile/gnc-optiondb.i:304-321`,
+`report/html-utilities.scm:302-323`): `<GUID>, <colspan>, <rowspan>, Disabled` for each child, joined by `, `, the
+GUID where GnuCash shows an instance id. The `Embedded Report` rows GnuCash lists first (`:339-343`) come with the
+view's runs of its children.
 
 **Numbers in ranges.** Every number range registered from Scheme is a double (`gnc-optiondb.i:1717`); only one in
 scope is not a whole number, net-charts' "Line Width", 1.5 in steps of 0.1 (`standard/net-charts.scm:130-133`).
@@ -742,6 +756,7 @@ The builder passed to `options()` mirrors GnuCash's `gnc-register-*-option` func
 | `o.set_default(section, name, value)` | `GncOption-set-default-value` (`5.17:bindings/guile/gnc-optiondb.i:1500-1611`): the default and the value both become `value`, given in the form the option's declaration takes its default (`5.17:libgnucash/engine/gnc-option-impl.cpp:87-91`). A value the declaration would have replaced (a key that is not a choice, a number out of range) is refused. GnuCash ignores an option that does not exist; red-ale makes it a `report-script` error, so a misspelt name is found, and the translations leave out GnuCash's calls on options that do not exist (`notes/report-transaction-engine.md` §7, Q6) (v0.5) |
 | `o.make_internal(section, name)` | `GncOptionDB::make_internal` (`5.17:libgnucash/engine/gnc-optiondb.cpp:266-272`): the option keeps its value for `render` but leaves `report.options` and the `options` param's schema, and a change to it is refused (`report-option`, reason `internal option`), so it never shows in the options summary. An option that does not exist is a `report-script` error, as for `o.set_default` (v0.5) |
 | `o.default_report_currency()` | `gnc-default-report-currency`: the report settings' currency (section 4), since `options()` has no run context |
+| `o.report_placement(section, name)` | `gnc-register-report-placement-option` (`5.17:libgnucash/engine/gnc-optiondb.cpp:1101-1112`): default `[]`, key `no_key` as GnuCash's. GnuCash's help is `nodoc_string`, since its dialog gives the option a page of its own; red-ale publishes a help text instead. `o.set_default` takes only `[]` for it (v0.5) |
 
 `lib/options` translates `options-utilities.scm` on top of these (`add_report_date`, `add_date_interval`,
 `add_interval_choice`, `add_account_levels`, `add_account_selection`, `add_currency`, `add_price_source`,
@@ -790,6 +805,17 @@ Absent options keep their default (or a saved configuration's value). Every give
 option before the script runs; the first failure is a `report-option` error and nothing runs. GnuCash logs bad
 values and leaves the option unchanged (`gnc-optiondb.i:1492-1497`); red-ale refuses, so a typo never runs a
 different report than the caller asked for.
+
+**Children of a report placement** given by the caller (in `report.run`, `report.export`,
+`report.saveConfiguration`, `report.updateConfiguration`) are checked after the values are read
+(`Registry::check_children`): each `report` must be a template the registry has or a saved configuration in the
+Configuration; `options` with a saved configuration's GUID are refused; a template child's `options` are applied to
+that template's options as `report.run` applies them, its own children checked in turn. A failure is `report-option`
+on the placement option, its `reason` starting `child <n>: ` (the position, from 0) and, for a child's option,
+naming the template and that option. A template child's `options` are then kept as the values that differ from its
+template's defaults, in wire form (accounts as GUIDs), as a saved configuration keeps its own. Children a saved
+configuration stores are not checked again when it is run or updated: one whose saved configuration was deleted since
+renders a warning in its cell when the view runs (`milestone5.md`, "Decided", item 3).
 
 ## 7. The report result
 
@@ -1192,6 +1218,11 @@ start-up (`report/gnc-report.cpp:55-112`). red-ale keeps the same things in its 
   report* (`report/report-core.scm:126-145`). As in GnuCash (`report/report-core.scm:620-643`;
   `5.17:bindings/guile/options.scm:141`), it stores only the options that differ from the template's defaults, so
   it follows a template's later defaults for the rest. It runs the template it names; it cannot change its code.
+- **A Multicolumn View's configuration** stores its children as its changed `__general`/`report-list` value (§6,
+  report placements), each child's GUID, spans and, for a template child, its options as they differ from that
+  template's defaults: `{ "__general": { "report-list": [{ "report": "…", "colspan": 1, "rowspan": 1 }] } }`. A
+  saved configuration it names is kept by GUID, so deleting or renaming that configuration does not touch the view's
+  entry (v0.5).
 - **Names** are unique among saved configurations. GnuCash appends a number to a clashing name on save
   (`report/report-core.scm:515-532`) and refuses a clash on rename; red-ale refuses both (`conflict`), so a client
   always gets the name it asked for.
@@ -1591,6 +1622,7 @@ drops it and needs nothing from budgets.
 | Floating point (day fractions, pie percentages, chart values) | Doubles | Exact, rounded as GnuCash displays | No floats anywhere in red-ale |
 | Bad option values | Logged and ignored | `report-option` error | A typo never runs a different report |
 | A script's `set-default-value` or `make-internal` on an option that does not exist | Ignored (`5.17:bindings/guile/gnc-optiondb.i:1500-1503`; `5.17:libgnucash/engine/gnc-optiondb.cpp:266-272`); the General Ledger and Reconciliation Report rely on it | `report-script` error; the translations leave those calls out | A misspelt name in a user script is found; the figures are the same |
+| A Multicolumn View's children (v0.5) | Report instances of the session, made by "Add" with a copy of a saved configuration's options (`report/report-core.scm:389-409`); an unknown id fails the whole view (`standard/view-column.scm:84-85`) | Template or saved configuration GUIDs (§6, report placements); a saved configuration child is a reference; an unknown GUID or invalid child options set by a caller are `report-option` | No sessions of report instances in red-ale; a reference stays put across restarts (`notes/report-statements-charts.md` Q4, Q7) |
 | A split query's description pattern that is not a regular expression | The criterion is dropped (`qof_query_string_predicate` returns null, `5.17:libgnucash/engine/qofquerycore.cpp:319-334`) | `report-script` error | A typo never matches every transaction |
 | A split query's regular expressions and case folding | POSIX extended expressions; `g_utf8_casefold` | Rust `regex`; lowercase, as `transaction.find` | Same results for patterns both dialects read alike |
 | The Transaction Report engine's account and transaction filters (v0.5) | POSIX extended expressions (`make-regexp`, with `regexp/icase` when case-insensitive), `string-contains-ci` (`report/trep-engine.scm:2210-2254`, `:2439-2446`) | Rust `regex` through `make_regexp` (section 2); case-insensitive substrings compare lowercased | As the split query's row |
