@@ -15,6 +15,8 @@
 #
 # red-ale is not pure Rust: rusqlite builds the bundled SQLite and ring has C and assembly, so every runner needs a
 # C compiler for its target. macOS has Xcode's clang; the musl jobs install musl-gcc.
+#
+# Actions are pinned to full commit SHAs; the comment names the tag each one is.
 
 name: release
 
@@ -33,9 +35,9 @@ jobs:
   # A release's tag and the version the binary reports must agree.
   check-version:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Tag matches the workspace version
         shell: bash
         run: |
@@ -49,12 +51,12 @@ jobs:
   create-release:
     if: github.event_name == 'push'
     needs: check-version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: taiki-e/create-gh-release-action@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1.11.0
         with:
           changelog: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -63,11 +65,11 @@ jobs:
   install-script:
     needs: create-release
     if: ${{ !cancelled() && (needs.create-release.result == 'success' || github.event_name == 'workflow_dispatch') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write # upload the release asset
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check the script
         run: |
           sh -n install.sh
@@ -93,7 +95,7 @@ jobs:
           # Static musl binaries, so no coupling to the host's glibc version. Each runs on its own architecture, so
           # nothing is cross-compiled and every binary can be run as a smoke test.
           - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - target: aarch64-unknown-linux-musl
             os: ubuntu-24.04-arm
           - target: aarch64-apple-darwin
@@ -102,7 +104,7 @@ jobs:
             os: macos-15-intel
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install musl-gcc
         if: contains(matrix.target, 'linux-musl')
@@ -114,7 +116,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
 
-      - uses: taiki-e/upload-rust-binary-action@v1
+      - uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1.30.2
         id: upload
         with:
           bin: red-ale
@@ -135,14 +137,14 @@ jobs:
         run: target/${{ matrix.target }}/release/red-ale --version
 
       # Ties each released archive to this workflow run (verify: `gh attestation verify <asset> -R CjS77/red-ale`).
-      - uses: actions/attest-build-provenance@v4
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         if: github.event_name == 'push'
         with:
           subject-path: ${{ steps.upload.outputs.tar }}
 
       - name: Keep the archive as a workflow artifact
         if: github.event_name != 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: red-ale-${{ matrix.target }}
           path: |
