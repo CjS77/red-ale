@@ -38,7 +38,7 @@ Code names are given in `code font` when they differ from the term.
 |------|---------|
 | **GUID** (`Guid`) | 128-bit identifier of an entity, written as 32 lowercase hex digits. Kept exactly as read. |
 | **Numeric** | An exact rational `num/denom` with 64-bit parts: GnuCash's `gnc_numeric`. Every amount, value, price and rate is a Numeric. Never a float. |
-| **SCU** | Smallest commodity unit: the denominator a Commodity's quantities are kept in (100 for USD, 1 for JPY). Also called the commodity's *fraction*. |
+| **SCU** | *Smallest commodity unit*: the denominator a Commodity's quantities are kept in (100 for USD, 1 for JPY). Also called the commodity's *fraction*. |
 | **Time64** | An instant, in whole seconds since 1970-01-01 UTC. GnuCash's `time64`. |
 | **Date** | A calendar date with no time (GnuCash's `GDate`). |
 | **Local time zone** (`TimeZone`) | The time zone of the server process, read once at start-up as GnuCash reads it: `TZ` as a zone file, else `TZ` as a POSIX string with Boost's reversed sign, else `/etc/localtime`, else UTC. Day boundaries, "today", same-day prices and file-name timestamps use it. |
@@ -173,11 +173,11 @@ Code names are given in `code font` when they differ from the term.
 | **Customer**, **Vendor**, **Employee** | Owners with an ID, a name, an Address and terms. |
 | **Job** | A piece of work grouping documents for one Customer or Vendor. |
 | **Address** | A name, four address lines, phone, fax and email. |
-| **Business document** (`Invoice` in code) | An invoice (to a Customer), a bill (from a Vendor) or an expense voucher (from an Employee). **⚠** GnuCash code calls all three *invoice*; red-ale says *document* for the general case. |
+| **Business document** (`Invoice` in code) | An *invoice* (to a Customer), a *bill* (from a Vendor) or an *expense voucher* (from an Employee). **⚠** GnuCash code calls all three *invoice*; red-ale says *document* for the general case. |
 | **Entry** | One line of a document or order: quantity, price, discount, tax. |
 | **Order** | A group of Entries for one Owner, later invoiced. |
 | **Tax table** | Named tax rates, each a percentage or a fixed value posted to an Account. |
-| **Billing term** | When a document is due and any early-payment discount: *days* or *proximo*. |
+| **Billing term** (`BillTerm`) | When a document is due and any early-payment discount: *days* or *proximo*. |
 | **Post** | Turning a document into a Transaction in an A/Receivable or A/Payable Account, with a Lot linking the two. *Unpost* reverses it. |
 | **Payment** | A Transaction that settles an Owner's open documents through their Lots. |
 | **Due reminder** | The list of posted, unpaid documents falling due within a number of days. |

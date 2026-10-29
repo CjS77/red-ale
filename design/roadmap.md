@@ -229,9 +229,10 @@ everything about windows, menus, dialogs, preferences and keyboard use:
 - **Assistants and dialogs** become From GnuCash pages that name the methods doing their job (the stock split
   assistant is `stock.split`, the Find dialog is `transaction.find`).
 
-A checklist in `docs/` maps each section of both books, at the 5.17 tag, to the Pages that cover it, or marks it
-GUI-only, so coverage can be checked and later releases of the books diffed against it. GnuCash's glossary
-(`C/guide/gnc-glossary.docbook`) is checked against red-ale's [`glossary.md`](glossary.md) at the same time.
+A checklist, [`gnucash-docs-checklist.md`](gnucash-docs-checklist.md), maps each section of both books, at the 5.17
+tag, to the Pages that cover it, or marks it GUI-only, so coverage can be checked and later releases of the books
+diffed against it. GnuCash's glossary (`C/guide/gnc-glossary.docbook`) is checked against red-ale's
+[`glossary.md`](glossary.md) at the same time.
 
 Licence: the books are under the GFDL 1.1 or later, with no Invariant Sections and no Cover Texts
 (`C/guide/legal.docbook`, `C/manual/legal.docbook` at `5.17`). red-ale's `docs/` takes the same licence, so Pages

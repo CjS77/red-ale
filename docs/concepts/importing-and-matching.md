@@ -6,8 +6,8 @@ summary: Importing QIF, CSV and business files in two calls - import.preview bui
 related: concept/transactions-and-splits, concept/reconciliation, concept/configuration, method/import.preview, method/import.apply, method/import.discard, method/importMap.list, method/importMap.delete, guide/import-transactions
 from: guide/ch_importing.docbook#importing-matcher
 ---
-GnuCash imports transactions from files in the formats QIF, OFX/QFX, CSV, MT940, MT942 and DTAUS. red-ale imports **QIF
-and CSV**; OFX, QFX, MT940, MT942, DTAUS and online banking are not supported
+GnuCash imports transactions from files in the formats QIF, OFX/QFX, CSV, MT940, MT942 and DTAUS. red-ale imports *QIF
+and CSV*; OFX, QFX, MT940, MT942, DTAUS and online banking are not supported
 ([From GnuCash: Not in red-ale](gnucash/not-in-red-ale)).
 
 | `format` | Imports | Duplicates found by |
@@ -28,7 +28,7 @@ An import is never a single step. GnuCash shows its matcher in a window; red-ale
    it, its **Candidate matches**, the account of each Split, any imbalance, and whether it would be read-only by date. It
    changes nothing. The server holds the proposal under an ID.
 2. Read it. Change an action, a chosen match or an account.
-3. [`import.apply`](method/import.apply) applies the proposal with your changes as **one change**: everything or nothing.
+3. [`import.apply`](method/import.apply) applies the proposal with your changes as *one change*: everything or nothing.
    [`import.discard`](method/import.discard) throws a proposal away.
 
 A proposal is tied to the **book revision** it was made at: if the book changed since, `import.apply` refuses it
@@ -65,7 +65,7 @@ taught it, kept in Slots of the Accounts as the **Import map**:
 
 - **Bayesian matching**, on by default (`useBayes`): the Account whose combined probability over the transaction's
   words reaches 90%, learned per source Account.
-- the **plain Import map**: an exact description to an Account, when Bayesian matching is off.
+- the *plain* **Import map**: an exact description to an Account, when Bayesian matching is off.
 
 A CSV layout can also name the Account itself. `import.apply` learns from your final choices, so the second import of a
 file from the same bank needs fewer corrections. [`importMap.list`](method/importMap.list) shows what has been learned and

@@ -4,74 +4,24 @@
 # checks print them (crates/red-ale-docs/src/coverage.rs). The list may only shrink: crates/red-ale-rpc/tests/
 # manual_coverage.rs fails on a gap missing from it and on an entry that is no longer a gap.
 #
-# `from` gaps: manual_coverage.rs has an empty CHECKLIST, so every `from` shows as a gap until it reads
-# design/gnucash-docs-checklist.md. Remove these lines when it does.
-concept/account-types from guide/ch_basics.docbook#basics-accounting52
-concept/books-and-files from guide/ch_basics.docbook#basics-files1
-concept/budgets from guide/ch_budgets.docbook#budget_concepts1
-concept/business-documents from guide/ch_bus_features.docbook#bus-intro
-concept/chart-of-accounts from guide/ch_basics.docbook#basics-accounts2
-concept/closing-the-books-and-accounting-period from manual/ch_Tools_Assistants.docbook#tool-close-book-workings
-concept/coming-from-gnucash from guide/ch_oview.docbook#chapter_oview
-concept/commodities-and-currencies from guide/ch_currency.docbook#currency_concepts1
-concept/configuration from manual/ch_Customize.docbook#book-options
-concept/double-entry from guide/ch_basics.docbook#basics-accounting1
-concept/importing-and-matching from guide/ch_importing.docbook#importing-matcher
-concept/investments from guide/ch_invest.docbook#invest_concepts1
-concept/loans-and-interest from guide/ch_loans.docbook#loans_concepts1
-concept/lots-and-capital-gains from guide/ch_capgain.docbook#capgain_concepts1
-concept/other-assets-and-depreciation from guide/ch_dep.docbook#dep_concepts1
-concept/prices-and-exchange-rates from guide/ch_invest.docbook#invest-stockprice1
-concept/read-only-books from guide/ch_basics.docbook#basics-files-storage-comparison
-concept/reconciliation from manual/ch_Account-Actions.docbook#acct-reconcile
-concept/report-scripts from manual/ch_Reports.docbook#report-create
-concept/reports from guide/ch_reports.docbook#rpt_concepts
-concept/scheduled-transactions from manual/ch_Transactions.docbook#trans-sched
-concept/trading-accounts from guide/ch_currency.docbook#trading_acct_concepts
-concept/transactions-and-splits from guide/ch_basics.docbook#basics-transactions2
-gnucash/account-menu from manual/ch_GUIMenus.docbook#AccTree-actions-menu
-gnucash/business-menu from manual/ch_GUIMenus.docbook#AccTree-business-menu
-gnucash/file-menu from manual/ch_GUIMenus.docbook#AccTree-file-menu
-gnucash/import-and-export from guide/ch_importing.docbook#chapter_importing
-gnucash/not-in-red-ale from guide/ch_python_bindings.docbook#ch_python_bindings
-gnucash/preferences-and-book-options from manual/ch_Customize.docbook#set-prefs
-gnucash/reports-menu from manual/ch_GUIMenus.docbook#AccTree-reports-menu
-gnucash/stock-assistants from manual/ch_Tools_Assistants.docbook#stock-assistant
-gnucash/tools-menu from manual/ch_GUIMenus.docbook#AccTree-tools-menu
-gnucash/transaction-menu from manual/ch_GUIMenus.docbook#Trans-transaction-menu
-gnucash/windows-and-registers from manual/ch_GUIMenus.docbook#gui-windows
-guide/back-up-and-recover from guide/ch_basics.docbook#basics-backup1
-guide/buy-and-sell-shares from guide/ch_invest.docbook#chapter_invest
-guide/capital-gains-with-lots from guide/ch_invest.docbook#invest-sell1
-guide/close-the-books from manual/ch_Tools_Assistants.docbook#tool-close-book
-guide/configure-red-ale from guide/ch_configuring.docbook#chapter_configuring
-guide/create-a-budget from guide/ch_budgets.docbook#chapter_budgets
-guide/create-open-and-save-a-book from guide/ch_basics.docbook#basics-files1
-guide/credit-cards from guide/ch_cc.docbook#chapter_cc
-guide/depreciate-an-asset from guide/ch_dep.docbook#chapter_dep
-guide/edit-void-and-reverse-transactions from manual/ch_Transactions.docbook#trans-assoc
-guide/employees-and-payroll from guide/ch_bus_features.docbook#bus_payroll
-guide/export-data from manual/ch_Transactions.docbook#trans-export
-guide/find-transactions from manual/ch_Transactions.docbook#general-journal
-guide/import-business-data from guide/ch_import_business_data.docbook#ch_import_bus_data
-guide/import-transactions from guide/ch_importing.docbook#chapter_importing
-guide/invoices-and-bills from guide/ch_expenses.docbook#expenses-other
-guide/migrate-from-gnucash from guide/ch_basics.docbook#basics-migrate-settings
-guide/multiple-currencies from guide/ch_currency.docbook#currency_manual
-guide/print-an-invoice from guide/ch_reports.docbook#rpt_grp_business
-guide/process-payments from manual/ch_Business.docbook#busnss-ar-payment
-guide/reconcile-an-account from guide/ch_cbook.docbook#chapter_cbook
-guide/record-deposits-and-withdrawals from guide/ch_basics.docbook#basics-together1
-guide/record-dividends from guide/ch_invest.docbook#invest-dividends1
-guide/record-prices from guide/ch_invest.docbook#invest-stockprice1
-guide/report-to-pdf from manual/ch_Reports.docbook#report-print
-guide/run-and-export-a-report from guide/ch_cbook.docbook#cbook-puttoget-reports
-guide/schedule-a-transaction from guide/ch_loans.docbook#loans_mortgage1
-guide/set-up-accounts from guide/ch_basics.docbook#basics-expt-acct
-guide/set-up-business from guide/ch_bus_features.docbook#bus_setup
-guide/split-transactions from guide/ch_expenses.docbook#expenses-entering
-guide/stock-splits-and-mergers from guide/ch_invest.docbook#invest-splitsnmergers1
-guide/track-a-loan from guide/ch_loans.docbook#chapter_loans
-guide/transfer-between-accounts from manual/ch_Transactions.docbook#trans-win-enter
-guide/use-trading-accounts from guide/ch_currency.docbook#currency_trading_accts
-guide/write-your-own-report from guide/ch_reports.docbook#rpt_grp_sampcust
+# `term` gaps: words a Concept page writes in bold, so as terms, that the glossary does not define. Add the term to
+# design/glossary.md, or write the word without bold if it is not one of red-ale's terms.
+concept/budgets term capital budget
+concept/budgets term cash budget
+concept/budgets term default budget
+concept/budgets term expense budget
+concept/business-documents term pre-payment
+concept/configuration term Preferences
+concept/dates-and-time-zones term timestamp
+concept/investments term return of capital
+concept/loans-and-interest term nominal
+concept/other-assets-and-depreciation term Current assets
+concept/other-assets-and-depreciation term Depreciation
+concept/other-assets-and-depreciation term Long-term or fixed assets
+concept/prices-and-exchange-rates term direct
+concept/prices-and-exchange-rates term indirect
+concept/reports term Multicolumn View
+concept/reports term options
+concept/reports term relative
+concept/reports term report
+concept/value-and-amount term exact rationals

@@ -70,7 +70,7 @@ So `red-ale-rpc` can depend on it to serve the `help.*` methods without a cycle.
 | Concept | `docs/concepts/*.md`. The terms come from the glossary's user-facing entries, so the Manual and the design use one vocabulary | Hand-written |
 | Guide | `docs/guides/*.md`: one task each, made of Examples | Hand-written |
 | From GnuCash | `docs/gnucash/*.md`: GnuCash's menus, dialogs and assistants mapped to red-ale methods ("Actions › Stock Split…" → `stock.split`), following `features.md`'s rows | Hand-written |
-| From GnuCash's documentation | GnuCash's *Tutorial and Concept Guide* and *Help Manual* at the `5.17` tag of `Gnucash/gnucash-docs`: their concepts and how-tos, translated for the API, MCP and the CLI, GUI material left out ([`roadmap.md`](roadmap.md), v0.6). A checklist in `docs/` maps each section to the Pages covering it | Hand-written |
+| From GnuCash's documentation | GnuCash's *Tutorial and Concept Guide* and *Help Manual* at the `5.17` tag of `Gnucash/gnucash-docs`: their concepts and how-tos, translated for the API, MCP and the CLI, GUI material left out ([`roadmap.md`](roadmap.md), v0.6). A checklist, [`gnucash-docs-checklist.md`](gnucash-docs-checklist.md), maps each section to the Pages covering it | Hand-written |
 | Start | `docs/start.md`: what red-ale is, opening a book, saving, amounts on the wire, where to look next | Hand-written |
 
 Hand-written files are Markdown with a short front matter (`id`, `title`, `summary`, `related`). They live in
@@ -235,8 +235,8 @@ The Manual is a Modified Version of those books in the GFDL's sense, so GFDL 1.1
 
 How the doors meet that:
 - Every Page that adapts the books' text says so in its front matter (`from: guide/ch_txns.docbook`), and its
-  footer names the source section and links `legal/notices`. Coverage tests check that each `from` names a file in
-  the checklist.
+  footer names the source section and links `legal/notices`. Coverage tests check that each `from` names a section
+  in the checklist, [`gnucash-docs-checklist.md`](gnucash-docs-checklist.md), and that its row lists the Page.
 - `help.get`, the MCP resources and `red-ale help` serve Pages one at a time, so each served Page ends with a
   one-line licence notice and the Page IDs of the notices and the licence.
 - The static site and `llms-full.txt` carry the notices, History and licence in full.
@@ -288,8 +288,19 @@ Decided while building `red-ale-docs` and the `help.*` methods ([`api/help.md`](
   `book-already-open` does not outrank `book.open` for "open a book".
 - **Coverage while writing.** `docs/coverage-pending.txt` lists the gaps known to be open, one `<page-id> <what>`
   per line; the coverage test fails on a gap not listed and on a listed one that is closed, so the list only
-  shrinks. Reports, like methods, need a hand-written part and an Example. The check that every glossary term a Page
-  uses is defined is not built yet: it needs a way to tell a term in a Page from an ordinary word.
+  shrinks. Reports, like methods, need a hand-written part and an Example.
+- **The checklist** of GnuCash's documentation is `design/gnucash-docs-checklist.md`, not in `docs/`: every Markdown
+  file there is a Page, and only the coverage test reads the checklist (`include_str!`), so the site never sees it.
+  Each `from` must be `<book>/<file>#<section id>` of a row that lists the Page; and each Page ID a row lists must
+  exist. A Page a row names before it is written is a pending gap, `<page-id> checklist`, so writing it fails the
+  test until its line is crossed off (the Guides were, until they were all written).
+- **Glossary terms.** In a Concept page, bold marks a term and italics mark emphasis. Each bold phrase must be
+  defined in the glossary, except bold that opens a list item (a label), holds code, ends with `.`, `!`, `?` or `:`
+  (a sentence or a lead-in), or runs past four words. The glossary defines a phrase when it is a row's bold name or
+  code name, or an italic phrase in a row (a term defined in passing, such as *setting path*, or another name a ⚠
+  note gives). Phrases are compared by their search words, so case, plurals and stop words don't count. The gap is
+  `<page-id> term <phrase>`. Only Concept pages are checked: they are where the Manual explains its terms, while the
+  other Pages use bold for GnuCash's menu items and option names and for warnings.
 - **`data.help`** is added by the dispatcher to every error: `error/<name>` unless the method set a Page of its own.
 - **MCP** ([`mcp.md`](mcp.md), "Resources"): `resources/list` gives every Page in one page, as `tools/list` gives
   every tool; a resource's `name` is its Page ID and its `description` the summary; `resources/read` renders as

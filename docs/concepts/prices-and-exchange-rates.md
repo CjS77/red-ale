@@ -47,7 +47,7 @@ a Price from an unknown source ranks last. A refused price is reported (`priceSt
 
 ## Online quotes
 
-GnuCash fetches quotes through Finance::Quote, a Perl library. **red-ale has no Perl** and does not run
+GnuCash fetches quotes through Finance::Quote, a Perl library. *red-ale has no Perl* and does not run
 Finance::Quote. It asks web services itself.
 
 - A Commodity is set up with a quote flag and a **quote source** (`alphavantage`, `yahoo_json`, `currency` and so on),

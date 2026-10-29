@@ -7,7 +7,7 @@ related: concept/books-and-files, concept/value-and-amount, concept/chart-of-acc
 from: guide/ch_oview.docbook#chapter_oview
 ---
 GnuCash is personal finance software made to keep track of anything from a checkbook to a business, with investments,
-loans and many currencies. red-ale reimplements it **without a window**. It reads and writes GnuCash's own files, XML or
+loans and many currencies. red-ale reimplements it *without a window*. It reads and writes GnuCash's own files, XML or
 SQLite, and every operation is a JSON-RPC method, also an MCP tool for AI agents and a command of `red-ale exec`. There is
 no assistant and no register. If you know GnuCash, this is what to expect.
 
