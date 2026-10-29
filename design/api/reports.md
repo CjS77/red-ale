@@ -191,8 +191,9 @@ it (`5.17:gnucash/gnome/dialog-custom-report.c:462-494`).
 
 ### `report.importConfigurations` (write, configuration)
 
-`{ text, dryRun?: bool }` → `{ dryRun, imported: [{ line, configuration: ReportInfo, options: Options, ignored }],
-skipped: [{ line, name?, guid?, template?, reason, message }] }`. `text` is the content of GnuCash's
+`{ text, dryRun?: bool }` → `{ dryRun, imported: [{ line, configuration: ReportInfo, options: Options, ignored:
+[{ child?, section, name, reason }] }], skipped: [{ line, name?, guid?, template?, reason, message }] }`. `text` is
+the content of GnuCash's
 `saved-reports-2.8`, or of `saved-reports-2.4` when there is no 2.8 file
 (`5.17:gnucash/report/gnc-report.h:35-36`), from its user data directory. **The server never reads a path**: the
 caller sends the text, and the CLI's `--file` reads it on the caller's side. The text is read as data and never
@@ -209,7 +210,7 @@ Configuration. With `dryRun` nothing is written.
 | `reason` | The entry is skipped when |
 |----------|---------------------------|
 | `malformed` | It is not a form GnuCash writes, or a value is not a literal of its option's kind; text that cannot be read at all ends the file with one `malformed` entry |
-| `untranslated` | Its template is not one red-ale has: a report red-ale has not translated, or a user report that is not loaded |
+| `untranslated` | Its template, or the template of one of a Multicolumn View's embedded reports (the message names it), is not one red-ale has: a report red-ale has not translated, or a user report that is not loaded |
 | `exists` | A saved configuration with its GUID is in the Configuration or earlier in the file, so importing twice adds nothing |
 | `conflict` | Another saved configuration has its name |
 | `invalid-option` | A value red-ale refuses, as `report-option` would |
@@ -218,6 +219,13 @@ An option form is accepted with the setter 5.17 and 3.x/4.x write or the one 2.x
 kind accepts, and how they map to red-ale's wire forms, are in [`../reports.md`](../reports.md) §15. A
 General/"Stylesheet" naming a style sheet red-ale does not have is kept, and renders with the base look until that
 style sheet is imported or created (§8).
+
+**A saved Multicolumn View** (v0.5) imports with its embedded reports as its `__general`/`report-list`: each child is
+`{ report: <its template's GUID>, options, colspan, rowspan }`, the options GnuCash copied into it read as an entry's
+are, and the spans those GnuCash saved at its position. An option a child sets that its template lacks is in
+`ignored` with `child`, the child's position from 0. A child that is itself a view imports with no children, since
+GnuCash saves only the outer view's: its report-list is in `ignored` as `unsaved-children`. Details in
+[`../reports.md`](../reports.md) §15.
 
 ### `report.importStyleSheets` (write, configuration)
 

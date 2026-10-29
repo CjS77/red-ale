@@ -1663,6 +1663,7 @@ drops it and needs nothing from budgets.
 | A Multicolumn View's children (v0.5) | Report instances of the session, made by "Add" with a copy of a saved configuration's options (`report/report-core.scm:389-409`); an unknown id fails the whole view (`standard/view-column.scm:84-85`) | Template or saved configuration GUIDs (§6, report placements); a saved configuration child is a reference; an unknown GUID or invalid child options set by a caller are `report-option` | No sessions of report instances in red-ale; a reference stays put across restarts (`notes/report-statements-charts.md` Q4, Q7) |
 | A Multicolumn View's child that cannot run (v0.5) | An unknown report id fails the whole view (`gnc:report-set-stylesheet!` outside the error handler, `standard/view-column.scm:84-85`); a failing child shows "Report error" in its cell (`:87-97`) | Every child that cannot run (gone, failing, too deep, past 100, a cycle) shows "Report error" in its cell; a child past an engine limit stops the run | One stale reference does not hide the other children |
 | A Multicolumn View's links (v0.5) | "Edit Options" and "Single Report" under each child (`standard/view-column.scm:115-130`) | "Single Report" only, a report link | `report.options` edits options; red-ale has no instances |
+| A saved Multicolumn View inside a saved view (v0.5) | Saved with its report-list of the session's instance ids and none of its children (`report/report-core.scm:567-598`); reloaded, it finds no report by those ids (the whole view fails) or another one | Imported with no children; its report-list is listed as `unsaved-children` | The children were never saved; an empty view is what can be kept (§15) |
 | A split query's description pattern that is not a regular expression | The criterion is dropped (`qof_query_string_predicate` returns null, `5.17:libgnucash/engine/qofquerycore.cpp:319-334`) | `report-script` error | A typo never matches every transaction |
 | A split query's regular expressions and case folding | POSIX extended expressions; `g_utf8_casefold` | Rust `regex`; lowercase, as `transaction.find` | Same results for patterns both dialects read alike |
 | The Transaction Report engine's account and transaction filters (v0.5) | POSIX extended expressions (`make-regexp`, with `regexp/icase` when case-insensitive), `string-contains-ci` (`report/trep-engine.scm:2210-2254`, `:2439-2446`) | Rust `regex` through `make_regexp` (section 2); case-insensitive substrings compare lowercased | As the split query's row |
@@ -1771,6 +1772,25 @@ GnuCash writes them from a few fixed forms with literal values. `report.importCo
   have is reported (`unknown-option`) and left out, as GnuCash's `(if o …)` leaves it. A template red-ale has not
   translated is reported (`untranslated`) and the entry skipped; importing it again once the template exists works.
   A General/"Stylesheet" naming a style sheet red-ale does not have is kept (section 8).
+- **A saved Multicolumn View** (v0.5) holds its children as embedded reports (`gnc:report-serialize-embedded`,
+  `5.17:gnucash/report/report-core.scm:567-618`): among its option forms, a `__general`/`report-list` of the saving
+  session's report instance ids with each child's spans, `'((<id> <wide> <high> #f) …)`; then, for each child in
+  placement order, a `(let ((options (gnc:report-template-new-options/report-guid "<template>" "<name>"))) <option
+  forms> (set! new-embedded-report-ids (append new-embedded-report-ids (list
+  (gnc:restore-report-by-guid-with-custom-template #f "<template>" "<name>" "<custom template>" options)))))` form;
+  then one form putting the new instances' ids in place of the saved ones, written even with no children. All three
+  are matched exactly as data (`import/forms.rs`), with 5.17's last form or 3.x and 4.x's
+  (`4.14:gnucash/report/report-core.scm:586-600`). Each embedded report becomes a child `{ report: <its template>,
+  options, colspan, rowspan }`, its spans from the report-list at its position: the copy of the options GnuCash makes
+  when a child is added (`:389-409`), made explicit. The custom template, the saved configuration the copy was made
+  from, is dropped: the options are complete without it. A child's options are imported as an entry's are
+  (`unknown-option` in `ignored` with the child's position, a value red-ale refuses `invalid-option`), then checked as
+  `report.saveConfiguration` checks a child. A report-list and embedded reports that differ in number, or any other
+  form, are `malformed`. An embedded report whose template red-ale has not translated skips the whole entry as
+  `untranslated`, naming the child, so importing again once it is translated adds the view whole
+  (`notes/report-statements-charts.md`, Q5). Only a view's own children are saved: a child that is itself a view
+  keeps a report-list of instance ids and no embedded reports, which GnuCash reloads as unknown or other reports. It
+  imports with no children, and its report-list is listed in `ignored` as `unsaved-children`.
 - **A style sheet** naming a predefined one holds the user's changes to it; any other name is a user style sheet.
   The image options red-ale does not render are kept (`not-rendered`), as `report.createStyleSheet` keeps them.
 - **Nothing is overwritten.** An entry whose GUID (configurations) or name (style sheets) the Configuration already
@@ -1779,7 +1799,9 @@ GnuCash writes them from a few fixed forms with literal values. `report.importCo
 
 Tests: `crates/red-ale-report/src/import/` (the reader, with property tests that no input panics; every value form)
 and `crates/red-ale-rpc/tests/report_import.rs` (hand-written files in 5.17 and older forms, skips, nothing
-evaluated, and an imported configuration running as the same options set by hand).
+evaluated, and an imported configuration running as the same options set by hand; a saved Multicolumn View with a
+template child, one copied from a saved configuration and a nested view, running cell for cell as its children
+alone, and its untranslated, malformed and refused children).
 
 ### Left for later
 
