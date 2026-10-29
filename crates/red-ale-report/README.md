@@ -126,6 +126,11 @@ Conventions a translator needs:
   module has called its own method twice, another module that calls it gets the cached method without its module's
   environment, and a closure the method passes to a native function (`index_of`, `retain`) is "not found"
   (`anon$…`). lib/collectors' methods loop for this reason (`tests/lib_collectors.rs`).
+- **One name, one function.** The same cache is shared by every script of a run, so a report script may not define
+  a function with the name and arity of one in a module it imports, directly or not, private or not: the engine
+  refuses it at the import (`design/reports.md` §2). Nor should a report function take the name and arity of a
+  registered or standard-package function, which a library calling that function would run instead; the engine
+  cannot check this one.
 
 Both closure limits are Rhai bugs, not consequences of red-ale's module resolver: `tests/rhai_closure_limits.rs`
 reproduces each on a bare `Engine::new()` with Rhai's own `StaticModuleResolver`. Both reproduce on rhai 1.26.1 and

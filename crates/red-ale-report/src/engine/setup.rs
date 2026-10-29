@@ -12,7 +12,7 @@ use rhai::{Dynamic, Engine};
 
 use super::log::Log;
 use super::registry::Sources;
-use super::resolver::Resolver;
+use super::resolver::{Defined, Resolver};
 use super::{context, memo, numbers, options, regexp};
 use crate::limits::{Limit, Limits};
 use crate::number::SizeCap;
@@ -31,6 +31,8 @@ pub(crate) struct Setup {
     pub log: Log,
     /// The Locale's number format, for `m.to_string()`.
     pub conventions: Conventions,
+    /// The functions of the scripts the run has compiled, which the resolver checks each module against.
+    pub defined: Defined,
 }
 
 /// How often, in operations, the run time is checked against the host clock.
@@ -51,7 +53,7 @@ pub(crate) fn engine(s: &Setup) -> Engine {
     engine.set_fail_on_invalid_map_property(true);
     limits(&mut engine, &s.limits);
     log(&mut engine, &s.log);
-    engine.set_module_resolver(Resolver::new(Arc::clone(&s.sources)));
+    engine.set_module_resolver(Resolver::new(Arc::clone(&s.sources), s.defined.clone()));
     numbers::register(&mut engine, &s.snap, SizeCap::bits(s.limits.get(Limit::NumberSize)), s.conventions);
     query::register(&mut engine);
     context::register(&mut engine);

@@ -165,7 +165,7 @@ New error codes, in a range for reports (added to [`api.md`](api.md)):
 | 3001 | `report-limit`  | The script passed a limit: `ErrorTooManyOperations`, `ErrorTerminated`, `ErrorStackOverflow`, `ErrorDataTooLarge`, `ErrorTooManyModules`, `ErrorTooManyVariables`, a compile-time depth or function limit, or the Rational size check. `data`: `{ report, source, limit, max, log }`; `source` is the script, or `null` when not known |
 | 3002 | `report-option` | An option value is not valid: unknown section or name, wrong type, not one of the choices, out of range, unknown account or commodity, a style sheet that does not exist, or an option the script made internal. `data`: `{ section, name, reason }` |
 | 3003 | `report-result` | The template returned something that is not a valid report result. `data`: `{ report, path, reason, log }` |
-| 3004 | `report-load`   | A user script does not compile, or its `templates()` fails, is malformed or repeats a GUID already defined, or it has `templates()` without `options` and `render`. `data`: `{ source, line, column, message }` |
+| 3004 | `report-load`   | A user script does not compile, or its `templates()` fails, is malformed or repeats a GUID already defined, or it has `templates()` without `options` and `render`, or it and a module it imports define the same function ("One name, one function", below). `data`: `{ source, line, column, message }` |
 
 A built-in script that fails to compile, declares a malformed or repeated template, or returns an invalid result is a
 bug: `internal-error` (-32603, the JSON-RPC code), and the tests of section 13 catch it before release.
@@ -191,6 +191,37 @@ leaves out what escapes it, and hands the engine path and text pairs.
 
 The service's loader reads the report directory (`reports.directory`, section 9) each time a report method runs:
 every `*.rhai` file below it, at most 1,000 files of at most 1 MiB each. Edits are seen without a restart.
+
+### One name, one function
+
+No two scripts of a run may define a function with the same name and number of parameters. A run's scripts are the
+template's script and every module it imports, directly or through other modules.
+
+Rhai resolves a call by name and arity. It searches the libraries of the scripts on the call stack, the called
+module's own first, but it keeps one function resolution cache for the whole run, keyed by name and arity alone,
+and caches a resolution the second time it is looked up. Calling into a module adds the module's library to the
+search but starts no new cache (rhai 1.27.0 `src/func/func_call.rs:367-423`, `src/func/script.rs:362-381`). So once
+one script has looked a name up twice, every other script that calls that name gets the same function. The Advanced
+Portfolio hit this: its own `total_of(env, collector)` ran inside `lib/collectors` in place of that module's private
+`total_of(list, commodity)`. That run failed, but a function whose parameters had happened to fit would have given a
+wrong figure without an error. No engine setting avoids this, so red-ale refuses the script instead:
+
+- The resolver checks each module it evaluates against the functions of the template's script and of every module
+  already imported, private functions included. A clash is an error at the `import` that brought the module in,
+  naming both scripts and the function. At load, `templates()` runs the script's top-level imports, so a clashing
+  user script is `report-load` and a clashing built-in script is `internal-error`. A module imported inside a
+  function is checked when the run reaches it, as `report-script`.
+- `templates`, `options` and `render`, which every template script defines, are allowed in two template scripts. The
+  engine calls them through the template's own AST, and another script calls them only qualified
+  (`transaction_report::render`), which bypasses the cache. A script must not call these three unqualified.
+
+Rhai has a second behaviour the check cannot cover. A module function that calls a name its module does not define
+finds the importing script's function of that name before the engine's own, because the module's library is added
+on top of the caller's and does not replace it. A report function with the name and arity of a function a library
+calls (`abs`, a method of the report API) would therefore run inside the library as well. Seeing a library's calls
+needs Rhai's `internals`, so this is a convention for translators: report functions do not reuse the names of
+registered or standard-package functions. `tests/rhai_closure_limits.rs` pins both behaviours on a bare `Engine`, and
+`tests/engine_name_clash.rs` tests the check.
 
 ### Now, today and the time zone
 
