@@ -23,6 +23,27 @@ From v0.4, one more, under `options/Budgeting/` (`5.17:libgnucash/engine/gnc-opt
 |---|---|---|---|
 | `Default Budget` | `defaultBudget` | GUID | the GUID as stored, or null when unset, even when it names no Budget; what it means is in [`budgets.md`](budgets.md), "The default budget" |
 
+From v0.6, the Business tab's strings, the Tax tab's Tax Number and the Default Invoice Report, which the Printable
+invoice prints and GnuCash's Print Invoice reads ([`../notes/report-invoice.md`](../notes/report-invoice.md) §1.3,
+§1.6). Registration: `gnc-optiondb.cpp:1299-1333`, `:1352-1356`.
+
+| Option (slot under `options/`) | Wire name | Slot type | Read as |
+|---|---|---|---|
+| `Business/Company Name` | `companyName` | string | the string, `""` when unset or not a string |
+| `Business/Company Address` (a text option: lines separated by newlines) | `companyAddress` | string | as above |
+| `Business/Company Contact Person` | `companyContactPerson` | string | as above |
+| `Business/Company Phone Number` | `companyPhoneNumber` | string | as above |
+| `Business/Company Fax Number` | `companyFaxNumber` | string | as above |
+| `Business/Company Email Address` | `companyEmailAddress` | string | as above |
+| `Business/Company Website URL` | `companyWebsiteUrl` | string | as above |
+| `Business/Company ID` | `companyId` | string | as above |
+| `Tax/Tax Number` | `taxNumber` | string | as above |
+| `Business/Default Invoice Report` | `defaultInvoiceReport` | string `<guid>/<name>` | `{ guid, name }` as GnuCash parses it: the GUID is the 32 characters before the first `/` when that slash is the 33rd character, the name what follows, `""` when nothing does (`qof_book_get_default_invoice_report_guid`, `-name`, `qofbook.cpp:1089-1147`); null when the slot is absent or not of that form. The GUID is returned as stored and may name no report red-ale has |
+
+The Default Invoice Report Timeout (`Business/Default Invoice Report Timeout`), the default tax tables and the Fancy
+Date Format are not read or set: the timeout only times GnuCash's chooser, and the invoice reads the date format
+through the query API's `book.option` ([`../reports.md`](../reports.md) §5).
+
 The dialog writes only options the user changed. A boolean is written `"t"` or `"f"`, never deleted
 (`kvp_value_from_bool_option`, `gnc-optiondb.cpp:404-410`); a number range as a double (`:493-502`), which the XML
 backend writes with `%24.18g`, trimmed (`libgnucash/backend/xml/sixtp-dom-generators.cpp:189-203`), so whole days
@@ -36,7 +57,9 @@ read `30`.
 | `book.setOptions` | write  | Change any of them, as GnuCash's book options dialog does. |
 
 **Result** (both methods): `{ splitActionForNum, autoReadOnlyDays, readOnlyThreshold, useTradingAccounts,
-defaultBudget }`.
+defaultBudget }`, and from v0.6 `companyName`, `companyAddress`, `companyContactPerson`, `companyPhoneNumber`,
+`companyFaxNumber`, `companyEmailAddress`, `companyWebsiteUrl`, `companyId`, `taxNumber` (strings) and
+`defaultInvoiceReport` (`{ guid, name }` or null).
 `readOnlyThreshold` is the threshold date (below), or absent when the threshold is off.
 
 ### `book.setOptions`
@@ -47,7 +70,11 @@ Params, each optional; an absent option is left alone:
 - `autoReadOnlyDays` (integer, 0 to 3650, the dialog's range; anything else is `invalid`);
 - `useTradingAccounts` (bool; see [`trading-accounts.md`](trading-accounts.md));
 - `defaultBudget` (a Budget's GUID, written as a GUID Slot; `not-found` for an unknown Budget; see
-  [`budgets.md`](budgets.md)).
+  [`budgets.md`](budgets.md));
+- the nine business strings (v0.6), each any string, `""` clearing it;
+- `defaultInvoiceReport` (v0.6): `{ guid, name }`, both required, or null to clear it. The GUID must be 32 hex
+  digits and is not checked against the reports red-ale has, since GnuCash may print the Book with reports red-ale
+  lacks; clients pick an invoice report from `report.list`.
 
 As the dialog applies them (`gnc_book_options_dialog_apply_helper`, `gnucash/gnome-utils/gnc-main-window.cpp:4632-4681`):
 
@@ -56,6 +83,13 @@ As the dialog applies them (`gnc_book_options_dialog_apply_helper`, `gnucash/gno
   (`gnc_book_option_num_field_source_change_cb`, `gnc-main-window.cpp:4709-4721`; `gnc-features.h:55`), with
   GnuCash's description (`gnc-features.cpp:39`). Turning it off keeps the feature: GnuCash never removes it.
 - `autoReadOnlyDays` writes a double slot, `0` included.
+- A business string writes a string slot, an empty string included, as the dialog saves a changed string option
+  (`GncOptionDB::save_to_kvp`, `gnc-optiondb.cpp:465-516`). GnuCash reads an empty one as unset.
+- `defaultInvoiceReport` writes `<guid>/<name>`, as `qof_book_set_default_invoice_report` (`qofbook.cpp:1043-1087`)
+  and the dialog's report chooser (`gnucash/gnome/business-options-gnome.cpp:188-214`) write it; null writes the
+  empty string the dialog saves for the option at its default, which GnuCash reads as no report. GnuCash's migration
+  of the old `invoice-printreport` preference into the Book (`gnucash/gnome/business-gnome-utils.c:115-128`) is a GUI
+  step red-ale does not copy.
 
 No other Book feature is set. Both are Book data, so the change is saved with the book and marks it dirty; neither
 is journaled (the journal records transactions only).
@@ -164,3 +198,11 @@ supported Book feature.
   - GnuCash's `xaccTransIsReadonlyByPostedDate` is true for exactly the transactions red-ale refuses to change, on
     both sides of the threshold;
   - with the option on, GnuCash and red-ale post, pay and transfer to the same nums and actions.
+- **Business options (v0.6):** `crates/red-ale-core/src/book_options.rs` (`business_options_are_written_only_when_they_change`,
+  `the_default_invoice_report_is_parsed_as_gnucash_parses_it`, `the_default_invoice_report_is_written_as_gnucash_writes_it`);
+  `crates/red-ale-rpc/tests/book_options.rs` (`business_options_are_set_read_and_saved`,
+  `a_default_invoice_report_needs_a_guid_and_a_name`); `crates/red-ale-testkit/tests/oracle_business_options.rs`:
+  GnuCash reads every option red-ale writes, on XML and SQLite, with no unknown feature
+  (`gnucash_reads_the_business_options_red_ale_writes_on_xml`, `…_on_sqlite`); red-ale writes the slots GnuCash's
+  `qof_book_set_string_option` and `qof_book_set_default_invoice_report` write (`red_ale_writes_the_slots_gnucash_writes`);
+  cleared options read as unset in both (`cleared_options_read_as_unset_in_gnucash`).

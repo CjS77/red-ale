@@ -145,8 +145,8 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 
 | Status | Item                   | Notes |
 |:------:|------------------------|-------|
-|        | Business options       | `book.options` and `book.setOptions` read and write the Business tab's strings (company name, address, contact, phone, fax, email, URL, ID) and the Tax tab's Tax Number, in the Slots GnuCash's Book Options dialog writes (the note §1.6, open question 8) |
-|        | Default invoice report | `defaultInvoiceReport`: `{ guid, name }` or `null`, read and written as GnuCash parses and writes the slot (the note §1.6) |
+|   ✅   | Business options       | `book.options` and `book.setOptions` read and write the Business tab's strings (company name, address, contact, phone, fax, email, URL, ID) and the Tax tab's Tax Number, in the Slots GnuCash's Book Options dialog writes (the note §1.6, open question 8). Done ([`api/book-options.md`](api/book-options.md)): `book_options.rs` (unit), `business_options_are_written_only_when_they_change`; `book_options.rs` (API), `business_options_are_set_read_and_saved`; `oracle_business_options.rs`, `gnucash_reads_the_business_options_red_ale_writes_on_xml`, `…_on_sqlite`, `red_ale_writes_the_slots_gnucash_writes`, `cleared_options_read_as_unset_in_gnucash` |
+|   ✅   | Default invoice report | `defaultInvoiceReport`: `{ guid, name }` or `null`, read and written as GnuCash parses and writes the slot (the note §1.6). Done: `the_default_invoice_report_is_parsed_as_gnucash_parses_it`, `the_default_invoice_report_is_written_as_gnucash_writes_it` (unit); `a_default_invoice_report_needs_a_guid_and_a_name` (API); the oracle tests above read it through `qof_book_get_default_invoice_report_guid` and `-name` |
 
 ## Carried forward from v0.5
 

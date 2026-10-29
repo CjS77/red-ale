@@ -1295,8 +1295,11 @@ start-up (`report/gnc-report.cpp:55-112`). red-ale keeps the same things in its 
   the literal forms GnuCash writes into them (section 15).
 - The Book's one reference to a saved configuration, the default invoice report
   (`options/Business/Default Invoice Report`, `5.17:libgnucash/engine/qofbook.cpp:1034-1112`), names the template
-  that prints an invoice: `report.run` with that template and the invoice ([`milestone6.md`](milestone6.md)). red-ale
-  reads it and keeps the slot as it keeps every slot.
+  that prints an invoice: `report.run` with that template and the invoice ([`milestone6.md`](milestone6.md)). From
+  v0.6 `book.options` reads it as `defaultInvoiceReport` and `book.setOptions` writes it, as GnuCash parses and writes
+  the slot ([`api/book-options.md`](api/book-options.md)); no report run reads or writes it. A client printing an
+  invoice runs the report it names, and the Printable invoice when it names no invoice report red-ale has, as GnuCash
+  falls back (`5.17:gnucash/gnome/dialog-invoice.c:957-963`).
 
 `limits` holds any of the limits of section 2 under the names in `data.limit` (`seconds` for `time`).
 

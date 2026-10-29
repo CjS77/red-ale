@@ -79,17 +79,75 @@ fn assert_auto_read_only(e: &RpcError, code: i32, date: &str) {
     );
 }
 
+/// The options with every business option unset, as `book.options` returns them for `rich.gnucash`.
+fn with_business(mut options: Value) -> Value {
+    let business = json!({
+        "companyName": "", "companyAddress": "", "companyContactPerson": "", "companyPhoneNumber": "",
+        "companyFaxNumber": "", "companyEmailAddress": "", "companyWebsiteUrl": "", "companyId": "", "taxNumber": "",
+        "defaultInvoiceReport": null
+    });
+    options.as_object_mut().unwrap().extend(business.as_object().unwrap().clone());
+    options
+}
+
+#[test]
+fn business_options_are_set_read_and_saved() {
+    let mut b = open();
+    let business = json!({
+        "companyName": "Acme Ltd", "companyAddress": "1 High St\nSpringfield", "companyContactPerson": "A. Smith",
+        "companyPhoneNumber": "555-0100", "companyFaxNumber": "555-0101", "companyEmailAddress": "acme@example.com",
+        "companyWebsiteUrl": "https://example.com", "companyId": "Tax-ID: 00-000000", "taxNumber": "GB123",
+        "defaultInvoiceReport": { "guid": "5123a759ceb9483abf2182d01c140e8d", "name": "Printable Invoice" }
+    });
+    let set = b.call("book.setOptions", business.clone());
+    let expected = |v: &Value| {
+        let mut all =
+            with_business(json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null }));
+        all.as_object_mut().unwrap().extend(v.as_object().unwrap().clone());
+        all
+    };
+    assert_eq!(set, expected(&business));
+    b.reopen();
+    assert_eq!(b.call("book.options", json!({})), expected(&business), "the options survive a save");
+
+    let cleared = b.call("book.setOptions", json!({ "companyFaxNumber": "", "defaultInvoiceReport": null }));
+    assert_eq!(cleared["companyFaxNumber"], "");
+    assert_eq!(cleared["defaultInvoiceReport"], Value::Null);
+    assert_eq!(cleared["companyName"], "Acme Ltd", "an absent option is left alone");
+}
+
+#[test]
+fn a_default_invoice_report_needs_a_guid_and_a_name() {
+    let mut b = open();
+    let bad = [
+        json!({ "defaultInvoiceReport": { "guid": "not-a-guid", "name": "x" } }),
+        json!({ "defaultInvoiceReport": { "guid": "5123a759ceb9483abf2182d01c140e8d" } }),
+        json!({ "defaultInvoiceReport": "5123a759ceb9483abf2182d01c140e8d/Printable Invoice" }),
+    ];
+    bad.into_iter().for_each(|params| {
+        assert_eq!(b.err("book.setOptions", params).code, codes::INVALID_PARAMS);
+    });
+    let named_nothing = json!({ "guid": "0123456789abcdef0123456789abcdef", "name": "" });
+    let set = b.call("book.setOptions", json!({ "defaultInvoiceReport": named_nothing }));
+    assert_eq!(
+        set["defaultInvoiceReport"], named_nothing,
+        "any GUID is kept, as GnuCash may print with reports red-ale lacks"
+    );
+}
+
 #[test]
 fn options_are_off_by_default_and_set_as_the_dialog_sets_them() {
     let mut b = open();
     assert_eq!(
         b.call("book.options", json!({})),
-        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null })
+        with_business(json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null }))
     );
     let set = b.call("book.setOptions", json!({ "splitActionForNum": true, "autoReadOnlyDays": 10 }));
     assert_eq!(
         set,
-        json!({ "splitActionForNum": true, "autoReadOnlyDays": 10, "readOnlyThreshold": "2024-06-21", "useTradingAccounts": false, "defaultBudget": null })
+        with_business(
+            json!({ "splitActionForNum": true, "autoReadOnlyDays": 10, "readOnlyThreshold": "2024-06-21", "useTradingAccounts": false, "defaultBudget": null })
+        )
     );
     let info = b.call("book.info", json!({}));
     let feature = info["features"]
@@ -113,7 +171,7 @@ fn options_are_off_by_default_and_set_as_the_dialog_sets_them() {
     );
     assert_eq!(
         off,
-        json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null })
+        with_business(json!({ "splitActionForNum": false, "autoReadOnlyDays": 0, "useTradingAccounts": false, "defaultBudget": null }))
     );
     let info = b.call("book.info", json!({}));
     assert!(

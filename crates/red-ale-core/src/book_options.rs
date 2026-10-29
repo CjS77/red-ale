@@ -6,7 +6,7 @@
 
 use crate::ops::business::contacts::set_feature_used;
 use crate::ops::transactions::posted_date;
-use crate::{Book, Date, DomainError, DomainResult, SlotValue, Split, Transaction};
+use crate::{Book, Date, DomainError, DomainResult, Guid, SlotValue, Split, Transaction};
 
 /// The frame holding Book features: one string slot per feature, keyed by name.
 pub const FEATURES: &str = "features";
@@ -19,6 +19,98 @@ pub const OPT_AUTO_READONLY_DAYS: &str = "options/Accounts/Day Threshold for Rea
 /// The business "Company Name", a string (`gnc:*business-label*` and `gnc:*company-name*`,
 /// `5.17:bindings/guile/options.scm:388-389`).
 pub const OPT_COMPANY_NAME: &str = "options/Business/Company Name";
+/// "Default Invoice Report", a string `<guid>/<name>` (`5.17:libgnucash/engine/qofbook.cpp:1034-1087`).
+pub const OPT_DEFAULT_INVOICE_REPORT: &str = "options/Business/Default Invoice Report";
+
+/// The string options of the Book Options dialog's Business tab, and the Tax tab's Tax Number, which the invoice
+/// prints (`5.17:libgnucash/engine/gnc-optiondb.cpp:1299-1329`, `:1352-1356`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BusinessOption {
+    /// "Company Name".
+    CompanyName,
+    /// "Company Address", a text option: lines separated by newlines.
+    CompanyAddress,
+    /// "Company Contact Person".
+    ContactPerson,
+    /// "Company Phone Number".
+    PhoneNumber,
+    /// "Company Fax Number".
+    FaxNumber,
+    /// "Company Email Address".
+    EmailAddress,
+    /// "Company Website URL".
+    WebsiteUrl,
+    /// "Company ID", such as a tax ID.
+    CompanyId,
+    /// The Tax tab's "Tax Number".
+    TaxNumber,
+}
+
+impl BusinessOption {
+    /// Every option, in the dialog's order.
+    pub const ALL: [Self; 9] = [
+        Self::CompanyName,
+        Self::CompanyAddress,
+        Self::ContactPerson,
+        Self::PhoneNumber,
+        Self::FaxNumber,
+        Self::EmailAddress,
+        Self::WebsiteUrl,
+        Self::CompanyId,
+        Self::TaxNumber,
+    ];
+
+    /// The slot path GnuCash's dialog writes the option at: `options/<section>/<name>`.
+    pub fn path(self) -> &'static str {
+        match self {
+            Self::CompanyName => OPT_COMPANY_NAME,
+            Self::CompanyAddress => "options/Business/Company Address",
+            Self::ContactPerson => "options/Business/Company Contact Person",
+            Self::PhoneNumber => "options/Business/Company Phone Number",
+            Self::FaxNumber => "options/Business/Company Fax Number",
+            Self::EmailAddress => "options/Business/Company Email Address",
+            Self::WebsiteUrl => "options/Business/Company Website URL",
+            Self::CompanyId => "options/Business/Company ID",
+            Self::TaxNumber => "options/Tax/Tax Number",
+        }
+    }
+}
+
+/// A business string option, `""` when unset or not a string, the dialog's default.
+pub fn business_option(book: &Book, option: BusinessOption) -> &str {
+    book.slots.get_str(option.path()).unwrap_or_default()
+}
+
+/// Set a business string option as GnuCash's dialog does: an unchanged value writes nothing; a changed one writes a
+/// string slot, an empty string included (`GncOptionDB::save_to_kvp`, `5.17:libgnucash/engine/gnc-optiondb.cpp:465-516`).
+pub fn set_business_option(book: &mut Book, option: BusinessOption, value: &str) {
+    if business_option(book, option) != value {
+        book.slots.set(option.path(), SlotValue::String(value.to_owned()));
+    }
+}
+
+/// The length of a GUID's text, `GUID_ENCODING_LENGTH` (`5.17:libgnucash/engine/guid.h:69`).
+const GUID_ENCODING_LENGTH: usize = 32;
+
+/// The Book's Default Invoice Report: the report GUID and name, as GnuCash parses the slot. The GUID is the 32
+/// characters before the first `/` when the slash is the 33rd character, and the name is what follows it, `""` when
+/// nothing does (`qof_book_get_default_invoice_report_guid`, `-name`, `5.17:libgnucash/engine/qofbook.cpp:1089-1147`).
+/// `None` when the slot is absent or not of that form.
+pub fn default_invoice_report(book: &Book) -> Option<(&str, &str)> {
+    let text = book.slots.get_str(OPT_DEFAULT_INVOICE_REPORT)?;
+    let (guid, name) = text.split_once('/')?;
+    (guid.len() == GUID_ENCODING_LENGTH).then_some((guid, name))
+}
+
+/// Set the Default Invoice Report as GnuCash writes it, `<guid>/<name>` (`qof_book_set_default_invoice_report`,
+/// `5.17:libgnucash/engine/qofbook.cpp:1043-1087`), writing nothing when it is unchanged. `None` writes the empty
+/// string the dialog saves for the option back at its default, which GnuCash reads as no report.
+pub fn set_default_invoice_report(book: &mut Book, report: Option<(Guid, &str)>) {
+    let text = report.map(|(guid, name)| format!("{guid}/{name}")).unwrap_or_default();
+    if book.slots.get_str(OPT_DEFAULT_INVOICE_REPORT).unwrap_or_default() != text {
+        book.slots.set(OPT_DEFAULT_INVOICE_REPORT, SlotValue::String(text));
+    }
+}
 
 /// Book feature names known to GnuCash 5.17, with the description GnuCash writes for each
 /// (`5.17:libgnucash/engine/gnc-features.cpp:36-48`).
@@ -218,7 +310,7 @@ fn leading_integer(text: &str) -> i64 {
 mod tests {
     use super::*;
 
-    use crate::{CommodityRef, FixedEnv, Frame, Guid, Numeric, Time64};
+    use crate::{CommodityRef, FixedEnv, Frame, Numeric, Time64};
 
     fn book() -> Book {
         Book::new_empty(&mut FixedEnv::new(Time64(0), 1))
@@ -322,6 +414,66 @@ mod tests {
         assert_eq!(company_name(&b), "");
         b.slots.set(OPT_COMPANY_NAME, SlotValue::String("Acme Ltd".into()));
         assert_eq!(company_name(&b), "Acme Ltd");
+    }
+
+    #[test]
+    fn business_options_are_written_only_when_they_change() {
+        let mut b = book();
+        set_business_option(&mut b, BusinessOption::CompanyAddress, "");
+        assert!(b.slots.is_empty(), "an unchanged option writes nothing");
+        set_business_option(&mut b, BusinessOption::CompanyAddress, "1 High St\nTown");
+        assert_eq!(b.slots.get_str("options/Business/Company Address"), Some("1 High St\nTown"));
+        set_business_option(&mut b, BusinessOption::TaxNumber, "GB123");
+        assert_eq!(b.slots.get_str("options/Tax/Tax Number"), Some("GB123"));
+        set_business_option(&mut b, BusinessOption::CompanyAddress, "");
+        assert_eq!(
+            b.slots.get_str("options/Business/Company Address"),
+            Some(""),
+            "cleared as the dialog clears it"
+        );
+        assert_eq!(business_option(&b, BusinessOption::CompanyAddress), "");
+    }
+
+    fn read_default_report(text: &str) -> Option<(String, String)> {
+        let mut b = book();
+        b.slots.set(OPT_DEFAULT_INVOICE_REPORT, SlotValue::String(text.into()));
+        default_invoice_report(&b).map(|(g, n)| (g.to_owned(), n.to_owned()))
+    }
+
+    #[test]
+    fn the_default_invoice_report_is_parsed_as_gnucash_parses_it() {
+        let printable = "5123a759ceb9483abf2182d01c140e8d";
+        let pair = |name: &str| Some((printable.to_owned(), name.to_owned()));
+        assert_eq!(
+            read_default_report(&format!("{printable}/Printable Invoice")),
+            pair("Printable Invoice")
+        );
+        assert_eq!(read_default_report(&format!("{printable}/")), pair(""));
+        assert_eq!(read_default_report(&format!("{printable}/a/b")), pair("a/b"));
+        assert_eq!(read_default_report(printable), None, "no slash");
+        assert_eq!(
+            read_default_report("abc/Printable Invoice"),
+            None,
+            "the slash is not the 33rd character"
+        );
+        assert_eq!(read_default_report(""), None);
+    }
+
+    #[test]
+    fn the_default_invoice_report_is_written_as_gnucash_writes_it() {
+        let mut b = book();
+        assert_eq!(default_invoice_report(&b), None);
+        set_default_invoice_report(&mut b, None);
+        assert!(b.slots.is_empty(), "an unchanged option writes nothing");
+        let guid = Guid::parse("5123a759ceb9483abf2182d01c140e8d").unwrap();
+        set_default_invoice_report(&mut b, Some((guid, "Printable Invoice")));
+        assert_eq!(
+            b.slots.get_str(OPT_DEFAULT_INVOICE_REPORT),
+            Some("5123a759ceb9483abf2182d01c140e8d/Printable Invoice")
+        );
+        set_default_invoice_report(&mut b, None);
+        assert_eq!(b.slots.get_str(OPT_DEFAULT_INVOICE_REPORT), Some(""));
+        assert_eq!(default_invoice_report(&b), None);
     }
 
     #[test]
