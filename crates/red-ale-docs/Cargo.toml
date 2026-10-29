@@ -1,0 +1,18 @@
+[package]
+name = "red-ale-docs"
+description = "red-ale's Manual: Pages from docs/ and the API's registries, rendering, Examples and search"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+# The code is GPL; the Manual's text it packages from docs/ is under the GFDL (design/manual.md, "Licence").
+license = "GPL-3.0-or-later AND GFDL-1.1-no-invariants-or-later"
+publish.workspace = true
+
+[dependencies]
+pulldown-cmark.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

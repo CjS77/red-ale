@@ -1673,6 +1673,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pulldown-cmark"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb"
+dependencies = [
+ "bitflags 2.13.2",
+ "memchr",
+ "unicase",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1825,6 +1836,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "red-ale-docs"
+version = "0.5.0"
+dependencies = [
+ "pulldown-cmark",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "red-ale-export"
 version = "0.5.0"
 dependencies = [
@@ -1924,6 +1945,7 @@ dependencies = [
  "jsonrpsee",
  "proptest",
  "red-ale-core",
+ "red-ale-docs",
  "red-ale-export",
  "red-ale-import",
  "red-ale-locale",
@@ -2846,6 +2868,12 @@ name = "unarray"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eaea85b334db583fe3274d12b4cd1880032beab409c0d774be044d4480ab9a94"
+
+[[package]]
+name = "unicase"
+version = "2.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357cc3acc6a036009fd6c973ed009037c732d60d0b4f6c673e9041497482a28f"
 
 [[package]]
 name = "unicode-ident"

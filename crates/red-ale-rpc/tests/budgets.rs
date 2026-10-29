@@ -208,7 +208,10 @@ fn update_hides_amounts_and_copy_and_delete_follow_gnucash() {
     let gone = b.err("book.setOptions", json!({ "defaultBudget": g }));
     assert_eq!(
         (gone.code, gone.data),
-        (codes::NOT_FOUND, Some(json!({ "kind": "budget", "id": g })))
+        (
+            codes::NOT_FOUND,
+            Some(json!({ "kind": "budget", "id": g, "help": "error/not-found" }))
+        )
     );
 }
 
@@ -297,7 +300,10 @@ fn a_legacy_book_needs_the_scrub_before_edits() {
         let e = b.err(m, p);
         assert_eq!(
             (e.code, e.data),
-            (codes::CONFLICT, Some(json!({ "reason": "natural-signs" }))),
+            (
+                codes::CONFLICT,
+                Some(json!({ "reason": "natural-signs", "help": "error/conflict" }))
+            ),
             "{m}"
         );
     });

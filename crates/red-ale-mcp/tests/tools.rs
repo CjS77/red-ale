@@ -302,7 +302,7 @@ async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
     let network = client.call("config.set", json!({ "changes": { "quotes.network": true } })).await;
     assert_eq!(
         refused(&network),
-        json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"] })
+        json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"], "help": "error/conflict" })
     );
     let key = client
         .call(

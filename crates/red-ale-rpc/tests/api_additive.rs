@@ -2,9 +2,9 @@
 //! method of an earlier version is kept with the same Effect and Effect target, its params take no new required field
 //! and lose or retype none, its result loses or retypes no field, and every earlier error code keeps its name.
 //!
-//! `schemas/red-ale-api-0.2.0.json`, `-0.3.0.json` and `-0.4.0.json` are `red-ale schema` as v0.2, v0.3 and v0.4
-//! shipped it. Schemas are compared by what they let a value hold, place by place, not by their `$defs` names
-//! (schemars numbers clashing names, so they shift) or their descriptions.
+//! `schemas/red-ale-api-0.2.0.json`, `-0.3.0.json`, `-0.4.0.json` and `-0.5.0.json` are `red-ale schema` as v0.2,
+//! v0.3, v0.4 and v0.5 shipped it. Schemas are compared by what they let a value hold, place by place, not by their
+//! `$defs` names (schemars numbers clashing names, so they shift) or their descriptions.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -17,6 +17,7 @@ use serde_json::{Map, Value, json};
 const V0_2: &str = include_str!("schemas/red-ale-api-0.2.0.json");
 const V0_3: &str = include_str!("schemas/red-ale-api-0.3.0.json");
 const V0_4: &str = include_str!("schemas/red-ale-api-0.4.0.json");
+const V0_5: &str = include_str!("schemas/red-ale-api-0.5.0.json");
 
 /// What a schema says about one place in a value: the JSON types it may take (with their `format`), the values an
 /// enum or const allows, and whether it must be present.
@@ -182,6 +183,15 @@ fn the_api_is_additive_over_0_4_0() {
     let current = Dispatcher::new(Settings::default()).schema();
     let found = not_additive(&old, &current);
     assert!(found.is_empty(), "the API is no longer additive over 0.4.0:\n{}", found.join("\n"));
+}
+
+#[test]
+fn the_api_is_additive_over_0_5_0() {
+    let old: Value = serde_json::from_str(V0_5).unwrap();
+    assert_eq!(old["redAleApi"], "0.5.0");
+    let current = Dispatcher::new(Settings::default()).schema();
+    let found = not_additive(&old, &current);
+    assert!(found.is_empty(), "the API is no longer additive over 0.5.0:\n{}", found.join("\n"));
 }
 
 #[test]

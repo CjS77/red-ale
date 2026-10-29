@@ -11,6 +11,7 @@ base64.workspace = true
 chrono.workspace = true
 jsonrpsee.workspace = true
 red-ale-core.workspace = true
+red-ale-docs.workspace = true
 red-ale-export.workspace = true
 red-ale-import.workspace = true
 red-ale-locale.workspace = true

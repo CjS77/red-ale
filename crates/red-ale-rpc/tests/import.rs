@@ -321,7 +321,7 @@ fn a_stale_proposal_is_a_conflict_and_a_discarded_one_is_gone() {
     assert_eq!(e.code, codes::CONFLICT);
     assert_eq!(
         e.data.unwrap(),
-        json!({ "reason": "book-revision", "proposalRevision": revision, "bookRevision": revision + 1 })
+        json!({ "reason": "book-revision", "proposalRevision": revision, "bookRevision": revision + 1, "help": "error/conflict" })
     );
     assert_eq!(b.ok("import.discard", json!({ "proposal": q["id"] })), json!({ "discarded": true }));
     let e = b.err("import.apply", json!({ "proposal": q["id"] }));
@@ -519,7 +519,10 @@ fn files_in_other_encodings_and_unreadable_files() {
     assert_eq!(e.code, codes::IMPORT_FILE);
     assert_eq!(
         e.data.unwrap(),
-        json!({ "file": 0, "line": 2, "reason": "encoding", "message": "bytes not valid in UTF-8 at line 2; is the file in another encoding?" })
+        json!({
+            "file": 0, "line": 2, "reason": "encoding", "message": "bytes not valid in UTF-8 at line 2; is the file in another encoding?",
+            "help": "error/import-file",
+        })
     );
     assert_eq!(
         preview(&mut b, json!({ "text": "a", "base64": "YQ==" })).unwrap_err().code,

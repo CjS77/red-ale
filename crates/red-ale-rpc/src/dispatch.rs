@@ -313,14 +313,12 @@ impl Dispatcher {
     pub fn call_from(&mut self, origin: Origin, name: &str, params: Value) -> Result<Value, RpcError> {
         self.ctx.origin = origin;
         self.ctx.settle_quotes();
-        if name == "api.schema" {
-            return Ok(self.schema());
-        }
-        let method = self
-            .methods
-            .get(name)
-            .ok_or_else(|| RpcError::new(codes::METHOD_NOT_FOUND, format!("no method {name}")))?;
-        (method.handler)(&mut self.ctx, params)
+        let outcome = match (name, self.methods.get(name)) {
+            ("api.schema", _) => Ok(self.schema()),
+            (_, Some(method)) => (method.handler)(&mut self.ctx, params),
+            (_, None) => Err(RpcError::new(codes::METHOD_NOT_FOUND, format!("no method {name}"))),
+        };
+        outcome.map_err(RpcError::with_help)
     }
 
     /// Handle one JSON-RPC 2.0 message, single or batch. Returns `None` when nothing should be sent back (a
@@ -364,36 +362,44 @@ impl Dispatcher {
         })
     }
 
-    /// The API's schema document: every method with its params and result schemas, and the error codes.
+    /// The API's schema document: every method with its params and result schemas and its Page in the Manual, and
+    /// the error codes.
     pub fn schema(&self) -> Value {
-        let mut generator = SchemaGenerator::default();
-        let methods: Vec<Value> = self
-            .methods
-            .values()
-            .map(|m| {
-                json!({
-                    "name": m.name,
-                    "summary": m.summary,
-                    "effect": m.effect,
-                    "target": m.target,
-                    "params": (m.params)(&mut generator),
-                    "result": (m.result)(&mut generator),
-                })
-            })
-            .collect();
-        let errors: Vec<Value> = codes::ALL
-            .iter()
-            .map(|(code, name)| json!({ "code": code, "name": name }))
-            .collect();
-        json!({
-            "redAleApi": crate::API_VERSION,
-            "methods": methods,
-            "errors": errors,
-            "$defs": generator.take_definitions(true),
-        })
+        schema_document(self.methods.values())
     }
 }
 
+/// The schema document of `methods`, listed by name.
+pub(crate) fn schema_document<'a>(methods: impl IntoIterator<Item = &'a Method>) -> Value {
+    let mut generator = SchemaGenerator::default();
+    let mut methods: Vec<&Method> = methods.into_iter().collect();
+    methods.sort_by_key(|m| m.name);
+    let methods: Vec<Value> = methods
+        .into_iter()
+        .map(|m| {
+            json!({
+                "name": m.name,
+                "summary": m.summary,
+                "effect": m.effect,
+                "target": m.target,
+                "params": (m.params)(&mut generator),
+                "result": (m.result)(&mut generator),
+                "help": red_ale_docs::method_page_id(m.name),
+            })
+        })
+        .collect();
+    let errors: Vec<Value> = codes::ALL
+        .iter()
+        .map(|(code, name)| json!({ "code": code, "name": name }))
+        .collect();
+    json!({
+        "redAleApi": crate::API_VERSION,
+        "methods": methods,
+        "errors": errors,
+        "$defs": generator.take_definitions(true),
+    })
+}
+
 fn error_response(id: Value, e: &RpcError) -> Value {
-    json!({ "jsonrpc": "2.0", "id": id, "error": e })
+    json!({ "jsonrpc": "2.0", "id": id, "error": e.clone().with_help() })
 }

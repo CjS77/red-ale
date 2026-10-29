@@ -586,7 +586,10 @@ fn an_export_error_answers_export_csv() {
     let err = s.err("report.exportCsv", json!({ "report": "No Splits" }));
     assert_eq!(err.code, codes::INVALID);
     assert_eq!(err.message, "No splits found");
-    assert_eq!(err.data.unwrap(), json!({ "reason": "export-error", "message": "No splits found" }));
+    assert_eq!(
+        err.data.unwrap(),
+        json!({ "reason": "export-error", "message": "No splits found", "help": "error/invalid" })
+    );
 }
 
 /// A Multicolumn View's options, as `view-column.scm` declares them (`5.17:gnucash/report/reports/standard/view-column.scm:39-47`),

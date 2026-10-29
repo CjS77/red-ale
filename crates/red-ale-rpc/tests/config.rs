@@ -263,7 +263,7 @@ fn through_mcp_keys_and_the_network_switch_are_refused() {
     assert_eq!(e.code, codes::CONFLICT);
     assert_eq!(
         e.data.unwrap(),
-        json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"] })
+        json!({ "reason": "refused-over-mcp", "paths": ["quotes.network"], "help": "error/conflict" })
     );
     assert_eq!(s.text(), before);
     s.d.call_from(Origin::Mcp, "config.set", json!({ "changes": { "locale": "environment" } }))

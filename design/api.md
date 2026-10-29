@@ -11,17 +11,18 @@ transport-free dispatcher (`red-ale-rpc::Dispatcher`), so every door runs the sa
   [`mcp.md`](mcp.md).
 
 The authoritative list of methods, with every params and result schema, is the schema document: `red-ale schema`,
-or the `api.schema` method. This page gives the conventions; `api/` holds one page per area.
+or the `api.schema` method; from 0.6.0 each method's entry names its Reference page in the Manual (`help`). This
+page gives the conventions; `api/` holds one page per area.
 
 ## Versioning
 
 `api.schema` reports `redAleApi` (`0.1.0` in v0.1, `0.2.0` in v0.2, `0.3.0` in v0.3, `0.4.0` in v0.4, `0.5.0` in
-v0.5). Within a major version the API changes only additively: new methods, new optional params, new result fields. A method, param, result field or error code, once released, keeps its
+v0.5, `0.6.0` in v0.6). Within a major version the API changes only additively: new methods, new optional params, new result fields. A method, param, result field or error code, once released, keeps its
 name and meaning.
 
 From 0.2 on, a test holds each later 0.x version to this until v1.0 freezes the API
 (`crates/red-ale-rpc/tests/api_additive.rs`): it compares `api.schema` with each released document committed beside
-it (`tests/schemas/red-ale-api-0.2.0.json`, `red-ale-api-0.3.0.json`, `red-ale-api-0.4.0.json`). Every earlier method
+it (`tests/schemas/red-ale-api-0.2.0.json` to `red-ale-api-0.5.0.json`). Every earlier method
 must keep its Effect and Effect target; its params may widen their types and add optional fields but not lose, retype or newly require one;
 its result may add fields but not lose, widen or make optional one; every earlier error code keeps its name. Schemas are compared place by place after
 resolving `$ref`s, so renamed `$defs` and changed descriptions don't count.
@@ -112,7 +113,9 @@ Deviations, each pinned by `oracle_time_zones.rs` or the zone tests:
 ## Errors
 
 Errors are JSON-RPC error objects with a stable `code`, a human `message` and structured `data`. The JSON-RPC range
-is used only for protocol errors.
+is used only for protocol errors. From 0.6.0 every error's `data` has `help`, the Page ID of the Manual's Page that
+explains it (`error/<name>`; see [`api/help.md`](api/help.md)), so an error with no other data has
+`{"help": "error/<name>"}`.
 
 | Code   | Name                | When                                                                      |
 |--------|---------------------|---------------------------------------------------------------------------|
@@ -204,6 +207,7 @@ deliberate deviations, which [`differences-from-gnucash.md`](differences-from-gn
 | [`api/configuration.md`](api/configuration.md)             | `config.*`: the Configuration's schema, every setting, reading and changing them by path |
 | [`api/budgets.md`](api/budgets.md)                         | `budget.*`: budgets, amounts and notes, estimate, natural signs, the default budget (v0.4) |
 | [`api/scheduled-transactions.md`](api/scheduled-transactions.md) | `scheduledTransaction.*`: schedules, formulas, Since Last Run, from a transaction, the loan assistant (v0.4) |
+| [`api/help.md`](api/help.md)                               | `help.*`: the Manual's Pages, rendered for a door, and search (v0.6) |
 
 ## CLI
 

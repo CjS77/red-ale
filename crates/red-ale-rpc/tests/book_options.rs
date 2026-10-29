@@ -74,7 +74,10 @@ fn assert_auto_read_only(e: &RpcError, code: i32, date: &str) {
     assert_eq!(e.code, code, "{e}");
     assert_eq!(
         e.data,
-        Some(json!({ "reason": "auto-read-only", "date": date, "threshold": "2024-06-21" })),
+        Some(json!({
+            "reason": "auto-read-only", "date": date, "threshold": "2024-06-21",
+            "help": format!("error/{}", codes::name(code).unwrap()),
+        })),
         "{e}"
     );
 }
