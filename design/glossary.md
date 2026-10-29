@@ -267,6 +267,21 @@ See [`reports.md`](reports.md).
 | **Style sheet** | A named set of presentation options from a *style sheet template* (Plain, CSS, Easy, Fancy, Footer, Head or Tail), applied when a Report result is rendered as HTML. |
 | **Report settings** | The Configuration's `reports` values standing in for GnuCash preferences reports read: report currency, reversed-balance accounts, date format, week start, limits. |
 
+## The Manual
+
+See [`manual.md`](manual.md).
+
+| Term | Meaning |
+|------|---------|
+| **Manual** | red-ale's user documentation: every Page, compiled into the binary and served through the API, MCP, the CLI and the website. **⚠** Not the design documents in `design/`, which are for red-ale's developers. |
+| **Page** | One unit of the Manual, with a stable Page ID, a kind, a title, a one-line summary and a Markdown body. |
+| **Page ID** | A Page's stable name, such as `method/transaction.post`, `guide/reconcile-an-account` or `concept/value-and-amount`. Kept within a major version, so links from agents and other sites keep working. |
+| **Reference page** | The Page for one method, error code or Report template, generated from the registries and completed by hand. |
+| **Guide** | A Page that shows how to do one task, as a sequence of method calls. |
+| **Concept page** | A Page that explains an idea the methods rely on. |
+| **Example** | A method call with its params and expected result, inside a Page, that the tests run. **⚠** A test, not sample data. |
+| **User report** | A Report template from a user Report script, written by a user or an agent on their behalf. Most of GnuCash's business and tax reports are left for users to write this way ([`milestone6.md`](milestone6.md)). **⚠** Not GnuCash's *custom report*, which is a Saved report configuration. |
+
 ## Installation
 
 See [`setup.md`](setup.md).

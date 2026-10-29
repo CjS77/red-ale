@@ -6,7 +6,7 @@ note, `notes/report-invoice.md`, comes before the invoice is translated, as [`mi
 did for its reports.
 
 **Goal:** red-ale documents itself. The Manual answers an agent's or a user's "how do I" through JSON-RPC, MCP, the
-CLI and a published website, with every Example run as a test, and shows how to write a custom report. red-ale
+CLI and a published website, with every Example run as a test, and shows how to write a User report. red-ale
 prints an invoice as GnuCash's Print Invoice does by default, and offers GnuCash's Dashboard.
 
 This file tracks progress towards v0.6. Feature names and versions come from [`features.md`](features.md); when a
@@ -26,7 +26,7 @@ report.
 
 Also in v0.6:
 
-- **the Manual** ("The Manual"), which documents v0.1 to v0.6 at once, with a section on custom report scripts;
+- **the Manual** ("The Manual"), which documents v0.1 to v0.6 at once, with a section on User reports;
 - the v0.5 follow-ups taken up here ("Carried forward from v0.5");
 - the `sql-book` error no longer names a version for MySQL and PostgreSQL, which are ❌ (done:
   `crates/red-ale-service/src/error.rs:44`, `tests/session.rs`,
@@ -78,8 +78,8 @@ document (`crates/red-ale-rpc/tests/schemas/`), the same in 0.5.0, plus what v0.
 |        | Deployment                     | A CI workflow builds the site at each release tag and publishes it to GitHub Pages; a manual run builds without publishing                                                                                                                                                                                                            |
 |        | Reference pages                | Every method, error code and report template: a "what it is for" paragraph and at least one Example each, nothing more required                                                                                                                                                                                                       |
 |        | Start, Concept and Guide pages | The Start Page; Concept pages for what the methods rely on; Guides for common tasks, including a report to PDF through its HTML export and an outside converter such as pandoc                                                                                                                                                        |
-|        | Custom reports                 | Below                                                                                                                                                                                                                                                                                                                                 |
-|        | From GnuCash pages             | Each ✅ row of `features.md` maps its menus, dialogs and assistants to methods ("Actions › Stock Split…" → `stock.split`; "Print Invoice" → `report.run`, "Decided", item 6). A ❌ report's page says to write it as a custom report                                                                                                  |
+|        | User reports                   | Below                                                                                                                                                                                                                                                                                                                                 |
+|        | From GnuCash pages             | Each ✅ row of `features.md` maps its menus, dialogs and assistants to methods ("Actions › Stock Split…" → `stock.split`; "Print Invoice" → `report.run`, "Decided", item 6). A ❌ report's page says to write it as a User report                                                                                                   |
 |        | GnuCash's documentation        | The *Tutorial and Concept Guide* and *Help Manual* at the `5.17` tag of `Gnucash/gnucash-docs`, chapter by chapter, GUI material left out; a checklist in `docs/` maps every section to its Pages or marks it GUI-only. GnuCash's glossary (`C/guide/gnc-glossary.docbook`) checked against [`glossary.md`](glossary.md)              |
 |        | Licence                        | `docs/` under GFDL-1.1-or-later with no invariant sections; notices, History and the licence text as Pages; `red-ale-docs` is `GPL-3.0-or-later AND GFDL-1.1-no-invariants-or-later`; `deny.toml` allows the GFDL ([`manual.md`](manual.md), "Licence")                                                                               |
 |        | Coverage tests                 | Every method, error and template has its Page; every Example passes; every link and every `from` resolves; every glossary term a Page uses is defined                                                                                                                                                                                 |
@@ -88,7 +88,7 @@ The `gnucash-docs` repository isn't checked out on the development machine yet. 
 beside `$GNUCASH_SOURCE` before the GnuCash documentation work starts, and the checklist records its commit, as
 `GNUCASH_REV` records the source's.
 
-### Custom reports
+### User reports
 
 User report scripts have worked since v0.2 ([`reports.md`](reports.md) §1, §2): a `.rhai` file in the report
 directory (`reports.directory` in the Configuration) is loaded at every report method, `report.list` lists its
@@ -183,7 +183,7 @@ the Manual:
 3. **The v0.5 follow-ups** taken up here, before new scripts land.
 4. **Invoice reads and option types** in the engine, then **the Printable invoice**.
 5. **The Dashboard.**
-6. **Custom reports** in the Manual.
+6. **User reports** in the Manual.
 7. **Reference pages** for every method, error and template; Concept pages, Guides and From GnuCash pages; the
    GnuCash documentation checklist.
 8. **Deployment**, interfaces and the audit.
@@ -202,7 +202,7 @@ The maintainer's decisions, during the planning of v0.6. Each ❌ row is ❌ in 
    HTML, and general tools such as pandoc or an HTML-to-PDF converter do that job better than a renderer red-ale would
    have to build and keep. A Guide shows the way.
 2. **Most reports are ❌; users write their own.** A user, or an agent on their behalf, writes the report they need as
-   a user script ("Custom reports"), so red-ale ports only what GnuCash itself relies on: the Printable invoice, which
+   a user script ("User reports"), so red-ale ports only what GnuCash itself relies on: the Printable invoice, which
    Print Invoice runs by default, and the Dashboard, which costs a saved configuration. ❌:
     - the customer, vendor and employee reports, the Owner report (new) and the Job Report (`standard/new-owner-report.scm`); Receivable and
       payable aging (`standard/new-aging.scm`); the Customer Summary (`standard/customer-summary.scm`);
