@@ -1,6 +1,10 @@
 //! The `Account` handle (`design/reports.md` §5, "Account").
 
-use red_ale_core::ops::accounts::{credit_label, debit_label, depth, descendants_sorted, sorted_children, tree_depth, type_label};
+use std::cmp::Ordering;
+
+use red_ale_core::ops::accounts::{
+    account_order, credit_label, debit_label, depth, descendants_sorted, sorted_children, tree_depth, type_label,
+};
 use red_ale_core::ops::balances::{Total, account_splits, account_splits_between, balance_as_of, running_totals_at};
 use red_ale_core::ops::scrub::currency_or_parent;
 use red_ale_core::{Account, Guid};
@@ -60,6 +64,18 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("reverse_balance", |a: &mut AccountHandle, ctx: ContextHandle| -> Fallible<bool> {
         Ok(ctx.settings().reverse_balanced_accounts.reverses(a.get()?.account_type))
     });
+    engine.register_fn("compare_order", compare_order);
+}
+
+/// `xaccAccountOrder` (`5.17:libgnucash/engine/Account.cpp:2363-2413`) of any two accounts, siblings or not: -1, 0 or
+/// 1 as `a` sorts before, with or after `b`, by code, type, name and GUID, as `children_sorted` orders siblings. The
+/// Transaction Breakdown sorts its columns by it across the tree (`standard/txn-columns.scm:116-117`).
+fn compare_order(a: &mut AccountHandle, b: AccountHandle) -> Fallible<INT> {
+    Ok(match account_order(a.get()?, b.get()?) {
+        Ordering::Less => -1,
+        Ordering::Equal => 0,
+        Ordering::Greater => 1,
+    })
 }
 
 fn properties(engine: &mut Engine) {

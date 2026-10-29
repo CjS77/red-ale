@@ -82,7 +82,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 |   ✅   | General Journal                   | `standard/general-journal.scm` (`25455562bd234dd0b048ecc5a8af9e43`), on `register.scm`'s renderer ("Decided", 5) |        125 |                              |
 |   ✅   | General Ledger                    | `standard/general-ledger.scm` (`2e22929e5c5b4b769f615a815ef0c20f`)                                                 |        159 |                              |
 |   ✅   | Reconciliation Report             | `standard/reconcile-report.scm` (`e45218c6d76f11e7b5ef0800277ef320`)                                               |        115 | `test-transaction.scm`       |
-|        | Transaction Breakdown             | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine |        260 |                              |
+|   ✅   | Transaction Breakdown             | `standard/txn-columns.scm` (`03603f0443494a6fa790b417f35d90d4`), "Transaction Breakdown Report"; not on the engine |        260 |                              |
 |   ❌   | Register report                   | `standard/register.scm` (`22104e02654c4adba844ee75a3f8d173`): GUI-only, won't do ("Decided", item 5)             |        674 | `test-register.scm`          |
 |   ✅   | Trial Balance                     | `standard/trial-balance.scm` (`216cd0cf6931453ebcce85415aba7082`)                                                  |        876 | `test-trial-balance.scm`     |
 |   ✅   | Cash Flow                         | `standard/cash-flow.scm` (`f8748b813fab4220ba26e743aedf38da`)                                                      |        346 | `test-cash-flow.scm`         |
@@ -185,7 +185,7 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 2. **The Transaction Report engine** as a library module, then the Transaction Report, General Ledger and
    Reconciliation Report on it; the General Journal on `lib/register`.
 3. ✅ **Statements:** Trial Balance, Cash Flow, Equity Statement, Multicolumn Balance Sheet and P&L.
-4. **Transaction Breakdown.**
+4. ✅ **Transaction Breakdown.**
 5. **Analysis charts:** Income/expense vs day of week, Cash flow chart.
 6. **Investment reports:** Investment Portfolio, Advanced Portfolio, IFRS cost basis, Investment Lots.
 7. **Multicolumn reports**, last, once there are many reports to combine.

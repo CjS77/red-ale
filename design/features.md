@@ -275,7 +275,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | Price chart                   | A commodity's price over time                                 |    1.6     |  0.2   |
 |        | Income/expense vs day of week | Totals by day of the week                                     |   1.8.3    |        |
 |   ✅   | Cash flow chart               | Cash in and out over time                                     |    3.0     |  0.5   |
-|        | Transaction Breakdown         | Splits of each transaction spread across account columns      |    5.7     |        |
+|   ✅   | Transaction Breakdown         | Splits of each transaction spread across account columns      |    5.7     |  0.5   |
 |   ✅   | Future scheduled transactions | What scheduled transactions add to each account over a range  |   2.4.1    |  0.4   |
 
 ### Investment reports

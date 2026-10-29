@@ -518,3 +518,43 @@ ifrs-cost-basis locale Transaction Report	3722 6935fd70da4b08c8
 ifrs-cost-basis locale Trial Balance	7895 64fdbdf8aeefd826
 ifrs-cost-basis us Advanced Portfolio	5667 ad7073ed0f0da5f2
 ifrs-cost-basis locale Advanced Portfolio	5663 9411e512953d0fa6
+average-balance us Transaction Breakdown Report	3758 77a99716b971baf2
+average-balance locale Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl us Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl locale Transaction Breakdown Report	3758 77a99716b971baf2
+budget us Transaction Breakdown Report	3758 77a99716b971baf2
+budget locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-average us Transaction Breakdown Report	3758 77a99716b971baf2
+category-average locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-daily us Transaction Breakdown Report	3758 77a99716b971baf2
+category-daily locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-liability us Transaction Breakdown Report	3758 77a99716b971baf2
+category-liability locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-multi us Transaction Breakdown Report	3758 77a99716b971baf2
+category-multi locale Transaction Breakdown Report	3758 77a99716b971baf2
+charts-daily us Transaction Breakdown Report	3758 77a99716b971baf2
+charts-daily locale Transaction Breakdown Report	3758 77a99716b971baf2
+charts-net us Transaction Breakdown Report	3758 77a99716b971baf2
+charts-net locale Transaction Breakdown Report	3758 77a99716b971baf2
+net-days us Transaction Breakdown Report	3758 77a99716b971baf2
+net-days locale Transaction Breakdown Report	3758 77a99716b971baf2
+test-data us Transaction Breakdown Report	3758 77a99716b971baf2
+test-data locale Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries us Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries locale Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries-fx us Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries-fx locale Transaction Breakdown Report	3758 77a99716b971baf2
+cash-flow us Transaction Breakdown Report	3758 77a99716b971baf2
+cash-flow locale Transaction Breakdown Report	3758 77a99716b971baf2
+cashflow-barchart us Transaction Breakdown Report	3758 77a99716b971baf2
+cashflow-barchart locale Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras us Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras locale Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras-trading us Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras-trading locale Transaction Breakdown Report	3758 77a99716b971baf2
+transaction us Transaction Breakdown Report	3758 77a99716b971baf2
+transaction locale Transaction Breakdown Report	3758 77a99716b971baf2
+stock-test-data us Transaction Breakdown Report	3758 77a99716b971baf2
+stock-test-data locale Transaction Breakdown Report	3758 77a99716b971baf2
+ifrs-cost-basis us Transaction Breakdown Report	3758 77a99716b971baf2
+ifrs-cost-basis locale Transaction Breakdown Report	3758 77a99716b971baf2
