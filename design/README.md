@@ -15,23 +15,25 @@ Design comes before code. Read in this order:
    reports), its decisions, progress and the evidence for each "Done when" item. Done.
 9. [`milestone5.md`](milestone5.md): the v0.5 scope (ledgers, statements, analysis and investment reports, the
    default Configuration file, and distribution). Done, but for the maintainer's release steps.
-10. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
-11. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
-12. [`sql-fidelity.md`](sql-fidelity.md): how an SQLite book is read, locked and saved without loss, and the Backend
+10. [`milestone6.md`](milestone6.md): the v0.6 scope (the Manual, with custom reports; the Printable
+    invoice and the Dashboard). Draft, decisions settled.
+11. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
+12. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
+13. [`sql-fidelity.md`](sql-fidelity.md): how an SQLite book is read, locked and saved without loss, and the Backend
     seam both formats sit behind.
-13. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods. Its `api/` pages cover
+14. [`api.md`](api.md): the JSON-RPC published language: conventions, error codes, methods. Its `api/` pages cover
     each area; v0.3 added [`import.md`](api/import.md), [`export.md`](api/export.md), [`quotes.md`](api/quotes.md)
     and [`configuration.md`](api/configuration.md), and v0.4 adds [`budgets.md`](api/budgets.md) and
     [`scheduled-transactions.md`](api/scheduled-transactions.md).
-14. [`reports.md`](reports.md): report scripting: the Rhai engine, the query API, options, the report result,
+15. [`reports.md`](reports.md): report scripting: the Rhai engine, the query API, options, the report result,
     rendering, saved configurations, and the plan for translating and testing GnuCash's reports.
-15. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.
-16. [`setup.md`](setup.md): `red-ale setup`, registering red-ale's MCP server with agent harnesses, and what the
+16. [`mcp.md`](mcp.md): the MCP server: tools generated from the methods, their hints, results and errors.
+17. [`setup.md`](setup.md): `red-ale setup`, registering red-ale's MCP server with agent harnesses, and what the
     install scripts rely on. Approved.
-17. [`manual.md`](manual.md): the Manual: user documentation for agents, users and the website, from one core. Proposed.
-18. [`testing.md`](testing.md): fixtures, round-trip tests, fuzzing and the GnuCash oracle.
-19. [`open-questions.md`](open-questions.md): decisions not yet made.
-20. [`differences-from-gnucash.md`](differences-from-gnucash.md): every way red-ale behaves differently from GnuCash
+18. [`manual.md`](manual.md): the Manual: user documentation for agents, users and the website, from one core. Proposed.
+19. [`testing.md`](testing.md): fixtures, round-trip tests, fuzzing and the GnuCash oracle.
+20. [`open-questions.md`](open-questions.md): decisions not yet made.
+21. [`differences-from-gnucash.md`](differences-from-gnucash.md): every way red-ale behaves differently from GnuCash
     5.17 on purpose, by area, with why. The tracking file: a new difference gets a row there when it is decided.
 
 `GNUCASH_REV` pins the GnuCash release red-ale matches (tag, then commit).

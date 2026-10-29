@@ -306,7 +306,7 @@ it makes.
 **Paths and URIs.** A plain path or `file://` is sniffed by its first bytes (`SQLite format 3\0`), as GnuCash does;
 `xml://` is XML and `sqlite3://` is SQLite, and a scheme that contradicts the content is `file-format`. Database URIs
 (`mysql://`, `postgres://`, `postgresql://`) are still refused with `sql-book` before anything is touched, whose
-message now names v0.7.
+message says red-ale opens XML and SQLite files only.
 
 ## 3. Reading
 

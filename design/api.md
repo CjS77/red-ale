@@ -125,7 +125,7 @@ is used only for protocol errors.
 | 1001   | `book-already-open` | A book is already open in this server.                                    |
 | 1002   | `book-locked`       | Another program holds the book's lock: for XML `data.path` is the lock file; for SQLite `data.path` is the book and `data.holder` its `gnclock` row (`hostname`, `pid`), or there is no `holder` when another program was writing the book for longer than the 5 s busy timeout. |
 | 1003   | `cannot-lock`       | The lock file could not be created, or the SQLite book (or its directory) can't be written. |
-| 1004   | `sql-book`          | The book is a database server's (`mysql://`, `postgres://`, `postgresql://`; v0.7); refused before anything is touched. |
+| 1004   | `sql-book`          | The book is a database server's (`mysql://`, `postgres://`, `postgresql://`), which red-ale won't open; refused before anything is touched. |
 | 1005   | `unsupported-uri`   | A URI scheme other than a path, `file://` or `xml://`.                    |
 | 1006   | `read-only`         | The book is open read-only (`data.reason`).                               |
 | 1007   | `file-exists`       | `book.create` on an existing file.                                        |

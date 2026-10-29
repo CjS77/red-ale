@@ -211,8 +211,12 @@ The binary carries the Manual beside the code as separate works, which GFDL 1.1 
 GFDL covers the Manual and the GPL covers the code, and neither licence reaches the other. Examples are JSON
 method calls, not code to copy into red-ale, so they raise no question.
 
-## To settle
+## Settled for v0.6
 
-- Whether the website also offers older versions (one site per minor version), or only the latest.
-- The synonym table's source: generated from the glossary's ⚠ entries, or kept by hand.
-- How much of a Reference page's hand-written part should be required for internal or rarely used methods.
+Decided with [`milestone6.md`](milestone6.md):
+
+- The website publishes the latest release only.
+- The synonym table is generated from the glossary's ⚠ entries, with a short hand-kept supplement.
+- Every method, however rarely used, needs a "what it is for" paragraph and one Example; nothing more is required.
+- The Manual has a short section on writing custom report scripts (a Concept page and a Guide), since most of
+  GnuCash's reports are left for users to write as their own scripts.

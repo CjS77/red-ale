@@ -242,7 +242,7 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | Saved report configurations | Stores a report with its options for reuse     |   1.8.10   |  0.2   |
 |   ✅   | Multicolumn reports         | Combines several reports on one page           |    1.6     |  0.5   |
 |   ✅   | HTML export                 | Saves a report as HTML                         |    1.6     |  0.2   |
-|        | PDF export                  | Saves a report as PDF                          |    2.6     |        |
+|   ❌   | PDF export                  | Saves a report as PDF                          |    2.6     |        |
 |        | Interactive charts          | Charts drawn with Chart.js                     |    4.0     |        |
 |        | Dashboard                   | A preset two-column page of the income and expense pies, the income/expense chart and the account summary |    4.0     |        |
 
@@ -291,9 +291,9 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 
 | Status | Name                     | Short description                                      | Introduced | Ported |
 |:------:|--------------------------|--------------------------------------------------------|:----------:|:------:|
-|        | US income tax (TXF)      | US tax report and TXF export for tax software          |   1.4.9    |        |
-|        | German income tax        | Tax report for German returns                          |   1.8.11   |        |
-|        | Income and GST Statement | Sales and purchases with GST or VAT collected and paid |    3.0     |        |
+|   ❌   | US income tax (TXF)      | US tax report and TXF export for tax software          |   1.4.9    |        |
+|   ❌   | German income tax        | Tax report for German returns                          |   1.8.11   |        |
+|   ❌   | Income and GST Statement | Sales and purchases with GST or VAT collected and paid |    3.0     |        |
 
 ### Budget reports
 
@@ -309,17 +309,17 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 
 | Status | Name                                  | Short description                                      | Introduced | Ported |
 |:------:|---------------------------------------|--------------------------------------------------------|:----------:|:------:|
-|        | Customer, vendor and employee reports | Documents and payments for one owner                   |    1.8     |        |
-|        | Owner report (new)                    | Rewritten owner report with running balances and links |    3.8     |        |
-|        | Receivable and payable aging          | Amounts owed by age bracket                            |    1.8     |        |
-|        | Customer Summary                      | Sales, costs and profit per customer                   |   2.4.1    |        |
-|        | Job Report                            | Documents and payments for one job                     |    2.4     |        |
+|   ❌   | Customer, vendor and employee reports | Documents and payments for one owner                   |    1.8     |        |
+|   ❌   | Owner report (new)                    | Rewritten owner report with running balances and links |    3.8     |        |
+|   ❌   | Receivable and payable aging          | Amounts owed by age bracket                            |    1.8     |        |
+|   ❌   | Customer Summary                      | Sales, costs and profit per customer                   |   2.4.1    |        |
+|   ❌   | Job Report                            | Documents and payments for one job                     |    2.4     |        |
 |        | Printable invoice                     | Standard invoice layout                                |    1.8     |        |
-|        | Fancy invoice                         | Invoice layout with company details and styling        |   1.8.5    |        |
-|        | Easy invoice                          | Simplified invoice layout                              |    2.0     |        |
-|        | Tax invoice                           | Configurable invoice layout showing tax                |    2.4     |        |
-|        | Receipt                               | Receipt layout for point-of-sale printers              |    3.0     |        |
-|        | Lot Viewer report                     | One account's lots side by side, with their transactions, documents and balances |    3.9     |        |
+|   ❌   | Fancy invoice                         | Invoice layout with company details and styling        |   1.8.5    |        |
+|   ❌   | Easy invoice                          | Simplified invoice layout                              |    2.0     |        |
+|   ❌   | Tax invoice                           | Configurable invoice layout showing tax                |    2.4     |        |
+|   ❌   | Receipt                               | Receipt layout for point-of-sale printers              |    3.0     |        |
+|   ❌   | Lot Viewer report                     | One account's lots side by side, with their transactions, documents and balances |    3.9     |        |
 
 ### Samples
 
@@ -338,8 +338,8 @@ report's options, logic and figures (see [`milestone2.md`](milestone2.md)).
 |   ✅   | XML file format     | The v2 XML book format                          |    1.6     |  0.1   |
 |   ✅   | Compressed XML      | Gzip-compressed XML books                       |    1.8     |  0.1   |
 |   ✅   | SQLite books        | Books stored in SQLite through libdbi           |    2.4     |  0.4   |
-|        | MySQL/MariaDB books | Books stored in MySQL or MariaDB through libdbi |    2.4     |        |
-|        | PostgreSQL books    | Books stored in PostgreSQL through libdbi       |    2.4     |        |
+|   ❌   | MySQL/MariaDB books | Books stored in MySQL or MariaDB through libdbi |    2.4     |        |
+|   ❌   | PostgreSQL books    | Books stored in PostgreSQL through libdbi       |    2.4     |        |
 |   ✅   | ISO dates in SQLite | ISO 8601 timestamps in SQLite books             |   2.6.20   |  0.4   |
 
 ### Safety

@@ -23,8 +23,8 @@ calculator became ❌ after v0.3 (see "v0.7").
 | v0.3    | Memory and scale; import and export; online quotes                |         — | Done ([`milestone3.md`](milestone3.md))        |
 | v0.4    | SQLite books; scheduled transactions and budgets, with reports    |         — | Done ([`milestone4.md`](milestone4.md))        |
 | v0.5    | Ledgers, statements, analysis and investment reports              |         — | Done ([`milestone5.md`](milestone5.md))        |
-| v0.6    | The manual; business and tax reports, invoices, PDF export        |        16 | Proposed (with the Lot Viewer and Dashboard)   |
-| v0.7    | MySQL and PostgreSQL books                                        |         2 | Proposed                                       |
+| v0.6    | The manual; the Printable invoice and the Dashboard               |         2 | Proposed ([`milestone6.md`](milestone6.md))    |
+| v0.7    | MySQL and PostgreSQL books                                        |         — | Won't do (❌)                                  |
 | v1.0    | Parity: every row ✅ or ❌                                        |         4 | Proposed                                       |
 
 ## How the order is chosen
@@ -185,7 +185,7 @@ Also in v0.5: checking reports against GnuCash's own output through `gnucash-cli
 pinned version, which v0.2 deferred ([`open-questions.md`](open-questions.md), "Reports are tested against expected
 results"). By v0.5 there are enough reports for it to pay off.
 
-## v0.6: the manual, business and tax reports, invoices, PDF export
+## v0.6: the manual, the Printable invoice and the Dashboard
 
 ### The manual
 
@@ -204,9 +204,8 @@ v0.1 to v0.5 at once:
   pages, Guides, and the From GnuCash pages for every ported feature;
 - **what applies from GnuCash's own documentation**, translated for the API, MCP and the CLI (below).
 
-It changes no file red-ale writes and no existing method's behaviour, so it can run beside the reports. Its Markdown
-to HTML path and the PDF export below should share one design. From here on, every version's new methods arrive
-with their Pages (rule 6).
+It changes no file red-ale writes and no existing method's behaviour, so it can run beside the reports. From here on,
+every version's new methods arrive with their Pages (rule 6).
 
 The cost of waiting: v0.6 documents five versions' methods at once, and until then a method's doc comments are its
 only documentation, so they must stay complete (the workspace's `missing_docs` lint already requires them).
@@ -243,34 +242,34 @@ may adapt the books' text; code stays GPL-3.0-or-later. What that asks of the Ma
 
 Build a CI pipeline to deploy the red-ale docs & manual on Github pages.
 
-### Business and tax reports, invoices, PDF export
+### The Printable invoice and the Dashboard
 
 | Area                | Rows                                                                                                                                                                                        |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| §8 Business reports | Customer, vendor and employee reports, Owner report (new), Receivable and payable aging, Customer Summary, Job Report, Printable invoice, Fancy invoice, Easy invoice, Tax invoice, Receipt |
-| §8 Tax reports      | US income tax (TXF), German income tax, Income and GST Statement                                                                                                                            |
-| §8 Report system    | PDF export                                                                                                                                                                                  |
+| §8 Business reports | Printable invoice                                                                                                                                                                           |
+| §8 Report system    | Dashboard                                                                                                                                                                                   |
 
-- **eguile.** Tax invoice and Receipt are eguile templates (`5.17:gnucash/report/reports/support/taxinvoice.eguile.scm`,
-  `receipt.eguile.scm`): HTML with embedded Scheme. These must be translated into Rhai templates.
-- **TXF export.** The US tax report writes a TXF file. That is export, so it follows the v0.3 export design.
+**Won't do (❌)**, decided during v0.6 planning ([`milestone6.md`](milestone6.md), "Decided"): every other business
+report (the customer, vendor, employee, owner and job reports, aging, Customer Summary, the Easy, Fancy and Tax
+invoices, the Receipt, the Lot Viewer) and every tax report (US income tax (TXF), German income tax, Income and GST
+Statement). A user, or an agent on their behalf, writes the report they need as a user report script, which the
+Manual shows how to do; red-ale ports only the invoice that GnuCash's Print Invoice runs by default. The tax reports
+would also encode one country's forms and rules, which red-ale would have to keep current. With the Tax invoice and
+the Receipt gone, red-ale needs no eguile templates.
 
-To settle:
-- **PDF without a browser.** GnuCash exports PDF by printing its WebKit report view
-  (`5.17:gnucash/gnome/gnc-plugin-page-report.cpp:2021`). red-ale needs a pure-Rust way from the report result to
-  PDF that keeps the no-floats and same-bytes rules, or the row becomes ❌ with HTML as the export.
+**PDF export is ❌** (decided for v0.6, [`milestone6.md`](milestone6.md)). GnuCash exports PDF by printing its WebKit
+report view (`5.17:gnucash/gnome/gnc-plugin-page-report.cpp:2021`). red-ale's `report.export` gives the report as
+self-contained HTML, which general tools such as pandoc or an HTML-to-PDF converter turn into PDF better than a
+renderer red-ale would have to keep.
 
-## v0.7: server databases
+## v0.7: server databases (won't do)
 
-| Area       | Rows                                  |
-|------------|---------------------------------------|
-| §9 Formats | MySQL/MariaDB books, PostgreSQL books |
+MySQL/MariaDB and PostgreSQL books, the two rows once planned here, are ❌ (the maintainer's decision, during v0.6
+planning). red-ale keeps refusing `mysql://`, `postgres://` and `postgresql://` books with `sql-book` before anything
+is touched, so such a book is never at risk. Its owner can move it to SQLite or XML with GnuCash's Save As and open
+that with red-ale.
 
-The server databases reuse v0.4's `red-ale-sql`; what is new is connecting to a server and its credentials. They
-bring the open questions on authentication, remote access and concurrent clients ([`open-questions.md`](open-questions.md),
-"Open") to the front, and those need answers before this version starts.
-
-Four rows once planned here are ❌ ([`features.md`](features.md), §9 "Safety" and §10 "Setup and tools"):
+Four other rows once planned here are ❌ ([`features.md`](features.md), §9 "Safety" and §10 "Setup and tools"):
 
 - **Autosave.** Every operation is atomic, so a timer adds nothing a client can't do with `book.save`; unsaved
   changes are in the journal, and `book.replayJournal` restores them.
@@ -281,7 +280,7 @@ Four rows once planned here are ❌ ([`features.md`](features.md), §9 "Safety" 
 
 ## v1.0: parity
 
-v1.0 is reached when every row of `features.md` is ✅ or ❌. The rows still open after v0.7 need a decision rather
+v1.0 is reached when every row of `features.md` is ✅ or ❌. The rows still open after v0.6 need a decision rather
 than more work:
 
 - **Online banking: FinTS/HBCI, SEPA transfers, SEPA direct debits.** GnuCash uses AqBanking, a C library. A Rust
@@ -302,7 +301,7 @@ Also for v1.0:
 | Report                 | Source                      | Suggested version          |
 |------------------------|-----------------------------|----------------------------|
 | Balance Sheet (eguile) | `standard/balsheet-eg.scm`  | ❌: its template is Guile code |
-| Lot Viewer             | `standard/lot-viewer.scm`   | v0.6, with the business reports (its lots are business lots) |
+| Lot Viewer             | `standard/lot-viewer.scm`   | ❌: experimental in GnuCash (decided in v0.6) |
 | Sample Graphs          | `example/sample-graphs.scm` | ❌, as Hello World         |
 
 The Dashboard (`standard/dashboard.scm`) is a menu item that makes a preset Multicolumn report of reports v0.2

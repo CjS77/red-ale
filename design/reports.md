@@ -1272,8 +1272,9 @@ start-up (`report/gnc-report.cpp:55-112`). red-ale keeps the same things in its 
   evaluates Scheme. `report.importConfigurations` and `report.importStyleSheets` (v0.3) take their text and read only
   the literal forms GnuCash writes into them (section 15).
 - The Book's one reference to a saved configuration, the default invoice report
-  (`options/Business/Default Invoice Report`, `5.17:libgnucash/engine/qofbook.cpp:1034-1112`), belongs to invoice
-  printing, which is out of scope; red-ale keeps the slot as it keeps every slot.
+  (`options/Business/Default Invoice Report`, `5.17:libgnucash/engine/qofbook.cpp:1034-1112`), names the template
+  that prints an invoice: `report.run` with that template and the invoice ([`milestone6.md`](milestone6.md)). red-ale
+  reads it and keeps the slot as it keeps every slot.
 
 `limits` holds any of the limits of section 2 under the names in `data.limit` (`seconds` for `time`).
 

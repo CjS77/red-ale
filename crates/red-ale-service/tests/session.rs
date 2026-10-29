@@ -267,7 +267,7 @@ fn a_scheme_the_file_contradicts_is_refused() {
 fn database_server_books_are_refused_before_anything_happens() {
     let err = Session::open("postgres://user@host/db", false, Settings::default()).unwrap_err();
     assert!(matches!(err, ServiceError::SqlBook { .. }), "{err}");
-    assert!(err.to_string().contains("v0.7"), "{err}");
+    assert!(err.to_string().contains("XML and SQLite files only"), "{err}");
     let err = Session::open("mysql://user@host/db", false, Settings::default()).unwrap_err();
     assert!(matches!(err, ServiceError::SqlBook { .. }), "{err}");
 }

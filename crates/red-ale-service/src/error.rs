@@ -40,8 +40,8 @@ pub enum ServiceError {
         /// The cause.
         source: std::io::Error,
     },
-    /// The URI names a database server's book (MySQL or PostgreSQL), which red-ale does not open yet.
-    #[error("{path} is a database server's book; red-ale opens XML and SQLite files only (MySQL and PostgreSQL arrive in v0.7)")]
+    /// The URI names a database server's book (MySQL or PostgreSQL), which red-ale won't open.
+    #[error("{path} is a database server's book; red-ale opens XML and SQLite files only; save it as one of those in GnuCash first")]
     SqlBook {
         /// The URI.
         path: String,
