@@ -60,7 +60,7 @@ fn imports_saved_configurations() {
     assert_eq!(result["dryRun"], false);
     assert_eq!(skipped(&result), pairs(&[("Customers this year", "untranslated")]));
     let imported = result["imported"].as_array().unwrap();
-    assert_eq!(imported.len(), 4);
+    assert_eq!(imported.len(), 5);
 
     let net = &imported[0];
     assert_eq!(net["line"], 3);
@@ -113,7 +113,7 @@ fn imports_saved_configurations() {
     );
 
     let saved = config(&c)["reports"]["saved"].clone();
-    assert_eq!(saved.as_array().unwrap().len(), 4);
+    assert_eq!(saved.as_array().unwrap().len(), 5);
     assert_eq!(saved[0]["guid"], NET_WORTH_SAVED);
     assert_eq!(saved[3]["options"], sheet["options"]);
     let list = c.call("report.list", json!({}));
@@ -161,14 +161,16 @@ fn dry_run_writes_nothing_and_a_second_import_skips() {
     let result = import_reports(&mut c, true);
     assert_eq!(
         (result["dryRun"].as_bool(), result["imported"].as_array().unwrap().len()),
-        (Some(true), 4)
+        (Some(true), 5)
     );
+    let children = result["imported"][4]["options"]["__general"]["report-list"].as_array().unwrap().len();
+    assert_eq!(children, 3, "a dry run reads the view's children too");
     assert_eq!(config(&c), before);
     import_reports(&mut c, false);
     let again = import_reports(&mut c, false);
     assert_eq!(again["imported"], json!([]));
     let reasons: Vec<String> = skipped(&again).into_iter().map(|s| s.1).collect();
-    assert_eq!(reasons, ["exists", "exists", "exists", "exists", "untranslated"]);
+    assert_eq!(reasons, ["exists", "exists", "exists", "exists", "untranslated", "exists"]);
 }
 
 #[test]
@@ -213,7 +215,7 @@ fn malformed_entries_are_skipped_never_run() {
     let first = &result["skipped"][0];
     assert_eq!((first["reason"].as_str(), first["line"].as_u64()), (Some("malformed"), Some(3)));
     assert!(first["message"].as_str().unwrap().contains("not a literal value"), "{first}");
-    assert_eq!(result["imported"].as_array().unwrap().len(), 3, "the other entries still import");
+    assert_eq!(result["imported"].as_array().unwrap().len(), 4, "the other entries still import");
     assert!(!c.path().join("pwned").exists());
 
     // Cut inside the Balance Sheet entry, so it is left unfinished.
@@ -324,5 +326,132 @@ fn style_sheet_values_red_ale_refuses_are_skipped() {
     assert_eq!(
         (last["name"].as_str(), last["reason"].as_str()),
         (Some("Plain CSS"), Some("invalid-option"))
+    );
+}
+
+const VIEW: &str = "d8ba4a2e89e8479ca9f6eccdeb164588";
+const VIEW_SAVED: &str = "ae5f6a7b8c9d40e1b2c3d4e5f6a7b8c9";
+const ACCOUNT_SUMMARY: &str = "3298541c236b494998b236dfad6ad752";
+
+/// The fixture's "Board pack" set by hand: each embedded report is its template with the options GnuCash copied into
+/// it, and the spans of the report-list at its position. The Balance Sheet was copied from "Year-end balance sheet"
+/// and keeps only the copy. The nested view's own children were not saved, so it has none.
+fn board_pack() -> Value {
+    json!({
+        "General": { "Number of columns": 2, "Report name": "Board pack" },
+        "__general": { "report-list": [
+            { "report": ACCOUNT_SUMMARY, "colspan": 1, "rowspan": 1, "options": {
+                "Accounts": { "Levels of Subaccounts": 1 }, "Display": { "Account Code": false },
+                "General": { "Report name": "Summary" } } },
+            { "report": BALANCE_SHEET, "colspan": 1, "rowspan": 2, "options": {
+                "Accounts": { "Levels of Subaccounts": 2 }, "General": { "Report name": "Year-end balance sheet" } } },
+            { "report": VIEW, "colspan": 2, "rowspan": 1, "options": { "General": { "Number of columns": 3 } } },
+        ] },
+    })
+}
+
+fn cells(result: &Value) -> Vec<Value> {
+    let grid = &result["sections"][0]["blocks"][0];
+    assert_eq!(grid["kind"], "grid");
+    grid["rows"].as_array().unwrap().iter().flat_map(|r| r["cells"].as_array().unwrap().clone()).collect()
+}
+
+/// A saved Multicolumn View imports with its embedded reports as template children, and runs as the same options set
+/// by hand: each cell holds what its child gives run alone.
+#[test]
+fn imports_a_saved_multicolumn_view() {
+    let mut c = Charts::open("charts-daily.gnucash", "iso");
+    let result = import_reports(&mut c, false);
+    let view = &result["imported"][4];
+    assert_eq!(view["line"], 267);
+    assert_eq!(
+        (view["configuration"]["guid"].as_str(), view["configuration"]["template"].as_str()),
+        (Some(VIEW_SAVED), Some(VIEW))
+    );
+    assert_eq!(view["options"], board_pack());
+    assert_eq!(
+        view["ignored"],
+        json!([{ "child": 2, "section": "__general", "name": "report-list", "reason": "unsaved-children" }])
+    );
+
+    let by_import = c.call("report.run", json!({ "report": VIEW_SAVED }));
+    let by_hand = c.call("report.run", json!({ "report": VIEW, "options": board_pack() }));
+    assert_eq!(by_import["sections"], by_hand["sections"]);
+    assert_eq!(by_import["options"], by_hand["options"]);
+    let cells = cells(&by_import);
+    assert_eq!(cells.len(), 3);
+    let children = board_pack()["__general"]["report-list"].clone();
+    cells.iter().zip(children.as_array().unwrap()).for_each(|(cell, child)| {
+        let alone = c.call("report.run", json!({ "report": child["report"], "options": child["options"] }));
+        ["report", "title", "options", "sections", "log"]
+            .iter()
+            .for_each(|k| assert_eq!(cell["result"][k], alone[k], "{} {k}", child["report"]));
+        assert_eq!((&cell["colspan"], &cell["rowspan"]), (&child["colspan"], &child["rowspan"]));
+    });
+    assert_eq!(cells[0]["result"]["options"]["General"]["Report name"], "Summary");
+    assert_eq!(cells[2]["result"]["sections"][0]["blocks"][0]["rows"], json!([]), "the nested view has no children");
+}
+
+/// An entry with an embedded report whose template red-ale lacks is skipped whole, naming it, so importing again once
+/// it is translated adds the view with all its children (`design/notes/report-statements-charts.md`, Q5).
+#[test]
+fn a_view_with_an_untranslated_child_is_skipped_whole() {
+    let mut c = Charts::new("iso");
+    let summary = format!("\"{ACCOUNT_SUMMARY}\" \"Account Summary\"");
+    let text = userdata("saved-reports-2.8").replace(&summary, "\"4166a20981985fd2b07ff8cb3b7d384e\" \"Customer Summary\"");
+    let result = c.call("report.importConfigurations", json!({ "text": text }));
+    let last = result["skipped"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(
+        (last["name"].as_str(), last["reason"].as_str()),
+        (Some("Board pack"), Some("untranslated"))
+    );
+    let message = last["message"].as_str().unwrap();
+    assert!(
+        message.contains("4166a20981985fd2b07ff8cb3b7d384e") && message.contains("Customer Summary") && message.contains("embedded report 0"),
+        "{message}"
+    );
+    let again = import_reports(&mut c, false);
+    assert_eq!(again["imported"].as_array().unwrap().len(), 1);
+    assert_eq!(again["imported"][0]["configuration"]["name"], "Board pack");
+}
+
+/// The last entry of an import of the fixture with `from` replaced by `to`: `Ok` with the skip when "Board pack" is
+/// skipped, else `Err` with the last imported.
+fn board_pack_with(c: &mut Charts, from: &str, to: &str) -> Result<Value, Value> {
+    let text = userdata("saved-reports-2.8");
+    assert!(text.contains(from), "{from}");
+    let result = c.call("report.importConfigurations", json!({ "text": text.replace(from, to), "dryRun": true }));
+    let last = |key: &str| result[key].as_array().unwrap().last().unwrap().clone();
+    let (skipped, imported) = (last("skipped"), last("imported"));
+    if skipped["name"] == "Board pack" { Ok(skipped) } else { Err(imported) }
+}
+
+/// An embedded report that is not as GnuCash writes one makes its entry `malformed`; one whose values red-ale refuses
+/// makes it `invalid-option`, naming the child; an option its template lacks is ignored, naming the child.
+#[test]
+fn embedded_reports_red_ale_refuses_or_ignores() {
+    let mut c = Charts::new("iso");
+    let mut skip = |from: &str, to: &str| {
+        let s = board_pack_with(&mut c, from, to).unwrap();
+        (s["reason"].as_str().unwrap().to_owned(), s["message"].as_str().unwrap().to_owned())
+    };
+    let (reason, message) = skip("(13 1 2 #f) ", "");
+    assert_eq!(reason, "malformed");
+    assert!(message.contains("places 2 reports, and 3 embedded reports"), "{message}");
+    let (reason, message) = skip("\"Summary\"", "(string-append \"Sum\" \"mary\")");
+    assert_eq!(reason, "malformed");
+    assert!(message.contains("not a literal value"), "{message}");
+
+    let (reason, message) = skip("'1)", "'seven)");
+    assert_eq!(reason, "invalid-option");
+    assert!(message.starts_with("embedded report 0: option Accounts/Levels of Subaccounts"), "{message}");
+    let (reason, message) = skip("'3.0)", "'30.0)");
+    assert_eq!(reason, "invalid-option");
+    assert!(message.contains("child 2: Multicolumn View option General/Number of columns"), "{message}");
+
+    let imported = board_pack_with(&mut c, "\"Account Code\"", "\"Account Codes\"").unwrap_err();
+    assert_eq!(
+        imported["ignored"][0],
+        json!({ "child": 0, "section": "Display", "name": "Account Codes", "reason": "unknown-option" })
     );
 }

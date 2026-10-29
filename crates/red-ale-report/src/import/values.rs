@@ -46,6 +46,9 @@ pub enum Ignored {
     UnknownOption,
     /// An option red-ale keeps in the Configuration but does not render, such as a style sheet's images.
     NotRendered,
+    /// The report-list of a Multicolumn View inside another: GnuCash saves only the outer view's children, so it
+    /// names report instances of the session that saved it (`5.17:gnucash/report/report-core.scm:567-598`).
+    UnsavedChildren,
 }
 
 impl Ignored {
@@ -54,6 +57,7 @@ impl Ignored {
         match self {
             Self::UnknownOption => "unknown-option",
             Self::NotRendered => "not-rendered",
+            Self::UnsavedChildren => "unsaved-children",
         }
     }
 }
@@ -70,11 +74,15 @@ pub struct WireOptions {
 }
 
 /// The wire form of every option `forms` sets, by the option of `db` each names. `not_rendered` says which options
-/// that `db` lacks are still kept. A value that does not fit its option is the error.
+/// that `db` lacks are still kept. A value that does not fit its option is the error. A report-list among `forms` is
+/// one whose children were not saved: a view's own children come as [`EmbeddedForm`](super::EmbeddedForm)s.
 pub fn to_wire(db: &OptionDb, forms: &[OptionForm], not_rendered: impl Fn(&str, &str) -> bool) -> Result<WireOptions, OptionError> {
     forms.iter().try_fold(WireOptions::default(), |mut out, f| {
         let error = |reason: String| OptionError::new(&f.section, &f.name, reason);
         match db.get(&f.section, &f.name) {
+            Some(option) if option.kind == OptionKind::ReportPlacement => {
+                out.ignored.push((f.section.clone(), f.name.clone(), Ignored::UnsavedChildren));
+            }
             Some(option) => insert(
                 &mut out.options,
                 f,
@@ -116,7 +124,7 @@ fn value(kind: &OptionKind, default: &OptionValue, d: &Datum) -> Converted<Value
             .map(Value::from)
             .ok_or_else(|| format!("expected (gnc-budget-lookup \"<guid>\" (gnc-get-current-book)), got {d}")),
         // Its literal names the session's report instances, which only the embedded-report forms that follow it in
-        // the file give meaning (`design/notes/report-statements-charts.md` §8.7).
+        // the file give meaning (`forms::options_body`); `to_wire` never asks.
         OptionKind::ReportPlacement => Err(format!("a report-list is read only with its embedded reports, got {d}")),
     }
 }

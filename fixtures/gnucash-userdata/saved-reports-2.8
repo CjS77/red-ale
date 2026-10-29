@@ -261,3 +261,154 @@
     'renderer (gnc:report-template-renderer/report-guid "4166a20981985fd2b07ff8cb3b7d384e" "Customer Summary")
   )
 )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Options for saved report "Board pack", based on template "d8ba4a2e89e8479ca9f6eccdeb164588"
+(let ()
+  (define (options-gen)
+    (let
+         (
+           (options (gnc:report-template-new-options/report-guid "d8ba4a2e89e8479ca9f6eccdeb164588" "Multicolumn View"))
+           (new-embedded-report-ids '()) ;; only used with Multicolumn View Reports
+         )
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Report name")))
+  ((lambda (o) (if o (gnc:option-set-value o "Board pack"))) option))
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Number of columns")))
+  ((lambda (o) (if o (gnc:option-set-value o '2.0))) option))
+
+
+; Section: __general
+
+(let ((option (gnc:lookup-option options
+                                 "__general"
+                                 "report-list")))
+  ((lambda (o) (if o (gnc:option-set-value o '((12 1 1 #f) (13 1 2 #f) (14 2 1 #f))))) option))
+
+
+      ;;;; Options for embedded report
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;; options for report "Summary"
+      (let ((options (gnc:report-template-new-options/report-guid "3298541c236b494998b236dfad6ad752" "Account Summary")))
+; Section: Accounts
+
+(let ((option (gnc:lookup-option options
+                                 "Accounts"
+                                 "Levels of Subaccounts")))
+  ((lambda (o) (if o (gnc:option-set-value o '1))) option))
+
+
+; Section: Display
+
+(let ((option (gnc:lookup-option options
+                                 "Display"
+                                 "Account Code")))
+  ((lambda (o) (if o (gnc:option-set-value o #f))) option))
+
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Report name")))
+  ((lambda (o) (if o (gnc:option-set-value o "Summary"))) option))
+
+
+        (set! new-embedded-report-ids
+          (append
+            new-embedded-report-ids
+              (list (gnc:restore-report-by-guid-with-custom-template #f "3298541c236b494998b236dfad6ad752" "Account Summary" "" options))
+          )
+        )
+      )
+
+      ;;;; Options for embedded report
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;; options for report "Year-end balance sheet"
+      (let ((options (gnc:report-template-new-options/report-guid "c4173ac99b2b448289bf4d11c731af13" "Balance Sheet")))
+; Section: Accounts
+
+(let ((option (gnc:lookup-option options
+                                 "Accounts"
+                                 "Levels of Subaccounts")))
+  ((lambda (o) (if o (gnc:option-set-value o '2))) option))
+
+
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Report name")))
+  ((lambda (o) (if o (gnc:option-set-value o "Year-end balance sheet"))) option))
+
+
+        (set! new-embedded-report-ids
+          (append
+            new-embedded-report-ids
+              (list (gnc:restore-report-by-guid-with-custom-template #f "c4173ac99b2b448289bf4d11c731af13" "Balance Sheet" "8c4d5e6f708142939405c6d7e8f9a0b1" options))
+          )
+        )
+      )
+
+      ;;;; Options for embedded report
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;; options for report "Multicolumn View"
+      (let ((options (gnc:report-template-new-options/report-guid "d8ba4a2e89e8479ca9f6eccdeb164588" "Multicolumn View")))
+; Section: General
+
+(let ((option (gnc:lookup-option options
+                                 "General"
+                                 "Number of columns")))
+  ((lambda (o) (if o (gnc:option-set-value o '3.0))) option))
+
+
+; Section: __general
+
+(let ((option (gnc:lookup-option options
+                                 "__general"
+                                 "report-list")))
+  ((lambda (o) (if o (gnc:option-set-value o '((5 1 1 #f))))) option))
+
+
+        (set! new-embedded-report-ids
+          (append
+            new-embedded-report-ids
+              (list (gnc:restore-report-by-guid-with-custom-template #f "d8ba4a2e89e8479ca9f6eccdeb164588" "Multicolumn View" "" options))
+          )
+        )
+      )
+
+      ;;;; Update Section: __general
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      (let*
+        (
+          (option (gnc-lookup-option (gnc:optiondb options) "__general" "report-list"))
+          (saved-report-list (GncOption-get-value option))
+        )
+        (
+          (lambda (option)
+            (if option ((gnc:option-setter option) (map (lambda (x y) (cons x (cdr y))) new-embedded-report-ids saved-report-list)))
+          )
+          option
+        )
+      )
+
+      options
+    )
+  )
+  (gnc:define-report
+    'version 1
+    'name "Board pack"
+    'report-guid "ae5f6a7b8c9d40e1b2c3d4e5f6a7b8c9"
+    'parent-type "d8ba4a2e89e8479ca9f6eccdeb164588"
+    'options-generator options-gen
+    'menu-path (list gnc:menuname-custom)
+    'renderer (gnc:report-template-renderer/report-guid "d8ba4a2e89e8479ca9f6eccdeb164588" "Multicolumn View")
+  )
+)

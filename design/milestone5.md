@@ -94,7 +94,7 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
 |   ✅   | Advanced Portfolio                | `standard/advanced-portfolio.scm` (`21d7cfc59fc74f22887596ebde7e462d`)                                             |      1,190 | `test-portfolios.scm`        |
 |   ✅   | Investment Lots                   | `standard/investment-lots.scm` (`ab2acc24afd14630a551f98f1a35fa81`)                                                |      2,326 | `test-investment-lots.scm`   |
 |   ✅   | IFRS cost basis                   | `standard/ifrs-cost-basis.scm` (`15d5b744176c4625a703720338725291`)                                                |        533 | `test-ifrs-cost-basis.scm`   |
-|   🚧   | Multicolumn reports               | `standard/view-column.scm` (`d8ba4a2e89e8479ca9f6eccdeb164588`), the Multicolumn View; importing GnuCash's saved views is still to come                                                |        189 |                              |
+|   ✅   | Multicolumn reports               | `standard/view-column.scm` (`d8ba4a2e89e8479ca9f6eccdeb164588`), the Multicolumn View; GnuCash's saved views import with their embedded reports                                        |        189 |                              |
 
 The `balsheet-pnl.scm` fixture of v0.2 (`fixtures/reports/balsheet-pnl.gnucash`) already exists. The GUIDs and line
 counts above were read from the pinned source for this draft; the research note for each group confirms them and
@@ -188,7 +188,7 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 4. ✅ **Transaction Breakdown.**
 5. ✅ **Analysis charts:** Income/expense vs day of week, Cash flow chart.
 6. **Investment reports:** Investment Portfolio, Advanced Portfolio, IFRS cost basis, Investment Lots.
-7. **Multicolumn reports**, last, once there are many reports to combine.
+7. ✅ **Multicolumn reports**, last, once there are many reports to combine.
 8. **Distribution**, alongside the reports if it is in: the release, `setup` and the install script.
 9. **Interfaces and audit.**
 

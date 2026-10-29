@@ -1198,14 +1198,16 @@ name children by their index in `report-list`. The **host** then runs each child
 A new block kind, additive:
 
 ```json
-{ "kind": "grid", "columns": 2,
-  "rows": [ [ { "rowspan": 2, "colspan": 1, "child": 0,
-                "link": { "report": { "template": "…", "configuration": "…", "options": { … } } },
-                "result": { "report": { … }, "title": "…", "sections": [ … ], "options": { … }, "log": [] } },
-              { "rowspan": 1, "colspan": 1, "child": 1, "warning": { "title": "Report error", "text": "…" } } ] ] }
+{ "kind": "grid", "width": 2,
+  "rows": [ { "cells": [
+      { "rowspan": 2, "colspan": 1, "child": 0,
+        "link": { "report": { "template": "…", "configuration": "…", "options": { … } } },
+        "result": { "report": { … }, "title": "…", "sections": [ … ], "options": { … }, "log": [] } },
+      { "rowspan": 1, "colspan": 1, "child": 1, "warning": { "title": "Report error", "text": "…" } } ] } ] }
 ```
 
-- `columns` is "Number of columns"; `rows` the rows of §8.3, each a list of cells in order.
+- `width` is "Number of columns" (a Rational, GnuCash's `table-width`); `rows` the rows of §8.3, each `{ cells }`
+  with its cells in order (as merged, `../reports.md` §7).
 - `child` (the script sets it) is the index in `report-list`. `result` (*host*) is the child's report result: the
   shape `report.run` returns, without `version` and `now`, which are the view's. `warning` (*host*) replaces it when the
   child could not run.
@@ -1231,6 +1233,11 @@ colspan, rowspan }`, its spans from the report-list literal at the same position
 (the child's options are already complete), and listed in `ignored`. An entry whose child template red-ale has not
 translated is skipped as `untranslated`, naming the child, so importing again later works. An entry whose report-list
 and embedded forms differ in number is `malformed`.
+
+Done (v0.5, `../reports.md` §15), as proposed except that the custom template GUID is dropped without a row in
+`ignored`, whose rows name options, not GnuCash's bookkeeping of where a copy came from. A child's own ignored options
+carry `child`, its position. A nested view keeps its report-list of instance ids and no embedded reports, so it
+imports with no children, its report-list in `ignored` as `unsaved-children` (`../reports.md` §14).
 
 ### 8.8 Tests
 

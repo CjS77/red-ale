@@ -911,7 +911,7 @@ fn file_fills_the_text_param_of_imports() {
     let saved = fixture("gnucash-userdata/saved-reports-2.8");
     let out = run(&["exec", "--config", &config, "report.importConfigurations", "--file", &saved]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-    assert_eq!(json(&out.stdout)["imported"].as_array().unwrap().len(), 3);
+    assert_eq!(json(&out.stdout)["imported"].as_array().unwrap().len(), 5);
     let sheets = fixture("gnucash-userdata/stylesheets-2.0");
     let out = run(&[
         "exec",
@@ -926,7 +926,7 @@ fn file_fills_the_text_param_of_imports() {
     let out = run(&["exec", "--config", &config, "report.importStyleSheets", "text=x", "--file", &sheets]);
     assert_eq!(out.status.code(), Some(1), "text and --file together are a usage error");
     let stored: Value = serde_json::from_str(&std::fs::read_to_string(dir.path().join("config.json")).unwrap()).unwrap();
-    assert_eq!(stored["reports"]["saved"].as_array().unwrap().len(), 3);
+    assert_eq!(stored["reports"]["saved"].as_array().unwrap().len(), 5);
     assert!(stored["reports"].get("styleSheets").is_none(), "the dry run wrote nothing");
 }
 
