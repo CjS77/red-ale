@@ -33,6 +33,19 @@ Out of scope never means lost: anything red-ale doesn't handle is written back e
 
 ## Install
 
+On Linux or macOS (x86_64 or aarch64), run:
+
+```sh
+curl -fsSL https://github.com/CjS77/red-ale/releases/latest/download/install.sh | sh
+```
+
+The script downloads the latest release for your machine, checks its SHA-256 and installs the `red-ale` command in
+`~/.local/bin`, telling you if that directory is not on your `PATH`. It then runs `red-ale setup`, which asks before
+registering red-ale with the AI agent tools it finds on your machine. To install the binary only, end the command
+with `| sh -s -- --no-setup`; to install a particular release, end it with `| RED_ALE_VERSION=v0.6.1 sh`.
+
+### From source
+
 You need [Rust](https://rustup.rs) (rustup picks the right toolchain version for you), git and a C compiler such as
 gcc or clang.
 
@@ -42,7 +55,9 @@ cd red-ale
 cargo install --path crates/red-ale
 ```
 
-This puts the `red-ale` command in `~/.cargo/bin`. Check it works:
+This puts the `red-ale` command in `~/.cargo/bin`.
+
+Either way, check it works:
 
 ```sh
 red-ale --version
@@ -50,7 +65,8 @@ red-ale --version
 
 ## Walkthrough
 
-This walkthrough builds a small household book from scratch. The examples pipe output through
+The full Manual, with guides, concepts and a reference for every method, is at
+[cjs77.github.io/red-ale](https://cjs77.github.io/red-ale/). This walkthrough builds a small household book from scratch. The examples pipe output through
 [jq](https://jqlang.org) to keep it short; jq is optional.
 
 ### 1. Create a book
