@@ -1,7 +1,8 @@
 // lib/accounts: account predicates, account lists by type and the commodities of accounts.
 //
-// Translated from 5.17:gnucash/report/report-utilities.scm (lines 149-257), cited below as RU, and
-// `gnc-accounts-and-all-descendants` (5.17:bindings/engine.i:241-254). The header of report-utilities.scm:
+// Translated from 5.17:gnucash/report/report-utilities.scm (lines 149-257), cited below as RU,
+// `gnc-accounts-and-all-descendants` (5.17:bindings/engine.i:241-254) and `xaccAccountTypeGetFundamental`
+// (5.17:libgnucash/engine/Account.cpp:4483-4513). The header of report-utilities.scm:
 //
 // report-utilities.scm -- Reporting utilities
 //
@@ -83,6 +84,21 @@ fn decompose_accountlist(accounts) {
         INCOME: filter_accountlist_type(["INCOME"], accounts),
         EXPENSE: filter_accountlist_type(["EXPENSE"], accounts),
         TRADING: filter_accountlist_type(["TRADING"], accounts),
+    }
+}
+
+/// `xaccAccountTypeGetFundamental` (5.17:libgnucash/engine/Account.cpp:4483-4513): the type an account of type
+/// `type` counts as, "ASSET", "LIABILITY", "INCOME", "EXPENSE" or "EQUITY"; "NONE" for TRADING, ROOT and anything
+/// else. Not in report-utilities.scm: GnuCash's reports call the engine for it, as the Transaction Breakdown does
+/// (`standard/txn-columns.scm:119-122`).
+fn account_type_fundamental(type) {
+    switch type {
+        "BANK" | "STOCK" | "MONEYMRKT" | "CHECKING" | "SAVINGS" | "MUTUAL" | "CURRENCY" | "CASH" | "ASSET" | "RECEIVABLE" => "ASSET",
+        "CREDIT" | "LIABILITY" | "PAYABLE" | "CREDITLINE" => "LIABILITY",
+        "INCOME" => "INCOME",
+        "EXPENSE" => "EXPENSE",
+        "EQUITY" => "EQUITY",
+        _ => "NONE",
     }
 }
 

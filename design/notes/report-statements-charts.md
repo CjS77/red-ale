@@ -959,6 +959,10 @@ transaction), the Account `depth`, `parent` and `type`, and an account order. Tw
 - **Account order.** `xaccAccountOrder` as a comparison: the query API gives display order only through
   `children_sorted`/`descendants_sorted`. The script can sort columns by each account's index in
   `book.root().descendants_sorted()`, which is that order for accounts of the tree; no new read is needed.
+  *Corrected when translated:* the report sorts the flat list with `xaccAccountOrder` (`:116-117`, `:130`), which
+  compares code, type and name whatever the parents, so `Expenses:Groceries` goes before `Expenses:Auto:Tax`, where
+  depth first it goes after. The query API gained `a.compare_order(b)`, over core's `account_order`
+  ([`../reports.md`](../reports.md) §5).
 
 Result model:
 
