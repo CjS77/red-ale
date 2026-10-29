@@ -518,3 +518,123 @@ ifrs-cost-basis locale Transaction Report	3722 6935fd70da4b08c8
 ifrs-cost-basis locale Trial Balance	7895 64fdbdf8aeefd826
 ifrs-cost-basis us Advanced Portfolio	5667 ad7073ed0f0da5f2
 ifrs-cost-basis locale Advanced Portfolio	5663 9411e512953d0fa6
+average-balance us Transaction Breakdown Report	3758 77a99716b971baf2
+average-balance locale Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl us Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl locale Transaction Breakdown Report	3758 77a99716b971baf2
+budget us Transaction Breakdown Report	3758 77a99716b971baf2
+budget locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-average us Transaction Breakdown Report	3758 77a99716b971baf2
+category-average locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-daily us Transaction Breakdown Report	3758 77a99716b971baf2
+category-daily locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-liability us Transaction Breakdown Report	3758 77a99716b971baf2
+category-liability locale Transaction Breakdown Report	3758 77a99716b971baf2
+category-multi us Transaction Breakdown Report	3758 77a99716b971baf2
+category-multi locale Transaction Breakdown Report	3758 77a99716b971baf2
+charts-daily us Transaction Breakdown Report	3758 77a99716b971baf2
+charts-daily locale Transaction Breakdown Report	3758 77a99716b971baf2
+charts-net us Transaction Breakdown Report	3758 77a99716b971baf2
+charts-net locale Transaction Breakdown Report	3758 77a99716b971baf2
+net-days us Transaction Breakdown Report	3758 77a99716b971baf2
+net-days locale Transaction Breakdown Report	3758 77a99716b971baf2
+test-data us Transaction Breakdown Report	3758 77a99716b971baf2
+test-data locale Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries us Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries locale Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries-fx us Transaction Breakdown Report	3758 77a99716b971baf2
+adjusting-entries-fx locale Transaction Breakdown Report	3758 77a99716b971baf2
+cash-flow us Transaction Breakdown Report	3758 77a99716b971baf2
+cash-flow locale Transaction Breakdown Report	3758 77a99716b971baf2
+cashflow-barchart us Transaction Breakdown Report	3758 77a99716b971baf2
+cashflow-barchart locale Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras us Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras locale Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras-trading us Transaction Breakdown Report	3758 77a99716b971baf2
+balsheet-pnl-extras-trading locale Transaction Breakdown Report	3758 77a99716b971baf2
+transaction us Transaction Breakdown Report	3758 77a99716b971baf2
+transaction locale Transaction Breakdown Report	3758 77a99716b971baf2
+stock-test-data us Transaction Breakdown Report	3758 77a99716b971baf2
+stock-test-data locale Transaction Breakdown Report	3758 77a99716b971baf2
+ifrs-cost-basis us Transaction Breakdown Report	3758 77a99716b971baf2
+ifrs-cost-basis locale Transaction Breakdown Report	3758 77a99716b971baf2
+average-balance us Expenses vs. Day of Week	3750 24b84446917ce666
+average-balance us Income vs. Day of Week	3746 57cc74d201edfb9e
+average-balance locale Expenses vs. Day of Week	3750 24b84446917ce666
+average-balance locale Income vs. Day of Week	3746 57cc74d201edfb9e
+balsheet-pnl us Expenses vs. Day of Week	3750 24b84446917ce666
+balsheet-pnl us Income vs. Day of Week	3746 57cc74d201edfb9e
+balsheet-pnl locale Expenses vs. Day of Week	3750 24b84446917ce666
+balsheet-pnl locale Income vs. Day of Week	3746 57cc74d201edfb9e
+budget us Expenses vs. Day of Week	3750 24b84446917ce666
+budget us Income vs. Day of Week	3746 57cc74d201edfb9e
+budget locale Expenses vs. Day of Week	3750 24b84446917ce666
+budget locale Income vs. Day of Week	3746 57cc74d201edfb9e
+category-average us Expenses vs. Day of Week	3750 24b84446917ce666
+category-average us Income vs. Day of Week	3746 57cc74d201edfb9e
+category-average locale Expenses vs. Day of Week	3750 24b84446917ce666
+category-average locale Income vs. Day of Week	3746 57cc74d201edfb9e
+category-daily us Expenses vs. Day of Week	3750 24b84446917ce666
+category-daily us Income vs. Day of Week	4279 48779953b4d4e6ab
+category-daily locale Expenses vs. Day of Week	3750 24b84446917ce666
+category-daily locale Income vs. Day of Week	4271 138dbed170ee689b
+category-liability us Expenses vs. Day of Week	3750 24b84446917ce666
+category-liability us Income vs. Day of Week	3746 57cc74d201edfb9e
+category-liability locale Expenses vs. Day of Week	3750 24b84446917ce666
+category-liability locale Income vs. Day of Week	3746 57cc74d201edfb9e
+category-multi us Expenses vs. Day of Week	4289 1f3905e4043247c0
+category-multi us Income vs. Day of Week	3746 57cc74d201edfb9e
+category-multi locale Expenses vs. Day of Week	4281 70d40a4abc150ed8
+category-multi locale Income vs. Day of Week	3746 57cc74d201edfb9e
+charts-daily us Expenses vs. Day of Week	3750 24b84446917ce666
+charts-daily us Income vs. Day of Week	3746 57cc74d201edfb9e
+charts-daily locale Expenses vs. Day of Week	3750 24b84446917ce666
+charts-daily locale Income vs. Day of Week	3746 57cc74d201edfb9e
+charts-net us Expenses vs. Day of Week	3750 24b84446917ce666
+charts-net us Income vs. Day of Week	3746 57cc74d201edfb9e
+charts-net locale Expenses vs. Day of Week	3750 24b84446917ce666
+charts-net locale Income vs. Day of Week	3746 57cc74d201edfb9e
+net-days us Expenses vs. Day of Week	3750 24b84446917ce666
+net-days us Income vs. Day of Week	3746 57cc74d201edfb9e
+net-days locale Expenses vs. Day of Week	3750 24b84446917ce666
+net-days locale Income vs. Day of Week	3746 57cc74d201edfb9e
+test-data us Expenses vs. Day of Week	3750 24b84446917ce666
+test-data us Income vs. Day of Week	3746 57cc74d201edfb9e
+test-data locale Expenses vs. Day of Week	3750 24b84446917ce666
+test-data locale Income vs. Day of Week	3746 57cc74d201edfb9e
+adjusting-entries us Expenses vs. Day of Week	3750 24b84446917ce666
+adjusting-entries us Income vs. Day of Week	3746 57cc74d201edfb9e
+adjusting-entries locale Expenses vs. Day of Week	3750 24b84446917ce666
+adjusting-entries locale Income vs. Day of Week	3746 57cc74d201edfb9e
+adjusting-entries-fx us Expenses vs. Day of Week	3750 24b84446917ce666
+adjusting-entries-fx us Income vs. Day of Week	3746 57cc74d201edfb9e
+adjusting-entries-fx locale Expenses vs. Day of Week	3750 24b84446917ce666
+adjusting-entries-fx locale Income vs. Day of Week	3746 57cc74d201edfb9e
+cash-flow us Expenses vs. Day of Week	4294 884f0d6fb0fa1b07
+cash-flow us Income vs. Day of Week	3746 57cc74d201edfb9e
+cash-flow locale Expenses vs. Day of Week	4286 6838945f026ef98f
+cash-flow locale Income vs. Day of Week	3746 57cc74d201edfb9e
+cashflow-barchart us Expenses vs. Day of Week	3750 24b84446917ce666
+cashflow-barchart us Income vs. Day of Week	3746 57cc74d201edfb9e
+cashflow-barchart locale Expenses vs. Day of Week	3750 24b84446917ce666
+cashflow-barchart locale Income vs. Day of Week	3746 57cc74d201edfb9e
+balsheet-pnl-extras us Expenses vs. Day of Week	3750 24b84446917ce666
+balsheet-pnl-extras us Income vs. Day of Week	3746 57cc74d201edfb9e
+balsheet-pnl-extras locale Expenses vs. Day of Week	3750 24b84446917ce666
+balsheet-pnl-extras locale Income vs. Day of Week	3746 57cc74d201edfb9e
+balsheet-pnl-extras-trading us Expenses vs. Day of Week	3750 24b84446917ce666
+balsheet-pnl-extras-trading us Income vs. Day of Week	3746 57cc74d201edfb9e
+balsheet-pnl-extras-trading locale Expenses vs. Day of Week	3750 24b84446917ce666
+balsheet-pnl-extras-trading locale Income vs. Day of Week	3746 57cc74d201edfb9e
+transaction us Expenses vs. Day of Week	4278 07e426132905b994
+transaction us Income vs. Day of Week	3746 57cc74d201edfb9e
+transaction locale Expenses vs. Day of Week	4270 edc73a2647bee4ac
+transaction locale Income vs. Day of Week	3746 57cc74d201edfb9e
+stock-test-data us Expenses vs. Day of Week	3750 24b84446917ce666
+stock-test-data us Income vs. Day of Week	3746 57cc74d201edfb9e
+stock-test-data locale Expenses vs. Day of Week	3750 24b84446917ce666
+stock-test-data locale Income vs. Day of Week	3746 57cc74d201edfb9e
+ifrs-cost-basis us Expenses vs. Day of Week	3750 24b84446917ce666
+ifrs-cost-basis us Income vs. Day of Week	3746 57cc74d201edfb9e
+ifrs-cost-basis locale Expenses vs. Day of Week	3750 24b84446917ce666
+ifrs-cost-basis locale Income vs. Day of Week	3746 57cc74d201edfb9e

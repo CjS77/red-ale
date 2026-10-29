@@ -133,6 +133,50 @@ fn plural_type_names() {
     );
 }
 
+/// `xaccAccountTypeGetFundamental` (`5.17:libgnucash/engine/Account.cpp:4483-4513`) of every type the query API
+/// names.
+#[test]
+fn fundamental_types() {
+    let got = run(r#"
+        let types = ["BANK", "STOCK", "MONEYMRKT", "CHECKING", "SAVINGS", "MUTUAL", "CURRENCY", "CASH", "ASSET", "RECEIVABLE",
+                     "CREDIT", "LIABILITY", "PAYABLE", "CREDITLINE", "INCOME", "EXPENSE", "EQUITY", "TRADING", "ROOT"];
+        print(`${types.map(|t| accounts::account_type_fundamental(t))}`);
+    "#);
+    let asset = ["\"ASSET\""; 10].join(", ");
+    let liability = ["\"LIABILITY\""; 4].join(", ");
+    check(
+        &got,
+        &[&format!("[{asset}, {liability}, \"INCOME\", \"EXPENSE\", \"EQUITY\", \"NONE\", \"NONE\"]")],
+    );
+}
+
+/// `a.compare_order(b)` is `xaccAccountOrder` (`5.17:libgnucash/engine/Account.cpp:2363-2413`) across the tree, not
+/// display order: sorted by it, the ASSET accounts go by name whatever their parents (Root, the top, near the end),
+/// where depth first each parent leads its children; Funds, a STOCK account, ranks before every ASSET one.
+#[test]
+fn account_order_across_the_tree() {
+    let got = run(r#"
+        let assets = all.filter(|a| a.type == "ASSET");
+        let sorted = assets;
+        sorted.sort(|a, b| a.compare_order(b));
+        print(`flat=${names.call(sorted)}`);
+        print(`tree=${names.call(assets)}`);
+        let funds = acct.call("Root:Asset:Broker:Funds");
+        let house = acct.call("Root:Asset:House");
+        print(`cmp=${funds.compare_order(house)} ${house.compare_order(funds)} ${house.compare_order(house)}`);
+    "#);
+    check(
+        &got,
+        &[
+            "flat=[\"Asset\", \"Bank1\", \"Bonds\", \"Broker\", \"Current\", \"Empty\", \"ForeignBank\", \"ForeignSavings\", \
+             \"House\", \"Root\", \"Savings\"]",
+            "tree=[\"Root\", \"Asset\", \"Bank1\", \"Bonds\", \"Current\", \"Empty\", \"Savings\", \"Broker\", \"ForeignBank\", \
+             \"ForeignSavings\", \"House\"]",
+            "cmp=-1 1 0",
+        ],
+    );
+}
+
 /// `(apply max '())` is an error in Guile; so is asking for the depth of no accounts.
 #[test]
 fn children_depth_of_no_accounts_is_an_error() {

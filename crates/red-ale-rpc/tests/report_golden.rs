@@ -85,6 +85,9 @@ const V05_REPORTS: &[&str] = &[
     "General Journal",
     "Advanced Portfolio",
     "IFRS weighted-average cost basis report",
+    "Transaction Breakdown Report",
+    "Income vs. Day of Week",
+    "Expenses vs. Day of Week",
 ];
 
 /// The fixture books added in v0.5, on which `v0.5.txt` records the v0.5 reports besides `BOOKS`.
