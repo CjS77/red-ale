@@ -2,3 +2,4 @@
 *.LCK
 *.LNK
 __pycache__/
+/site/
