@@ -4,6 +4,15 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## 0.6.1 - 2026-10-29
+
+The first tagged release of 0.6: it ships everything listed under 0.6.0. `redAleApi` is unchanged at 0.6.0.
+
+### Changed
+
+- The release and Manual workflows use `actions/checkout` v7.0.1 and `actions/upload-artifact` v7.0.2, which run on
+  Node 24; every action is pinned by commit SHA, and the Linux jobs run on `ubuntu-24.04` instead of `ubuntu-latest`.
+
 ## 0.6.0 - Unreleased
 
 Milestone 6 ([`design/milestone6.md`](design/milestone6.md)): the Manual, the Printable Invoice and the Dashboard.
