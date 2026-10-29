@@ -23,6 +23,21 @@ Milestone 5 ([`design/milestone5.md`](design/milestone5.md)), in progress.
 - `install.sh`, attached to each release, installs red-ale at `~/.local/bin/red-ale` after checking the archive's
   SHA-256, then runs `red-ale setup`:
   `curl -fsSL https://github.com/CjS77/red-ale/releases/latest/download/install.sh | sh`.
+- Reports translated from GnuCash 5.17, with its options and figures, on XML and SQLite books:
+  - ledgers: the Transaction Report (on a library translation of GnuCash's transaction report engine, with its
+    filters, sorts, subtotals and Subtotal Table), General Ledger, Reconciliation Report and General Journal;
+  - statements: Trial Balance (with the work sheet), Cash Flow, Equity Statement, and the Multicolumn Balance Sheet
+    and Income Statement;
+  - analysis: Transaction Breakdown, Income and Expenses vs. Day of Week, and the Cash Flow Barchart;
+  - investments: Investment Portfolio, Advanced Portfolio (average, FIFO and LIFO basis), Investment Lots and IFRS
+    cost basis, computed exactly; rates are rounded half away from zero, and Investment Lots' annual growth rate,
+    a fractional power, is computed in fixed point to 10⁻¹²;
+  - the Multicolumn View, which lays other reports out in a grid: its children are saved configurations, or templates
+    with options, named in its `report-list` option, and each runs in its cell.
+- `report.importConfigurations` imports saved Multicolumn Views with their embedded reports.
+- Report results gain, additively (`redAleApi` 0.5.0): links to splits, transactions, invoices, prices and document
+  links; multi-link cells; multi-row column headers; date ranges in date cells; list and grid blocks; row shading
+  and warning rows; GnuCash's share display and half-up rounding on number cells; CSV export errors.
 
 ### Changed
 
@@ -33,6 +48,18 @@ Milestone 5 ([`design/milestone5.md`](design/milestone5.md)), in progress.
   `--no-config` keeps the old behaviour: memory only, no file read or written.
 - Changes to the Configuration from several processes at once are all kept: each change locks `<file>.lock` while it
   reads and writes the file.
+
+### Fixed
+
+- Sorting a book's splits could panic when the book uses split actions for numbers, or with numbers such as `-3`
+  and `0`: GnuCash's orders are not total orders. red-ale's are now, agreeing with GnuCash's wherever GnuCash's is
+  consistent.
+- An XML book whose splits were not in GnuCash's order is read as GnuCash reads it: each transaction's splits sorted,
+  non-negative values first. Books GnuCash wrote are unchanged.
+- An SQLite book whose `books` row names a template root with no `accounts` row takes its first scheduled transaction
+  as GnuCash does, instead of refusing the save.
+- A report script's function could silently replace a library function of the same name and arity. red-ale now
+  refuses such a report when it loads.
 
 ## 0.4.0 - Unreleased
 
