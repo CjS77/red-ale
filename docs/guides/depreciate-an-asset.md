@@ -34,7 +34,7 @@ A declining-balance method changes the formula each period, or is entered by han
 
 ## Example
 
-Buy the machine, schedule the charge, and see that three months are due on 15 October.
+Buy the machine, schedule the charge, see that three months are due on 15 October, and create them.
 
 ```example now=2024-10-15T12:00:00Z
 {"method": "account.create", "params": {"name": "Checking", "type": "BANK", "commodity": "USD"}}
@@ -53,13 +53,8 @@ Buy the machine, schedule the charge, and see that three months are due on 15 Oc
 {"result": {"occurrences": [{"date": "2024-08-01", "…": "…"}, {"date": "2024-09-01", "…": "…"}, {"date": "2024-10-01", "…": "…"}]}}
 {"method": "scheduledTransaction.sinceLastRun", "params": {}}
 {"result": {"id": "slr-1", "summary": {"toCreate": 3, "…": "…"}, "…": "…"}}
-```
-
-The proposal's `id` goes into the next call, which creates the three transactions (the `id` counts up in each server
-process, so it is not always `slr-1`):
-
-```json
 {"method": "scheduledTransaction.apply", "params": {"proposal": "slr-1"}}
+{"result": {"created": [{"index": 0, "date": "2024-08-01", "transactions": ["…"], "…": "…"}, {"index": 1, "date": "2024-09-01", "transactions": ["…"], "…": "…"}, {"index": 2, "date": "2024-10-01", "transactions": ["…"], "…": "…"}], "ignored": [], "postponed": [], "reminders": [], "schedules": ["…"], "imbalanceSplits": [], "warnings": []}}
 ```
 
 The Depreciation account then has a balance of 300.00 and Accumulated depreciation of -300.00, and the machine is worth

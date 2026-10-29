@@ -36,20 +36,21 @@ There is no employee import; GnuCash has none.
    message.
 4. Apply with [import.apply](method/import.apply). `changes` can only set a document's `action` to `skip`.
 
-The proposal `id` counts up in each server process, so, as in [Import transactions](guide/import-transactions), the apply
-call is not part of the Example.
+The proposal `id` counts up from `imp-1` in each server process, as in [Import transactions](guide/import-transactions).
 
 ## Example
 
-Preview one customer and then one invoice for them.
+Import one customer, then preview and import one invoice for them.
 
 ```example now=2024-03-10T12:00:00Z
 {"method": "import.preview", "params": {"format": "csvOwners", "files": [{"name": "customers.csv", "text": "C1,Acme Ltd,Wile E,1 Main St,,,,555-1234,,billing@acme.example,,,,,,,,,\n"}], "separator": "comma"}}
-{"result": {"id": "…", "format": "csvOwners", "owners": [{"index": 0, "kind": "customer", "id": "C1", "action": "add", "…": "…"}], "…": "…"}}
-{"method": "customer.create", "params": {"name": "Acme Ltd", "currency": "USD", "id": "C1"}}
-{"result": {"id": "C1", "…": "…"}}
+{"result": {"id": "imp-1", "format": "csvOwners", "owners": [{"index": 0, "kind": "customer", "id": "C1", "action": "add", "…": "…"}], "…": "…"}}
+{"method": "import.apply", "params": {"proposal": "imp-1"}}
+{"result": "…"}
 {"method": "account.create", "params": {"name": "Income", "type": "INCOME", "commodity": "USD"}}
 {"result": "…"}
 {"method": "import.preview", "params": {"format": "csvDocuments", "files": [{"name": "invoices.csv", "text": "B1,2024-03-01,C1,PO-1,,2024-03-01,Design,,Income,2,50,,,,,,,,,,,\n"}], "documentKind": "invoice", "dateFormat": "iso", "separator": "comma"}}
-{"result": {"id": "…", "format": "csvDocuments", "documents": [{"id": "B1", "type": "invoice", "action": "add", "…": "…"}], "…": "…"}}
+{"result": {"id": "imp-2", "format": "csvDocuments", "documents": [{"id": "B1", "type": "invoice", "action": "add", "…": "…"}], "…": "…"}}
+{"method": "import.apply", "params": {"proposal": "imp-2"}}
+{"result": "…"}
 ```

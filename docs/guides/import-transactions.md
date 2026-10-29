@@ -34,22 +34,20 @@ happen: import is always two steps, **preview** and **apply**.
    an entry.
 7. **Save** with [book.save](method/book.save).
 
-The proposal's `id` counts up in each server process (`imp-1`, `imp-2`, ...), so the apply call below is shown and not run
-as an Example.
+The proposal's `id` counts up from `imp-1` in each server process.
 
 ## Example
 
-A bank's CSV with two rows. The preview adds both and notes that neither is balanced yet.
+A bank's CSV with two rows. The preview adds both and notes that neither is balanced yet. Applying it names Food as the
+account that balances the first row; the second is balanced against `Imbalance-USD`.
 
 ```example
 {"method": "account.create", "params": {"name": "Checking", "type": "BANK", "commodity": "USD"}}
 {"result": "…"}
+{"method": "account.create", "params": {"name": "Food", "type": "EXPENSE", "commodity": "USD"}}
+{"result": "…"}
 {"method": "import.preview", "params": {"format": "csvTransactions", "files": [{"name": "bank.csv", "text": "Date,Description,Amount\n2024-06-03,Coffee,-3.50\n2024-06-04,Lunch,-12.00\n"}], "layout": {"format": "csv", "separators": ",", "skipStartLines": 1, "dateFormat": "y-m-d", "currencyFormat": "period", "encoding": "utf-8", "baseAccount": "Checking", "columns": ["Date", "Description", "Amount"]}}}
-{"result": {"id": "…", "format": "csvTransactions", "summary": {"add": 2, "imbalanced": 2, "errors": 0, "…": "…"}, "transactions": [{"index": 0, "description": "Coffee", "datePosted": "2024-06-03", "action": "add", "…": "…"}, {"index": 1, "description": "Lunch", "action": "add", "…": "…"}], "…": "…"}}
-```
-
-Applying it, with Food as the account that balances the first row (the `id` is the one the preview gave):
-
-```json
+{"result": {"id": "imp-1", "format": "csvTransactions", "summary": {"add": 2, "imbalanced": 2, "errors": 0, "…": "…"}, "transactions": [{"index": 0, "description": "Coffee", "datePosted": "2024-06-03", "action": "add", "…": "…"}, {"index": 1, "description": "Lunch", "action": "add", "…": "…"}], "…": "…"}}
 {"method": "import.apply", "params": {"proposal": "imp-1", "changes": [{"index": 0, "account": "Food"}]}}
+{"result": {"added": [{"index": 0, "transaction": "…"}, {"index": 1, "transaction": "…"}], "skipped": [], "imbalanceSplits": [{"index": 1, "account": "…", "value": {"num": "1200", "denom": "100"}, "…": "…"}], "learned": "…", "warnings": "…", "…": "…"}}
 ```
