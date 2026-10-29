@@ -1,6 +1,6 @@
 # Roadmap to parity
 
-**Status: proposed.** How red-ale gets from v0.5 to feature parity with GnuCash 5.17. v0.1 to v0.4 have
+**Status: proposed.** How red-ale gets from v0.6 to feature parity with GnuCash 5.17. v0.1 to v0.6 have
 their own milestone files; the later versions are proposals. When a version starts, its milestone file
 (`milestoneN.md`) takes over from this page for that version.
 
@@ -10,10 +10,11 @@ rows are ✅. This page says which version each open row belongs to, and why in 
 ## Where things stand
 
 v0.3 is done: every row of [`milestone3.md`](milestone3.md) is ✅ or ❌ and its "Done when" list holds, with the
-evidence for each item listed there. So is v0.4 ([`milestone4.md`](milestone4.md)): its 19 rows are ✅ and its
-"Done when" list holds. `features.md` has 184 rows: 125 are ✅ (60 ported in v0.1, 34 in v0.2, 12 in v0.3, 19 in
-v0.4), 22 are ❌ (won't do), and 37 are open, all placed below. v0.3 added one row, "Online quotes (red-ale)", beside
-the ❌ Finance::Quote one. Autosave, the new account hierarchy assistant, account templates and the financial
+evidence for each item listed there. So is v0.4 ([`milestone4.md`](milestone4.md)), and so are v0.5
+([`milestone5.md`](milestone5.md)) and v0.6 ([`milestone6.md`](milestone6.md)) but for the maintainer's release
+steps. `features.md` has 190 rows: 145 are ✅ (60 ported in v0.1, 34 in v0.2, 12 in v0.3, 19 in v0.4, 16 in v0.5,
+4 in v0.6), 41 are ❌ (won't do), and 4 are open, all placed under "v1.0". v0.3 added one row, "Online quotes
+(red-ale)", beside the ❌ Finance::Quote one. Autosave, the new account hierarchy assistant, account templates and the financial
 calculator became ❌ after v0.3 (see "v0.7").
 
 | Version | Theme                                                             | Open rows | Status                                         |
@@ -23,7 +24,7 @@ calculator became ❌ after v0.3 (see "v0.7").
 | v0.3    | Memory and scale; import and export; online quotes                |         — | Done ([`milestone3.md`](milestone3.md))        |
 | v0.4    | SQLite books; scheduled transactions and budgets, with reports    |         — | Done ([`milestone4.md`](milestone4.md))        |
 | v0.5    | Ledgers, statements, analysis and investment reports              |         — | Done ([`milestone5.md`](milestone5.md))        |
-| v0.6    | The manual; the Printable invoice and the Dashboard               |         2 | Proposed ([`milestone6.md`](milestone6.md))    |
+| v0.6    | The manual; the Printable invoice and the Dashboard               |         — | Done ([`milestone6.md`](milestone6.md))        |
 | v0.7    | MySQL and PostgreSQL books                                        |         — | Won't do (❌)                                  |
 | v1.0    | Parity: every row ✅ or ❌                                        |         4 | Proposed                                       |
 

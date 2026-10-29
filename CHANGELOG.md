@@ -4,6 +4,76 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## 0.6.0 - Unreleased
+
+Milestone 6 ([`design/milestone6.md`](design/milestone6.md)): the Manual, the Printable Invoice and the Dashboard.
+`redAleApi` is 0.6.0, additive over 0.5.0.
+
+### Added
+
+- The Manual ([`design/manual.md`](design/manual.md)), one set of Pages for every door:
+  - Reference pages for every method, error code and report template, each with Examples that run as tests;
+  - Concept pages, Guides and From GnuCash pages, adapted from GnuCash 5.17's *Tutorial and Concept Guide* and
+    *Help Manual* under the GFDL (`docs/legal/`), and a Guide to writing your own report;
+  - JSON-RPC: `help.topics`, `help.get` and `help.search`; every error carries `data.help`, the Page that explains
+    it, and `api.schema` names each method's Page;
+  - MCP: every Page as a resource (`red-ale://manual/<page-id>`), server instructions generated from the Start
+    page, and longer tool descriptions (`--tool-descriptions short` for the old ones);
+  - CLI: `red-ale help <page or method>`, `red-ale help --search <words>`, `red-ale methods` with Page IDs, and
+    `red-ale manual build`, which writes the Manual as a static site, published to GitHub Pages on each release.
+- The Printable Invoice, translated from GnuCash's `invoice.scm`, run with `report.run` and an Invoice Number.
+  Reports gain the `invoice` and `image` option types, `numberFormat: "exact"`, `class`, `css` and `image` blocks,
+  and report scripts can read invoices, entries, owners, orders, billing terms and book options.
+- Business book options (company name, address, contact, tax number and the rest) and the Default Invoice Report,
+  through `book.options` and `book.setOptions`.
+- The Dashboard, GnuCash's Multicolumn View of four charts and the Account Summary, as a built-in read-only saved
+  configuration: listed by `report.list` with `readOnly: true`, run by name or GUID, copied with
+  `report.saveConfiguration`.
+
+### Changed
+
+- A report script that defines a function with the name of one of the report engine's functions is refused when it
+  loads (`report-load`), instead of silently replacing it.
+- Opening a MySQL or PostgreSQL book now says red-ale opens XML and SQLite files only, and to save it as one of those
+  in GnuCash first: server books are not planned ([`design/roadmap.md`](design/roadmap.md)).
+
+### Fixed
+
+- Saving a book in which a transaction and a template transaction share a GUID is refused (`invalid`,
+  `data.reason: "shared-guid"`) instead of writing a book GnuCash would misread.
+- `help.search` ranks a method's Page first for the words of its name: "open a book" finds `book.open` before the
+  `book-already-open` error.
+- Import and Since Last Run proposal IDs count from 1 for each server (`imp-1`, …) and still never repeat while it
+  runs.
+- `period.dates` with no book open takes today from the server's clock, as it does with a book open.
+- A book's `.log` journal is named by the session's clock and time zone, like everything else the session dates.
+- `reconcile.setState` takes a date (`YYYY-MM-DD`), stamped at 23:59:59 local time as GnuCash's reconcile window
+  stamps it, as well as a timestamp.
+- `invoice.dueDate` takes a billing term by name as well as by GUID, as every other method does.
+- `import.preview`'s `baseAccount` takes the place of an inline layout's base account. Before, a layout without one
+  parsed as if none were given, and the preview failed.
+
+### Not supported
+
+- PDF export: export the report as HTML and convert it (the Guide `guide/report-to-pdf`).
+- MySQL and PostgreSQL books.
+- The tax reports, and GnuCash's business reports other than the Printable Invoice and the Dashboard: write them as
+  a User report (`guide/write-your-own-report`).
+
+### Differences from GnuCash
+
+- The Dashboard is a saved configuration under the menu item's GUID, where GnuCash builds a new Multicolumn View at
+  each click; a user changes a copy of it.
+- An invoice in a report's options summary is its GUID, where GnuCash prints a pointer that changes at every run.
+
+The pages in [`design/api/`](design/api) and [`design/differences-from-gnucash.md`](design/differences-from-gnucash.md)
+list every difference in detail.
+
+### Dependency updates
+
+- pulldown-cmark: (none) => 0.13
+- rhai: 1.27.0 => 1.27.0 with the `metadata` feature in `red-ale-report` (before, in its tests only)
+
 ## 0.5.0 - Unreleased
 
 Milestone 5 ([`design/milestone5.md`](design/milestone5.md)): ledgers, statements, analysis and investment reports,

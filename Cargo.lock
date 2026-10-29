@@ -1812,7 +1812,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -1832,7 +1832,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "indexmap",
@@ -1845,7 +1845,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-docs"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "pulldown-cmark",
  "serde",
@@ -1855,7 +1855,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-export"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "proptest",
  "red-ale-core",
@@ -1865,7 +1865,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-import"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "icu_normalizer",
  "proptest",
@@ -1879,7 +1879,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-locale"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "icu_calendar",
  "icu_datetime",
@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-mcp"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "red-ale-docs",
  "red-ale-rpc",
@@ -1904,7 +1904,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-quotes"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "http-body-util",
  "hyper",
@@ -1923,7 +1923,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-report"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "num-bigint",
@@ -1947,7 +1947,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-rpc"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64",
  "chrono",
@@ -1972,7 +1972,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-service"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "encoding_rs",
@@ -1991,7 +1991,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-setup"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "jsonc-parser",
@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-sql"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "indexmap",
  "proptest",
@@ -2017,7 +2017,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-testkit"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "peak_alloc",
  "red-ale-core",
@@ -2035,7 +2035,7 @@ dependencies = [
 
 [[package]]
 name = "red-ale-xml"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "flate2",
  "indexmap",
