@@ -682,7 +682,10 @@ Order: 1-4 in parallel; then 5 and 8; then 6, 7; 9, 10; then 11.
 6. **Investment Lots' undefined figures.** *Proposed:* mirror GnuCash's #f with `()` so blanks match; a lot with an
    in-window sale and no purchase gets a blank CAGR instead of failing (§14 row).
 7. **Same-time sales within a lot.** GnuCash keeps the lot's list order. *Proposed:* Book order, as the core's ledger
-   approximates it (`ops/lots/ledger.rs:126-133`); record a deviation if ever seen to differ.
+   approximates it (`ops/lots/ledger.rs:126-133`); record a deviation if ever seen to differ. *Found in translating:*
+   `lot-splits-up-to-date` conses the lot's splits off its list, reversing it, and its stable sort keeps that order
+   for sales on one date (`5.17:gnucash/report/reports/standard/investment-lots.scm:588-600`), so the sale entered
+   last is taken first; the script takes the list as Book order and reverses it as GnuCash does.
 8. **The dead helpers' tests** (`is-long-term?`, `calculate-gain`). *Proposed:* don't translate the helpers; port the
    holding-period cases against the report's rule, recording that 2020-01-01 → 2021-01-01 is short term there.
 9. **Portfolio's uninverted nearest and before prices.** *Proposed:* keep, with a hand-worked case.

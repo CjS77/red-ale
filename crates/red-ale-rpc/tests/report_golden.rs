@@ -85,6 +85,7 @@ const V05_REPORTS: &[&str] = &[
     "General Journal",
     "Advanced Portfolio",
     "IFRS weighted-average cost basis report",
+    "Investment Lots",
     "Transaction Breakdown Report",
     "Income vs. Day of Week",
     "Expenses vs. Day of Week",
@@ -101,6 +102,11 @@ const V05_BOOKS: &[&str] = &[
     "transaction",
     "stock-test-data",
     "ifrs-cost-basis",
+    "investment-lots",
+    "lots-reverse-split",
+    "lots-baseline",
+    "lots-reverse-split-sale",
+    "lots-postsplit-baseline",
 ];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.

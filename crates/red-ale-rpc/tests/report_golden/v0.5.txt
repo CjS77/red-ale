@@ -638,3 +638,213 @@ ifrs-cost-basis us Expenses vs. Day of Week	3750 24b84446917ce666
 ifrs-cost-basis us Income vs. Day of Week	3746 57cc74d201edfb9e
 ifrs-cost-basis locale Expenses vs. Day of Week	3750 24b84446917ce666
 ifrs-cost-basis locale Income vs. Day of Week	3746 57cc74d201edfb9e
+average-balance us Investment Lots	8436 b27ba4ce23d91d89
+average-balance locale Investment Lots	8420 ad3c7e67d04969d1
+balsheet-pnl us Investment Lots	8436 b27ba4ce23d91d89
+balsheet-pnl locale Investment Lots	8420 ad3c7e67d04969d1
+budget us Investment Lots	8436 b27ba4ce23d91d89
+budget locale Investment Lots	8420 ad3c7e67d04969d1
+category-average us Investment Lots	8436 b27ba4ce23d91d89
+category-average locale Investment Lots	8420 ad3c7e67d04969d1
+category-daily us Investment Lots	8436 b27ba4ce23d91d89
+category-daily locale Investment Lots	8420 ad3c7e67d04969d1
+category-liability us Investment Lots	8436 b27ba4ce23d91d89
+category-liability locale Investment Lots	8420 ad3c7e67d04969d1
+category-multi us Investment Lots	8436 b27ba4ce23d91d89
+category-multi locale Investment Lots	8420 ad3c7e67d04969d1
+charts-daily us Investment Lots	8436 b27ba4ce23d91d89
+charts-daily locale Investment Lots	8420 ad3c7e67d04969d1
+charts-net us Investment Lots	8436 b27ba4ce23d91d89
+charts-net locale Investment Lots	8420 ad3c7e67d04969d1
+net-days us Investment Lots	8436 b27ba4ce23d91d89
+net-days locale Investment Lots	8420 ad3c7e67d04969d1
+test-data us Investment Lots	8436 b27ba4ce23d91d89
+test-data locale Investment Lots	8420 ad3c7e67d04969d1
+adjusting-entries us Investment Lots	8436 b27ba4ce23d91d89
+adjusting-entries locale Investment Lots	8420 ad3c7e67d04969d1
+adjusting-entries-fx us Investment Lots	8436 b27ba4ce23d91d89
+adjusting-entries-fx locale Investment Lots	8420 ad3c7e67d04969d1
+cash-flow us Investment Lots	8436 b27ba4ce23d91d89
+cash-flow locale Investment Lots	8420 ad3c7e67d04969d1
+cashflow-barchart us Investment Lots	8436 b27ba4ce23d91d89
+cashflow-barchart locale Investment Lots	8420 ad3c7e67d04969d1
+balsheet-pnl-extras us Investment Lots	8436 b27ba4ce23d91d89
+balsheet-pnl-extras locale Investment Lots	8420 ad3c7e67d04969d1
+balsheet-pnl-extras-trading us Investment Lots	8436 b27ba4ce23d91d89
+balsheet-pnl-extras-trading locale Investment Lots	8420 ad3c7e67d04969d1
+transaction us Investment Lots	8436 b27ba4ce23d91d89
+transaction locale Investment Lots	8420 ad3c7e67d04969d1
+stock-test-data us Investment Lots	8436 b27ba4ce23d91d89
+stock-test-data locale Investment Lots	8420 ad3c7e67d04969d1
+ifrs-cost-basis us Investment Lots	8436 b27ba4ce23d91d89
+ifrs-cost-basis locale Investment Lots	8420 ad3c7e67d04969d1
+investment-lots us Advanced Portfolio	7025 28ef9586fab6b1c0
+investment-lots us Balance Sheet (Multicolumn)	8011 a61e8657162da8c0
+investment-lots us Cash Flow	4906 20474f03c0270bf3
+investment-lots us Cash Flow Barchart	3635 e178c0959d3418ea
+investment-lots us Equity Statement	4624 5d628fd77b4a2112
+investment-lots us Expenses vs. Day of Week	3750 24b84446917ce666
+investment-lots us General Journal	7885 31f35f750f15e197
+investment-lots us General Ledger	3714 53d2a42883ac6c2c
+investment-lots us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+investment-lots us Income Statement (Multicolumn)	5356 d92f9bf3381f10b9
+investment-lots us Income vs. Day of Week	3746 57cc74d201edfb9e
+investment-lots us Investment Lots	8436 b27ba4ce23d91d89
+investment-lots us Investment Portfolio	5033 a63b1e9348aec7d8
+investment-lots us Reconciliation Report	3954 8062a6198956301d
+investment-lots us Transaction Breakdown Report	3758 77a99716b971baf2
+investment-lots us Transaction Report	3722 6935fd70da4b08c8
+investment-lots us Trial Balance	5923 549f529c4b99ddf7
+investment-lots locale Advanced Portfolio	7021 0739555a556b99dc
+investment-lots locale Balance Sheet (Multicolumn)	8007 6491d68376f38fc8
+investment-lots locale Cash Flow	4898 1a679133f8dbb57b
+investment-lots locale Cash Flow Barchart	3635 e178c0959d3418ea
+investment-lots locale Equity Statement	4612 c87b1f9f154b06aa
+investment-lots locale Expenses vs. Day of Week	3750 24b84446917ce666
+investment-lots locale General Journal	7877 f29cbf355968a87f
+investment-lots locale General Ledger	3714 53d2a42883ac6c2c
+investment-lots locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+investment-lots locale Income Statement (Multicolumn)	5348 091db6dd2c53e801
+investment-lots locale Income vs. Day of Week	3746 57cc74d201edfb9e
+investment-lots locale Investment Lots	8420 ad3c7e67d04969d1
+investment-lots locale Investment Portfolio	5029 5db86af6ceee4b3c
+investment-lots locale Reconciliation Report	3954 8062a6198956301d
+investment-lots locale Transaction Breakdown Report	3758 77a99716b971baf2
+investment-lots locale Transaction Report	3722 6935fd70da4b08c8
+investment-lots locale Trial Balance	5919 e6e6cc1f86445267
+lots-reverse-split us Advanced Portfolio	6474 b707cd0f036b5d2f
+lots-reverse-split us Balance Sheet (Multicolumn)	6866 e80c78340a1149c5
+lots-reverse-split us Cash Flow	4809 a1e58fdbfb47f0b7
+lots-reverse-split us Cash Flow Barchart	3635 e178c0959d3418ea
+lots-reverse-split us Equity Statement	4642 02e156bef8855a92
+lots-reverse-split us Expenses vs. Day of Week	3750 24b84446917ce666
+lots-reverse-split us General Journal	5139 07ca54b697dfa65a
+lots-reverse-split us General Ledger	3714 53d2a42883ac6c2c
+lots-reverse-split us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+lots-reverse-split us Income Statement (Multicolumn)	3880 e69c511484c24a53
+lots-reverse-split us Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-reverse-split us Investment Lots	12404 826c12328bf04821
+lots-reverse-split us Investment Portfolio	4501 09fa9c00e995221d
+lots-reverse-split us Reconciliation Report	3954 8062a6198956301d
+lots-reverse-split us Transaction Breakdown Report	3758 77a99716b971baf2
+lots-reverse-split us Transaction Report	3722 6935fd70da4b08c8
+lots-reverse-split us Trial Balance	5178 8f56a6e5146050de
+lots-reverse-split locale Advanced Portfolio	6470 05cbe7b7e591f3eb
+lots-reverse-split locale Balance Sheet (Multicolumn)	6862 381648fb30e20e1d
+lots-reverse-split locale Cash Flow	4801 b474dab0ccbbabff
+lots-reverse-split locale Cash Flow Barchart	3635 e178c0959d3418ea
+lots-reverse-split locale Equity Statement	4630 288e5df208cd7506
+lots-reverse-split locale Expenses vs. Day of Week	3750 24b84446917ce666
+lots-reverse-split locale General Journal	5135 68d30fe6102f1dda
+lots-reverse-split locale General Ledger	3714 53d2a42883ac6c2c
+lots-reverse-split locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+lots-reverse-split locale Income Statement (Multicolumn)	3872 a9724a93320b89fb
+lots-reverse-split locale Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-reverse-split locale Investment Lots	12386 206182ae23e3fca3
+lots-reverse-split locale Investment Portfolio	4497 d27af25b47d50cd1
+lots-reverse-split locale Reconciliation Report	3954 8062a6198956301d
+lots-reverse-split locale Transaction Breakdown Report	3758 77a99716b971baf2
+lots-reverse-split locale Transaction Report	3722 6935fd70da4b08c8
+lots-reverse-split locale Trial Balance	5174 9f3e7c42d9f53d2e
+lots-baseline us Advanced Portfolio	6397 717e62a72ffa4a51
+lots-baseline us Balance Sheet (Multicolumn)	6871 7e51eb8038fe1385
+lots-baseline us Cash Flow	4809 a1e58fdbfb47f0b7
+lots-baseline us Cash Flow Barchart	3635 e178c0959d3418ea
+lots-baseline us Equity Statement	4642 02e156bef8855a92
+lots-baseline us Expenses vs. Day of Week	3750 24b84446917ce666
+lots-baseline us General Journal	4662 70a822d31b80de59
+lots-baseline us General Ledger	3714 53d2a42883ac6c2c
+lots-baseline us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+lots-baseline us Income Statement (Multicolumn)	3880 e69c511484c24a53
+lots-baseline us Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-baseline us Investment Lots	12406 4b05d64c74146fe1
+lots-baseline us Investment Portfolio	4502 b7f48a9a0c3abf3b
+lots-baseline us Reconciliation Report	3954 8062a6198956301d
+lots-baseline us Transaction Breakdown Report	3758 77a99716b971baf2
+lots-baseline us Transaction Report	3722 6935fd70da4b08c8
+lots-baseline us Trial Balance	5178 8f56a6e5146050de
+lots-baseline locale Advanced Portfolio	6393 fdbce337c00b603d
+lots-baseline locale Balance Sheet (Multicolumn)	6867 d900e17531214eed
+lots-baseline locale Cash Flow	4801 b474dab0ccbbabff
+lots-baseline locale Cash Flow Barchart	3635 e178c0959d3418ea
+lots-baseline locale Equity Statement	4630 288e5df208cd7506
+lots-baseline locale Expenses vs. Day of Week	3750 24b84446917ce666
+lots-baseline locale General Journal	4660 60d50a09edfaeef3
+lots-baseline locale General Ledger	3714 53d2a42883ac6c2c
+lots-baseline locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+lots-baseline locale Income Statement (Multicolumn)	3872 a9724a93320b89fb
+lots-baseline locale Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-baseline locale Investment Lots	12388 97fe3db6ae7d7aa3
+lots-baseline locale Investment Portfolio	4498 217f89b32d09dc7f
+lots-baseline locale Reconciliation Report	3954 8062a6198956301d
+lots-baseline locale Transaction Breakdown Report	3758 77a99716b971baf2
+lots-baseline locale Transaction Report	3722 6935fd70da4b08c8
+lots-baseline locale Trial Balance	5174 9f3e7c42d9f53d2e
+lots-reverse-split-sale us Advanced Portfolio	6433 7e3f0908dd8f5a49
+lots-reverse-split-sale us Balance Sheet (Multicolumn)	6866 d92c2cb008c77250
+lots-reverse-split-sale us Cash Flow	4809 a1e58fdbfb47f0b7
+lots-reverse-split-sale us Cash Flow Barchart	3635 e178c0959d3418ea
+lots-reverse-split-sale us Equity Statement	4642 969bb535337a1618
+lots-reverse-split-sale us Expenses vs. Day of Week	3750 24b84446917ce666
+lots-reverse-split-sale us General Journal	5881 0d950bd41185760b
+lots-reverse-split-sale us General Ledger	3714 53d2a42883ac6c2c
+lots-reverse-split-sale us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+lots-reverse-split-sale us Income Statement (Multicolumn)	3880 e69c511484c24a53
+lots-reverse-split-sale us Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-reverse-split-sale us Investment Lots	12402 f874469da52663e7
+lots-reverse-split-sale us Investment Portfolio	4501 bfdc14ee13141611
+lots-reverse-split-sale us Reconciliation Report	3954 8062a6198956301d
+lots-reverse-split-sale us Transaction Breakdown Report	3758 77a99716b971baf2
+lots-reverse-split-sale us Transaction Report	3722 6935fd70da4b08c8
+lots-reverse-split-sale us Trial Balance	5178 ebd75332613a89b2
+lots-reverse-split-sale locale Advanced Portfolio	6429 cc6d18ce57c1ccf5
+lots-reverse-split-sale locale Balance Sheet (Multicolumn)	6862 18126feb34d1f468
+lots-reverse-split-sale locale Cash Flow	4801 b474dab0ccbbabff
+lots-reverse-split-sale locale Cash Flow Barchart	3635 e178c0959d3418ea
+lots-reverse-split-sale locale Equity Statement	4630 95a10e0029197738
+lots-reverse-split-sale locale Expenses vs. Day of Week	3750 24b84446917ce666
+lots-reverse-split-sale locale General Journal	5875 f3ef88d1b5406ec9
+lots-reverse-split-sale locale General Ledger	3714 53d2a42883ac6c2c
+lots-reverse-split-sale locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+lots-reverse-split-sale locale Income Statement (Multicolumn)	3872 a9724a93320b89fb
+lots-reverse-split-sale locale Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-reverse-split-sale locale Investment Lots	12384 bb4cca74f9eea0a5
+lots-reverse-split-sale locale Investment Portfolio	4497 9bf5c1fa94ec3f45
+lots-reverse-split-sale locale Reconciliation Report	3954 8062a6198956301d
+lots-reverse-split-sale locale Transaction Breakdown Report	3758 77a99716b971baf2
+lots-reverse-split-sale locale Transaction Report	3722 6935fd70da4b08c8
+lots-reverse-split-sale locale Trial Balance	5174 5cdfb40a46169802
+lots-postsplit-baseline us Advanced Portfolio	6433 803a4d94025c75b6
+lots-postsplit-baseline us Balance Sheet (Multicolumn)	6866 3b658e6d3b9618c6
+lots-postsplit-baseline us Cash Flow	4809 a1e58fdbfb47f0b7
+lots-postsplit-baseline us Cash Flow Barchart	3635 e178c0959d3418ea
+lots-postsplit-baseline us Equity Statement	4642 969bb535337a1618
+lots-postsplit-baseline us Expenses vs. Day of Week	3750 24b84446917ce666
+lots-postsplit-baseline us General Journal	5408 b2f7ab7616951334
+lots-postsplit-baseline us General Ledger	3714 53d2a42883ac6c2c
+lots-postsplit-baseline us IFRS weighted-average cost basis report	6276 8d3bd966d43582c9
+lots-postsplit-baseline us Income Statement (Multicolumn)	3880 e69c511484c24a53
+lots-postsplit-baseline us Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-postsplit-baseline us Investment Lots	12402 f874469da52663e7
+lots-postsplit-baseline us Investment Portfolio	4501 bfdc14ee13141611
+lots-postsplit-baseline us Reconciliation Report	3954 8062a6198956301d
+lots-postsplit-baseline us Transaction Breakdown Report	3758 77a99716b971baf2
+lots-postsplit-baseline us Transaction Report	3722 6935fd70da4b08c8
+lots-postsplit-baseline us Trial Balance	5178 ebd75332613a89b2
+lots-postsplit-baseline locale Advanced Portfolio	6429 9b95ccb0a13272e2
+lots-postsplit-baseline locale Balance Sheet (Multicolumn)	6862 67a0011e6d18051e
+lots-postsplit-baseline locale Cash Flow	4801 b474dab0ccbbabff
+lots-postsplit-baseline locale Cash Flow Barchart	3635 e178c0959d3418ea
+lots-postsplit-baseline locale Equity Statement	4630 95a10e0029197738
+lots-postsplit-baseline locale Expenses vs. Day of Week	3750 24b84446917ce666
+lots-postsplit-baseline locale General Journal	5404 7602124a3d4f58f8
+lots-postsplit-baseline locale General Ledger	3714 53d2a42883ac6c2c
+lots-postsplit-baseline locale IFRS weighted-average cost basis report	6268 ceff708a19731111
+lots-postsplit-baseline locale Income Statement (Multicolumn)	3872 a9724a93320b89fb
+lots-postsplit-baseline locale Income vs. Day of Week	3746 57cc74d201edfb9e
+lots-postsplit-baseline locale Investment Lots	12384 bb4cca74f9eea0a5
+lots-postsplit-baseline locale Investment Portfolio	4497 9bf5c1fa94ec3f45
+lots-postsplit-baseline locale Reconciliation Report	3954 8062a6198956301d
+lots-postsplit-baseline locale Transaction Breakdown Report	3758 77a99716b971baf2
+lots-postsplit-baseline locale Transaction Report	3722 6935fd70da4b08c8
+lots-postsplit-baseline locale Trial Balance	5174 5cdfb40a46169802
