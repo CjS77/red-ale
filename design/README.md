@@ -16,7 +16,8 @@ Design comes before code. Read in this order:
 9. [`milestone5.md`](milestone5.md): the v0.5 scope (ledgers, statements, analysis and investment reports, the
    default Configuration file, and distribution). Done, but for the maintainer's release steps.
 10. [`milestone6.md`](milestone6.md): the v0.6 scope (the Manual, with custom reports; the Printable
-    invoice and the Dashboard). Draft, decisions settled.
+    invoice and the Dashboard), its decisions and the evidence for each "Done when" item. Done, but for the
+    maintainer's release steps.
 11. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
 12. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
 13. [`sql-fidelity.md`](sql-fidelity.md): how an SQLite book is read, locked and saved without loss, and the Backend

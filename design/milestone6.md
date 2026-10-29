@@ -1,9 +1,11 @@
 # Milestone 6: red-ale v0.6
 
-**Status: in progress, decisions settled.** The scope comes from [`roadmap.md`](roadmap.md) ("v0.6") and
-[`manual.md`](manual.md), as narrowed by the maintainer during planning ("Decide before code"). The research for the
-invoice and the Dashboard is in [`notes/report-invoice.md`](notes/report-invoice.md) ("the note" below); its open
-questions are settled in "Decided", item 11.
+**Status: done, except the maintainer's release steps** ("Done when", "Evidence"): pushing `v0.6.0` and setting
+the repository's Pages source to "GitHub Actions" so the Manual's workflow can publish. The scope comes from
+[`roadmap.md`](roadmap.md) ("v0.6") and [`manual.md`](manual.md), as narrowed by the maintainer during planning
+("Decide before code"). The research for the invoice and the Dashboard is in
+[`notes/report-invoice.md`](notes/report-invoice.md) ("the note" below); its open questions are settled in
+"Decided", item 11.
 
 **Goal:** red-ale documents itself. The Manual answers an agent's or a user's "how do I" through JSON-RPC, MCP, the
 CLI and a published website, with every Example run as a test, and shows how to write a User report. red-ale
@@ -21,7 +23,7 @@ The two open rows left in v0.6:
 | §8 Business reports | Printable invoice |
 | §8 Report system    | Dashboard         |
 
-Fifteen rows once planned here are ❌ ("Decided", items 1 and 2): PDF export; every other business report; every tax
+Fourteen rows once planned here are ❌ ("Decided", items 1 and 2): PDF export; every other business report; every tax
 report.
 
 Also in v0.6:
@@ -79,17 +81,16 @@ document (`crates/red-ale-rpc/tests/schemas/`), the same in 0.5.0, plus what v0.
 |   ✅   | CLI                            | `red-ale help`, `red-ale help <page>`, `red-ale help --search`; `red-ale methods` lists Page IDs. Done: `crates/red-ale/src/help.rs`; `red-ale/tests/help.rs` (`help_prints_the_start_page_as_text`, `help_prints_a_page_with_its_examples_as_exec_lines`, `help_finds_errors_and_reports_by_name`, `help_search_lists_matching_pages`, `an_unknown_page_fails_with_the_closest_pages`, `help_with_a_command_prints_its_options`, `methods_lists_each_methods_page_id`) |
 |   ✅   | Static site                    | `red-ale manual build <dir>`: one page per Page, indexes, search, `schema.json`, `llms.txt`, `llms-full.txt`; byte-for-byte the same on a rebuild. The latest release only. Done: `red-ale-docs`'s `Manual::site` (`site/`), `crates/red-ale/src/manual.rs`; `red-ale/tests/manual_site.rs` (`building_twice_gives_the_same_bytes`, `the_command_writes_the_site_into_an_empty_or_new_directory`, `every_page_has_a_file_with_its_title_and_the_licence_line`, `every_internal_link_resolves_to_a_file_and_anchor`, `llms_txt_lists_every_page_and_llms_full_holds_them`, `the_search_index_parses_and_has_every_page`, `only_the_search_page_runs_a_script_and_nothing_is_fetched_from_elsewhere`); unit tests in `site/markdown.rs` |
 |   ✅   | Deployment                     | A CI workflow builds the site at each release tag and publishes it to GitHub Pages; a manual run builds without publishing. Done: `.github/workflows/manual.yml` (tag `vX.Y.Z` builds and deploys; `workflow_dispatch` builds and keeps the site as an artifact, and deploys only with the `publish` input). Not yet run on GitHub: the repository's Pages source must be set to "GitHub Actions" |
-|        | Reference pages                | Every method, error code and report template: a "what it is for" paragraph and at least one Example each, nothing more required                                                                                                                                                                                                       |
-|        | Start, Concept and Guide pages | The Start Page; Concept pages for what the methods rely on; Guides for common tasks, including a report to PDF through its HTML export and an outside converter such as pandoc                                                                                                                                                        |
-|        | User reports                   | Below                                                                                                                                                                                                                                                                                                                                 |
-|        | From GnuCash pages             | Each ✅ row of `features.md` maps its menus, dialogs and assistants to methods ("Actions › Stock Split…" → `stock.split`; "Print Invoice" → `report.run`, "Decided", item 6). A ❌ report's page says to write it as a User report                                                                                                   |
-|        | GnuCash's documentation        | The *Tutorial and Concept Guide* and *Help Manual* at the `5.17` tag of `Gnucash/gnucash-docs`, chapter by chapter, GUI material left out; a checklist, [`gnucash-docs-checklist.md`](gnucash-docs-checklist.md), maps every section to its Pages or marks it GUI-only. GnuCash's glossary (`C/guide/gnc-glossary.docbook`) checked against [`glossary.md`](glossary.md)              |
+|   ✅   | Reference pages                | Every method, error code and report template: a "what it is for" paragraph and at least one Example each, nothing more required. Done: 186 method pages (`docs/reference/`), 32 error pages (`docs/errors/`), 47 report template pages (`docs/reports/`); `manual_coverage.rs` (`the_only_gaps_are_the_pending_ones`, with `docs/coverage-pending.txt` empty: no page lacks its text or an Example; `every_method_and_error_names_an_existing_page`, `every_report_template_has_a_page`); `manual_examples.rs` (`every_example_passes`) |
+|   ✅   | Start, Concept and Guide pages | The Start Page; Concept pages for what the methods rely on; Guides for common tasks, including a report to PDF through its HTML export and an outside converter such as pandoc. Done: `docs/start.md`, 26 Concept pages (`docs/concepts/`), 36 Guides (`docs/guides/`, `guide/report-to-pdf` among them); their links, `from` lines and bold terms checked by `the_only_gaps_are_the_pending_ones`, their Examples by `every_example_passes` |
+|   ✅   | User reports                   | Below. Done: `concept/report-scripts`, `guide/write-your-own-report`; the Guide's script runs in `reports.rs`, `the_write_your_own_report_guides_script_loads_and_runs` (read from the Guide's `rhai` block, since an Example cannot put a file in the report directory); `gnucash/reports-menu`, `gnucash/business-menu` and `gnucash/not-in-red-ale` send the ❌ reports there |
+|   ✅   | From GnuCash pages             | Each ✅ row of `features.md` maps its menus, dialogs and assistants to methods ("Actions › Stock Split…" → `stock.split`; "Print Invoice" → `report.run`, "Decided", item 6). A ❌ report's page says to write it as a User report. Done: 11 pages (`docs/gnucash/`), by menu, with `gnucash/not-in-red-ale` for the ❌ rows; every `gnu-only` checklist row names its page, checked by `the_only_gaps_are_the_pending_ones`. No test walks `features.md` row by row; `help.rs`, `gnucash_words_find_red_ale_pages`, checks that GnuCash's menu names find them |
+|   ✅   | GnuCash's documentation        | The *Tutorial and Concept Guide* and *Help Manual* at the `5.17` tag of `Gnucash/gnucash-docs`, chapter by chapter, GUI material left out; a checklist, [`gnucash-docs-checklist.md`](gnucash-docs-checklist.md), maps every section to its Pages or marks it GUI-only. GnuCash's glossary (`C/guide/gnc-glossary.docbook`) checked against [`glossary.md`](glossary.md). Done: the checklist, 414 rows at commit `6627658b`, each classified and mapped (`the_checklist_has_a_row_for_every_section`; its Page IDs and every Page's `from` checked by `the_only_gaps_are_the_pending_ones`). The glossary, checked in the audit: its 47 terms are in `glossary.md` (Accounting period and chart of accounts flagged ⚠, Stock under Account type) or are general finance words (Liquidity, Yield, Principal) and outside software (AqBanking, LibOFX, GSettings) the Manual does not use as terms; one clash is not yet flagged ("Follow-ups") |
 |   ✅   | Licence                        | `docs/` under GFDL-1.1-or-later with no invariant sections; notices, History and the licence text as Pages; `red-ale-docs` is `GPL-3.0-or-later AND GFDL-1.1-no-invariants-or-later`; `deny.toml` allows the GFDL ([`manual.md`](manual.md), "Licence"). Done: `docs/COPYING-DOCS` (from `gnucash-docs` at 5.17), `legal/gfdl` generated from it, `legal/notices` and `legal/history`; the books' notices join them with the first Page that adapts their text |
-|   ✅   | Coverage tests                 | Every method, error and template has its Page; every Example passes; every link and every `from` resolves; every glossary term a Page uses is defined. Done: `red-ale-rpc/tests/manual_coverage.rs` (`the_only_gaps_are_the_pending_ones` runs every check of `red-ale-docs`'s `coverage` against the shrinking `docs/coverage-pending.txt`: methods, errors, templates, links, `from` against the checklist's rows and the checklist's Page IDs against the Pages, and bold terms in Concept pages against the glossary, [`manual.md`](manual.md), "Settled in building it"; `the_checklist_has_a_row_for_every_section`, `every_method_and_error_names_an_existing_page`, `every_report_template_has_a_page`, `the_manual_sources_have_no_problems`) and `tests/manual_examples.rs` (`every_example_passes`); unit tests in `coverage.rs` and `synonyms.rs` |
+|   ✅   | Coverage tests                 | Every method, error and template has its Page; every Example passes; every link and every `from` resolves; every glossary term a Page uses is defined. Done: `red-ale-rpc/tests/manual_coverage.rs` (`the_only_gaps_are_the_pending_ones` runs every check of `red-ale-docs`'s `coverage` against `docs/coverage-pending.txt`, the allow-list of known gaps, which is now empty: methods, errors, templates, links, `from` against the checklist's rows and the checklist's Page IDs against the Pages, and bold terms in Concept pages against the glossary, [`manual.md`](manual.md), "Settled in building it"; `the_checklist_has_a_row_for_every_section`, `every_method_and_error_names_an_existing_page`, `every_report_template_has_a_page`, `the_manual_sources_have_no_problems`) and `tests/manual_examples.rs` (`every_example_passes`); unit tests in `coverage.rs` and `synonyms.rs` |
 
-The `gnucash-docs` repository isn't checked out on the development machine yet. It is cloned at the `5.17` tag
-beside `$GNUCASH_SOURCE` before the GnuCash documentation work starts, and the checklist records its commit, as
-`GNUCASH_REV` records the source's.
+The `gnucash-docs` repository is cloned at the `5.17` tag beside `$GNUCASH_SOURCE`, and the checklist records its
+commit (`6627658b6b47bef1e4e89afe2e2cb3af9db938cd`), as `GNUCASH_REV` records the source's.
 
 ### User reports
 
@@ -286,8 +287,51 @@ sample data.
   any API change is additive, checked by a test.
 - v0.1's to v0.5's done-when checks still pass.
 
+### Evidence
+
+Checked in the final audit. Test names are in the crate's `tests/` directory unless a path is given; `oracle` tests
+are `red-ale-testkit`'s, run with `--features oracle` against GnuCash 5.17.
+
+- **Rows.** Every row above is ✅, but the four v0.5 follow-ups "Carried forward from v0.5" leaves to wait. The
+  four ✅ GnuCash features (Printable invoice, Dashboard, Business options, Default invoice report) have Ported
+  `0.6` in `features.md`, which has no other `0.6` row. The ❌ rows of "Decided" are ❌ there: PDF export, the three tax
+  reports, the ten other business reports (the Lot Viewer among them) and MySQL/MariaDB and PostgreSQL books.
+- **The invoice's figures.** `red-ale-rpc`, `report_invoice.rs`: `test-invoice.scm`'s assertions
+  (`every_option_test_invoice_sets_exists`, `inv_1_simple_entry` to `inv_8_combinations_of_entry_options`) and the
+  hand-worked cases (`a_customer_invoice_taxed_twice_and_paid_in_part`, `an_unposted_credit_note_for_a_job`,
+  `a_bill_and_an_expense_voucher`, `a_bill_paid_in_part`, `each_display_column`, `every_layout_choice`, …) on
+  `synthetic/business.gnucash` as XML and SQLite and on `reports/transaction.gnucash`. No test runs Guile.
+- **The Dashboard.** `report_dashboard.rs`:
+  `the_dashboard_runs_by_name_and_guid_as_gnucash_lays_it_out_on_xml_and_sqlite`,
+  `the_dashboard_gives_the_bytes_of_a_multicolumn_view_saved_by_hand`.
+- **Golden bytes.** `report_golden.rs`: the v0.2, v0.4 and v0.5 records are unchanged since v0.5;
+  `every_v06_report_gives_its_recorded_bytes` records the Printable Invoice and the Dashboard on every fixture book
+  and the business book on SQLite (`report_golden/v0.6.txt`).
+- **Reports only read and open no file.** `report_invoice.rs`: `a_run_changes_nothing` (XML and SQLite) and
+  `a_picture_location_is_never_read` (the location is a FIFO with no writer, which any open would wait on); every
+  earlier report's run-leaves-the-book tests still pass.
+- **The Manual.** Every method (186), error code (32) and report template (47) has its Reference page with an
+  Example: `manual_coverage.rs`, `the_only_gaps_are_the_pending_ones`, with the allow-list
+  `docs/coverage-pending.txt` empty, so no gap of any kind is left. The custom-report Guide's script runs
+  (`reports.rs`, `the_write_your_own_report_guides_script_loads_and_runs`); `manual_examples.rs`,
+  `every_example_passes`. The site rebuilds byte for byte: `red-ale/tests/manual_site.rs`,
+  `building_twice_gives_the_same_bytes`, and two release builds of `red-ale manual build` into fresh directories
+  compared with `diff -r` in the audit (356 files, identical). `.github/workflows/manual.yml` publishes from a
+  `vX.Y.Z` tag; its first run is the maintainer's, once the Pages source is set.
+- **Doors and the API.** `red-ale-mcp`: `tests/tools.rs`, `every_method_is_a_tool_with_its_params_schema_and_hints`;
+  `tests/manual.rs`, `every_page_is_a_markdown_resource`. `redAleApi` is 0.6.0 and `api_additive.rs` holds it
+  additive over 0.2.0, 0.3.0, 0.4.0 and 0.5.0. The workspace version is `0.6.0`, so a `v0.6.0` tag passes the
+  release workflow's check.
+- **Earlier versions.** `cargo test --workspace` (2,045 tests) and the oracle suite (216 tests, GnuCash 5.17)
+  pass; `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo deny check` and
+  `cargo audit` are clean (`audit` reports `smartstring`, Rhai's, as unmaintained, an allowed warning).
+
 ## Follow-ups
 
+- **GnuCash's *Equities*.** GnuCash's glossary defines *Equities* as investments in which the investor becomes an
+  owner (`C/guide/gnc-glossary.docbook` at `5.17`), where red-ale's `EQUITY` is the Account type for the owner's
+  equity. [`glossary.md`](glossary.md) does not flag the clash yet; it wants a ⚠ beside the Account type, as `STOCK`
+  has.
 - **Accounts and splits shared with templates.** GnuCash keeps template accounts in the Book's one account collection
   and template splits in its one split collection, and an SQL book keeps each in one table, as it does transactions.
   v0.6 checks only transactions against template transactions ("Carried forward from v0.5"). Accounts would cost the
