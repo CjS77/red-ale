@@ -429,11 +429,11 @@ private fn calc_periods(budget, user_start, user_end, collapse_before, collapse_
     let range_end = if user_end == () { num_periods } else { user_end + 1 };
     let fold_before_end = if collapse_before { range_start } else { 0 };
     let fold_after_start = if collapse_after { range_end } else { num_periods };
-    let parts = [range(0, fold_before_end)];
-    for period in range(range_start, range_end) {
+    let parts = [period_range(0, fold_before_end)];
+    for period in period_range(range_start, range_end) {
         parts.push(period);
     }
-    parts.push(range(fold_after_start, num_periods));
+    parts.push(period_range(fold_after_start, num_periods));
     if show_total {
         parts.push("total");
     }
@@ -451,7 +451,7 @@ private fn calc_periods(budget, user_start, user_end, collapse_before, collapse_
 }
 
 /// `range` of `calc-periods` (:562-565): the periods from the smaller end, inclusive, to the larger, exclusive.
-private fn range(start, end) {
+private fn period_range(start, end) {
     if start < end { iota_from(end - start, start) } else { iota_from(start - end, end) }
 }
 

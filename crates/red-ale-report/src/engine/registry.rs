@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use red_ale_core::formula::NumberFormat;
 use red_ale_core::{Book, FixedEnv, Guid, Time64, TimeZone};
-use rhai::{AST, Array, CallFnOptions, Dynamic, Engine, Map, Scope};
+use rhai::{AST, Array, CallFnOptions, Dynamic, Engine, LexError, Map, ParseError, ParseErrorType, Scope};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -248,12 +248,15 @@ impl Registry {
     }
 
     /// Compile the script `name` that a run starts from, adding its functions to those the run's imports are
-    /// checked against.
-    pub(crate) fn compile(&self, engine: &Engine, name: &str, defined: &Defined) -> Result<AST, rhai::ParseError> {
+    /// checked against. A script defining a function a call of an engine function would reach does not compile,
+    /// with the error at that function.
+    pub(crate) fn compile(&self, engine: &Engine, name: &str, defined: &Defined) -> Result<AST, ParseError> {
         let text = self.sources.get(name).map_or_else(|| Arc::from(""), |s| Arc::clone(&s.text));
         let mut ast = engine.compile(&*text)?;
         ast.set_source(name);
-        defined.start(name, &ast);
+        // `LexError::Runtime` is Rhai's error that shows only its message.
+        let refused = |(message, at)| ParseError(Box::new(ParseErrorType::BadInput(LexError::Runtime(message))), at);
+        defined.start(name, &text, &ast).map_err(refused)?;
         Ok(ast)
     }
 

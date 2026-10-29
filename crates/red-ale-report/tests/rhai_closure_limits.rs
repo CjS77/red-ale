@@ -88,12 +88,20 @@ fn a_function_resolved_in_one_script_is_called_in_place_of_another_of_the_same_n
 /// A module's function calling a name its module does not define finds the importing script's function of that name
 /// before the engine's: the module's library goes on top of the caller's, not in its place (rhai 1.27.0
 /// `src/func/script.rs:377`, `src/func/func_call.rs:383-397`). So a report script's function with the name and arity
-/// of one a library calls (`abs`, a method of the report API) replaces it in the library too. red-ale cannot see a
-/// library's calls without Rhai's `internals`, so this is a translator's convention, not a check.
+/// of one a library calls (`abs`, a method of the report API) replaces it in the library too. A method call `x.f()`
+/// looks for a script `fn f()` reading `x` as `this` first (`src/parser.rs:2127-2136`), so a script function of one
+/// parameter fewer replaces an engine method. red-ale refuses a script defining a function of an engine function's
+/// name and arity, or one fewer (`design/reports.md` §2, "One name, one function").
 #[test]
 fn a_module_calls_the_importers_function_in_place_of_the_engines() {
-    let m = [("m", "fn magnitude(x) { abs(x) }")];
+    let m = [("m", "fn magnitude(x) { abs(x) } fn size(a) { a.len() }")];
     assert_eq!(run(&m, r#"import "m" as m; m::magnitude(-2)"#).unwrap(), "2");
     let shadowed = run(&m, r#"import "m" as m; fn abs(x) { "script" } m::magnitude(-2)"#).unwrap();
     assert_eq!(shadowed, "script");
+    assert_eq!(run(&m, r#"import "m" as m; m::size([1, 2])"#).unwrap(), "2");
+    let method = run(&m, r#"import "m" as m; fn len() { "script" } m::size([1, 2])"#).unwrap();
+    assert_eq!(
+        method, "script",
+        "a method call reaches the script's function of one parameter fewer"
+    );
 }

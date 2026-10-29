@@ -10,7 +10,8 @@
 //! - [`Registry::options`] for a template's [`OptionDb`](crate::options::OptionDb) (`describe`, `params_schema`);
 //! - [`Registry::run`] for its [`ReportResult`](crate::result::ReportResult), with a [`RunContext`].
 //!
-//! Each run builds its own `Engine` over a snapshot of the Book; nothing is shared between runs.
+//! Each run builds its own `Engine` over a snapshot of the Book; nothing is shared between runs but Rhai's standard
+//! package, which is immutable once built.
 
 mod children;
 // Functions registered with Rhai take their arguments by value: Rhai passes owned values to every parameter but

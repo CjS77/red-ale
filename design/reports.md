@@ -94,13 +94,20 @@ their text to the engine, so file access stays where it already is. `red-ale-rep
 ### Build
 
 `rhai` 1.x (1.27.0 when this was written), pinned in `[workspace.dependencies]` with `default-features = false` and
-the features `std`, `no_float`, `no_time` and `serde`. Never `unchecked`, `sync`, `internals`, `debugging` or
-`decimal`. `cargo deny` must pass with Rhai's dependency tree before the engine ticket lands.
+the features `std`, `no_float`, `no_time` and `serde`; `red-ale-report` adds `metadata` (v0.6). Never `unchecked`,
+`sync`, `internals`, `debugging` or `decimal`. `cargo deny` must pass with Rhai's dependency tree before the engine
+ticket lands.
 
 - `no_float`: no float type exists and a float literal is a syntax error.
 - `no_time`: Rhai's `timestamp()` does not exist; time comes only from the run context.
 - `serde`: turns the map a template returns into the typed report result (`rhai::serde::from_dynamic`).
-- Not `sync`: each run builds its own `Engine` and ASTs on one thread; nothing is shared between runs.
+- `metadata`: lists the engine's functions with their arity, so a script that would replace one is refused ("One
+  name, one function"). Measured when it was added, in release builds: the binary grows by 1.45 MB (49.08 to
+  50.53 MB, 3%), Rhai compiles in 10.4 s instead of 8.9 s, and a registry load of the built-in library takes 101 ms
+  instead of 96 ms, since every function registered keeps its parameter and return type names. Building the
+  standard package once per thread instead of once per engine took back 10 ms of the 15 ms the feature first cost.
+- Not `sync`: each run builds its own `Engine` and ASTs on one thread; nothing is shared between runs but the
+  standard package, which is immutable once built and built once per thread.
 
 ### The engine for a run
 
@@ -174,7 +181,7 @@ New error codes, in a range for reports (added to [`api.md`](api.md)):
 | 3001 | `report-limit`  | The script passed a limit: `ErrorTooManyOperations`, `ErrorTerminated`, `ErrorStackOverflow`, `ErrorDataTooLarge`, `ErrorTooManyModules`, `ErrorTooManyVariables`, a compile-time depth or function limit, or the Rational size check. `data`: `{ report, source, limit, max, log }`; `source` is the script, or `null` when not known |
 | 3002 | `report-option` | An option value is not valid: unknown section or name, wrong type, not one of the choices, out of range, unknown account or commodity, a style sheet that does not exist, or an option the script made internal. `data`: `{ section, name, reason }` |
 | 3003 | `report-result` | The template returned something that is not a valid report result. `data`: `{ report, path, reason, log }` |
-| 3004 | `report-load`   | A user script does not compile, or its `templates()` fails, is malformed or repeats a GUID already defined, or it has `templates()` without `options` and `render`, or it and a module it imports define the same function ("One name, one function", below). `data`: `{ source, line, column, message }` |
+| 3004 | `report-load`   | A user script does not compile, or its `templates()` fails, is malformed or repeats a GUID already defined, or it has `templates()` without `options` and `render`, or it and a module it imports define the same function, or it or a module it imports defines a function a call of an engine function would reach ("One name, one function", below). `data`: `{ source, line, column, message }` |
 
 A built-in script that fails to compile, declares a malformed or repeated template, or returns an invalid result is a
 bug: `internal-error` (-32603, the JSON-RPC code), and the tests of section 13 catch it before release.
@@ -224,13 +231,28 @@ wrong figure without an error. No engine setting avoids this, so red-ale refuses
   engine calls them through the template's own AST, and another script calls them only qualified
   (`transaction_report::render`), which bypasses the cache. A script must not call these three unqualified.
 
-Rhai has a second behaviour the check cannot cover. A module function that calls a name its module does not define
-finds the importing script's function of that name before the engine's own, because the module's library is added
-on top of the caller's and does not replace it. A report function with the name and arity of a function a library
-calls (`abs`, a method of the report API) would therefore run inside the library as well. Seeing a library's calls
-needs Rhai's `internals`, so this is a convention for translators: report functions do not reuse the names of
-registered or standard-package functions. `tests/rhai_closure_limits.rs` pins both behaviours on a bare `Engine`, and
-`tests/engine_name_clash.rs` tests the check.
+Rhai has a second behaviour. A call finds a script function before the engine's, by name and number of arguments
+alone, whatever their types (rhai 1.27.0 `src/func/func_call.rs:818-835`), and a module function that calls a name
+its module does not define finds the importing script's function of that name too, because the module's library is
+added on top of the caller's and does not replace it (`src/func/script.rs:377`). A method call `x.f(a)` looks for a
+script `fn f(a)` that reads `x` as `this` before the engine's `f(x, a)` (`src/parser.rs:2127-2136`). So a report
+`fn abs(x)` would run in place of the standard package's `abs` in every script of the run, the libraries included,
+and a report `fn len()` in place of every `x.len()`. Seeing a library's calls needs Rhai's `internals`, so red-ale
+refuses the definition instead (v0.6):
+
+- **No script defines a function with the name of an engine function of the same arity, or of one more.** The engine's
+  functions are the standard package's and the report API's (section 5, `sleep`, `memo`, `make_regexp`, the option
+  builder), read once from Rhai's metadata (`metadata` feature, "Build"). The template's script is checked when it is
+  compiled and each module when it is imported, private functions included. The error is located at the function:
+  Rhai keeps no position for one, so the script's text is searched for `fn <name>(`.
+- A user script, or a user module it imports at its top level, is `report-load` at load, and a built-in one is
+  `internal-error`. A module imported inside a function is checked when the run reaches it, as `report-script`.
+- Arity counts: a report `fn abs(x, y)` replaces nothing and loads. A typed method (`fn int.f()`) is checked as an
+  untyped one, which refuses a little more than Rhai would reach.
+
+The Budget Report's `range` of `calc-periods` was the one built-in function this refused: it is `period_range`.
+`tests/rhai_closure_limits.rs` pins both behaviours on a bare `Engine`, and `tests/engine_name_clash.rs` tests the
+checks.
 
 ### Now, today and the time zone
 
