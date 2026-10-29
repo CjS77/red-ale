@@ -18,4 +18,6 @@ one with `conflict`; both carry `data.reason` `auto-read-only`. Set it to 0 to l
 {"result": {"splitActionForNum": false, "autoReadOnlyDays": 30, "readOnlyThreshold": "2024-06-01", "useTradingAccounts": false, "defaultBudget": null, "companyName": "", "companyAddress": "", "companyContactPerson": "", "companyPhoneNumber": "", "companyFaxNumber": "", "companyEmailAddress": "", "companyWebsiteUrl": "", "companyId": "", "taxNumber": "", "defaultInvoiceReport": null}}
 {"method": "transaction.post", "params": {"datePosted": "2024-03-01", "description": "Too old", "splits": [{"account": "Root:Asset:Bank", "value": "5.00"}, {"account": "Root:Expenses", "value": "-5.00"}]}}
 {"error": {"code": 2001, "message": "…", "data": {"reason": "auto-read-only", "date": "2024-03-01", "threshold": "2024-06-01", "help": "error/invalid"}}}
+{"method": "transaction.delete", "params": {"guid": "c0000000000000000000000000000000"}}
+{"error": {"code": 2003, "message": "…", "data": {"reason": "auto-read-only", "date": "1970-01-01", "threshold": "2024-06-01", "help": "error/conflict"}}}
 ```
