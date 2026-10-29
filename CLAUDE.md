@@ -153,8 +153,7 @@ are hard to break by accident.
 
 - Edition 2024; toolchain pinned in `rust-toolchain.toml`; one Cargo workspace with dependency versions held in
   `[workspace.dependencies]`.
-- Formatting follows `rustfmt.toml`: max width 140, 4-space indents, no tabs. **Do not run `cargo fmt` before
-  committing.**
+- Formatting follows `rustfmt.toml`: max width 140, 4-space indents, no tabs. Run `cargo fmt` before committing.
 - Prefer iterators and combinators over `for` loops where they read as well.
 - Use inline format arguments: `format!("bad split {guid}")`.
 - Keep functions short and doing one thing; split long ones into named helpers.
