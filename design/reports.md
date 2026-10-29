@@ -1654,6 +1654,8 @@ drops it and needs nothing from budgets.
 
 ## 14. Deviations from GnuCash
 
+Collected with every other area's in [`differences-from-gnucash.md`](differences-from-gnucash.md); a new row goes in both.
+
 | What | GnuCash 5.17 | red-ale | Why |
 |------|--------------|---------|-----|
 | Amounts past 64 bits | Fail at `gnc_scm_to_numeric`: an empty cell or an error (`5.17:bindings/guile/gnc-engine-guile.cpp:1709-1727`) | Exact, printed | Figures within 64 bits are the same |

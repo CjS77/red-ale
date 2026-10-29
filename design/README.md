@@ -14,7 +14,7 @@ Design comes before code. Read in this order:
 8. [`milestone4.md`](milestone4.md): the v0.4 scope (SQLite books, scheduled transactions, budgets and their
    reports), its decisions, progress and the evidence for each "Done when" item. Done.
 9. [`milestone5.md`](milestone5.md): the v0.5 scope (ledgers, statements, analysis and investment reports, the
-   default Configuration file, and distribution, proposed). Draft.
+   default Configuration file, and distribution). Done, but for the maintainer's release steps.
 10. [`architecture.md`](architecture.md): bounded contexts, crates, the context map and the main decisions.
 11. [`file-fidelity.md`](file-fidelity.md): how an XML book round-trips without loss.
 12. [`sql-fidelity.md`](sql-fidelity.md): how an SQLite book is read, locked and saved without loss, and the Backend
@@ -31,6 +31,8 @@ Design comes before code. Read in this order:
 17. [`manual.md`](manual.md): the Manual: user documentation for agents, users and the website, from one core. Proposed.
 18. [`testing.md`](testing.md): fixtures, round-trip tests, fuzzing and the GnuCash oracle.
 19. [`open-questions.md`](open-questions.md): decisions not yet made.
+20. [`differences-from-gnucash.md`](differences-from-gnucash.md): every way red-ale behaves differently from GnuCash
+    5.17 on purpose, by area, with why. The tracking file: a new difference gets a row there when it is decided.
 
 `GNUCASH_REV` pins the GnuCash release red-ale matches (tag, then commit).
 

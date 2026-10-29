@@ -180,7 +180,7 @@ whole, and an unbalanced replayed transaction is refused (or skipped with `skipI
 ## Areas
 
 Each page lists its methods, params and results, the GnuCash behaviour they match (cited to the 5.17 source), and
-deliberate deviations.
+deliberate deviations, which [`differences-from-gnucash.md`](differences-from-gnucash.md) collects in one list.
 
 | Page                                                       | Methods                                                     |
 |------------------------------------------------------------|-------------------------------------------------------------|
