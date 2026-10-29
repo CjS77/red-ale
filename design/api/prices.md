@@ -54,10 +54,15 @@ Returns `{ outcome, price, replaced, existing }`. The rules are `add_price`'s
 1. Find the price of the pair nearest in time on the same day, **in either direction** (a price of USD in EUR counts
    for EUR in USD; `gnc_pricedb_lookup_day_t64`, `:2171`).
 2. If its source ranks better than the new price's, nothing is added: `outcome: "rejected"`, `existing` is that price.
-3. Otherwise it is removed (`replaced`).
-4. If a price of the pair in the same direction on the same day has an equal value, nothing is added:
-   `outcome: "duplicate"`, `existing` is that price (`price_is_duplicate`, `:696-703`).
+3. Otherwise it is removed (`replaced`, `:1069`), before the next step looks (`:1081`).
+4. If a price of the pair in the same direction on the same day still has an equal value, nothing is added:
+   `outcome: "duplicate"`, `existing` is that price (`price_is_duplicate`, `:696-703`; `gnc_price_list_insert`,
+   `:705-719`). The price of step 3 stays removed and is still reported in `replaced`.
 5. Else the price is added: `outcome` is `added` or `replaced`.
+
+So adding a price identical to the one already there for that day replaces it (`outcome: "replaced"`): step 3
+removes it before step 4 could find it. A duplicate needs a second price of the pair on that day, which only a loaded
+file can hold (below).
 
 Loading a file applies none of this (GnuCash loads prices in bulk mode, `:1057-1071`), so a book may hold several
 prices of a pair on one day.
