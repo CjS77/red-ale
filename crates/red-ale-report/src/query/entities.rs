@@ -12,6 +12,7 @@ use red_ale_core::ops::commodities::{display_symbol, is_iso_namespace, lookup};
 use red_ale_core::ops::doc_links::doc_link;
 use red_ale_core::ops::transactions::find::share_price;
 use red_ale_core::ops::transactions::void::{void_former_amount, void_former_value};
+use red_ale_core::ops::transactions::order::trans_order;
 use red_ale_core::ops::transactions::{corr_account_code, corr_account_full_name, other_split};
 use red_ale_core::transaction::slot_paths;
 use red_ale_core::{Commodity, Price, Split, Transaction};
@@ -140,6 +141,14 @@ fn transaction(engine: &mut Engine) {
         "splitCount",
         field(|t| Dynamic::from(INT::try_from(t.splits.len()).unwrap_or(INT::MAX))),
     );
+    // `xaccTransOrder` (`5.17:libgnucash/engine/Transaction.cpp:1757-1761`, `:1794-1838`): -1, 0 or 1.
+    engine.register_fn("order", |a: &mut TransactionHandle, b: TransactionHandle| -> Fallible<INT> {
+        Ok(match trans_order(a.get()?, b.get()?) {
+            std::cmp::Ordering::Less => -1,
+            std::cmp::Ordering::Equal => 0,
+            std::cmp::Ordering::Greater => 1,
+        })
+    });
     engine.register_fn("splits", |t: &mut TransactionHandle| -> Fallible<Array> {
         let book = BookHandle(Rc::clone(&t.snap));
         let txn = t.get()?;
