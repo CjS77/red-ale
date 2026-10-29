@@ -22,8 +22,8 @@ calculator became ❌ after v0.3 (see "v0.7").
 | v0.2    | MCP; reports ≤ 1.6 in Rhai; rest of books, transactions, business |         — | Done ([`milestone2.md`](milestone2.md))        |
 | v0.3    | Memory and scale; import and export; online quotes                |         — | Done ([`milestone3.md`](milestone3.md))        |
 | v0.4    | SQLite books; scheduled transactions and budgets, with reports    |         — | Done ([`milestone4.md`](milestone4.md))        |
-| v0.5    | Ledgers, statements, analysis and investment reports              |        17 | Proposed                                       |
-| v0.6    | The manual; business and tax reports, invoices, PDF export        |        14 | Proposed                                       |
+| v0.5    | Ledgers, statements, analysis and investment reports              |         — | Done ([`milestone5.md`](milestone5.md))        |
+| v0.6    | The manual; business and tax reports, invoices, PDF export        |        16 | Proposed (with the Lot Viewer and Dashboard)   |
 | v0.7    | MySQL and PostgreSQL books                                        |         2 | Proposed                                       |
 | v1.0    | Parity: every row ✅ or ❌                                        |         4 | Proposed                                       |
 

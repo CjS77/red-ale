@@ -1,8 +1,8 @@
 # Milestone 5: red-ale v0.5
 
-**Status: draft.** The scope comes from [`roadmap.md`](roadmap.md) ("v0.5"), plus the Configuration change, which is
-done. "Decide before code" lists what is settled and what is still proposed; the proposed items are settled, and
-research notes written, before the reports that depend on them.
+**Status: done, except the maintainer's release steps** ("Done when", "Evidence"). The scope comes from
+[`roadmap.md`](roadmap.md) ("v0.5"), plus the Configuration change and distribution. Every decision is settled
+("Decide before code"), and the three research notes are written.
 
 **Goal:** red-ale runs GnuCash's ledgers, financial statements, analysis charts and investment reports, translated
 from their Scheme into Rhai, with GnuCash's options and figures, on XML and SQLite books alike. Every red-ale process
@@ -100,17 +100,17 @@ The `balsheet-pnl.scm` fixture of v0.2 (`fixtures/reports/balsheet-pnl.gnucash`)
 counts above were read from the pinned source for this draft; the research note for each group confirms them and
 lists the library functions each report needs.
 
-## Distribution (proposed)
+## Distribution
 
 Getting red-ale onto a machine and into the user's agents, so they can run reports from a harness. Not in the roadmap;
-proposed for v0.5 because the release workflow is written and `setup` is approved ("Decide before code", item 1).
+in v0.5 because the release workflow is written and `setup` is approved ("Decided", item 1).
 
 | Status | Item             | Notes                                                                                                                                                                                                                                               |
 |:------:|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |        | Release binaries | `.github/workflows/release.yml`: four targets (x86_64 and aarch64 for Linux musl and macOS), archives with SHA-256 files and build provenance, on a `vX.Y.Z` tag matching the workspace version; a manual run builds without releasing. Windows is deferred ("Out"). The workflow is in place and also checks and attaches `install.sh`; pushing the first tag, and checking its assets, is the maintainer's step |
 |   ✅   | `red-ale setup`  | [`setup.md`](setup.md) (approved): registers `red-ale mcp` with the eleven first-release harnesses, research in [`notes/mcp-harnesses.md`](notes/mcp-harnesses.md). Crate `red-ale-setup`: file adapters for opencode, Claude Desktop, Cursor, VS Code, Antigravity, Devin and Zed; CLI adapters for Claude Code, Codex, Copilot CLI, Gemini and Devin (when `devin` is on `PATH`). Tests: golden files per adapter and sample (`crates/red-ale-setup/tests/adapters.rs`), fake CLIs that record their arguments (`tests/cli.rs`), the command line (`crates/red-ale/tests/setup.rs`). The manual smoke test per harness is still to run before the release |
 |   ✅   | Install script | `install.sh`, attached to each release: download the archive for the machine, check its SHA-256, install the binary at a fixed path, run `red-ale setup` ([`setup.md`](setup.md), "Installation"). Tested against a fake release served from `file://` (`crates/red-ale/tests/install.rs`): install, `--no-setup`, arguments after `--`, a checksum that doesn't match |
-|        | Version          | The workspace version is still `0.2.0`; the first release sets it to the milestone being released                                                                                                                                                   |
+|   ✅   | Version          | The workspace version is `0.5.0`, the milestone being released, so a `v0.5.0` tag passes the workflow's check                                                                                                                                                   |
 
 ## Carried forward from v0.4
 
@@ -121,7 +121,7 @@ From [`milestone4.md`](milestone4.md), "Follow-ups":
 |   ✅   | XML split order | The XML reader sorts each transaction's splits as GnuCash's load does: a stable sort, value ≥ 0 before value < 0, from the commit that ends each transaction's read, Book and template transactions alike (`5.17:libgnucash/backend/xml/gnc-transaction-xml-v2.cpp:565-572`; `5.17:libgnucash/engine/Transaction.cpp:540-553`, `:1508-1510`). The rule is the core's `sort_splits`, shared with the SQLite reader through `sort_as_splits`, and the element's splits take the same order, so an order alone keeps no original text and original text kept for another reason is written sorted. Every XML fixture is already sorted, so `round_trip.rs` passes unchanged; `splits_another_writer_left_unsorted_are_read_and_written_as_gnucash_sorts_them`, `the_split_sort_keeps_the_file_order_on_each_side`, `original_text_kept_for_a_transaction_has_its_splits_sorted`, `template_transaction_splits_are_sorted_as_they_are_read`; oracle: `oracle_split_order.rs`, `red_ale_saves_unsorted_splits_as_gnucash_saves_them` (red-ale's no-edit save is byte for byte what GnuCash 5.17 writes after load and save) |
 |   ✅   | Since Last Run at scale on SQLite | Below. `since_last_run_scale.rs`, `a_since_last_run_creating_5000_transactions_on_an_sqlite_book_is_one_mutation` |
 |   ✅   | An SQLite book whose template root has no row | Made in memory, as GnuCash does: `sxtg_book_begin` makes a template root and loading the `books` row gives it the row's GUID (`5.17:libgnucash/engine/SX-book.cpp:113-125`; `5.17:libgnucash/backend/sql/gnc-book-sql.cpp:119-136`). A new scheduled transaction's template account goes under it and only its own row is written (`5.17:libgnucash/engine/Account.cpp:2824-2879`; `5.17:libgnucash/backend/sql/gnc-account-sql.cpp:278-344`): the oracle, given such a book, wrote no row for the root and reopened with the template account under it. red-ale writes the same rows. Neither a refusal nor a new row: GnuCash edits the book without one. `sqlite_template_root.rs`, `the_first_scheduled_transaction_goes_under_a_template_root_with_no_row`; oracle: `gnucash_reads_the_first_scheduled_transaction_of_a_book_whose_template_root_has_no_row` |
-|        | Rhai closure bugs | Reported upstream by the maintainer; the conventions stay until a release fixes them |
+|   ❌   | Rhai closure bugs | Not red-ale's to fix: still in rhai 1.27. Moved to "Follow-ups"; v0.5 found a related one and guards it ("Follow-ups", report functions) |
 
 **Measured: Since Last Run on SQLite.** As in [`milestone4.md`](milestone4.md) ("Done when", "Measured: Since Last
 Run"), with the example `memory`: `schedule 10 500` adds ten daily scheduled transactions of 500 occurrences to a copy
@@ -160,9 +160,9 @@ item 3). `red-ale setup` is a CLI command only ([`setup.md`](setup.md), "What it
 
 | Status | Interface    | Notes                                                                                                                                               |
 |:------:|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | JSON-RPC API | `redAleApi` 0.5.0 (started), additive over 0.4.0; the 0.4.0 document is committed beside the others and `api_additive.rs` checks against it. Added so far, to `ReportResult` ([`reports.md`](reports.md) §7): link kinds `split`, `transaction`, `invoice`, `price`, `docLink`; `anchors` cells; `until` (host: `localUntil`) on date cells; `labelLines` on columns; `link` on text blocks; `list` blocks; `alternate` on rows; the `warning` row role; tables with no columns; `rounding` and `numberFormat` on number cells; `exportError` |
-|        | MCP server   | Unchanged: the new templates are reached through the report tools                                                                                   |
-|        | CLI          | `--no-config` (done); `red-ale setup` if distribution is in                                                                                         |
+|   ✅   | JSON-RPC API | `redAleApi` 0.5.0, additive over 0.4.0; the 0.4.0 document is committed beside the others and `api_additive.rs` checks against it. Added so far, to `ReportResult` ([`reports.md`](reports.md) §7): link kinds `split`, `transaction`, `invoice`, `price`, `docLink`; `anchors` cells; `until` (host: `localUntil`) on date cells; `labelLines` on columns; `link` on text blocks; `list` blocks; `alternate` on rows; the `warning` row role; tables with no columns; `rounding` and `numberFormat` on number cells; `exportError` |
+|   ✅   | MCP server   | Unchanged: the new templates are reached through the report tools                                                                                   |
+|   ✅   | CLI          | `--no-config`; `red-ale setup`                                                                                                                            |
 
 ## Testing
 
@@ -182,15 +182,15 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
 ## Order of work
 
 1. ✅ **The default Configuration file.**
-2. **The Transaction Report engine** as a library module, then the Transaction Report, General Ledger and
+2. ✅ **The Transaction Report engine** as a library module, then the Transaction Report, General Ledger and
    Reconciliation Report on it; the General Journal on `lib/register`.
 3. ✅ **Statements:** Trial Balance, Cash Flow, Equity Statement, Multicolumn Balance Sheet and P&L.
 4. ✅ **Transaction Breakdown.**
 5. ✅ **Analysis charts:** Income/expense vs day of week, Cash flow chart.
-6. **Investment reports:** Investment Portfolio, Advanced Portfolio, IFRS cost basis, Investment Lots.
+6. ✅ **Investment reports:** Investment Portfolio, Advanced Portfolio, IFRS cost basis, Investment Lots.
 7. ✅ **Multicolumn reports**, last, once there are many reports to combine.
-8. **Distribution**, alongside the reports if it is in: the release, `setup` and the install script.
-9. **Interfaces and audit.**
+8. ✅ **Distribution** (the first tag is the maintainer's), alongside the reports if it is in: the release, `setup` and the install script.
+9. ✅ **Interfaces and audit.**
 
 ## Decide before code
 
@@ -247,6 +247,45 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
   checked by a test.
 - v0.1's to v0.4's done-when checks still pass.
 
+### Evidence
+
+Checked in the final audit. Test names are in the crate's `tests/` directory unless a path is given; `oracle` tests
+are `red-ale-testkit`'s, run with `--features oracle` against GnuCash 5.17.
+
+- **Rows.** Every row above is ✅ or ❌ but "Release binaries", whose first tagged run is the maintainer's step. The
+  16 ✅ GnuCash features have Ported `0.5` in `features.md`, which has no other `0.5` row; the Register report is ❌
+  there too.
+- **Report figures.** `red-ale-rpc`, one file per report: `report_transaction.rs` (all 117 assertions of
+  `test-transaction.scm`), `report_ledgers.rs` (the Reconciliation Report's checks; General Ledger cases),
+  `report_general_journal.rs`, `report_trial_balance.rs` (21), `report_equity_statement.rs` (8), `report_cash_flow.rs`
+  and `report_cashflow_barchart.rs` (27), `report_balsheet_pnl.rs` (16), `report_txn_columns.rs`, `report_daily.rs`,
+  `report_portfolio.rs`, `report_advanced_portfolio.rs`, `report_ifrs_cost_basis.rs` (15),
+  `report_investment_lots.rs` and `report_view_column.rs`. Each ports its GnuCash test's assertions, read as text from
+  `fixtures/reports/*.expected.json` with GnuCash's exact strings, through `report.run` and `report.export`, on the
+  XML fixture and its SQLite copy (`fixtures/sqlite/reports/`; `transaction.gnucash` has none, since GnuCash 5.17
+  cannot save an open order to SQLite, and those reports run their SQLite cases on other books); hand-worked cases
+  cite the `.scm` lines they follow. No test runs Guile. `red-ale-report/tests/lib_trep_engine.rs` checks the engine
+  on its own; `report_import.rs` imports saved Multicolumn Views.
+- **Golden bytes.** `report_golden.rs`: the v0.2 and v0.4 records are unchanged; `v0.5.txt` records every v0.5
+  template on every fixture book in both date formats (900 exports, none an error).
+- **Reports only read.** Every report test file has a run that leaves the Book, its revision, the dirty flag, the
+  file's bytes and its directory unchanged, on XML and SQLite.
+- **The Configuration.** `red-ale/tests/cli.rs`: `without_config_every_process_shares_the_default_file`,
+  `no_config_reads_and_writes_no_file`; `red-ale-service::config`: `the_default_path_follows_each_platform`,
+  `a_first_save_makes_the_directory`, `concurrent_changes_are_all_kept`.
+- **Distribution.** `red-ale-setup/tests/adapters.rs` and `tests/cli.rs` (every harness), `red-ale/tests/setup.rs`,
+  `red-ale/tests/install.rs` (Linux). Left to the maintainer: pushing `v0.5.0` and checking its four archives,
+  checksums and provenance; the manual smoke test in each first-release harness; `install.sh` on macOS.
+- **Interfaces.** `red-ale-mcp/tests/tools.rs`: `every_method_is_a_tool_with_its_params_schema_and_hints`;
+  `red-ale-rpc/tests/api_additive.rs`: `the_api_is_additive_over_0_2_0`, `_0_3_0` and `_0_4_0`, with `redAleApi`
+  0.5.0 and the 0.4.0 document committed.
+- **Fixes found on the way.** `red-ale-core` property tests that the split, transaction and num orders are total
+  orders (a book with the num field source on could panic a sort before); `oracle_split_sort.rs` (78 orders, as
+  GnuCash's QofQuery gives them); `red-ale-report/tests/engine_name_clash.rs`; `oracle_split_order.rs` and
+  `sqlite_template_root.rs` (the v0.4 follow-ups).
+- **Earlier milestones.** `cargo test --workspace` (1,899 tests) and the oracle suite (212 tests) pass; clippy is clean
+  with the oracle feature; `cargo deny check` passes.
+
 ## Follow-ups
 
 - **The SQLite reader's split lists.** It pushes each split onto its transaction's list, so a list of two or three
@@ -265,3 +304,5 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
   inside the libraries it imports too, so a report `fn abs(x)` would replace `abs` there (Rhai 1.27,
   `func/script.rs:377`). The load check refuses clashes between scripts, not with registered or standard-package
   functions; it could, with Rhai's `metadata` feature enabled outside tests. A dependency change of its own.
+- **Rhai closure bugs** (from v0.4). Reported upstream by the maintainer and still in rhai 1.27; the conventions in
+  [`reports.md`](reports.md) §12 stay until a release fixes them.
