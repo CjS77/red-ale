@@ -12,7 +12,7 @@ postponed balance it stores is raw (`5.17:gnucash/gnome/window-reconcile.cpp:250
 
 | Method               | Effect | Params                                   | Result |
 |----------------------|--------|------------------------------------------|--------|
-| `reconcile.setState` | write  | `split`, `state` (`n` `c` `y` `f`), `date` (with `y` only) | `split`, `transaction`, `state`, `reconcileDate` |
+| `reconcile.setState` | write  | `split`, `state` (`n` `c` `y` `f`), `date` (with `y` only; a Date, or a Timestamp as v0.5 took) | `split`, `transaction`, `state`, `reconcileDate` |
 
 - The states are GnuCash's `n` (new), `c` (cleared), `y` (reconciled), `f` (frozen) and `v` (void)
   (`5.17:libgnucash/engine/Split.h:73-77`). `xaccSplitSetReconcile` accepts all five
@@ -23,6 +23,9 @@ postponed balance it stores is raw (`5.17:gnucash/gnome/window-reconcile.cpp:250
     transactions read-only and its reconcile window never lists them (`5.17:gnucash/gnome/reconcile-view.c:381`);
   - `date` with a state other than `y` (`invalid`);
   - a split whose transaction is unbalanced (`unbalanced`), as for every red-ale mutation. Scrub it first.
+- **`date`** is a Date, stamped as local 23:59:59 of that day, the time the reconcile window gives its statement date
+  (`gnc_date_edit_get_date_end`, `5.17:gnucash/gnome/window-reconcile.cpp:931`) and so the one Finish stamps. A
+  Timestamp is also taken, for an exact time: v0.5 took only that, and the wire stays additive.
 - **Deviation:** setting `y` stamps the reconcile date with `date`, or now. `xaccSplitSetReconcile` leaves the date
   alone, and only the reconcile window sets it (`5.17:gnucash/gnome/reconcile-view.c:931-937`). red-ale stamps it so a
   reconciled split always says when. Other states keep the stored date, as GnuCash does.
