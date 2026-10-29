@@ -72,7 +72,7 @@ fn render(params, book, opts, ctx) {
   shows it to two places. Money is never a floating-point number in a script.
 - `render()` returns a map of the report result: a `title` and `sections` of `blocks` (tables, text, charts).
 
-Running it on a book with a bank account holding 2,186.00 gives a table whose rows look like this (shown, not run, since
+Running it on a book whose `ASSET` account `Root:Asset:Bank` holds 2,186.00 gives a table whose rows look like this (shown, not run, since
 an Example cannot put a file in the directory):
 
 ```json

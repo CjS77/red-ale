@@ -328,10 +328,6 @@ are `red-ale-testkit`'s, run with `--features oracle` against GnuCash 5.17.
 
 ## Follow-ups
 
-- **GnuCash's *Equities*.** GnuCash's glossary defines *Equities* as investments in which the investor becomes an
-  owner (`C/guide/gnc-glossary.docbook` at `5.17`), where red-ale's `EQUITY` is the Account type for the owner's
-  equity. [`glossary.md`](glossary.md) does not flag the clash yet; it wants a ⚠ beside the Account type, as `STOCK`
-  has.
 - **Accounts and splits shared with templates.** GnuCash keeps template accounts in the Book's one account collection
   and template splits in its one split collection, and an SQL book keeps each in one table, as it does transactions.
   v0.6 checks only transactions against template transactions ("Carried forward from v0.5"). Accounts would cost the
