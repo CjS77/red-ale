@@ -130,7 +130,10 @@ fn a_save_of_a_shared_transaction_guid_is_invalid() {
     d.call("book.open", json!({ "path": path.display().to_string() })).unwrap();
     let e = d.call("book.save", json!({})).unwrap_err();
     assert_eq!(e.code, codes::INVALID, "{e}");
-    assert_eq!(e.data, Some(json!({ "reason": "shared-guid", "guid": template })));
+    assert_eq!(
+        e.data,
+        Some(json!({ "reason": "shared-guid", "guid": template, "help": "error/invalid" }))
+    );
     d.call("book.close", json!({ "discard": true })).unwrap();
 }
 
