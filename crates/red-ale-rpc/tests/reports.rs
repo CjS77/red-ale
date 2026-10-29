@@ -142,13 +142,14 @@ fn dispatcher(config: &Path) -> Dispatcher {
     d
 }
 
-/// The user templates and saved configurations of a `report.list` result, leaving out the built-in reports.
+/// The user templates and saved configurations of a `report.list` result, leaving out the built-in reports and
+/// built-in saved configurations.
 fn listed(list: &Value) -> Vec<&Value> {
     list["reports"]
         .as_array()
         .unwrap()
         .iter()
-        .filter(|r| r["kind"] != "builtin")
+        .filter(|r| r["kind"] != "builtin" && r.get("readOnly").is_none())
         .collect()
 }
 

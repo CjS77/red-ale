@@ -15,7 +15,7 @@ one with `conflict`; both carry `data.reason` `auto-read-only`. Set it to 0 to l
 
 ```example fixture=reports/test-data now=2024-07-01T12:00:00Z
 {"method": "book.setOptions", "params": {"autoReadOnlyDays": 30}}
-{"result": {"splitActionForNum": false, "autoReadOnlyDays": 30, "readOnlyThreshold": "2024-06-01", "useTradingAccounts": false, "defaultBudget": null}}
+{"result": {"splitActionForNum": false, "autoReadOnlyDays": 30, "readOnlyThreshold": "2024-06-01", "useTradingAccounts": false, "defaultBudget": null, "companyName": "", "companyAddress": "", "companyContactPerson": "", "companyPhoneNumber": "", "companyFaxNumber": "", "companyEmailAddress": "", "companyWebsiteUrl": "", "companyId": "", "taxNumber": "", "defaultInvoiceReport": null}}
 {"method": "transaction.post", "params": {"datePosted": "2024-03-01", "description": "Too old", "splits": [{"account": "Root:Asset:Bank", "value": "5.00"}, {"account": "Root:Expenses", "value": "-5.00"}]}}
 {"error": {"code": 2001, "message": "…", "data": {"reason": "auto-read-only", "date": "2024-03-01", "threshold": "2024-06-01", "help": "error/invalid"}}}
 ```
