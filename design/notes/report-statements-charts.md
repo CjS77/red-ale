@@ -1155,7 +1155,7 @@ and the options summary use GnuCash's names. Wire value: an array of children in
 | Field | Meaning |
 |-------|---------|
 | `report` | A GUID: a saved configuration (`kind: saved`) or a template (`builtin`, `user`). Not a name: names change and clash, and a reference must stay put |
-| `options` | Optional changes over that report's values, as `report.run` takes them: over the template's defaults, or over the saved configuration's values |
+| `options` | Optional changes over the template's defaults, as `report.run` takes them; only with a template GUID. A saved configuration child is refused with options (milestone5.md "Decided", item 3: a child is a saved configuration, or a template with options) |
 | `colspan`, `rowspan` | 0–100, default 1, GnuCash's `wide` and `high` |
 
 - **When set** (`report.run`, `report.export`, `report.saveConfiguration`, `report.updateConfiguration`): the shape
