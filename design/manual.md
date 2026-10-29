@@ -1,6 +1,8 @@
 # The manual
 
-**Status: proposed** (see [`roadmap.md`](roadmap.md), v0.6). How red-ale documents itself, so that:
+**Status: in progress** (see [`roadmap.md`](roadmap.md), v0.6; [`milestone6.md`](milestone6.md), "The Manual"):
+`red-ale-docs`, the `help.*` methods and the coverage and Example tests are built ("Settled in building it", below).
+How red-ale documents itself, so that:
 
 1. an AI agent can find out by itself how to do something with red-ale;
 2. a user can ask an agent how to do something, and the agent has the whole documentation at hand;
@@ -24,7 +26,7 @@ onto red-ale, and a way to search any of it.
 
 ## Terms
 
-Proposed for [`glossary.md`](glossary.md):
+In [`glossary.md`](glossary.md), "The Manual":
 
 | Term | Meaning |
 |------|---------|
@@ -220,3 +222,38 @@ Decided with [`milestone6.md`](milestone6.md):
 - Every method, however rarely used, needs a "what it is for" paragraph and one Example; nothing more is required.
 - The Manual has a short section on writing custom report scripts (a Concept page and a Guide), since most of
   GnuCash's reports are left for users to write as their own scripts.
+
+## Settled in building it
+
+Decided while building `red-ale-docs` and the `help.*` methods ([`api/help.md`](api/help.md) has the methods):
+
+- **Files.** Every Markdown file of `docs/` is a Page, compiled in by `red-ale-docs`'s build script, which lists them
+  sorted by path. A file starts with the line `<!-- SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later -->`
+  (an HTML comment, so viewers hide it), then a front matter between `---` lines: `id` (required, and equal to the
+  Page ID the file's place gives), `title`, `summary`, `related` (comma-separated Page IDs) and `from`. Title and
+  summary are required except on Reference pages, which take them from the registries unless the file overrides
+  them. Places: `start.md`; `reference/<method>.md`, `errors/<name>.md`, `reports/<id>.md` (the hand-written parts of
+  Reference pages, read before the generated reference); `concepts/`, `guides/`, `gnucash/`, `legal/`. Other files
+  of `docs/` carry the SPDX line as a `#` comment (`synonyms.txt`, `coverage-pending.txt`), except `COPYING-DOCS`,
+  the licence's own text.
+- **Page IDs.** A report's Page ID is its template's name in lower case with each run of other characters than
+  letters and digits made one `-` (`report/income-vs-day-of-week`). `legal/gfdl` is generated from
+  `docs/COPYING-DOCS`.
+- **Links.** A link to a Page is a Markdown link whose target is its Page ID (`[value](concept/value-and-amount)`),
+  with an optional `#anchor`; targets with a scheme or starting with `#`, `/` or `.` are not Pages. The renderers
+  keep it (Markdown), follow it with the target in parentheses (text), or map it to the Page's file (the site).
+- **Examples.** The block's attributes are `fixture=<path under fixtures/, without .gnucash>`, `book=open|closed|none`
+  (the book, a copy of the fixture or a new one, is `book.gnucash` in an empty directory, opened before the first
+  call by default), `now=<RFC 3339 UTC>` (default 2024-07-01T12:00:00Z) and `zone=<POSIX TZ as the server reads
+  TZ>` (default UTC). Calls run in the book's directory, so paths are relative to it. Lines come in pairs, a request
+  `{"method", "params"}` and a response `{"result"}` or `{"error"}`. Comparison is exact except: `"…"` matches any
+  value, an object with a `"…"` key may have more fields, and an array ending in `"…"` may have more items.
+- **Synonyms.** The glossary is compiled into `red-ale-docs` and parsed when the Manual is built: no generated copy
+  to keep in step, and the parser is unit-tested. The supplement is `docs/synonyms.txt`.
+- **Search** is BM25F: BM25 with each field (title, method name, summary, body) weighted and normalised by its own
+  length, so a long Reference page still ranks first for its own method's name.
+- **Coverage while writing.** `docs/coverage-pending.txt` lists the gaps known to be open, one `<page-id> <what>`
+  per line; the coverage test fails on a gap not listed and on a listed one that is closed, so the list only
+  shrinks. Reports, like methods, need a hand-written part and an Example. The check that every glossary term a Page
+  uses is defined is not built yet: it needs a way to tell a term in a Page from an ordinary word.
+- **`data.help`** is added by the dispatcher to every error: `error/<name>` unless the method set a Page of its own.
