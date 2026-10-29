@@ -26,10 +26,16 @@ refused:
 {"error": {"code": 2000, "message": "…", "data": {"kind": "importProposal", "id": "imp-999999", "help": "error/not-found"}}}
 ```
 
-Applying the first bank statement above, giving Food as the account that balances Coffee (proposal IDs count up from 1
-in each server process, so this is shown, not run as an Example):
+A bank statement previewed and applied, giving Food as the account that balances Coffee. Proposal IDs count up from
+`imp-1` in each server. Lunch, given no account, is balanced against `Imbalance-USD`:
 
-```json
+```example
+{"method": "account.create", "params": {"name": "Checking", "type": "BANK", "commodity": "USD"}}
+{"result": "…"}
+{"method": "account.create", "params": {"name": "Food", "type": "EXPENSE", "commodity": "USD"}}
+{"result": "…"}
+{"method": "import.preview", "params": {"format": "csvTransactions", "files": [{"name": "bank.csv", "text": "Date,Description,Amount\n2024-06-03,Coffee,-3.50\n2024-06-04,Lunch,-12.00\n"}], "layout": {"format": "csv", "separators": ",", "skipStartLines": 1, "dateFormat": "y-m-d", "currencyFormat": "period", "encoding": "utf-8", "baseAccount": "Checking", "columns": ["Date", "Description", "Amount"]}}}
+{"result": {"id": "imp-1", "…": "…"}}
 {"method": "import.apply", "params": {"proposal": "imp-1", "changes": [{"index": 0, "account": "Food"}]}}
-{"result": {"added": [{"index": 0, "transaction": "…"}, {"index": 1, "transaction": "…"}], "skipped": [], "imbalanceSplits": [{"index": 1, "account": "…", "value": {"num": "1200", "denom": "100"}, "…": "…"}], "learned": {"…": "…"}, "warnings": ["…"], "…": "…"}}
+{"result": {"added": [{"index": 0, "transaction": "…"}, {"index": 1, "transaction": "…"}], "skipped": [], "imbalanceSplits": [{"index": 1, "account": "…", "value": {"num": "1200", "denom": "100"}, "…": "…"}], "learned": "…", "warnings": "…", "…": "…"}}
 ```

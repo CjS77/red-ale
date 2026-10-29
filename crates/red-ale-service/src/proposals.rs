@@ -14,9 +14,28 @@ use crate::ServiceError;
 /// How many proposals of one kind are held; a newer one pushes out the oldest.
 pub const KEPT: usize = 16;
 
-/// The number of the next proposal, for the whole process: an ID is never reused, so one made before the book was
-/// opened (or in another session) is never mistaken for one of this session's.
-static NEXT: AtomicU64 = AtomicU64::new(1);
+/// The numbers proposal IDs are made from, shared by every session of one server: an ID is never reused while the
+/// server runs, so one made before the book was opened (or for a book closed since) is never mistaken for one of this
+/// session's. Each server counts from 1, so the same calls to a new server give the same IDs.
+#[derive(Debug, Clone)]
+pub struct ProposalIds(Arc<AtomicU64>);
+
+impl ProposalIds {
+    /// A counter whose first number is 1.
+    pub fn new() -> Self {
+        Self(Arc::new(AtomicU64::new(1)))
+    }
+
+    fn next(&self) -> u64 {
+        self.0.fetch_add(1, Ordering::Relaxed)
+    }
+}
+
+impl Default for ProposalIds {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// The kinds of proposal a session holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,21 +105,28 @@ impl<P> Clone for Held<P> {
 #[derive(Debug)]
 pub struct ProposalStore<P> {
     kind: ProposalKind,
+    ids: ProposalIds,
     held: VecDeque<Held<P>>,
 }
 
 impl<P> ProposalStore<P> {
-    /// An empty store for proposals of `kind`.
-    pub fn new(kind: ProposalKind) -> Self {
+    /// An empty store for proposals of `kind`, numbering them from `ids`.
+    pub fn new(kind: ProposalKind, ids: ProposalIds) -> Self {
         Self {
             kind,
+            ids,
             held: VecDeque::new(),
         }
     }
 
+    /// Number new proposals from `ids`, the server's counter, from now on.
+    pub fn number_from(&mut self, ids: ProposalIds) {
+        self.ids = ids;
+    }
+
     /// Hold a proposal made at `revision`, pushing out the oldest beyond [`KEPT`]. Returns its ID.
     pub fn insert(&mut self, revision: u64, proposal: Arc<P>) -> String {
-        let id = format!("{}-{}", self.kind.prefix(), NEXT.fetch_add(1, Ordering::Relaxed));
+        let id = format!("{}-{}", self.kind.prefix(), self.ids.next());
         self.held.push_back(Held {
             id: id.clone(),
             revision,
@@ -159,19 +185,25 @@ mod tests {
 
     #[test]
     fn sixteen_are_kept_and_ids_are_never_reused() {
-        let mut store = ProposalStore::new(ProposalKind::Import);
-        let ids: Vec<String> = (0..=KEPT).map(|r| store.insert(r as u64, Arc::new(r))).collect();
-        assert!(store.get(&ids[0]).is_none(), "the oldest was pushed out by the seventeenth");
-        assert!(ids[1..].iter().all(|id| store.get(id).is_some()));
-        assert_eq!(store.get(&ids[KEPT]).map(|h| h.revision), Some(KEPT as u64));
-        assert!(store.remove(&ids[3]) && !store.remove(&ids[3]));
-        let mut other = ProposalStore::new(ProposalKind::Import);
-        assert!(!ids.contains(&other.insert(0, Arc::new(0))), "another session's IDs are new");
+        let ids = ProposalIds::new();
+        let mut store = ProposalStore::new(ProposalKind::Import, ids.clone());
+        let made: Vec<String> = (0..=KEPT).map(|r| store.insert(r as u64, Arc::new(r))).collect();
+        assert!(store.get(&made[0]).is_none(), "the oldest was pushed out by the seventeenth");
+        assert!(made[1..].iter().all(|id| store.get(id).is_some()));
+        assert_eq!(store.get(&made[KEPT]).map(|h| h.revision), Some(KEPT as u64));
+        assert!(store.remove(&made[3]) && !store.remove(&made[3]));
+        let mut other = ProposalStore::new(ProposalKind::Import, ids);
+        assert!(
+            !made.contains(&other.insert(0, Arc::new(0))),
+            "another session of the server makes new IDs"
+        );
+        let mut elsewhere = ProposalStore::new(ProposalKind::Import, ProposalIds::new());
+        assert_eq!(elsewhere.insert(0, Arc::new(0)), "imp-1", "another server counts from 1");
     }
 
     #[test]
     fn kinds_are_named_apart_and_stale_ones_refused() {
-        let mut store = ProposalStore::new(ProposalKind::SinceLastRun);
+        let mut store = ProposalStore::new(ProposalKind::SinceLastRun, ProposalIds::new());
         let id = store.insert(4, Arc::new(()));
         assert!(id.starts_with("slr-"), "{id}");
         assert!(store.current(&id, 4).is_ok());

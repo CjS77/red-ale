@@ -10,7 +10,9 @@ GnuCash reads it back the same.
 
 A same-day price of the pair (in either direction) is handled as GnuCash does. One with a better-ranked source blocks
 the new one: `outcome` is `rejected` and `existing` names it. Otherwise it is replaced (`outcome` `replaced`, with the
-old GUID in `replaced`). Adding the same price twice therefore replaces the first.
+old GUID in `replaced`). Adding the same price twice therefore replaces the first, as in GnuCash, which removes the
+old price before it looks for an identical one. `outcome` is `duplicate` only when another identical price of that day
+is still there, which only a book GnuCash wrote can hold.
 
 ## Examples
 
@@ -19,4 +21,6 @@ old GUID in `replaced`). Adding the same price twice therefore replaces the firs
 {"result": {"outcome": "added", "price": {"commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "date": "2024-06-28", "source": "user:price-editor", "value": {"num": "10850", "denom": "10000"}, "…": "…"}, "replaced": null, "existing": null}}
 {"method": "price.add", "params": {"commodity": "EUR", "currency": "USD", "value": "1.0900", "date": "2024-06-28", "source": "Finance::Quote"}}
 {"result": {"outcome": "rejected", "price": null, "replaced": null, "existing": "…"}}
+{"method": "price.add", "params": {"commodity": "EUR", "currency": "USD", "value": "1.0850", "date": "2024-06-28"}}
+{"result": {"outcome": "replaced", "price": {"date": "2024-06-28", "value": {"num": "10850", "denom": "10000"}, "…": "…"}, "replaced": "…", "existing": null}}
 ```

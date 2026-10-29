@@ -14,7 +14,7 @@ use crate::backend::{self, Access, Backend, Format, Opened, SaveOptions};
 use crate::error::ServiceError;
 use crate::files::{Retention, remove_old_files};
 use crate::journal::{Journal, RecordKind, record_lines};
-use crate::proposals::{ProposalKind, ProposalStore};
+use crate::proposals::{ProposalIds, ProposalKind, ProposalStore};
 use crate::replay::{ReplayReport, replay};
 use crate::since_last_run::HeldRun;
 
@@ -242,6 +242,7 @@ impl Session {
     /// A session over a book a Backend has opened, with nothing unsaved.
     fn from_opened(opened: Opened, settings: Settings, env: Box<dyn EnvDebug>) -> Self {
         let Opened { book, read_only, backend } = opened;
+        let ids = ProposalIds::new();
         Self {
             journal: Journal::new(backend.path()),
             backend,
@@ -252,9 +253,16 @@ impl Session {
             settings,
             env,
             revision: 0,
-            proposals: ProposalStore::new(ProposalKind::Import),
-            runs: ProposalStore::new(ProposalKind::SinceLastRun),
+            proposals: ProposalStore::new(ProposalKind::Import, ids.clone()),
+            runs: ProposalStore::new(ProposalKind::SinceLastRun, ids),
         }
+    }
+
+    /// Number this session's proposals from `ids`, its server's counter, so that IDs are never reused while the
+    /// server runs, whichever book it has open.
+    pub fn number_proposals_from(&mut self, ids: &ProposalIds) {
+        self.proposals.number_from(ids.clone());
+        self.runs.number_from(ids.clone());
     }
 
     /// Replace the environment (clock and GUID source), for deterministic tests.
@@ -377,9 +385,11 @@ impl Session {
             self.backend.check_storable(&self.book, &next)?;
             journal_records(&self.book, &next, &changes, self.env.now())
         };
+        let now = self.env.now();
+        let zone = self.env.zone();
         records
             .iter()
-            .try_for_each(|lines| self.journal.write_record(lines))
+            .try_for_each(|lines| self.journal.write_record(lines, now, zone))
             .map_err(|e| self.io_error(e))?;
         self.book = next;
         self.dirty = true;

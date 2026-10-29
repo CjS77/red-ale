@@ -9,6 +9,13 @@ deterministic, and knows GnuCash's words: "quantity" finds *amount*, "bill" find
 
 ## Examples
 
+A method's own Page ranks first for the words of its name, ahead of an error that shares them:
+
+```example book=none
+{"method": "help.search", "params": {"query": "open a book", "limit": 2}}
+{"result": {"hits": [{"id": "method/book.open", "kind": "method", "title": "book.open", "summary": "…", "snippet": "…"}, {"id": "error/book-already-open", "kind": "error", "title": "book-already-open", "summary": "…", "snippet": "…"}]}}
+```
+
 ```example book=none
 {"method": "help.search", "params": {"query": "transaction does not balance", "kind": "error", "limit": 2}}
 {"result": {"hits": [{"id": "error/unbalanced", "kind": "error", "title": "unbalanced", "summary": "…", "snippet": "…"}, "…"]}}

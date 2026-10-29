@@ -203,7 +203,8 @@ pub fn check_source(source: Option<&str>) -> DomainResult<()> {
 /// Add a price as `gnc_pricedb_add_price` does (`add_price`, `5.17:libgnucash/engine/gnc-pricedb.cpp:1013-1110`):
 /// a same-day price of the pair, in either direction, is replaced if the new price's source has equal or better
 /// precedence, and otherwise the new price is rejected; then a same-day price of equal value in the same direction
-/// makes the new price a silent duplicate. "Same day" is a local day in `zone`.
+/// that is still there makes the new price a silent duplicate. The replaced price is removed first, so a price equal
+/// to it replaces it. "Same day" is a local day in `zone`.
 pub fn add_price(book: &mut Book, mut price: Price, zone: &TimeZone) -> DomainResult<AddResult> {
     resolve_sides(book, &mut price)?;
     check_source(price.source.as_deref())?;
@@ -546,6 +547,38 @@ mod tests {
         assert_eq!(fq.rejected_by, Some(Guid::from_bytes([2; 16])));
         assert_eq!(b.prices.len(), 1);
         assert!(add_utc(&mut b, price(4, usd(), eur(), "2024-01-11", "my-source", 92)).is_err());
+    }
+
+    /// `add_price` removes the nearest same-day price before `gnc_price_list_insert` looks for a duplicate
+    /// (`5.17:libgnucash/engine/gnc-pricedb.cpp:1069`, `:1081`), so an identical price replaces the one it equals. Only
+    /// a second same-day price, as a bulk load leaves, can make it a duplicate, and the nearest is removed even then.
+    #[test]
+    fn an_identical_same_day_price_replaces_the_one_it_equals() {
+        let mut b = book();
+        add_utc(&mut b, price(1, eur(), usd(), "2024-01-10", EDITOR_SOURCE, 110)).unwrap();
+        let again = add_utc(&mut b, price(2, eur(), usd(), "2024-01-10", EDITOR_SOURCE, 110)).unwrap();
+        assert_eq!(
+            (again.added, again.replaced, again.duplicate_of),
+            (Some(Guid::from_bytes([2; 16])), Some(Guid::from_bytes([1; 16])), None)
+        );
+        assert_eq!(b.prices.keys().copied().collect::<Vec<_>>(), [Guid::from_bytes([2; 16])]);
+
+        let mut loaded = book();
+        let mut later = price(3, eur(), usd(), "2024-01-10", EDITOR_SOURCE, 120);
+        later.time = later.time.plus_seconds(3600);
+        [price(1, eur(), usd(), "2024-01-10", EDITOR_SOURCE, 110), later]
+            .into_iter()
+            .for_each(|p| {
+                loaded.prices.insert(p.guid, Arc::new(p));
+            });
+        let mut new = price(4, eur(), usd(), "2024-01-10", EDITOR_SOURCE, 110);
+        new.time = new.time.plus_seconds(3600);
+        let dup = add_utc(&mut loaded, new).unwrap();
+        assert_eq!(
+            (dup.added, dup.replaced, dup.duplicate_of),
+            (None, Some(Guid::from_bytes([3; 16])), Some(Guid::from_bytes([1; 16])))
+        );
+        assert_eq!(loaded.prices.keys().copied().collect::<Vec<_>>(), [Guid::from_bytes([1; 16])]);
     }
 
     #[test]

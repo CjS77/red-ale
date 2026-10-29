@@ -1,9 +1,8 @@
 //! Methods: the accounting period, a red-ale setting rather than book data (GnuCash keeps it in user preferences).
 //! See `design/api/accounts.md`.
 
+use red_ale_core::Date;
 use red_ale_core::ops::period::{self, AccountingPeriod, FiscalYearEnd, PeriodBound, RelativePeriod};
-use red_ale_core::{Date, Env};
-use red_ale_service::session::SystemEnv;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -186,14 +185,11 @@ pub struct DatesResult {
     pub end_time: Timestamp,
 }
 
-/// Today in the local time zone, by the session's clock, or the server's without a book.
+/// Today in the local time zone, by the session's clock, or the server's without a book (the environment its sessions
+/// get, which a test fixes).
 fn today(ctx: &mut Context) -> Result<Date, RpcError> {
-    let today = if ctx.has_session() {
-        ctx.query(|_, env| Ok(env.today()))?
-    } else {
-        SystemEnv.today()
-    };
-    today.ok_or_else(|| RpcError::internal("the clock is out of range"))
+    ctx.query_any(|_, env| Ok(env.today()))?
+        .ok_or_else(|| RpcError::internal("the clock is out of range"))
 }
 
 fn dates(ctx: &mut Context, p: DatesParams) -> Result<DatesResult, RpcError> {

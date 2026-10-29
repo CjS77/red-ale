@@ -23,7 +23,10 @@ are canonical, and red-ale must round-trip them byte for byte:
 - `synthetic/business.gnucash` (every business object type, including a credit note, so it declares the Credit
   Notes feature and red-ale v0.1 opens it read-only), `synthetic/business-editable.gnucash` (the same book made with
   `--no-credit-note`: the job's invoice is an ordinary invoice and the book is writable), `synthetic/rich.gnucash` (every core entity and slot
-  type, special characters, a budget, a scheduled transaction and template transactions)
+  type, special characters, a budget, a scheduled transaction and template transactions), `synthetic/import-map.gnucash`
+  (a few accounts and the import map entries GnuCash's importers learn: Bayesian tokens, one of them pointing to a
+  deleted account, the `desc` and `memo` maps and a CSV account map entry; `scripts/fixtures/import_map_create.py`,
+  with no SQLite copy)
 - every `piecash/*.gnucash` except the `.sqlite` one
 - every `reports/*.gnucash`
 

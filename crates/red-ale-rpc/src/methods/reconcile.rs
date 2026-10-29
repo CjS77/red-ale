@@ -112,9 +112,30 @@ pub struct SetStateParams {
     pub split: Id,
     /// The new state: `n`, `c`, `y` or `f`. `v` comes only from voiding the transaction.
     pub state: State,
-    /// With `y` only: the reconcile date. Defaults to now.
+    /// With `y` only: the reconcile date, `YYYY-MM-DD` for the end of that local day (as the reconcile window stamps
+    /// its statement date), or an RFC 3339 timestamp for an exact time. Defaults to now.
     #[serde(default)]
-    pub date: Option<Timestamp>,
+    pub date: Option<ReconcileDate>,
+}
+
+/// A reconcile date: a day, or an exact time. v0.5 took only a timestamp; a day was added later.
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ReconcileDate {
+    /// The end of this local day, 23:59:59.
+    Day(Day),
+    /// This instant.
+    Time(Timestamp),
+}
+
+impl ReconcileDate {
+    /// The instant it names in `zone`.
+    fn time(self, zone: &TimeZone) -> red_ale_core::Time64 {
+        match self {
+            Self::Day(d) => zone.day_end(d.0),
+            Self::Time(t) => t.0,
+        }
+    }
 }
 
 /// A split's reconcile state.
@@ -133,7 +154,8 @@ pub struct SplitState {
 
 fn set_state(ctx: &mut Context, p: SetStateParams) -> Result<SplitState, RpcError> {
     let split = p.split.0;
-    ctx.mutate(|book, env| rec::set_split_state(book, env, split, p.state.into(), p.date.map(|d| d.0)))?;
+    let date = p.date.map(|d| d.time(&ctx.zone()));
+    ctx.mutate(|book, env| rec::set_split_state(book, env, split, p.state.into(), date))?;
     let book = ctx.book()?;
     let t = book
         .transaction_of_split(split)

@@ -189,6 +189,20 @@ fn split_state_rules() {
         json!({ "split": EURO, "state": "y", "date": "2024-06-30T23:59:59Z" }),
     );
     assert_eq!(y["reconcileDate"], "2024-06-30T23:59:59Z");
+    let y = call(
+        &mut d,
+        "reconcile.setState",
+        json!({ "split": EURO, "state": "y", "date": "2024-06-29" }),
+    );
+    assert_eq!(
+        y["reconcileDate"], "2024-06-29T23:59:59Z",
+        "a date is the end of that local day, as the reconcile window stamps its statement date"
+    );
+    call(
+        &mut d,
+        "reconcile.setState",
+        json!({ "split": EURO, "state": "y", "date": "2024-06-30T23:59:59Z" }),
+    );
     let f = call(&mut d, "reconcile.setState", json!({ "split": EURO, "state": "f" }));
     assert_eq!((&f["state"], &f["reconcileDate"]), (&json!("f"), &json!("2024-06-30T23:59:59Z")));
     assert_eq!(

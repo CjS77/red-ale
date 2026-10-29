@@ -15,7 +15,9 @@ const K1: f64 = 1.2;
 const B: f64 = 0.75;
 /// How much a word counts in each field.
 const TITLE_WEIGHT: f64 = 3.0;
-const METHOD_WEIGHT: f64 = 3.0;
+/// A method's name says most exactly what its Page is for, so it outweighs a title that only shares its words (an
+/// error such as `book-already-open` against `book.open`).
+const METHOD_WEIGHT: f64 = 6.0;
 const SUMMARY_WEIGHT: f64 = 2.0;
 const BODY_WEIGHT: f64 = 1.0;
 /// How much a word a synonym brings in counts against one the query has.
@@ -115,10 +117,7 @@ impl Index {
                 (page.kind, lengths)
             })
             .collect();
-        let n = count(docs.len()).max(1.0);
-        let mut average = [0.0; FIELDS];
-        docs.iter()
-            .for_each(|(_, lengths)| (0..FIELDS).for_each(|f| average[f] += lengths[f] / n));
+        let average = average_lengths(&docs);
         Self {
             docs,
             postings,
@@ -181,6 +180,17 @@ impl Index {
             })
             .sum()
     }
+}
+
+/// The average length of each field over the Pages that have it. Only Reference pages of methods have a method
+/// name, so averaging it over every Page would make each method's name look long, and its matches weak.
+fn average_lengths(docs: &[(Kind, PerField)]) -> PerField {
+    let mut average = [0.0; FIELDS];
+    (0..FIELDS).for_each(|f| {
+        let present: Vec<f64> = docs.iter().map(|(_, lengths)| lengths[f]).filter(|l| *l > 0.0).collect();
+        average[f] = present.iter().sum::<f64>() / count(present.len()).max(1.0);
+    });
+    average
 }
 
 /// A count as `f64`; Manual sizes are far below where that loses precision.
@@ -256,6 +266,41 @@ mod tests {
         assert_eq!(index.search("transaction", Some(Kind::Concept), 10), [1]);
         assert_eq!(index.search("transaction", None, 1), [0]);
         assert!(index.search("zebra", None, 10).is_empty());
+    }
+
+    #[test]
+    fn a_long_reference_page_ranks_first_for_its_method_name() {
+        let filler = |i: usize| format!("Account {i} lists its splits and their values, in the account's commodity. ");
+        let long_body: String = (0..30).map(filler).collect::<String>() + "Open the book, then book the book. A book open.";
+        let mut pages = vec![
+            page(
+                "method/book.open",
+                Kind::Method,
+                "book.open",
+                "Open an XML or SQLite book.",
+                &long_body,
+            ),
+            page(
+                "error/book-already-open",
+                Kind::Error,
+                "book-already-open",
+                "A book is already open in this server.",
+                "Close the open book first. One server holds one book.",
+            ),
+        ];
+        (0..20).for_each(|i| {
+            pages.push(page(
+                &format!("concept/c{i}"),
+                Kind::Concept,
+                &format!("Concept {i}"),
+                "A concept.",
+                &filler(i),
+            ));
+        });
+        let refs: Vec<&Page> = pages.iter().collect();
+        let index = Index::build(&refs, Vec::new());
+        assert_eq!(index.search("open a book", None, 2), [0, 1]);
+        assert_eq!(index.search("book-already-open", None, 1), [1]);
     }
 
     #[test]

@@ -13,6 +13,19 @@ An entry is invalid when the account it points to no longer exists; `invalidOnly
 
 ## Examples
 
+A book whose checking account has learned from a few imports. GnuCash's Bayesian matcher keeps one entry per token
+and account (the words of a description, and the day of the week), the plain maps one per description or memo, and
+the CSV map one per account name in a file. The `Coffee` token points to an account deleted since, so it is invalid:
+
+```example fixture=synthetic/import-map
+{"method": "importMap.list", "params": {}}
+{"result": {"entries": [{"account": {"guid": "…", "fullName": "Assets:Checking"}, "kind": "bayes", "key": "ACME", "target": {"guid": "…", "fullName": "Income:Salary"}, "count": 1, "valid": true}, {"kind": "bayes", "key": "Coffee", "target": null, "valid": false, "…": "…"}, {"kind": "bayes", "key": "Corner", "target": {"guid": "…", "fullName": "Expenses:Groceries"}, "…": "…"}, {"kind": "bayes", "key": "Friday", "…": "…"}, {"kind": "bayes", "key": "Grocer", "…": "…"}, {"kind": "bayes", "key": "Monday", "…": "…"}, {"kind": "bayes", "key": "Salary", "…": "…"}, {"kind": "desc", "key": "Corner Grocer", "target": {"guid": "…", "fullName": "Expenses:Groceries"}, "…": "…"}, {"kind": "memo", "key": "March rent", "target": {"guid": "…", "fullName": "Expenses:Rent"}, "…": "…"}, {"kind": "csvAccountMap", "key": "CHK-001", "target": {"guid": "…", "fullName": "Assets:Checking"}, "…": "…"}]}}
+{"method": "importMap.list", "params": {"invalidOnly": true}}
+{"result": {"entries": [{"account": {"guid": "…", "fullName": "Assets:Checking"}, "kind": "bayes", "key": "Coffee", "target": null, "count": 1, "valid": false}]}}
+```
+
+A book that has never imported has none:
+
 ```example fixture=synthetic/rich
 {"method": "importMap.list", "params": {}}
 {"result": {"entries": []}}

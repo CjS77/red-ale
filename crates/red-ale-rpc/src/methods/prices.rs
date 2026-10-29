@@ -136,7 +136,7 @@ pub struct AddParams {
 #[serde(rename_all = "camelCase")]
 pub struct AddOutcome {
     /// `added`, `replaced` (added, removing a same-day price), `rejected` (a same-day price with a better source is
-    /// kept) or `duplicate` (an identical same-day price exists; nothing added).
+    /// kept) or `duplicate` (another identical same-day price is still there once `replaced` is removed; nothing added).
     pub outcome: &'static str,
     /// The price added.
     pub price: Option<PriceInfo>,

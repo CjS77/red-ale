@@ -18,8 +18,8 @@ transaction, with `matches` to choose from). A transaction that does not balance
 it adds an `Imbalance-<CUR>` split, and the proposal flags it with `imbalance` beforehand. Rows that cannot be imported
 are listed in `errors` with GnuCash's own messages and are left out.
 
-Proposal IDs (`imp-1`, …) count up in each server process, so a proposal made before the book was opened, or pushed out
-by 16 newer ones, is gone. Applying a proposal made at an older revision of the book is refused.
+Proposal IDs (`imp-1`, …) count up from 1 in each server and are never reused while it runs, so a proposal made before
+the book was opened, or pushed out by 16 newer ones, is gone. Applying a proposal made at an older revision of the book is refused.
 
 ## Examples
 
@@ -31,6 +31,24 @@ transaction would be balanced against `Imbalance-USD`; give the account at `impo
 {"result": "…"}
 {"method": "import.preview", "params": {"format": "csvTransactions", "files": [{"name": "bank.csv", "text": "Date,Description,Amount\n2024-06-03,Coffee,-3.50\n2024-06-04,Lunch,-12.00\n"}], "layout": {"format": "csv", "separators": ",", "skipStartLines": 1, "dateFormat": "y-m-d", "currencyFormat": "period", "encoding": "utf-8", "baseAccount": "Checking", "columns": ["Date", "Description", "Amount"]}}}
 {"result": {"id": "…", "format": "csvTransactions", "summary": {"add": 2, "imbalanced": 2, "errors": 0, "…": "…"}, "newAccounts": [{"name": "Imbalance-USD", "type": "BANK", "commodity": "CURRENCY::USD"}], "transactions": [{"index": 0, "description": "Coffee", "datePosted": "2024-06-03", "action": "add", "splits": [{"accountName": "Checking", "value": {"num": "-350", "denom": "100"}, "…": "…"}], "imbalance": {"value": {"num": "350", "denom": "100"}, "…": "…"}, "…": "…"}, {"index": 1, "description": "Lunch", "…": "…"}], "…": "…"}}
+```
+
+The base account can also be given beside the layout, which overrides the layout's own or gives one to a layout
+that has none, as choosing the account in GnuCash's assistant does. A saved layout can then serve several accounts:
+
+```example
+{"method": "account.create", "params": {"name": "Savings", "type": "BANK", "commodity": "USD"}}
+{"result": "…"}
+{"method": "import.preview", "params": {"format": "csvTransactions", "files": [{"text": "2024-06-03,Interest,1.25\n"}], "layout": {"format": "csv", "separators": ",", "dateFormat": "y-m-d", "currencyFormat": "period", "encoding": "utf-8", "columns": ["Date", "Description", "Amount"]}, "baseAccount": "Savings"}}
+{"result": {"transactions": [{"index": 0, "description": "Interest", "splits": [{"accountName": "Savings", "value": {"num": "125", "denom": "100"}, "…": "…"}], "…": "…"}], "…": "…"}}
+```
+
+In a book that has imported before, the Bayesian matcher proposes the account the same words and weekday went to
+last time (`from: "bayes"`), so `import.apply` needs no account for them:
+
+```example fixture=synthetic/import-map
+{"method": "import.preview", "params": {"format": "csvTransactions", "files": [{"text": "2024-06-03,Corner Grocer,-23.40\n2024-06-28,Salary ACME,2000.00\n"}], "layout": {"columns": ["Date", "Description", "Amount"], "dateFormat": "y-m-d"}, "baseAccount": "Assets:Checking"}}
+{"result": {"transactions": [{"description": "Corner Grocer", "action": "add", "other": {"accountName": "Expenses:Groceries", "from": "bayes", "…": "…"}, "…": "…"}, {"description": "Salary ACME", "other": {"accountName": "Income:Salary", "from": "bayes", "…": "…"}, "…": "…"}], "…": "…"}}
 ```
 
 Prices from a file with a date and a rate on each line:

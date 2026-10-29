@@ -45,8 +45,9 @@ The bill side (bills and vouchers) has no discount. The oracle dump (`oracle/dum
 
 ### `invoice.dueDate`
 
-Params: `postDate` and exactly one of `invoice` (use its billing term) or `term`. Result: `dueDate` and `due` (the
-instant GnuCash stores: the due date's neutral time). Matches `gncBillTermComputeDueDate`
+Params: `postDate` and exactly one of `invoice` (use its billing term) or `term` (a billing term by GUID or name, as
+elsewhere). Result: `dueDate` and `due` (the instant GnuCash stores: the due date's neutral time). Matches
+`gncBillTermComputeDueDate`
 (`5.17:libgnucash/engine/gncBillTerm.c:751-825`): *days* terms add the due days; *proximo* terms fall due on the due
 day (clamped to the month's end) of the next month, or of the month after when the posting day is past the cutoff
 (a cutoff of 0 or less counts back from the end of the posting month). No term: the posting date.

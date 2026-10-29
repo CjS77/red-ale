@@ -479,7 +479,8 @@ Instances not named keep the proposal's state and bindings.
 Errors: `no-book`, `read-only`, `not-found` (`data.kind: "sinceLastRunProposal"`: unknown, applied, discarded, pushed
 out, or from before the book was opened), `conflict` (`data.reason: "book-revision"`, with `data.proposalRevision` and
 `data.bookRevision`), `invalid` (above, and an index out of range or the state `created`), `formula`. A proposal stays
-held after a failed apply. Proposal IDs are `slr-<n>`, numbered across the process, never reused.
+held after a failed apply. Proposal IDs are `slr-<n>`, numbered from 1 by the server (one counter with `imp-<n>`), never
+reused while it runs.
 
 ### `scheduledTransaction.discard` (read)
 

@@ -491,3 +491,20 @@ fn the_credit_note_fixture_opens_for_editing_and_saves() {
         (Some("creditNote"), Some(false))
     );
 }
+
+/// `invoice.dueDate` names its billing term as every other method does: by GUID or by name.
+#[test]
+fn due_dates_take_a_billing_term_by_name_or_guid() {
+    let mut b = open("synthetic/business-editable.gnucash");
+    let by_guid = b.call(
+        "invoice.dueDate",
+        json!({ "term": "ce15231d730a43c6b7c737ffc9af7b8c", "postDate": "2024-03-28" }),
+    );
+    let by_name = b.call("invoice.dueDate", json!({ "term": "Prox15", "postDate": "2024-03-28" }));
+    assert_eq!(by_name, by_guid);
+    assert_eq!(by_name["dueDate"], "2024-05-15", "past the cutoff, the month after next");
+    assert_eq!(
+        b.err("invoice.dueDate", json!({ "term": "Net90", "postDate": "2024-03-28" })).code,
+        codes::NOT_FOUND
+    );
+}
