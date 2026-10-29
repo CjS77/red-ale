@@ -32,7 +32,7 @@ import "lib/collectors" as collectors;
 import "lib/balances" as balances;
 
 /// `(or v default)`.
-private fn or_default(v, default_value) {
+private fn value_or(v, default_value) {
     if v == () || v == false { default_value } else { v }
 }
 
@@ -49,8 +49,8 @@ fn budget_get_end_date(budget) {
 /// `gnc:budget-account-get-net` (RU:744-760): a collector of `account`'s own Budget amounts, unset ones as 0, for
 /// periods `start_period` (inclusive) to `end_period` (exclusive). Sub-accounts are not rolled up.
 fn budget_account_get_net(budget, account, start_period, end_period) {
-    let period = or_default(start_period, 0);
-    let maxperiod = or_default(end_period, budget.numPeriods);
+    let period = value_or(start_period, 0);
+    let maxperiod = value_or(end_period, budget.numPeriods);
     let net = collectors::make_commodity_collector();
     while period < maxperiod {
         net.add(account.commodity, budget.account_period_value(account, period));
@@ -111,8 +111,8 @@ fn get_account_period_rolledup_budget_value(book, budget, acct, period) {
 /// `gnc:budget-account-get-rolledup-net` (RU:840-856): the rolled-up values of `account` for periods
 /// `start_period` to `end_period`, both inclusive.
 fn budget_account_get_rolledup_net(book, budget, account, start_period, end_period) {
-    let end = or_default(end_period, budget.numPeriods - 1);
-    let period = or_default(start_period, 0);
+    let end = value_or(end_period, budget.numPeriods - 1);
+    let period = value_or(start_period, 0);
     let sum = rational(0);
     while period <= end {
         sum += get_account_period_rolledup_budget_value(book, budget, account, period);

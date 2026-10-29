@@ -62,13 +62,13 @@ fn reconcile_report_instructions() {
 }
 
 /// `split-amount` (:71-74): a void transaction's former amount.
-fn split_amount(s) {
+fn reconcile_split_amount(s) {
     if s.transaction.isVoid { s.voidFormerAmount } else { s.amount }
 }
 
 /// `amount` (:76-77): the amount in the account's commodity, never converted.
 fn split_monetary(s) {
-    monetary(s.account.commodity, split_amount(s))
+    monetary(s.account.commodity, reconcile_split_amount(s))
 }
 
 /// `reconcile-report-calculated-cells` (:69-98): "Funds In" and "Funds Out", subtotalled, never reversed, and not
@@ -76,8 +76,8 @@ fn split_monetary(s) {
 /// Their friendly heading is `(const "")`.
 fn reconcile_report_calculated_cells(options) {
     [
-        trep::calc_cell("Funds In", |s, tr| if split_amount(s) > 0 { split_monetary(s) }, false, true, false, "", true),
-        trep::calc_cell("Funds Out", |s, tr| if !(split_amount(s) > 0) { -split_monetary(s) }, false, true, false, "", false),
+        trep::calc_cell("Funds In", |s, tr| if reconcile_split_amount(s) > 0 { split_monetary(s) }, false, true, false, "", true),
+        trep::calc_cell("Funds Out", |s, tr| if !(reconcile_split_amount(s) > 0) { -split_monetary(s) }, false, true, false, "", false),
     ]
 }
 

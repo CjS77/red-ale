@@ -18,6 +18,7 @@ use serde_json::Value;
 use super::convert::to_json;
 use super::errors::{Failure, from_eval, from_parse};
 use super::log::Log;
+use super::resolver::Defined;
 use super::setup::{Setup, engine};
 use crate::error::{LoadError, ReportError};
 use crate::library::Library;
@@ -212,6 +213,7 @@ impl Registry {
             limits: self.limits,
             log: log.clone(),
             conventions,
+            defined: Defined::default(),
         };
         let engine = engine(&setup);
         let failure = |log: &Log| Failure {
@@ -221,7 +223,7 @@ impl Registry {
             log: log.entries(),
         };
         let ast = self
-            .compile(&engine, name)
+            .compile(&engine, name, &setup.defined)
             .map_err(|e| self.internal_if_builtin(name, from_parse(&e, name, &failure(&log))))?;
         if !has_fn(&ast, "templates", 0) {
             return Ok(Vec::new());
@@ -244,10 +246,13 @@ impl Registry {
             .collect()
     }
 
-    pub(crate) fn compile(&self, engine: &Engine, name: &str) -> Result<AST, rhai::ParseError> {
+    /// Compile the script `name` that a run starts from, adding its functions to those the run's imports are
+    /// checked against.
+    pub(crate) fn compile(&self, engine: &Engine, name: &str, defined: &Defined) -> Result<AST, rhai::ParseError> {
         let text = self.sources.get(name).map_or_else(|| Arc::from(""), |s| Arc::clone(&s.text));
         let mut ast = engine.compile(&*text)?;
         ast.set_source(name);
+        defined.start(name, &ast);
         Ok(ast)
     }
 

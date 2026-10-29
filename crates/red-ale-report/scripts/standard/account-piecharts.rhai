@@ -137,7 +137,7 @@ private fn display_name(env, item) {
 }
 
 /// -1, 0 or 1 as `a` sorts before, with or after `b`, bytewise where GnuCash uses `gnc:string-locale<?` (§12).
-private fn compare(a, b) {
+private fn compare_keys(a, b) {
     if a < b { -1 } else if a > b { 1 } else { 0 }
 }
 
@@ -145,9 +145,9 @@ private fn compare(a, b) {
 /// `[amount, account or commodity]` pairs. A security's code is its mnemonic.
 private fn sort_compare(env, a, b) {
     switch env.sort_method {
-        "acct-code" => if env.depth_based { compare(a[1].code, b[1].code) } else { compare(a[1].mnemonic, b[1].mnemonic) },
-        "alphabetical" => compare(display_name(env, a[1]), display_name(env, b[1])),
-        _ => compare(b[0], a[0]),
+        "acct-code" => if env.depth_based { compare_keys(a[1].code, b[1].code) } else { compare_keys(a[1].mnemonic, b[1].mnemonic) },
+        "alphabetical" => compare_keys(display_name(env, a[1]), display_name(env, b[1])),
+        _ => compare_keys(b[0], a[0]),
     }
 }
 

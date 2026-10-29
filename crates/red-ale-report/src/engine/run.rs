@@ -18,6 +18,7 @@ use super::errors::{Failure, from_eval, from_parse};
 use super::log::Log;
 use super::options::{OptionBuilder, Resolve, resolve};
 use super::registry::{Registry, TemplateInfo, TemplateKind, call};
+use super::resolver::Defined;
 use super::setup::{Setup, engine};
 use crate::error::{ReportError, ResultError};
 use crate::limits::Limit;
@@ -113,14 +114,16 @@ impl<'r> Run<'r> {
         let conventions = ctx.locale.conventions();
         let snap = Snapshot::new(ctx.book, ctx.now, ctx.zone.clone(), formula_format(&conventions));
         let log = Log::new(limits.get_usize(Limit::StringSize));
+        let defined = Defined::default();
         let engine = engine(&Setup {
             snap: Rc::clone(&snap),
             sources: Arc::clone(registry.sources()),
             limits,
             log: log.clone(),
             conventions,
+            defined: defined.clone(),
         });
-        let ast = registry.compile(&engine, &template.script).map_err(|e| {
+        let ast = registry.compile(&engine, &template.script, &defined).map_err(|e| {
             let report = template.guid.0.to_string();
             from_parse(
                 &e,

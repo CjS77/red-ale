@@ -75,7 +75,7 @@ fn options(params, o, book) {
                          "Show the total balance, including balances in subaccounts, of any account at the depth limit.",
                          "Raise accounts deeper than the depth limit to the depth limit.",
                          "Omit any accounts deeper than the depth limit."];
-    o.multichoice("Accounts", "Depth limit behavior", "c", join(behavior_help, "\n* "), "summarize", [
+    o.multichoice("Accounts", "Depth limit behavior", "c", join_parts(behavior_help, "\n* "), "summarize", [
         ["summarize", "Recursive Balance"],
         ["flatten", "Raise Accounts"],
         ["truncate", "Omit Accounts"],
@@ -105,7 +105,7 @@ fn options(params, o, book) {
 }
 
 /// `parts` joined by `separator`: Guile's `string-join`.
-private fn join(parts, separator) {
+private fn join_parts(parts, separator) {
     let out = "";
     for (part, i) in parts {
         if i > 0 {
