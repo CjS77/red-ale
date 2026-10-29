@@ -558,6 +558,7 @@ fn types_book() -> Setup {
 /// (11). The basis per unit is the basis over the units before, so the return of capital keeps $10.10 a share and
 /// the next row shows $98 over 10; a sale takes its share of the basis, $10.20 × 2.
 #[test]
+#[allow(clippy::too_many_lines)] // One row per transaction type, as the hand-worked table lists them.
 fn transaction_types_the_test_does_not_reach() {
     let mut s = types_book();
     let result = s.run(IFRS, &book_options("USD", json!({})));
