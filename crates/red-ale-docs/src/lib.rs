@@ -11,6 +11,7 @@
 //! - [`example`]: Examples, the fenced `example` blocks the test suite runs;
 //! - rendering as Markdown or text with Examples for one [`Door`] ([`Manual::render`]);
 //! - [`Manual::search`]: BM25 with a synonym table ([`synonyms`]);
+//! - [`Manual::site`]: the static website, as files for the caller to write;
 //! - [`coverage`]: what the Manual still lacks.
 
 #![forbid(unsafe_code)]
@@ -21,6 +22,7 @@ mod generate;
 pub mod page;
 mod render;
 mod search;
+mod site;
 mod source;
 pub mod synonyms;
 
@@ -34,6 +36,7 @@ pub use generate::{ReportOption, ReportTemplate};
 pub use page::{Kind, Page, error_page_id, method_page_id, report_page_id};
 pub use render::{Door, Format};
 pub use search::{terms, words};
+pub use site::{SiteFile, page_path};
 pub use source::SPDX_LINE;
 
 use crate::render::Lookup;

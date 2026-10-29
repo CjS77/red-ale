@@ -168,5 +168,5 @@ All licences must be GPL-3.0 compatible; `deny.toml` enforces the allow-list.
 | `regex` | core, rpc | GnuCash's `GncNumeric(std::string)` and `GncDate` patterns; the `--namespace` pattern of a Quote fetch |
 | `rusqlite` (`libsqlite3-sys`) | sql | SQLite books, with `bundled` so the SQLite version is pinned, not the system's, and `backup` for the online backup API; default features off (MIT; SQLite itself is public domain). **`bundled` compiles SQLite's C amalgamation with `cc`**, a second C library in the build beside `ring`; pure-Rust SQLite engines are not yet ready to trust with a user's books ([`milestone4.md`](milestone4.md), "Decided" item 3). No system SQLite is linked |
 | `rustix` | service | the host name for an SQL book's `gnclock` row (`uname`'s node name, as `gethostname` gives), without `unsafe`; feature `system` only, already in the build through `tempfile` |
-| `pulldown-cmark` | docs | Markdown parsing for the Manual: its text rendering and the links the coverage checks follow (MIT; default features off, the static site adds `html`) |
+| `pulldown-cmark` | docs | Markdown parsing for the Manual: its text and HTML (static site) rendering and the links the coverage checks follow (MIT; default features off, the `html` feature on for the static site) |
 | `proptest`, `tempfile` | tests | property tests and temp directories |

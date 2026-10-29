@@ -170,6 +170,35 @@ The site follows the report renderer's rules ([`reports.md`](reports.md) §8):
 Markdown becomes HTML through `pulldown-cmark` (MIT). CI builds the site for each release; the published site matches
 the release.
 
+What was settled in building it:
+- **The generator is `Manual::site(&schema)` in `red-ale-docs`**: it returns `SiteFile { path, bytes }` sorted by path and
+  does no I/O. The binary writes them (`red-ale manual build <dir>`, which refuses a directory that holds anything).
+- **Layout.** The Start Page is `index.html`; every other Page is `<page id>.html` (`method/transaction.post.html`); each
+  kind but Start has `<kind>/index.html` (methods grouped by namespace); then `search.html`, `search.js`,
+  `search-index.js`, `style.css`, `schema.json`, `llms.txt`, `llms-full.txt`. Every link is relative, so the site works
+  from `file://` and from a sub-path.
+- **Markdown.** `pulldown-cmark` with tables, its `html` feature on. Raw HTML in a source becomes text. Headings get
+  ids from their text (`request-parameters`, a repeat `-2`). A link whose target is a Page ID, with an optional
+  `#anchor`, points at that Page's file.
+- **Examples** show as one block per door (JSON-RPC, Command line, MCP tool call) under one setting line: plain HTML,
+  no script. An `example` block that does not parse stays a code block.
+- **Search.** `search-index.js` is `window.redAleIndex = [...]` (a script, because a browser will not `fetch` a file
+  from a `file://` page), one entry per Page: `id`, `title`, `summary`, `kind`, and `terms`, the distinct stemmed words
+  of the Page in one string. `search.js` (about 90 lines) matches every query word against title, Page ID, summary and
+  terms, and ranks by where it matched. It is the only script, loaded only by `search.html`, which points to the indexes
+  when scripts are off. The ranking is simpler than `help.search`'s BM25F.
+- **Look.** One stylesheet, system fonts, light and dark by `prefers-color-scheme`, a single column that works at phone
+  width, tables and code that scroll inside the page, a skip link and `aria-current` in the header. Nothing is
+  requested from another site.
+- **`llms.txt`** follows the llms.txt convention: title, summary, then a link, title and summary for every Page by kind,
+  and an Optional section. **`llms-full.txt`** is every Page as Markdown with Examples as JSON-RPC, each Page ending with
+  its licence notice.
+- **Licence.** Each Page's footer carries the licence line and links `legal/notices` and `legal/gfdl`; the notices,
+  History and licence are Pages of the site, so they are carried in full.
+- **Deployment.** `.github/workflows/manual.yml` builds with the tagged release's binary on a `vX.Y.Z` tag and deploys
+  with `actions/deploy-pages`. A run by hand builds only, unless its `publish` input is ticked. Each deployment replaces
+  the site, so the latest release is what is published.
+
 ## Writing it
 
 - **Two audiences, two places.** `design/` explains why, with GnuCash citations, for developers; `docs/` explains

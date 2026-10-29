@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod help;
+mod manual;
 mod params;
 mod setup;
 
@@ -51,6 +52,8 @@ enum Command {
     Schema,
     /// Print a Page of red-ale's Manual (the Start Page without one), or search the Manual.
     Help(help::HelpArgs),
+    /// Build the Manual as a static website.
+    Manual(manual::ManualArgs),
     /// Register red-ale's MCP server with the agent harnesses installed on this machine, or remove it.
     Setup(setup::SetupArgs),
 }
@@ -329,6 +332,7 @@ fn main() -> ExitCode {
         Command::Schema => print_json(&Dispatcher::new(Settings::default()).schema()).map(|()| Ended::Done),
         Command::Setup(args) => setup::run(&args).map(Ended::Status),
         Command::Help(args) => help::run(&args, Cli::command()).map(Ended::Status),
+        Command::Manual(args) => manual::run(&args).map(|()| Ended::Done),
     };
     match outcome {
         Ok(Ended::Done) => ExitCode::SUCCESS,

@@ -67,7 +67,7 @@ pub(crate) fn markdown(page: &Page, door: Door, lookup: &dyn Lookup) -> String {
 }
 
 /// The one-line licence notice every served Page ends with (`design/manual.md`, "Licence").
-fn footer(page: &Page) -> String {
+pub(crate) fn footer(page: &Page) -> String {
     let from = page
         .from
         .as_ref()
@@ -101,16 +101,20 @@ fn examples_for(page: &Page, door: Door, lookup: &dyn Lookup) -> String {
 
 /// One Example as Markdown for `door`.
 pub(crate) fn example_markdown(e: &Example, door: Door, lookup: &dyn Lookup) -> String {
-    let calls = match door {
+    format!("*Example: {}.*\n\n{}", setting(e), calls_markdown(e, door, lookup))
+}
+
+/// The calls of one Example and what they give, as `door` shows them.
+pub(crate) fn calls_markdown(e: &Example, door: Door, lookup: &dyn Lookup) -> String {
+    match door {
         Door::JsonRpc => e.calls.iter().zip(1..).map(|(c, id)| jsonrpc(c, id)).collect(),
         Door::Cli => cli(e),
         Door::Mcp => e.calls.iter().map(|c| mcp(c, lookup)).collect(),
-    };
-    format!("*Example: {}.*\n\n{calls}", setting(e))
+    }
 }
 
 /// The book and clock an Example runs with, in words.
-fn setting(e: &Example) -> String {
+pub(crate) fn setting(e: &Example) -> String {
     let book = match &e.fixture {
         Some(f) => format!("a copy of the `{f}` example book"),
         None => "a new, empty book".to_owned(),

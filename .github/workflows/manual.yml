@@ -1,0 +1,62 @@
+# Builds red-ale's Manual as a static website and publishes it to GitHub Pages (design/manual.md, "The static site").
+#
+# - A pushed tag `vX.Y.Z` builds the site with that release's binary and publishes it. Only the latest release is
+#   published: each deployment replaces the site.
+# - Running the workflow by hand (workflow_dispatch) builds the site and keeps it as a workflow artifact, to look at
+#   before tagging. It publishes only when the `publish` input is ticked.
+#
+# One-off setting: the repository's Pages source must be "GitHub Actions" (Settings > Pages).
+#
+# Actions are pinned to full commit SHAs; the comment names the tag each one is.
+
+name: manual
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the site to GitHub Pages after building it
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # rust-toolchain.toml names the toolchain; `rustup show` installs it.
+      - name: Install the pinned toolchain
+        run: rustup show
+      - name: Build red-ale
+        run: cargo build --release --locked -p red-ale
+      - name: Build the site
+        run: target/release/red-ale manual build site/
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/
+
+  deploy:
+    if: github.event_name == 'push' || inputs.publish
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Deployments queue instead of cancelling one that is running, so a site is never left half-published.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
