@@ -3,28 +3,6 @@
 # Gaps in the Manual known to be open while it is being written: one per line, `<page-id> <what>`, as the coverage
 # checks print them (crates/red-ale-docs/src/coverage.rs). The list may only shrink: crates/red-ale-rpc/tests/
 # manual_coverage.rs fails on a gap missing from it and on an entry that is no longer a gap.
-method/account.cascade example
-method/account.cascade text
-method/account.checkBalanceLimit example
-method/account.checkBalanceLimit text
-method/account.delete example
-method/account.delete text
-method/account.get example
-method/account.get text
-method/account.list example
-method/account.list text
-method/account.move example
-method/account.move text
-method/account.openingBalanceAccount example
-method/account.openingBalanceAccount text
-method/account.renumber example
-method/account.renumber text
-method/account.tree example
-method/account.tree text
-method/account.types example
-method/account.types text
-method/account.update example
-method/account.update text
 method/billTerm.create example
 method/billTerm.create text
 method/billTerm.delete example
