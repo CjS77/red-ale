@@ -10,6 +10,8 @@
 //! the table cannot fall behind the glossary, there is no generated file to keep in step, and the parser is plain
 //! code that unit tests reach.
 
+use std::collections::BTreeSet;
+
 use crate::search::words as tokens;
 
 /// The glossary, `design/glossary.md`.
@@ -33,6 +35,29 @@ pub fn table() -> Vec<Synonym> {
     all.sort();
     all.dedup();
     all
+}
+
+/// The terms the compiled-in glossary defines, as search tokens ([`terms_of_glossary`]).
+pub fn glossary_terms() -> BTreeSet<Vec<String>> {
+    terms_of_glossary(GLOSSARY)
+}
+
+/// The terms a glossary defines, as search tokens. In each table row: every bold name and code name in its first
+/// cell (`| **Customer**, **Vendor** |` gives two, `| **Billing term** (`BillTerm`) |` two), and every italic phrase
+/// in the rest, which is a term defined in passing (*setting path*) or another name a ⚠ note gives one.
+pub fn terms_of_glossary(glossary: &str) -> BTreeSet<Vec<String>> {
+    glossary
+        .lines()
+        .filter_map(|l| l.strip_prefix("| **"))
+        .flat_map(|cells| {
+            let row = format!("**{cells}");
+            let (first, meaning) = row.split_once(" | ").unwrap_or((&row, ""));
+            let names: Vec<String> = first.split("**").skip(1).step_by(2).map(str::to_owned).collect();
+            [names, code_spans(first), italics(&meaning.replace("**", ""))].concat()
+        })
+        .map(|t| tokens(&t))
+        .filter(|t| !t.is_empty())
+        .collect()
 }
 
 /// The synonyms the ⚠ notes of a glossary give.
@@ -146,6 +171,27 @@ mod tests {
     fn the_supplement_maps_phrases() {
         let found = pairs(&from_supplement("# comment\n\nbill => business document\nbad line\n"));
         assert_eq!(found, [("bill".to_owned(), "business document".to_owned())]);
+    }
+
+    #[test]
+    fn glossary_terms_are_row_names_and_their_other_names() {
+        let glossary = "| Term | Meaning |\n\
+            | **Customer**, **Vendor** | Owners. |\n\
+            | **Setting** | Named by its *setting path*. |\n\
+            | **Journal** (`TransLog`) | The `.log` file. **⚠** GnuCash calls it the *transaction log*. |\n";
+        let found: Vec<String> = terms_of_glossary(glossary).into_iter().map(|t| t.join(" ")).collect();
+        assert_eq!(
+            found,
+            [
+                "customer",
+                "journal",
+                "setting",
+                "setting path",
+                "transaction log",
+                "translog",
+                "vendor"
+            ]
+        );
     }
 
     #[test]

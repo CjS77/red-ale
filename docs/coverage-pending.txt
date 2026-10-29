@@ -4,39 +4,62 @@
 # checks print them (crates/red-ale-docs/src/coverage.rs). The list may only shrink: crates/red-ale-rpc/tests/
 # manual_coverage.rs fails on a gap missing from it and on an entry that is no longer a gap.
 #
-# `from` gaps: manual_coverage.rs has an empty CHECKLIST, so every `from` shows as a gap until it reads
-# design/gnucash-docs-checklist.md. Remove these lines when it does.
-concept/account-types from guide/ch_basics.docbook#basics-accounting52
-concept/books-and-files from guide/ch_basics.docbook#basics-files1
-concept/budgets from guide/ch_budgets.docbook#budget_concepts1
-concept/business-documents from guide/ch_bus_features.docbook#bus-intro
-concept/chart-of-accounts from guide/ch_basics.docbook#basics-accounts2
-concept/closing-the-books-and-accounting-period from manual/ch_Tools_Assistants.docbook#tool-close-book-workings
-concept/coming-from-gnucash from guide/ch_oview.docbook#chapter_oview
-concept/commodities-and-currencies from guide/ch_currency.docbook#currency_concepts1
-concept/configuration from manual/ch_Customize.docbook#book-options
-concept/double-entry from guide/ch_basics.docbook#basics-accounting1
-concept/importing-and-matching from guide/ch_importing.docbook#importing-matcher
-concept/investments from guide/ch_invest.docbook#invest_concepts1
-concept/loans-and-interest from guide/ch_loans.docbook#loans_concepts1
-concept/lots-and-capital-gains from guide/ch_capgain.docbook#capgain_concepts1
-concept/other-assets-and-depreciation from guide/ch_dep.docbook#dep_concepts1
-concept/prices-and-exchange-rates from guide/ch_invest.docbook#invest-stockprice1
-concept/read-only-books from guide/ch_basics.docbook#basics-files-storage-comparison
-concept/reconciliation from manual/ch_Account-Actions.docbook#acct-reconcile
-concept/report-scripts from manual/ch_Reports.docbook#report-create
-concept/reports from guide/ch_reports.docbook#rpt_concepts
-concept/scheduled-transactions from manual/ch_Transactions.docbook#trans-sched
-concept/trading-accounts from guide/ch_currency.docbook#trading_acct_concepts
-concept/transactions-and-splits from guide/ch_basics.docbook#basics-transactions2
-gnucash/account-menu from manual/ch_GUIMenus.docbook#AccTree-actions-menu
-gnucash/business-menu from manual/ch_GUIMenus.docbook#AccTree-business-menu
-gnucash/file-menu from manual/ch_GUIMenus.docbook#AccTree-file-menu
-gnucash/import-and-export from guide/ch_importing.docbook#chapter_importing
-gnucash/not-in-red-ale from guide/ch_python_bindings.docbook#ch_python_bindings
-gnucash/preferences-and-book-options from manual/ch_Customize.docbook#set-prefs
-gnucash/reports-menu from manual/ch_GUIMenus.docbook#AccTree-reports-menu
-gnucash/stock-assistants from manual/ch_Tools_Assistants.docbook#stock-assistant
-gnucash/tools-menu from manual/ch_GUIMenus.docbook#AccTree-tools-menu
-gnucash/transaction-menu from manual/ch_GUIMenus.docbook#Trans-transaction-menu
-gnucash/windows-and-registers from manual/ch_GUIMenus.docbook#gui-windows
+# `checklist` gaps: Guides that design/gnucash-docs-checklist.md plans but that are not written yet. Cross one off
+# when its Guide is.
+guide/back-up-and-recover checklist
+guide/buy-and-sell-shares checklist
+guide/capital-gains-with-lots checklist
+guide/close-the-books checklist
+guide/configure-red-ale checklist
+guide/create-a-budget checklist
+guide/create-open-and-save-a-book checklist
+guide/credit-cards checklist
+guide/depreciate-an-asset checklist
+guide/edit-void-and-reverse-transactions checklist
+guide/employees-and-payroll checklist
+guide/export-data checklist
+guide/find-transactions checklist
+guide/import-business-data checklist
+guide/import-transactions checklist
+guide/invoices-and-bills checklist
+guide/migrate-from-gnucash checklist
+guide/multiple-currencies checklist
+guide/print-an-invoice checklist
+guide/process-payments checklist
+guide/reconcile-an-account checklist
+guide/record-deposits-and-withdrawals checklist
+guide/record-dividends checklist
+guide/record-prices checklist
+guide/report-to-pdf checklist
+guide/run-and-export-a-report checklist
+guide/schedule-a-transaction checklist
+guide/set-up-accounts checklist
+guide/set-up-business checklist
+guide/split-transactions checklist
+guide/stock-splits-and-mergers checklist
+guide/track-a-loan checklist
+guide/transfer-between-accounts checklist
+guide/use-trading-accounts checklist
+guide/write-your-own-report checklist
+#
+# `term` gaps: words a Concept page writes in bold, so as terms, that the glossary does not define. Add the term to
+# design/glossary.md, or write the word without bold if it is not one of red-ale's terms.
+concept/budgets term capital budget
+concept/budgets term cash budget
+concept/budgets term default budget
+concept/budgets term expense budget
+concept/business-documents term pre-payment
+concept/configuration term Preferences
+concept/dates-and-time-zones term timestamp
+concept/investments term return of capital
+concept/loans-and-interest term nominal
+concept/other-assets-and-depreciation term Current assets
+concept/other-assets-and-depreciation term Depreciation
+concept/other-assets-and-depreciation term Long-term or fixed assets
+concept/prices-and-exchange-rates term direct
+concept/prices-and-exchange-rates term indirect
+concept/reports term Multicolumn View
+concept/reports term options
+concept/reports term relative
+concept/reports term report
+concept/value-and-amount term exact rationals

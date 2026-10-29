@@ -23,10 +23,10 @@ a mortgage, a business loan, or money you lend to a friend.
 
 ## How the books hold a loan
 
-- A loan **you owe** is a liability: an Account of type `LIABILITY` for the loan, with the balance negative (credits).
+- A loan *you owe* is a liability: an Account of type `LIABILITY` for the loan, with the balance negative (credits).
   The money you receive goes to your bank Account (a debit); each payment moves money out of the bank Account, reduces
   the liability by the principal share and charges the interest share to an `EXPENSE` Account.
-- A loan **you made** is an asset: a short-term receivable such as `Assets:Current Assets:LoanToJoe`. Lending debits it
+- A loan *you made* is an asset: a short-term receivable such as `Assets:Current Assets:LoanToJoe`. Lending debits it
   and credits the bank; each repayment debits the bank and credits it. The interest you earn is income.
 - A mortgage's tax and insurance paid through escrow are expenses too.
 

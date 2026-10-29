@@ -43,7 +43,7 @@ lines, so there is no escaping.
 - [`config.get`](method/config.get) reads one setting by `path`, or the whole Configuration with defaults filled in. It
   works with no book open. It also lists `unknown` keys in the file (typos, kept and ignored) and `problems` with values
   that do not match the schema.
-- [`config.set`](method/config.set) changes one or more by path, validated against the schema, **all or none**. Setting a
+- [`config.set`](method/config.set) changes one or more by path, validated against the schema, *all or none*. Setting a
   path to `null` restores its default.
 
 ```example book=none

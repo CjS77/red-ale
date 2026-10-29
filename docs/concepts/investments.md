@@ -38,7 +38,7 @@ common kinds. For gains see [Lots and capital gains](concept/lots-and-capital-ga
 ## Setting up a holding
 
 1. Make the security with [`commodity.create`](method/commodity.create) (namespace such as `NASDAQ`, mnemonic `AMZN`).
-2. Make an Account of type `STOCK` (or `MUTUAL`) for **every security you own**, holding that Commodity, usually under an
+2. Make an Account of type `STOCK` (or `MUTUAL`) for *every security you own*, holding that Commodity, usually under an
    `Assets:Investments:Brokerage` branch, named by the ticker. The Account's balance is in shares, not money:
    100, not $2,000.
 3. If you track income per security, make `Income:Dividends:AMZN`, `Income:Interest:AMZN` and capital-gain Accounts

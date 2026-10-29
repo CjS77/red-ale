@@ -8,8 +8,10 @@ Concept Guide, `guide`) and `C/manual/` (Help Manual, `manual`). A row is a chap
 Classification: **concept** (explained on a Concept page), **how-to** (a task, covered by a Guide), **gnu-only** (GnuCash's
 windows, menus and assistants, mapped on a From GnuCash page) and **not-in-red-ale** (listed on `gnucash/not-in-red-ale`).
 
-Page IDs: `concept/` and `gnucash/` pages exist. `guide/` IDs are planned and exist only when the Guides are written.
-`start` is the Start page. A Page that adapts text from a row names it in `from:` as `<book>/<file>#<section id>`.
+Page IDs: `start` is the Start page. Every Page ID a row lists must exist, except planned Guides, which are listed in
+`docs/coverage-pending.txt` as `guide/<name> checklist` until they are written. A Page that adapts text from a row
+names it in `from:` as `<book>/<file>#<section id>`, and the row must list that Page. The coverage test
+(`crates/red-ale-rpc/tests/manual_coverage.rs`) reads this table and checks both.
 
 | Book | File | Section id | Title | Classification | Page IDs |
 |---|---|---|---|---|---|
@@ -56,7 +58,7 @@ Page IDs: `concept/` and `gnucash/` pages exist. `guide/` IDs are planned and ex
 | guide | ch_basics.docbook | migrate-financial | Migrating financial data | how-to | guide/migrate-from-gnucash |
 | guide | ch_basics.docbook | migrate-prefs | Migrating preferences data | gnu-only | gnucash/preferences-and-book-options |
 | guide | ch_basics.docbook | basics-together1 | Putting It All Together | how-to | guide/create-open-and-save-a-book, guide/record-deposits-and-withdrawals |
-| guide | ch_importing.docbook | chapter_importing | Importing Data into GnuCash | how-to | guide/import-transactions, concept/importing-and-matching |
+| guide | ch_importing.docbook | chapter_importing | Importing Data into GnuCash | how-to | guide/import-transactions, concept/importing-and-matching, gnucash/import-and-export |
 | guide | ch_importing.docbook | importing-from-files | Importing Transactions from Files | how-to | guide/import-transactions, concept/importing-and-matching |
 | guide | ch_importing.docbook | (no id) | File Import Formats | concept | concept/importing-and-matching |
 | guide | ch_importing.docbook | importing-matcher | Import Matcher | concept | concept/importing-and-matching, guide/import-transactions |
@@ -259,7 +261,7 @@ Page IDs: `concept/` and `gnucash/` pages exist. `guide/` IDs are planned and ex
 | manual | ch_Account-Actions.docbook | acct-edit | Editing an Account | how-to | guide/set-up-accounts, gnucash/account-menu |
 | manual | ch_Account-Actions.docbook | chart-renumber | Renumbering Subaccounts | how-to | guide/set-up-accounts |
 | manual | ch_Account-Actions.docbook | acct-delete | Deleting an Account | how-to | guide/set-up-accounts |
-| manual | ch_Account-Actions.docbook | acct-reconcile | Reconciling an Account to a Statement | how-to | guide/reconcile-an-account, gnucash/account-menu |
+| manual | ch_Account-Actions.docbook | acct-reconcile | Reconciling an Account to a Statement | how-to | guide/reconcile-an-account, gnucash/account-menu, concept/reconciliation |
 | manual | ch_Account-Actions.docbook | tool-reconcile | Reconciling Information | concept | concept/reconciliation |
 | manual | ch_Account-Actions.docbook | rec-win | Reconcile | how-to | guide/reconcile-an-account |
 | manual | ch_Transactions.docbook | ch_Common_Trans_Ops | Common Transaction Operations | how-to | gnucash/transaction-menu |

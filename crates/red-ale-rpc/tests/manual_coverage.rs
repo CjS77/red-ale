@@ -1,6 +1,7 @@
 //! The Manual covers the registries (`design/manual.md`, "Coverage is checked"): every method, error code and report
 //! template has its Reference page, written up, with Examples; every link resolves; every `from` names a checklist
-//! entry; and the compiled-in sources have no problems.
+//! row that lists its Page, and every Page the checklist lists exists; every term a Concept page marks in bold is in
+//! the glossary; and the compiled-in sources have no problems.
 //!
 //! While the Manual is being written, `docs/coverage-pending.txt` lists the gaps known to be open. The list may only
 //! shrink: a gap not on it fails, and so does an entry that is no longer a gap, so it is crossed off when the Page is
@@ -16,9 +17,9 @@ use red_ale_service::Settings;
 
 const PENDING: &str = include_str!("../../../docs/coverage-pending.txt");
 
-/// The sections of GnuCash's documentation the Manual adapts. The checklist that maps them to Pages comes with the
-/// GnuCash documentation work; until then no Page may name one.
-const CHECKLIST: [&str; 0] = [];
+/// The sections of GnuCash's documentation and the Pages each went to. It lives in `design/` because every Markdown
+/// file of `docs/` is compiled in as a Page, and only these tests read it.
+const CHECKLIST: &str = include_str!("../../../design/gnucash-docs-checklist.md");
 
 #[test]
 fn the_manual_sources_have_no_problems() {
@@ -27,9 +28,17 @@ fn the_manual_sources_have_no_problems() {
 }
 
 #[test]
+fn the_checklist_has_a_row_for_every_section() {
+    let rows = coverage::checklist(CHECKLIST);
+    assert!(rows.len() > 400, "{} rows", rows.len());
+    assert!(rows.iter().any(|r| r.section == "guide/ch_basics.docbook#basics-accounting52"));
+}
+
+#[test]
 fn the_only_gaps_are_the_pending_ones() {
     let manual = red_ale_rpc::manual::manual();
-    let gaps: BTreeSet<String> = coverage::all(manual, &CHECKLIST).iter().map(ToString::to_string).collect();
+    let checklist = coverage::checklist(CHECKLIST);
+    let gaps: BTreeSet<String> = coverage::all(manual, &checklist).iter().map(ToString::to_string).collect();
     let pending: BTreeSet<String> = PENDING
         .lines()
         .map(str::trim)
