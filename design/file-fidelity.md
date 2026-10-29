@@ -72,6 +72,22 @@ The writer walks the layout:
 An account's lots are written inside the account (`act:lots`), so an account counts as changed when it or any of its
 lots changed.
 
+**A transaction and a template transaction never share a GUID in a file red-ale writes** (v0.6). GnuCash keeps both
+in the Book's one transaction collection (`5.17:libgnucash/engine/Transaction.cpp:473-478`), where the second read of
+a GUID replaces the first (`5.17:libgnucash/engine/qofid.cpp:95-106`), and an SQL book keeps both in one table
+(`5.17:libgnucash/backend/sql/gnc-transaction-sql.cpp:68`). red-ale's model keeps them in two maps, so a file with
+such a pair opens and both are read, but `book.save` refuses the Book before anything is written, no backup
+included: `invalid` with `data` `{ "reason": "shared-guid", "guid" }`. The session goes on, and a Mutation that
+removes one of the two lets it save. A Mutation that would create such a pair is refused the same way, on XML and SQL
+alike; GUIDs come from the session's Env, so only a test or a file another writer made can bring one. Only red-ale's
+testkit has made one, before v0.5 (`milestone5.md`, "Measured: Since Last Run on SQLite").
+`Book::shared_transaction_guids` costs a lookup per template transaction. Tests: `crates/red-ale-service/tests/shared_guid.rs`,
+`an_xml_book_read_with_a_shared_guid_opens_but_does_not_save_until_it_is_removed`,
+`a_mutation_giving_a_transaction_a_template_transaction_s_guid_is_refused_on_xml`; `crates/red-ale-rpc/tests/dispatch.rs`,
+`a_save_of_a_shared_transaction_guid_is_invalid`. Template accounts and Book accounts, and template splits and Book
+splits, share collections and SQL tables the same way and are not checked yet ([`milestone6.md`](milestone6.md),
+"Follow-ups").
+
 ### Proving the generators
 
 Writing unchanged entities from their originals hides generator bugs, so a second test path forces **every** entity

@@ -8,22 +8,25 @@
 //! found". Every script is text in memory; this crate reads no file.
 //!
 //! A module that defines a function with the name and arity of one another script of the run defines is refused:
-//! Rhai could call either in place of the other (`design/reports.md` §2, "One name, one function").
+//! Rhai could call either in place of the other. So is a script that defines a function a call of an engine function
+//! would reach (`design/reports.md` §2, "One name, one function").
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use regex::Regex;
 use rhai::{AST, Engine, EvalAltResult, Module, ModuleResolver, Position, Scope, Shared};
 
 use super::registry::{BUILTIN_DIRS, Sources, USER_PREFIX};
+use super::setup::engine_functions;
 
 /// A function's name and number of parameters, which is all a Rhai call resolves a script function by.
 type Signature = (String, usize);
 
-/// The functions of one script, private ones included.
-type Functions = BTreeSet<Signature>;
+/// The functions of one script, private ones included, or of the engine.
+pub(crate) type Functions = BTreeSet<Signature>;
 
 /// The functions every template script has, which the engine calls through the script's own AST and another script
 /// reaches only qualified (`transaction_report::render`), so two template scripts may both define them.
@@ -36,16 +39,25 @@ const ENTRY_POINTS: [(&str, usize); 3] = [("templates", 0), ("options", 3), ("re
 pub(crate) struct Defined(Rc<RefCell<Vec<(String, Functions)>>>);
 
 impl Defined {
-    /// Add the functions of the script the run compiles first, before any import, so with nothing to check.
-    pub(crate) fn start(&self, source: &str, ast: &AST) {
-        self.0.borrow_mut().push((source.to_owned(), signatures(ast)));
+    /// Add the functions of the script the run compiles first, before any import, so with only the engine's to
+    /// check them against. The error is the one [`engine_clash`] gives.
+    pub(crate) fn start(&self, source: &str, text: &str, ast: &AST) -> Result<(), (String, Position)> {
+        let mine = signatures(ast);
+        if let Some(clash) = engine_clash(source, text, &mine) {
+            return Err(clash);
+        }
+        self.0.borrow_mut().push((source.to_owned(), mine));
+        Ok(())
     }
 
-    /// Add the functions of `source`, compiled to `ast`. The error names a function another script of the run
-    /// already defines, and that script. A script imported by itself is the same code, so it is not compared with
-    /// itself; the resolver refuses that import anyway.
-    pub(crate) fn add(&self, source: &str, ast: &AST) -> Result<(), String> {
+    /// Add the functions of `source`, compiled to `ast` from `text`. The error names a function a call of an engine
+    /// function would reach, or one another script of the run already defines, and that script. A script imported by
+    /// itself is the same code, so it is not compared with itself; the resolver refuses that import anyway.
+    pub(crate) fn add(&self, source: &str, text: &str, ast: &AST) -> Result<(), Clash> {
         let mine = signatures(ast);
+        if let Some((message, at)) = engine_clash(source, text, &mine) {
+            return Err(Clash::Engine(message, at));
+        }
         let shared = |theirs: &Functions| {
             let templates = is_template(&mine) && is_template(theirs);
             mine.intersection(theirs).find(|s| !(templates && is_entry_point(s))).cloned()
@@ -57,14 +69,74 @@ impl Defined {
             .filter(|(other, _)| other != source)
             .find_map(|(other, theirs)| shared(theirs).map(|(name, arity)| (other.clone(), name, arity)));
         if let Some((other, name, arity)) = clash {
-            return Err(format!(
+            return Err(Clash::Scripts(format!(
                 "{source} and {other} both define fn {name} with {arity} parameters; Rhai may call either in the \
                  other's place, so one must be renamed"
-            ));
+            )));
         }
         self.0.borrow_mut().push((source.to_owned(), mine));
         Ok(())
     }
+}
+
+/// Why a module's functions are refused.
+#[derive(Debug)]
+pub(crate) enum Clash {
+    /// Another script of the run defines a function of the same name and arity: located at the import.
+    Scripts(String),
+    /// A call of an engine function would reach one of the module's: located at that function.
+    Engine(String, Position),
+}
+
+/// A function of `mine`, from `source`, that a call of an engine function would reach instead, with the error and
+/// where the function is in `text`. Rhai looks a call up among the script functions before the engine's, by name and
+/// number of arguments alone, whatever their types (rhai 1.27.0 `src/func/func_call.rs:818-835`), and a module's
+/// call finds the importing script's functions too (`src/func/script.rs:377`). A method call `x.f(a)` looks for a
+/// script `fn f(a)` reading `x` as `this` before the engine's `f(x, a)` (`src/parser.rs:2127-2136`). So a script
+/// `fn f` of n parameters replaces the engine's `f` of n, and of n + 1 called as a method.
+fn engine_clash(source: &str, text: &str, mine: &Functions) -> Option<(String, Position)> {
+    let engine = engine_functions();
+    mine.iter().find_map(|(name, arity)| {
+        let replaced = [*arity, arity + 1].into_iter().find(|n| engine.contains(&(name.clone(), *n)))?;
+        let how = if replaced == *arity {
+            format!("which replaces the report engine's {name}")
+        } else {
+            format!("which a method call x.{name}(…) reaches in place of the report engine's {name} of {replaced}")
+        };
+        let message = format!(
+            "{source} defines fn {name} with {}, {how} in every script of the run, so it must be renamed",
+            parameters(*arity)
+        );
+        Some((message, position_of(text, name)))
+    })
+}
+
+fn parameters(n: usize) -> String {
+    if n == 1 {
+        "1 parameter".to_owned()
+    } else {
+        format!("{n} parameters")
+    }
+}
+
+/// Where `fn name` (or `fn Type.name`) is in `text`, at the name, or no position if it is not there. Rhai keeps no
+/// position for a script function, so the text is searched; a definition commented out above it would be found
+/// first.
+fn position_of(text: &str, name: &str) -> Position {
+    let pattern = format!(r#"\bfn\s+(?:(?:"[^"]*"|\w+)\s*\.\s*)?({})\s*\("#, regex::escape(name));
+    let found = Regex::new(&pattern)
+        .ok()
+        .and_then(|re| re.captures(text)?.get(1))
+        .map(|m| m.start());
+    found.map_or(Position::NONE, |at| {
+        let before = &text[..at];
+        let line = before.matches('\n').count() + 1;
+        let column = before.rsplit('\n').next().map_or(0, |l| l.chars().count()) + 1;
+        match (u16::try_from(line), u16::try_from(column)) {
+            (Ok(line), Ok(column)) => Position::new(line, column),
+            _ => Position::NONE,
+        }
+    })
 }
 
 fn signatures(ast: &AST) -> Functions {
@@ -119,10 +191,11 @@ impl Resolver {
         let text = self.sources.get(name).map(|s| Arc::clone(&s.text)).ok_or_else(not_found)?;
         let mut ast = engine.compile(&*text).map_err(|e| in_module(e.into()))?;
         ast.set_source(name);
-        // Located at the import, in the importing script, rather than inside the module.
-        self.defined
-            .add(name, &ast)
-            .map_err(|m| EvalAltResult::ErrorRuntime(m.into(), pos))?;
+        self.defined.add(name, &text, &ast).map_err(|clash| match clash {
+            // Located at the import, in the importing script, rather than inside the module.
+            Clash::Scripts(m) => EvalAltResult::ErrorRuntime(m.into(), pos).into(),
+            Clash::Engine(m, at) => in_module(EvalAltResult::ErrorRuntime(m.into(), at).into()),
+        })?;
         if !self.loading.borrow_mut().insert(name.to_owned()) {
             return Err(in_module(format!("module {name} imports itself").into()));
         }

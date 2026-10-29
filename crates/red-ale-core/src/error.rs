@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::{Date, NumericError};
+use crate::{Date, Guid, NumericError};
 
 /// Why a domain operation was refused. Every variant leaves the Book unchanged.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -49,6 +49,16 @@ pub enum DomainError {
     /// convention is unknown until the natural-signs scrub runs (`design/api/budgets.md`, "Natural signs").
     #[error("the book's budgets predate natural signs: run the budget sign scrub before editing budgets")]
     NaturalSigns,
+    /// A transaction and a template transaction would share a GUID, which GnuCash keeps in one collection, where
+    /// one would hide the other.
+    #[error(
+        "a transaction and a template transaction share the GUID {guid}; GnuCash would find only one of them, so the \
+         book can't hold both"
+    )]
+    SharedGuid {
+        /// The GUID both have.
+        guid: Guid,
+    },
     /// Arithmetic failed.
     #[error("arithmetic error: {0}")]
     Numeric(#[from] NumericError),

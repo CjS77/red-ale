@@ -1,35 +1,11 @@
-use std::sync::Arc;
-
-use red_ale_core::formula::NumberFormat;
-use red_ale_core::{Book, FixedEnv, Time64, TimeZone};
-
-use super::log::Log;
-use super::setup::{Setup, engine};
-use crate::limits::Limits;
-use crate::query::Snapshot;
+use super::setup::{Setup, engine, engine_functions};
 
 /// Read-only by construction (`design/reports.md` §1): no function a script can call returns core's Book or any
 /// other core type, or the `Book` handle, so a script holds only handles and values. Methods take `&mut` of a
 /// handle, as Rhai requires, never of the Book.
 #[test]
 fn no_script_function_hands_out_the_book() {
-    let snap = Snapshot::new(
-        &Book::new_empty(&mut FixedEnv::new(Time64(0), 0)),
-        Time64(0),
-        TimeZone::utc(),
-        NumberFormat::default(),
-    );
-    let sources = Arc::new(std::collections::BTreeMap::default());
-    let conventions = red_ale_locale::Locale::c().conventions();
-    let e = engine(&Setup {
-        snap,
-        sources,
-        limits: Limits::default(),
-        log: Log::new(1024),
-        conventions,
-        defined: super::resolver::Defined::default(),
-        deadline: super::setup::deadline(&Limits::default()),
-    });
+    let e = engine(&Setup::empty());
     let signatures = e.gen_fn_signatures(false);
     assert!(
         signatures.iter().any(|s| s.starts_with("root(")),
@@ -43,5 +19,21 @@ fn no_script_function_hands_out_the_book() {
     assert!(
         book_methods.iter().all(|s| s.contains("&mut Book") && !s.starts_with("set_")),
         "{book_methods:?}"
+    );
+}
+
+/// The functions a script may not replace are read from Rhai's metadata: the standard package's, the report API's
+/// and red-ale's `sleep`. Empty, the load check would refuse nothing.
+#[test]
+fn the_engine_functions_are_listed_with_their_arity() {
+    let listed = engine_functions();
+    let has = |name: &str, arity: usize| listed.contains(&(name.to_owned(), arity));
+    assert!(has("abs", 1), "the standard package");
+    assert!(has("len", 1), "a method, with `this` counted");
+    assert!(has("root", 1), "the query API");
+    assert!(has("sleep", 1), "red-ale's override");
+    assert!(
+        !has("templates", 0) && !has("options", 3) && !has("render", 4),
+        "every template script's entry points"
     );
 }

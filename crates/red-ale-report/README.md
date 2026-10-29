@@ -128,9 +128,10 @@ Conventions a translator needs:
   (`anon$…`). lib/collectors' methods loop for this reason (`tests/lib_collectors.rs`).
 - **One name, one function.** The same cache is shared by every script of a run, so a report script may not define
   a function with the name and arity of one in a module it imports, directly or not, private or not: the engine
-  refuses it at the import (`design/reports.md` §2). Nor should a report function take the name and arity of a
-  registered or standard-package function, which a library calling that function would run instead; the engine
-  cannot check this one.
+  refuses it at the import (`design/reports.md` §2). Nor may a script define a function with the name of a
+  registered or standard-package function of the same arity, or of one more (a method call `x.len()` reaches a
+  script `fn len()`), which every script of the run, the libraries included, would call instead: the engine refuses
+  it when the script compiles or is imported.
 
 Both closure limits are Rhai bugs, not consequences of red-ale's module resolver: `tests/rhai_closure_limits.rs`
 reproduces each on a bare `Engine::new()` with Rhai's own `StaticModuleResolver`. Both reproduce on rhai 1.26.1 and

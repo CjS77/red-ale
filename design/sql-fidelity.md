@@ -655,6 +655,17 @@ need it, through `check_storable`, with the reason, rather than lose it at save:
 - **Strings containing NUL**, which GnuCash's C strings would cut short.
 - **A NaN double**, which SQLite stores as NULL.
 
+**A transaction and a template transaction with one GUID** (v0.6) can't be held either: both are rows of
+`transactions` (`5.17:libgnucash/backend/sql/gnc-transaction-sql.cpp:68`). This one is format-independent, so the
+Session refuses it, not `check_storable`: a Mutation that would make such a pair, and a `book.save` of a Book holding
+one, are `invalid` with `data` `{ "reason": "shared-guid", "guid" }`, before step 1 of §4, so nothing is written and
+no backup is made ([`file-fidelity.md`](file-fidelity.md), "Writing"). Before v0.6 the save made its backup and
+SQLite's primary key then refused the `INSERT`, rolled back, as `file-format` ("UNIQUE constraint failed:
+transactions.guid"). An SQLite book can't be read with such a pair, so only a Mutation could make one. Tests:
+`crates/red-ale-service/tests/shared_guid.rs`,
+`a_mutation_giving_a_transaction_a_template_transaction_s_guid_is_refused_on_sqlite`; `src/session.rs`,
+`an_sqlite_save_of_a_shared_guid_is_refused_before_anything_is_written`.
+
 Converting a book between formats (GnuCash's Save As) is not in v0.4 ([`milestone4.md`](milestone4.md), "Out"); when
 it comes, it is refused for any book holding these.
 
