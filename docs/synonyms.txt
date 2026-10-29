@@ -12,3 +12,5 @@ quantity => amount
 shares => amount
 open file => book open
 save file => book save
+ledger entry => split
+reversing transaction => reverse
