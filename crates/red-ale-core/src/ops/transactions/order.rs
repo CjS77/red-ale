@@ -131,13 +131,21 @@ mod tests {
     use crate::{CommodityRef, Frame, Guid, Numeric, ReconcileState, SlotValue, Time64};
 
     /// Nums that tell `order_by_int64_or_string`'s cases apart, those that make it cycle among them.
-    const NUMS: [&str; 16] = ["", "0", "00", "0a", "05", "-3", "+5", " 10", "9", "10", "10a", "abc", "+0", "-", " ", "1"];
+    const NUMS: [&str; 16] = [
+        "", "0", "00", "0a", "05", "-3", "+5", " 10", "9", "10", "10a", "abc", "+0", "-", " ", "1",
+    ];
 
     fn assert_total<T>(items: &[T], cmp: impl Fn(&T, &T) -> Ordering) -> Result<(), TestCaseError> {
         let n = items.len();
         (0..n).try_for_each(|i| {
             (0..n).try_for_each(|j| {
-                prop_assert_eq!(cmp(&items[i], &items[j]), cmp(&items[j], &items[i]).reverse(), "antisymmetric {} {}", i, j);
+                prop_assert_eq!(
+                    cmp(&items[i], &items[j]),
+                    cmp(&items[j], &items[i]).reverse(),
+                    "antisymmetric {} {}",
+                    i,
+                    j
+                );
                 (0..n).try_for_each(|k| {
                     let (ij, jk, ik) = (cmp(&items[i], &items[j]), cmp(&items[j], &items[k]), cmp(&items[i], &items[k]));
                     if ij.is_le() && jk.is_le() {
@@ -215,7 +223,14 @@ mod tests {
     fn txn_spec() -> impl Strategy<Value = TxnSpec> {
         let text = || prop::sample::select(vec!["", "a", "b", "1", "2", "10", "-3", "0"]).prop_map(str::to_owned);
         let split = (text(), text(), prop::sample::select(vec!['n', 'c', 'y']), 0_i64..3);
-        (0_i64..2, any::<bool>(), text(), 0_i64..3, text(), prop::collection::vec(split, 1..4))
+        (
+            0_i64..2,
+            any::<bool>(),
+            text(),
+            0_i64..3,
+            text(),
+            prop::collection::vec(split, 1..4),
+        )
     }
 
     fn pairs(txns: &[Transaction]) -> Vec<(&Transaction, &Split)> {
@@ -244,7 +259,11 @@ mod tests {
         let by_txn = if ta.guid == tb.guid {
             Ordering::Equal
         } else {
-            let (na, nb) = if num_action { (text(&sa.action), text(&sb.action)) } else { (text(&ta.num), text(&tb.num)) };
+            let (na, nb) = if num_action {
+                (text(&sa.action), text(&sb.action))
+            } else {
+                (text(&ta.num), text(&tb.num))
+            };
             ta.date_posted
                 .cmp(&tb.date_posted)
                 .then_with(|| ta.is_closing().cmp(&tb.is_closing()))
@@ -301,7 +320,11 @@ mod tests {
         let spec = |i: usize| -> TxnSpec {
             let entered = i64::try_from(i).unwrap();
             let split = |memo: &str, action: &str| (memo.to_owned(), action.to_owned(), 'n', 1);
-            let splits = if i.is_multiple_of(2) { vec![split("", "a"), split("veg", "")] } else { vec![split("", "")] };
+            let splits = if i.is_multiple_of(2) {
+                vec![split("", "a"), split("veg", "")]
+            } else {
+                vec![split("", "")]
+            };
             (0, false, String::new(), entered, String::new(), splits)
         };
         (0..n).map(|i| transaction(i, &spec(i))).collect()
@@ -365,7 +388,12 @@ mod tests {
             key: Some(SortKey::Default),
             ascending: false,
         }];
-        assert!(sort_splits(book, &default, found.clone()).iter().rev().is_sorted_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, true).is_le()));
+        assert!(
+            sort_splits(book, &default, found.clone())
+                .iter()
+                .rev()
+                .is_sorted_by(|(ta, sa), (tb, sb)| split_order(ta, sa, tb, sb, true).is_le())
+        );
         assert_eq!(find(book, &Query::All(vec![]), None, &crate::TimeZone::utc()).unwrap().len(), 50);
         assert!(in_order(&crate::ops::balances::account_splits(book, bank)));
         assert_eq!(crate::ops::balances::running_balances(book, bank).unwrap().len(), 30);

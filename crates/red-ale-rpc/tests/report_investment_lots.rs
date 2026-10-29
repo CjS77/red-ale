@@ -74,7 +74,12 @@ fn rows_of(result: &Value, role: &str) -> Vec<String> {
 
 /// The column labels.
 fn labels(result: &Value) -> Vec<String> {
-    table(result)["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap().to_owned()).collect()
+    table(result)["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 /// A lot's row: a data row at the top level with a cell per column (the price row is one cell across the table).
@@ -97,19 +102,28 @@ fn td_texts(result: &Value, n: usize) -> Vec<String> {
 /// TIL's selection of the column headed `label` (`find-col-index`, TIL:371-376), read by label: the column's texts,
 /// or none when no column has the label.
 fn column_texts(result: &Value, label: &str) -> Vec<String> {
-    labels(result).iter().position(|l| l == label).map_or_else(Vec::new, |i| td_texts(result, i))
+    labels(result)
+        .iter()
+        .position(|l| l == label)
+        .map_or_else(Vec::new, |i| td_texts(result, i))
 }
 
 /// The same selection as GnuCash makes it: the plain style sheet writes the account's name as a `<th>`
 /// (`5.17:gnucash/report/stylesheets/plain.scm:105-112`), first among the header texts, so the position found is one
 /// past the column and the `<td>`s read are those of the column to its right.
 fn gnucash_column_texts(result: &Value, label: &str) -> Vec<String> {
-    labels(result).iter().position(|l| l == label).map_or_else(Vec::new, |i| td_texts(result, i + 1))
+    labels(result)
+        .iter()
+        .position(|l| l == label)
+        .map_or_else(Vec::new, |i| td_texts(result, i + 1))
 }
 
 /// The first lot row's cell under the column headed `label`.
 fn lot_cell(result: &Value, label: &str) -> String {
-    let i = labels(result).iter().position(|l| l == label).unwrap_or_else(|| panic!("no column {label}"));
+    let i = labels(result)
+        .iter()
+        .position(|l| l == label)
+        .unwrap_or_else(|| panic!("no column {label}"));
     let row = table_rows(result).iter().find(|r| is_lot_row(result, r)).unwrap();
     text(&row["cells"][i])
 }
@@ -126,7 +140,11 @@ fn window(from: &str, to: &str, more: Value) -> Value {
         if options.get(section).is_none() {
             options[section] = json!({});
         }
-        values.as_object().unwrap().iter().for_each(|(k, v)| options[section][k] = v.clone());
+        values
+            .as_object()
+            .unwrap()
+            .iter()
+            .for_each(|(k, v)| options[section][k] = v.clone());
     });
     options
 }
@@ -151,7 +169,13 @@ fn gnucash_s_rendering_runs() {
             let options = options_param(r);
             let result = s.run(LOTS, &options);
             assert_eq!(result["title"], "Investment Lots, 03/15/24 to 03/15/24", "{format} {}", r["name"]);
-            assert_eq!(rows_of(&result, "grandTotal").len(), 1, "{format} {}: {:#?}", r["name"], rows(&result));
+            assert_eq!(
+                rows_of(&result, "grandTotal").len(),
+                1,
+                "{format} {}: {:#?}",
+                r["name"],
+                rows(&result)
+            );
             assert!(s.export(LOTS, &options).contains("Grand Total"), "{format} {}", r["name"]);
         });
     }
@@ -193,14 +217,22 @@ fn report_rule(name: &str) -> bool {
 
 /// A Rhai expression for an argument of a function check: `()` for `false`, a Rational for a number.
 fn rhai_arg(v: &Value) -> String {
-    if v == &json!(false) { "()".to_owned() } else { format!("rational({v})") }
+    if v == &json!(false) {
+        "()".to_owned()
+    } else {
+        format!("rational({v})")
+    }
 }
 
 /// The split type of a classifier check: book B's marked reverse split's own for the engine cases (TIL:651-670),
 /// else the string.
 fn split_type_arg(t: &Value) -> String {
     let t = t.as_str().unwrap();
-    if t.starts_with("stock-split (") || t.starts_with("xaccSplitGetType") { "type_of_split(rs)".to_owned() } else { format!("{t:?}") }
+    if t.starts_with("stock-split (") || t.starts_with("xaccSplitGetType") {
+        "type_of_split(rs)".to_owned()
+    } else {
+        format!("{t:?}")
+    }
 }
 
 /// The Rhai test of one function check of `investment-lots.expected.json`, or `None` for `calculate-gain`, which
@@ -214,9 +246,12 @@ fn rhai_check(c: &Value) -> Option<String> {
         other => panic!("{name}: {other}"),
     };
     let test = match c["function"].as_str().unwrap() {
-        "calculate-cagr" => {
-            want(&format!("calculate_cagr({}, {}, {})", rhai_arg(&a["basis"]), rhai_arg(&a["endValue"]), rhai_arg(&a["years"])))
-        }
+        "calculate-cagr" => want(&format!(
+            "calculate_cagr({}, {}, {})",
+            rhai_arg(&a["basis"]),
+            rhai_arg(&a["endValue"]),
+            rhai_arg(&a["years"])
+        )),
         "calculate-roi" => want(&format!("il::calculate_roi({}, {})", rhai_arg(&a["basis"]), rhai_arg(&a["gain"]))),
         "calculate-gain" => return None,
         "is-long-term?" => format!(
@@ -227,7 +262,12 @@ fn rhai_check(c: &Value) -> Option<String> {
             report_rule(name)
         ),
         "stock-split-event?" => {
-            format!("il::stock_split_event({}, {}) == {}", split_type_arg(&a["splitType"]), a["splitAction"], c["expected"])
+            format!(
+                "il::stock_split_event({}, {}) == {}",
+                split_type_arg(&a["splitType"]),
+                a["splitAction"],
+                c["expected"]
+            )
         }
         "non-realizing-share-reduction?" => format!(
             "il::non_realizing_share_reduction({}, {}, {}, {}) == {}",
@@ -278,9 +318,21 @@ fn gnucash_s_function_checks() {
     let e = expected("investment-lots.expected.json");
     let all = e["functionChecks"]["checks"].as_array().unwrap();
     let checks: Vec<String> = all.iter().filter_map(rhai_check).collect();
-    let skipped: Vec<&str> =
-        all.iter().filter(|c| c["function"] == "calculate-gain").map(|c| c["name"].as_str().unwrap()).collect();
-    assert_eq!(skipped, ["positive-gain", "fifty-dollar-gain", "negative-loss", "twenty-dollar-loss", "zero-change"]);
+    let skipped: Vec<&str> = all
+        .iter()
+        .filter(|c| c["function"] == "calculate-gain")
+        .map(|c| c["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        skipped,
+        [
+            "positive-gain",
+            "fifty-dollar-gain",
+            "negative-loss",
+            "twenty-dollar-loss",
+            "zero-change"
+        ]
+    );
     assert_eq!(checks.len(), all.len() - skipped.len());
     let mut s = Setup::fixture(BOOK_B, &test_settings("locale"));
     s.script("lot-checks.rhai", &function_check_script(&checks));
@@ -296,14 +348,26 @@ fn gnucash_s_function_checks() {
 /// TIL:733-760 on book B, its reverse split in the lot and outside the default window: the header has "Sold
 /// Splits", that column has no "1", and the "Realized Gain" column has no "(".
 fn reverse_split_regression(format: &str, result: &Value, html: &str) {
-    assert!(labels(result).contains(&"Sold Splits".to_owned()), "{format}: found-sold-splits-column (TIL:741)");
-    assert!(rows_of(result, "heading").iter().any(|h| h.contains("| Sold Splits |")), "{format}: the account's header");
+    assert!(
+        labels(result).contains(&"Sold Splits".to_owned()),
+        "{format}: found-sold-splits-column (TIL:741)"
+    );
+    assert!(
+        rows_of(result, "heading").iter().any(|h| h.contains("| Sold Splits |")),
+        "{format}: the account's header"
+    );
     assert!(html.contains(">Sold Splits<"), "{format}");
     for texts in [column_texts(result, "Sold Splits"), gnucash_column_texts(result, "Sold Splits")] {
-        assert!(!texts.iter().any(|t| t == "1"), "{format}: no-sold-split-count-one (TIL:749): {texts:?}");
+        assert!(
+            !texts.iter().any(|t| t == "1"),
+            "{format}: no-sold-split-count-one (TIL:749): {texts:?}"
+        );
     }
     for texts in [column_texts(result, "Realized Gain"), gnucash_column_texts(result, "Realized Gain")] {
-        assert!(!texts.iter().any(|t| t.contains('(')), "{format}: no-phantom-negative-realized-loss (TIL:755)");
+        assert!(
+            !texts.iter().any(|t| t.contains('(')),
+            "{format}: no-phantom-negative-realized-loss (TIL:755)"
+        );
     }
 }
 
@@ -312,7 +376,11 @@ fn reverse_split_regression(format: &str, result: &Value, html: &str) {
 fn assert_same_selections(format: &str, what: &str, a: &Value, b: &Value) {
     for label in ["Sold Splits", "Realized Gain"] {
         assert_eq!(column_texts(a, label), column_texts(b, label), "{format} {what}: {label}");
-        assert_eq!(gnucash_column_texts(a, label), gnucash_column_texts(b, label), "{format} {what}: {label}, GnuCash's way");
+        assert_eq!(
+            gnucash_column_texts(a, label),
+            gnucash_column_texts(b, label),
+            "{format} {what}: {label}, GnuCash's way"
+        );
     }
 }
 
@@ -333,7 +401,10 @@ fn gnucash_s_reverse_split_checks() {
         assert!(d.export(LOTS, &json!({})).contains(">Sold Splits<"), "{format}");
         let base = Setup::fixture(BOOK_E, &test_settings("locale")).run(LOTS, &json!({}));
         assert_same_selections(format, "E vs D", &base, &result);
-        assert!(column_texts(&result, "Realized Gain").is_empty(), "gains-only has no Realized Gain column");
+        assert!(
+            column_texts(&result, "Realized Gain").is_empty(),
+            "gains-only has no Realized Gain column"
+        );
     }
 }
 
@@ -348,26 +419,39 @@ fn every_check_of_the_lot_books_is_ported() {
             .iter()
             .flat_map(|r| {
                 let id = r["id"].as_str().unwrap().to_owned();
-                r["checks"].as_array().unwrap().iter().map(move |c| format!("{id}/{}:{}", c["name"].as_str().unwrap(), c["line"]))
+                r["checks"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(move |c| format!("{id}/{}:{}", c["name"].as_str().unwrap(), c["line"]))
             })
             .collect()
     };
-    assert_eq!(names("lots-reverse-split.expected.json"), [
-        "reverse-split-regression/found-sold-splits-column:741",
-        "reverse-split-regression/realized-gain-column-optional-when-no-sales:742",
-        "reverse-split-regression/no-sold-split-count-one:749",
-        "reverse-split-regression/no-phantom-negative-realized-loss:755",
-        "reverse-split-vs-baseline/sold-splits-equal-baseline-vs-reverse:792",
-        "reverse-split-vs-baseline/realized-gain-equal-baseline-vs-reverse:794",
-    ]);
-    assert_eq!(names("lots-reverse-split-sale.expected.json"), [
-        "reverse-split-with-sale/reverse-split-sale-has-sold-splits-column:829",
-        "reverse-split-with-sale/reverse-split-sale-realized-gain-column-optional:830",
-        "reverse-split-with-sale/sold-splits-equal-equivalent-baseline:831",
-        "reverse-split-with-sale/realized-gain-equal-equivalent-baseline:833",
-    ]);
+    assert_eq!(
+        names("lots-reverse-split.expected.json"),
+        [
+            "reverse-split-regression/found-sold-splits-column:741",
+            "reverse-split-regression/realized-gain-column-optional-when-no-sales:742",
+            "reverse-split-regression/no-sold-split-count-one:749",
+            "reverse-split-regression/no-phantom-negative-realized-loss:755",
+            "reverse-split-vs-baseline/sold-splits-equal-baseline-vs-reverse:792",
+            "reverse-split-vs-baseline/realized-gain-equal-baseline-vs-reverse:794",
+        ]
+    );
+    assert_eq!(
+        names("lots-reverse-split-sale.expected.json"),
+        [
+            "reverse-split-with-sale/reverse-split-sale-has-sold-splits-column:829",
+            "reverse-split-with-sale/reverse-split-sale-realized-gain-column-optional:830",
+            "reverse-split-with-sale/sold-splits-equal-equivalent-baseline:831",
+            "reverse-split-with-sale/realized-gain-equal-equivalent-baseline:833",
+        ]
+    );
     assert!(names("lots-baseline.expected.json").is_empty(), "C is read only to compare with B");
-    assert!(names("lots-postsplit-baseline.expected.json").is_empty(), "E is read only to compare with D");
+    assert!(
+        names("lots-postsplit-baseline.expected.json").is_empty(),
+        "E is read only to compare with D"
+    );
 }
 
 /// TIL's comparisons over 2020 with "Group gains by age" off, so that the window holds the trades and a "Realized
@@ -382,7 +466,11 @@ fn windowed_comparisons_test_something() {
         assert_same_selections(format, "E vs D over 2020", &re, &rd);
         assert_eq!(column_texts(&rd, "Sold Splits"), ["1", "1", "1"], "{format}");
         assert_eq!(column_texts(&rd, "Realized Gain"), ["$500.00", "$500.00", "$500.00"], "{format}");
-        assert_eq!(gnucash_column_texts(&rd, "Sold Splits"), ["25. AAPL", "25. AAPL"], "{format}: Sold Amount");
+        assert_eq!(
+            gnucash_column_texts(&rd, "Sold Splits"),
+            ["25. AAPL", "25. AAPL"],
+            "{format}: Sold Amount"
+        );
     }
     for (format, mut b) in both(BOOK_B) {
         let rb = b.run(LOTS, &options);
@@ -410,7 +498,11 @@ fn worked_figures_of_the_default_runs() {
         for (format, mut s) in both(fixture) {
             let result = s.run(LOTS, &json!({}));
             figures.as_object().unwrap().iter().for_each(|(label, want)| {
-                let got = if label == "price line" { text(&table_rows(&result)[4]["cells"][0]) } else { lot_cell(&result, label) };
+                let got = if label == "price line" {
+                    text(&table_rows(&result)[4]["cells"][0])
+                } else {
+                    lot_cell(&result, label)
+                };
                 assert_eq!(got, want.as_str().unwrap(), "{format} {fixture}: {label}");
             });
         }
@@ -420,8 +512,16 @@ fn worked_figures_of_the_default_runs() {
 /// The GUID of AAPL's split posted on `date` in books B to E.
 fn split_of(s: &mut Setup, date: &str) -> String {
     let list = s.call("transaction.list", json!({ "account": AAPL }));
-    let t = list["transactions"].as_array().unwrap().iter().find(|t| t["datePosted"].as_str().unwrap().starts_with(date)).unwrap();
-    t["splits"].as_array().unwrap().iter().find(|sp| sp["account"] == AAPL).unwrap()["guid"].as_str().unwrap().to_owned()
+    let t = list["transactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["datePosted"].as_str().unwrap().starts_with(date))
+        .unwrap();
+    t["splits"].as_array().unwrap().iter().find(|sp| sp["account"] == AAPL).unwrap()["guid"]
+        .as_str()
+        .unwrap()
+        .to_owned()
 }
 
 const D_HEADER: &str = "Lot Title | Opened | Closed | Bought Amount | Bought Value (Basis) | Bought Average Price | Sold Splits | \
@@ -484,8 +584,15 @@ fn book_d_over_2020() {
         assert_eq!(result["title"], "Investment Lots, 12/31/19 to 12/31/20");
         let t = table_rows(&result);
         let lot_row = &t[6];
-        assert_eq!(lot_row["cells"][1]["link"]["split"], json!(split_of(&mut s, "2020-01-01")), "Opened links the purchase");
-        assert_eq!((&lot_row["cells"][16]["rounding"], &lot_row["cells"][16]["places"]), (&json!("halfUp"), &json!(1)));
+        assert_eq!(
+            lot_row["cells"][1]["link"]["split"],
+            json!(split_of(&mut s, "2020-01-01")),
+            "Opened links the purchase"
+        );
+        assert_eq!(
+            (&lot_row["cells"][16]["rounding"], &lot_row["cells"][16]["places"]),
+            (&json!("halfUp"), &json!(1))
+        );
         assert_eq!(t[3]["cells"][0]["account"], AAPL);
         let html = s.export(LOTS, &options);
         assert!(html.contains("204.1%"), "{format}");
@@ -500,11 +607,14 @@ fn split_rows() {
     let mut s = Setup::fixture(BOOK_D, &test_settings("locale"));
     let result = s.run(LOTS, &year_2020(json!({ "Display": { "Show lot split rows": true } })));
     let data = rows_of(&result, "data");
-    assert_eq!(&data[2..], [
-        "data: split | 01/01/20 |  | 100. AAPL | $5,000.00 | $50.00 |  |  |  |  |  | 100. AAPL | $5,000.00 |  |  |  |  |  |  | ",
-        "data: split |  | 03/01/20 |  |  |  |  | 25. AAPL | $2,500.00 | $3,000.00 | $120.00 | 25. AAPL | $2,500.00 |  | $500.00 |  | \
+    assert_eq!(
+        &data[2..],
+        [
+            "data: split | 01/01/20 |  | 100. AAPL | $5,000.00 | $50.00 |  |  |  |  |  | 100. AAPL | $5,000.00 |  |  |  |  |  |  | ",
+            "data: split |  | 03/01/20 |  |  |  |  | 25. AAPL | $2,500.00 | $3,000.00 | $120.00 | 25. AAPL | $2,500.00 |  | $500.00 |  | \
          204.1% |  |  | ",
-    ]);
+        ]
+    );
     let t = table_rows(&result);
     assert_eq!(t[7]["depth"], 1);
     assert_eq!(t[7]["cells"][1]["link"]["split"], json!(split_of(&mut s, "2020-01-01")));
@@ -518,23 +628,52 @@ fn split_rows() {
 #[test]
 fn column_options() {
     let mut s = Setup::fixture(BOOK_D, &test_settings("locale"));
-    let result = s.run(LOTS, &year_2020(json!({ "Columns": {
+    let result = s.run(
+        LOTS,
+        &year_2020(json!({ "Columns": {
         "Group gains by age (short term and long term)": "gains-and-sales", "Show ROI columns": true,
-        "Show lot GUID column": true } })));
+        "Show lot GUID column": true } })),
+    );
     assert_eq!(&labels(&result)[..3], ["Lot Title", "GUID", "Opened"]);
     assert_eq!(lot_cell(&result, "GUID"), LOT);
-    assert_eq!(lot_cells(&result, &["ST Sold Amount", "ST Sold Basis", "ST Sold Value", "LT Sold Amount", "Sold Average Price"]), [
-        "25. AAPL", "$2,500.00", "$3,000.00", "", "$120.00",
-    ]);
-    assert_eq!(lot_cells(&result, &["Realized ROI", "Unrealized ROI", "Realized CAGR"]), ["20.0%", "-100.0%", "204.1%"]);
-    let result = s.run(LOTS, &year_2020(json!({
+    assert_eq!(
+        lot_cells(
+            &result,
+            &[
+                "ST Sold Amount",
+                "ST Sold Basis",
+                "ST Sold Value",
+                "LT Sold Amount",
+                "Sold Average Price"
+            ]
+        ),
+        ["25. AAPL", "$2,500.00", "$3,000.00", "", "$120.00",]
+    );
+    assert_eq!(
+        lot_cells(&result, &["Realized ROI", "Unrealized ROI", "Realized CAGR"]),
+        ["20.0%", "-100.0%", "204.1%"]
+    );
+    let result = s.run(
+        LOTS,
+        &year_2020(json!({
         "Columns": { "Group gains by age (short term and long term)": "no", "Show CAGR columns": false },
-        "Display": { "Show blanks instead of zeros in table cells": false } })));
-    assert_eq!(labels(&result)[14..], ["Realized Gain", "Unrealized Gain"], "no ST and LT columns, no CAGR");
-    assert_eq!(lot_cells(&result, &["Closed", "End Value", "Realized Gain", "Unrealized Gain"]), ["", "$0.00", "$500.00", "-$2,500.00"]);
-    let result = s.run(LOTS, &year_2020(json!({ "Columns": {
+        "Display": { "Show blanks instead of zeros in table cells": false } })),
+    );
+    assert_eq!(
+        labels(&result)[14..],
+        ["Realized Gain", "Unrealized Gain"],
+        "no ST and LT columns, no CAGR"
+    );
+    assert_eq!(
+        lot_cells(&result, &["Closed", "End Value", "Realized Gain", "Unrealized Gain"]),
+        ["", "$0.00", "$500.00", "-$2,500.00"]
+    );
+    let result = s.run(
+        LOTS,
+        &year_2020(json!({ "Columns": {
         "Show date columns": false, "Show bought columns": false, "Show sold columns": false, "Show end columns": false,
-        "Show realized gain columns": false, "Show unrealized gain columns": false } })));
+        "Show realized gain columns": false, "Show unrealized gain columns": false } })),
+    );
     assert_eq!(labels(&result), ["Lot Title"]);
 }
 
@@ -545,9 +684,13 @@ fn column_options() {
 fn the_start_date_s_own_trades_are_outside() {
     let mut s = Setup::fixture(BOOK_D, &test_settings("locale"));
     let result = s.run(LOTS, &window("2020-01-01", "2020-12-31", json!({})));
-    assert_eq!(lot_cells(&result, &["Opened", "Bought Amount", "Sold Basis", "ST Realized Gain", "Realized CAGR"]), [
-        "01/01/20", "", "$2,500.00", "$500.00", "204.1%",
-    ]);
+    assert_eq!(
+        lot_cells(
+            &result,
+            &["Opened", "Bought Amount", "Sold Basis", "ST Realized Gain", "Realized CAGR"]
+        ),
+        ["01/01/20", "", "$2,500.00", "$500.00", "204.1%",]
+    );
     let result = s.run(LOTS, &window("2020-03-01", "2020-12-31", json!({})));
     assert_eq!(lot_cells(&result, &["Sold Splits", "End Basis"]), ["", "$2,500.00"]);
 }
@@ -560,7 +703,10 @@ fn book_with(stocks: &[&str]) -> Setup {
     s.account("Bank", "BANK", None, "CURRENCY::USD");
     s.account("Broker", "ASSET", None, "CURRENCY::USD");
     stocks.iter().for_each(|m| {
-        s.call("commodity.create", json!({ "namespace": "NYSE", "mnemonic": m, "fullname": m, "fraction": 1 }));
+        s.call(
+            "commodity.create",
+            json!({ "namespace": "NYSE", "mnemonic": m, "fullname": m, "fraction": 1 }),
+        );
         s.account(m, "STOCK", Some("Broker"), &format!("NYSE::{m}"));
     });
     s
@@ -568,7 +714,10 @@ fn book_with(stocks: &[&str]) -> Setup {
 
 /// A new lot of `stock` titled `title`.
 fn lot(s: &mut Setup, stock: &str, title: &str) -> String {
-    s.call("lot.create", json!({ "account": format!("Broker:{stock}"), "title": title }))["guid"].as_str().unwrap().to_owned()
+    s.call("lot.create", json!({ "account": format!("Broker:{stock}"), "title": title }))["guid"]
+        .as_str()
+        .unwrap()
+        .to_owned()
 }
 
 /// `shares` of `stock` for `value` dollars on `date`, against Bank, in `lot` (or none), with `action`; a zero value
@@ -584,9 +733,15 @@ fn trade(s: &mut Setup, date: &str, stock: &str, lot: Option<&str>, shares: &str
         let other = value.strip_prefix('-').map_or_else(|| format!("-{value}"), str::to_owned);
         splits.push(json!({ "account": "Bank", "value": other }));
     }
-    let t = s.call("transaction.post", json!({ "datePosted": date, "currency": "CURRENCY::USD", "splits": splits }));
+    let t = s.call(
+        "transaction.post",
+        json!({ "datePosted": date, "currency": "CURRENCY::USD", "splits": splits }),
+    );
     let id = s.call("account.get", json!({ "account": account }))["guid"].clone();
-    t["splits"].as_array().unwrap().iter().find(|sp| sp["account"] == id).unwrap()["guid"].as_str().unwrap().to_owned()
+    t["splits"].as_array().unwrap().iter().find(|sp| sp["account"] == id).unwrap()["guid"]
+        .as_str()
+        .unwrap()
+        .to_owned()
 }
 
 /// Options for `stocks` over 2018-01-01 to 2024-03-15, and `more`.
@@ -644,17 +799,32 @@ fn the_long_term_threshold() {
         ("over-half", "2020-01-01", "2020-07-03"),
     ]);
     let mut run = |years: Value, titles: &[&str]| -> Vec<String> {
-        let all = gains_by_term(&s.run(LOTS, &options_for(&["XYZ"], json!({ "Columns": { "Long term gains age (years)": years } }))));
-        titles.iter().map(|t| all.iter().find(|g| g.starts_with(&format!("{t}: "))).unwrap().clone()).collect()
+        let all = gains_by_term(&s.run(
+            LOTS,
+            &options_for(&["XYZ"], json!({ "Columns": { "Long term gains age (years)": years } })),
+        ));
+        titles
+            .iter()
+            .map(|t| all.iter().find(|g| g.starts_with(&format!("{t}: "))).unwrap().clone())
+            .collect()
     };
-    assert_eq!(run(json!(1), &["leap-equal", "leap-more", "year", "year-and-day"]), [
-        "leap-equal: $50.00 | ",
-        "leap-more:  | $50.00",
-        "year: $50.00 | ",
-        "year-and-day:  | $50.00"
-    ]);
-    assert_eq!(run(json!(0), &["same-day", "next-day"]), ["same-day: $50.00 | ", "next-day:  | $50.00"]);
-    assert_eq!(run(json!("0.5"), &["half", "over-half"]), ["half: $50.00 | ", "over-half:  | $50.00"]);
+    assert_eq!(
+        run(json!(1), &["leap-equal", "leap-more", "year", "year-and-day"]),
+        [
+            "leap-equal: $50.00 | ",
+            "leap-more:  | $50.00",
+            "year: $50.00 | ",
+            "year-and-day:  | $50.00"
+        ]
+    );
+    assert_eq!(
+        run(json!(0), &["same-day", "next-day"]),
+        ["same-day: $50.00 | ", "next-day:  | $50.00"]
+    );
+    assert_eq!(
+        run(json!("0.5"), &["half", "over-half"]),
+        ["half: $50.00 | ", "over-half:  | $50.00"]
+    );
 }
 
 /// A lot of two purchases, $100 for 10 on 2020-01-01 and $200 for 10 on 2020-06-01, sold 10 for $500 on 2021-03-01
@@ -670,14 +840,31 @@ fn several_purchases() {
     trade(&mut s, "2020-06-01", "XYZ", Some(&l), "10", "200", "");
     trade(&mut s, "2021-03-01", "XYZ", Some(&l), "-10", "-500", "");
     let result = s.run(LOTS, &options_for(&["XYZ"], json!({})));
-    let labels =
-        ["Lot Title", "Opened", "Bought Amount", "Sold Basis", "ST Realized Gain", "LT Realized Gain", "Realized CAGR", "End Amount", "End Basis"];
-    assert_eq!(lot_cells(&result, &labels), ["Two buys", "01/01/20", "20. XYZ", "$150.00", "$350.00", "", "399.4%", "10. XYZ", "$150.00"]);
-    assert_eq!(rows_of(&result, "warning"), [
-        "warning: Warning: Above lot has 2 bought splits. Consider separating them into their own lots.",
-        "warning: Warning: Above lot's computed gain $350.00 is not equal to the \"Realized Gain/Loss\" split(s) sum $0.00. \
+    let labels = [
+        "Lot Title",
+        "Opened",
+        "Bought Amount",
+        "Sold Basis",
+        "ST Realized Gain",
+        "LT Realized Gain",
+        "Realized CAGR",
+        "End Amount",
+        "End Basis",
+    ];
+    assert_eq!(
+        lot_cells(&result, &labels),
+        [
+            "Two buys", "01/01/20", "20. XYZ", "$150.00", "$350.00", "", "399.4%", "10. XYZ", "$150.00"
+        ]
+    );
+    assert_eq!(
+        rows_of(&result, "warning"),
+        [
+            "warning: Warning: Above lot has 2 bought splits. Consider separating them into their own lots.",
+            "warning: Warning: Above lot's computed gain $350.00 is not equal to the \"Realized Gain/Loss\" split(s) sum $0.00. \
          Difference: $350.00",
-    ]);
+        ]
+    );
 }
 
 /// A forward stock split is a purchase (IL:524-536): 10 bought for $100, 10 more for nothing (action "Split"), then
@@ -692,9 +879,20 @@ fn a_forward_split_is_a_purchase() {
     trade(&mut s, "2020-02-01", "XYZ", Some(&l), "10", "0", "Split");
     trade(&mut s, "2020-03-01", "XYZ", Some(&l), "-10", "-80", "");
     let result = s.run(LOTS, &options_for(&["XYZ"], json!({})));
-    let labels = ["Bought Amount", "Bought Value (Basis)", "Bought Average Price", "Sold Basis", "ST Realized Gain", "Realized CAGR",
-        "End Amount", "End Basis"];
-    assert_eq!(lot_cells(&result, &labels), ["20. XYZ", "$100.00", "$5.00", "$50.00", "$30.00", "37,582.1%", "10. XYZ", "$50.00"]);
+    let labels = [
+        "Bought Amount",
+        "Bought Value (Basis)",
+        "Bought Average Price",
+        "Sold Basis",
+        "ST Realized Gain",
+        "Realized CAGR",
+        "End Amount",
+        "End Basis",
+    ];
+    assert_eq!(
+        lot_cells(&result, &labels),
+        ["20. XYZ", "$100.00", "$5.00", "$50.00", "$30.00", "37,582.1%", "10. XYZ", "$50.00"]
+    );
     assert!(rows(&result).iter().any(|r| r.contains("2 bought splits")));
 }
 
@@ -712,20 +910,37 @@ fn negative_balances_and_a_sale_from_nothing() {
     trade(&mut s, "2020-03-01", "XYZ", Some(&over), "-15", "-300", "");
     let empty = lot(&mut s, "XYZ", "Empty");
     trade(&mut s, "2020-04-01", "XYZ", Some(&empty), "-5", "-50", "");
-    let result = s.run(LOTS, &options_for(&["XYZ"], json!({ "Validation": {
-        "Warn if the 'Realized Gain/Loss' split(s) sum does not match the computed gains": false } })));
+    let result = s.run(
+        LOTS,
+        &options_for(
+            &["XYZ"],
+            json!({ "Validation": {
+        "Warn if the 'Realized Gain/Loss' split(s) sum does not match the computed gains": false } }),
+        ),
+    );
     let r = rows(&result);
     let negative = |date: &str| {
-        format!("warning: Warning: Above lot's balance is negative on {date}. Consider removing the responsible sale split from the lot \
-                 and then scrubbing.")
+        format!(
+            "warning: Warning: Above lot's balance is negative on {date}. Consider removing the responsible sale split from the lot \
+                 and then scrubbing."
+        )
     };
-    assert_eq!(r[6], "data: Oversold | 01/01/20 |  | 10. XYZ | $100.00 | $10.00 | 1 | 15. XYZ | $150.00 | $300.00 | $20.00 | \
-                      -5. XYZ | -$50.00 |  | $150.00 |  | 6,759.4% |  | $50.00 | ");
+    assert_eq!(
+        r[6],
+        "data: Oversold | 01/01/20 |  | 10. XYZ | $100.00 | $10.00 | 1 | 15. XYZ | $150.00 | $300.00 | $20.00 | \
+                      -5. XYZ | -$50.00 |  | $150.00 |  | 6,759.4% |  | $50.00 | "
+    );
     assert_eq!(r[7], negative("03/01/20"));
-    assert_eq!(r[8], "data: Empty |  |  |  |  |  | 1 | 5. XYZ |  | $50.00 | $10.00 | -5. XYZ |  |  |  |  |  |  |  | ");
+    assert_eq!(
+        r[8],
+        "data: Empty |  |  |  |  |  | 1 | 5. XYZ |  | $50.00 | $10.00 | -5. XYZ |  |  |  |  |  |  |  | "
+    );
     assert_eq!(r[9], negative("04/01/20"));
     let total = &r[11];
-    assert!(total.starts_with("grandTotal: Account Lots Total |  |  | 10. XYZ | $100.00 | $10.00 | 2 | 20. XYZ |  | $350.00 |"), "{total}");
+    assert!(
+        total.starts_with("grandTotal: Account Lots Total |  |  | 10. XYZ | $100.00 | $10.00 | 2 | 20. XYZ |  | $350.00 |"),
+        "{total}"
+    );
     let result = s.run(LOTS, &options_for(&["XYZ"], json!({})));
     let mismatch = "warning: Warning: Above lot's computed gain  is not equal to the \"Realized Gain/Loss\" split(s) sum $0.00. \
                     Difference: ";
@@ -748,10 +963,13 @@ fn gains_splits_match_or_not() {
         s.call("transaction.post", t);
     }
     let warnings = rows_of(&s.run(LOTS, &options_for(&["XYZ", "ABC"], json!({}))), "warning");
-    assert_eq!(warnings, [
-        "warning: Warning: Above lot's computed gain $50.00 is not equal to the \"Realized Gain/Loss\" split(s) sum $40.00. Difference: \
+    assert_eq!(
+        warnings,
+        [
+            "warning: Warning: Above lot's computed gain $50.00 is not equal to the \"Realized Gain/Loss\" split(s) sum $40.00. Difference: \
          $10.00"
-    ]);
+        ]
+    );
 }
 
 /// Splits in no lot (IL:1605-1640) and a balance the lots do not add up to (IL:1642-1660): an account with a lot of
@@ -767,20 +985,38 @@ fn unassigned_splits_and_the_balance() {
     let mismatch = "warning: Warning: End amount 10. XYZ is not equal to actual account balance 15. XYZ. Difference: -5. XYZ. Do lots \
                     need to be scrubbed?";
     let mut warnings = |kind: &str| {
-        let result = s.run(LOTS, &options_for(&["XYZ"], json!({ "Validation": { "Warn if a split is not assigned to a lot": kind } })));
+        let result = s.run(
+            LOTS,
+            &options_for(
+                &["XYZ"],
+                json!({ "Validation": { "Warn if a split is not assigned to a lot": kind } }),
+            ),
+        );
         (rows_of(&result, "warning"), result)
     };
-    assert_eq!(warnings("count").0, ["warning: Warning: 2 split(s) are not assigned to a lot. Do lots need to be scrubbed?", mismatch]);
+    assert_eq!(
+        warnings("count").0,
+        [
+            "warning: Warning: 2 split(s) are not assigned to a lot. Do lots need to be scrubbed?",
+            mismatch
+        ]
+    );
     let (listed, result) = warnings("list");
-    assert_eq!(listed, [
-        "warning: Warning: The following 2 split(s) are not assigned to a lot. Do lots need to be scrubbed?",
-        "warning: 03/01/20: amount 3. XYZ, value $50.00",
-        "warning: 02/01/20: amount 2. XYZ, value $30.00",
-        mismatch,
-    ]);
+    assert_eq!(
+        listed,
+        [
+            "warning: Warning: The following 2 split(s) are not assigned to a lot. Do lots need to be scrubbed?",
+            "warning: 03/01/20: amount 3. XYZ, value $50.00",
+            "warning: 02/01/20: amount 2. XYZ, value $30.00",
+            mismatch,
+        ]
+    );
     let items: Vec<&Value> = table_rows(&result).iter().filter(|r| r["depth"] == 1).collect();
     assert_eq!(items.len(), 2);
-    assert_eq!((&items[0]["cells"][0]["link"]["split"], &items[1]["cells"][0]["link"]["split"]), (&json!(second), &json!(first)));
+    assert_eq!(
+        (&items[0]["cells"][0]["link"]["split"], &items[1]["cells"][0]["link"]["split"]),
+        (&json!(second), &json!(first))
+    );
     assert_eq!(warnings("no").0, [mismatch]);
 }
 
@@ -793,8 +1029,11 @@ fn only_accounts_with_warnings() {
     trade(&mut s, "2020-01-01", "XYZ", Some(&l), "10", "100", "");
     let l = lot(&mut s, "ABC", "Fine");
     trade(&mut s, "2020-01-01", "ABC", Some(&l), "10", "200", "");
-    let options = options_for(&["XYZ", "ABC"], json!({ "Validation": {
-        "Include only accounts with warnings": true, "Warn if a lot has a blank title": true } }));
+    let options = options_for(
+        &["XYZ", "ABC"],
+        json!({ "Validation": {
+        "Include only accounts with warnings": true, "Warn if a lot has a blank title": true } }),
+    );
     let result = s.run(LOTS, &options);
     let headings = rows_of(&result, "heading");
     assert_eq!(headings[0], "heading: Broker:XYZ");
@@ -803,7 +1042,11 @@ fn only_accounts_with_warnings() {
     let grand = rows_of(&result, "grandTotal").pop().unwrap();
     assert!(grand.starts_with("grandTotal: Grand Total |  |  |  | $100.00 |"), "{grand}");
     let options = options_for(&["XYZ", "ABC"], json!({}));
-    assert_eq!(rows_of(&s.run(LOTS, &options), "heading").len(), 5, "both accounts without the option");
+    assert_eq!(
+        rows_of(&s.run(LOTS, &options), "heading").len(),
+        5,
+        "both accounts without the option"
+    );
 }
 
 /// The include options (IL:2135-2152, :2203-2206): an account whose shares were all sold is shown, but left out
@@ -818,14 +1061,26 @@ fn the_include_options() {
     trade(&mut s, "2020-03-01", "XYZ", Some(&l), "-10", "-150", "");
     trade(&mut s, "2020-01-01", "ABC", None, "10", "100", "");
     let mut shown = |more: Value| -> Vec<String> {
-        rows_of(&s.run(LOTS, &options_for(&["XYZ", "ABC"], more)), "heading").into_iter().filter(|h| h.contains("Broker:")).collect()
+        rows_of(&s.run(LOTS, &options_for(&["XYZ", "ABC"], more)), "heading")
+            .into_iter()
+            .filter(|h| h.contains("Broker:"))
+            .collect()
     };
     assert_eq!(shown(json!({})), ["heading: Broker:XYZ"]);
     assert!(shown(json!({ "Accounts": { "Include accounts with no shares": false } })).is_empty());
-    assert_eq!(shown(json!({ "Accounts": { "Include accounts with no lots": true } })), ["heading: Broker:XYZ", "heading: Broker:ABC"]);
-    let result = s.run(LOTS, &options_for(&["ABC"], json!({ "Accounts": { "Include accounts with no lots": true } })));
+    assert_eq!(
+        shown(json!({ "Accounts": { "Include accounts with no lots": true } })),
+        ["heading: Broker:XYZ", "heading: Broker:ABC"]
+    );
+    let result = s.run(
+        LOTS,
+        &options_for(&["ABC"], json!({ "Accounts": { "Include accounts with no lots": true } })),
+    );
     let warnings = rows_of(&result, "warning");
-    assert_eq!(warnings[0], "warning: Warning: 1 split(s) are not assigned to a lot. Do lots need to be scrubbed?");
+    assert_eq!(
+        warnings[0],
+        "warning: Warning: 1 split(s) are not assigned to a lot. Do lots need to be scrubbed?"
+    );
     assert_eq!(warnings.len(), 2, "{warnings:#?}");
     let result = s.run(LOTS, &options_for(&["XYZ"], json!({ "Display": { "Include closed lots": false } })));
     assert!(!rows(&result).iter().any(|r| r.starts_with("data: Closed")), "{:#?}", rows(&result));
@@ -835,14 +1090,21 @@ fn the_include_options() {
 
 /// Adds a price and gives its GUID.
 fn price(s: &mut Setup, commodity: &str, currency: &str, value: &str, date: &str) -> String {
-    let p = s.call("price.add", json!({ "commodity": commodity, "currency": currency, "value": value, "date": date }));
+    let p = s.call(
+        "price.add",
+        json!({ "commodity": commodity, "currency": currency, "value": value, "date": date }),
+    );
     p["price"]["guid"].as_str().unwrap().to_owned()
 }
 
 /// The row after each account's name: its price.
 fn price_rows(result: &Value) -> Vec<String> {
     let r = rows(result);
-    r.iter().enumerate().filter(|(_, x)| x.starts_with("heading: Broker:")).map(|(i, _)| r[i + 1].clone()).collect()
+    r.iter()
+        .enumerate()
+        .filter(|(_, x)| x.starts_with("heading: Broker:"))
+        .map(|(i, _)| r[i + 1].clone())
+        .collect()
 }
 
 /// Prices (IL:620-636, :732-753, :944-962), each stock holding 10 shares bought for $100 in 2020: A has $12 on
@@ -869,17 +1131,30 @@ fn prices() {
         s.run(LOTS, &options)
     };
     let result = run("pricedb-before");
-    assert_eq!(price_rows(&result), [
-        "data:   End price: $12.00 on 06/01/20",
-        "data:   End price: $10.00 on 06/01/20",
-        "data:   End price: €8.00 [$10.00] on 06/01/20",
-        "data: No price found",
-    ]);
-    let end_values: Vec<String> =
-        table_rows(&result).iter().filter(|r| is_lot_row(&result, r)).map(|r| text(&r["cells"][13])).collect();
+    assert_eq!(
+        price_rows(&result),
+        [
+            "data:   End price: $12.00 on 06/01/20",
+            "data:   End price: $10.00 on 06/01/20",
+            "data:   End price: €8.00 [$10.00] on 06/01/20",
+            "data: No price found",
+        ]
+    );
+    let end_values: Vec<String> = table_rows(&result)
+        .iter()
+        .filter(|r| is_lot_row(&result, r))
+        .map(|r| text(&r["cells"][13]))
+        .collect();
     assert_eq!(end_values, ["$120.00", "$100.00", "$100.00", ""]);
-    let price_cell = table_rows(&result).iter().find(|r| text(&r["cells"][0]).contains("$10.00 on")).unwrap();
-    assert_eq!(price_cell["cells"][0]["link"]["price"], json!(inverted), "the inverted price links the price stored");
+    let price_cell = table_rows(&result)
+        .iter()
+        .find(|r| text(&r["cells"][0]).contains("$10.00 on"))
+        .unwrap();
+    assert_eq!(
+        price_cell["cells"][0]["link"]["price"],
+        json!(inverted),
+        "the inverted price links the price stored"
+    );
     assert_eq!(price_rows(&run("pricedb-nearest"))[0], "data:   End price: $15.00 on 12/01/20");
     assert_eq!(price_rows(&run("pricedb-latest"))[0], "data:   End price: $15.00 on 12/01/20");
 }
@@ -891,8 +1166,14 @@ fn display_options() {
     let mut s = book_with(&["XYZ"]);
     let l = lot(&mut s, "XYZ", "Lot");
     trade(&mut s, "2020-01-01", "XYZ", Some(&l), "10", "100", "");
-    let result = s.run(LOTS, &options_for(&["XYZ"], json!({ "Display": {
-        "Show mnemonic in amounts": false, "Show long account names": false } })));
+    let result = s.run(
+        LOTS,
+        &options_for(
+            &["XYZ"],
+            json!({ "Display": {
+        "Show mnemonic in amounts": false, "Show long account names": false } }),
+        ),
+    );
     assert_eq!(rows_of(&result, "heading")[0], "heading: XYZ");
     assert_eq!(lot_cell(&result, "End Amount"), "10.");
 }
@@ -929,17 +1210,26 @@ fn the_chart() {
     let chart = b[0];
     assert_eq!(chart["title"], json!(["Account Lot Gains", "12/31/19 to 12/31/20"]));
     assert_eq!((&chart["type"], &chart["stacked"]), (&json!("bar"), &json!(true)));
-    assert_eq!(chart["labels"], json!(["ST Realized Gain", "LT Realized Gain", "ST Unrealized Gain", "LT Unrealized Gain"]));
+    assert_eq!(
+        chart["labels"],
+        json!(["ST Realized Gain", "LT Realized Gain", "ST Unrealized Gain", "LT Unrealized Gain"])
+    );
     let series = chart["series"].as_array().unwrap();
     assert_eq!(series.len(), 1);
     assert_eq!(series[0]["label"], "Root:Assets:Broker:AAPL");
     let n = |v: &str| json!({ "num": v, "denom": "1" });
     assert_eq!(series[0]["values"], json!([n("500"), n("0"), n("-2500"), n("0")]));
-    let result = s.run(LOTS, &year_2020(json!({ "Chart": { "Chart type": "bar", "Chart location": "bottom" },
-        "Columns": { "Group gains by age (short term and long term)": "no" } })));
+    let result = s.run(
+        LOTS,
+        &year_2020(json!({ "Chart": { "Chart type": "bar", "Chart location": "bottom" },
+        "Columns": { "Group gains by age (short term and long term)": "no" } })),
+    );
     let b = blocks(&result);
     assert_eq!((b[0]["kind"].as_str(), b[1]["kind"].as_str()), (Some("table"), Some("chart")));
-    assert_eq!((&b[1]["stacked"], &b[1]["labels"]), (&json!(false), &json!(["Realized Gain", "Unrealized Gain"])));
+    assert_eq!(
+        (&b[1]["stacked"], &b[1]["labels"]),
+        (&json!(false), &json!(["Realized Gain", "Unrealized Gain"]))
+    );
     assert_eq!(b[1]["series"][0]["values"], json!([n("500"), n("-2500")]));
     let result = s.run(LOTS, &year_2020(json!({ "Chart": { "Show Chart": false } })));
     assert_eq!(blocks(&result).len(), 1);
@@ -968,8 +1258,10 @@ fn a_run_changes_nothing() {
         let info = s.call("book.info", json!({}));
         let files = s.files();
         ["pricedb-before", "pricedb-nearest", "pricedb-latest"].iter().for_each(|source| {
-            let options = year_2020(json!({ "General": { "Price source": source }, "Display": { "Show lot split rows": true },
-                "Validation": { "Warn if a split is not assigned to a lot": "list", "Warn if a lot has a blank title": true } }));
+            let options = year_2020(
+                json!({ "General": { "Price source": source }, "Display": { "Show lot split rows": true },
+                "Validation": { "Warn if a split is not assigned to a lot": "list", "Warn if a lot has a blank title": true } }),
+            );
             s.run(LOTS, &options);
             let (a, b) = (s.export(LOTS, &options), s.export(LOTS, &options));
             assert_eq!(a, b, "{format} {source}");
@@ -991,7 +1283,16 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["type"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["type"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"Accounts/Accounts "a" "accountList" []"#,

@@ -74,7 +74,11 @@ fn colspan(n: usize) -> String {
 /// The header: one row, or as many as the most `labelLines` of a column, GnuCash's multi-row column headers; a column
 /// without lines shows its label in the first row.
 fn head(columns: &[Column], widths: &[usize]) -> String {
-    let rows = columns.iter().filter_map(|c| c.label_lines.as_ref().map(Vec::len)).max().unwrap_or(1);
+    let rows = columns
+        .iter()
+        .filter_map(|c| c.label_lines.as_ref().map(Vec::len))
+        .max()
+        .unwrap_or(1);
     let line = |c: &'_ Column, k: usize| match &c.label_lines {
         Some(lines) => lines.get(k).map_or(String::new(), |l| escape_lines(l)),
         None if k == 0 => escape_lines(&c.label),
@@ -84,7 +88,14 @@ fn head(columns: &[Column], widths: &[usize]) -> String {
         let cells: Vec<String> = columns
             .iter()
             .zip(widths)
-            .map(|(c, w)| format!("<th class=\"column-heading-{}\"{}>{}</th>", align_name(align_of(c)), colspan(*w), line(c, k)))
+            .map(|(c, w)| {
+                format!(
+                    "<th class=\"column-heading-{}\"{}>{}</th>",
+                    align_name(align_of(c)),
+                    colspan(*w),
+                    line(c, k)
+                )
+            })
             .collect();
         format!("<tr>{}</tr>", cells.concat())
     };

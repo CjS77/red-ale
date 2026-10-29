@@ -86,7 +86,10 @@ impl Registry {
                 child.report
             )),
             Some(_) => Ok(child.clone()),
-            None => Err(format!("no report template or saved report configuration has GUID {}", child.report)),
+            None => Err(format!(
+                "no report template or saved report configuration has GUID {}",
+                child.report
+            )),
         }
     }
 
@@ -217,14 +220,23 @@ impl Registry {
             depth: embed.depth + 1,
         };
         let child_ctx = RunContext { export: None, ..*ctx };
-        let ran = self.run_in(template, stored.as_ref().map(|(g, v)| (*g, v)), changes.as_ref(), &child_ctx, &below);
+        let ran = self.run_in(
+            template,
+            stored.as_ref().map(|(g, v)| (*g, v)),
+            changes.as_ref(),
+            &child_ctx,
+            &below,
+        );
         if stored.is_some() {
             tree.saved.borrow_mut().pop();
         }
         match ran {
             Ok(result) => Ok((Some(link), Ok(Box::new(EmbeddedResult::from(result))))),
             Err(e @ (ReportError::Limit(_) | ReportError::Internal(_))) => Err(e),
-            Err(e) => Ok((Some(link), Err(warning(format!("An error occurred while running the report.\n{e}"))))),
+            Err(e) => Ok((
+                Some(link),
+                Err(warning(format!("An error occurred while running the report.\n{e}"))),
+            )),
         }
     }
 
@@ -260,9 +272,13 @@ fn without_style_sheet(options: &Map<String, Value>) -> Map<String, Value> {
 /// up, a cycle only red-ale's references can form (`design/notes/report-statements-charts.md` §8.5).
 fn refused(saved: Option<Guid>, embed: &Embed<'_>) -> Option<String> {
     if embed.depth + 1 > MAX_DEPTH {
-        Some(format!("Reports embed other reports at most {MAX_DEPTH} deep; this one is not run."))
+        Some(format!(
+            "Reports embed other reports at most {MAX_DEPTH} deep; this one is not run."
+        ))
     } else if embed.tree.runs.get() >= MAX_CHILD_RUNS {
-        Some(format!("A report runs at most {MAX_CHILD_RUNS} embedded reports; this one is not run."))
+        Some(format!(
+            "A report runs at most {MAX_CHILD_RUNS} embedded reports; this one is not run."
+        ))
     } else {
         saved
             .filter(|g| embed.tree.saved.borrow().contains(g))
@@ -312,7 +328,10 @@ impl Fill<'_, '_> {
         let index = usize::try_from(cell.child).unwrap_or(usize::MAX);
         let Some(p) = self.placements.get(index) else {
             let count = self.placements.len();
-            return Err((self.invalid)(ResultError::new(path, format!("the report has {count} children, from 0"))));
+            return Err((self.invalid)(ResultError::new(
+                path,
+                format!("the report has {count} children, from 0"),
+            )));
         };
         if !self.ran.contains_key(&index) {
             let outcome = self.registry.child(p, self.ctx, self.embed)?;

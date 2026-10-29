@@ -7,12 +7,13 @@ use red_ale_locale::{Conventions, Locale};
 use super::chart::{Axis, AxisFormat};
 use super::validate::Stage;
 use super::{
-    Block, Cell, Chart, CommodityLine, LogEntry, NumberFormat, NumberRounding, OptionValues, RESULT_VERSION, ReportDraft, ReportIdentity, ReportResult, Section,
+    Block, Cell, Chart, CommodityLine, LogEntry, NumberFormat, NumberRounding, OptionValues, RESULT_VERSION, ReportDraft, ReportIdentity,
+    ReportResult, Section,
 };
 use crate::error::ResultError;
 use crate::number::{
-    CommodityFormat, Monetary, Rational, Rounding, display_exact, display_monetary, display_number, display_number_rounded,
-    display_price, display_share,
+    CommodityFormat, Monetary, Rational, Rounding, display_exact, display_monetary, display_number, display_number_rounded, display_price,
+    display_share,
 };
 use crate::settings::DateFormat;
 use crate::wire::Timestamp;

@@ -218,7 +218,11 @@ fn grid_cell(cell: &GridCell, path: &str, look: &Look) -> String {
         (Some(child), _) => {
             let heading = child.headline.as_deref().unwrap_or(&child.title);
             let title = (!heading.is_empty()).then(|| format!("<h3>{}</h3>", escape(heading)));
-            let sections = child.sections.iter().enumerate().map(|(i, s)| section(s, &format!("{path}-{i}"), look));
+            let sections = child
+                .sections
+                .iter()
+                .enumerate()
+                .map(|(i, s)| section(s, &format!("{path}-{i}"), look));
             title.into_iter().chain(sections).collect::<Vec<_>>().join("\n")
         }
         (None, Some(w)) => block(&Block::Warning(w.clone()), path, look),
@@ -260,7 +264,9 @@ fn list(l: &ListBlock, look: &Look) -> String {
         .items
         .iter()
         .map(|i| item(&i.text, i.account.filter(|_| look.links).map(|a| a.0.to_string())));
-    let parts = std::iter::once("<ul class=\"list\">".to_owned()).chain(items).chain(["</ul>".to_owned()]);
+    let parts = std::iter::once("<ul class=\"list\">".to_owned())
+        .chain(items)
+        .chain(["</ul>".to_owned()]);
     parts.collect::<Vec<_>>().join("\n")
 }
 
@@ -277,7 +283,13 @@ fn options_summary(o: &OptionsSummary) -> String {
     let rows: Vec<String> = o
         .rows
         .iter()
-        .map(|r| format!("<tr><td><b>{}</b></td><td>{}</td></tr>", label(&r.section, &r.name), escape_lines(&r.value)))
+        .map(|r| {
+            format!(
+                "<tr><td><b>{}</b></td><td>{}</td></tr>",
+                label(&r.section, &r.name),
+                escape_lines(&r.value)
+            )
+        })
         .collect();
     format!("<table class=\"options-summary\">\n{}\n</table>", rows.join("\n"))
 }

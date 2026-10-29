@@ -63,7 +63,11 @@ fn texts(cell: &Value) -> Vec<String> {
 
 /// The element at a 1-based position, negative from the end.
 fn nth<T>(items: &[T], n: i64) -> Option<&T> {
-    let i = if n < 0 { usize::try_from(i64::try_from(items.len()).unwrap() + n).ok()? } else { usize::try_from(n - 1).ok()? };
+    let i = if n < 0 {
+        usize::try_from(i64::try_from(items.len()).unwrap() + n).ok()?
+    } else {
+        usize::try_from(n - 1).ok()?
+    };
     items.get(i)
 }
 
@@ -110,8 +114,17 @@ fn xpath(tables: &[&Value], path: &str) -> Vec<String> {
     let table = || *tables.first().unwrap();
     let count = |n: usize| vec![String::new(); n];
     if path == "(// a // *text*)" {
-        let linked = |c: &Value| if c["link"].is_object() { texts(c) } else { c["anchors"].as_array().map_or_else(Vec::new, |_| texts(c)) };
-        let cells = tables.iter().flat_map(|t| t["rows"].as_array().unwrap()).flat_map(|r| r["cells"].as_array().unwrap());
+        let linked = |c: &Value| {
+            if c["link"].is_object() {
+                texts(c)
+            } else {
+                c["anchors"].as_array().map_or_else(Vec::new, |_| texts(c))
+            }
+        };
+        let cells = tables
+            .iter()
+            .flat_map(|t| t["rows"].as_array().unwrap())
+            .flat_map(|r| r["cells"].as_array().unwrap());
         return cells.flat_map(linked).collect();
     }
     if path == "(// (table 1) // tr // (td -1) // a // *text*)" {
@@ -132,7 +145,10 @@ fn xpath(tables: &[&Value], path: &str) -> Vec<String> {
 
 /// A figure read as GnuCash's test reads it, keeping only digits, `-` and (with `point`) `.`, scaled to cents.
 fn cents(s: &str, point: bool) -> i64 {
-    let kept: String = s.chars().filter(|c| c.is_ascii_digit() || *c == '-' || (point && *c == '.')).collect();
+    let kept: String = s
+        .chars()
+        .filter(|c| c.is_ascii_digit() || *c == '-' || (point && *c == '.'))
+        .collect();
     let (whole, frac) = kept.split_once('.').unwrap_or((&kept, ""));
     let negative = whole.starts_with('-');
     let magnitude = whole.trim_start_matches('-').parse::<i64>().unwrap_or(0) * 100 + format!("{frac:0<2}")[..2].parse::<i64>().unwrap();
@@ -152,7 +168,10 @@ fn relation(what: &str, c: &Value, got: &[Vec<String>]) {
     let rel = c["relation"].as_str().unwrap();
     let flat: Vec<String> = got.concat();
     if rel.starts_with("Each text, trimmed, is qof-print-date of 1970-03-01") {
-        assert!(!flat.is_empty() && flat.iter().all(|t| t.trim() == "1970-03-01"), "{what}: {flat:?}");
+        assert!(
+            !flat.is_empty() && flat.iter().all(|t| t.trim() == "1970-03-01"),
+            "{what}: {flat:?}"
+        );
     } else if rel.starts_with("All texts of column") {
         assert!(flat.len() > 1 && flat.iter().all(|t| *t == flat[0]), "{what}: {flat:?}");
     } else if rel.contains("sum to 0") {
@@ -214,14 +233,20 @@ fn check_run(f: &mut Fixture, e: &Value, run: &Value) -> usize {
             relation(&what, c, &got);
         } else {
             assert_eq!(got[0], strings(&c["expected"]), "{what}");
-            got[0].iter().for_each(|w| assert!(html.contains(&escaped(w)), "{what}: {w} is not in the HTML"));
+            got[0]
+                .iter()
+                .for_each(|w| assert!(html.contains(&escaped(w)), "{what}: {w} is not in the HTML"));
         }
     });
     checks.len()
 }
 
 fn escaped(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 /// Every run of `transaction.expected.json` but the CSV one, each assertion a named check.
@@ -232,7 +257,10 @@ fn test_transaction_every_assertion() {
     let runs = e["runs"].as_array().unwrap();
     let checked: usize = runs.iter().map(|run| check_run(&mut f, &e, run)).sum();
     let all: usize = runs.iter().map(|r| r["checks"].as_array().unwrap().len()).sum();
-    let csv = runs.iter().find(|r| r["exportType"] == "csv").unwrap()["checks"].as_array().unwrap().len();
+    let csv = runs.iter().find(|r| r["exportType"] == "csv").unwrap()["checks"]
+        .as_array()
+        .unwrap()
+        .len();
     assert_eq!(checked + csv, all);
 }
 
@@ -254,7 +282,13 @@ fn test_transaction_defaults_warn_of_no_account() {
 /// A table's headings joined by `|`, then each row's cells: display or text, anchors joined by `,`, `-` when empty.
 fn shown(table: &Value) -> Vec<String> {
     let cell = |c: &Value| if c.is_null() { "-".to_owned() } else { texts(c).join(",") };
-    let head = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect::<Vec<_>>().join("|");
+    let head = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("|");
     let row = |r: &Value| r["cells"].as_array().unwrap().iter().map(cell).collect::<Vec<_>>().join("|");
     let rows = table["rows"].as_array().unwrap().iter().map(row);
     std::iter::once(head).chain(rows).collect()
@@ -286,7 +320,10 @@ fn on(accounts: &[&str], from: &str, to: &str, more: &Value) -> Value {
 
 /// The GUID of the transaction whose description is `desc`.
 fn transaction(f: &mut Fixture, desc: &str) -> String {
-    let found = f.call("transaction.find", &json!({ "query": { "description": { "text": desc, "op": "equals" } } }));
+    let found = f.call(
+        "transaction.find",
+        &json!({ "query": { "description": { "text": desc, "op": "equals" } } }),
+    );
     found["matches"][0]["transaction"].as_str().unwrap().to_owned()
 }
 
@@ -300,10 +337,18 @@ fn test_transaction_entered_date_shares_and_price() {
                                        "Price": true, "Amount": "single", "Grand Total": false },
                           "Sorting": { "Primary Subtotal": false } });
     let rows = run_shown(&mut f, &on(&["trep:Root.Asset.GBP Bank"], "2000-01-01", "2000-12-31", &display));
-    assert_eq!(rows[0], "Date|Date Entered|Reconciled Date|Description|Transfer from/to|Shares|Price|Amount");
+    assert_eq!(
+        rows[0],
+        "Date|Date Entered|Reconciled Date|Description|Transfer from/to|Shares|Price|Amount"
+    );
     // Entered at the fixture's pinned now.
-    assert_eq!(rows[1..], ["2000-01-15|2024-03-15|-|GBP 10 to USD 14|USD Bank|-10.00|#1.00|-#10.00",
-                           "2000-02-15|2024-03-15|-|USD 9 to GBP 6|USD Bank|6.00|$1.50|#6.00"]);
+    assert_eq!(
+        rows[1..],
+        [
+            "2000-01-15|2024-03-15|-|GBP 10 to USD 14|USD Bank|-10.00|#1.00|-#10.00",
+            "2000-02-15|2024-03-15|-|USD 9 to GBP 6|USD Bank|6.00|$1.50|#6.00"
+        ]
+    );
 }
 
 /// The Link column (TE:1220-1234): "L" where the transaction has a document, linked to it under Enable Links; the
@@ -312,18 +357,31 @@ fn test_transaction_entered_date_shares_and_price() {
 fn test_transaction_document_links() {
     let mut f = Fixture::open("transaction", "iso", false);
     let trn1 = transaction(&mut f, "desc-1");
-    f.call("transaction.update", &json!({ "guid": trn1, "docLink": "file:///home/user/receipt.pdf" }));
+    f.call(
+        "transaction.update",
+        &json!({ "guid": trn1, "docLink": "file:///home/user/receipt.pdf" }),
+    );
     let links = |f: &mut Fixture, enable: bool| {
-        let options = on(&["trep:Root.Asset.Bank"], "1970-01-01", "1970-01-31",
-                         &json!({ "Display": { "Link": true, "Enable Links": enable, "Amount": "single", "Grand Total": false },
-                                  "Sorting": { "Primary Subtotal": false } }));
+        let options = on(
+            &["trep:Root.Asset.Bank"],
+            "1970-01-01",
+            "1970-01-31",
+            &json!({ "Display": { "Link": true, "Enable Links": enable, "Amount": "single", "Grand Total": false },
+                                  "Sorting": { "Primary Subtotal": false } }),
+        );
         let result = f.run(TEMPLATE, &options);
         let table = blocks_of(&result, "table")[0].clone();
         let html = f.export(TEMPLATE, &options);
         (shown(&table), table["rows"][0]["cells"][5].clone(), html)
     };
     let (rows, cell, html) = links(&mut f, true);
-    assert_eq!(rows, ["Date|Num|Description|Memo/Notes|Transfer from/to||Amount", "1970-01-01|trn1|desc-1|memo-3|Expenses|L|-$5.00"]);
+    assert_eq!(
+        rows,
+        [
+            "Date|Num|Description|Memo/Notes|Transfer from/to||Amount",
+            "1970-01-01|trn1|desc-1|memo-3|Expenses|L|-$5.00"
+        ]
+    );
     assert_eq!(cell["link"], json!({ "docLink": "file:///home/user/receipt.pdf" }));
     assert!(!html.contains("receipt.pdf"), "the page carries no path");
     let (rows, cell, _) = links(&mut f, false);
@@ -341,14 +399,27 @@ fn test_transaction_split_action_numbers() {
     let tx = f.call("transaction.get", &json!({ "guid": trn1 }));
     let bank = acct("trep:Root.Asset.Bank");
     let split = tx["splits"].as_array().unwrap().iter().find(|s| s["account"] == bank).unwrap()["guid"].clone();
-    f.call("transaction.update", &json!({ "guid": trn1, "changeSplits": [{ "guid": split, "action": "A1" }] }));
-    let options = |more: &Value| on(&["trep:Root.Asset.Bank"], "1969-12-31", "1970-01-31", &json!({
-        "Display": { "Num/Action": true, "Trans Number": more["tn"], "Description": false, "Memo": false, "Amount": "single",
-                     "Other Account Name": false, "Grand Total": false },
-        "Sorting": { "Primary Subtotal": false },
-    }));
+    f.call(
+        "transaction.update",
+        &json!({ "guid": trn1, "changeSplits": [{ "guid": split, "action": "A1" }] }),
+    );
+    let options = |more: &Value| {
+        on(
+            &["trep:Root.Asset.Bank"],
+            "1969-12-31",
+            "1970-01-31",
+            &json!({
+                "Display": { "Num/Action": true, "Trans Number": more["tn"], "Description": false, "Memo": false, "Amount": "single",
+                             "Other Account Name": false, "Grand Total": false },
+                "Sorting": { "Primary Subtotal": false },
+            }),
+        )
+    };
     let rows = run_shown(&mut f, &options(&json!({ "tn": true })));
-    assert_eq!(rows, ["Date|Num/T-Num|Amount", "1969-12-31|/trn3|$29.00", "1970-01-01|A1/trn1|-$5.00"]);
+    assert_eq!(
+        rows,
+        ["Date|Num/T-Num|Amount", "1969-12-31|/trn3|$29.00", "1970-01-01|A1/trn1|-$5.00"]
+    );
     let rows = run_shown(&mut f, &options(&json!({ "tn": false })));
     assert_eq!(rows, ["Date|Num|Amount", "1969-12-31|-|$29.00", "1970-01-01|A1|-$5.00"]);
 }
@@ -362,18 +433,30 @@ fn test_transaction_two_invoices_in_one_cell() {
     let pick = |id: &str| invoices.as_array().unwrap().iter().find(|i| i["id"] == id).unwrap().clone();
     let (first, second) = (pick("0001"), pick("0002"));
     let owner = json!({ "type": first["owner"]["kind"], "id": first["owner"]["guid"] });
-    let paid = f.call("payment.process", &json!({
-        "owner": owner, "account": acct("invoice:Root.A/Receivable"), "transferAccount": acct("invoice:Root.Asset.Bank"),
-        "amount": "12", "date": "1980-09-20", "applyTo": [first["guid"], second["guid"]],
-    }));
+    let paid = f.call(
+        "payment.process",
+        &json!({
+            "owner": owner, "account": acct("invoice:Root.A/Receivable"), "transferAccount": acct("invoice:Root.Asset.Bank"),
+            "amount": "12", "date": "1980-09-20", "applyTo": [first["guid"], second["guid"]],
+        }),
+    );
     // The payment's A/R splits in split order, each named by the invoice whose lot holds it.
     let tx = f.call("transaction.get", &json!({ "guid": paid["transaction"] }));
-    let by_lot = |lot: &Value| [&first, &second].into_iter().find(|i| i["postedLot"] == *lot).map(|i| i["id"].as_str().unwrap().to_owned());
+    let by_lot = |lot: &Value| {
+        [&first, &second]
+            .into_iter()
+            .find(|i| i["postedLot"] == *lot)
+            .map(|i| i["id"].as_str().unwrap().to_owned())
+    };
     let in_split_order: Vec<String> = tx["splits"].as_array().unwrap().iter().filter_map(|s| by_lot(&s["lot"])).collect();
     assert_eq!(in_split_order, ["0001", "0002"]);
-    let options = on(&["invoice:Root.Asset.Bank"], "1980-09-20", "1980-09-20",
-                     &json!({ "Display": { "Invoice": true, "Amount": "single", "Grand Total": false, "Memo": false },
-                              "Sorting": { "Primary Subtotal": false } }));
+    let options = on(
+        &["invoice:Root.Asset.Bank"],
+        "1980-09-20",
+        "1980-09-20",
+        &json!({ "Display": { "Invoice": true, "Amount": "single", "Grand Total": false, "Memo": false },
+                              "Sorting": { "Primary Subtotal": false } }),
+    );
     let result = f.run(TEMPLATE, &options);
     let table = blocks_of(&result, "table")[0].clone();
     let rows = shown(&table);
@@ -389,20 +472,28 @@ fn test_transaction_two_invoices_in_one_cell() {
 #[test]
 fn test_transaction_balance_brought_forward_in_common_currency() {
     let mut f = Fixture::open("transaction", "iso", true);
-    let options = on(&["trep:Root.Asset.GBP Bank"], "2000-02-01", "2000-12-31", &json!({
-        "Display": { "Account Balance": true, "Amount": "single", "Grand Total": false, "Num": false, "Memo": false,
-                     "Description": false, "Other Account Name": false },
-        "Currency": { "Common Currency": true, "Show original currency amount": true },
-    }));
+    let options = on(
+        &["trep:Root.Asset.GBP Bank"],
+        "2000-02-01",
+        "2000-12-31",
+        &json!({
+            "Display": { "Account Balance": true, "Amount": "single", "Grand Total": false, "Num": false, "Memo": false,
+                         "Description": false, "Other Account Name": false },
+            "Currency": { "Common Currency": true, "Show original currency amount": true },
+        }),
+    );
     let rows = run_shown(&mut f, &options);
     // An indenting column comes first; the subtotal's second line, in GBP, has no label.
-    assert_eq!(rows, [
-        "|Date|Amount (USD)|Running Balance (USD)|Amount|Running Balance",
-        "GBP Bank: Balance b/f|-|-|-$15.00|-|-#10.00",
-        "-|2000-02-15|$9.00|-$6.00|#6.00|-#4.00",
-        "-|Total For GBP Bank|$9.00|-|-|-",
-        "-||-|-|#6.00|-",
-    ]);
+    assert_eq!(
+        rows,
+        [
+            "|Date|Amount (USD)|Running Balance (USD)|Amount|Running Balance",
+            "GBP Bank: Balance b/f|-|-|-$15.00|-|-#10.00",
+            "-|2000-02-15|$9.00|-$6.00|#6.00|-#4.00",
+            "-|Total For GBP Bank|$9.00|-|-|-",
+            "-||-|-|#6.00|-",
+        ]
+    );
 }
 
 /// `bal-bf` (TE:2380-2389): each condition it needs, broken alone, turns "Running Balance" back into "Account
@@ -430,7 +521,9 @@ fn test_transaction_balance_brought_forward_conditions() {
         json!({ "Sorting": { "Primary Subtotal": false } }),
         json!({ "Sorting": { "Secondary Sort Order": "descend" } }),
     ];
-    breakers.iter().for_each(|b| assert_eq!(heading(&mut f, b), ("Account Balance".to_owned(), false), "{b}"));
+    breakers
+        .iter()
+        .for_each(|b| assert_eq!(heading(&mut f, b), ("Account Balance".to_owned(), false), "{b}"));
 }
 
 /// A run only reads: the Book stays clean and unchanged, nothing is written beside it, two exports are the same
@@ -439,9 +532,13 @@ fn test_transaction_balance_brought_forward_conditions() {
 fn test_transaction_leaves_the_book_unchanged() {
     let mut f = Fixture::open("transaction", "iso", false);
     let files = f.files();
-    let options = on(&["trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank"], "1969-01-01", "2024-12-31",
-                     &json!({ "Display": { "Subtotal Table": true, "Account Balance": true },
-                              "Currency": { "Common Currency": true, "Show original currency amount": true } }));
+    let options = on(
+        &["trep:Root.Asset.Bank", "trep:Root.Asset.GBP Bank"],
+        "1969-01-01",
+        "2024-12-31",
+        &json!({ "Display": { "Subtotal Table": true, "Account Balance": true },
+                              "Currency": { "Common Currency": true, "Show original currency amount": true } }),
+    );
     f.run(TEMPLATE, &options);
     let (a, b) = (f.export(TEMPLATE, &options), f.export(TEMPLATE, &options));
     assert_eq!(a, b);
@@ -455,7 +552,11 @@ fn test_transaction_leaves_the_book_unchanged() {
 /// with every display column, the Subtotal Table and running totals.
 #[test]
 fn test_transaction_on_sqlite_matches_xml() {
-    let accounts = json!(["a0000000000000000000000000000003", "a0000000000000000000000000000004", "a0000000000000000000000000000008"]);
+    let accounts = json!([
+        "a0000000000000000000000000000003",
+        "a0000000000000000000000000000004",
+        "a0000000000000000000000000000008"
+    ]);
     let base = json!({ "Accounts": { "Accounts": accounts }, "General": { "Start Date": { "absolute": "1969-01-01T00:00:00Z" },
                                                                           "End Date": { "absolute": "2024-12-31T00:00:00Z" } } });
     let mut all = base.clone();
@@ -463,7 +564,11 @@ fn test_transaction_on_sqlite_matches_xml() {
                              "Account Balance": true, "Subtotal Table": true, "Running Totals": "all" });
     all["Sorting"] = json!({ "Secondary Key": "date", "Secondary Subtotal for Date Key": "quarterly" });
     let run = |sqlite: bool, options: &Value| {
-        let mut f = if sqlite { Fixture::open_sqlite("test-data", "iso") } else { Fixture::open("test-data", "iso", true) };
+        let mut f = if sqlite {
+            Fixture::open_sqlite("test-data", "iso")
+        } else {
+            Fixture::open("test-data", "iso", true)
+        };
         let mut result = f.run(TEMPLATE, options);
         result["now"] = Value::Null;
         result

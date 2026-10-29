@@ -155,7 +155,10 @@ fn anchors_build_links_and_lists() {
     assert!(cells[3]["display"].is_string());
     assert_eq!(cells[4].get("link"), None);
     assert_eq!(cells[4]["display"], "$3.00");
-    assert_eq!(cells[5]["anchors"], json!([{ "text": "000001", "link": { "invoice": ids["split"] } }]));
+    assert_eq!(
+        cells[5]["anchors"],
+        json!([{ "text": "000001", "link": { "invoice": ids["split"] } }])
+    );
     assert_eq!(cells[6]["display"], "01/01/24 to 12/31/24");
     assert_eq!(got[2]["columns"][0]["labelLines"], json!(["Asset", "Broker"]));
     assert_eq!(got[1]["items"][0], json!({ "text": "Cash" }));

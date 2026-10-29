@@ -84,14 +84,21 @@ fn expected_figures_of_gnucash_test() {
         let html = s.export(EQUITY, &options);
         let got = statement(&result);
         let (name, line, count) = TEXT_COUNT;
-        assert_eq!(gnucash_text_count(&tables(&result), 1), count, "{format}: {name} (test line {line})");
+        assert_eq!(
+            gnucash_text_count(&tables(&result), 1),
+            count,
+            "{format}: {name} (test line {line})"
+        );
         ported().iter().for_each(|c| {
             assert_eq!(got[c.row - 2], c.want, "{format}: {} (test line {}): {got:?}", c.name, c.line);
             c.want
                 .iter()
                 .for_each(|w| assert!(html.contains(w), "{format}: {} (test line {}): {w} is in the HTML", c.name, c.line));
         });
-        assert_eq!(result["title"], " Equity Statement For Period Covering 1970-01-01 to 2005-01-01", "{format}");
+        assert_eq!(
+            result["title"], " Equity Statement For Period Covering 1970-01-01 to 2005-01-01",
+            "{format}"
+        );
     }
 }
 
@@ -129,7 +136,15 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"Accounts/Accounts "a" []"#,
@@ -157,7 +172,10 @@ fn options_are_gnucash_s() {
 fn show_foreign_currencies_is_read_nowhere() {
     let mut s = Setup::fixture(FIXTURE, &test_settings("iso"));
     let on = s.run(EQUITY, &json!({ "General": test_period() }));
-    let off = s.run(EQUITY, &json!({ "General": test_period(), "Commodities": { "Show Foreign Currencies": false } }));
+    let off = s.run(
+        EQUITY,
+        &json!({ "General": test_period(), "Commodities": { "Show Foreign Currencies": false } }),
+    );
     assert_eq!(on["sections"], off["sections"]);
 }
 
@@ -179,10 +197,12 @@ fn no_accounts_give_the_warning() {
 /// The "drawings" book of the module notes.
 fn drawings_book() -> Setup {
     let mut s = Setup::new_book(&test_settings("iso"));
-    ["Bank:BANK", "Capital:EQUITY", "Income:INCOME", "Expenses:EXPENSE"].iter().for_each(|a| {
-        let (name, kind) = a.split_once(':').unwrap();
-        s.account(name, kind, None, "CURRENCY::USD");
-    });
+    ["Bank:BANK", "Capital:EQUITY", "Income:INCOME", "Expenses:EXPENSE"]
+        .iter()
+        .for_each(|a| {
+            let (name, kind) = a.split_once(':').unwrap();
+            s.account(name, kind, None, "CURRENCY::USD");
+        });
     s.transfer("2024-01-01", "Owner's investment", "Capital", "Bank", "1000.00");
     s.transfer("2024-02-10", "Sales", "Income", "Bank", "300.00");
     s.transfer("2024-03-05", "Rent", "Bank", "Expenses", "500.00");
@@ -288,7 +308,10 @@ fn the_start_date_takes_in_its_whole_day() {
 /// "Show accounting-style rules" puts a rule over the change in capital only (ES:456-461).
 #[test]
 fn accounting_style_rules_rule_the_change_in_capital() {
-    let result = drawings_book().run(EQUITY, &year("2024-01-01", json!({ "Display": { "Show accounting-style rules": true } })));
+    let result = drawings_book().run(
+        EQUITY,
+        &year("2024-01-01", json!({ "Display": { "Show accounting-style rules": true } })),
+    );
     let ruled: Vec<String> = tables(&result)[0]["rows"]
         .as_array()
         .unwrap()
@@ -384,7 +407,10 @@ fn euro_book(end_rate: &str) -> Setup {
     s.account("Capital", "EQUITY", None, "CURRENCY::USD");
     s.transfer("2024-01-10", "Owner's investment", "Capital", "Bank", "1000.00");
     let splits = json!([{ "account": "Euro", "value": "110.00", "amount": "100.00" }, { "account": "Bank", "value": "-110.00" }]);
-    s.call("transaction.post", json!({ "datePosted": "2024-02-01", "currency": "CURRENCY::USD", "splits": splits }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-02-01", "currency": "CURRENCY::USD", "splits": splits }),
+    );
     [("2024-01-15", "1.05"), ("2024-12-01", end_rate)].iter().for_each(|(date, value)| {
         let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": value, "date": date });
         s.call("price.add", price);
@@ -414,7 +440,10 @@ fn unrealized_gains_and_losses() {
     let losses = euro_book("1.00").run(EQUITY, &year("2024-01-01", json!({})));
     let got = statement(&losses);
     assert_eq!(got[4], ["Unrealized Losses for Period", "$10.00"]);
-    assert_eq!(got[5..], rows(&[["Increase in capital", "$990.00"], ["Capital, 2024-12-31", "$990.00"]]));
+    assert_eq!(
+        got[5..],
+        rows(&[["Increase in capital", "$990.00"], ["Capital, 2024-12-31", "$990.00"]])
+    );
 }
 
 /// "Show Exchange Rates" (ES:473-491): a rule ends the statement's table, as GnuCash appends its ruler to the table
@@ -423,7 +452,10 @@ fn unrealized_gains_and_losses() {
 #[test]
 fn exchange_rates_at_both_dates() {
     let mut s = euro_book("1.20");
-    let result = s.run(EQUITY, &year("2024-01-01", json!({ "Commodities": { "Show Exchange Rates": true } })));
+    let result = s.run(
+        EQUITY,
+        &year("2024-01-01", json!({ "Commodities": { "Show Exchange Rates": true } })),
+    );
     let b = blocks(&result);
     assert_eq!(b.len(), 3);
     let last = tables(&result)[0]["rows"].as_array().unwrap().last().unwrap().clone();
@@ -439,8 +471,13 @@ fn exchange_rates_at_both_dates() {
     let want = [("2024-01-01", ["€1.00", "$1.05"]), ("2024-12-31", ["€1.00", "$1.20"])];
     assert_eq!(rates, want.map(|(d, c)| (d.to_owned(), c.map(str::to_owned).to_vec())));
     assert!(b[1..].iter().all(|t| t["columns"][0]["label"] == "Exchange rate"));
-    let html = s.export(EQUITY, &year("2024-01-01", json!({ "Commodities": { "Show Exchange Rates": true } })));
-    ["$1.05", "$1.20", "2024-12-31"].iter().for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
+    let html = s.export(
+        EQUITY,
+        &year("2024-01-01", json!({ "Commodities": { "Show Exchange Rates": true } })),
+    );
+    ["$1.05", "$1.20", "2024-12-31"]
+        .iter()
+        .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
     let plain = s.run(EQUITY, &year("2024-01-01", json!({})));
     assert_eq!(blocks(&plain).len(), 1);
 }
@@ -502,7 +539,10 @@ fn withdrawals_take_the_transaction_currency() {
     let mut s = euro_book("1.20");
     s.account("Euro Capital", "EQUITY", None, "CURRENCY::EUR");
     let splits = json!([{ "account": "Euro Capital", "value": "110.00", "amount": "100.00" }, { "account": "Bank", "value": "-110.00" }]);
-    s.call("transaction.post", json!({ "datePosted": "2024-06-01", "currency": "CURRENCY::USD", "splits": splits }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-06-01", "currency": "CURRENCY::USD", "splits": splits }),
+    );
     let got = statement(&s.run(EQUITY, &year("2024-01-01", json!({}))));
     assert_eq!(got[3], ["Withdrawals for Period", "$100.00"]);
 }
@@ -525,7 +565,10 @@ fn the_title_names_the_company() {
     let options = json!({ "General": { "Report Title": "Statement of Owner's Equity", "Start Date": { "absolute": "1970-01-01" },
                                        "End Date": { "absolute": "2005-01-01" } } });
     let result = s.run(EQUITY, &options);
-    assert_eq!(result["title"], "Acme Ltd Statement of Owner's Equity For Period Covering 1970-01-01 to 2005-01-01");
+    assert_eq!(
+        result["title"],
+        "Acme Ltd Statement of Owner's Equity For Period Covering 1970-01-01 to 2005-01-01"
+    );
 }
 
 /// Running the statement, with every option that changes what it reads, leaves the Book, its revision and its file as

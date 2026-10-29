@@ -87,7 +87,9 @@ impl SettingsArgs {
         }
         let path = self.config.clone().or_else(red_ale_service::config::default_path);
         path.map(ConfigStore::at).ok_or_else(|| {
-            anyhow::anyhow!("no home directory to keep the Configuration in (HOME, or APPDATA on Windows); give --config <file> or --no-config")
+            anyhow::anyhow!(
+                "no home directory to keep the Configuration in (HOME, or APPDATA on Windows); give --config <file> or --no-config"
+            )
         })
     }
 }

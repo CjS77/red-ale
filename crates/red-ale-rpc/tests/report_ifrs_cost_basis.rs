@@ -47,7 +47,11 @@ fn test_options() -> Value {
 /// The test's options with `more` merged in, section by section.
 fn with(mut options: Value, more: Value) -> Value {
     more.as_object().unwrap().iter().for_each(|(section, values)| {
-        values.as_object().unwrap().iter().for_each(|(k, v)| options[section][k] = v.clone());
+        values
+            .as_object()
+            .unwrap()
+            .iter()
+            .for_each(|(k, v)| options[section][k] = v.clone());
     });
     options
 }
@@ -67,17 +71,31 @@ fn data_rows(result: &Value) -> Vec<Value> {
 
 /// The texts of a row with empty cells left out, as `sxml->table-row-col` reads a row.
 fn texts(row: &Value) -> Vec<String> {
-    row["cells"].as_array().unwrap().iter().map(cell_text).filter(|t| !t.is_empty()).collect()
+    row["cells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(cell_text)
+        .filter(|t| !t.is_empty())
+        .collect()
 }
 
 /// The column labels of the table.
 fn labels(result: &Value) -> Vec<String> {
-    tables(result)[0]["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap().to_owned()).collect()
+    tables(result)[0]["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 /// The text of row `row` (from 1) in the column labelled `label`, `""` when empty.
 fn at(result: &Value, row: usize, label: &str) -> String {
-    let column = labels(result).iter().position(|l| l == label).unwrap_or_else(|| panic!("no column {label}"));
+    let column = labels(result)
+        .iter()
+        .position(|l| l == label)
+        .unwrap_or_else(|| panic!("no column {label}"));
     cell_text(&data_rows(result)[row - 1]["cells"][column])
 }
 
@@ -102,10 +120,16 @@ fn expected_figures_of_gnucash_test() {
         let html = s.export(IFRS, &options);
         checks.iter().for_each(|c| {
             let row = usize::try_from(c["select"]["row"].as_u64().unwrap()).unwrap();
-            let want: Vec<String> = c["expected"].as_array().unwrap().iter().map(|w| w.as_str().unwrap().to_owned()).collect();
+            let want: Vec<String> = c["expected"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|w| w.as_str().unwrap().to_owned())
+                .collect();
             let (name, line) = (c["name"].as_str().unwrap(), &c["line"]);
             assert_eq!(texts(&rows[row - 1]), want, "{format}: {name} (test line {line})");
-            want.iter().for_each(|w| assert!(html.contains(w.as_str()), "{format}: {name} (test line {line}): {w} is in the HTML"));
+            want.iter()
+                .for_each(|w| assert!(html.contains(w.as_str()), "{format}: {name} (test line {line}): {w} is in the HTML"));
         });
     }
 }
@@ -117,7 +141,10 @@ fn every_check_of_the_expected_figures_is_ported() {
     let e = expected("ifrs-cost-basis.expected.json");
     let runs = e["runs"].as_array().unwrap();
     assert_eq!(runs.len(), 1);
-    assert_eq!((runs[0]["template"].as_str(), runs[0]["checks"].as_array().unwrap().len()), (Some(IFRS), 15));
+    assert_eq!(
+        (runs[0]["template"].as_str(), runs[0]["checks"].as_array().unwrap().len()),
+        (Some(IFRS), 15)
+    );
     let null_tests = e["renderOnly"].as_array().unwrap();
     assert_eq!((null_tests.len(), &null_tests[0]["line"]), (1, &json!(38)));
 }
@@ -135,9 +162,12 @@ fn the_null_test_renders() {
     assert_eq!(b[0]["title"], "IFRS weighted-average cost basis report:");
     assert_eq!(b[0]["text"], "This report requires you to specify certain report options.");
     let html = s.export(IFRS, &json!({}));
-    ["This report requires you to specify certain report options.", "This report is not designed with options reporting"]
-        .iter()
-        .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
+    [
+        "This report requires you to specify certain report options.",
+        "This report is not designed with options reporting",
+    ]
+    .iter()
+    .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
 }
 
 /// The title with both dates and the report currency (IF:362-367), the 28 columns as GnuCash labels them
@@ -148,21 +178,49 @@ fn the_null_test_renders() {
 fn title_columns_links_and_disclaimer() {
     let mut s = Setup::fixture(FIXTURE, &test_settings("iso"));
     let result = s.run(IFRS, &test_options());
-    assert_eq!(result["title"], "Average-Cost (Basis) Report: From 2019-01-01 to 2021-01-01. Report-currency CAD");
+    assert_eq!(
+        result["title"],
+        "Average-Cost (Basis) Report: From 2019-01-01 to 2021-01-01. Report-currency CAD"
+    );
     assert_eq!(
         labels(&result),
         [
-            "date", "description", "trans-units", "cumul-units", "note", "curr", "fx", "purchase-val", "purchase-cost",
-            "cash-dividends", "proceeds-val", "proceeds-cost", "conv-purchase-val", "conv-purchase-cost", "conv-dividends",
-            "conv-proceeds-val", "conv-proceeds-cost", "cumulative-average-cost-basis", "average-cost-basis/unit-for-sale",
-            "average-cost-basis-of-sale", "net-proceeds", "gain-post-commission", "gain-pre-commission (calc)",
-            "gain-pre-commission (register)", "gain-pre-commission variance", "cumul-gross-profit", "cumul-net-profit",
+            "date",
+            "description",
+            "trans-units",
+            "cumul-units",
+            "note",
+            "curr",
+            "fx",
+            "purchase-val",
+            "purchase-cost",
+            "cash-dividends",
+            "proceeds-val",
+            "proceeds-cost",
+            "conv-purchase-val",
+            "conv-purchase-cost",
+            "conv-dividends",
+            "conv-proceeds-val",
+            "conv-proceeds-cost",
+            "cumulative-average-cost-basis",
+            "average-cost-basis/unit-for-sale",
+            "average-cost-basis-of-sale",
+            "net-proceeds",
+            "gain-post-commission",
+            "gain-pre-commission (calc)",
+            "gain-pre-commission (register)",
+            "gain-pre-commission variance",
+            "cumul-gross-profit",
+            "cumul-net-profit",
             "cumul-tot-return",
         ]
     );
     let row = &data_rows(&result)[0];
     let split = row["cells"][2]["link"]["split"].as_str().unwrap();
-    let t = s.call("transaction.list", json!({ "account": "Root:Asset:Broker:SPY", "from": "2019-07-01", "to": "2019-07-01" }));
+    let t = s.call(
+        "transaction.list",
+        json!({ "account": "Root:Asset:Broker:SPY", "from": "2019-07-01", "to": "2019-07-01" }),
+    );
     let spy_splits: Vec<&str> = t["transactions"][0]["splits"]
         .as_array()
         .unwrap()
@@ -172,11 +230,19 @@ fn title_columns_links_and_disclaimer() {
         .collect();
     assert!(spy_splits.contains(&split), "{split} is one of {spy_splits:?}");
     let fx = &row["cells"][6];
-    assert_eq!((&fx["price"], &fx["currency"]), (&json!({ "num": "1", "denom": "1" }), &json!("CURRENCY::CAD")));
+    assert_eq!(
+        (&fx["price"], &fx["currency"]),
+        (&json!({ "num": "1", "denom": "1" }), &json!("CURRENCY::CAD"))
+    );
     let b = blocks(&result);
     let kinds: Vec<&str> = b.iter().map(|x| x["kind"].as_str().unwrap()).collect();
     assert_eq!(kinds, ["table", "text", "text", "text"]);
-    assert!(b[1]["text"].as_str().unwrap().starts_with("This report is designed for cost basis accumulation"));
+    assert!(
+        b[1]["text"]
+            .as_str()
+            .unwrap()
+            .starts_with("This report is designed for cost basis accumulation")
+    );
 }
 
 /// Two rows of the test run read by column, worked from IF:393-462: the sale of 75 of 150 SPY (TI:276) and the cover
@@ -188,22 +254,52 @@ fn title_columns_links_and_disclaimer() {
 fn columns_of_a_sale_and_a_cover() {
     let mut s = Setup::fixture(FIXTURE, &test_settings("iso"));
     let result = s.run(IFRS, &test_options());
-    assert_row(&result, 3, &[
-        ("trans-units", "-75. SPY"), ("cumul-units", "75. SPY"), ("note", "Sell"), ("purchase-val", ""),
-        ("purchase-cost", ""), ("cash-dividends", ""), ("proceeds-val", "C$12,000.00"), ("proceeds-cost", "C$9.95"),
-        ("conv-proceeds-val", "C$12,000.00"), ("conv-proceeds-cost", "C$9.95"), ("cumulative-average-cost-basis", "C$18,009.95"),
-        ("average-cost-basis/unit-for-sale", "C$240.13"), ("average-cost-basis-of-sale", "C$18,009.95"),
-        ("net-proceeds", "C$11,990.05"), ("gain-post-commission", "-C$6,019.90"), ("gain-pre-commission (calc)", "-C$6,009.95"),
-        ("gain-pre-commission (register)", ""), ("gain-pre-commission variance", "-C$6,009.95"),
-        ("cumul-gross-profit", "-C$6,009.95"), ("cumul-net-profit", "-C$6,019.90"), ("cumul-tot-return", "-C$6,019.90"),
-    ]);
-    assert_row(&result, 13, &[
-        ("trans-units", "50. SPY"), ("cumul-units", "-100. SPY"), ("note", "Cover Buy"), ("proceeds-val", "-C$5,000.00"),
-        ("proceeds-cost", "C$9.95"), ("cumulative-average-cost-basis", "-C$15,286.73"),
-        ("average-cost-basis/unit-for-sale", "C$152.87"), ("average-cost-basis-of-sale", "-C$7,643.37"),
-        ("net-proceeds", "-C$5,009.95"), ("gain-post-commission", "C$2,633.42"), ("gain-pre-commission (calc)", "C$2,643.37"),
-        ("gain-pre-commission (register)", ""), ("gain-pre-commission variance", "C$2,643.37"),
-    ]);
+    assert_row(
+        &result,
+        3,
+        &[
+            ("trans-units", "-75. SPY"),
+            ("cumul-units", "75. SPY"),
+            ("note", "Sell"),
+            ("purchase-val", ""),
+            ("purchase-cost", ""),
+            ("cash-dividends", ""),
+            ("proceeds-val", "C$12,000.00"),
+            ("proceeds-cost", "C$9.95"),
+            ("conv-proceeds-val", "C$12,000.00"),
+            ("conv-proceeds-cost", "C$9.95"),
+            ("cumulative-average-cost-basis", "C$18,009.95"),
+            ("average-cost-basis/unit-for-sale", "C$240.13"),
+            ("average-cost-basis-of-sale", "C$18,009.95"),
+            ("net-proceeds", "C$11,990.05"),
+            ("gain-post-commission", "-C$6,019.90"),
+            ("gain-pre-commission (calc)", "-C$6,009.95"),
+            ("gain-pre-commission (register)", ""),
+            ("gain-pre-commission variance", "-C$6,009.95"),
+            ("cumul-gross-profit", "-C$6,009.95"),
+            ("cumul-net-profit", "-C$6,019.90"),
+            ("cumul-tot-return", "-C$6,019.90"),
+        ],
+    );
+    assert_row(
+        &result,
+        13,
+        &[
+            ("trans-units", "50. SPY"),
+            ("cumul-units", "-100. SPY"),
+            ("note", "Cover Buy"),
+            ("proceeds-val", "-C$5,000.00"),
+            ("proceeds-cost", "C$9.95"),
+            ("cumulative-average-cost-basis", "-C$15,286.73"),
+            ("average-cost-basis/unit-for-sale", "C$152.87"),
+            ("average-cost-basis-of-sale", "-C$7,643.37"),
+            ("net-proceeds", "-C$5,009.95"),
+            ("gain-post-commission", "C$2,633.42"),
+            ("gain-pre-commission (calc)", "C$2,643.37"),
+            ("gain-pre-commission (register)", ""),
+            ("gain-pre-commission variance", "C$2,643.37"),
+        ],
+    );
     // The basis per unit is kept exact: 22,930.10 / 150 × 50 is 7,643.366…, so the basis left is −15,286.733….
     let basis = &data_rows(&result)[12]["cells"][17]["monetary"]["amount"];
     assert_eq!(basis, &json!({ "num": "-229301", "denom": "15" }));
@@ -232,15 +328,31 @@ fn commissions_not_capitalised() {
     let mut s = Setup::fixture(FIXTURE, &test_settings("iso"));
     let options = with(test_options(), json!({ "General": { "Capitalise purchase commissions": false } }));
     let result = s.run(IFRS, &options);
-    assert_row(&result, 1, &[
-        ("purchase-val", "C$20,000.00"), ("conv-purchase-cost", "C$9.95"), ("cumulative-average-cost-basis", "C$20,000.00"),
-        ("gain-post-commission", "C$9.95"), ("gain-pre-commission (calc)", ""), ("cumul-gross-profit", "C$0.00"),
-        ("cumul-net-profit", "C$9.95"), ("cumul-tot-return", "C$9.95"),
-    ]);
-    assert_row(&result, 2, &[
-        ("average-cost-basis/unit-for-sale", "C$200.00"), ("cumulative-average-cost-basis", "C$36,000.00"),
-        ("gain-post-commission", "C$9.95"), ("cumul-net-profit", "C$19.90"), ("cumul-tot-return", "C$19.90"),
-    ]);
+    assert_row(
+        &result,
+        1,
+        &[
+            ("purchase-val", "C$20,000.00"),
+            ("conv-purchase-cost", "C$9.95"),
+            ("cumulative-average-cost-basis", "C$20,000.00"),
+            ("gain-post-commission", "C$9.95"),
+            ("gain-pre-commission (calc)", ""),
+            ("cumul-gross-profit", "C$0.00"),
+            ("cumul-net-profit", "C$9.95"),
+            ("cumul-tot-return", "C$9.95"),
+        ],
+    );
+    assert_row(
+        &result,
+        2,
+        &[
+            ("average-cost-basis/unit-for-sale", "C$200.00"),
+            ("cumulative-average-cost-basis", "C$36,000.00"),
+            ("gain-post-commission", "C$9.95"),
+            ("cumul-net-profit", "C$19.90"),
+            ("cumul-tot-return", "C$19.90"),
+        ],
+    );
 }
 
 /// "Format monetary cells" off (IF:345-358): every figure is a bare number, printed by GnuCash's number renderer to
@@ -253,12 +365,33 @@ fn format_cells_off() {
     assert_eq!(
         texts(&data_rows(&result)[2]),
         [
-            "2020-03-18", "Sell SPY", "-75.00", "75.00", "Sell", "CAD", "C$1.00", "12,000.00", "9.95", "12,000.00", "9.95",
-            "18,009.95", "240.13", "18,009.95", "11,990.05", "-6,019.90", "-6,009.95", "-6,009.95", "-6,009.95", "-6,019.90",
+            "2020-03-18",
+            "Sell SPY",
+            "-75.00",
+            "75.00",
+            "Sell",
+            "CAD",
+            "C$1.00",
+            "12,000.00",
+            "9.95",
+            "12,000.00",
+            "9.95",
+            "18,009.95",
+            "240.13",
+            "18,009.95",
+            "11,990.05",
+            "-6,019.90",
+            "-6,009.95",
+            "-6,009.95",
+            "-6,009.95",
+            "-6,019.90",
             "-6,019.90",
         ]
     );
-    assert!(data_rows(&result)[2]["cells"][2]["link"]["split"].is_string(), "the bare units keep their link");
+    assert!(
+        data_rows(&result)[2]["cells"][2]["link"]["split"].is_string(),
+        "the bare units keep their link"
+    );
 }
 
 /// The window (IF:299-304, :467-469): both dates at the start of their day and a row only when posted strictly
@@ -269,12 +402,18 @@ fn format_cells_off() {
 fn start_date_in_end_date_out() {
     let mut s = Setup::fixture(FIXTURE, &test_settings("iso"));
     let all = s.run(IFRS, &test_options());
-    let options = with(test_options(), json!({ "General": {
+    let options = with(
+        test_options(),
+        json!({ "General": {
         "Start Date": { "absolute": "2020-03-18" }, "End Date": { "absolute": "2020-06-10" },
         "Alternative row-style for shorts": false,
-    } }));
+    } }),
+    );
     let window = s.run(IFRS, &options);
-    assert_eq!(window["title"], "Average-Cost (Basis) Report: From 2020-03-18 to 2020-06-10. Report-currency CAD");
+    assert_eq!(
+        window["title"],
+        "Average-Cost (Basis) Report: From 2020-03-18 to 2020-06-10. Report-currency CAD"
+    );
     let got: Vec<Vec<String>> = data_rows(&window).iter().map(texts).collect();
     let want: Vec<Vec<String>> = data_rows(&all)[2..9].iter().map(texts).collect();
     assert_eq!(got, want);
@@ -286,7 +425,10 @@ fn start_date_in_end_date_out() {
 fn book(currency: &str) -> Setup {
     let mut s = Setup::new_book(&test_settings("iso"));
     let c = format!("CURRENCY::{currency}");
-    s.call("commodity.create", json!({ "namespace": "NYSE", "mnemonic": "XYZ", "fullname": "XYZ", "fraction": 1 }));
+    s.call(
+        "commodity.create",
+        json!({ "namespace": "NYSE", "mnemonic": "XYZ", "fullname": "XYZ", "fraction": 1 }),
+    );
     s.account("Broker", "ASSET", None, &c);
     s.account("Cash", "BANK", Some("Broker"), &c);
     s.account("XYZ", "STOCK", Some("Broker"), "NYSE::XYZ");
@@ -332,23 +474,78 @@ fn book_options(currency: &str, more: Value) -> Value {
 fn types_book() -> Setup {
     let mut s = book("USD");
     let rows: [(&str, &str, Vec<SplitSpec<'_>>); 11] = [
-        ("2024-01-02", "Buy", vec![("Broker:XYZ", "100", "10", "Buy"), ("Broker:XYZ", "1", "0", "Fee"), ("Broker:Cash", "-101", "", "")]),
-        ("2024-01-03", "Dividend", vec![("Broker:XYZ", "0", "0", ""), ("Broker:Cash", "5", "", ""), ("Income:Dividends", "-5", "", "")]),
-        ("2024-01-04", "Reclassified", vec![("Broker:XYZ", "-3", "0", ""), ("Income:Dividends", "3", "", "")]),
-        ("2024-01-05", "Notional", vec![("Broker:XYZ", "4", "0", ""), ("Income:Gains", "-4", "", "")]),
-        ("2024-01-08", "Reverse split with cash", vec![("Broker:XYZ", "-25", "-2", "Sell"), ("Broker:Cash", "25", "", "")]),
+        (
+            "2024-01-02",
+            "Buy",
+            vec![
+                ("Broker:XYZ", "100", "10", "Buy"),
+                ("Broker:XYZ", "1", "0", "Fee"),
+                ("Broker:Cash", "-101", "", ""),
+            ],
+        ),
+        (
+            "2024-01-03",
+            "Dividend",
+            vec![
+                ("Broker:XYZ", "0", "0", ""),
+                ("Broker:Cash", "5", "", ""),
+                ("Income:Dividends", "-5", "", ""),
+            ],
+        ),
+        (
+            "2024-01-04",
+            "Reclassified",
+            vec![("Broker:XYZ", "-3", "0", ""), ("Income:Dividends", "3", "", "")],
+        ),
+        (
+            "2024-01-05",
+            "Notional",
+            vec![("Broker:XYZ", "4", "0", ""), ("Income:Gains", "-4", "", "")],
+        ),
+        (
+            "2024-01-08",
+            "Reverse split with cash",
+            vec![("Broker:XYZ", "-25", "-2", "Sell"), ("Broker:Cash", "25", "", "")],
+        ),
         ("2024-01-09", "Reverse split", vec![("Broker:XYZ", "0", "-6", "")]),
-        ("2024-01-10", "Buy, fee expensed", vec![
-            ("Broker:XYZ", "10", "1", "Buy"), ("Expenses:Fees", "1", "", ""), ("Broker:Cash", "-11", "", ""),
-        ]),
-        ("2024-01-11", "Oversell", vec![("Broker:XYZ", "-150", "-5", "Sell"), ("Broker:Cash", "150", "", "")]),
-        ("2024-01-12", "Compensation", vec![
-            ("Broker:XYZ", "0", "0", ""), ("Broker:Cash", "-2", "", ""), ("Income:Dividends", "2", "", ""),
-        ]),
-        ("2024-01-15", "Overbuy", vec![("Broker:XYZ", "100", "5", "Buy"), ("Broker:Cash", "-100", "", "")]),
-        ("2024-01-16", "Voided", vec![("Broker:XYZ", "10", "1", "Buy"), ("Broker:Cash", "-10", "", "")]),
+        (
+            "2024-01-10",
+            "Buy, fee expensed",
+            vec![
+                ("Broker:XYZ", "10", "1", "Buy"),
+                ("Expenses:Fees", "1", "", ""),
+                ("Broker:Cash", "-11", "", ""),
+            ],
+        ),
+        (
+            "2024-01-11",
+            "Oversell",
+            vec![("Broker:XYZ", "-150", "-5", "Sell"), ("Broker:Cash", "150", "", "")],
+        ),
+        (
+            "2024-01-12",
+            "Compensation",
+            vec![
+                ("Broker:XYZ", "0", "0", ""),
+                ("Broker:Cash", "-2", "", ""),
+                ("Income:Dividends", "2", "", ""),
+            ],
+        ),
+        (
+            "2024-01-15",
+            "Overbuy",
+            vec![("Broker:XYZ", "100", "5", "Buy"), ("Broker:Cash", "-100", "", "")],
+        ),
+        (
+            "2024-01-16",
+            "Voided",
+            vec![("Broker:XYZ", "10", "1", "Buy"), ("Broker:Cash", "-10", "", "")],
+        ),
     ];
-    let guids: Vec<String> = rows.iter().map(|(date, description, splits)| post(&mut s, "USD", date, description, splits)).collect();
+    let guids: Vec<String> = rows
+        .iter()
+        .map(|(date, description, splits)| post(&mut s, "USD", date, description, splits))
+        .collect();
     s.call("transaction.void", json!({ "guid": guids[10], "reason": "test" }));
     s
 }
@@ -365,38 +562,153 @@ fn transaction_types_the_test_does_not_reach() {
     let mut s = types_book();
     let result = s.run(IFRS, &book_options("USD", json!({})));
     let notes: Vec<String> = (1..=11).map(|r| at(&result, r, "note")).collect();
-    assert_eq!(notes, [
-        "Open Long", "Dividend", "Return of capital (reclassification)", "Notional distribution (capital gain)", "Sell",
-        "Reverse split", "Unknown", "ERROR: long→short", "Compensatory dividend", "ERROR: short→long", "Unknown",
-    ]);
-    let units: Vec<String> = (1..=11).map(|r| format!("{} {}", at(&result, r, "trans-units"), at(&result, r, "cumul-units"))).collect();
-    assert_eq!(units, [
-        "10. XYZ 10. XYZ", "0. XYZ 10. XYZ", "0. XYZ 10. XYZ", "0. XYZ 10. XYZ", "-2. XYZ 8. XYZ", "-6. XYZ 2. XYZ",
-        "1. XYZ 3. XYZ", "-5. XYZ -2. XYZ", "0. XYZ -2. XYZ", "5. XYZ 3. XYZ", "0. XYZ 3. XYZ",
-    ]);
-    assert_row(&result, 1, &[("purchase-val", "$100.00"), ("purchase-cost", "$1.00"), ("cumulative-average-cost-basis", "$101.00"),
-        ("average-cost-basis/unit-for-sale", ""), ("cumul-tot-return", "$0.00")]);
-    assert_row(&result, 2, &[("cash-dividends", "$5.00"), ("conv-dividends", "$5.00"), ("average-cost-basis/unit-for-sale", "$10.10"),
-        ("cumulative-average-cost-basis", "$101.00"), ("cumul-net-profit", "$0.00"), ("cumul-tot-return", "$5.00")]);
-    assert_row(&result, 3, &[("purchase-val", "-$3.00"), ("purchase-cost", ""), ("cash-dividends", "-$3.00"),
-        ("cumulative-average-cost-basis", "$98.00"), ("average-cost-basis/unit-for-sale", "$10.10"), ("cumul-tot-return", "$2.00")]);
-    assert_row(&result, 4, &[("purchase-val", "$4.00"), ("cumulative-average-cost-basis", "$102.00"),
-        ("average-cost-basis/unit-for-sale", "$9.80"), ("gain-pre-commission (register)", "-$4.00"),
-        ("gain-pre-commission variance", "-$4.00"), ("cumul-gross-profit", "$0.00")]);
-    assert_row(&result, 5, &[("proceeds-val", "$25.00"), ("proceeds-cost", ""), ("cumulative-average-cost-basis", "$81.60"),
-        ("average-cost-basis/unit-for-sale", "$10.20"), ("average-cost-basis-of-sale", "$20.40"), ("net-proceeds", "$25.00"),
-        ("gain-post-commission", "$4.60"), ("gain-pre-commission (calc)", "$4.60"), ("gain-pre-commission variance", "$4.60"),
-        ("cumul-gross-profit", "$4.60"), ("cumul-net-profit", "$4.60"), ("cumul-tot-return", "$6.60")]);
-    assert_row(&result, 6, &[("cumulative-average-cost-basis", "$81.60"), ("average-cost-basis/unit-for-sale", "$10.20")]);
-    assert_row(&result, 7, &[("purchase-val", ""), ("purchase-cost", ""), ("cumulative-average-cost-basis", "$81.60"),
-        ("average-cost-basis/unit-for-sale", "$40.80")]);
-    assert_row(&result, 8, &[("proceeds-val", ""), ("average-cost-basis/unit-for-sale", "$27.20"), ("cumul-tot-return", "$6.60")]);
-    assert_row(&result, 9, &[("cash-dividends", "-$2.00"), ("average-cost-basis/unit-for-sale", "$40.80"), ("cumul-tot-return", "$4.60")]);
+    assert_eq!(
+        notes,
+        [
+            "Open Long",
+            "Dividend",
+            "Return of capital (reclassification)",
+            "Notional distribution (capital gain)",
+            "Sell",
+            "Reverse split",
+            "Unknown",
+            "ERROR: long→short",
+            "Compensatory dividend",
+            "ERROR: short→long",
+            "Unknown",
+        ]
+    );
+    let units: Vec<String> = (1..=11)
+        .map(|r| format!("{} {}", at(&result, r, "trans-units"), at(&result, r, "cumul-units")))
+        .collect();
+    assert_eq!(
+        units,
+        [
+            "10. XYZ 10. XYZ",
+            "0. XYZ 10. XYZ",
+            "0. XYZ 10. XYZ",
+            "0. XYZ 10. XYZ",
+            "-2. XYZ 8. XYZ",
+            "-6. XYZ 2. XYZ",
+            "1. XYZ 3. XYZ",
+            "-5. XYZ -2. XYZ",
+            "0. XYZ -2. XYZ",
+            "5. XYZ 3. XYZ",
+            "0. XYZ 3. XYZ",
+        ]
+    );
+    assert_row(
+        &result,
+        1,
+        &[
+            ("purchase-val", "$100.00"),
+            ("purchase-cost", "$1.00"),
+            ("cumulative-average-cost-basis", "$101.00"),
+            ("average-cost-basis/unit-for-sale", ""),
+            ("cumul-tot-return", "$0.00"),
+        ],
+    );
+    assert_row(
+        &result,
+        2,
+        &[
+            ("cash-dividends", "$5.00"),
+            ("conv-dividends", "$5.00"),
+            ("average-cost-basis/unit-for-sale", "$10.10"),
+            ("cumulative-average-cost-basis", "$101.00"),
+            ("cumul-net-profit", "$0.00"),
+            ("cumul-tot-return", "$5.00"),
+        ],
+    );
+    assert_row(
+        &result,
+        3,
+        &[
+            ("purchase-val", "-$3.00"),
+            ("purchase-cost", ""),
+            ("cash-dividends", "-$3.00"),
+            ("cumulative-average-cost-basis", "$98.00"),
+            ("average-cost-basis/unit-for-sale", "$10.10"),
+            ("cumul-tot-return", "$2.00"),
+        ],
+    );
+    assert_row(
+        &result,
+        4,
+        &[
+            ("purchase-val", "$4.00"),
+            ("cumulative-average-cost-basis", "$102.00"),
+            ("average-cost-basis/unit-for-sale", "$9.80"),
+            ("gain-pre-commission (register)", "-$4.00"),
+            ("gain-pre-commission variance", "-$4.00"),
+            ("cumul-gross-profit", "$0.00"),
+        ],
+    );
+    assert_row(
+        &result,
+        5,
+        &[
+            ("proceeds-val", "$25.00"),
+            ("proceeds-cost", ""),
+            ("cumulative-average-cost-basis", "$81.60"),
+            ("average-cost-basis/unit-for-sale", "$10.20"),
+            ("average-cost-basis-of-sale", "$20.40"),
+            ("net-proceeds", "$25.00"),
+            ("gain-post-commission", "$4.60"),
+            ("gain-pre-commission (calc)", "$4.60"),
+            ("gain-pre-commission variance", "$4.60"),
+            ("cumul-gross-profit", "$4.60"),
+            ("cumul-net-profit", "$4.60"),
+            ("cumul-tot-return", "$6.60"),
+        ],
+    );
+    assert_row(
+        &result,
+        6,
+        &[
+            ("cumulative-average-cost-basis", "$81.60"),
+            ("average-cost-basis/unit-for-sale", "$10.20"),
+        ],
+    );
+    assert_row(
+        &result,
+        7,
+        &[
+            ("purchase-val", ""),
+            ("purchase-cost", ""),
+            ("cumulative-average-cost-basis", "$81.60"),
+            ("average-cost-basis/unit-for-sale", "$40.80"),
+        ],
+    );
+    assert_row(
+        &result,
+        8,
+        &[
+            ("proceeds-val", ""),
+            ("average-cost-basis/unit-for-sale", "$27.20"),
+            ("cumul-tot-return", "$6.60"),
+        ],
+    );
+    assert_row(
+        &result,
+        9,
+        &[
+            ("cash-dividends", "-$2.00"),
+            ("average-cost-basis/unit-for-sale", "$40.80"),
+            ("cumul-tot-return", "$4.60"),
+        ],
+    );
     assert_row(&result, 10, &[("purchase-val", ""), ("average-cost-basis/unit-for-sale", "$40.80")]);
-    assert_row(&result, 11, &[("average-cost-basis/unit-for-sale", "$27.20"), ("cumul-tot-return", "$4.60")]);
+    assert_row(
+        &result,
+        11,
+        &[("average-cost-basis/unit-for-sale", "$27.20"), ("cumul-tot-return", "$4.60")],
+    );
     assert_eq!(shades(&result), (1..=11).map(|r| r == 8 || r == 9).collect::<Vec<_>>());
     let html = s.export(IFRS, &book_options("USD", json!({})));
-    ["ERROR: long→short", "Compensatory dividend", "$40.80"].iter().for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
+    ["ERROR: long→short", "Compensatory dividend", "$40.80"]
+        .iter()
+        .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
 }
 
 /// The Dividend Account and the Cap Gains Account the same (as GnuCash's test leaves both at their default, Income):
@@ -407,8 +719,17 @@ fn one_account_for_dividends_and_gains() {
     let mut s = types_book();
     let options = book_options("USD", json!({ "General": { "Cap Gains Account": "Income:Dividends" } }));
     let result = s.run(IFRS, &options);
-    assert_row(&result, 2, &[("note", "Unknown"), ("cash-dividends", ""), ("gain-pre-commission (register)", "-$5.00"),
-        ("gain-pre-commission variance", "-$5.00"), ("cumul-tot-return", "$0.00")]);
+    assert_row(
+        &result,
+        2,
+        &[
+            ("note", "Unknown"),
+            ("cash-dividends", ""),
+            ("gain-pre-commission (register)", "-$5.00"),
+            ("gain-pre-commission variance", "-$5.00"),
+            ("cumul-tot-return", "$0.00"),
+        ],
+    );
 }
 
 /// The rate (IF:317-320, :427-428): 10,000,000 units of the Stock Account's currency, its parent's EUR
@@ -420,14 +741,36 @@ fn rate_from_the_price_database() {
     let mut s = book("EUR");
     let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.23456789012", "date": "2024-01-01" });
     s.call("price.add", price);
-    let buy = [("Broker:XYZ", "100", "10", "Buy"), ("Broker:XYZ", "1", "0", "Fee"), ("Broker:Cash", "-101", "", "")];
+    let buy = [
+        ("Broker:XYZ", "100", "10", "Buy"),
+        ("Broker:XYZ", "1", "0", "Fee"),
+        ("Broker:Cash", "-101", "", ""),
+    ];
     post(&mut s, "EUR", "2024-01-02", "Buy", &buy);
     let result = s.run(IFRS, &book_options("USD", json!({})));
-    assert_eq!(result["title"], "Average-Cost (Basis) Report: From 2024-01-01 to 2024-02-01. Report-currency USD");
-    assert_row(&result, 1, &[("curr", "EUR"), ("fx", "$1.23456789"), ("purchase-val", "€100.00"), ("purchase-cost", "€1.00"),
-        ("conv-purchase-val", "$123.46"), ("conv-purchase-cost", "$1.23"), ("cumulative-average-cost-basis", "$124.69")]);
+    assert_eq!(
+        result["title"],
+        "Average-Cost (Basis) Report: From 2024-01-01 to 2024-02-01. Report-currency USD"
+    );
+    assert_row(
+        &result,
+        1,
+        &[
+            ("curr", "EUR"),
+            ("fx", "$1.23456789"),
+            ("purchase-val", "€100.00"),
+            ("purchase-cost", "€1.00"),
+            ("conv-purchase-val", "$123.46"),
+            ("conv-purchase-cost", "$1.23"),
+            ("cumulative-average-cost-basis", "$124.69"),
+        ],
+    );
     let basis = &data_rows(&result)[0]["cells"][17]["monetary"]["amount"];
-    assert_eq!(basis, &json!({ "num": "12469135689", "denom": "100000000" }), "101 × 1.23456789, exactly");
+    assert_eq!(
+        basis,
+        &json!({ "num": "12469135689", "denom": "100000000" }),
+        "101 × 1.23456789, exactly"
+    );
 }
 
 /// The fee filter (IF:241-243, :277-280): a Stock Account split whose action is "Action field filter for fees" is a
@@ -439,20 +782,53 @@ fn rate_from_the_price_database() {
 #[test]
 fn fee_filter_and_the_num_field_source() {
     let mut s = book("USD");
-    let buy = [("Broker:XYZ", "100", "10", "Buy"), ("Broker:XYZ", "1", "0", "Commission"), ("Broker:Cash", "-101", "", "")];
+    let buy = [
+        ("Broker:XYZ", "100", "10", "Buy"),
+        ("Broker:XYZ", "1", "0", "Commission"),
+        ("Broker:Cash", "-101", "", ""),
+    ];
     post(&mut s, "USD", "2024-01-02", "Buy", &buy);
-    post(&mut s, "USD", "2024-01-03", "Fee only", &[("Broker:XYZ", "2", "0", "Fee"), ("Broker:Cash", "-2", "", "")]);
+    post(
+        &mut s,
+        "USD",
+        "2024-01-03",
+        "Fee only",
+        &[("Broker:XYZ", "2", "0", "Fee"), ("Broker:Cash", "-2", "", "")],
+    );
     let default = s.run(IFRS, &book_options("USD", json!({})));
-    assert_row(&default, 1, &[("purchase-val", "$101.00"), ("purchase-cost", ""), ("cumulative-average-cost-basis", "$101.00")]);
+    assert_row(
+        &default,
+        1,
+        &[
+            ("purchase-val", "$101.00"),
+            ("purchase-cost", ""),
+            ("cumulative-average-cost-basis", "$101.00"),
+        ],
+    );
     assert_row(&default, 2, &[("trans-units", ""), ("cumul-units", "10. XYZ"), ("note", "Unknown")]);
     assert!(data_rows(&default)[1]["cells"][2].is_null());
-    let commission = s.run(IFRS, &book_options("USD", json!({ "General": { "Action field filter for fees": "Commission" } })));
-    assert_row(&commission, 1, &[("purchase-val", "$100.00"), ("purchase-cost", "$1.00"), ("cumulative-average-cost-basis", "$101.00")]);
+    let commission = s.run(
+        IFRS,
+        &book_options("USD", json!({ "General": { "Action field filter for fees": "Commission" } })),
+    );
+    assert_row(
+        &commission,
+        1,
+        &[
+            ("purchase-val", "$100.00"),
+            ("purchase-cost", "$1.00"),
+            ("cumulative-average-cost-basis", "$101.00"),
+        ],
+    );
     assert_row(&commission, 2, &[("trans-units", "0. XYZ"), ("note", "Unknown")]);
 
     let mut s = book("USD");
     s.call("book.setOptions", json!({ "splitActionForNum": true }));
-    let buy = [("Broker:XYZ", "100", "10", "Buy"), ("Broker:XYZ", "1", "0", "Fee"), ("Broker:Cash", "-101", "", "")];
+    let buy = [
+        ("Broker:XYZ", "100", "10", "Buy"),
+        ("Broker:XYZ", "1", "0", "Fee"),
+        ("Broker:Cash", "-101", "", ""),
+    ];
     post(&mut s, "USD", "2024-01-02", "Buy", &buy);
     let by_num = s.run(IFRS, &book_options("USD", json!({})));
     assert_row(&by_num, 1, &[("purchase-val", "$101.00"), ("purchase-cost", "")]);
@@ -463,7 +839,13 @@ fn fee_filter_and_the_num_field_source() {
 #[test]
 fn a_fee_with_nothing_held_fails() {
     let mut s = book("USD");
-    post(&mut s, "USD", "2024-01-02", "Fee first", &[("Broker:XYZ", "2", "0", "Fee"), ("Broker:Cash", "-2", "", "")]);
+    post(
+        &mut s,
+        "USD",
+        "2024-01-02",
+        "Fee first",
+        &[("Broker:XYZ", "2", "0", "Fee"), ("Broker:Cash", "-2", "", "")],
+    );
     let e = s.err("report.run", json!({ "report": IFRS, "options": book_options("USD", json!({})) }));
     assert_eq!(e.code, 3000);
     let message = e.data.unwrap()["message"].as_str().unwrap().to_owned();
@@ -481,7 +863,16 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["type"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["type"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"General/Start Date " a" "date" {"relative":"start-accounting-period"}"#,
@@ -512,15 +903,18 @@ fn a_run_changes_nothing() {
         let before = s.d.context().book().unwrap().clone();
         let revision = s.d.context().session().unwrap().revision();
         let files = s.files();
-        [json!({}), json!({ "General": { "Format monetary cells": false, "Capitalise purchase commissions": false } })]
-            .iter()
-            .for_each(|more| {
-                let options = with(test_options(), more.clone());
-                s.run(IFRS, &options);
-                let (a, b) = (s.export(IFRS, &options), s.export(IFRS, &options));
-                assert_eq!(a, b, "{format}");
-                assert!(!a.to_ascii_lowercase().contains("<script"), "{format}");
-            });
+        [
+            json!({}),
+            json!({ "General": { "Format monetary cells": false, "Capitalise purchase commissions": false } }),
+        ]
+        .iter()
+        .for_each(|more| {
+            let options = with(test_options(), more.clone());
+            s.run(IFRS, &options);
+            let (a, b) = (s.export(IFRS, &options), s.export(IFRS, &options));
+            assert_eq!(a, b, "{format}");
+            assert!(!a.to_ascii_lowercase().contains("<script"), "{format}");
+        });
         assert_eq!(s.d.context().book().unwrap(), &before, "{format}");
         assert_eq!(s.d.context().session().unwrap().revision(), revision, "{format}");
         assert_eq!(s.call("book.info", json!({}))["dirty"], false, "{format}");

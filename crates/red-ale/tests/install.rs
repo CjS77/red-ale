@@ -15,7 +15,11 @@ fn script() -> PathBuf {
 
 /// The target install.sh picks on this machine.
 fn target() -> String {
-    let os = if cfg!(target_os = "macos") { "apple-darwin" } else { "unknown-linux-musl" };
+    let os = if cfg!(target_os = "macos") {
+        "apple-darwin"
+    } else {
+        "unknown-linux-musl"
+    };
     format!("{}-{os}", std::env::consts::ARCH)
 }
 
@@ -30,7 +34,13 @@ fn release() -> tempfile::TempDir {
     fs::set_permissions(&binary, fs::Permissions::from_mode(0o755)).unwrap();
     fs::write(staging.join("LICENSE"), "GPL-3.0-or-later\n").unwrap();
     let archive = format!("red-ale-{}.tar.gz", target());
-    let tar = Command::new("tar").arg("-czf").arg(dir.path().join(&archive)).arg("-C").arg(&staging).args(["red-ale", "LICENSE"]).status();
+    let tar = Command::new("tar")
+        .arg("-czf")
+        .arg(dir.path().join(&archive))
+        .arg("-C")
+        .arg(&staging)
+        .args(["red-ale", "LICENSE"])
+        .status();
     assert!(tar.unwrap().success());
     let sum = Command::new("sha256sum").arg(&archive).current_dir(dir.path()).output().unwrap();
     assert!(sum.status.success());
@@ -61,7 +71,10 @@ fn installs_the_binary_and_skips_setup_when_asked() {
     let out = install(release.path(), home.path(), &["--no-setup"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let installed = home.path().join(".local/bin/red-ale");
-    assert_eq!(fs::read(&installed).unwrap(), fs::read(release.path().join("staging/red-ale")).unwrap());
+    assert_eq!(
+        fs::read(&installed).unwrap(),
+        fs::read(release.path().join("staging/red-ale")).unwrap()
+    );
     assert_eq!(fs::metadata(&installed).unwrap().permissions().mode() & 0o777, 0o755);
     assert!(stderr(&out).contains("is not on your PATH"), "{}", stderr(&out));
     assert!(!home.path().join("called").exists(), "--no-setup runs no setup");
@@ -74,7 +87,10 @@ fn runs_setup_with_the_arguments_after_the_separator() {
     let (release, home) = (release(), tempfile::tempdir().unwrap());
     let out = install(release.path(), home.path(), &["--", "--only", "cursor", "--dry-run"]);
     assert!(out.status.success(), "{}", stderr(&out));
-    assert_eq!(fs::read_to_string(home.path().join("called")).unwrap(), "setup --only cursor --dry-run\n");
+    assert_eq!(
+        fs::read_to_string(home.path().join("called")).unwrap(),
+        "setup --only cursor --dry-run\n"
+    );
 }
 
 #[test]

@@ -120,7 +120,9 @@ impl Resolver {
         let mut ast = engine.compile(&*text).map_err(|e| in_module(e.into()))?;
         ast.set_source(name);
         // Located at the import, in the importing script, rather than inside the module.
-        self.defined.add(name, &ast).map_err(|m| EvalAltResult::ErrorRuntime(m.into(), pos))?;
+        self.defined
+            .add(name, &ast)
+            .map_err(|m| EvalAltResult::ErrorRuntime(m.into(), pos))?;
         if !self.loading.borrow_mut().insert(name.to_owned()) {
             return Err(in_module(format!("module {name} imports itself").into()));
         }

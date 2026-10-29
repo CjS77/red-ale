@@ -43,7 +43,9 @@ struct Saved(Vec<(Guid, Guid, Map<String, Value>)>);
 
 impl Saved {
     fn with(mut self, guid: &str, template: &str, options: Value) -> Self {
-        let Value::Object(options) = options else { panic!("options are an object") };
+        let Value::Object(options) = options else {
+            panic!("options are an object")
+        };
         self.0.push((g(guid), g(template), options));
         self
     }
@@ -102,7 +104,10 @@ fn grid(r: &ReportResult) -> &GridBlock {
 
 /// Each row as (child, colspan, rowspan) per cell.
 fn layout(g: &GridBlock) -> Vec<Vec<(u32, u32, u32)>> {
-    g.rows.iter().map(|row| row.cells.iter().map(|c| (c.child, c.colspan, c.rowspan)).collect()).collect()
+    g.rows
+        .iter()
+        .map(|row| row.cells.iter().map(|c| (c.child, c.colspan, c.rowspan)).collect())
+        .collect()
 }
 
 fn title(cell: &GridCell) -> &str {
@@ -135,7 +140,11 @@ fn rows_close_at_the_width_and_row_spans_take_room_below() {
     assert_eq!(title(&grid(&r).rows[0].cells[0]), "leaf");
     let link = grid(&r).rows[0].cells[0].link.clone().unwrap();
     let Link::Report(link) = link else { panic!("a report link") };
-    assert_eq!((link.template.0, link.configuration), (g(LEAF), None), "Single Report runs the child alone");
+    assert_eq!(
+        (link.template.0, link.configuration),
+        (g(LEAF), None),
+        "Single Report runs the child alone"
+    );
 }
 
 #[test]
@@ -151,9 +160,13 @@ fn zero_columns_and_zero_spans_follow_gnucash() {
 
 #[test]
 fn template_and_saved_configuration_children_run_on_the_views_book() {
-    let saved = Saved::default().with("000000000000000000000000000000c1", BALANCE_SHEET, json!({
-        "General": { "Report name": "My Balance Sheet", "Stylesheet": "Gone" }
-    }));
+    let saved = Saved::default().with(
+        "000000000000000000000000000000c1",
+        BALANCE_SHEET,
+        json!({
+            "General": { "Report name": "My Balance Sheet", "Stylesheet": "Gone" }
+        }),
+    );
     let mut changes = list(vec![
         json!({ "report": ACCOUNT_SUMMARY, "options": { "General": { "Report name": "Summary" } } }),
         child("000000000000000000000000000000c1", 1, 1),
@@ -164,17 +177,27 @@ fn template_and_saved_configuration_children_run_on_the_views_book() {
     let cells = &grid(&r).rows[0].cells;
     let summary = cells[0].result.as_ref().unwrap();
     assert_eq!(summary.report.guid.0, g(ACCOUNT_SUMMARY));
-    assert_eq!(summary.options["General"]["Report name"], "Summary", "a template child with options");
+    assert_eq!(
+        summary.options["General"]["Report name"], "Summary",
+        "a template child with options"
+    );
     assert!(summary.title.contains("Account Summary"), "{}", summary.title);
     let sheet = cells[1].result.as_ref().unwrap();
     assert_eq!(sheet.report.configuration.map(|c| c.0), Some(g("000000000000000000000000000000c1")));
     assert_eq!(sheet.options["General"]["Report name"], "My Balance Sheet");
     assert!(!sheet.sections.is_empty());
-    assert_eq!(sheet.options["General"]["Stylesheet"], "Default", "the child's style sheet is ignored");
-    let Some(Link::Report(link)) = &cells[1].link else { panic!("a report link") };
+    assert_eq!(
+        sheet.options["General"]["Stylesheet"], "Default",
+        "the child's style sheet is ignored"
+    );
+    let Some(Link::Report(link)) = &cells[1].link else {
+        panic!("a report link")
+    };
     assert_eq!(link.configuration.map(|c| c.0), Some(g("000000000000000000000000000000c1")));
 
-    let Some(Block::OptionsSummary(o)) = r.sections.last().and_then(|s| s.blocks.first()) else { panic!("a summary") };
+    let Some(Block::OptionsSummary(o)) = r.sections.last().and_then(|s| s.blocks.first()) else {
+        panic!("a summary")
+    };
     let rows: Vec<(&str, &str)> = o.rows.iter().map(|r| (r.name.as_str(), r.value.as_str())).take(2).collect();
     assert_eq!(rows, [("Embedded Report", "Summary"), ("Embedded Report", "My Balance Sheet")]);
     assert_eq!(o.rows[0].section, "");
@@ -183,12 +206,16 @@ fn template_and_saved_configuration_children_run_on_the_views_book() {
 #[test]
 fn children_that_cannot_run_leave_a_warning_in_their_cell() {
     let gone = "000000000000000000000000000000c9";
-    let saved = Saved::default().with("000000000000000000000000000000c2", VIEW, list(vec![
-        child(gone, 1, 1),
-        child(THROWS, 1, 1),
-        json!({ "report": LEAF, "options": { "General": { "Missing": 1 } } }),
-        child(LEAF, 1, 1),
-    ]));
+    let saved = Saved::default().with(
+        "000000000000000000000000000000c2",
+        VIEW,
+        list(vec![
+            child(gone, 1, 1),
+            child(THROWS, 1, 1),
+            json!({ "report": LEAF, "options": { "General": { "Missing": 1 } } }),
+            child(LEAF, 1, 1),
+        ]),
+    );
     let r = run_on(&Host::new(empty_book()), &saved, "000000000000000000000000000000c2", json!({})).unwrap();
     let cells: Vec<&GridCell> = grid(&r).rows.iter().flat_map(|row| &row.cells).collect();
     assert!(warning(cells[0]).contains(gone), "a saved configuration deleted since");
@@ -209,16 +236,21 @@ fn nested_views_cycles_and_the_depth_limit() {
     let inner = r.sections[0].blocks.clone();
     let Block::Grid(top) = &inner[0] else { panic!() };
     let b_result = top.rows[1].cells[0].result.as_ref().unwrap();
-    let Block::Grid(b_grid) = &b_result.sections[0].blocks[0] else { panic!() };
+    let Block::Grid(b_grid) = &b_result.sections[0].blocks[0] else {
+        panic!()
+    };
     assert!(warning(&b_grid.rows[0].cells[0]).contains("embeds itself"));
 
     // Template views nested five deep: the children of the view at depth 4 are not run.
-    let nest = (0..5).fold(json!([child(LEAF, 1, 1)]), |inner, _| {
-        json!([{ "report": VIEW, "options": { "__general": { "report-list": inner } } }])
-    });
+    let nest = (0..5).fold(
+        json!([child(LEAF, 1, 1)]),
+        |inner, _| json!([{ "report": VIEW, "options": { "__general": { "report-list": inner } } }]),
+    );
     let r = run(json!({ "__general": { "report-list": nest } }));
     let deepest = (0..4).fold(grid(&r).clone(), |g, _| {
-        let Block::Grid(below) = &g.rows[0].cells[0].result.as_ref().unwrap().sections[0].blocks[0] else { panic!() };
+        let Block::Grid(below) = &g.rows[0].cells[0].result.as_ref().unwrap().sections[0].blocks[0] else {
+            panic!()
+        };
         below.clone()
     });
     assert!(warning(&deepest.rows[0].cells[0]).contains("at most 4 deep"), "{deepest:?}");
@@ -232,13 +264,22 @@ fn at_most_100_children_run_and_engine_limits_stop_the_whole_run() {
     assert!(warning(cells[100]).contains("at most 100"));
 
     let spins = run_on(&Host::new(empty_book()), &Saved::default(), VIEW, list(vec![child(SPINS, 1, 1)]));
-    assert!(matches!(spins, Err(ReportError::Limit(ref l)) if l.limit == Limit::Operations), "{spins:?}");
+    assert!(
+        matches!(spins, Err(ReportError::Limit(ref l)) if l.limit == Limit::Operations),
+        "{spins:?}"
+    );
 }
 
 #[test]
 fn a_run_leaves_the_book_as_it_was() {
     let host = Host::new(fixture("balsheet-pnl.gnucash"));
     let before = host.book.clone();
-    run_on(&host, &Saved::default(), VIEW, list(vec![child(ACCOUNT_SUMMARY, 1, 1), child(BALANCE_SHEET, 1, 1)])).unwrap();
+    run_on(
+        &host,
+        &Saved::default(),
+        VIEW,
+        list(vec![child(ACCOUNT_SUMMARY, 1, 1), child(BALANCE_SHEET, 1, 1)]),
+    )
+    .unwrap();
     assert_eq!(host.book, before);
 }

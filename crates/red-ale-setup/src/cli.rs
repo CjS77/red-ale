@@ -24,8 +24,16 @@ pub(crate) struct Invocation {
 impl fmt::Display for Invocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let plain = |a: &str| !a.is_empty() && a.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_./=:@%+,".contains(&b));
-        let quoted = |a: &String| if plain(a) { a.clone() } else { format!("'{}'", a.replace('\'', r"'\''")) };
-        let line: Vec<String> = std::iter::once(self.program.display().to_string()).chain(self.args.iter().map(quoted)).collect();
+        let quoted = |a: &String| {
+            if plain(a) {
+                a.clone()
+            } else {
+                format!("'{}'", a.replace('\'', r"'\''"))
+            }
+        };
+        let line: Vec<String> = std::iter::once(self.program.display().to_string())
+            .chain(self.args.iter().map(quoted))
+            .collect();
         match &self.dir {
             Some(dir) => write!(f, "(cd {} && {})", quoted(&dir.display().to_string()), line.join(" ")),
             None => write!(f, "{}", line.join(" ")),
@@ -97,11 +105,18 @@ impl<A: CliAdapter> Harness for Cli<A> {
         }
         if let Work::Cli(commands) = &work {
             commands.iter().try_for_each(|c| {
-                let message = |message| Error::Cli { command: c.to_string(), message };
+                let message = |message| Error::Cli {
+                    command: c.to_string(),
+                    message,
+                };
                 env.run(&c.program, &c.args, c.dir.as_deref()).map_err(message)
             })?;
         }
-        Ok(Applied { action, config: config.unwrap_or_default(), backup: None })
+        Ok(Applied {
+            action,
+            config: config.unwrap_or_default(),
+            backup: None,
+        })
     }
 
     fn restart(&self) -> Option<&'static str> {
@@ -132,13 +147,20 @@ fn planned(adapter: &impl CliAdapter, env: &Env, scope: &Scope, change: &Change)
         Scope::User => None,
         Scope::Project(dir) => Some(dir.clone()),
     };
-    let run = |args| Invocation { program: program.clone(), args, dir: dir.clone() };
+    let run = |args| Invocation {
+        program: program.clone(),
+        args,
+        dir: dir.clone(),
+    };
     Ok(match (change, current) {
         (Change::Set(entry), None) => (Action::Add, vec![run(adapter.add(scope, entry))]),
         (Change::Set(entry), Some(old)) if runs(&old, entry) => (Action::Nothing, Vec::new()),
         (Change::Set(entry), Some(old)) => {
             let diff = file::entry_diff(&essentials(&old), &plain(entry));
-            (Action::Update { diff }, vec![run(adapter.remove(scope)), run(adapter.add(scope, entry))])
+            (
+                Action::Update { diff },
+                vec![run(adapter.remove(scope)), run(adapter.add(scope, entry))],
+            )
         }
         (Change::Remove, None) => (Action::Nothing, Vec::new()),
         (Change::Remove, Some(_)) => (Action::Remove, vec![run(adapter.remove(scope))]),
@@ -149,7 +171,9 @@ fn planned(adapter: &impl CliAdapter, env: &Env, scope: &Scope, change: &Change)
 /// fields of its own (Claude Code `type` and an empty `env`, Copilot CLI `tools`), so the entry is not compared whole.
 fn runs(existing: &Value, entry: &Entry) -> bool {
     let args = existing.get("args").cloned().unwrap_or_else(|| json!([]));
-    let no_env = existing.get("env").is_none_or(|e| e.as_object().is_some_and(serde_json::Map::is_empty));
+    let no_env = existing
+        .get("env")
+        .is_none_or(|e| e.as_object().is_some_and(serde_json::Map::is_empty));
     existing.get("command") == Some(&json!(entry.command)) && args == json!(entry.args) && no_env
 }
 
@@ -163,7 +187,12 @@ fn essentials(existing: &Value) -> Value {
 }
 
 fn json_entry(path: PathBuf, keys: &'static [&'static str]) -> Result<Option<Value>, Error> {
-    file::read_entry(&Location { path, dialect: Dialect::Jsonc, keys, render: plain })
+    file::read_entry(&Location {
+        path,
+        dialect: Dialect::Jsonc,
+        keys,
+        render: plain,
+    })
 }
 
 /// `user`, or `project` for `--project`.
@@ -210,7 +239,10 @@ impl CliAdapter for ClaudeCode {
 
     fn config(&self, env: &Env, scope: &Scope) -> Result<PathBuf, Error> {
         match scope {
-            Scope::User => Ok(env.path_var("CLAUDE_CONFIG_DIR").map_or_else(|| env.home(), Ok)?.join(".claude.json")),
+            Scope::User => Ok(env
+                .path_var("CLAUDE_CONFIG_DIR")
+                .map_or_else(|| env.home(), Ok)?
+                .join(".claude.json")),
             Scope::Project(dir) => Ok(dir.join(".mcp.json")),
         }
     }
@@ -247,8 +279,13 @@ impl CliAdapter for Codex {
     }
 
     fn config(&self, env: &Env, scope: &Scope) -> Result<PathBuf, Error> {
-        let Scope::User = scope else { return Err(Error::NoProjectScope("Codex")) };
-        Ok(env.path_var("CODEX_HOME").map_or_else(|| env.home().map(|h| h.join(".codex")), Ok)?.join("config.toml"))
+        let Scope::User = scope else {
+            return Err(Error::NoProjectScope("Codex"));
+        };
+        Ok(env
+            .path_var("CODEX_HOME")
+            .map_or_else(|| env.home().map(|h| h.join(".codex")), Ok)?
+            .join("config.toml"))
     }
 
     fn current(&self, env: &Env, scope: &Scope) -> Result<Option<Value>, Error> {
@@ -273,9 +310,18 @@ fn toml_entry(path: &Path) -> Result<Option<Value>, Error> {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(source) => return Err(Error::Read { path: path.to_path_buf(), source }),
+        Err(source) => {
+            return Err(Error::Read {
+                path: path.to_path_buf(),
+                source,
+            });
+        }
     };
-    let invalid = |message: String| Error::Invalid { path: path.to_path_buf(), format: "TOML", message };
+    let invalid = |message: String| Error::Invalid {
+        path: path.to_path_buf(),
+        format: "TOML",
+        message,
+    };
     let table: toml::Table = text.parse().map_err(|e: toml::de::Error| invalid(e.to_string()))?;
     let servers = serde_json::to_value(table).map_err(|e| invalid(e.to_string()))?;
     Ok(servers.get("mcp_servers").and_then(|s| s.get(NAME)).cloned())
@@ -313,13 +359,23 @@ impl CliAdapter for CopilotCli {
 
     /// The first `copilot` on `PATH` that is not VS Code's shim, else `~/.local/bin/copilot` (§10 "Detection").
     fn binary(&self, env: &Env) -> Option<PathBuf> {
-        let local = || env.home().ok().map(|h| h.join(".local/bin/copilot")).filter(|p| p.is_file() && !is_shim(p));
+        let local = || {
+            env.home()
+                .ok()
+                .map(|h| h.join(".local/bin/copilot"))
+                .filter(|p| p.is_file() && !is_shim(p))
+        };
         env.which_all("copilot").find(|p| !is_shim(p)).or_else(local)
     }
 
     fn config(&self, env: &Env, scope: &Scope) -> Result<PathBuf, Error> {
-        let Scope::User = scope else { return Err(Error::NoProjectScope("GitHub Copilot CLI")) };
-        Ok(env.path_var("COPILOT_HOME").map_or_else(|| env.home().map(|h| h.join(".copilot")), Ok)?.join("mcp-config.json"))
+        let Scope::User = scope else {
+            return Err(Error::NoProjectScope("GitHub Copilot CLI"));
+        };
+        Ok(env
+            .path_var("COPILOT_HOME")
+            .map_or_else(|| env.home().map(|h| h.join(".copilot")), Ok)?
+            .join("mcp-config.json"))
     }
 
     fn add(&self, _scope: &Scope, entry: &Entry) -> Vec<String> {

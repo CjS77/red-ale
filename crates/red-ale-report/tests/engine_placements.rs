@@ -86,8 +86,7 @@ fn children_name_templates_and_saved_configurations() {
         { "report": VIEW, "colspan": 1, "rowspan": 1 },
     ]);
     assert_eq!(
-        result.options["__general"]["report-list"],
-        kept,
+        result.options["__general"]["report-list"], kept,
         "a template child keeps only the options that differ from its defaults"
     );
     let log: Vec<String> = result.log.into_iter().map(|l| l.text).collect();
@@ -105,8 +104,7 @@ fn unknown_reports_and_invalid_child_options_are_refused() {
         format!("child 1: no report template or saved report configuration has GUID {NOBODY}")
     );
     assert!(
-        reason(json!([{ "report": SAVED, "options": { "Display": { "Levels": 3 } } }]))
-            .ends_with("options go only with a template's GUID"),
+        reason(json!([{ "report": SAVED, "options": { "Display": { "Levels": 3 } } }])).ends_with("options go only with a template's GUID"),
         "a saved configuration runs with its own values"
     );
     assert_eq!(
@@ -134,8 +132,7 @@ fn a_saved_configurations_children_are_not_checked_again() {
     let changes = json!({ "General": { "Number of columns": 2 } });
     let result = reg.run(view, Some((saved, &stored)), Some(&changes), &host.ctx()).unwrap();
     assert_eq!(
-        result.options["__general"]["report-list"][0]["report"],
-        NOBODY,
+        result.options["__general"]["report-list"][0]["report"], NOBODY,
         "a child deleted since it was saved is the run's warning, not an error"
     );
     let err = reg.run(view, None, Some(&stored), &host.ctx()).unwrap_err();

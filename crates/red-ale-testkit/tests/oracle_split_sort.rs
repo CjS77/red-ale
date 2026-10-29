@@ -68,25 +68,110 @@ type Leg = (&'static str, i64, &'static str, &'static str, char, Option<u32>);
 type Txn = (u32, i64, &'static str, &'static str, &'static [Leg]);
 
 const TXNS: [Txn; 13] = [
-    (5, 30, "10", "Salary", &[("Assets:Bank", 300_000, "pay", "b", 'n', None), ("Income", -300_000, "", "", 'y', Some(31))]),
-    (5, 10, "9", "Groceries", &[("Expenses:Food", 4550, "", "", 'n', None), ("Assets:Bank", -4550, "veg", "a", 'c', Some(20))]),
-    (6, 20, "abc", "groceries", &[("Expenses:Food", 1225, "fruit", "c", 'n', None), ("Assets:Cash", -1225, "", "", 'n', None)]),
+    (
+        5,
+        30,
+        "10",
+        "Salary",
+        &[
+            ("Assets:Bank", 300_000, "pay", "b", 'n', None),
+            ("Income", -300_000, "", "", 'y', Some(31)),
+        ],
+    ),
+    (
+        5,
+        10,
+        "9",
+        "Groceries",
+        &[
+            ("Expenses:Food", 4550, "", "", 'n', None),
+            ("Assets:Bank", -4550, "veg", "a", 'c', Some(20)),
+        ],
+    ),
+    (
+        6,
+        20,
+        "abc",
+        "groceries",
+        &[
+            ("Expenses:Food", 1225, "fruit", "c", 'n', None),
+            ("Assets:Cash", -1225, "", "", 'n', None),
+        ],
+    ),
     (
         6,
         20,
         "",
         "Split three",
-        &[("Assets:Bank", -10_000, "", "", 'f', None), ("Expenses:Food", 8000, "x", "", 'n', None), ("Assets:Cash", 2000, "", "", 'n', None)],
+        &[
+            ("Assets:Bank", -10_000, "", "", 'f', None),
+            ("Expenses:Food", 8000, "x", "", 'n', None),
+            ("Assets:Cash", 2000, "", "", 'n', None),
+        ],
     ),
-    (7, 5, " 5", "Trading pair", &[("Assets:Bank", -700, "", "9", 'n', None), ("Trading", 700, "", "", 'n', None)]),
+    (
+        7,
+        5,
+        " 5",
+        "Trading pair",
+        &[("Assets:Bank", -700, "", "9", 'n', None), ("Trading", 700, "", "", 'n', None)],
+    ),
     (7, 40, "-3", "Lone", &[("Assets:Bank", 0, "lone", "", 'n', None)]),
-    (8, 50, "5a", "Move", &[("Assets 2", 5000, "", "", 'n', None), ("Assets", -5000, "", "", 'n', None)]),
-    (8, 50, "+5", "Move", &[("Assets:Bank:Sub", 5000, "", "", 'c', Some(20)), ("Assets", -5000, "", "", 'n', None)]),
-    (5, 60, "10", "Salary", &[("Assets:Bank", 300_000, "pay", "b", 'n', None), ("Income", -300_000, "", "", 'y', Some(31))]),
-    (9, 70, "11", "Mistake", &[("Expenses:Food", 990, "", "", 'n', None), ("Assets:Bank", -990, "", "", 'n', None)]),
-    (31, 80, "", "Closing Entries", &[("Income", 600_000, "", "", 'n', None), ("Equity", -600_000, "", "", 'n', None)]),
-    (10, 15, "2", "Snack", &[("Expenses", 300, "", "", 'n', None), ("Assets:Cash", -300, "", "", 'c', Some(20))]),
-    (10, 15, "2", "snack", &[("Expenses", 300, "", "", 'n', None), ("Assets:Cash", -300, "", "", 'n', None)]),
+    (
+        8,
+        50,
+        "5a",
+        "Move",
+        &[("Assets 2", 5000, "", "", 'n', None), ("Assets", -5000, "", "", 'n', None)],
+    ),
+    (
+        8,
+        50,
+        "+5",
+        "Move",
+        &[
+            ("Assets:Bank:Sub", 5000, "", "", 'c', Some(20)),
+            ("Assets", -5000, "", "", 'n', None),
+        ],
+    ),
+    (
+        5,
+        60,
+        "10",
+        "Salary",
+        &[
+            ("Assets:Bank", 300_000, "pay", "b", 'n', None),
+            ("Income", -300_000, "", "", 'y', Some(31)),
+        ],
+    ),
+    (
+        9,
+        70,
+        "11",
+        "Mistake",
+        &[("Expenses:Food", 990, "", "", 'n', None), ("Assets:Bank", -990, "", "", 'n', None)],
+    ),
+    (
+        31,
+        80,
+        "",
+        "Closing Entries",
+        &[("Income", 600_000, "", "", 'n', None), ("Equity", -600_000, "", "", 'n', None)],
+    ),
+    (
+        10,
+        15,
+        "2",
+        "Snack",
+        &[("Expenses", 300, "", "", 'n', None), ("Assets:Cash", -300, "", "", 'c', Some(20))],
+    ),
+    (
+        10,
+        15,
+        "2",
+        "snack",
+        &[("Expenses", 300, "", "", 'n', None), ("Assets:Cash", -300, "", "", 'n', None)],
+    ),
 ];
 
 fn day(d: u32) -> Date {
@@ -184,25 +269,63 @@ fn sorted(primary: SortKey, ascending: bool) -> Case {
 }
 
 fn cases() -> Vec<Case> {
-    let mut cases: Vec<Case> = KEYS
-        .iter()
-        .flat_map(|(k, _)| [sorted(*k, true), sorted(*k, false)])
-        .collect();
+    let mut cases: Vec<Case> = KEYS.iter().flat_map(|(k, _)| [sorted(*k, true), sorted(*k, false)]).collect();
     let combos = [
-        [(Some(SortKey::DatePosted), true), (Some(SortKey::AccountFullName), false), (Some(SortKey::Default), true)],
-        [(Some(SortKey::CorrAccountCode), false), (Some(SortKey::Num), true), (Some(SortKey::Default), false)],
-        [(Some(SortKey::Memo), true), (Some(SortKey::Description), false), (Some(SortKey::Default), true)],
-        [(Some(SortKey::AccountCode), true), (Some(SortKey::DateReconciled), false), (Some(SortKey::Default), false)],
+        [
+            (Some(SortKey::DatePosted), true),
+            (Some(SortKey::AccountFullName), false),
+            (Some(SortKey::Default), true),
+        ],
+        [
+            (Some(SortKey::CorrAccountCode), false),
+            (Some(SortKey::Num), true),
+            (Some(SortKey::Default), false),
+        ],
+        [
+            (Some(SortKey::Memo), true),
+            (Some(SortKey::Description), false),
+            (Some(SortKey::Default), true),
+        ],
+        [
+            (Some(SortKey::AccountCode), true),
+            (Some(SortKey::DateReconciled), false),
+            (Some(SortKey::Default), false),
+        ],
     ];
-    cases.extend(combos.into_iter().map(|sort| Case { sort, ..sorted(SortKey::Default, true) }));
+    cases.extend(combos.into_iter().map(|sort| Case {
+        sort,
+        ..sorted(SortKey::Default, true)
+    }));
     cases.extend([
-        Case { states: Some("ncyfv"), ..sorted(SortKey::Value, true) },
-        Case { states: Some("v"), ..sorted(SortKey::Default, true) },
-        Case { states: Some("cy"), ..sorted(SortKey::AccountFullName, false) },
-        Case { states: Some("nf"), closing: Some(false), ..sorted(SortKey::Num, true) },
-        Case { closing: Some(true), ..sorted(SortKey::Default, true) },
-        Case { unique: true, ..sorted(SortKey::AccountFullName, true) },
-        Case { unique: true, ..sorted(SortKey::Value, false) },
+        Case {
+            states: Some("ncyfv"),
+            ..sorted(SortKey::Value, true)
+        },
+        Case {
+            states: Some("v"),
+            ..sorted(SortKey::Default, true)
+        },
+        Case {
+            states: Some("cy"),
+            ..sorted(SortKey::AccountFullName, false)
+        },
+        Case {
+            states: Some("nf"),
+            closing: Some(false),
+            ..sorted(SortKey::Num, true)
+        },
+        Case {
+            closing: Some(true),
+            ..sorted(SortKey::Default, true)
+        },
+        Case {
+            unique: true,
+            ..sorted(SortKey::AccountFullName, true)
+        },
+        Case {
+            unique: true,
+            ..sorted(SortKey::Value, false)
+        },
     ]);
     cases
 }
@@ -244,11 +367,22 @@ fn red_ale(book: &TempBook) -> Vec<Vec<String>> {
                 accounts: accounts.clone(),
                 reconcile: c.states.map(|s| s.chars().map(|x| ReconcileState::from_char(x).unwrap()).collect()),
                 is_closing: c.closing,
-                sort: c.sort.iter().map(|(key, ascending)| SortLevel { key: *key, ascending: *ascending }).collect(),
+                sort: c
+                    .sort
+                    .iter()
+                    .map(|(key, ascending)| SortLevel {
+                        key: *key,
+                        ascending: *ascending,
+                    })
+                    .collect(),
                 unique: c.unique,
                 ..PeriodQuery::default()
             };
-            period_splits(&ours, &query).unwrap().iter().map(|(_, s)| s.guid.to_string()).collect()
+            period_splits(&ours, &query)
+                .unwrap()
+                .iter()
+                .map(|(_, s)| s.guid.to_string())
+                .collect()
         })
         .collect()
 }
@@ -276,7 +410,13 @@ fn compare(num_source: bool) {
         .filter(|(_, (t, o))| t != o)
         .map(|(c, (t, o))| format!("{}\n  GnuCash  {t:?}\n  red-ale  {o:?}", case_json(c)))
         .collect();
-    assert!(wrong.is_empty(), "num source {num_source}: {} of {} differ:\n{}", wrong.len(), ours.len(), wrong.join("\n"));
+    assert!(
+        wrong.is_empty(),
+        "num source {num_source}: {} of {} differ:\n{}",
+        wrong.len(),
+        ours.len(),
+        wrong.join("\n")
+    );
 }
 
 #[test]

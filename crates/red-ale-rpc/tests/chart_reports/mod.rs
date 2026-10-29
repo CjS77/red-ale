@@ -313,7 +313,11 @@ fn check(view: &TableView, html: &str, id: &str, c: &Value) {
 /// `"$1.00"` and `"1.0"` both read `1`, compared exactly without floating point.
 fn str_to_num(s: &str) -> String {
     let kept: String = s.chars().filter(|c| c.is_ascii_digit() || *c == '-' || *c == '.').collect();
-    if kept.contains('.') { kept.trim_end_matches('0').trim_end_matches('.').to_owned() } else { kept }
+    if kept.contains('.') {
+        kept.trim_end_matches('0').trim_end_matches('.').to_owned()
+    } else {
+        kept
+    }
 }
 
 /// A relation check: the implied text of each column, row by row.

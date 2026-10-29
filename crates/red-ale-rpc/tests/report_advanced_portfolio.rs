@@ -48,7 +48,12 @@ fn rows(result: &Value) -> Vec<String> {
 
 /// The texts of the table's first row, as `sxml->table-row-col` reads row 1 of table 1.
 fn first_row(result: &Value) -> Vec<String> {
-    tables(result)[0]["rows"][0]["cells"].as_array().unwrap().iter().flat_map(cell_texts).collect()
+    tables(result)[0]["rows"][0]["cells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(cell_texts)
+        .collect()
 }
 
 /// One check of TP: row 1 of the run `id` of `stock-test-data.expected.json` holds `want`.
@@ -62,18 +67,33 @@ struct Ported {
 fn ported() -> [Ported; 3] {
     let p = |id, name, line, want| Ported { id, name, line, want };
     [
-        p("advanced-average", "advanced: average basis", 87, [
-            "AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$484.88", "$252.00", "$800.00", "$543.00", "$227.88", "-$232.88",
-            "-$5.00", "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%",
-        ]),
-        p("advanced-fifo", "advanced: fifo basis", 95, [
-            "AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$543.94", "$252.00", "$800.00", "$543.00", "$286.94", "-$291.94",
-            "-$5.00", "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%",
-        ]),
-        p("advanced-filo", "advanced: filo basis", 103, [
-            "AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$400.00", "$252.00", "$800.00", "$543.00", "$143.00", "-$148.00",
-            "-$5.00", "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%",
-        ]),
+        p(
+            "advanced-average",
+            "advanced: average basis",
+            87,
+            [
+                "AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$484.88", "$252.00", "$800.00", "$543.00", "$227.88", "-$232.88", "-$5.00",
+                "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%",
+            ],
+        ),
+        p(
+            "advanced-fifo",
+            "advanced: fifo basis",
+            95,
+            [
+                "AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$543.94", "$252.00", "$800.00", "$543.00", "$286.94", "-$291.94", "-$5.00",
+                "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%",
+            ],
+        ),
+        p(
+            "advanced-filo",
+            "advanced: filo basis",
+            103,
+            [
+                "AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$400.00", "$252.00", "$800.00", "$543.00", "$143.00", "-$148.00", "-$5.00",
+                "-0.63%", "$4.00", "$10.00", "-$1.00", "-0.13%",
+            ],
+        ),
     ]
 }
 
@@ -85,7 +105,14 @@ fn expected_figures_of_gnucash_test() {
         ported().iter().for_each(|c| {
             let options = options_param(expected_run(&e, c.id));
             let result = s.run(ADVANCED, &options);
-            assert_eq!(first_row(&result), c.want, "{format}: {} (test line {}): {:#?}", c.name, c.line, rows(&result));
+            assert_eq!(
+                first_row(&result),
+                c.want,
+                "{format}: {} (test line {}): {:#?}",
+                c.name,
+                c.line,
+                rows(&result)
+            );
             let html = s.export(ADVANCED, &options);
             c.want
                 .iter()
@@ -115,7 +142,12 @@ fn every_check_of_the_expected_figures_is_ported() {
         .map(|c| json!([c.id, c.name, c.line, { "table": 1, "row": 1, "column": null }, c.want]))
         .collect();
     assert_eq!(ours, theirs);
-    let null_tests: Vec<&Value> = e["renderOnly"].as_array().unwrap().iter().filter(|r| r["template"] == ADVANCED).collect();
+    let null_tests: Vec<&Value> = e["renderOnly"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["template"] == ADVANCED)
+        .collect();
     assert_eq!(null_tests.len(), 1);
     assert_eq!(null_tests[0]["line"], 27);
 }
@@ -128,14 +160,21 @@ fn the_null_test_renders() {
     let result = s.run(ADVANCED, &json!({}));
     let b = blocks(&result);
     assert_eq!(b.len(), 1);
-    assert_eq!((b[0]["kind"].as_str(), b[0]["title"].as_str()), (Some("warning"), Some("No accounts selected")));
+    assert_eq!(
+        (b[0]["kind"].as_str(), b[0]["title"].as_str()),
+        (Some("warning"), Some("No accounts selected"))
+    );
     assert_eq!(result["title"], "Advanced Portfolio 03/15/24");
     assert!(s.export(ADVANCED, &json!({})).contains("No accounts selected"));
 }
 
 /// The texts of the notes after the table, one string per text block.
 fn notes(result: &Value) -> Vec<String> {
-    blocks(result).iter().filter(|b| b["kind"] == "text").map(|b| b["text"].as_str().unwrap().to_owned()).collect()
+    blocks(result)
+        .iter()
+        .filter(|b| b["kind"] == "text")
+        .map(|b| b["text"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 const NOTE_TXN: &str = "* this commodity data was built using transaction pricing instead of the price list.\n\
@@ -160,18 +199,42 @@ fn rows_rule_and_total() {
         ]
     );
     let table = tables(&result)[0];
-    let labels: Vec<&str> = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect();
+    let labels: Vec<&str> = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect();
     assert_eq!(
         labels,
         [
-            "Account", "Symbol", "Listing", "Shares", "Price", " ", "Basis", "Value", "Money In", "Money Out", "Realized Gain",
-            "Unrealized Gain", "Total Gain", "Rate of Gain", "Income", "Brokerage Fees", "Total Return", "Rate of Return",
+            "Account",
+            "Symbol",
+            "Listing",
+            "Shares",
+            "Price",
+            " ",
+            "Basis",
+            "Value",
+            "Money In",
+            "Money Out",
+            "Realized Gain",
+            "Unrealized Gain",
+            "Total Gain",
+            "Rate of Gain",
+            "Income",
+            "Brokerage Fees",
+            "Total Return",
+            "Rate of Return",
         ]
     );
     let row = &table["rows"][0];
     assert_eq!(row["cells"][0]["account"], "a0000000000000000000000000000008");
     assert_eq!(row["cells"][4]["link"], json!({ "price": "e0000000000000000000000000000007" }));
-    assert_eq!(row["cells"][4]["currency"], "CURRENCY::USD", "a price cell (gnc:default-price-renderer, AP:900-903)");
+    assert_eq!(
+        row["cells"][4]["currency"], "CURRENCY::USD",
+        "a price cell (gnc:default-price-renderer, AP:900-903)"
+    );
     assert_eq!(row["cells"][5]["text"], " ");
     assert_eq!(row["cells"][3]["numberFormat"], "share");
     assert_eq!(table["rows"][1]["cells"].as_array().unwrap().len(), 18);
@@ -188,7 +251,10 @@ fn rates_are_exact_and_round_half_up() {
     let cells = &tables(&result)[0]["rows"][0]["cells"];
     assert_eq!(cells[13]["number"], json!({ "num": "-5", "denom": "8" }));
     assert_eq!(cells[17]["number"], json!({ "num": "-1", "denom": "8" }));
-    assert_eq!((&cells[13]["rounding"], &cells[13]["suffix"], &cells[13]["places"]), (&json!("halfUp"), &json!("%"), &json!(2)));
+    assert_eq!(
+        (&cells[13]["rounding"], &cells[13]["suffix"], &cells[13]["places"]),
+        (&json!("halfUp"), &json!("%"), &json!(2))
+    );
 }
 
 /// "Set preference for price list data" off (AP:448-480): the price is the newest split with two commodities up to
@@ -216,7 +282,10 @@ fn transaction_pricing_without_the_price_list() {
                              "Set preference for price list data": false } })
     };
     let price_at = |s: &mut Setup, source: &str| tables(&s.run(ADVANCED, &at(source)))[0]["rows"][0]["cells"][4]["display"].clone();
-    assert_eq!((price_at(&mut s, "pricedb-nearest"), price_at(&mut s, "pricedb-latest")), (json!("$400.00"), json!("$3.00")));
+    assert_eq!(
+        (price_at(&mut s, "pricedb-nearest"), price_at(&mut s, "pricedb-latest")),
+        (json!("$400.00"), json!("$3.00"))
+    );
 }
 
 /// "Include accounts with no shares" (AP:852): MSFT and TSLA have no price and no transaction to take one from, so
@@ -230,7 +299,10 @@ fn accounts_with_no_shares_have_no_price() {
     let zero = "$0.00 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00";
     assert_eq!(
         rows(&result)[1..3],
-        [format!("data: MSFT | MSFT | NASDAQ | 0.00 | $1.00 | ** | {zero}"), format!("data: TSLA | TSLA | NASDAQ | 0.00 | $1.00 | ** | {zero}")]
+        [
+            format!("data: MSFT | MSFT | NASDAQ | 0.00 | $1.00 | ** | {zero}"),
+            format!("data: TSLA | TSLA | NASDAQ | 0.00 | $1.00 | ** | {zero}")
+        ]
     );
     let table = tables(&result)[0];
     let alternate: Vec<&Value> = table["rows"].as_array().unwrap()[..3].iter().map(|r| &r["alternate"]).collect();
@@ -238,11 +310,15 @@ fn accounts_with_no_shares_have_no_price() {
     assert!(table["rows"][1]["cells"][4]["link"].is_null());
     assert!(table["rows"][1]["cells"][13].is_null() && table["rows"][1]["cells"][17].is_null());
     assert_eq!(notes(&result), [NOTE_NO_PRICE]);
-    let both = json!({ "General": { "Set preference for price list data": false }, "Accounts": { "Include accounts with no shares": true } });
+    let both =
+        json!({ "General": { "Set preference for price list data": false }, "Accounts": { "Include accounts with no shares": true } });
     let result = s.run(ADVANCED, &both);
     assert_eq!(notes(&result), [format!("{NOTE_TXN}\n{NOTE_NO_PRICE}")]);
     let html = s.export(ADVANCED, &both);
-    assert!(html.contains("instead of the price list.<br>If you are") && html.contains("not be correct.<br>** this"), "{html}");
+    assert!(
+        html.contains("instead of the price list.<br>If you are") && html.contains("not be correct.<br>** this"),
+        "{html}"
+    );
 }
 
 /// The two price sources on 1980-12-25, when AAPL holds 33 shares at an average $4.54545455 after the reverse split
@@ -281,7 +357,12 @@ fn display_options() {
         "Show ticker symbols": false, "Show listings": false, "Show number of shares": false, "Show prices": false } });
     let result = s.run(ADVANCED, &off);
     let table = tables(&result)[0];
-    let labels: Vec<&str> = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect();
+    let labels: Vec<&str> = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect();
     assert_eq!(labels[..3], ["Account", " ", "Basis"]);
     assert_eq!(labels.len(), 14);
     assert_eq!(
@@ -315,7 +396,10 @@ fn book_with(stocks: &[&str], fraction: u32) -> Setup {
 
 /// The NYSE stock `m` and its STOCK account under `parent`.
 fn stock(s: &mut Setup, m: &str, parent: &str, fraction: u32) {
-    s.call("commodity.create", json!({ "namespace": "NYSE", "mnemonic": m, "fullname": m, "fraction": fraction }));
+    s.call(
+        "commodity.create",
+        json!({ "namespace": "NYSE", "mnemonic": m, "fullname": m, "fraction": fraction }),
+    );
     s.account(m, "STOCK", Some(parent), &format!("NYSE::{m}"));
 }
 
@@ -331,19 +415,29 @@ fn post(s: &mut Setup, date: &str, currency: &str, splits: &[[&str; 3]]) {
             split
         })
         .collect();
-    s.call("transaction.post", json!({ "datePosted": date, "currency": currency, "splits": splits }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": date, "currency": currency, "splits": splits }),
+    );
 }
 
 /// A price of `commodity` in `currency`.
 fn price(s: &mut Setup, commodity: &str, currency: &str, value: &str, date: &str) {
-    s.call("price.add", json!({ "commodity": commodity, "currency": currency, "value": value, "date": date }));
+    s.call(
+        "price.add",
+        json!({ "commodity": commodity, "currency": currency, "value": value, "date": date }),
+    );
 }
 
 /// Options for `accounts` on 2024-03-10, and `more`.
 fn options_for(accounts: &[&str], more: Value) -> Value {
     let mut options = json!({ "General": { "Date": { "absolute": "2024-03-10" } }, "Accounts": { "Accounts": accounts } });
     more.as_object().unwrap().iter().for_each(|(section, values)| {
-        values.as_object().unwrap().iter().for_each(|(k, v)| options[section][k] = v.clone());
+        values
+            .as_object()
+            .unwrap()
+            .iter()
+            .for_each(|(k, v)| options[section][k] = v.clone());
     });
     options
 }
@@ -354,7 +448,12 @@ fn options_for(accounts: &[&str], more: Value) -> Value {
 fn prices_book() -> Setup {
     let mut s = book_with(&["A", "B", "C", "D"], 100);
     ["A", "B", "C", "D"].iter().for_each(|m| {
-        post(&mut s, "2024-01-10", "CURRENCY::USD", &[[&format!("Broker:{m}"), "1000", "10"], ["Bank", "-1000", ""]]);
+        post(
+            &mut s,
+            "2024-01-10",
+            "CURRENCY::USD",
+            &[[&format!("Broker:{m}"), "1000", "10"], ["Bank", "-1000", ""]],
+        );
     });
     price(&mut s, "CURRENCY::EUR", "CURRENCY::USD", "1.10", "2024-03-01");
     price(&mut s, "NYSE::A", "CURRENCY::EUR", "100", "2024-03-01");
@@ -393,11 +492,16 @@ fn prices_in_other_currencies() {
     let price_of = |row: usize| &table["rows"][row]["cells"][4];
     assert_eq!(price_of(0)["currency"], "CURRENCY::EUR");
     assert!(price_of(0)["link"]["price"].is_string());
-    assert!(price_of(2)["link"]["price"].is_string(), "the inverted price links the price stored");
+    assert!(
+        price_of(2)["link"]["price"].is_string(),
+        "the inverted price links the price stored"
+    );
     assert!(price_of(3)["link"]["transaction"].is_string());
     assert_eq!(notes(&result), [NOTE_TXN]);
     let html = s.export(ADVANCED, &options_for(&["Broker:A", "Broker:B", "Broker:C", "Broker:D"], json!({})));
-    ["€100.00", "$125.00", "$4,400.00"].iter().for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
+    ["€100.00", "$125.00", "$4,400.00"]
+        .iter()
+        .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
 }
 
 /// XYZ (SCU 1,000) bought on 2024-01-10, 10 for $1,000 with a $10 commission, and 4 sold on 2024-02-10 for $600
@@ -405,8 +509,18 @@ fn prices_in_other_currencies() {
 fn fees_book() -> Setup {
     let mut s = book_with(&["XYZ"], 1000);
     s.account("Commission", "EXPENSE", None, "CURRENCY::USD");
-    post(&mut s, "2024-01-10", "CURRENCY::USD", &[["Broker:XYZ", "1000", "10"], ["Commission", "10", ""], ["Bank", "-1010", ""]]);
-    post(&mut s, "2024-02-10", "CURRENCY::USD", &[["Broker:XYZ", "-600", "-4"], ["Commission", "6", ""], ["Bank", "594", ""]]);
+    post(
+        &mut s,
+        "2024-01-10",
+        "CURRENCY::USD",
+        &[["Broker:XYZ", "1000", "10"], ["Commission", "10", ""], ["Bank", "-1010", ""]],
+    );
+    post(
+        &mut s,
+        "2024-02-10",
+        "CURRENCY::USD",
+        &[["Broker:XYZ", "-600", "-4"], ["Commission", "6", ""], ["Bank", "594", ""]],
+    );
     price(&mut s, "NYSE::XYZ", "CURRENCY::USD", "120", "2024-03-01");
     s
 }
@@ -441,7 +555,12 @@ fn brokerage_fees() {
     cases.iter().for_each(|(fees, want)| {
         let result = s.run(ADVANCED, &with(fees));
         assert_eq!(rows(&result)[0], *want, "{fees}");
-        let labels: Vec<&str> = tables(&result)[0]["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect();
+        let labels: Vec<&str> = tables(&result)[0]["columns"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["label"].as_str().unwrap())
+            .collect();
         assert_eq!(labels.contains(&"Brokerage Fees"), *fees != "ignore-brokerage", "{fees}");
     });
 }
@@ -450,9 +569,24 @@ fn brokerage_fees() {
 /// on 2024-03-01.
 fn lots_book() -> Setup {
     let mut s = book_with(&["L"], 100);
-    post(&mut s, "2024-01-10", "CURRENCY::USD", &[["Broker:L", "1000", "10"], ["Bank", "-1000", ""]]);
-    post(&mut s, "2024-02-10", "CURRENCY::USD", &[["Broker:L", "1200", "10"], ["Bank", "-1200", ""]]);
-    post(&mut s, "2024-02-20", "CURRENCY::USD", &[["Broker:L", "-1950", "-15"], ["Bank", "1950", ""]]);
+    post(
+        &mut s,
+        "2024-01-10",
+        "CURRENCY::USD",
+        &[["Broker:L", "1000", "10"], ["Bank", "-1000", ""]],
+    );
+    post(
+        &mut s,
+        "2024-02-10",
+        "CURRENCY::USD",
+        &[["Broker:L", "1200", "10"], ["Bank", "-1200", ""]],
+    );
+    post(
+        &mut s,
+        "2024-02-20",
+        "CURRENCY::USD",
+        &[["Broker:L", "-1950", "-15"], ["Bank", "1950", ""]],
+    );
     price(&mut s, "NYSE::L", "CURRENCY::USD", "140", "2024-03-01");
     s
 }
@@ -476,7 +610,9 @@ fn basis_methods() {
         ("fifo-basis", row("$600.00", "$350.00", "$100.00")),
         ("filo-basis", row("$500.00", "$250.00", "$200.00")),
     ];
-    cases.iter().for_each(|(method, want)| assert_eq!(rows(&s.run(ADVANCED, &with(method)))[0], *want, "{method}"));
+    cases
+        .iter()
+        .for_each(|(method, want)| assert_eq!(rows(&s.run(ADVANCED, &with(method)))[0], *want, "{method}"));
 }
 
 /// The rate at a tie (the note's Q1, `design/reports.md` §14): one share bought for $8.00 and priced $8.29 gains
@@ -493,7 +629,10 @@ fn a_rate_at_a_tie() {
         "data: T | T | NYSE | 1.00 | $8.29 | $8.00 | $8.29 | $8.00 | $0.00 | $0.00 | $0.29 | $0.29 | 3.63% | $0.00 | $0.00 | \
          $0.29 | 3.63%"
     );
-    assert_eq!(tables(&result)[0]["rows"][0]["cells"][13]["number"], json!({ "num": "29", "denom": "8" }));
+    assert_eq!(
+        tables(&result)[0]["rows"][0]["cells"][13]["number"],
+        json!({ "num": "29", "denom": "8" })
+    );
 }
 
 /// The 10⁻⁸ and SCU roundings (AP:57-59, :231-235, :714-725). R: 3,000,000 shares for $10,000,000.00 are $3.33333333
@@ -504,12 +643,23 @@ fn a_rate_at_a_tie() {
 fn the_ten_to_the_eighth_and_scu_roundings() {
     let mut s = book_with(&["R", "F"], 100);
     s.account("Commission", "EXPENSE", None, "CURRENCY::USD");
-    post(&mut s, "2024-01-10", "CURRENCY::USD", &[["Broker:R", "10000000", "3000000"], ["Bank", "-10000000", ""]]);
     post(
         &mut s,
         "2024-01-10",
         "CURRENCY::USD",
-        &[["Broker:F", "100", "1"], ["Broker:F", "100", "1"], ["Broker:F", "100", "1"], ["Commission", "10", ""], ["Bank", "-310", ""]],
+        &[["Broker:R", "10000000", "3000000"], ["Bank", "-10000000", ""]],
+    );
+    post(
+        &mut s,
+        "2024-01-10",
+        "CURRENCY::USD",
+        &[
+            ["Broker:F", "100", "1"],
+            ["Broker:F", "100", "1"],
+            ["Broker:F", "100", "1"],
+            ["Commission", "10", ""],
+            ["Bank", "-310", ""],
+        ],
     );
     price(&mut s, "NYSE::R", "CURRENCY::USD", "3.40", "2024-03-01");
     price(&mut s, "NYSE::F", "CURRENCY::USD", "100", "2024-03-01");
@@ -553,7 +703,10 @@ fn events_book() -> Setup {
 #[test]
 fn sales_gifts_and_worthless_stock() {
     let mut s = events_book();
-    let options = options_for(&["Broker:S", "Broker:G", "Broker:W"], json!({ "Accounts": { "Include accounts with no shares": true } }));
+    let options = options_for(
+        &["Broker:S", "Broker:G", "Broker:W"],
+        json!({ "Accounts": { "Include accounts with no shares": true } }),
+    );
     let result = s.run(ADVANCED, &options);
     assert_eq!(
         rows(&result),
@@ -598,8 +751,16 @@ fn division_by_zero_keeps_the_rows_before() {
     );
     assert_eq!(notes(&result), [NOTE_TXN]);
     let spun = s.run(ADVANCED, &options_for(&["Broker:P"], json!({})));
-    assert!(blocks(&spun)[0]["text"].as_str().unwrap().contains("'spinoff of 0.00 currency units'"));
-    assert!(s.export(ADVANCED, &options_for(&["Broker:P"], json!({}))).contains("spinoff of 0.00 currency units"));
+    assert!(
+        blocks(&spun)[0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("'spinoff of 0.00 currency units'")
+    );
+    assert!(
+        s.export(ADVANCED, &options_for(&["Broker:P"], json!({})))
+            .contains("spinoff of 0.00 currency units")
+    );
 }
 
 /// Income and fees booked to the parent account (AP:778-838): Broker, an ASSET account in dollars, receives a $30
@@ -626,7 +787,13 @@ fn income_and_fees_of_the_parent_account() {
         "data: XYZ | XYZ | NYSE | 10.00 | $100.00 | $1,000.00 | $1,000.00 | $1,000.00 | $0.00 | $0.00 | $0.00 | $0.00 | 0.00% | \
          $30.00 | $2.00 | $30.00 | 3.00%"
     );
-    let in_gain = s.run(ADVANCED, &options_for(&["Broker:XYZ"], json!({ "General": { "How to report brokerage fees": "include-in-gain" } })));
+    let in_gain = s.run(
+        ADVANCED,
+        &options_for(
+            &["Broker:XYZ"],
+            json!({ "General": { "How to report brokerage fees": "include-in-gain" } }),
+        ),
+    );
     assert_eq!(
         rows(&in_gain)[0],
         "data: XYZ | XYZ | NYSE | 10.00 | $100.00 | $1,000.00 | $1,000.00 | $1,000.00 | $0.00 | -$2.00 | $0.00 | -$2.00 | \
@@ -656,12 +823,39 @@ fn reinvested_dividends() {
     ["Broker1:AAA", "Broker2:BBB", "Broker3:CCC"].iter().for_each(|a| {
         post(&mut s, "2024-01-10", usd, &[[a, "1000", "10"], ["Bank", "-1000", ""]]);
     });
-    post(&mut s, "2024-02-10", usd, &[["Income", "-50", ""], ["Broker1:AAA", "45", "0.45"], ["Broker1:Cash1", "5", ""]]);
-    post(&mut s, "2024-03-05", usd, &[["Income", "-50", ""], ["Broker1:AAA", "55", "0.55"], ["Broker1:Cash1", "-5", ""]]);
-    post(&mut s, "2024-02-10", usd, &[["Income", "-50", ""], ["Broker2:BBB", "45", "0.45"], ["Savings", "5", ""]]);
-    post(&mut s, "2024-03-05", usd, &[["Income", "-50", ""], ["Broker2:BBB", "55", "0.55"], ["Broker2:Cash2", "-5", ""]]);
-    post(&mut s, "2024-02-10", usd, &[["Income", "-50", ""], ["Broker3:CCC", "55", "0.55"], ["Broker3:Cash3", "-5", ""]]);
-    ["AAA", "BBB", "CCC"].iter().for_each(|m| price(&mut s, &format!("NYSE::{m}"), usd, "100", "2024-03-06"));
+    post(
+        &mut s,
+        "2024-02-10",
+        usd,
+        &[["Income", "-50", ""], ["Broker1:AAA", "45", "0.45"], ["Broker1:Cash1", "5", ""]],
+    );
+    post(
+        &mut s,
+        "2024-03-05",
+        usd,
+        &[["Income", "-50", ""], ["Broker1:AAA", "55", "0.55"], ["Broker1:Cash1", "-5", ""]],
+    );
+    post(
+        &mut s,
+        "2024-02-10",
+        usd,
+        &[["Income", "-50", ""], ["Broker2:BBB", "45", "0.45"], ["Savings", "5", ""]],
+    );
+    post(
+        &mut s,
+        "2024-03-05",
+        usd,
+        &[["Income", "-50", ""], ["Broker2:BBB", "55", "0.55"], ["Broker2:Cash2", "-5", ""]],
+    );
+    post(
+        &mut s,
+        "2024-02-10",
+        usd,
+        &[["Income", "-50", ""], ["Broker3:CCC", "55", "0.55"], ["Broker3:Cash3", "-5", ""]],
+    );
+    ["AAA", "BBB", "CCC"]
+        .iter()
+        .for_each(|m| price(&mut s, &format!("NYSE::{m}"), usd, "100", "2024-03-06"));
     let result = s.run(ADVANCED, &options_for(&["Broker1:AAA", "Broker2:BBB", "Broker3:CCC"], json!({})));
     assert_eq!(
         rows(&result)[..3],
@@ -682,7 +876,12 @@ fn reinvested_dividends() {
 fn a_purchase_in_another_currency() {
     let mut s = book_with(&["XYZ"], 100);
     s.account("Euros", "BANK", None, "CURRENCY::EUR");
-    post(&mut s, "2024-01-10", "CURRENCY::EUR", &[["Broker:XYZ", "1000", "10"], ["Euros", "-1000", ""]]);
+    post(
+        &mut s,
+        "2024-01-10",
+        "CURRENCY::EUR",
+        &[["Broker:XYZ", "1000", "10"], ["Euros", "-1000", ""]],
+    );
     price(&mut s, "CURRENCY::EUR", "CURRENCY::USD", "1.10", "2024-03-01");
     price(&mut s, "NYSE::XYZ", "CURRENCY::USD", "120", "2024-03-01");
     let result = s.run(ADVANCED, &options_for(&["Broker:XYZ"], json!({})));
@@ -702,7 +901,16 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["type"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["type"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"Accounts/Accounts "b" "accountList" []"#,
@@ -725,9 +933,23 @@ fn options_are_gnucash_s() {
     assert_eq!(got, want);
     let mut s = Setup::fixture(FIXTURE, &test_settings("locale"));
     let described = s.call("report.options", json!({ "report": ADVANCED }));
-    let accounts = described["options"].as_array().unwrap().iter().find(|o| o["name"] == "Accounts").unwrap().clone();
-    let aapl_msft_tsla = ["a0000000000000000000000000000008", "a0000000000000000000000000000009", "a000000000000000000000000000000a"];
-    assert_eq!(accounts["default"], json!(aapl_msft_tsla), "STOCK and MUTUAL accounts in display order");
+    let accounts = described["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["name"] == "Accounts")
+        .unwrap()
+        .clone();
+    let aapl_msft_tsla = [
+        "a0000000000000000000000000000008",
+        "a0000000000000000000000000000009",
+        "a000000000000000000000000000000a",
+    ];
+    assert_eq!(
+        accounts["default"],
+        json!(aapl_msft_tsla),
+        "STOCK and MUTUAL accounts in display order"
+    );
 }
 
 /// Running the report with each source, method and fee option leaves the Book, its revision and its file as they

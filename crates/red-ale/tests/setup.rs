@@ -42,7 +42,10 @@ fn dry_run_shows_the_change_and_writes_nothing() {
     assert!(text.contains(&format!("cursor          add      {}", config.display())), "{text}");
     assert!(text.contains("+++ ") && text.contains("+      \"args\": [\"mcp\"]"), "{text}");
     let exe = std::fs::canonicalize(BIN).unwrap();
-    assert!(text.contains(&format!("\"command\": \"{}\"", exe.display())), "the entry runs this binary: {text}");
+    assert!(
+        text.contains(&format!("\"command\": \"{}\"", exe.display())),
+        "the entry runs this binary: {text}"
+    );
     assert!(!config.exists());
 }
 
@@ -76,7 +79,12 @@ fn a_named_harness_that_is_missing_fails() {
     assert_eq!(out.status.code(), Some(1));
     assert!(stdout(&out).contains("not installed"), "{}", stdout(&out));
     let unnamed = setup(home.path(), &["--yes"]);
-    assert_eq!(unnamed.status.code(), Some(0), "harnesses that aren't installed are not failures: {}", stdout(&unnamed));
+    assert_eq!(
+        unnamed.status.code(),
+        Some(0),
+        "harnesses that aren't installed are not failures: {}",
+        stdout(&unnamed)
+    );
 }
 
 #[test]
@@ -85,10 +93,24 @@ fn list_shows_every_harness() {
     let out = setup(home.path(), &["--list"]);
     assert_eq!(out.status.code(), Some(0));
     let text = stdout(&out);
-    let line = |id: &str| text.lines().find(|l| l.starts_with(&format!("{id} "))).unwrap_or_else(|| panic!("{id}: {text}")).to_owned();
-    assert!(line("cursor").contains(&format!("yes        no             {}", home.path().join(".cursor/mcp.json").display())), "{text}");
+    let line = |id: &str| {
+        text.lines()
+            .find(|l| l.starts_with(&format!("{id} ")))
+            .unwrap_or_else(|| panic!("{id}: {text}"))
+            .to_owned()
+    };
+    assert!(
+        line("cursor").contains(&format!(
+            "yes        no             {}",
+            home.path().join(".cursor/mcp.json").display()
+        )),
+        "{text}"
+    );
     assert!(line("zed").starts_with("zed             no"), "{text}");
-    assert!(line("claude-code").ends_with(&format!("{}", home.path().join(".claude.json").display())), "{text}");
+    assert!(
+        line("claude-code").ends_with(&format!("{}", home.path().join(".claude.json").display())),
+        "{text}"
+    );
     assert!(line("codex").starts_with("codex           no         no"), "{text}");
     assert_eq!(text.lines().count(), 12, "a header and the eleven first-release harnesses: {text}");
 }

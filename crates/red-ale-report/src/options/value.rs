@@ -335,7 +335,9 @@ fn placement(json: &Value) -> Read<Placement> {
     let fields = json
         .as_object()
         .ok_or_else(|| format!("expected an object {{report, options?, colspan, rowspan}}, got {json}"))?;
-    let unknown = fields.keys().find(|k| !["report", "options", "colspan", "rowspan"].contains(&k.as_str()));
+    let unknown = fields
+        .keys()
+        .find(|k| !["report", "options", "colspan", "rowspan"].contains(&k.as_str()));
     if let Some(k) = unknown {
         return Err(format!("unknown field {k:?}"));
     }

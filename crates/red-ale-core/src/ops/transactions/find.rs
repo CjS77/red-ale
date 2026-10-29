@@ -745,7 +745,11 @@ mod tests {
             unique: true,
             ..both.clone()
         };
-        assert_eq!(found(&descending), [cleared, closing, first], "the first split of each in the sorted order");
+        assert_eq!(
+            found(&descending),
+            [cleared, closing, first],
+            "the first split of each in the sorted order"
+        );
         let four = PeriodQuery {
             sort: vec![descending.sort[0]; 4],
             ..both.clone()

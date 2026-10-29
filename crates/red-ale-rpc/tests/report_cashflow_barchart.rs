@@ -41,7 +41,15 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"Accounts/Accounts "a" []"#,
@@ -79,7 +87,12 @@ fn in_txn(from: &str, to: &str, step: &str, more: Value) -> Value {
 }
 
 fn series_labels(result: &Value) -> Vec<String> {
-    chart(result)["series"].as_array().unwrap().iter().map(|s| s["label"].as_str().unwrap().to_owned()).collect()
+    chart(result)["series"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["label"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 /// charts-daily's 2024 by month for Bank and Liability (scripts/report-fixtures/charts.py:56-66): in $3 (01-01, from
@@ -102,7 +115,11 @@ fn a_year_of_charts_daily_by_month() {
     assert_eq!(c["yAxis"]["label"], "USD");
     let series = c["series"].as_array().unwrap();
     let colors: Vec<&str> = series.iter().map(|s| s["color"].as_str().unwrap()).collect();
-    assert_eq!(colors, ["#0074d9", "#ff4136", "#2ecc40"], "GnuCash's colours, lower-cased by the result");
+    assert_eq!(
+        colors,
+        ["#0074d9", "#ff4136", "#2ecc40"],
+        "GnuCash's colours, lower-cased by the result"
+    );
     assert_eq!(values(&series[0]), ["3", "29", "0", "0", "0", "0", "11", "0", "8", "0", "0", "0"]);
     assert_eq!(values(&series[1]), ["8", "27", "15", "0", "0", "0", "0", "0", "0", "0", "0", "0"]);
     assert_eq!(values(&series[2]), ["-5", "2", "-15", "0", "0", "0", "11", "0", "8", "0", "0", "0"]);
@@ -120,7 +137,10 @@ fn no_accounts_give_the_warning() {
     let mut charts = Charts::new("iso");
     let book = charts.path().join("book.gnucash");
     charts.call("book.create", json!({ "path": book.display().to_string() }));
-    charts.call("account.create", json!({ "name": "Income", "type": "INCOME", "commodity": "CURRENCY::USD" }));
+    charts.call(
+        "account.create",
+        json!({ "name": "Income", "type": "INCOME", "commodity": "CURRENCY::USD" }),
+    );
     let result = charts.run(CHART, &json!({}));
     let warnings = blocks_of(&result, "warning");
     assert_eq!(warnings.len(), 1);
@@ -157,14 +177,19 @@ fn each_show_flag() {
         (json!({ "Show Money In": false }), vec!["Money Out", "Net Flow"]),
         (json!({ "Show Money Out": false }), vec!["Money In", "Net Flow"]),
         (json!({ "Show Net Flow": false }), vec!["Money In", "Money Out"]),
-        (json!({ "Show Money In": false, "Show Money Out": false, "Show Net Flow": false }), vec![]),
+        (
+            json!({ "Show Money In": false, "Show Money Out": false, "Show Net Flow": false }),
+            vec![],
+        ),
     ]
     .into_iter()
     .for_each(|(mut flags, want)| {
         flags["Show Table"] = json!(true);
         let result = in_txn("2024-03-01", "2024-03-03", "DayDelta", flags.clone());
         assert_eq!(series_labels(&result), want, "{flags}");
-        let header: Vec<String> = std::iter::once("Date".to_owned()).chain(want.iter().map(|s| (*s).to_owned())).collect();
+        let header: Vec<String> = std::iter::once("Date".to_owned())
+            .chain(want.iter().map(|s| (*s).to_owned()))
+            .collect();
         assert_eq!(table(&result).header, header, "{flags}");
     });
     let without = in_txn("2024-03-01", "2024-03-03", "DayDelta", json!({}));
@@ -197,7 +222,11 @@ fn values_link_to_the_cash_flow() {
     });
     assert_eq!(link["options"], want);
     let linked = charts.run(CASH_FLOW, &link["options"]);
-    assert!(linked["title"].as_str().unwrap().starts_with("Cash Flow Barchart - "), "{}", linked["title"]);
+    assert!(
+        linked["title"].as_str().unwrap().starts_with("Cash Flow Barchart - "),
+        "{}",
+        linked["title"]
+    );
     let html = charts.export(CASH_FLOW, &link["options"]);
     assert!(html.contains("$1.00"));
 }

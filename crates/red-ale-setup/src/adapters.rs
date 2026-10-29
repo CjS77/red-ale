@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 
+use crate::cli::{Cli, Devin};
 use crate::file::{self, Committed, Location};
 use crate::json::Dialect;
-use crate::cli::{Cli, Devin};
 use crate::{Action, Applied, Change, Entry, Env, Error, Harness, Os, Plan, Scope, Work};
 
 /// How many times a plan is made again when the Harness changed its config meanwhile (`design/setup.md`, "Not
@@ -111,12 +111,24 @@ fn plan_file(adapter: &impl FileAdapter, env: &Env, scope: &Scope, change: &Chan
 /// Apply a plan, planning again while the Harness changes its config underneath.
 fn apply_file(adapter: &impl FileAdapter, env: &Env, mut plan: Plan) -> Result<Applied, Error> {
     for _ in 0..=REPLANS {
-        let Plan { action, config, scope, change, work } = plan;
+        let Plan {
+            action,
+            config,
+            scope,
+            change,
+            work,
+        } = plan;
         let config = config.unwrap_or_default();
         let (action, edit) = match (action, work) {
             (Action::Skip(e), _) => return Err(e),
             (action, Work::File(edit)) if action.changes() => (action, edit),
-            (action, _) => return Ok(Applied { action, config, backup: None }),
+            (action, _) => {
+                return Ok(Applied {
+                    action,
+                    config,
+                    backup: None,
+                });
+            }
         };
         if let Some(blocker) = adapter.blocker(env) {
             return Err(blocker);
@@ -165,7 +177,12 @@ impl FileAdapter for Cursor {
 
     fn location(&self, env: &Env, scope: &Scope) -> Result<Location, Error> {
         let path = user_or_project(scope, || Ok(env.home()?.join(".cursor/mcp.json")), ".cursor/mcp.json")?;
-        Ok(Location { path, dialect: Dialect::Jsonc, keys: &["mcpServers"], render: stdio })
+        Ok(Location {
+            path,
+            dialect: Dialect::Jsonc,
+            keys: &["mcpServers"],
+            render: stdio,
+        })
     }
 
     fn restart(&self) -> Option<&'static str> {
@@ -192,7 +209,12 @@ impl FileAdapter for VsCode {
 
     fn location(&self, env: &Env, scope: &Scope) -> Result<Location, Error> {
         let path = user_or_project(scope, || Ok(env.app_data()?.join("Code/User/mcp.json")), ".vscode/mcp.json")?;
-        Ok(Location { path, dialect: Dialect::Jsonc, keys: &["servers"], render: stdio })
+        Ok(Location {
+            path,
+            dialect: Dialect::Jsonc,
+            keys: &["servers"],
+            render: stdio,
+        })
     }
 }
 
@@ -234,9 +256,16 @@ impl FileAdapter for ClaudeDesktop {
     }
 
     fn location(&self, env: &Env, scope: &Scope) -> Result<Location, Error> {
-        let Scope::User = scope else { return Err(Error::NoProjectScope("Claude Desktop")) };
+        let Scope::User = scope else {
+            return Err(Error::NoProjectScope("Claude Desktop"));
+        };
         let path = Self::dir(env)?.join("claude_desktop_config.json");
-        Ok(Location { path, dialect: Dialect::Json, keys: &["mcpServers"], render: plain })
+        Ok(Location {
+            path,
+            dialect: Dialect::Json,
+            keys: &["mcpServers"],
+            render: plain,
+        })
     }
 
     /// The process names are unconfirmed: the macOS bundle's executable is `Claude`, the Linux package's launcher
@@ -274,8 +303,17 @@ impl FileAdapter for Antigravity {
     }
 
     fn location(&self, env: &Env, scope: &Scope) -> Result<Location, Error> {
-        let path = user_or_project(scope, || Ok(env.home()?.join(".gemini/config/mcp_config.json")), ".agents/mcp_config.json")?;
-        Ok(Location { path, dialect: Dialect::Jsonc, keys: &["mcpServers"], render: plain })
+        let path = user_or_project(
+            scope,
+            || Ok(env.home()?.join(".gemini/config/mcp_config.json")),
+            ".agents/mcp_config.json",
+        )?;
+        Ok(Location {
+            path,
+            dialect: Dialect::Jsonc,
+            keys: &["mcpServers"],
+            render: plain,
+        })
     }
 
     fn restart(&self) -> Option<&'static str> {
@@ -313,7 +351,12 @@ impl FileAdapter for DevinFile {
 
     fn location(&self, env: &Env, scope: &Scope) -> Result<Location, Error> {
         let path = user_or_project(scope, || Ok(Self::dir(env)?.join("mcp_config.json")), ".devin/mcp_config.json")?;
-        Ok(Location { path, dialect: Dialect::Jsonc, keys: &["mcpServers"], render: plain })
+        Ok(Location {
+            path,
+            dialect: Dialect::Jsonc,
+            keys: &["mcpServers"],
+            render: plain,
+        })
     }
 
     fn restart(&self) -> Option<&'static str> {
@@ -330,7 +373,10 @@ impl Zed {
     /// `%APPDATA%\Zed` on Windows (§9 "Locations").
     fn dir(env: &Env) -> Result<PathBuf, Error> {
         match env.os() {
-            Os::Linux => env.path_var("FLATPAK_XDG_CONFIG_HOME").map_or_else(|| env.xdg_config(), Ok).map(|d| d.join("zed")),
+            Os::Linux => env
+                .path_var("FLATPAK_XDG_CONFIG_HOME")
+                .map_or_else(|| env.xdg_config(), Ok)
+                .map(|d| d.join("zed")),
             Os::MacOs => Ok(env.home()?.join(".config/zed")),
             Os::Windows => env.path_var("APPDATA").map(|d| d.join("Zed")).ok_or(Error::NoHome),
         }
@@ -353,7 +399,12 @@ impl FileAdapter for Zed {
 
     fn location(&self, env: &Env, scope: &Scope) -> Result<Location, Error> {
         let path = user_or_project(scope, || Ok(Self::dir(env)?.join("settings.json")), ".zed/settings.json")?;
-        Ok(Location { path, dialect: Dialect::Jsonc, keys: &["context_servers"], render: plain })
+        Ok(Location {
+            path,
+            dialect: Dialect::Jsonc,
+            keys: &["context_servers"],
+            render: plain,
+        })
     }
 }
 
@@ -373,9 +424,12 @@ impl Opencode {
             let installed = || env.home().ok().map(|h| h.join(".opencode/bin/opencode")).filter(|p| p.is_file());
             let binary = env.which("opencode").or_else(installed);
             match binary {
-                Some(binary) => env.probe().output(&binary, &["--version"]).as_deref().and_then(parse_major).ok_or_else(|| {
-                    format!("`{} --version` printed no version", binary.display())
-                }),
+                Some(binary) => env
+                    .probe()
+                    .output(&binary, &["--version"])
+                    .as_deref()
+                    .and_then(parse_major)
+                    .ok_or_else(|| format!("`{} --version` printed no version", binary.display())),
                 None if env.on_path(&["opencode2"]) => Ok(2),
                 None => Err("opencode is not on PATH".to_owned()),
             }
@@ -448,8 +502,18 @@ impl FileAdapter for Opencode {
         };
         let path = opencode_file(&dir);
         Ok(match self.major(env)? {
-            0 | 1 => Location { path, dialect: Dialect::Jsonc, keys: &["mcp"], render: opencode_v1 },
-            _ => Location { path, dialect: Dialect::Jsonc, keys: &["mcp", "servers"], render: opencode_v2 },
+            0 | 1 => Location {
+                path,
+                dialect: Dialect::Jsonc,
+                keys: &["mcp"],
+                render: opencode_v1,
+            },
+            _ => Location {
+                path,
+                dialect: Dialect::Jsonc,
+                keys: &["mcp", "servers"],
+                render: opencode_v2,
+            },
         })
     }
 

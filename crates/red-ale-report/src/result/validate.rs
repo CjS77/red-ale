@@ -4,8 +4,8 @@ use super::chart::AxisFormat;
 use super::{
     Anchor, Block, Cell, CellContent, Chart, ChartType, Column, ColumnRole, GridBlock, Link, PlotSize, Row, RowRole, Section, Series, Table,
 };
-use crate::options::SPAN_MAX;
 use crate::error::ResultError;
+use crate::options::SPAN_MAX;
 
 /// Whether the host has filled in its fields yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,9 +237,13 @@ fn anchors(c: &Cell, anchors: &[Anchor], path: &str) -> Check {
         path,
         "an anchors cell carries its links in its anchors",
     )?;
-    [(c.rounded.is_some(), "rounded"), (c.local_date.is_some(), "localDate"), (c.display.is_some(), "display")]
-        .iter()
-        .try_for_each(|(present, name)| ensure(!present, &format!("{path}.{name}"), "does not apply to an anchors cell"))?;
+    [
+        (c.rounded.is_some(), "rounded"),
+        (c.local_date.is_some(), "localDate"),
+        (c.display.is_some(), "display"),
+    ]
+    .iter()
+    .try_for_each(|(present, name)| ensure(!present, &format!("{path}.{name}"), "does not apply to an anchors cell"))?;
     anchors
         .iter()
         .enumerate()
@@ -318,9 +322,11 @@ fn series(c: &Chart, s: &Series, path: &str, stage: Stage) -> Check {
     per_value(s.colors.as_ref().map(Vec::len), "colors")?;
     per_value(s.links.as_ref().map(Vec::len), "links")?;
     s.link.as_ref().map_or(Ok(()), |l| link(l, &format!("{path}.link")))?;
-    s.links.iter().flatten().enumerate().try_for_each(|(i, l)| {
-        l.as_ref().map_or(Ok(()), |l| link(l, &format!("{path}.links[{i}]")))
-    })?;
+    s.links
+        .iter()
+        .flatten()
+        .enumerate()
+        .try_for_each(|(i, l)| l.as_ref().map_or(Ok(()), |l| link(l, &format!("{path}.links[{i}]"))))?;
     s.line_width.as_ref().map_or(Ok(()), |w| {
         ensure(w.is_positive(), &format!("{path}.lineWidth"), "must be positive")
     })

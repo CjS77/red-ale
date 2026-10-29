@@ -32,7 +32,13 @@ fn flow(result: &Value) -> Flow {
             .as_array()
             .unwrap()
             .iter()
-            .map(|i| format!("{}{}", i["text"].as_str().unwrap(), if i["account"].is_string() { "" } else { " (no link)" }))
+            .map(|i| {
+                format!(
+                    "{}{}",
+                    i["text"].as_str().unwrap(),
+                    if i["account"].is_string() { "" } else { " (no link)" }
+                )
+            })
             .collect()
     });
     let (mut money_in, mut money_out, mut totals) = (vec![], vec![], vec![]);
@@ -48,7 +54,12 @@ fn flow(result: &Value) -> Flow {
             _ => {}
         }
     });
-    Flow { selected, money_in, money_out, totals }
+    Flow {
+        selected,
+        money_in,
+        money_out,
+        totals,
+    }
 }
 
 fn strings(want: &[&str]) -> Vec<String> {
@@ -57,7 +68,11 @@ fn strings(want: &[&str]) -> Vec<String> {
 
 /// The three totals as the table shows them.
 fn totals(money_in: &str, money_out: &str, difference: &str) -> Vec<String> {
-    vec![format!("Money In {money_in}"), format!("Money Out {money_out}"), format!("Difference {difference}")]
+    vec![
+        format!("Money In {money_in}"),
+        format!("Money Out {money_out}"),
+        format!("Difference {difference}"),
+    ]
 }
 
 /// A test template that runs the calculation as `test-cash-flow.scm` calls it (`:42-48`): the selected accounts,
@@ -95,7 +110,12 @@ fn guid(e: &Value, name: &str) -> String {
 
 /// The log lines of a run.
 fn log(result: &Value) -> Vec<String> {
-    result["log"].as_array().unwrap().iter().map(|l| l["text"].as_str().unwrap().to_owned()).collect()
+    result["log"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l["text"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 /// One check of the calculation against the lines the test template printed.
@@ -117,7 +137,12 @@ fn check_calc(e: &Value, lines: &[String], c: &Value, what: &str) {
             assert_eq!(*amount, want, "{what}");
         }
     } else {
-        let want: Vec<String> = c["expected"].as_array().unwrap().iter().map(|a| guid(e, a.as_str().unwrap())).collect();
+        let want: Vec<String> = c["expected"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| guid(e, a.as_str().unwrap()))
+            .collect();
         assert_eq!(alist.iter().map(|(g, _)| (*g).to_owned()).collect::<Vec<_>>(), want, "{what}");
     }
 }
@@ -126,7 +151,12 @@ fn check_calc(e: &Value, lines: &[String], c: &Value, what: &str) {
 /// engine's default separator in GnuCash's test environment (`5.17:libgnucash/engine/Account.cpp:58`); red-ale's
 /// is `:`, GnuCash's application default, so the names are compared with `:`.
 fn report_check(s: &mut Setup, e: &Value, run: &Value, what: &str) {
-    let accounts: Vec<String> = run["report"]["accounts"].as_array().unwrap().iter().map(|a| guid(e, a.as_str().unwrap())).collect();
+    let accounts: Vec<String> = run["report"]["accounts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| guid(e, a.as_str().unwrap()))
+        .collect();
     let options = json!({
         "General": { "Start Date": { "absolute": "2024-03-15" }, "End Date": { "absolute": "2024-03-15" },
                      "Report's currency": "CURRENCY::USD" },
@@ -142,9 +172,15 @@ fn report_check(s: &mut Setup, e: &Value, run: &Value, what: &str) {
     let got = flow(&result);
     assert_eq!(got.money_in, rows("in"), "{what}");
     assert_eq!(got.money_out, rows("out"), "{what}");
-    let want = totals(r["Money In"].as_str().unwrap(), r["Money Out"].as_str().unwrap(), r["Difference"].as_str().unwrap());
+    let want = totals(
+        r["Money In"].as_str().unwrap(),
+        r["Money Out"].as_str().unwrap(),
+        r["Difference"].as_str().unwrap(),
+    );
     assert_eq!(got.totals, want, "{what}");
-    ["Money In", "Money Out", "Difference"].iter().for_each(|k| assert!(html.contains(r[*k].as_str().unwrap()), "{what}: {k}"));
+    ["Money In", "Money Out", "Difference"]
+        .iter()
+        .for_each(|k| assert!(html.contains(r[*k].as_str().unwrap()), "{what}: {k}"));
 }
 
 /// test-cash-flow.scm:30-146: every check of `cash-flow.expected.json`, on the calculation's result items and on the
@@ -161,10 +197,20 @@ fn expected_figures_of_gnucash_test() {
     for (format, mut s) in books {
         s.script("calc.rhai", CALC_SCRIPT);
         e["runs"].as_array().unwrap().iter().for_each(|run| {
-            let accounts: Vec<String> = run["calc"]["accounts"].as_array().unwrap().iter().map(|a| guid(&e, a.as_str().unwrap())).collect();
+            let accounts: Vec<String> = run["calc"]["accounts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|a| guid(&e, a.as_str().unwrap()))
+                .collect();
             let lines = log(&s.run(CALC, &json!({ "A": { "Accounts": accounts, "Currency": "CURRENCY::USD" } })));
             run["checks"].as_array().unwrap().iter().for_each(|c| {
-                check_calc(&e, &lines, c, &format!("{format} {}: {} (test line {})", run["id"], c["name"], c["line"]));
+                check_calc(
+                    &e,
+                    &lines,
+                    c,
+                    &format!("{format} {}: {} (test line {})", run["id"], c["name"], c["line"]),
+                );
                 checked += 1;
             });
             report_check(&mut s, &e, run, &format!("{format} {}", run["id"]));
@@ -182,7 +228,15 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"Accounts/Account Display Depth "aa" 2"#,
@@ -201,7 +255,12 @@ fn options_are_gnucash_s() {
         r#"General/Show Selected Accounts "f" true"#,
     ];
     assert_eq!(got, want);
-    let trading = described["options"].as_array().unwrap().iter().find(|o| o["name"] == "Include Trading Accounts in report").unwrap();
+    let trading = described["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["name"] == "Include Trading Accounts in report")
+        .unwrap();
     assert!(trading["help"].as_str().unwrap().contains("works backwards"));
 }
 
@@ -224,7 +283,11 @@ fn cash_flow(s: &mut Setup, accounts: &[&str], from: &str, to: &str, more: Value
         "Accounts": { "Account": accounts },
     });
     more.as_object().unwrap().iter().for_each(|(section, values)| {
-        values.as_object().unwrap().iter().for_each(|(name, v)| options[section][name] = v.clone());
+        values
+            .as_object()
+            .unwrap()
+            .iter()
+            .for_each(|(name, v)| options[section][name] = v.clone());
     });
     s.run(CASH_FLOW, &options)
 }
@@ -289,7 +352,12 @@ fn every_price_source_at_the_posted_date() {
     ]
     .iter()
     .for_each(|(source, out, difference)| {
-        let got = flow(&test_data(&[GBP_BANK], "2000-01-01", "2000-12-31", json!({ "General": { "Price Source": source } })));
+        let got = flow(&test_data(
+            &[GBP_BANK],
+            "2000-01-01",
+            "2000-12-31",
+            json!({ "General": { "Price Source": source } }),
+        ));
         assert_eq!(got.money_in, strings(&["Root:Asset:Bank $9.00"]), "{source}");
         assert_eq!(got.money_out, strings(&[&format!("Root:Asset:Bank {out}")]), "{source}");
         assert_eq!(got.totals, totals("$9.00", out, difference), "{source}");
@@ -311,7 +379,12 @@ fn weighted_average_with_an_unheld_currency() {
 /// GBP as the report's currency: the £10 stays £10; the $9 converts by February's price, £6.
 #[test]
 fn a_foreign_report_currency() {
-    let got = flow(&test_data(&[GBP_BANK], "2000-01-01", "2000-12-31", json!({ "General": { "Report's currency": "CURRENCY::GBP" } })));
+    let got = flow(&test_data(
+        &[GBP_BANK],
+        "2000-01-01",
+        "2000-12-31",
+        json!({ "General": { "Report's currency": "CURRENCY::GBP" } }),
+    ));
     assert_eq!(got.money_in, strings(&["Root:Asset:Bank #6.00"]));
     assert_eq!(got.money_out, strings(&["Root:Asset:Bank #10.00"]));
     assert_eq!(got.totals, totals("#6.00", "#10.00", "-#4.00"));
@@ -320,7 +393,12 @@ fn a_foreign_report_currency() {
 /// The rates table of "Show Exchange Rates" (CF:323-327): GBP at the end of 2000 by the nearest price, $1.50.
 #[test]
 fn exchange_rates() {
-    let result = test_data(&[GBP_BANK], "2000-01-01", "2000-12-31", json!({ "General": { "Show Exchange Rates": true } }));
+    let result = test_data(
+        &[GBP_BANK],
+        "2000-01-01",
+        "2000-12-31",
+        json!({ "General": { "Show Exchange Rates": true } }),
+    );
     assert_eq!(rates(&result), strings(&["#1.00", "$1.50"]));
     let without = test_data(&[GBP_BANK], "2000-01-01", "2000-12-31", json!({}));
     assert!(rates(&without).is_empty());
@@ -346,7 +424,12 @@ fn the_selected_accounts_list() {
     assert_eq!(list(json!("all"), true, true), strings(&with_children));
     assert_eq!(list(json!("all"), false, true), strings(&["Root:Asset"]));
 
-    let off = test_data(&[ASSET], "1971-01-01", "1971-12-31", json!({ "General": { "Show Selected Accounts": false } }));
+    let off = test_data(
+        &[ASSET],
+        "1971-01-01",
+        "1971-12-31",
+        json!({ "General": { "Show Selected Accounts": false } }),
+    );
     assert_eq!(flow(&off).selected, None);
     assert_eq!(blocks(&off).len(), 1, "only the table");
     assert_eq!(tables(&off)[0]["rows"][0]["role"], "heading");
@@ -378,9 +461,14 @@ fn a_closing_transaction_counts() {
 /// A book of Bank, Expenses, Income and Equity in USD.
 fn small_book() -> Setup {
     let mut s = Setup::new_book(&test_settings("iso"));
-    [("Bank", "BANK"), ("Expenses", "EXPENSE"), ("Income", "INCOME"), ("Equity", "EQUITY")]
-        .iter()
-        .for_each(|(name, kind)| s.account(name, kind, None, "CURRENCY::USD"));
+    [
+        ("Bank", "BANK"),
+        ("Expenses", "EXPENSE"),
+        ("Income", "INCOME"),
+        ("Equity", "EQUITY"),
+    ]
+    .iter()
+    .for_each(|(name, kind)| s.account(name, kind, None, "CURRENCY::USD"));
     s
 }
 
@@ -398,9 +486,15 @@ fn zero_and_void_splits() {
     let splits = json!([
         { "account": "Bank", "value": "10" }, { "account": "Income", "value": "-10" }, { "account": "Equity", "value": "0" },
     ]);
-    s.call("transaction.post", json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": splits }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": splits }),
+    );
     let splits = json!([{ "account": "Bank", "value": "7" }, { "account": "Income", "value": "-7" }]);
-    let voided = s.call("transaction.post", json!({ "datePosted": "2024-03-02", "currency": "CURRENCY::USD", "splits": splits }));
+    let voided = s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-03-02", "currency": "CURRENCY::USD", "splits": splits }),
+    );
     s.call("transaction.void", json!({ "guid": voided["guid"], "reason": "test" }));
     s.transfer("2024-03-03", "", "Bank", "Expenses", "4");
     s.transfer("2024-03-04", "", "Equity", "Bank", "2");
@@ -426,7 +520,10 @@ fn the_trading_option_works_backwards() {
         { "account": "Trading:EUR", "value": "-10", "amount": "-9" },
         { "account": "Trading:USD", "value": "10" },
     ]);
-    s.call("transaction.post", json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": splits }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": splits }),
+    );
     let bank = guid_of(&mut s, "Bank");
     let off = flow(&cash_flow(&mut s, &[&bank], "2024-03-01", "2024-03-31", json!({})));
     assert_eq!(off.money_in, strings(&["Trading:EUR $10.00"]));

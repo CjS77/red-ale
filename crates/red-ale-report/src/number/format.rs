@@ -508,7 +508,10 @@ mod tests {
         // pt_PT's LC_NUMERIC has no thousands separator, which `gnc_localeconv` fills with `,`; LC_MONETARY's is `.`.
         assert_eq!(display_share(&r("1234"), Some(1), &under("pt_PT")), "1,234,0");
         let rate = |s: &str| display_number_rounded(&r(s), Some(2), Rounding::HalfUp, &c());
-        assert_eq!((rate("3.625"), rate("-3.625"), rate("3.615")), ("3.63".into(), "-3.63".into(), "3.62".into()));
+        assert_eq!(
+            (rate("3.625"), rate("-3.625"), rate("3.615")),
+            ("3.63".into(), "-3.63".into(), "3.62".into())
+        );
     }
 
     fn under(locale: &str) -> Conventions {

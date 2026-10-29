@@ -353,11 +353,18 @@ fn additions_finish_and_round_trip() {
     };
     let period = t.rows[0].cells[0].as_ref().unwrap();
     assert_eq!(
-        (period.local_date.as_deref(), period.local_until.as_deref(), period.display.as_deref()),
+        (
+            period.local_date.as_deref(),
+            period.local_until.as_deref(),
+            period.display.as_deref()
+        ),
         (Some("2024-01-01"), Some("2024-12-31"), Some("01/01/24 to 12/31/24"))
     );
     let v = serde_json::to_value(&r).unwrap();
-    assert_eq!(v["sections"][0]["blocks"][2]["rows"][1]["cells"][0]["link"], json!({ "docLink": "file:///receipts/1.pdf" }));
+    assert_eq!(
+        v["sections"][0]["blocks"][2]["rows"][1]["cells"][0]["link"],
+        json!({ "docLink": "file:///receipts/1.pdf" })
+    );
     assert_eq!(v["sections"][0]["blocks"][2]["columns"][1]["labelLines"], json!(["Assets", "Bank"]));
     assert_eq!(ReportResult::from_json(&v).unwrap(), r);
 }
@@ -374,7 +381,12 @@ fn additions_are_validated() {
         (2, "/rows/0/cells/2/anchors", json!([]), "rows[0].cells[2].anchors"),
         (2, "/rows/0/cells/2/link", json!({ "invoice": BANK }), "rows[0].cells[2]"),
         (2, "/rows/0/cells/2/display", json!("x"), "rows[0].cells[2].display"),
-        (2, "/rows/0/cells/2/anchors/0/link", json!({ "docLink": "" }), "rows[0].cells[2].anchors[0].link.docLink"),
+        (
+            2,
+            "/rows/0/cells/2/anchors/0/link",
+            json!({ "docLink": "" }),
+            "rows[0].cells[2].anchors[0].link.docLink",
+        ),
         (2, "/rows/1/cells/0/link", json!({ "docLink": "" }), "rows[1].cells[0].link.docLink"),
     ];
     cases.into_iter().for_each(|(block, at, value, path)| {
@@ -435,7 +447,14 @@ fn additions_b_finish_and_round_trip() {
         .collect();
     assert_eq!(
         shown,
-        [Some("1,234.568"), Some("3.63%"), Some("-100."), Some("-3.63%"), Some("0.13"), Some("3.62")]
+        [
+            Some("1,234.568"),
+            Some("3.63%"),
+            Some("-100."),
+            Some("-3.63%"),
+            Some("0.13"),
+            Some("3.62")
+        ]
     );
     assert_eq!(r.export_error.as_deref(), Some("No splits found"));
     let v = serde_json::to_value(&r).unwrap();
@@ -488,12 +507,20 @@ fn grid_cells_leave_their_children_to_the_host() {
     };
     let prefix = "sections[0].blocks[0].rows[0].cells[0]";
     assert_eq!(at(&|c| c["rowspan"] = json!(101)), format!("{prefix}.rowspan"));
-    assert_eq!(at(&|c| c["warning"] = json!({ "title": "t", "text": "x" })), format!("{prefix}.warning"));
+    assert_eq!(
+        at(&|c| c["warning"] = json!({ "title": "t", "text": "x" })),
+        format!("{prefix}.warning")
+    );
     assert_eq!(at(&|c| c["link"] = json!({ "account": BANK })), format!("{prefix}.link"));
 
     let finished = |c: Value| {
         let mut v = grid_json(c);
-        let fields = [("version", json!(RESULT_VERSION)), ("now", json!("2024-12-31T10:59:00Z")), ("options", json!({})), ("log", json!([]))];
+        let fields = [
+            ("version", json!(RESULT_VERSION)),
+            ("now", json!("2024-12-31T10:59:00Z")),
+            ("options", json!({})),
+            ("log", json!([])),
+        ];
         fields.into_iter().for_each(|(k, f)| v[k] = f);
         v["report"] = json!({ "guid": BANK, "name": "View", "configuration": null });
         v["headline"] = Value::Null;
@@ -511,5 +538,8 @@ fn grid_cells_leave_their_children_to_the_host() {
     one["link"] = json!({ "report": { "template": BANK, "configuration": BANK, "options": {} } });
     finished(one.clone()).unwrap();
     one["result"]["sections"][0]["blocks"][0] = json!({ "kind": "text", "text": "x", "link": { "docLink": "" } });
-    assert_eq!(finished(one).unwrap_err().path, format!("{prefix}.result.sections[0].blocks[0].link.docLink"));
+    assert_eq!(
+        finished(one).unwrap_err().path,
+        format!("{prefix}.result.sections[0].blocks[0].link.docLink")
+    );
 }

@@ -48,5 +48,8 @@ fn red_ale_saves_unsorted_splits_as_gnucash_saves_them() {
     let (ours, residue) = read_book(text.as_bytes()).unwrap();
     let written = write_book_text(&ours, &residue);
     let first = gnucash.lines().zip(written.lines()).position(|(a, b)| a != b);
-    assert!(written == gnucash, "red-ale wrote another order; first difference at line {first:?}");
+    assert!(
+        written == gnucash,
+        "red-ale wrote another order; first difference at line {first:?}"
+    );
 }

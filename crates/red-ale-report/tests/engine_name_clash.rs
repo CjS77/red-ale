@@ -58,7 +58,10 @@ fn a_module_imported_through_another_is_checked_too() {
     let script = report("lib/middle", "total_of");
     let (source, _, message) = only_load_error(&load(&[("report.rhai", &script)]));
     assert_eq!(source, "lib/middle.rhai", "located at the import in the module that imports it");
-    assert!(message.starts_with("lib/helpers.rhai and ./report.rhai both define fn total_of with 2"), "{message}");
+    assert!(
+        message.starts_with("lib/helpers.rhai and ./report.rhai both define fn total_of with 2"),
+        "{message}"
+    );
 }
 
 #[test]

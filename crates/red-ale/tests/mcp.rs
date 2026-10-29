@@ -106,10 +106,7 @@ fn mcp_writes_only_protocol_messages_and_releases_the_lock_on_exit() {
 fn sigterm_stops_mcp_and_releases_the_lock_while_standard_input_is_open() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("new.gnucash").display().to_string();
-    let created = red_ale()
-        .args(["exec", "--create", "--book", &book, "book.info"])
-        .output()
-        .unwrap();
+    let created = red_ale().args(["exec", "--create", "--book", &book, "book.info"]).output().unwrap();
     assert!(created.status.success());
     let mut server = red_ale()
         .args(["mcp", "--book", &book])

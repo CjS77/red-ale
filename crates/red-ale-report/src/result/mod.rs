@@ -23,7 +23,8 @@ pub use chart::{Axis, AxisFormat, Chart, ChartType, Color, Marker, PlotSize, Poi
 pub use finish::{DisplayContext, RunInfo};
 pub use grid::{EmbeddedResult, GridBlock, GridCell, GridRow};
 pub use table::{
-    Align, Anchor, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, NumberFormat, NumberRounding, ReportLink, Row, RowRole, Table,
+    Align, Anchor, Cell, CellContent, Column, ColumnRole, CommodityLine, Link, NumberFormat, NumberRounding, ReportLink, Row, RowRole,
+    Table,
 };
 
 use crate::error::ResultError;
@@ -316,7 +317,10 @@ impl ReportDraft {
     /// may set.
     pub fn validate(&self) -> Result<(), ResultError> {
         if self.export.is_some() && self.export_error.is_some() {
-            return Err(ResultError::new("exportError", "a draft has export rows or an export error, not both"));
+            return Err(ResultError::new(
+                "exportError",
+                "a draft has export rows or an export error, not both",
+            ));
         }
         validate::sections(&self.sections, validate::Stage::Draft)
     }

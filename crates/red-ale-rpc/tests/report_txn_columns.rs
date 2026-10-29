@@ -49,7 +49,11 @@ fn cell_view(cell: &Value) -> String {
     if let Some(lines) = cell["commodities"].as_array() {
         assert_eq!(lines.len(), 1, "one line: {cell}");
         let line = &lines[0];
-        return format!("[{}] {}", line["convertedDisplay"].as_str().unwrap(), line["display"].as_str().unwrap());
+        return format!(
+            "[{}] {}",
+            line["convertedDisplay"].as_str().unwrap(),
+            line["display"].as_str().unwrap()
+        );
     }
     cell["display"].as_str().or_else(|| cell["text"].as_str()).unwrap().to_owned()
 }
@@ -70,16 +74,28 @@ fn breakdown(result: &Value) -> Breakdown {
     assert_eq!(t.len(), 1, "{result}");
     let table = t[0].clone();
     let columns = table["columns"].as_array().unwrap();
-    let strings = |v: &Value| v.as_array().map(|a| a.iter().map(|s| s.as_str().unwrap().to_owned()).collect()).unwrap_or_default();
+    let strings = |v: &Value| {
+        v.as_array()
+            .map(|a| a.iter().map(|s| s.as_str().unwrap().to_owned()).collect())
+            .unwrap_or_default()
+    };
     let labels = columns.iter().map(|c| c["label"].as_str().unwrap().to_owned()).collect();
     let header_lines = columns.iter().map(|c| strings(&c["labelLines"])).collect();
     let rows_of = |f: &dyn Fn(&Value) -> String| -> Vec<Vec<String>> {
         let rows = table["rows"].as_array().unwrap();
-        rows.iter().map(|r| r["cells"].as_array().unwrap().iter().map(f).collect()).collect()
+        rows.iter()
+            .map(|r| r["cells"].as_array().unwrap().iter().map(f).collect())
+            .collect()
     };
     let rows = rows_of(&cell_view);
     let split_links = rows_of(&|c: &Value| c["link"]["split"].as_str().unwrap_or("").to_owned());
-    Breakdown { labels, lines: header_lines, rows, links: split_links, table }
+    Breakdown {
+        labels,
+        lines: header_lines,
+        rows,
+        links: split_links,
+        table,
+    }
 }
 
 fn strings(items: &[&str]) -> Vec<String> {
@@ -91,7 +107,10 @@ fn warning(result: &Value) -> (String, String) {
     let b = blocks(result);
     assert_eq!(b.len(), 1, "{result}");
     assert_eq!(b[0]["kind"], "warning", "{result}");
-    (b[0]["title"].as_str().unwrap().to_owned(), b[0]["text"].as_str().unwrap().to_owned())
+    (
+        b[0]["title"].as_str().unwrap().to_owned(),
+        b[0]["text"].as_str().unwrap().to_owned(),
+    )
 }
 
 /// The options of TC:41-56, in GnuCash's order, and the three General options every report has.
@@ -103,7 +122,16 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["type"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["type"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"General/Report name "0a" "string" "Transaction Breakdown Report""#,
@@ -155,7 +183,18 @@ fn bank_in_1970_and_1971() {
     let result = s.run(BREAKDOWN, &opts);
     assert_eq!(result["title"], "Transaction Breakdown Report");
     let b = breakdown(&result);
-    assert_eq!(b.labels, strings(&["Date", "Num", "Desc", "Root:Asset:Bank", "Root:Asset:Wallet", "Root:Liabilities", "Root:Expenses"]));
+    assert_eq!(
+        b.labels,
+        strings(&[
+            "Date",
+            "Num",
+            "Desc",
+            "Root:Asset:Bank",
+            "Root:Asset:Wallet",
+            "Root:Liabilities",
+            "Root:Expenses"
+        ])
+    );
     let want_lines: Vec<Vec<String>> = vec![
         vec![],
         vec![],
@@ -170,21 +209,42 @@ fn bank_in_1970_and_1971() {
         ["01/01/70", "trn1", "desc-1", "-$5.00", "", "", "$5.00"],
         ["02/01/70", "trn4", "desc-4", "-$15.00", "", "", "$15.00"],
         ["02/10/70", "trn7", "desc-7", "-$8.00", "", "$8.00", ""],
-        ["02/14/71", "", "$100bank -> $80expenses + $20wallet", "-$100.00", "$20.00", "", "$80.00"],
+        [
+            "02/14/71",
+            "",
+            "$100bank -> $80expenses + $20wallet",
+            "-$100.00",
+            "$20.00",
+            "",
+            "$80.00",
+        ],
     ];
     assert_eq!(b.rows[..4], want.map(|r| strings(&r)));
-    assert_eq!(b.rows[4], strings(&["Total For 01/01/70 to 12/31/71", "-$128.00", "$20.00", "$8.00", "$100.00"]));
+    assert_eq!(
+        b.rows[4],
+        strings(&["Total For 01/01/70 to 12/31/71", "-$128.00", "$20.00", "$8.00", "$100.00"])
+    );
     let total = &b.table["rows"][4];
-    assert_eq!((total["role"].as_str(), total["cells"][0]["span"].as_u64()), (Some("total"), Some(3)));
+    assert_eq!(
+        (total["role"].as_str(), total["cells"][0]["span"].as_u64()),
+        (Some("total"), Some(3))
+    );
     // env-transfer's splits are made in its order: txn 1's Bank split is the first split of the book.
     assert_eq!(b.links[0], strings(&["", "", "", &split(0), "", "", &split(1)]));
     assert_eq!(b.links[3][3..], strings(&[&split(14), &split(16), "", &split(15)]));
     assert!(b.links[4].iter().all(String::is_empty), "the totals have no links");
 
     let html = s.export(BREAKDOWN, &opts);
-    ["Root", "Asset", "Liabilities", "Total For 01/01/70 to 12/31/71", "$100bank -&gt; $80expenses + $20wallet", "-$128.00"]
-        .iter()
-        .for_each(|t| assert!(html.contains(t), "{t} in the export"));
+    [
+        "Root",
+        "Asset",
+        "Liabilities",
+        "Total For 01/01/70 to 12/31/71",
+        "$100bank -&gt; $80expenses + $20wallet",
+        "-$128.00",
+    ]
+    .iter()
+    .for_each(|t| assert!(html.contains(t), "{t} in the export"));
     assert_eq!(html.matches("<thead>").count(), 1);
     let head = &html[html.find("<thead>").unwrap()..html.find("</thead>").unwrap()];
     assert_eq!(head.matches("<tr>").count(), 3, "three header rows: {head}");
@@ -210,7 +270,10 @@ fn foreign_rows() {
     let cell = &b.table["rows"][0]["cells"][3];
     assert_eq!(cell["commodities"][0]["monetary"]["commodity"], "CURRENCY::USD");
     assert_eq!(cell["commodities"][0]["converted"]["commodity"], "CURRENCY::GBP");
-    assert!(!cell["link"]["split"].as_str().unwrap().is_empty(), "the amount is linked (TC:233-235)");
+    assert!(
+        !cell["link"]["split"].as_str().unwrap().is_empty(),
+        "the amount is linked (TC:233-235)"
+    );
 }
 
 /// Reverse-balanced accounts are negated, value and amount, totals too (TC:210-212): under `credit` Liabilities
@@ -261,7 +324,10 @@ fn the_description_filter() {
 fn the_column_limit() {
     let mut s = test_data();
     let limited = |s: &mut Setup, limit: u32| {
-        s.run(BREAKDOWN, &options(BANK, "1970-01-01", "1971-12-31", json!({ "Limit for number of columns": limit })))
+        s.run(
+            BREAKDOWN,
+            &options(BANK, "1970-01-01", "1971-12-31", json!({ "Limit for number of columns": limit })),
+        )
     };
     assert_eq!(breakdown(&limited(&mut s, 4)).labels.len(), 7);
     let over = limited(&mut s, 3);
@@ -319,7 +385,10 @@ fn api_book() -> Setup {
 }
 
 fn guid_of(s: &mut Setup, full_name: &str) -> String {
-    s.call("account.get", json!({ "account": full_name }))["guid"].as_str().unwrap().to_owned()
+    s.call("account.get", json!({ "account": full_name }))["guid"]
+        .as_str()
+        .unwrap()
+        .to_owned()
 }
 
 /// Two Bank splits in one transaction are summed and linked to the first in the transaction's split order
@@ -341,11 +410,23 @@ fn summed_splits_and_the_column_order() {
     );
     let txn = s.call("transaction.get", json!({ "guid": posted["guid"] }));
     let bank = guid_of(&mut s, "Bank");
-    let first_bank = txn["splits"].as_array().unwrap().iter().find(|sp| sp["account"] == bank.as_str()).unwrap()["guid"].clone();
+    let first_bank = txn["splits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|sp| sp["account"] == bank.as_str())
+        .unwrap()["guid"]
+        .clone();
     let b = breakdown(&s.run(BREAKDOWN, &options(&bank, "2024-03-01", "2024-03-01", json!({}))));
-    assert_eq!(b.labels[3..], strings(&["Bank", "Expenses:Auto", "Expenses:Groceries", "Expenses:Auto:Tax"]));
+    assert_eq!(
+        b.labels[3..],
+        strings(&["Bank", "Expenses:Auto", "Expenses:Groceries", "Expenses:Auto:Tax"])
+    );
     assert_eq!(b.lines[6], strings(&["Expenses", "Auto", "Tax"]));
-    assert_eq!(b.rows[0], strings(&["2024-03-01", "42", "shop", "-$10.00", "$3.00", "$4.00", "$3.00"]));
+    assert_eq!(
+        b.rows[0],
+        strings(&["2024-03-01", "42", "shop", "-$10.00", "$3.00", "$4.00", "$3.00"])
+    );
     assert_eq!(b.links[0][3], first_bank.as_str().unwrap());
     assert_eq!(b.rows[1][0], "Total For 2024-03-01 to 2024-03-01");
 }
@@ -361,7 +442,10 @@ fn trading_accounts_get_no_column() {
         { "account": "Trading:EUR", "value": "-10", "amount": "-9" },
         { "account": "Trading:USD", "value": "10" },
     ]);
-    s.call("transaction.post", json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": splits }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": splits }),
+    );
     let bank = guid_of(&mut s, "Bank");
     let b = breakdown(&s.run(BREAKDOWN, &options(&bank, "2024-03-01", "2024-03-31", json!({}))));
     assert_eq!(b.labels[3..], strings(&["Bank", "Euro"]));
@@ -372,7 +456,11 @@ fn trading_accounts_get_no_column() {
 /// A copy of `fixtures/<dir>/test-data.gnucash` open for writing.
 fn writable(dir: &str) -> Setup {
     let mut s = Setup::with_config(&test_settings("locale"));
-    std::fs::copy(format!("{}/../../fixtures/{dir}/test-data.gnucash", env!("CARGO_MANIFEST_DIR")), s.book()).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/{dir}/test-data.gnucash", env!("CARGO_MANIFEST_DIR")),
+        s.book(),
+    )
+    .unwrap();
     let book = s.book().display().to_string();
     s.call("book.open", json!({ "path": book }));
     s
@@ -388,9 +476,20 @@ fn xml_and_sqlite_agree_and_a_run_changes_nothing() {
     let from_xml = xml.run(BREAKDOWN, &opts);
     assert_eq!(from_xml["sections"], sqlite.run(BREAKDOWN, &opts)["sections"]);
     let b = breakdown(&from_xml);
-    let want = ["Root:Asset:Bank", "Root:Asset:GBP Bank", "Root:Asset:Wallet", "Root:Liabilities", "Root:Expenses", "Root:Income"];
+    let want = [
+        "Root:Asset:Bank",
+        "Root:Asset:GBP Bank",
+        "Root:Asset:Wallet",
+        "Root:Liabilities",
+        "Root:Expenses",
+        "Root:Income",
+    ];
     assert_eq!(b.labels[3..], strings(&want));
-    assert_eq!(b.rows.len(), 4 + 36 + 2 + 1, "1970-71, 1978's three Bank transfers a month, 2000's two, the total");
+    assert_eq!(
+        b.rows.len(),
+        4 + 36 + 2 + 1,
+        "1970-71, 1978's three Bank transfers a month, 2000's two, the total"
+    );
 
     [&mut xml, &mut sqlite].into_iter().for_each(|s| {
         let before = s.d.context().book().unwrap().clone();

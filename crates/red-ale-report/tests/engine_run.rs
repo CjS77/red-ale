@@ -378,15 +378,21 @@ fn a_script_sets_defaults_and_hides_options() {
 #[test]
 fn defaults_and_hiding_need_a_declared_option() {
     let host = Host::new(empty_book());
-    ["o.set_default(\"Display\", \"Running Balance\", true);", "o.make_internal(\"Display\", \"Running Balance\");"]
-        .iter()
-        .for_each(|call| {
-            let script = format!(
-                "fn templates() {{ [#{{ guid: \"{GUID}\", name: \"T\" }}] }}\nfn options(params, o, book) {{ {call} }}\n\
+    [
+        "o.set_default(\"Display\", \"Running Balance\", true);",
+        "o.make_internal(\"Display\", \"Running Balance\");",
+    ]
+    .iter()
+    .for_each(|call| {
+        let script = format!(
+            "fn templates() {{ [#{{ guid: \"{GUID}\", name: \"T\" }}] }}\nfn options(params, o, book) {{ {call} }}\n\
                  fn render(params, book, opts, ctx) {{ #{{ title: \"t\", sections: [] }} }}"
-            );
-            let reg = registry(&[("t.rhai", &script)]);
-            let e = host.run(&reg, GUID, &json!({})).unwrap_err();
-            assert!(e.to_string().contains("option Display/Running Balance: unknown option"), "{call}: {e}");
-        });
+        );
+        let reg = registry(&[("t.rhai", &script)]);
+        let e = host.run(&reg, GUID, &json!({})).unwrap_err();
+        assert!(
+            e.to_string().contains("option Display/Running Balance: unknown option"),
+            "{call}: {e}"
+        );
+    });
 }

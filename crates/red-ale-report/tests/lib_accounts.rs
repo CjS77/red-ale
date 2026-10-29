@@ -146,7 +146,9 @@ fn fundamental_types() {
     let liability = ["\"LIABILITY\""; 4].join(", ");
     check(
         &got,
-        &[&format!("[{asset}, {liability}, \"INCOME\", \"EXPENSE\", \"EQUITY\", \"NONE\", \"NONE\"]")],
+        &[&format!(
+            "[{asset}, {liability}, \"INCOME\", \"EXPENSE\", \"EQUITY\", \"NONE\", \"NONE\"]"
+        )],
     );
 }
 

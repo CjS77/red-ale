@@ -26,8 +26,7 @@ use crate::budgets::{budget_el, parse_budget};
 use crate::business::{self, BusinessObject};
 use crate::dom::{Element, Token, Tokens, TreeBuilder};
 use crate::entities::{
-    account_el, commodity_el, commodity_is_written, load_transaction, parse_account, parse_commodity, parse_price, price_el,
-    transaction_el,
+    account_el, commodity_el, commodity_is_written, load_transaction, parse_account, parse_commodity, parse_price, price_el, transaction_el,
 };
 use crate::envelope::BOOK_VERSION;
 use crate::input::TextStream;

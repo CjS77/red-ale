@@ -163,7 +163,10 @@ fn dry_run_writes_nothing_and_a_second_import_skips() {
         (result["dryRun"].as_bool(), result["imported"].as_array().unwrap().len()),
         (Some(true), 5)
     );
-    let children = result["imported"][4]["options"]["__general"]["report-list"].as_array().unwrap().len();
+    let children = result["imported"][4]["options"]["__general"]["report-list"]
+        .as_array()
+        .unwrap()
+        .len();
     assert_eq!(children, 3, "a dry run reads the view's children too");
     assert_eq!(config(&c), before);
     import_reports(&mut c, false);
@@ -353,7 +356,12 @@ fn board_pack() -> Value {
 fn cells(result: &Value) -> Vec<Value> {
     let grid = &result["sections"][0]["blocks"][0];
     assert_eq!(grid["kind"], "grid");
-    grid["rows"].as_array().unwrap().iter().flat_map(|r| r["cells"].as_array().unwrap().clone()).collect()
+    grid["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|r| r["cells"].as_array().unwrap().clone())
+        .collect()
 }
 
 /// A saved Multicolumn View imports with its embedded reports as template children, and runs as the same options set
@@ -389,7 +397,11 @@ fn imports_a_saved_multicolumn_view() {
         assert_eq!((&cell["colspan"], &cell["rowspan"]), (&child["colspan"], &child["rowspan"]));
     });
     assert_eq!(cells[0]["result"]["options"]["General"]["Report name"], "Summary");
-    assert_eq!(cells[2]["result"]["sections"][0]["blocks"][0]["rows"], json!([]), "the nested view has no children");
+    assert_eq!(
+        cells[2]["result"]["sections"][0]["blocks"][0]["rows"],
+        json!([]),
+        "the nested view has no children"
+    );
 }
 
 /// An entry with an embedded report whose template red-ale lacks is skipped whole, naming it, so importing again once
@@ -407,7 +419,9 @@ fn a_view_with_an_untranslated_child_is_skipped_whole() {
     );
     let message = last["message"].as_str().unwrap();
     assert!(
-        message.contains("4166a20981985fd2b07ff8cb3b7d384e") && message.contains("Customer Summary") && message.contains("embedded report 0"),
+        message.contains("4166a20981985fd2b07ff8cb3b7d384e")
+            && message.contains("Customer Summary")
+            && message.contains("embedded report 0"),
         "{message}"
     );
     let again = import_reports(&mut c, false);
@@ -420,10 +434,17 @@ fn a_view_with_an_untranslated_child_is_skipped_whole() {
 fn board_pack_with(c: &mut Charts, from: &str, to: &str) -> Result<Value, Value> {
     let text = userdata("saved-reports-2.8");
     assert!(text.contains(from), "{from}");
-    let result = c.call("report.importConfigurations", json!({ "text": text.replace(from, to), "dryRun": true }));
+    let result = c.call(
+        "report.importConfigurations",
+        json!({ "text": text.replace(from, to), "dryRun": true }),
+    );
     let last = |key: &str| result[key].as_array().unwrap().last().unwrap().clone();
     let (skipped, imported) = (last("skipped"), last("imported"));
-    if skipped["name"] == "Board pack" { Ok(skipped) } else { Err(imported) }
+    if skipped["name"] == "Board pack" {
+        Ok(skipped)
+    } else {
+        Err(imported)
+    }
 }
 
 /// An embedded report that is not as GnuCash writes one makes its entry `malformed`; one whose values red-ale refuses
@@ -444,10 +465,16 @@ fn embedded_reports_red_ale_refuses_or_ignores() {
 
     let (reason, message) = skip("'1)", "'seven)");
     assert_eq!(reason, "invalid-option");
-    assert!(message.starts_with("embedded report 0: option Accounts/Levels of Subaccounts"), "{message}");
+    assert!(
+        message.starts_with("embedded report 0: option Accounts/Levels of Subaccounts"),
+        "{message}"
+    );
     let (reason, message) = skip("'3.0)", "'30.0)");
     assert_eq!(reason, "invalid-option");
-    assert!(message.contains("child 2: Multicolumn View option General/Number of columns"), "{message}");
+    assert!(
+        message.contains("child 2: Multicolumn View option General/Number of columns"),
+        "{message}"
+    );
 
     let imported = board_pack_with(&mut c, "\"Account Code\"", "\"Account Codes\"").unwrap_err();
     assert_eq!(

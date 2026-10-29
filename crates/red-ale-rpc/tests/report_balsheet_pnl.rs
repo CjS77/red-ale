@@ -60,8 +60,17 @@ fn cell_texts(cell: &Value, pieces: &mut Vec<String>) -> Vec<String> {
         return vec![text.to_owned()];
     }
     if let Some(lines) = cell["commodities"].as_array() {
-        let shown = lines.iter().map(|l| if l["convertedDisplay"].is_string() { s(&l["convertedDisplay"]) } else { s(&l["display"]) });
-        let originals = lines.iter().filter(|l| l["convertedDisplay"].is_string()).map(|l| format!("{} ", s(&l["display"])));
+        let shown = lines.iter().map(|l| {
+            if l["convertedDisplay"].is_string() {
+                s(&l["convertedDisplay"])
+            } else {
+                s(&l["display"])
+            }
+        });
+        let originals = lines
+            .iter()
+            .filter(|l| l["convertedDisplay"].is_string())
+            .map(|l| format!("{} ", s(&l["display"])));
         let texts: Vec<String> = shown.chain(originals).collect();
         pieces.extend(texts.iter().map(|t| t.trim().to_owned()));
         return texts;
@@ -126,7 +135,9 @@ fn select(rows: &[GnuCashRow], sel: &Value) -> (Vec<String>, Vec<String>) {
             Some(n) => vec![pick(n, r.cells.len())],
             None => (0..r.cells.len()).collect(),
         };
-        cols.iter().filter(|c| **c < r.cells.len()).for_each(|c| texts.extend(r.cells[*c].iter().cloned()));
+        cols.iter()
+            .filter(|c| **c < r.cells.len())
+            .for_each(|c| texts.extend(r.cells[*c].iter().cloned()));
         pieces.extend(r.pieces.iter().cloned());
     });
     (texts, pieces)
@@ -140,7 +151,13 @@ fn want(check: &Value) -> Vec<String> {
         .unwrap()
         .iter()
         .map(|v| v.as_str().unwrap())
-        .map(|v| if names && v.starts_with("Root") { v.replace('.', ":") } else { v.to_owned() })
+        .map(|v| {
+            if names && v.starts_with("Root") {
+                v.replace('.', ":")
+            } else {
+                v.to_owned()
+            }
+        })
         .collect()
 }
 
@@ -157,20 +174,28 @@ fn expected_figures_of_gnucash_test() {
     ];
     let mut checked = 0;
     for (format, mut s) in books {
-        e["runs"].as_array().unwrap().iter().filter(|r| r["id"].as_str().unwrap().starts_with("multicol")).for_each(|run| {
-            let options = options_param(run);
-            let template = run["templateGuid"].as_str().unwrap();
-            let result = s.run(template, &options);
-            let html = s.export(template, &options);
-            let rows = gnucash_rows(&result);
-            run["checks"].as_array().unwrap().iter().for_each(|c| {
-                let what = format!("{format} {}: {} (test line {})", run["id"], c["name"], c["line"]);
-                let (got, pieces) = select(&rows, &c["select"]);
-                assert_eq!(got, want(c), "{what}");
-                pieces.iter().filter(|p| !p.is_empty()).for_each(|p| assert!(html.contains(p.as_str()), "{what}: {p} is in the HTML"));
-                checked += 1;
+        e["runs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|r| r["id"].as_str().unwrap().starts_with("multicol"))
+            .for_each(|run| {
+                let options = options_param(run);
+                let template = run["templateGuid"].as_str().unwrap();
+                let result = s.run(template, &options);
+                let html = s.export(template, &options);
+                let rows = gnucash_rows(&result);
+                run["checks"].as_array().unwrap().iter().for_each(|c| {
+                    let what = format!("{format} {}: {} (test line {})", run["id"], c["name"], c["line"]);
+                    let (got, pieces) = select(&rows, &c["select"]);
+                    assert_eq!(got, want(c), "{what}");
+                    pieces
+                        .iter()
+                        .filter(|p| !p.is_empty())
+                        .for_each(|p| assert!(html.contains(p.as_str()), "{what}: {p} is in the HTML"));
+                    checked += 1;
+                });
             });
-        });
     }
     assert_eq!(checked, 2 * 16, "the 16 multicolumn checks, on both books");
 }
@@ -201,12 +226,20 @@ fn row<'a>(table: &'a Value, role: &str, label: &str) -> &'a Value {
 
 /// The texts of each data cell of the `role` row labelled `label`.
 fn amounts(table: &Value, role: &str, label: &str) -> Vec<Vec<String>> {
-    row(table, role, label)["cells"].as_array().unwrap()[1..].iter().map(texts).collect()
+    row(table, role, label)["cells"].as_array().unwrap()[1..]
+        .iter()
+        .map(texts)
+        .collect()
 }
 
 /// The labels of `table`'s rows, empty for a spacer.
 fn labels(table: &Value) -> Vec<String> {
-    table["rows"].as_array().unwrap().iter().map(|r| texts(&r["cells"][0]).concat()).collect()
+    table["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| texts(&r["cells"][0]).concat())
+        .collect()
 }
 
 /// `want` as owned strings, one cell.
@@ -226,7 +259,15 @@ fn described(s: &mut Setup, template: &str) -> Vec<String> {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["default"]
+            )
+        })
         .collect()
 }
 
@@ -272,17 +313,24 @@ fn options_are_gnucash_s() {
         ]);
         g
     };
-    [(BALSHEET, "Balance Sheet (Multicolumn)", false), (PNL, "Income Statement (Multicolumn)", true)]
-        .iter()
-        .for_each(|(template, name, pnl)| {
-            let want: Vec<String> = common.iter().map(|s| (*s).to_owned()).chain(general(name, *pnl)).collect();
-            assert_eq!(described(&mut s, template), want, "{name}");
-        });
+    [
+        (BALSHEET, "Balance Sheet (Multicolumn)", false),
+        (PNL, "Income Statement (Multicolumn)", true),
+    ]
+    .iter()
+    .for_each(|(template, name, pnl)| {
+        let want: Vec<String> = common.iter().map(|s| (*s).to_owned()).chain(general(name, *pnl)).collect();
+        assert_eq!(described(&mut s, template), want, "{name}");
+    });
     // BP:188-199: the default selection is every account of the listed types, in display order.
     let mut x = extras();
     let d = x.call("report.options", json!({ "report": BALSHEET }));
     let accounts = d["options"].as_array().unwrap().iter().find(|o| o["name"] == "Accounts").unwrap();
-    assert_eq!(accounts["default"].as_array().unwrap().len(), 16, "every account of the extras book but the root");
+    assert_eq!(
+        accounts["default"].as_array().unwrap().len(),
+        16,
+        "every account of the extras book but the root"
+    );
 }
 
 /// No accounts: the title, then only the warning (BP:851-865). The balance sheet's title is its end date without a
@@ -293,9 +341,16 @@ fn no_accounts_give_the_warning_under_each_title() {
     let dates = json!({ "Start Date": { "absolute": "2000-01-01" }, "End Date": { "absolute": "2000-12-31" } });
     let cases = [
         (BALSHEET, json!({ "General": dates }), "Balance Sheet (Multicolumn) 2000-12-31"),
-        (BALSHEET, json!({ "General": { "Start Date": dates["Start Date"], "End Date": dates["End Date"], "Period duration": "MonthDelta" } }),
-         "Balance Sheet (Multicolumn) 2000-01-01 to 2000-12-31"),
-        (PNL, json!({ "General": dates }), "Income Statement (Multicolumn) 2000-01-01 to 2000-12-31"),
+        (
+            BALSHEET,
+            json!({ "General": { "Start Date": dates["Start Date"], "End Date": dates["End Date"], "Period duration": "MonthDelta" } }),
+            "Balance Sheet (Multicolumn) 2000-01-01 to 2000-12-31",
+        ),
+        (
+            PNL,
+            json!({ "General": dates }),
+            "Income Statement (Multicolumn) 2000-01-01 to 2000-12-31",
+        ),
     ];
     cases.iter().for_each(|(template, options, title)| {
         let result = s.run(template, options);
@@ -330,10 +385,28 @@ fn dual_columns_and_the_amount_staircase() {
     assert_eq!(all.as_array().unwrap().len(), 1);
     assert_eq!(all[0]["kind"], "group");
     let (left, right) = (&all[0]["blocks"][0], &all[0]["blocks"][1]);
-    assert_eq!(left["columns"], json!([{ "label": "", "role": "label" }, { "label": "", "role": "amount", "levels": 3 }]));
-    assert_eq!(labels(left), ["Asset", "Assets", "Checking", "Euro Account", "Savings", "Swiss Account", "Total For Asset", ""]);
+    assert_eq!(
+        left["columns"],
+        json!([{ "label": "", "role": "label" }, { "label": "", "role": "amount", "levels": 3 }])
+    );
+    assert_eq!(
+        labels(left),
+        [
+            "Asset",
+            "Assets",
+            "Checking",
+            "Euro Account",
+            "Savings",
+            "Swiss Account",
+            "Total For Asset",
+            ""
+        ]
+    );
     let assets = row(left, "account", "Assets");
-    assert_eq!((assets["depth"].clone(), assets["level"].clone(), assets["cells"][0].get("account")), (json!(1), json!(1), None));
+    assert_eq!(
+        (assets["depth"].clone(), assets["level"].clone(), assets["cells"][0].get("account")),
+        (json!(1), json!(1), None)
+    );
     assert_eq!(amounts(left, "account", "Assets"), one(&["$3,900.00", "€500.00", "Fr.800.00"]));
     let checking = row(left, "account", "Checking");
     assert_eq!((checking["depth"].clone(), checking["level"].clone()), (json!(2), json!(2)));
@@ -343,21 +416,41 @@ fn dual_columns_and_the_amount_staircase() {
     assert_eq!(amounts(left, "account", "Savings"), one(&["$0.00"]));
     assert!(row(left, "account", "Savings")["cells"][1].get("link").is_none());
     assert_eq!(row(left, "total", "Total For Asset")["level"], 0);
-    assert_eq!(amounts(left, "total", "Total For Asset"), one(&["€500.00", "$3,900.00", "Fr.800.00"]));
+    assert_eq!(
+        amounts(left, "total", "Total For Asset"),
+        one(&["€500.00", "$3,900.00", "Fr.800.00"])
+    );
 
     assert_eq!(
         labels(right),
         [
-            "Liability", "Liabilities", "Credit Card", "Total For Liability", "", "Equity", "Equity", "Opening Balances",
-            "Retained Earnings", "Retained Earnings", "Total For Equity", "", "Total For Liability and Equity", ""
+            "Liability",
+            "Liabilities",
+            "Credit Card",
+            "Total For Liability",
+            "",
+            "Equity",
+            "Equity",
+            "Opening Balances",
+            "Retained Earnings",
+            "Retained Earnings",
+            "Total For Equity",
+            "",
+            "Total For Liability and Equity",
+            ""
         ]
     );
     assert_eq!(amounts(right, "account", "Credit Card"), one(&["$80.00"]));
     assert_eq!(amounts(right, "data", "Retained Earnings"), one(&["Fr.800.00", "$1,720.00"]));
     assert_eq!(amounts(right, "total", "Total For Equity"), one(&["Fr.800.00", "$4,370.00"]));
-    assert_eq!(amounts(right, "grandTotal", "Total For Liability and Equity"), one(&["Fr.800.00", "$4,450.00"]));
+    assert_eq!(
+        amounts(right, "grandTotal", "Total For Liability and Equity"),
+        one(&["Fr.800.00", "$4,450.00"])
+    );
     let html = s.export(BALSHEET, &options);
-    ["$3,900.00", "€500.00", "Fr.800.00", "$4,450.00", "Total For Liability and Equity"].iter().for_each(|w| assert!(html.contains(w), "{w}"));
+    ["$3,900.00", "€500.00", "Fr.800.00", "$4,450.00", "Total For Liability and Equity"]
+        .iter()
+        .for_each(|w| assert!(html.contains(w), "{w}"));
 }
 
 /// The P&L over 2023 and 2024 to 2024-03-15 (BP:1085-1226): income on the left with the Net Income, which needs both
@@ -372,13 +465,29 @@ fn the_pnl_leaves_closing_out_and_the_balance_sheet_keeps_it() {
     let result = s.run(PNL, &both);
     assert_eq!(result["title"], "Income Statement (Multicolumn) 2023-01-01 to 2024-03-15");
     let t = tables(&result);
-    assert_eq!(labels(t[0]), ["Income", "Income", "Consulting CHF", "Salary", "Total For Income", "", "Net Income", "Total For Net Income", ""]);
+    assert_eq!(
+        labels(t[0]),
+        [
+            "Income",
+            "Income",
+            "Consulting CHF",
+            "Salary",
+            "Total For Income",
+            "",
+            "Net Income",
+            "Total For Net Income",
+            ""
+        ]
+    );
     assert_eq!(labels(t[1]), ["Expense", "Expenses", "Groceries", "Rent", "Total For Expense", ""]);
     assert_eq!(amounts(t[0], "account", "Salary"), one(&["$6,000.00"]));
     assert_eq!(amounts(t[0], "account", "Consulting CHF"), one(&["Fr.800.00"]));
     assert_eq!(amounts(t[1], "account", "Rent"), one(&["$2,400.00"]));
     assert_eq!(amounts(t[1], "account", "Groceries"), one(&["$230.00"]));
-    assert_eq!(amounts(t[0], "grandTotal", "Total For Net Income"), one(&["Fr.800.00", "$3,370.00"]));
+    assert_eq!(
+        amounts(t[0], "grandTotal", "Total For Net Income"),
+        one(&["Fr.800.00", "$3,370.00"])
+    );
     // 2023 alone: the closing entries would zero Salary, Rent and Groceries; the P&L shows the year's figures.
     let y2023 = json!({ "General": { "Start Date": { "absolute": "2023-01-01" }, "End Date": { "absolute": "2023-12-31" } } });
     let t = s.run(PNL, &y2023);
@@ -409,13 +518,29 @@ fn multilevel_mode_closes_each_parent_with_its_total() {
     let t = tables(&result)[0];
     assert_eq!(
         labels(t)[..9],
-        ["Asset", "Assets", "Checking", "Euro Account", "Savings", "Swiss Account", "Total For Assets", "Total For Asset", ""]
+        [
+            "Asset",
+            "Assets",
+            "Checking",
+            "Euro Account",
+            "Savings",
+            "Swiss Account",
+            "Total For Assets",
+            "Total For Asset",
+            ""
+        ]
     );
     let assets = row(t, "account", "Assets");
-    assert_eq!((assets["level"].clone(), texts(&assets["cells"][1])), (json!(2), vec!["$0.00".to_owned()]));
+    assert_eq!(
+        (assets["level"].clone(), texts(&assets["cells"][1])),
+        (json!(2), vec!["$0.00".to_owned()])
+    );
     let total = row(t, "subtotal", "Total For Assets");
     assert_eq!((total["depth"].clone(), total["level"].clone()), (json!(1), json!(1)));
-    assert_eq!(amounts(t, "subtotal", "Total For Assets"), one(&["$3,900.00", "€500.00", "Fr.800.00"]));
+    assert_eq!(
+        amounts(t, "subtotal", "Total For Assets"),
+        one(&["$3,900.00", "€500.00", "Fr.800.00"])
+    );
     assert!(total["cells"][0].get("account").is_none() && total["cells"][1].get("link").is_none());
     assert_eq!(amounts(t, "subtotal", "Total For Equity"), one(&["$2,650.00"]));
     assert_eq!(amounts(t, "total", "Total For Equity"), one(&["Fr.800.00", "$4,370.00"]));
@@ -438,21 +563,35 @@ fn zero_balances_hidden_and_omitted_in_both_modes() {
     let result = s.run(BALSHEET, &options);
     assert_eq!(result["title"], "Balance Sheet (Multicolumn) 2024-01-01 to 2024-03-15");
     let t = tables(&result)[0];
-    assert_eq!(amounts(t, "heading", "Date"), cols(&[&["2024-01-01"], &["2024-02-01"], &["2024-03-01"], &["2024-03-15"]]));
+    assert_eq!(
+        amounts(t, "heading", "Date"),
+        cols(&[&["2024-01-01"], &["2024-02-01"], &["2024-03-01"], &["2024-03-15"]])
+    );
     assert!(!labels(t).contains(&"Assets:Savings".to_owned()));
     assert!(row(t, "account", "Assets:Checking").get("depth").is_none());
     // Salary on 2024-01-31; Rent and Groceries in February.
     assert_eq!(
         amounts(t, "data", "Retained Earnings"),
-        cols(&[&["Fr.800.00"], &["Fr.800.00", "$3,000.00"], &["Fr.800.00", "$1,720.00"], &["Fr.800.00", "$1,720.00"]])
+        cols(&[
+            &["Fr.800.00"],
+            &["Fr.800.00", "$3,000.00"],
+            &["Fr.800.00", "$1,720.00"],
+            &["Fr.800.00", "$1,720.00"]
+        ])
     );
-    let multilevel = s.run(BALSHEET, &json!({
-        "General": { "End Date": { "absolute": "2024-03-15" }, "Enable dual columns": false },
-        "Display": { "Include accounts with zero total balances": false, "Omit zero balance figures": true,
-                     "Parent account amounts include children": false },
-    }));
+    let multilevel = s.run(
+        BALSHEET,
+        &json!({
+            "General": { "End Date": { "absolute": "2024-03-15" }, "Enable dual columns": false },
+            "Display": { "Include accounts with zero total balances": false, "Omit zero balance figures": true,
+                         "Parent account amounts include children": false },
+        }),
+    );
     let t = tables(&multilevel)[0];
-    assert!(row(t, "account", "Assets")["cells"][1].is_null(), "the parent is shown, its $0.00 omitted");
+    assert!(
+        row(t, "account", "Assets")["cells"][1].is_null(),
+        "the parent is shown, its $0.00 omitted"
+    );
     assert!(!labels(t).contains(&"Savings".to_owned()));
 }
 
@@ -463,22 +602,53 @@ fn zero_balances_hidden_and_omitted_in_both_modes() {
 #[test]
 fn levels_labels_and_totals() {
     let mut s = extras();
-    let result = s.run(BALSHEET, &json!({
-        "General": { "End Date": { "absolute": "2024-03-15" }, "Enable dual columns": false },
-        "Accounts": { "Levels of Subaccounts": 1 },
-        "Display": { "Label sections": false, "Include totals": false, "Display accounts as hyperlinks": false },
-        "Commodities": { "Common Currency": true, "Report's currency": "CURRENCY::USD" },
-    }));
+    let result = s.run(
+        BALSHEET,
+        &json!({
+            "General": { "End Date": { "absolute": "2024-03-15" }, "Enable dual columns": false },
+            "Accounts": { "Levels of Subaccounts": 1 },
+            "Display": { "Label sections": false, "Include totals": false, "Display accounts as hyperlinks": false },
+            "Commodities": { "Common Currency": true, "Report's currency": "CURRENCY::USD" },
+        }),
+    );
     let t = tables(&result)[0];
     // A spacer closes each of the five sections, the total and rates sections included (BP:607).
-    assert_eq!(labels(t), ["Assets", "", "Liabilities", "", "Equity", "Unrealized Gains", "Retained Earnings", "", "", ""]);
+    assert_eq!(
+        labels(t),
+        [
+            "Assets",
+            "",
+            "Liabilities",
+            "",
+            "Equity",
+            "Unrealized Gains",
+            "Retained Earnings",
+            "",
+            "",
+            ""
+        ]
+    );
     assert_eq!(amounts(t, "account", "Assets"), one(&["$4,500.00", "Fr.800.00"]));
     let pnl = s.run(PNL, &json!({
         "General": { "Start Date": { "absolute": "2024-01-01" }, "End Date": { "absolute": "2024-03-15" }, "Enable dual columns": false },
         "Display": { "Label sections": false, "Include totals": false },
     }));
     let t = tables(&pnl)[0];
-    assert_eq!(labels(t), ["Income", "Consulting CHF", "Salary", "", "Expenses", "Groceries", "Rent", "", "Total For Net Income", ""]);
+    assert_eq!(
+        labels(t),
+        [
+            "Income",
+            "Consulting CHF",
+            "Salary",
+            "",
+            "Expenses",
+            "Groceries",
+            "Rent",
+            "",
+            "Total For Net Income",
+            ""
+        ]
+    );
     assert_eq!(amounts(t, "grandTotal", "Total For Net Income"), one(&["Fr.0.00", "$1,720.00"]));
 }
 
@@ -503,24 +673,46 @@ fn a_common_currency_converts_what_has_a_price() {
     assert_eq!((all[0]["kind"].clone(), all[0]["text"].clone()), (json!("text"), json!("Barchart")));
     let link = &all[0]["link"]["report"];
     assert_eq!(link["template"], "cbba1696c8c24744848062c7f1cf4a72");
-    let want_accounts = json!([SWISS, "a0000000000000000000000000000003", EURO, CHECKING, ASSETS, "a0000000000000000000000000000006",
-                               "a0000000000000000000000000000007"]);
+    let want_accounts = json!([
+        SWISS,
+        "a0000000000000000000000000000003",
+        EURO,
+        CHECKING,
+        ASSETS,
+        "a0000000000000000000000000000006",
+        "a0000000000000000000000000000007"
+    ]);
     assert_eq!(link["options"]["Accounts"]["Accounts"], want_accounts);
     assert_eq!(link["options"]["General"]["Step Size"], "QuarterDelta");
     assert_eq!(link["options"]["General"]["Price Source"], "pricedb-nearest");
     assert_eq!(link["options"]["General"]["Report's currency"], "CURRENCY::USD");
-    assert_eq!(link["options"]["General"]["Start Date"], json!({ "absolute": "2023-12-31T23:59:59Z" }));
-    assert_eq!(link["options"]["General"]["Report name"], "Balance Sheet (Multicolumn)", "linked reports take this report's name");
+    assert_eq!(
+        link["options"]["General"]["Start Date"],
+        json!({ "absolute": "2023-12-31T23:59:59Z" })
+    );
+    assert_eq!(
+        link["options"]["General"]["Report name"], "Balance Sheet (Multicolumn)",
+        "linked reports take this report's name"
+    );
     let chart = s.run(link["template"].as_str().unwrap(), &link["options"]);
     assert_eq!(blocks(&chart)[0]["kind"], "chart", "the link runs");
 
     let t = all[1];
     assert_eq!(amounts(t, "heading", "Date"), cols(&[&["2024-03-15"], &["2023-12-31"]]));
-    assert_eq!(amounts(t, "account", "Euro Account"), cols(&[&["€500.00", "$600.00"], &["€500.00", "$600.00"]]));
+    assert_eq!(
+        amounts(t, "account", "Euro Account"),
+        cols(&[&["€500.00", "$600.00"], &["€500.00", "$600.00"]])
+    );
     assert_eq!(amounts(t, "account", "Swiss Account"), cols(&[&["Fr.800.00"], &["Fr.800.00"]]));
     assert_eq!(amounts(t, "data", "Unrealized Gains"), cols(&[&["$50.00"], &["$50.00"]]));
-    assert_eq!(amounts(t, "data", "Retained Earnings"), cols(&[&["Fr.800.00", "$1,720.00"], &["Fr.800.00", "$0.00"]]));
-    assert_eq!(amounts(t, "total", "Total For Asset"), cols(&[&["$4,500.00", "Fr.800.00"], &["$2,850.00", "Fr.800.00"]]));
+    assert_eq!(
+        amounts(t, "data", "Retained Earnings"),
+        cols(&[&["Fr.800.00", "$1,720.00"], &["Fr.800.00", "$0.00"]])
+    );
+    assert_eq!(
+        amounts(t, "total", "Total For Asset"),
+        cols(&[&["$4,500.00", "Fr.800.00"], &["$2,850.00", "Fr.800.00"]])
+    );
     assert_eq!(
         amounts(t, "grandTotal", "Total For Liability and Equity"),
         cols(&[&["Fr.800.00", "$4,500.00"], &["Fr.800.00", "$2,850.00"]])
@@ -528,7 +720,9 @@ fn a_common_currency_converts_what_has_a_price() {
     assert_eq!(amounts(t, "data", "Fr.1.00"), cols(&[&["$ missing"], &["$ missing"]]));
     assert_eq!(amounts(t, "data", "€1.00"), cols(&[&["$1.20"], &["$1.20"]]));
     let html = s.export(BALSHEET, &options);
-    ["$ missing", "$1.20", "$600.00", "$50.00", "Barchart"].iter().for_each(|w| assert!(html.contains(w), "{w}"));
+    ["$ missing", "$1.20", "$600.00", "$50.00", "Barchart"]
+        .iter()
+        .for_each(|w| assert!(html.contains(w), "{w}"));
 
     // Without CHF the income has a price, and the retained earnings are one converted figure.
     let no_chf = json!({
@@ -548,23 +742,30 @@ fn a_common_currency_converts_what_has_a_price() {
 #[test]
 fn each_price_source() {
     let mut s = extras();
-    [("pricedb-nearest", "$600.00", "$1.20"), ("pricedb-before", "$550.00", "$1.10"), ("pricedb-latest", "$600.00", "$1.20"),
-     ("average-cost", "$550.00", "$1.10"), ("weighted-average", "$550.00", "$1.10")]
-        .iter()
-        .for_each(|(source, amount, rate)| {
-            let options = |orig: bool| json!({
+    [
+        ("pricedb-nearest", "$600.00", "$1.20"),
+        ("pricedb-before", "$550.00", "$1.10"),
+        ("pricedb-latest", "$600.00", "$1.20"),
+        ("average-cost", "$550.00", "$1.10"),
+        ("weighted-average", "$550.00", "$1.10"),
+    ]
+    .iter()
+    .for_each(|(source, amount, rate)| {
+        let options = |orig: bool| {
+            json!({
                 "General": { "End Date": { "absolute": "2023-12-31" }, "Enable dual columns": false },
                 "Accounts": { "Accounts": [EURO] },
                 "Commodities": { "Common Currency": true, "Report's currency": "CURRENCY::USD", "Price Source": source,
                                  "Show original currency amount": orig },
-            });
-            let result = s.run(BALSHEET, &options(true));
-            let t = tables(&result)[0];
-            assert_eq!(amounts(t, "account", "Euro Account"), one(&["€500.00", amount]), "{source}");
-            assert_eq!(amounts(t, "data", "€1.00"), one(&[rate]), "{source}");
-            let t = s.run(BALSHEET, &options(false));
-            assert_eq!(amounts(tables(&t)[0], "account", "Euro Account"), one(&[amount]), "{source}");
-        });
+            })
+        };
+        let result = s.run(BALSHEET, &options(true));
+        let t = tables(&result)[0];
+        assert_eq!(amounts(t, "account", "Euro Account"), one(&["€500.00", amount]), "{source}");
+        assert_eq!(amounts(t, "data", "€1.00"), one(&[rate]), "{source}");
+        let t = s.run(BALSHEET, &options(false));
+        assert_eq!(amounts(tables(&t)[0], "account", "Euro Account"), one(&[amount]), "{source}");
+    });
 }
 
 /// Under "pricedb-latest" every P&L column's price date is now (BP:744), so each header ends today, 2024-03-15, and
@@ -607,12 +808,16 @@ fn pricedb_latest_ends_every_pnl_column_today() {
 #[test]
 fn transaction_report_and_chart_links() {
     let mut s = extras();
-    let year = json!({ "Start Date": { "absolute": "2023-01-01" }, "End Date": { "absolute": "2023-12-31" }, "Enable dual columns": false });
+    let year =
+        json!({ "Start Date": { "absolute": "2023-01-01" }, "End Date": { "absolute": "2023-12-31" }, "Enable dual columns": false });
     let result = s.run(PNL, &json!({ "General": year }));
     let t = tables(&result)[0];
     let link = &row(t, "account", "Income")["cells"][1]["link"]["report"]["options"];
     assert_eq!(link["Accounts"]["Accounts"], json!([INCOME, SALARY, CONSULTING]));
-    assert_eq!(link["Currency"], json!({ "Show original currency amount": false, "Common Currency": false, "Report's currency": "CURRENCY::USD" }));
+    assert_eq!(
+        link["Currency"],
+        json!({ "Show original currency amount": false, "Common Currency": false, "Report's currency": "CURRENCY::USD" })
+    );
     assert_eq!(link["General"]["End Date"], json!({ "absolute": "2023-12-31T23:59:59Z" }));
 
     let tie = |first: &str, second: &str| {
@@ -620,22 +825,27 @@ fn transaction_report_and_chart_links() {
         general["Enable chart"] = json!(true);
         json!({ "General": general, "Accounts": { "Accounts": [first, second] } })
     };
-    [(CONSULTING, SALARY, "CURRENCY::CHF"), (SALARY, CONSULTING, "CURRENCY::USD")].iter().for_each(|(a, b, want)| {
-        let result = s.run(PNL, &tie(a, b));
-        let chart = &blocks(&result)[0]["link"]["report"];
-        assert_eq!(chart["template"], "80769921e87943adade887b9835a7685");
-        assert_eq!(chart["options"]["General"]["Report's currency"], *want);
-        assert_eq!(chart["options"]["General"]["Step Size"], "MonthDelta");
-        let run = s.run(chart["template"].as_str().unwrap(), &chart["options"]);
-        assert_eq!(blocks(&run)[0]["kind"], "chart");
-        let trep = &row(tables(&result)[0], "account", "Salary")["cells"][1]["link"]["report"]["options"];
-        assert_eq!(trep["Currency"]["Report's currency"], *want);
-    });
+    [(CONSULTING, SALARY, "CURRENCY::CHF"), (SALARY, CONSULTING, "CURRENCY::USD")]
+        .iter()
+        .for_each(|(a, b, want)| {
+            let result = s.run(PNL, &tie(a, b));
+            let chart = &blocks(&result)[0]["link"]["report"];
+            assert_eq!(chart["template"], "80769921e87943adade887b9835a7685");
+            assert_eq!(chart["options"]["General"]["Report's currency"], *want);
+            assert_eq!(chart["options"]["General"]["Step Size"], "MonthDelta");
+            let run = s.run(chart["template"].as_str().unwrap(), &chart["options"]);
+            assert_eq!(blocks(&run)[0]["kind"], "chart");
+            let trep = &row(tables(&result)[0], "account", "Salary")["cells"][1]["link"]["report"]["options"];
+            assert_eq!(trep["Currency"]["Report's currency"], *want);
+        });
 
-    let plain = s.run(PNL, &json!({
-        "General": year,
-        "Display": { "Display amounts as hyperlinks": false, "Display accounts as hyperlinks": false },
-    }));
+    let plain = s.run(
+        PNL,
+        &json!({
+            "General": year,
+            "Display": { "Display amounts as hyperlinks": false, "Display accounts as hyperlinks": false },
+        }),
+    );
     let t = tables(&plain)[0];
     let salary = row(t, "account", "Salary");
     assert!(salary["cells"][0].get("account").is_none() && salary["cells"][1].get("link").is_none());
@@ -679,8 +889,14 @@ fn periods_and_the_overall_column() {
     let t = tables(&weekly)[0];
     assert_eq!(
         amounts(t, "heading", "Period"),
-        cols(&[&["2024-02-01 to 2024-02-07"], &["2024-02-08 to 2024-02-14"], &["2024-02-15 to 2024-02-21"], &["2024-02-22 to 2024-02-28"],
-               &["2024-02-29 to 2024-02-29"], &["2024-02-01 to 2024-02-29"]])
+        cols(&[
+            &["2024-02-01 to 2024-02-07"],
+            &["2024-02-08 to 2024-02-14"],
+            &["2024-02-15 to 2024-02-21"],
+            &["2024-02-22 to 2024-02-28"],
+            &["2024-02-29 to 2024-02-29"],
+            &["2024-02-01 to 2024-02-29"]
+        ])
     );
     assert_eq!(
         amounts(t, "total", "Total For Expense"),
@@ -706,9 +922,16 @@ fn periods_and_the_overall_column() {
     let t = tables(&yearly)[0];
     assert_eq!(
         amounts(t, "heading", "Period"),
-        cols(&[&["2023-01-01 to 2024-03-15"], &["2024-01-01 to 2024-03-15"], &["2023-01-01 to 2023-12-31"]])
+        cols(&[
+            &["2023-01-01 to 2024-03-15"],
+            &["2024-01-01 to 2024-03-15"],
+            &["2023-01-01 to 2023-12-31"]
+        ])
     );
-    assert_eq!(amounts(t, "total", "Total For Expense"), cols(&[&["$2,630.00"], &["$1,280.00"], &["$1,350.00"]]));
+    assert_eq!(
+        amounts(t, "total", "Total For Expense"),
+        cols(&[&["$2,630.00"], &["$1,280.00"], &["$1,350.00"]])
+    );
 
     let month_ends = s.run(BALSHEET, &json!({
         "General": { "Start Date": { "absolute": "2024-01-31" }, "End Date": { "absolute": "2024-03-15" }, "Period duration": "MonthDelta",
@@ -716,8 +939,14 @@ fn periods_and_the_overall_column() {
         "Accounts": { "Accounts": [CHECKING] },
     }));
     let t = tables(&month_ends)[0];
-    assert_eq!(amounts(t, "heading", "Date"), cols(&[&["2024-01-31"], &["2024-02-29"], &["2024-03-15"]]));
-    assert_eq!(amounts(t, "account", "Checking"), cols(&[&["$5,250.00"], &["$3,900.00"], &["$3,900.00"]]));
+    assert_eq!(
+        amounts(t, "heading", "Date"),
+        cols(&[&["2024-01-31"], &["2024-02-29"], &["2024-03-15"]])
+    );
+    assert_eq!(
+        amounts(t, "account", "Checking"),
+        cols(&[&["$5,250.00"], &["$3,900.00"], &["$3,900.00"]])
+    );
 }
 
 /// With trading accounts the equity section lists them instead of an unrealized gains row (BP:1040-1047): the EUR
@@ -727,10 +956,13 @@ fn periods_and_the_overall_column() {
 #[test]
 fn trading_accounts_replace_unrealized_gains() {
     let mut s = Setup::fixture("balsheet-pnl-extras-trading.gnucash", &test_settings("iso"));
-    let result = s.run(BALSHEET, &json!({
-        "General": { "End Date": { "absolute": "2024-03-15" }, "Enable dual columns": false },
-        "Commodities": { "Common Currency": true, "Report's currency": "CURRENCY::USD" },
-    }));
+    let result = s.run(
+        BALSHEET,
+        &json!({
+            "General": { "End Date": { "absolute": "2024-03-15" }, "Enable dual columns": false },
+            "Commodities": { "Common Currency": true, "Report's currency": "CURRENCY::USD" },
+        }),
+    );
     let t = tables(&result)[0];
     assert_eq!(t["columns"][1]["levels"], 4);
     assert!(!labels(t).contains(&"Unrealized Gains".to_owned()));
@@ -739,7 +971,10 @@ fn trading_accounts_replace_unrealized_gains() {
     assert_eq!(amounts(t, "account", "EUR"), one(&["€500.00", "$600.00"]));
     assert_eq!(amounts(t, "account", "USD"), one(&["-$550.00"]));
     assert_eq!(amounts(t, "total", "Total For Equity"), one(&["Fr.800.00", "$4,420.00"]));
-    assert_eq!(amounts(t, "grandTotal", "Total For Liability and Equity"), one(&["Fr.800.00", "$4,500.00"]));
+    assert_eq!(
+        amounts(t, "grandTotal", "Total For Liability and Equity"),
+        one(&["Fr.800.00", "$4,500.00"])
+    );
     assert_eq!(amounts(t, "total", "Total For Asset"), one(&["$4,500.00", "Fr.800.00"]));
 }
 
@@ -750,7 +985,12 @@ fn a_run_changes_nothing() {
     let settings = test_settings("iso");
     let books = ["balsheet-pnl-extras.gnucash", "balsheet-pnl-extras-trading.gnucash"]
         .iter()
-        .flat_map(|b| [("xml", Setup::fixture(b, &settings)), ("sqlite", Setup::sqlite_fixture(b, &settings))]);
+        .flat_map(|b| {
+            [
+                ("xml", Setup::fixture(b, &settings)),
+                ("sqlite", Setup::sqlite_fixture(b, &settings)),
+            ]
+        });
     for (format, mut s) in books {
         let bytes = std::fs::read(s.book()).unwrap();
         let before = s.d.context().book().unwrap().clone();
@@ -774,4 +1014,3 @@ fn a_run_changes_nothing() {
         assert_eq!(std::fs::read(s.book()).unwrap(), bytes, "{format}: the file is unchanged");
     }
 }
-

@@ -162,7 +162,9 @@ fn expected_run(id: &str) -> &'static Value {
 fn run_expected(id: &str, line: u64) -> (Outcome, Vec<String>) {
     let run = expected_run(id);
     let check = run["checks"].as_array().unwrap().iter().find(|c| c["line"] == line).unwrap();
-    let want = check["expected"].as_array().map_or_else(Vec::new, |a| a.iter().map(|v| v.as_str().unwrap().to_owned()).collect());
+    let want = check["expected"]
+        .as_array()
+        .map_or_else(Vec::new, |a| a.iter().map(|v| v.as_str().unwrap().to_owned()).collect());
     (self::run(&options_of(run, &expected()["accounts"])), want)
 }
 
@@ -199,11 +201,16 @@ fn merge(into: &mut Value, more: &Value) {
 /// choices.
 fn declared(host: &Host) -> Vec<String> {
     let reg = registry_with(Library::builtin(), &[("test.rhai", &script("", "#{}", ""))], Limits::default());
-    let db = reg.options(reg.find(GUID).unwrap(), &host.ctx()).unwrap_or_else(|e| panic!("{e:?}"));
+    let db = reg
+        .options(reg.find(GUID).unwrap(), &host.ctx())
+        .unwrap_or_else(|e| panic!("{e:?}"));
     db.describe()
         .into_iter()
         .flat_map(|o| {
-            let head = format!("{}/{} {} {} default={} help={}", o.section, o.key, o.name, o.option_type, o.default, o.help);
+            let head = format!(
+                "{}/{} {} {} default={} help={}",
+                o.section, o.key, o.name, o.option_type, o.default, o.help
+            );
             let choices = o
                 .choices
                 .map(|cs| cs.iter().map(|c| format!("{}={}", c.key, c.label)).collect::<Vec<_>>().join(", "));
@@ -349,10 +356,13 @@ fn split_action_books_rename_the_num_options() {
     book.slots.set(OPT_NUM_SOURCE, SlotValue::String("t".into()));
     let got = declared(&Host::new(book));
     let lines = |prefix: &str| got.iter().filter(|l| l.contains(prefix)).cloned().collect::<Vec<_>>();
-    assert_eq!(lines("Display/b"), [
-        "Display/b Num/Action boolean default=true help=Display the check number?",
-        "Display/b2 Trans Number boolean default=false help=Display the trans number?",
-    ]);
+    assert_eq!(
+        lines("Display/b"),
+        [
+            "Display/b Num/Action boolean default=true help=Display the check number?",
+            "Display/b2 Trans Number boolean default=false help=Display the trans number?",
+        ]
+    );
     assert_eq!(lines("number=Number/Action, t-number").len(), 2, "{got:#?}");
 }
 
@@ -360,7 +370,10 @@ fn split_action_books_rename_the_num_options() {
 #[test]
 fn the_default_options_select_no_account() {
     let o = run(&json!({}));
-    assert_eq!(o.warning.as_deref(), Some("No accounts selected|This report requires accounts to be selected in the report options."));
+    assert_eq!(
+        o.warning.as_deref(),
+        Some("No accounts selected|This report requires accounts to be selected in the report options.")
+    );
     assert_eq!(o.export_error.as_deref(), Some("No accounts, or regexp error"));
     assert!(o.splits.is_empty() && o.total.is_none(), "{o:?}");
 }
@@ -417,13 +430,15 @@ fn filters_that_leave_nothing_give_a_warning() {
     let (o, want) = run_expected("accounts filter expen.es", 307);
     assert!(want.is_empty());
     assert!(o.warning.unwrap().starts_with("No accounts selected|"));
-    [("transaction filter not.s?", 344), ("multiline, filtered out", 569)].into_iter().for_each(|(id, line)| {
-        let (o, want) = run_expected(id, line);
-        assert!(want.is_empty());
-        assert_eq!(o.warning.as_deref(), Some(no_match), "{id}");
-        assert_eq!(o.export_error.as_deref(), Some("No splits found"), "{id}");
-        assert_eq!(o.splits.len(), 0, "{id}");
-    });
+    [("transaction filter not.s?", 344), ("multiline, filtered out", 569)]
+        .into_iter()
+        .for_each(|(id, line)| {
+            let (o, want) = run_expected(id, line);
+            assert!(want.is_empty());
+            assert_eq!(o.warning.as_deref(), Some(no_match), "{id}");
+            assert_eq!(o.export_error.as_deref(), Some("No splits found"), "{id}");
+            assert_eq!(o.splits.len(), 0, "{id}");
+        });
 }
 
 /// TT:709-767: the order of Bank's 1969-1970 splits under each primary key, as the cells TT reads show them (empty
@@ -434,7 +449,12 @@ fn each_sort_key_orders_as_test_transaction_expects() {
     let non_empty = |v: Vec<&str>| v.into_iter().filter(|s| !s.is_empty()).map(str::to_owned).collect::<Vec<_>>();
     // The Memo/Notes cell: the memo, or the notes when the memo is empty (TE:1167-1177).
     let memo_notes = |o: &Outcome| {
-        non_empty(o.splits.iter().map(|s| if s[3].is_empty() { s[4].as_str() } else { s[3].as_str() }).collect())
+        non_empty(
+            o.splits
+                .iter()
+                .map(|s| if s[3].is_empty() { s[4].as_str() } else { s[3].as_str() })
+                .collect(),
+        )
     };
     [
         ("sorting=date", 724, 0),
@@ -473,7 +493,11 @@ fn invoices_follow_the_query_s_account_name_sort() {
     "#;
     let o = run_script(host(), &script("", "#{}", extra), &options_of(run, &expected()["accounts"]));
     let want = run["checks"][0]["expected"].as_array().unwrap();
-    let got: Vec<String> = o.extra.iter().map(|l| l.trim_start_matches("invoices=").replace(['[', ']', '"'], "")).collect();
+    let got: Vec<String> = o
+        .extra
+        .iter()
+        .map(|l| l.trim_start_matches("invoices=").replace(['[', ']', '"'], ""))
+        .collect();
     assert_eq!(got, want.iter().map(|v| v.as_str().unwrap()).collect::<Vec<_>>());
     assert_eq!(o.column(5)[..4], ["Root:A/Payable"; 4]);
 }
@@ -483,7 +507,13 @@ fn invoices_follow_the_query_s_account_name_sort() {
 /// fall to split order (TE:2541-2549); a custom sort's to the order before it, the query's split order.
 #[test]
 fn hand_worked_sort_keys_and_orders() {
-    let order = |key: &str, ord: &str| run(&sorted_by(key, ord)).descriptions().iter().map(|d| (*d).to_owned()).collect::<Vec<_>>();
+    let order = |key: &str, ord: &str| {
+        run(&sorted_by(key, ord))
+            .descriptions()
+            .iter()
+            .map(|d| (*d).to_owned())
+            .collect::<Vec<_>>()
+    };
     let all = ["desc-2", "desc-3", "desc-1", "desc-4", "desc-7"];
     assert_eq!(order("register-order", "ascend"), all);
     assert_eq!(order("none", "descend"), all);
@@ -493,10 +523,19 @@ fn hand_worked_sort_keys_and_orders() {
     // trn2 is void: its value, which the query sorts by, is 0 (TT:763-767 shows the former amount).
     assert_eq!(order("amount", "descend"), ["desc-3", "desc-2", "desc-1", "desc-7", "desc-4"]);
     // Never reconciled reads as date 0; trn3 and trn7 share 1 March 1970.
-    assert_eq!(order("reconciled-date", "ascend"), ["desc-2", "desc-1", "desc-4", "desc-3", "desc-7"]);
+    assert_eq!(
+        order("reconciled-date", "ascend"),
+        ["desc-2", "desc-1", "desc-4", "desc-3", "desc-7"]
+    );
     // Only Expenses has a code, EXP-001.
-    assert_eq!(order("corresponding-acc-code", "ascend"), ["desc-2", "desc-3", "desc-7", "desc-1", "desc-4"]);
-    assert_eq!(order("reconciled-status", "descend"), ["desc-1", "desc-4", "desc-3", "desc-7", "desc-2"]);
+    assert_eq!(
+        order("corresponding-acc-code", "ascend"),
+        ["desc-2", "desc-3", "desc-7", "desc-1", "desc-4"]
+    );
+    assert_eq!(
+        order("reconciled-status", "descend"),
+        ["desc-1", "desc-4", "desc-3", "desc-7", "desc-2"]
+    );
     assert_eq!(order("notes", "descend"), ["desc-2", "desc-4", "desc-7", "desc-3", "desc-1"]);
     // "None" first leaves the secondary key unused as well.
     let o = run(&bank_1969_1970(&json!({ "Filter": { "Void Transactions": "both" },
@@ -518,21 +557,36 @@ fn date_subtotals_sort_by_group() {
     // Never reconciled is January 1970 at UTC, before March: trn1 and trn4 by value descending, then trn3, trn7.
     assert_eq!(reconciled.descriptions(), ["desc-1", "desc-4", "desc-3", "desc-7"]);
     // Primary account name with a monthly secondary: whole full names compared, then months, then split order.
-    let trep: Vec<Value> = ["trep:Root.Asset.Bank", "trep:Root.Expenses", "trep:Root.Income", "trep:Root.Liabilities"]
-        .into_iter()
-        .map(account)
-        .collect();
+    let trep: Vec<Value> = [
+        "trep:Root.Asset.Bank",
+        "trep:Root.Expenses",
+        "trep:Root.Income",
+        "trep:Root.Liabilities",
+    ]
+    .into_iter()
+    .map(account)
+    .collect();
     let o = run(&json!({
         "Accounts": { "Accounts": trep },
         "General": { "Start Date": { "absolute": "1969-01-01" }, "End Date": { "absolute": "1970-12-31" } },
         "Sorting": { "Secondary Key": "date" },
     }));
     let rows: Vec<String> = o.splits.iter().map(|s| format!("{} {}", s[5], s[1])).collect();
-    assert_eq!(rows, [
-        "Root:Asset:Bank trn3", "Root:Asset:Bank trn1", "Root:Asset:Bank trn4", "Root:Asset:Bank trn7",
-        "Root:Expenses trn1", "Root:Expenses trn6", "Root:Expenses trn4", "Root:Income trn3", "Root:Liabilities trn6",
-        "Root:Liabilities trn7",
-    ]);
+    assert_eq!(
+        rows,
+        [
+            "Root:Asset:Bank trn3",
+            "Root:Asset:Bank trn1",
+            "Root:Asset:Bank trn4",
+            "Root:Asset:Bank trn7",
+            "Root:Expenses trn1",
+            "Root:Expenses trn6",
+            "Root:Expenses trn4",
+            "Root:Income trn3",
+            "Root:Liabilities trn6",
+            "Root:Liabilities trn7",
+        ]
+    );
 }
 
 /// The other date sources (TE:2566-2578): under "Reconciled Date" only a reconciled split is checked against the
@@ -561,8 +615,10 @@ fn date_filters_on_reconcile_and_entered_dates() {
 #[test]
 fn bad_regular_expressions_give_warnings() {
     let filter = |more: Value| run(&bank_1969_1970(&json!({ "Filter": more })));
-    let o = filter(json!({ "Account Name Filter": "Bank(", "Use regular expressions for account name filter": true,
-                           "Account Name Filter excludes matched strings": true }));
+    let o = filter(
+        json!({ "Account Name Filter": "Bank(", "Use regular expressions for account name filter": true,
+                           "Account Name Filter excludes matched strings": true }),
+    );
     assert_eq!(o.warning.as_deref(), Some("Error invalid-account-regex|"));
     assert_eq!(o.export_error.as_deref(), Some("No accounts, or regexp error"));
     let o = filter(json!({ "Account Name Filter": "Bank(", "Use regular expressions for account name filter": true }));
@@ -575,14 +631,22 @@ fn bad_regular_expressions_give_warnings() {
 /// By… looks only at a split's other splits (TE:2491-2499); the transaction filter reads notes and memos too.
 #[test]
 fn hand_worked_filters() {
-    let o = run(&bank_1969_1970(&json!({ "Filter": { "Reconciled Status": "unreconciled", "Void Transactions": "void-only" } })));
+    let o = run(&bank_1969_1970(
+        &json!({ "Filter": { "Reconciled Status": "unreconciled", "Void Transactions": "void-only" } }),
+    ));
     assert!(o.splits.is_empty() && o.warning.unwrap().starts_with("No matching transactions found|"));
     let bank = account("trep:Root.Asset.Bank");
-    let o = run(&bank_1969_1970(&json!({ "Accounts": { "Filter By…": [bank], "Filter Type": "include" } })));
+    let o = run(&bank_1969_1970(
+        &json!({ "Accounts": { "Filter By…": [bank], "Filter Type": "include" } }),
+    ));
     assert!(o.splits.is_empty(), "{o:?}");
-    let o = run(&bank_1969_1970(&json!({ "Accounts": { "Filter By…": [account("trep:Root.Expenses")], "Filter Type": "include" } })));
+    let o = run(&bank_1969_1970(
+        &json!({ "Accounts": { "Filter By…": [account("trep:Root.Expenses")], "Filter Type": "include" } }),
+    ));
     assert_eq!(o.descriptions(), ["desc-1", "desc-4"]);
-    let o = run(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "MEMO-", "Transaction Filter is case insensitive": true } })));
+    let o = run(&bank_1969_1970(
+        &json!({ "Filter": { "Transaction Filter": "MEMO-", "Transaction Filter is case insensitive": true } }),
+    ));
     assert_eq!(o.descriptions(), ["desc-1", "desc-4", "desc-7"]);
     let o = run(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "^notes[12]$",
         "Use regular expressions for transaction filter": true, "Transaction Filter excludes matched strings": true } })));
@@ -614,7 +678,11 @@ fn hooks_and_unique_transactions() {
         run_script(host(), &script(opts, "#{}", ""), &o).column(5).len()
     };
     assert_eq!((two(""), two(unique)), (7, 5));
-    let reg = registry_with(Library::builtin(), &[("test.rhai", &script("", "#{ split_filter: 1 }", ""))], Limits::default());
+    let reg = registry_with(
+        Library::builtin(),
+        &[("test.rhai", &script("", "#{ split_filter: 1 }", ""))],
+        Limits::default(),
+    );
     let err = host().run(&reg, GUID, &options).unwrap_err();
     assert!(format!("{err:?}").contains("unknown trep-renderer hook split_filter"), "{err:?}");
 }
@@ -645,32 +713,51 @@ fn parameters_and_key_functions() {
     let options = bank_1969_1970(&json!({ "Display": { "Sign Reverses": "none", "Running Totals": "sub" },
                                           "Sorting": { "Secondary Key": "date" } }));
     let o = run_script(host(), &script("", "#{}", extra), &options);
-    check(&o.extra, &[
-        "bal-bf=true table=false only=false signs=true common=false matched=1 single=false",
-        "primary=#{\"date_subtotal\": (), \"key\": \"account-name\", \"split_action\": false} secondary=#{\"date_subtotal\": \
+    check(
+        &o.extra,
+        &[
+            "bal-bf=true table=false only=false signs=true common=false matched=1 single=false",
+            "primary=#{\"date_subtotal\": (), \"key\": \"account-name\", \"split_action\": false} secondary=#{\"date_subtotal\": \
          \"monthly\", \"key\": \"date\", \"split_action\": false} running=true/true/false",
-        "render=Root:Asset:Bank value=Root:Asset:Bank",
-        "daily=984865 12/31/69",
-        "weekly=-1 12/28/69 to 01/03/70",
-        "monthly=196912 December 1969",
-        "quarterly=19694 Q4 1969",
-        "yearly=1969 1969",
-        "reconciled-status=4 Cleared",
-        "corresponding-acc-name=Root:Income Root:Income",
-        "description=desc-3 desc-3",
-        "date=-46860 ",
-        "amount=29 ",
-    ]);
-    let o = run_script(host(), &script("", "#{}", extra), &bank_1969_1970(&json!({
+            "render=Root:Asset:Bank value=Root:Asset:Bank",
+            "daily=984865 12/31/69",
+            "weekly=-1 12/28/69 to 01/03/70",
+            "monthly=196912 December 1969",
+            "quarterly=19694 Q4 1969",
+            "yearly=1969 1969",
+            "reconciled-status=4 Cleared",
+            "corresponding-acc-name=Root:Income Root:Income",
+            "description=desc-3 desc-3",
+            "date=-46860 ",
+            "amount=29 ",
+        ],
+    );
+    let o = run_script(
+        host(),
+        &script("", "#{}", extra),
+        &bank_1969_1970(&json!({
         "Filter": { "Transaction Filter": "desc" }, "Display": { "Subtotal Table": true, "Amount": "single" },
-        "Currency": { "Common Currency": true }, "Sorting": { "Show subtotals only (hide transactional data)": true } })));
-    assert_eq!(o.extra[0], "bal-bf=false table=true only=true signs=global common=CURRENCY::USD matched=1 single=true");
+        "Currency": { "Common Currency": true }, "Sorting": { "Show subtotals only (hide transactional data)": true } })),
+    );
+    assert_eq!(
+        o.extra[0],
+        "bal-bf=false table=true only=true signs=global common=CURRENCY::USD matched=1 single=true"
+    );
     // The Subtotal Table reads the Primary Subtotal option (TE:2281-2287); without it, and without a secondary
     // subtotal, no key has a renderer.
-    let o = run_script(host(), &script("", "#{}", extra), &bank_1969_1970(&json!({
-        "Display": { "Subtotal Table": true }, "Sorting": { "Primary Subtotal": false } })));
-    assert_eq!(o.extra, ["bal-bf=false table=false only=false signs=global common=false matched=1 single=false",
-                         "primary= secondary= running=false/false/false"]);
+    let o = run_script(
+        host(),
+        &script("", "#{}", extra),
+        &bank_1969_1970(&json!({
+        "Display": { "Subtotal Table": true }, "Sorting": { "Primary Subtotal": false } })),
+    );
+    assert_eq!(
+        o.extra,
+        [
+            "bal-bf=false table=false only=false signs=global common=false matched=1 single=false",
+            "primary= secondary= running=false/false/false"
+        ]
+    );
 }
 
 /// A smoke run on SQLite (`fixtures/sqlite/reports/reconcile.gnucash`, GnuCash's SQLite copy of the reconcile book;
@@ -687,13 +774,26 @@ fn the_reconcile_book_reads_the_same_on_sqlite() {
     });
     let dir = tempfile::tempdir().unwrap();
     let copy = dir.path().join("reconcile.gnucash");
-    std::fs::copy(format!("{}/../../fixtures/sqlite/reports/reconcile.gnucash", env!("CARGO_MANIFEST_DIR")), &copy).unwrap();
+    std::fs::copy(
+        format!("{}/../../fixtures/sqlite/reports/reconcile.gnucash", env!("CARGO_MANIFEST_DIR")),
+        &copy,
+    )
+    .unwrap();
     let (sqlite, _, _) = red_ale_sql::open_read_only(&copy).unwrap();
     let [xml, sql] = [fixture("reconcile.gnucash"), sqlite].map(|book| {
         let o = run_script(&Host::new(book), &script("", "#{}", ""), &options);
         o.splits.iter().map(|s| format!("{} {} {}", s[8], s[1], s[7])).collect::<Vec<_>>()
     });
-    assert_eq!(xml, ["y trn7 -$8.00", "c trn3 $29.00", "n trn1 -$5.00", "n trn6 -$11.00", "n trn4 -$15.00"]);
+    assert_eq!(
+        xml,
+        [
+            "y trn7 -$8.00",
+            "c trn3 $29.00",
+            "n trn1 -$5.00",
+            "n trn6 -$11.00",
+            "n trn4 -$15.00"
+        ]
+    );
     assert_eq!(sql, xml);
 }
 
@@ -746,7 +846,13 @@ fn shown(table: &Value) -> Vec<String> {
         }
         c => c["display"].as_str().or_else(|| c["text"].as_str()).unwrap().to_owned(),
     };
-    let head = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect::<Vec<_>>().join("|");
+    let head = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("|");
     let row = |r: &Value| r["cells"].as_array().unwrap().iter().map(cell).collect::<Vec<_>>().join("|");
     let rows = table["rows"].as_array().unwrap().iter().map(row);
     std::iter::once(head).chain(rows).collect()
@@ -762,7 +868,12 @@ fn csv_rows_are_the_grand_totals() {
     let checks = run["checks"].as_array().unwrap();
     assert!(result.get("exportError").is_none(), "{}", checks[0]["name"]);
     let rows: red_ale_report::result::ExportRows = serde_json::from_value(result["export"].clone()).unwrap();
-    assert_eq!(red_ale_report::render::csv(&rows), checks[1]["expected"].as_str().unwrap(), "{}", checks[1]["name"]);
+    assert_eq!(
+        red_ale_report::render::csv(&rows),
+        checks[1]["expected"].as_str().unwrap(),
+        "{}",
+        checks[1]["name"]
+    );
     assert_eq!(checks.len(), 2);
 }
 
@@ -774,10 +885,16 @@ fn csv_export_errors() {
     assert_eq!(error(&json!({})), "No accounts, or regexp error");
     let bank = bank_1969_1970(&json!({}));
     assert_eq!(error(&bank), "CSV disabled for double column amounts");
-    assert_eq!(error(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))), "No splits found");
+    assert_eq!(
+        error(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))),
+        "No splits found"
+    );
     let single = bank_1969_1970(&json!({ "Display": { "Amount": "single" } }));
     let rows = render_on(host(), "#{}", &single, Some("csv"))["export"].clone();
-    assert_eq!(rows, json!([["from", "1969-01-01"], ["to", "1970-12-31"], ["Amount", { "num": "1", "denom": "1" }]]));
+    assert_eq!(
+        rows,
+        json!([["from", "1969-01-01"], ["to", "1970-12-31"], ["Amount", { "num": "1", "denom": "1" }]])
+    );
     let plain = render_on(host(), "#{}", &single, None);
     assert!(plain.get("export").is_none() && plain.get("exportError").is_none(), "{plain:#}");
 }
@@ -807,8 +924,18 @@ fn custom_calculated_cells() {
     );
     let broken = r#"#{ custom_calculated_cells: |options| [#{ heading: "Broken" }] }"#;
     let result = render_on(host(), broken, &options, None);
-    assert_eq!(shown(&the_table(&result))[0], "Date|Num|Description|Memo/Notes|Transfer from/to|Debit|Credit");
-    assert!(result["log"][0]["text"].as_str().unwrap().starts_with("field calc_fn missing in cell"), "{:#}", result["log"]);
+    assert_eq!(
+        shown(&the_table(&result))[0],
+        "Date|Num|Description|Memo/Notes|Transfer from/to|Debit|Credit"
+    );
+    assert!(
+        result["log"][0]["text"]
+            .as_str()
+            .unwrap()
+            .starts_with("field calc_fn missing in cell"),
+        "{:#}",
+        result["log"]
+    );
 }
 
 /// Sign Reverses (TE:1072-1080, :2345) with the global preference reversing credit accounts: "global" and "none"
@@ -823,7 +950,10 @@ fn sign_reverses_none_reads_the_global_preference() {
             "Filter": { "Transaction Filter": "desc-[37]", "Use regular expressions for transaction filter": true },
         }));
         let rows = shown(&the_table(&render_on(host(), "#{}", &options, None)));
-        rows.iter().filter(|r| r.contains("desc-")).map(|r| r.rsplit('|').next().unwrap().to_owned()).collect::<Vec<_>>()
+        rows.iter()
+            .filter(|r| r.contains("desc-"))
+            .map(|r| r.rsplit('|').next().unwrap().to_owned())
+            .collect::<Vec<_>>()
     };
     assert_eq!(amounts("global"), ["$29.00", "-$8.00"]);
     assert_eq!(amounts("none"), ["$29.00", "-$8.00"]);
@@ -838,13 +968,21 @@ fn the_empty_report_message_follows_the_no_account_warning() {
     let kinds = |options: &Value| {
         let result = render_on(host(), hooks, options, None);
         assert_eq!(result["title"], "Test");
-        result["sections"][0]["blocks"].as_array().unwrap().iter().map(|b| b["kind"].as_str().unwrap().to_owned()).collect::<Vec<_>>()
+        result["sections"][0]["blocks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b["kind"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
     };
     assert_eq!(kinds(&json!({})), ["warning", "text"]);
     let bad_regex =
         bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "(", "Use regular expressions for transaction filter": true } }));
     assert_eq!(kinds(&bad_regex), ["warning", "text"]);
-    assert_eq!(kinds(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))), ["warning"]);
+    assert_eq!(
+        kinds(&bank_1969_1970(&json!({ "Filter": { "Transaction Filter": "nothing matches" } }))),
+        ["warning"]
+    );
     assert_eq!(kinds(&bank_1969_1970(&json!({}))), ["text", "table"]);
 }
 
@@ -873,11 +1011,25 @@ fn the_subtotal_table_shapes() {
     let mut february = json!({ "General": { "Start Date": { "absolute": "1970-02-01" } },
                                "Sorting": { "Secondary Key": "date", "Secondary Subtotal for Date Key": "monthly" } });
     merge(&mut february, &single);
-    assert_eq!(with(&february)[0], ["|February 1970|Total", "Bank|-$23.00|-$23.00", "Expenses|$15.00|$15.00",
-                                    "Total|-$8.00|-$8.00"]);
+    assert_eq!(
+        with(&february)[0],
+        [
+            "|February 1970|Total",
+            "Bank|-$23.00|-$23.00",
+            "Expenses|$15.00|$15.00",
+            "Total|-$8.00|-$8.00"
+        ]
+    );
     let double = json!({ "Sorting": { "Secondary Key": "date", "Secondary Subtotal for Date Key": "quarterly" } });
-    assert_eq!(with(&double)[0], ["|Q4 1969|Q1 1970|Total|Average", "Bank|$29.00|-$28.00|$1.00|$0.50",
-                                  "Expenses|-|$31.00|$31.00|$15.50", "Total|$29.00|$3.00|$32.00|$16.00"]);
+    assert_eq!(
+        with(&double)[0],
+        [
+            "|Q4 1969|Q1 1970|Total|Average",
+            "Bank|$29.00|-$28.00|$1.00|$0.50",
+            "Expenses|-|$31.00|$31.00|$15.50",
+            "Total|$29.00|$3.00|$32.00|$16.00"
+        ]
+    );
     let only = json!({ "Sorting": { "Show subtotals only (hide transactional data)": true } });
     assert_eq!(with(&only).len(), 1);
     // The table needs an amount column, and reads the Primary Subtotal option itself (TE:2281-2287).

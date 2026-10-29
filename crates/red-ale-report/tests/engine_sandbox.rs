@@ -245,7 +245,10 @@ fn rationals_are_exact_and_mix_with_integers() {
 #[test]
 fn growth_rates_round_to_twelve_places() {
     assert_eq!(eval("growth_rate(4, 2)").unwrap(), "1");
-    assert_eq!(eval("growth_rate(rational(\"1.1\"), rational(400, 366)).to_decimal(12)").unwrap(), "0.091124498571");
+    assert_eq!(
+        eval("growth_rate(rational(\"1.1\"), rational(400, 366)).to_decimal(12)").unwrap(),
+        "0.091124498571"
+    );
     assert_eq!(eval("calculate_cagr(100, 110, 2).to_decimal(12)").unwrap(), "0.048808848170");
     assert_eq!(
         eval("[growth_rate(-1, 1), calculate_cagr((), 100, 1), calculate_cagr(100, 110, ())].all(|v| v == ())").unwrap(),
@@ -257,7 +260,10 @@ fn growth_rates_round_to_twelve_places() {
     let body = format!("let y = rational(1); for i in 0..20000 {{ y = y / 2; }}\ngrowth_rate(1 + y, y);\n{EMPTY_RESULT}");
     let reg = registry_with(Library::from_sources([]), &[("test.rhai", &template(&body))], wide);
     let e = Host::new(empty_book()).run(&reg, GUID, &json!({})).unwrap_err();
-    assert!(matches!(&e, ReportError::Script(s) if s.message.contains("working precision")), "{e:?}");
+    assert!(
+        matches!(&e, ReportError::Script(s) if s.message.contains("working precision")),
+        "{e:?}"
+    );
 }
 
 #[test]

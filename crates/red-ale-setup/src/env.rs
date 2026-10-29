@@ -51,15 +51,27 @@ impl Probe for SystemProbe {
             running_in_proc(names)
         } else {
             names.iter().any(|name| {
-                let status = Command::new("pgrep").args(["-x", name]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+                let status = Command::new("pgrep")
+                    .args(["-x", name])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
                 status.is_ok_and(|s| s.success())
             })
         }
     }
 
     fn output(&self, program: &Path, args: &[&str]) -> Option<String> {
-        let output = Command::new(program).args(args).stdin(Stdio::null()).stderr(Stdio::null()).output().ok()?;
-        output.status.success().then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        let output = Command::new(program)
+            .args(args)
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .output()
+            .ok()?;
+        output
+            .status
+            .success()
+            .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
     }
 }
 
@@ -84,7 +96,11 @@ pub struct Env {
 
 impl std::fmt::Debug for Env {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Env").field("vars", &self.vars).field("os", &self.os).field("root", &self.root).finish_non_exhaustive()
+        f.debug_struct("Env")
+            .field("vars", &self.vars)
+            .field("os", &self.os)
+            .field("root", &self.root)
+            .finish_non_exhaustive()
     }
 }
 
@@ -128,7 +144,8 @@ impl Env {
 
     /// `$XDG_CONFIG_HOME`, else `~/.config`.
     pub(crate) fn xdg_config(&self) -> Result<PathBuf, Error> {
-        self.path_var("XDG_CONFIG_HOME").map_or_else(|| Ok(self.home()?.join(".config")), Ok)
+        self.path_var("XDG_CONFIG_HOME")
+            .map_or_else(|| Ok(self.home()?.join(".config")), Ok)
     }
 
     /// Where Electron apps keep their data (`app.getPath("appData")`): the XDG config directory on Linux,
@@ -148,8 +165,16 @@ impl Env {
 
     /// Every `name` on `PATH`, in order.
     pub(crate) fn which_all(&self, name: &str) -> impl Iterator<Item = PathBuf> {
-        let file = if self.os == Os::Windows { format!("{name}.exe") } else { name.to_owned() };
-        let dirs: Vec<PathBuf> = self.vars.get("PATH").map(|p| std::env::split_paths(p).collect()).unwrap_or_default();
+        let file = if self.os == Os::Windows {
+            format!("{name}.exe")
+        } else {
+            name.to_owned()
+        };
+        let dirs: Vec<PathBuf> = self
+            .vars
+            .get("PATH")
+            .map(|p| std::env::split_paths(p).collect())
+            .unwrap_or_default();
         dirs.into_iter().map(move |dir| dir.join(&file)).filter(|p| p.is_file())
     }
 
@@ -157,7 +182,12 @@ impl Env {
     /// Its standard error, or how it exited, when it fails.
     pub(crate) fn run(&self, program: &Path, args: &[String], dir: Option<&Path>) -> Result<(), String> {
         let mut command = Command::new(program);
-        command.args(args).env_clear().envs(&self.vars).stdin(Stdio::null()).stdout(Stdio::null());
+        command
+            .args(args)
+            .env_clear()
+            .envs(&self.vars)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null());
         if let Some(dir) = dir {
             command.current_dir(dir);
         }
@@ -166,7 +196,11 @@ impl Env {
             return Ok(());
         }
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-        Err(if stderr.is_empty() { format!("it exited with {}", output.status) } else { stderr })
+        Err(if stderr.is_empty() {
+            format!("it exited with {}", output.status)
+        } else {
+            stderr
+        })
     }
 
     /// Whether any of `names` is on `PATH`.

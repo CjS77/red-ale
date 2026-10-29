@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::json::{DocError, Dialect, Document};
+use crate::json::{Dialect, DocError, Document};
 use crate::{Action, Change, Entry, Error};
 
 /// Where a Harness keeps its servers and how it writes the red-ale entry.
@@ -39,7 +39,10 @@ impl Edit {
         let before = self.before.as_deref().map(String::from_utf8_lossy).unwrap_or_default();
         let name = self.path.display().to_string();
         let old = if self.before.is_some() { name.as_str() } else { "/dev/null" };
-        similar::TextDiff::from_lines(before.as_ref(), self.after.as_str()).unified_diff().header(old, &name).to_string()
+        similar::TextDiff::from_lines(before.as_ref(), self.after.as_str())
+            .unified_diff()
+            .header(old, &name)
+            .to_string()
     }
 }
 
@@ -61,7 +64,9 @@ pub(crate) fn plan(location: &Location, change: &Change) -> Result<(Action, Edit
         (None, None) => Action::Nothing,
         (Some(old), Some(new)) if old == new => Action::Nothing,
         (None, Some(_)) => Action::Add,
-        (Some(old), Some(new)) => Action::Update { diff: entry_diff(old, new) },
+        (Some(old), Some(new)) => Action::Update {
+            diff: entry_diff(old, new),
+        },
         (Some(_), None) => Action::Remove,
     };
     let edited = match &wanted {
@@ -70,7 +75,14 @@ pub(crate) fn plan(location: &Location, change: &Change) -> Result<(Action, Edit
         None => document.remove(location.keys),
     };
     edited.map_err(|e| doc_error(location, e))?;
-    Ok((action, Edit { path, before, after: document.text() }))
+    Ok((
+        action,
+        Edit {
+            path,
+            before,
+            after: document.text(),
+        },
+    ))
 }
 
 /// Read and parse the file at `location`: its resolved path, its bytes (`None` if missing) and its document.
@@ -81,8 +93,8 @@ fn read(location: &Location) -> Result<(PathBuf, Option<Vec<u8>>, Document), Err
         Err(e) if e.kind() == io::ErrorKind::NotFound => None,
         Err(source) => return Err(Error::Read { path, source }),
     };
-    let text = std::str::from_utf8(before.as_deref().unwrap_or_default())
-        .map_err(|e| doc_error(location, DocError::Parse(e.to_string())))?;
+    let text =
+        std::str::from_utf8(before.as_deref().unwrap_or_default()).map_err(|e| doc_error(location, DocError::Parse(e.to_string())))?;
     let document = Document::parse(text, location.dialect).map_err(|e| doc_error(location, e))?;
     Ok((path, before, document))
 }
@@ -95,15 +107,25 @@ fn resolve(path: &Path) -> Result<PathBuf, Error> {
             Ok(meta) if meta.is_symlink() => Err(Error::DanglingLink(path.to_path_buf())),
             _ => Ok(path.to_path_buf()),
         },
-        Err(source) => Err(Error::Read { path: path.to_path_buf(), source }),
+        Err(source) => Err(Error::Read {
+            path: path.to_path_buf(),
+            source,
+        }),
     }
 }
 
 fn doc_error(location: &Location, error: DocError) -> Error {
     let path = location.path.clone();
     match error {
-        DocError::Parse(message) => Error::Invalid { path, format: location.dialect.describe(), message },
-        DocError::NotAnObject(key) if key.is_empty() => Error::NotAnObject { path, key: "the top level".to_owned() },
+        DocError::Parse(message) => Error::Invalid {
+            path,
+            format: location.dialect.describe(),
+            message,
+        },
+        DocError::NotAnObject(key) if key.is_empty() => Error::NotAnObject {
+            path,
+            key: "the top level".to_owned(),
+        },
         DocError::NotAnObject(key) => Error::NotAnObject { path, key },
     }
 }
@@ -111,7 +133,10 @@ fn doc_error(location: &Location, error: DocError) -> Error {
 pub(crate) fn entry_diff(old: &Value, new: &Value) -> String {
     let pretty = |v: &Value| serde_json::to_string_pretty(v).map(|s| s + "\n").unwrap_or_default();
     let (old, new) = (pretty(old), pretty(new));
-    similar::TextDiff::from_lines(&old, &new).unified_diff().header("red-ale entry now", "red-ale entry after").to_string()
+    similar::TextDiff::from_lines(&old, &new)
+        .unified_diff()
+        .header("red-ale entry now", "red-ale entry after")
+        .to_string()
 }
 
 /// How a commit ended.
@@ -127,7 +152,10 @@ pub(crate) enum Committed {
 /// file is checked to be as planned and backed up. `before_rename` runs just before the rename, for tests to inject
 /// a failure there.
 pub(crate) fn commit(edit: &Edit, before_rename: &dyn Fn(&Path) -> io::Result<()>) -> Result<Committed, Error> {
-    let write_error = |source| Error::Write { path: edit.path.clone(), source };
+    let write_error = |source| Error::Write {
+        path: edit.path.clone(),
+        source,
+    };
     let dir = edit.path.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(Path::new("."));
     fs::create_dir_all(dir).map_err(write_error)?;
     let permissions = fs::metadata(&edit.path).ok().map(|m| m.permissions());
@@ -135,12 +163,21 @@ pub(crate) fn commit(edit: &Edit, before_rename: &dyn Fn(&Path) -> io::Result<()
     let now = match fs::read(&edit.path) {
         Ok(bytes) => Some(bytes),
         Err(e) if e.kind() == io::ErrorKind::NotFound => None,
-        Err(source) => return Err(Error::Read { path: edit.path.clone(), source }),
+        Err(source) => {
+            return Err(Error::Read {
+                path: edit.path.clone(),
+                source,
+            });
+        }
     };
     if now != edit.before {
         return Ok(Committed::Changed);
     }
-    let backup = edit.before.as_deref().map(|bytes| back_up(&edit.path, bytes, permissions.as_ref())).transpose()?;
+    let backup = edit
+        .before
+        .as_deref()
+        .map(|bytes| back_up(&edit.path, bytes, permissions.as_ref()))
+        .transpose()?;
     before_rename(&edit.path).map_err(write_error)?;
     temp.persist(&edit.path).map_err(|e| write_error(e.error))?;
     sync_dir(dir);
@@ -172,7 +209,10 @@ fn back_up(path: &Path, bytes: &[u8], permissions: Option<&Permissions>) -> Resu
         file.write_all(bytes)?;
         file.sync_all()
     };
-    write().map_err(|source| Error::Write { path: backup.clone(), source })?;
+    write().map_err(|source| Error::Write {
+        path: backup.clone(),
+        source,
+    })?;
     Ok(backup)
 }
 
@@ -203,7 +243,11 @@ mod tests {
     }
 
     fn backups(dir: &Path) -> usize {
-        fs::read_dir(dir).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().contains(".red-ale-backup-")).count()
+        fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains(".red-ale-backup-"))
+            .count()
     }
 
     #[test]
@@ -242,7 +286,9 @@ mod tests {
         fs::set_permissions(&target, Permissions::from_mode(0o640)).unwrap();
         std::os::unix::fs::symlink(&target, &link).unwrap();
         let (_, edit) = plan(&location(link.clone()), &entry()).unwrap();
-        let Committed::Written(Some(backup)) = commit(&edit, &|_| Ok(())).unwrap() else { panic!("no backup") };
+        let Committed::Written(Some(backup)) = commit(&edit, &|_| Ok(())).unwrap() else {
+            panic!("no backup")
+        };
         assert!(fs::symlink_metadata(&link).unwrap().is_symlink());
         assert!(fs::read_to_string(&target).unwrap().contains("/opt/red-ale"));
         assert_eq!(fs::read_to_string(&backup).unwrap(), "{}\n");

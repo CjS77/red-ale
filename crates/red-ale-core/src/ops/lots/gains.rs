@@ -4,11 +4,11 @@
 use std::sync::Arc;
 
 use super::ledger::{Ledger, Touched};
-use crate::ops::transactions::order::trans_order;
 use super::{edit_split, edit_txn, locate};
 use crate::account::slot_paths as acct_slots;
 use crate::lot::{account_slots, gains_source, gains_split, is_stock_split, split_slots};
 use crate::ops::commit::{commodity_fraction, round_amount, round_value, sort_splits};
+use crate::ops::transactions::order::trans_order;
 use crate::{
     Account, AccountType, Book, CommodityRef, DomainResult, Env, Guid, How, Numeric, Round, SlotValue, Split, Time64, Transaction,
 };

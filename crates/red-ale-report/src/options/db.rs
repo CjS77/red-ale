@@ -321,7 +321,11 @@ impl OptionDb {
     /// child's position from 0; nothing changes then. Values a saved configuration stores are not checked again, so a
     /// child deleted since is a warning when the report runs, not an error (`design/notes/report-statements-charts.md`,
     /// Q7).
-    pub fn check_placements(&mut self, changes: &Value, check: &dyn Fn(&Placement) -> Result<Placement, String>) -> Result<(), OptionError> {
+    pub fn check_placements(
+        &mut self,
+        changes: &Value,
+        check: &dyn Fn(&Placement) -> Result<Placement, String>,
+    ) -> Result<(), OptionError> {
         let set = |o: &ReportOption| {
             o.kind == OptionKind::ReportPlacement && changes.get(o.section()).and_then(|s| s.get(o.name())).is_some_and(|v| !v.is_null())
         };

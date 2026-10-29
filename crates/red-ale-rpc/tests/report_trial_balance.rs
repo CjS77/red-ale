@@ -52,10 +52,12 @@ fn strings(want: &[&str]) -> Vec<String> {
 /// `gnc:html-table-add-labeled-amount-line!`'s padding puts it (`5.17:gnucash/report/html-acct-table.scm:899-901`),
 /// not in the Income Statement column the Scheme names (TB:821-826) and red-ale uses.
 fn as_gnucash_lays_it_out(mut rows: Vec<Vec<String>>) -> Vec<Vec<String>> {
-    rows.iter_mut().filter(|r| r[0] == "Net Income" || r[0] == "Net Loss").for_each(|r| {
-        let (from, to) = if r[0] == "Net Income" { (7, 3) } else { (8, 4) };
-        r[to] = std::mem::take(&mut r[from]);
-    });
+    rows.iter_mut()
+        .filter(|r| r[0] == "Net Income" || r[0] == "Net Loss")
+        .for_each(|r| {
+            let (from, to) = if r[0] == "Net Income" { (7, 3) } else { (8, 4) };
+            r[to] = std::mem::take(&mut r[from]);
+        });
     rows
 }
 
@@ -65,7 +67,11 @@ fn as_gnucash_lays_it_out(mut rows: Vec<Vec<String>>) -> Vec<Vec<String>> {
 fn select(rows: &[Vec<String>], select: &Value) -> Vec<String> {
     let texts = |r: &Vec<String>| r.iter().filter(|c| !c.is_empty()).cloned().collect::<Vec<_>>();
     match (select["row"].as_i64(), select["column"].as_u64()) {
-        (None, Some(col)) => rows.iter().map(|r| r[usize::try_from(col).unwrap() - 1].clone()).filter(|c| !c.is_empty()).collect(),
+        (None, Some(col)) => rows
+            .iter()
+            .map(|r| r[usize::try_from(col).unwrap() - 1].clone())
+            .filter(|c| !c.is_empty())
+            .collect(),
         (Some(n), None) => {
             let len = i64::try_from(rows.len()).unwrap();
             texts(&rows[usize::try_from(if n < 0 { len + n } else { n - 1 }).unwrap()])
@@ -79,10 +85,18 @@ fn select(rows: &[Vec<String>], select: &Value) -> Vec<String> {
 /// `report.export`. Returns the number of checks run on each.
 fn expected_checks(book: &str) -> usize {
     let e = expected(&format!("{book}.expected.json"));
-    let runs: Vec<&Value> = e["runs"].as_array().unwrap().iter().filter(|r| r["template"] == TRIAL_BALANCE).collect();
+    let runs: Vec<&Value> = e["runs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["template"] == TRIAL_BALANCE)
+        .collect();
     let name = format!("{book}.gnucash");
     let settings = test_settings("locale");
-    for (format, mut s) in [("xml", Setup::fixture(&name, &settings)), ("sqlite", Setup::sqlite_fixture(&name, &settings))] {
+    for (format, mut s) in [
+        ("xml", Setup::fixture(&name, &settings)),
+        ("sqlite", Setup::sqlite_fixture(&name, &settings)),
+    ] {
         runs.iter().for_each(|run| {
             let options = options_param(run);
             let result = s.run(TRIAL_BALANCE, &options);
@@ -125,7 +139,15 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"Accounts/Accounts "a" []"#,
@@ -195,22 +217,46 @@ fn trading_accounts_have_no_row() {
     let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.20", "date": "2024-06-01" });
     s.call("price.add", price);
     let commodities = json!({ "Show Exchange Rates": true, "Price Source": "pricedb-nearest" });
-    let both = year("current", json!({ "Accounts": { "Accounts": ["Bank", "Trading EUR"] }, "Commodities": commodities }));
+    let both = year(
+        "current",
+        json!({ "Accounts": { "Accounts": ["Bank", "Trading EUR"] }, "Commodities": commodities }),
+    );
     let result = s.run(TRIAL_BALANCE, &both);
-    assert_eq!(body(&result), [strings(&["Bank", "$1,000.00", ""]), strings(&["", "$1,000.00", "$0.00"])]);
+    assert_eq!(
+        body(&result),
+        [strings(&["Bank", "$1,000.00", ""]), strings(&["", "$1,000.00", "$0.00"])]
+    );
     let rates = tables(&result)[1];
-    assert_eq!(rates["rows"][0]["cells"].as_array().unwrap().iter().flat_map(displays).collect::<Vec<_>>(), ["€1.00", "$1.20"]);
+    assert_eq!(
+        rates["rows"][0]["cells"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(displays)
+            .collect::<Vec<_>>(),
+        ["€1.00", "$1.20"]
+    );
     let only = year("current", json!({ "Accounts": { "Accounts": ["Trading EUR"] } }));
     let err = s.err("report.run", json!({ "report": TRIAL_BALANCE, "options": only }));
     assert_eq!(err.code, 3000, "report-script");
-    assert!(format!("{err} {:?}", err.data).contains("only TRADING accounts are selected"), "{err} {:?}", err.data);
+    assert!(
+        format!("{err} {:?}", err.data).contains("only TRADING accounts are selected"),
+        "{err} {:?}",
+        err.data
+    );
 }
 
 /// A trading business's year: $1,000 invested on 2024-01-02, $400 of stock bought on 2024-02-01, $700 of sales on
 /// 2024-03-01, and two "Adjusting Entries" on 2024-12-31 that move the opening stock of $400 into Income Summary and
 /// bring the closing stock of $250 back out of it.
 fn merchandising_book() -> Setup {
-    let mut s = book_with(&["Bank:BANK", "Inventory:ASSET", "Capital:EQUITY", "Income Summary:EQUITY", "Sales:INCOME"]);
+    let mut s = book_with(&[
+        "Bank:BANK",
+        "Inventory:ASSET",
+        "Capital:EQUITY",
+        "Income Summary:EQUITY",
+        "Sales:INCOME",
+    ]);
     s.transfer("2024-01-02", "Investment", "Capital", "Bank", "1000.00");
     s.transfer("2024-02-01", "Purchase", "Bank", "Inventory", "400.00");
     s.transfer("2024-03-01", "Sale", "Sales", "Bank", "700.00");
@@ -220,10 +266,13 @@ fn merchandising_book() -> Setup {
 }
 
 fn merchandising() -> Value {
-    year("work-sheet", json!({ "Merchandising": {
+    year(
+        "work-sheet",
+        json!({ "Merchandising": {
         "Gross adjustment accounts.": ["Inventory"],
         "Income summary accounts": ["Income Summary"],
-    } }))
+    } }),
+    )
 }
 
 /// The work sheet with Inventory a gross adjustment account and Income Summary an income summary account
@@ -236,12 +285,48 @@ fn merchandising() -> Value {
 fn gross_adjustments_and_income_summary_accounts() {
     let result = merchandising_book().run(TRIAL_BALANCE, &merchandising());
     let rows: Vec<Vec<String>> = [
-        ["Inventory", "$400.00", "", "$250.00", "$400.00", "$250.00", "", "", "", "$250.00", ""],
+        [
+            "Inventory",
+            "$400.00",
+            "",
+            "$250.00",
+            "$400.00",
+            "$250.00",
+            "",
+            "",
+            "",
+            "$250.00",
+            "",
+        ],
         ["Sales", "", "$700.00", "", "", "", "$700.00", "", "$700.00", "", ""],
         ["Capital", "", "$1,000.00", "", "", "", "$1,000.00", "", "", "", "$1,000.00"],
-        ["Income Summary", "", "", "$400.00", "$250.00", "$400.00", "$250.00", "$400.00", "$250.00", "", ""],
+        [
+            "Income Summary",
+            "",
+            "",
+            "$400.00",
+            "$250.00",
+            "$400.00",
+            "$250.00",
+            "$400.00",
+            "$250.00",
+            "",
+            "",
+        ],
         ["Bank", "$1,300.00", "", "", "", "$1,300.00", "", "", "", "$1,300.00", ""],
-        ["", "$1,700.00", "$1,700.00", "$650.00", "$650.00", "$1,950.00", "$1,950.00", "$400.00", "$950.00", "$1,550.00", "$1,000.00"],
+        [
+            "",
+            "$1,700.00",
+            "$1,700.00",
+            "$650.00",
+            "$650.00",
+            "$1,950.00",
+            "$1,950.00",
+            "$400.00",
+            "$950.00",
+            "$1,550.00",
+            "$1,000.00",
+        ],
         ["Net Income", "", "", "", "", "", "", "$550.00", "", "", "$550.00"],
         ["", "", "", "", "", "", "", "$950.00", "$950.00", "$1,550.00", "$1,550.00"],
     ]
@@ -250,10 +335,40 @@ fn gross_adjustments_and_income_summary_accounts() {
     .collect();
     assert_eq!(body(&result), rows);
     let table = tables(&result)[0];
-    let heading: Vec<&str> = table["rows"][0]["cells"].as_array().unwrap()[1..].iter().map(|c| c["text"].as_str().unwrap()).collect();
-    assert_eq!(heading, ["Trial Balance", "Adjustments", "Adjusted Trial Balance", "Income Statement", "Balance Sheet"]);
-    let roles: Vec<&str> = table["rows"].as_array().unwrap().iter().map(|r| r["role"].as_str().unwrap()).collect();
-    assert_eq!(roles, ["heading", "account", "account", "account", "account", "account", "total", "total", "grandTotal"]);
+    let heading: Vec<&str> = table["rows"][0]["cells"].as_array().unwrap()[1..]
+        .iter()
+        .map(|c| c["text"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        heading,
+        [
+            "Trial Balance",
+            "Adjustments",
+            "Adjusted Trial Balance",
+            "Income Statement",
+            "Balance Sheet"
+        ]
+    );
+    let roles: Vec<&str> = table["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["role"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        roles,
+        [
+            "heading",
+            "account",
+            "account",
+            "account",
+            "account",
+            "account",
+            "total",
+            "total",
+            "grandTotal"
+        ]
+    );
 }
 
 /// An income summary account with a credit balance before its adjustments takes that balance on its credit side
@@ -263,7 +378,22 @@ fn an_income_summary_account_with_a_credit_balance() {
     let mut s = merchandising_book();
     s.transfer("2023-12-01", "Opening", "Income Summary", "Bank", "100.00");
     let got = row(&s.run(TRIAL_BALANCE, &merchandising()), "Income Summary");
-    assert_eq!(got, strings(&["Income Summary", "", "$100.00", "$400.00", "$250.00", "$400.00", "$350.00", "$400.00", "$350.00", "", ""]));
+    assert_eq!(
+        got,
+        strings(&[
+            "Income Summary",
+            "",
+            "$100.00",
+            "$400.00",
+            "$250.00",
+            "$400.00",
+            "$350.00",
+            "$400.00",
+            "$350.00",
+            "",
+            ""
+        ])
+    );
 }
 
 /// A rent of $300 against $1,000 invested: debits exceed credits in the Income Statement, a Net Loss in its credit
@@ -275,17 +405,35 @@ fn net_loss_and_no_net_income() {
     let mut s = book_with(&["Bank:BANK", "Capital:EQUITY", "Rent:EXPENSE"]);
     s.transfer("2024-01-02", "Investment", "Capital", "Bank", "1000.00");
     let none = body(&s.run(TRIAL_BALANCE, &year("work-sheet", json!({}))));
-    assert_eq!(none[3..], [
-        strings(&["", "$1,000.00", "$1,000.00", "$0.00", "$0.00", "$1,000.00", "$1,000.00", "$0.00", "$0.00", "$1,000.00", "$1,000.00"]),
-        strings(&["Net Loss", "", "", "", "", "", "", "", "", "", "$0.00"]),
-        strings(&["", "", "", "", "", "", "", "$0.00", "$0.00", "$1,000.00", "$1,000.00"]),
-    ]);
+    assert_eq!(
+        none[3..],
+        [
+            strings(&[
+                "",
+                "$1,000.00",
+                "$1,000.00",
+                "$0.00",
+                "$0.00",
+                "$1,000.00",
+                "$1,000.00",
+                "$0.00",
+                "$0.00",
+                "$1,000.00",
+                "$1,000.00"
+            ]),
+            strings(&["Net Loss", "", "", "", "", "", "", "", "", "", "$0.00"]),
+            strings(&["", "", "", "", "", "", "", "$0.00", "$0.00", "$1,000.00", "$1,000.00"]),
+        ]
+    );
     s.transfer("2024-02-01", "Rent", "Bank", "Rent", "300.00");
     let loss = body(&s.run(TRIAL_BALANCE, &year("work-sheet", json!({}))));
-    assert_eq!(loss[4..], [
-        strings(&["Net Loss", "", "", "", "", "", "", "", "$300.00", "$300.00", ""]),
-        strings(&["", "", "", "", "", "", "", "$300.00", "$300.00", "$1,000.00", "$1,000.00"]),
-    ]);
+    assert_eq!(
+        loss[4..],
+        [
+            strings(&["Net Loss", "", "", "", "", "", "", "", "$300.00", "$300.00", ""]),
+            strings(&["", "", "", "", "", "", "", "$300.00", "$300.00", "$1,000.00", "$1,000.00"]),
+        ]
+    );
 }
 
 /// The patterns book: $1,000 invested on 2024-01-02, $500 of sales on 2024-03-01, $100 of rent described
@@ -313,32 +461,82 @@ fn entries(start: &str, entries: Value) -> Value {
 #[test]
 fn the_patterns_pick_the_entries() {
     let mut s = patterns_book();
-    let none = [["Sales", "", ""], ["Rent", "$100.00", ""], ["Capital", "", "$1,500.00"], ["Bank", "$1,400.00", ""]];
-    let adjusted = [["Sales", "", ""], ["Rent", "", ""], ["Capital", "", "$1,500.00"], ["Bank", "$1,500.00", ""]];
-    let closed = [["Sales", "", "$500.00"], ["Rent", "$100.00", ""], ["Capital", "", "$1,000.00"], ["Bank", "$1,400.00", ""]];
-    let twice = [["Sales", "", "$1,000.00"], ["Rent", "$100.00", ""], ["Capital", "", "$500.00"], ["Bank", "$1,400.00", ""]];
-    let all_from_february = [["Sales", "", ""], ["Rent", "", ""], ["Capital", "", "$1,000.00"], ["Bank", "$1,000.00", ""]];
+    let none = [
+        ["Sales", "", ""],
+        ["Rent", "$100.00", ""],
+        ["Capital", "", "$1,500.00"],
+        ["Bank", "$1,400.00", ""],
+    ];
+    let adjusted = [
+        ["Sales", "", ""],
+        ["Rent", "", ""],
+        ["Capital", "", "$1,500.00"],
+        ["Bank", "$1,500.00", ""],
+    ];
+    let closed = [
+        ["Sales", "", "$500.00"],
+        ["Rent", "$100.00", ""],
+        ["Capital", "", "$1,000.00"],
+        ["Bank", "$1,400.00", ""],
+    ];
+    let twice = [
+        ["Sales", "", "$1,000.00"],
+        ["Rent", "$100.00", ""],
+        ["Capital", "", "$500.00"],
+        ["Bank", "$1,400.00", ""],
+    ];
+    let all_from_february = [
+        ["Sales", "", ""],
+        ["Rent", "", ""],
+        ["Capital", "", "$1,000.00"],
+        ["Bank", "$1,000.00", ""],
+    ];
     let cases = [
         ("defaults", entries("2024-01-01", json!({})), none),
-        ("ignoring case", entries("2024-01-01", json!({ "Adjusting Entries pattern": "adj:" })), adjusted),
+        (
+            "ignoring case",
+            entries("2024-01-01", json!({ "Adjusting Entries pattern": "adj:" })),
+            adjusted,
+        ),
         (
             "case-sensitive",
-            entries("2024-01-01", json!({ "Adjusting Entries pattern": "adj:", "Adjusting Entries pattern is case-sensitive": true })),
+            entries(
+                "2024-01-01",
+                json!({ "Adjusting Entries pattern": "adj:", "Adjusting Entries pattern is case-sensitive": true }),
+            ),
             none,
         ),
         (
             "regular expression",
-            entries("2024-01-01", json!({ "Adjusting Entries pattern": "^ADJ:", "Adjusting Entries Pattern is regular expression": true })),
+            entries(
+                "2024-01-01",
+                json!({ "Adjusting Entries pattern": "^ADJ:", "Adjusting Entries Pattern is regular expression": true }),
+            ),
             adjusted,
         ),
-        ("not a regular expression", entries("2024-01-01", json!({ "Adjusting Entries pattern": "^ADJ:" })), none),
-        ("closing", entries("2024-01-01", json!({ "Closing Entries pattern": "year-end" })), closed),
+        (
+            "not a regular expression",
+            entries("2024-01-01", json!({ "Adjusting Entries pattern": "^ADJ:" })),
+            none,
+        ),
+        (
+            "closing",
+            entries("2024-01-01", json!({ "Closing Entries pattern": "year-end" })),
+            closed,
+        ),
         (
             "both",
-            entries("2024-01-01", json!({ "Closing Entries pattern": "close", "Adjusting Entries pattern": "close" })),
+            entries(
+                "2024-01-01",
+                json!({ "Closing Entries pattern": "close", "Adjusting Entries pattern": "close" }),
+            ),
             twice,
         ),
-        ("empty from February", entries("2024-02-01", json!({ "Adjusting Entries pattern": "" })), all_from_february),
+        (
+            "empty from February",
+            entries("2024-02-01", json!({ "Adjusting Entries pattern": "" })),
+            all_from_february,
+        ),
     ];
     cases.iter().for_each(|(name, options, want)| {
         let got = body(&s.run(TRIAL_BALANCE, options));
@@ -359,9 +557,15 @@ fn closing_transactions_are_closing_entries() {
         json!({ "date": "2024-12-30", "incomeTotalAccount": "Capital", "expenseTotalAccount": "Capital", "description": "Year end" });
     s.call("book.closeBooks", close);
     let got = body(&s.run(TRIAL_BALANCE, &entries("2024-01-01", json!({}))));
-    assert_eq!(got[..3], [["Sales", "", "$500.00"], ["Capital", "", "$1,000.00"], ["Bank", "$1,500.00", ""]].map(|r| strings(&r)));
+    assert_eq!(
+        got[..3],
+        [["Sales", "", "$500.00"], ["Capital", "", "$1,000.00"], ["Bank", "$1,500.00", ""]].map(|r| strings(&r))
+    );
     let current = body(&s.run(TRIAL_BALANCE, &year("current", json!({}))));
-    assert_eq!(current[..3], [["Sales", "", ""], ["Capital", "", "$1,500.00"], ["Bank", "$1,500.00", ""]].map(|r| strings(&r)));
+    assert_eq!(
+        current[..3],
+        [["Sales", "", ""], ["Capital", "", "$1,500.00"], ["Bank", "$1,500.00", ""]].map(|r| strings(&r))
+    );
 }
 
 /// The unrealized gains of GnuCash's test book after its foreign transfers, by price source (TB:473-500): the book
@@ -381,7 +585,11 @@ fn unrealized_gains_by_price_source() {
     cases.iter().for_each(|(source, want)| {
         let rows = body(&s.run(TRIAL_BALANCE, &json!({ "Commodities": { "Price Source": source } })));
         let unrealized = rows.iter().find(|r| r[0].starts_with("Unrealized"));
-        assert_eq!(unrealized.map(|r| [r[0].as_str(), r[2].as_str()]), want.map(|w| ["Unrealized Gains", w]), "{source}");
+        assert_eq!(
+            unrealized.map(|r| [r[0].as_str(), r[2].as_str()]),
+            want.map(|w| ["Unrealized Gains", w]),
+            "{source}"
+        );
     });
 }
 
@@ -395,7 +603,10 @@ fn unrealized_gains_in_the_work_sheet() {
         "Commodities": { "Price Source": "pricedb-nearest" },
     });
     let got = row(&s.run(TRIAL_BALANCE, &options), "Unrealized Gains");
-    assert_eq!(got, strings(&["Unrealized Gains", "", "$3.25", "", "", "", "$3.25", "", "", "", "$3.25"]));
+    assert_eq!(
+        got,
+        strings(&["Unrealized Gains", "", "$3.25", "", "", "", "$3.25", "", "", "", "$3.25"])
+    );
 }
 
 /// "Show Foreign Currencies" shows a foreign balance as its amount and value (TB:157-158), the absolute value on its
@@ -414,27 +625,46 @@ fn foreign_currencies_shown() {
 /// (TB:446-459), so two €1.00 balances at $1.005 are $1.00 each and $2.01 together.
 #[test]
 fn foreign_zeros_and_rounded_totals() {
-    let mut s = book_with(&["Bank:BANK", "Capital:EQUITY", "Euro A:BANK:EUR", "Euro B:BANK:EUR", "Euro C:BANK:EUR", "Euro D:BANK:EUR"]);
+    let mut s = book_with(&[
+        "Bank:BANK",
+        "Capital:EQUITY",
+        "Euro A:BANK:EUR",
+        "Euro B:BANK:EUR",
+        "Euro C:BANK:EUR",
+        "Euro D:BANK:EUR",
+    ]);
     s.transfer("2024-01-02", "Investment", "Capital", "Bank", "2.00");
     ["Euro A", "Euro B", "Euro C"].iter().for_each(|a| {
         let splits = json!([{ "account": a, "value": "1.00", "amount": "1.00" }, { "account": "Bank", "value": "-1.00" }]);
-        s.call("transaction.post", json!({ "datePosted": "2024-02-01", "currency": "CURRENCY::USD", "splits": splits }));
+        s.call(
+            "transaction.post",
+            json!({ "datePosted": "2024-02-01", "currency": "CURRENCY::USD", "splits": splits }),
+        );
     });
     let back = json!([{ "account": "Euro C", "value": "-1.00", "amount": "-1.00" }, { "account": "Bank", "value": "1.00" }]);
-    s.call("transaction.post", json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": back }));
+    s.call(
+        "transaction.post",
+        json!({ "datePosted": "2024-03-01", "currency": "CURRENCY::USD", "splits": back }),
+    );
     let price = json!({ "commodity": "CURRENCY::EUR", "currency": "CURRENCY::USD", "value": "1.005", "date": "2024-06-01" });
     s.call("price.add", price);
-    let rows = body(&s.run(TRIAL_BALANCE, &year("current", json!({ "Commodities": { "Price Source": "pricedb-nearest" } }))));
-    assert_eq!(rows, [
-        strings(&["Capital", "", "$2.00"]),
-        strings(&["Bank", "", ""]),
-        strings(&["Euro A", "$1.00", ""]),
-        strings(&["Euro B", "$1.00", ""]),
-        strings(&["Euro C", "$0.00", ""]),
-        strings(&["Euro D", "", ""]),
-        strings(&["Unrealized Gains", "", "$0.01"]),
-        strings(&["", "$2.01", "$2.01"]),
-    ]);
+    let rows = body(&s.run(
+        TRIAL_BALANCE,
+        &year("current", json!({ "Commodities": { "Price Source": "pricedb-nearest" } })),
+    ));
+    assert_eq!(
+        rows,
+        [
+            strings(&["Capital", "", "$2.00"]),
+            strings(&["Bank", "", ""]),
+            strings(&["Euro A", "$1.00", ""]),
+            strings(&["Euro B", "$1.00", ""]),
+            strings(&["Euro C", "$0.00", ""]),
+            strings(&["Euro D", "", ""]),
+            strings(&["Unrealized Gains", "", "$0.01"]),
+            strings(&["", "$2.01", "$2.01"]),
+        ]
+    );
 }
 
 /// The labels are indented by their depth among the selected accounts up to the level (TB:505-508, flattened below
@@ -454,7 +684,17 @@ fn levels_of_subaccounts() {
             .collect()
     };
     let names = [
-        "Root", "Asset", "Bank", "GBP Bank", "Wallet", "Liabilities", "Income", "Income-GBP", "Expenses", "Equity", "Unrealized Losses",
+        "Root",
+        "Asset",
+        "Bank",
+        "GBP Bank",
+        "Wallet",
+        "Liabilities",
+        "Income",
+        "Income-GBP",
+        "Expenses",
+        "Equity",
+        "Unrealized Losses",
     ];
     let with = |d: [u64; 11]| names.iter().zip(d).map(|(n, d)| ((*n).to_owned(), d)).collect::<Vec<_>>();
     assert_eq!(depths(&mut s, json!(1)), with([0; 11]));
@@ -467,7 +707,10 @@ fn levels_of_subaccounts() {
 fn hyperlinks() {
     let mut s = patterns_book();
     let label = |s: &mut Setup, links: bool| {
-        let result = s.run(TRIAL_BALANCE, &year("current", json!({ "Display": { "Display accounts as hyperlinks": links } })));
+        let result = s.run(
+            TRIAL_BALANCE,
+            &year("current", json!({ "Display": { "Display accounts as hyperlinks": links } })),
+        );
         tables(&result)[0]["rows"][0]["cells"][0].clone()
     };
     assert!(label(&mut s, true)["account"].is_string());
@@ -479,7 +722,11 @@ fn hyperlinks() {
 #[test]
 fn titles() {
     let mut s = Setup::with_config(&test_settings("iso"));
-    let text = std::fs::read_to_string(format!("{}/../../fixtures/reports/adjusting-entries.gnucash", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let text = std::fs::read_to_string(format!(
+        "{}/../../fixtures/reports/adjusting-entries.gnucash",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
     let id = "<book:id type=\"guid\">b0000000000000000000000000000000</book:id>\n";
     let slots = "<book:slots>\n  <slot>\n    <slot:key>options</slot:key>\n    <slot:value type=\"frame\">\n      <slot>\n        \
                  <slot:key>Business</slot:key>\n        <slot:value type=\"frame\">\n          <slot>\n            \

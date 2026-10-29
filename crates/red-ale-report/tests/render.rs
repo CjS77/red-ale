@@ -365,7 +365,10 @@ fn additions_render_with_links_as_data_attributes() {
     golden("additions", &html);
     assert!(html.contains("<p data-link=\"{&quot;report&quot;:"));
     assert!(html.contains("<p class=\"note\">Receipt</p>"));
-    assert!(!html.contains("receipt.pdf") && !html.contains("example.com"), "linked documents are text only");
+    assert!(
+        !html.contains("receipt.pdf") && !html.contains("example.com"),
+        "linked documents are text only"
+    );
     let list = format!(
         "<ul class=\"list\">\n<li data-account=\"{BANK}\"><span class=\"link\">Bank &lt;1&gt;</span></li>\n{}",
         "<li>Cash<br>in hand</li>\n</ul>"
@@ -377,8 +380,13 @@ fn additions_render_with_links_as_data_attributes() {
          <tr>{left}</th>{left}</th>{right}>Bank</th>{right} colspan=\"2\"></th></tr>"
     );
     assert!(html.contains(&head));
-    let invoice = |guid: &str, id: &str| format!("<span class=\"link\" data-link=\"{{&quot;invoice&quot;:&quot;{guid}&quot;}}\">{id}</span>");
-    let invoices = format!("<td class=\"text-cell\">{}<br>{}</td>", invoice(SAVINGS, "000002"), invoice(BANK, "000001"));
+    let invoice =
+        |guid: &str, id: &str| format!("<span class=\"link\" data-link=\"{{&quot;invoice&quot;:&quot;{guid}&quot;}}\">{id}</span>");
+    let invoices = format!(
+        "<td class=\"text-cell\">{}<br>{}</td>",
+        invoice(SAVINGS, "000002"),
+        invoice(BANK, "000001")
+    );
     assert!(html.contains(&invoices));
     assert!(html.contains("<td class=\"date-cell\">01/01/2024 to 12/31/2024</td>"));
     assert!(html.contains("<td class=\"total-label-cell\">L</td><td class=\"total-label-cell\">doc</td>"));
@@ -687,7 +695,10 @@ fn row_shading_warning_rows_and_tables_with_no_columns() {
     );
     assert_eq!(
         rows[4..],
-        ["<tr class=\"role-data normal-row\"></tr>", "<tr class=\"role-rule\"><td><hr></td></tr>"]
+        [
+            "<tr class=\"role-data normal-row\"></tr>",
+            "<tr class=\"role-rule\"><td><hr></td></tr>"
+        ]
     );
 }
 
@@ -717,7 +728,10 @@ fn a_grid_lays_out_its_children_in_cells() {
     let html = page(&r, None);
     check_page(&html);
     let cell = |spans: &str| format!("<td {spans} style=\"vertical-align: top\">");
-    let first = format!("<table class=\"grid\" style=\"width: 100%\">\n<tr>\n{}\n<h3>Child &lt;1&gt;</h3>", cell("rowspan=\"2\" colspan=\"1\""));
+    let first = format!(
+        "<table class=\"grid\" style=\"width: 100%\">\n<tr>\n{}\n<h3>Child &lt;1&gt;</h3>",
+        cell("rowspan=\"2\" colspan=\"1\"")
+    );
     assert!(html.contains(&first), "{html}");
     assert!(html.contains("id=\"chart-0-0-0-0-0-0\""), "a child's chart ids lie below its cell");
     assert!(html.contains("<p class=\"note\"><span class=\"link\" data-link=\"{&quot;report&quot;:"));

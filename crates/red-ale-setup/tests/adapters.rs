@@ -35,14 +35,54 @@ struct Case {
 }
 
 const CASES: [Case; 8] = [
-    Case { folder: "cursor", id: "cursor", version: None, strict: false },
-    Case { folder: "vscode", id: "vscode", version: None, strict: false },
-    Case { folder: "claude-desktop", id: "claude-desktop", version: None, strict: true },
-    Case { folder: "antigravity", id: "antigravity", version: None, strict: false },
-    Case { folder: "devin", id: "devin", version: None, strict: false },
-    Case { folder: "zed", id: "zed", version: None, strict: false },
-    Case { folder: "opencode-v1", id: "opencode", version: Some("1.19.4"), strict: false },
-    Case { folder: "opencode-v2", id: "opencode", version: Some("opencode v2.2.0"), strict: false },
+    Case {
+        folder: "cursor",
+        id: "cursor",
+        version: None,
+        strict: false,
+    },
+    Case {
+        folder: "vscode",
+        id: "vscode",
+        version: None,
+        strict: false,
+    },
+    Case {
+        folder: "claude-desktop",
+        id: "claude-desktop",
+        version: None,
+        strict: true,
+    },
+    Case {
+        folder: "antigravity",
+        id: "antigravity",
+        version: None,
+        strict: false,
+    },
+    Case {
+        folder: "devin",
+        id: "devin",
+        version: None,
+        strict: false,
+    },
+    Case {
+        folder: "zed",
+        id: "zed",
+        version: None,
+        strict: false,
+    },
+    Case {
+        folder: "opencode-v1",
+        id: "opencode",
+        version: Some("1.19.4"),
+        strict: false,
+    },
+    Case {
+        folder: "opencode-v2",
+        id: "opencode",
+        version: Some("opencode v2.2.0"),
+        strict: false,
+    },
 ];
 
 const SAMPLES: [&str; 5] = ["empty", "missing", "other", "comments", "old"];
@@ -130,15 +170,27 @@ fn adding_gives_the_golden_file_once_and_removing_gives_back_the_original() {
             let (_home, harness, env, config) = installed(case, sample);
             let original = fs::read_to_string(&config).ok();
             let expected = if sample == "old" { "update" } else { "add" };
-            assert!(matches!((add(harness.as_ref(), &env), expected), (Action::Add, "add") | (Action::Update { .. }, "update")));
+            assert!(matches!(
+                (add(harness.as_ref(), &env), expected),
+                (Action::Add, "add") | (Action::Update { .. }, "update")
+            ));
             let written = fs::read_to_string(&config).unwrap();
             check_golden(case, sample, &written);
 
             let made = backups(&config);
-            assert_eq!(made.len(), usize::from(original.is_some()), "{} on {sample}: one backup of an existing file", case.folder);
+            assert_eq!(
+                made.len(),
+                usize::from(original.is_some()),
+                "{} on {sample}: one backup of an existing file",
+                case.folder
+            );
             made.iter().for_each(|b| assert_eq!(fs::read_to_string(b).ok(), original));
 
-            assert!(matches!(add(harness.as_ref(), &env), Action::Nothing), "{} on {sample}: a second run does nothing", case.folder);
+            assert!(
+                matches!(add(harness.as_ref(), &env), Action::Nothing),
+                "{} on {sample}: a second run does nothing",
+                case.folder
+            );
             assert_eq!(fs::read_to_string(&config).unwrap(), written);
             assert_eq!(backups(&config), made, "a second run makes no backup");
 
@@ -146,7 +198,12 @@ fn adding_gives_the_golden_file_once_and_removing_gives_back_the_original() {
             let removed = fs::read_to_string(&config).unwrap();
             match (sample, original) {
                 ("missing", _) => assert_eq!(removed, "{}\n"),
-                ("old", _) => assert_eq!(removed, without_entry(case, sample), "{}: bytes outside the entry are kept", case.folder),
+                ("old", _) => assert_eq!(
+                    removed,
+                    without_entry(case, sample),
+                    "{}: bytes outside the entry are kept",
+                    case.folder
+                ),
                 (_, Some(original)) => assert_eq!(removed, original, "{} on {sample}", case.folder),
                 (_, None) => unreachable!(),
             }
@@ -157,18 +214,22 @@ fn adding_gives_the_golden_file_once_and_removing_gives_back_the_original() {
 #[test]
 fn a_file_that_does_not_parse_is_skipped_unchanged_with_no_backup() {
     CASES.iter().for_each(|case| {
-        ["{ \"mcpServers\": ", "[1, 2]\n", "{ \"mcp\": 1, \"servers\": 1, \"context_servers\": 1, \"mcpServers\": 1 }"]
-            .iter()
-            .for_each(|text| {
-                let (_home, harness, env, config) = installed(case, "empty");
-                fs::write(&config, text).unwrap();
-                let plan = harness.plan(&env, &Scope::User, &entry());
-                let refused = matches!(plan.action, Action::Skip(Error::Invalid { .. } | Error::NotAnObject { .. }));
-                assert!(refused, "{}: {:?}", case.folder, plan.action);
-                assert!(harness.apply(&env, plan).is_err());
-                assert_eq!(fs::read_to_string(&config).unwrap(), *text);
-                assert!(backups(&config).is_empty());
-            });
+        [
+            "{ \"mcpServers\": ",
+            "[1, 2]\n",
+            "{ \"mcp\": 1, \"servers\": 1, \"context_servers\": 1, \"mcpServers\": 1 }",
+        ]
+        .iter()
+        .for_each(|text| {
+            let (_home, harness, env, config) = installed(case, "empty");
+            fs::write(&config, text).unwrap();
+            let plan = harness.plan(&env, &Scope::User, &entry());
+            let refused = matches!(plan.action, Action::Skip(Error::Invalid { .. } | Error::NotAnObject { .. }));
+            assert!(refused, "{}: {:?}", case.folder, plan.action);
+            assert!(harness.apply(&env, plan).is_err());
+            assert_eq!(fs::read_to_string(&config).unwrap(), *text);
+            assert!(backups(&config).is_empty());
+        });
     });
 }
 
@@ -177,7 +238,11 @@ fn claude_desktop_takes_strict_json_only() {
     let case = &CASES[2];
     let (_home, harness, env, config) = installed(case, "comments");
     let plan = harness.plan(&env, &Scope::User, &entry());
-    assert!(matches!(plan.action, Action::Skip(Error::Invalid { format: "JSON", .. })), "{:?}", plan.action);
+    assert!(
+        matches!(plan.action, Action::Skip(Error::Invalid { format: "JSON", .. })),
+        "{:?}",
+        plan.action
+    );
     assert_eq!(fs::read(&config).unwrap(), fs::read(data("samples", case, "comments")).unwrap());
 }
 
@@ -187,7 +252,9 @@ fn claude_desktop_is_not_changed_while_it_runs() {
     let env = env(home.path(), true, None);
     let harness = harness("claude-desktop").unwrap();
     let plan = harness.plan(&env, &Scope::User, &entry());
-    let Action::Skip(reason) = &plan.action else { panic!("{:?}", plan.action) };
+    let Action::Skip(reason) = &plan.action else {
+        panic!("{:?}", plan.action)
+    };
     assert_eq!(reason.to_string(), "quit Claude Desktop and run `red-ale setup` again");
     assert!(!harness.config(&env, &Scope::User).unwrap().exists());
 }
@@ -219,7 +286,10 @@ fn the_entry_passes_a_configuration_file() {
     let cursor = harness("cursor").unwrap();
     cursor.apply(&env, cursor.plan(&env, &Scope::User, &entry)).unwrap();
     let written = cursor.read_entry(&env, &Scope::User).unwrap().unwrap();
-    assert_eq!(written, serde_json::json!({ "type": "stdio", "command": RED_ALE, "args": ["mcp", "--config", "/srv/red-ale.json"] }));
+    assert_eq!(
+        written,
+        serde_json::json!({ "type": "stdio", "command": RED_ALE, "args": ["mcp", "--config", "/srv/red-ale.json"] })
+    );
 }
 
 #[test]
@@ -236,7 +306,10 @@ fn project_scope_writes_in_the_project() {
         ("opencode", "opencode.json"),
     ];
     expected.iter().for_each(|(id, file)| {
-        assert_eq!(harness(id).unwrap().config(&env, &project).unwrap(), home.path().join("work").join(file));
+        assert_eq!(
+            harness(id).unwrap().config(&env, &project).unwrap(),
+            home.path().join("work").join(file)
+        );
     });
     let desktop = harness("claude-desktop").unwrap().plan(&env, &project, &entry());
     assert!(matches!(desktop.action, Action::Skip(Error::NoProjectScope(_))));

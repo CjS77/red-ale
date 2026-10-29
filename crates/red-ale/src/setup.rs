@@ -58,17 +58,24 @@ struct Selected {
 /// any failed, 2 when changes need `--yes` and standard input is not a terminal.
 pub fn run(args: &SetupArgs) -> Result<u8> {
     let env = Env::from_process();
-    let scope = args.project.as_ref().map_or(Ok(Scope::User), |dir| std::path::absolute(dir).map(Scope::Project))?;
+    let scope = args
+        .project
+        .as_ref()
+        .map_or(Ok(Scope::User), |dir| std::path::absolute(dir).map(Scope::Project))?;
     if args.list {
         list(&env, &scope);
         return Ok(0);
     }
     let entry = (!args.remove).then(|| entry(args.config.as_ref())).transpose()?;
     let selected = select(args);
-    let rows: Vec<(&Selected, Result<Plan, String>)> =
-        selected.iter().filter_map(|s| plan(&env, &scope, entry.as_ref(), s).map(|p| (s, p))).collect();
+    let rows: Vec<(&Selected, Result<Plan, String>)> = selected
+        .iter()
+        .filter_map(|s| plan(&env, &scope, entry.as_ref(), s).map(|p| (s, p)))
+        .collect();
     show(&rows, args.dry_run);
-    let failed = rows.iter().any(|(_, plan)| plan.as_ref().map_or(true, |p| matches!(p.action, Action::Skip(_))));
+    let failed = rows
+        .iter()
+        .any(|(_, plan)| plan.as_ref().map_or(true, |p| matches!(p.action, Action::Skip(_))));
     if args.dry_run || !rows.iter().any(|(_, plan)| plan.as_ref().is_ok_and(|p| p.action.changes())) {
         return Ok(u8::from(failed));
     }
@@ -89,7 +96,9 @@ pub fn run(args: &SetupArgs) -> Result<u8> {
 
 /// The red-ale entry for this binary.
 fn entry(config: Option<&PathBuf>) -> Result<Entry> {
-    let exe = std::env::current_exe().and_then(std::fs::canonicalize).context("finding the red-ale binary")?;
+    let exe = std::env::current_exe()
+        .and_then(std::fs::canonicalize)
+        .context("finding the red-ale binary")?;
     let config = config.map(std::path::absolute).transpose().context("finding --config")?;
     Ok(Entry::new(&exe, config.as_deref())?)
 }
@@ -99,7 +108,13 @@ fn select(args: &SetupArgs) -> Vec<Selected> {
         .iter()
         .filter(|(id, _)| args.only.is_empty() || args.only.iter().any(|o| o == id))
         .filter(|(id, _)| !args.skip.iter().any(|s| s == id))
-        .filter_map(|&(id, _)| red_ale_setup::harness(id).map(|harness| Selected { id, named: !args.only.is_empty(), harness }))
+        .filter_map(|&(id, _)| {
+            red_ale_setup::harness(id).map(|harness| Selected {
+                id,
+                named: !args.only.is_empty(),
+                harness,
+            })
+        })
         .collect()
 }
 
@@ -109,7 +124,9 @@ fn plan(env: &Env, scope: &Scope, entry: Option<&Entry>, selected: &Selected) ->
     if !harness.detect(env) {
         return selected.named.then(|| Err("not installed".to_owned()));
     }
-    Some(Ok(entry.map_or_else(|| harness.plan_removal(env, scope), |e| harness.plan(env, scope, e))))
+    Some(Ok(
+        entry.map_or_else(|| harness.plan_removal(env, scope), |e| harness.plan(env, scope, e))
+    ))
 }
 
 fn show(rows: &[(&Selected, Result<Plan, String>)], dry_run: bool) {

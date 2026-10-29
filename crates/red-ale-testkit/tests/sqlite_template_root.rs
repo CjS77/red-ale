@@ -24,9 +24,7 @@ fn rootless_book(d: &mut Dispatcher, book: &TempBook) -> String {
     });
     call(d, "book.close", &json!({ "save": true }));
     let conn = rusqlite::Connection::open(&book.path).unwrap();
-    let root: String = conn
-        .query_row("SELECT root_template_guid FROM books", [], |r| r.get(0))
-        .unwrap();
+    let root: String = conn.query_row("SELECT root_template_guid FROM books", [], |r| r.get(0)).unwrap();
     assert_eq!(conn.execute("DELETE FROM accounts WHERE guid = ?1", [&root]).unwrap(), 1);
     root
 }

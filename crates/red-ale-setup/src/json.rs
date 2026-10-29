@@ -77,7 +77,9 @@ impl Document {
     /// The object holding the servers, at `keys` under the top level, if it exists.
     fn servers(&self, keys: &[&str]) -> Result<Option<CstObject>, DocError> {
         keys.iter().enumerate().try_fold(self.top()?, |object, (depth, key)| {
-            let Some(prop) = object.and_then(|o| o.get(key)) else { return Ok(None) };
+            let Some(prop) = object.and_then(|o| o.get(key)) else {
+                return Ok(None);
+            };
             prop.value()
                 .and_then(|v| v.as_object())
                 .map(Some)
@@ -102,9 +104,14 @@ impl Document {
             *self = Self::parse(&text, self.dialect)?;
             return Ok(());
         }
-        let top = self.root.object_value_or_create().ok_or_else(|| DocError::NotAnObject(String::new()))?;
+        let top = self
+            .root
+            .object_value_or_create()
+            .ok_or_else(|| DocError::NotAnObject(String::new()))?;
         let servers = keys.iter().enumerate().try_fold(top, |object, (depth, key)| {
-            object.object_value_or_create(key).ok_or_else(|| DocError::NotAnObject(keys[..=depth].join(".")))
+            object
+                .object_value_or_create(key)
+                .ok_or_else(|| DocError::NotAnObject(keys[..=depth].join(".")))
         })?;
         match servers.get(NAME) {
             Some(prop) => prop.set_value(input(value)),
@@ -117,7 +124,9 @@ impl Document {
     /// on one line and is not empty. The syntax tree would spread such an object over several lines, changing bytes
     /// outside the entry.
     fn set_inline(&self, keys: &[&str], value: &Value) -> Option<String> {
-        let depth = (0..=keys.len()).rev().find(|&d| self.servers(&keys[..d]).ok().flatten().is_some())?;
+        let depth = (0..=keys.len())
+            .rev()
+            .find(|&d| self.servers(&keys[..d]).ok().flatten().is_some())?;
         let object = self.servers(&keys[..depth]).ok()??;
         if object.to_string().contains('\n') {
             return None;
@@ -138,7 +147,9 @@ impl Document {
     /// Remove the red-ale entry under `keys`, and then each object on the way that it leaves empty, so removing
     /// what [`Document::set`] added gives back the original.
     pub(crate) fn remove(&self, keys: &[&str]) -> Result<(), DocError> {
-        let Some(entry) = self.servers(keys)?.and_then(|s| s.get(NAME)) else { return Ok(()) };
+        let Some(entry) = self.servers(keys)?.and_then(|s| s.get(NAME)) else {
+            return Ok(());
+        };
         entry.remove();
         (1..=keys.len()).rev().try_for_each(|depth| {
             let empty = self.servers(&keys[..depth])?.is_some_and(|o| o.properties().is_empty());
@@ -170,7 +181,10 @@ fn splice(text: &str, range: std::ops::Range<usize>, with: &str) -> String {
 fn compact(value: &Value) -> String {
     match value {
         Value::Object(map) if !map.is_empty() => {
-            let fields: Vec<String> = map.iter().map(|(k, v)| format!("{}: {}", Value::from(k.as_str()), compact(v))).collect();
+            let fields: Vec<String> = map
+                .iter()
+                .map(|(k, v)| format!("{}: {}", Value::from(k.as_str()), compact(v)))
+                .collect();
             format!("{{ {} }}", fields.join(", "))
         }
         Value::Array(items) => format!("[{}]", items.iter().map(compact).collect::<Vec<_>>().join(", ")),
@@ -209,12 +223,22 @@ mod tests {
         let out = edited(text, |d| d.set(KEYS, &json!({ "command": ["/r", "mcp"] })).unwrap());
         assert!(out.starts_with("{\n  // keep\n  \"a\": 1, /* and this */\n"), "{out}");
         assert!(out.contains("\"x\": {}"), "{out}");
-        assert_eq!(Document::parse(&out, Dialect::Jsonc).unwrap().entry(KEYS).unwrap(), Some(json!({ "command": ["/r", "mcp"] })));
+        assert_eq!(
+            Document::parse(&out, Dialect::Jsonc).unwrap().entry(KEYS).unwrap(),
+            Some(json!({ "command": ["/r", "mcp"] }))
+        );
     }
 
     #[test]
     fn remove_after_set_gives_back_the_original() {
-        ["", "{}\n", "{\n  \"a\": [1, 2] // c\n}\n", "{\n\t\"mcp\": {\n\t\t\"other\": true\n\t}\n}"].iter().for_each(|original| {
+        [
+            "",
+            "{}\n",
+            "{\n  \"a\": [1, 2] // c\n}\n",
+            "{\n\t\"mcp\": {\n\t\t\"other\": true\n\t}\n}",
+        ]
+        .iter()
+        .for_each(|original| {
             let added = edited(original, |d| d.set(KEYS, &json!({ "type": "local" })).unwrap());
             let removed = edited(&added, |d| d.remove(KEYS).unwrap());
             let expected = if original.is_empty() { "{}\n" } else { original };
@@ -225,8 +249,14 @@ mod tests {
     #[test]
     fn one_line_objects_stay_on_one_line() {
         let cases = [
-            (r#"{"a": 1}"#, r#"{"a": 1, "mcp": { "servers": { "red-ale": { "type": "local" } } }}"#),
-            ("{ \"mcp\": { \"x\": 1 } }\n", "{ \"mcp\": { \"x\": 1, \"servers\": { \"red-ale\": { \"type\": \"local\" } } } }\n"),
+            (
+                r#"{"a": 1}"#,
+                r#"{"a": 1, "mcp": { "servers": { "red-ale": { "type": "local" } } }}"#,
+            ),
+            (
+                "{ \"mcp\": { \"x\": 1 } }\n",
+                "{ \"mcp\": { \"x\": 1, \"servers\": { \"red-ale\": { \"type\": \"local\" } } } }\n",
+            ),
             (
                 r#"{"mcp": {"servers": {"x": {}, /* c */ }}}"#,
                 r#"{"mcp": {"servers": {"x": {}, "red-ale": { "type": "local" }, /* c */ }}}"#,
@@ -240,7 +270,11 @@ mod tests {
             let added = edited(original, |d| d.set(KEYS, &json!({ "type": "local" })).unwrap());
             assert_eq!(added, *expected);
             if !original.contains("old") {
-                assert_eq!(edited(&added, |d| d.remove(KEYS).unwrap()), *original, "removing gives back {original}");
+                assert_eq!(
+                    edited(&added, |d| d.remove(KEYS).unwrap()),
+                    *original,
+                    "removing gives back {original}"
+                );
             }
         });
     }

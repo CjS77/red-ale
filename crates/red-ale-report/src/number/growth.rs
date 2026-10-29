@@ -29,7 +29,12 @@ pub const MAX_WORKING_BITS: u64 = 16_384;
 /// from `basis` to `end_value` over `years`, or `None` (GnuCash's `#f`) when `basis` is missing, zero or negative,
 /// `end_value` is negative, or `years` is missing or zero. Those guards need the basis and end value apart, since
 /// a negative basis and a negative end value give a positive ratio, so they live here rather than in each script.
-pub fn cagr(basis: Option<&Rational>, end_value: &Rational, years: Option<&Rational>, cap: SizeCap) -> Result<Option<Rational>, NumberError> {
+pub fn cagr(
+    basis: Option<&Rational>,
+    end_value: &Rational,
+    years: Option<&Rational>,
+    cap: SizeCap,
+) -> Result<Option<Rational>, NumberError> {
     match (basis, years) {
         (Some(basis), Some(years)) if basis.is_positive() && !end_value.is_negative() => {
             growth_rate(&end_value.checked_div(basis, cap)?, years, cap)
@@ -59,8 +64,17 @@ pub fn growth_rate(ratio: &Rational, years: &Rational, cap: SizeCap) -> Result<O
         return Ok(Some(Rational::from_int(-1)));
     }
     // ratio^(1/years) = (1/ratio)^(1/−years).
-    let (n, d) = if years.is_negative() { (ratio.denom(), ratio.numer()) } else { (ratio.numer(), ratio.denom()) };
-    let power = Power { n, d, a: years.numer().abs(), b: years.denom() };
+    let (n, d) = if years.is_negative() {
+        (ratio.denom(), ratio.numer())
+    } else {
+        (ratio.numer(), ratio.denom())
+    };
+    let power = Power {
+        n,
+        d,
+        a: years.numer().abs(),
+        b: years.denom(),
+    };
     let units = power.rounded(cap)?;
     cap.check(Rational::new(units, PLACES)?).map(Some)
 }
@@ -88,7 +102,10 @@ impl Power<'_> {
         let g = bit_length(self.n.bits() + self.d.bits()) + 40;
         let c = self.integer_bits(s + g)?;
         if c > cap.max_bits() {
-            return Err(NumberError::TooLarge { bits: c, max: cap.max_bits() });
+            return Err(NumberError::TooLarge {
+                bits: c,
+                max: cap.max_bits(),
+            });
         }
         let fixed = c + s + g;
         let second = SECOND_BITS.min(MAX_WORKING_BITS.saturating_sub(fixed));
@@ -125,7 +142,11 @@ impl Power<'_> {
             (whole, rest.is_zero())
         };
         let ((low, low_on_tie), (high, _)) = (half_up(&(&units - &err)), half_up(&(&units + err)));
-        Ok(if low == high && !low_on_tie { Decision::Rounded(low) } else { Decision::Near(high) })
+        Ok(if low == high && !low_on_tie {
+            Decision::Rounded(low)
+        } else {
+            Decision::Near(high)
+        })
     }
 
     /// `x × 2^w`, within `2^(w−p−6)` when `w = p + c + s + g` (see [`Power::rounded`]). Every truncation below is one
@@ -148,7 +169,9 @@ impl Power<'_> {
     /// Skipped, as false, when the powers would pass [`MAX_WORKING_BITS`] four times over.
     fn is_exactly(&self, m: &BigInt) -> bool {
         let x = Rational::new(BigInt::from(2 * PLACES) + m * 2_u32 - 1_u32, 2 * PLACES);
-        let (Ok(x), Some(a), Some(b)) = (x, self.a.to_u32(), self.b.to_u32()) else { return false };
+        let (Ok(x), Some(a), Some(b)) = (x, self.a.to_u32(), self.b.to_u32()) else {
+            return false;
+        };
         let size = |r: &BigInt, s: &BigInt, e: u32| r.bits().max(s.bits()).saturating_mul(u64::from(e));
         if !x.is_positive() || size(x.numer(), x.denom(), a).saturating_add(size(self.n, self.d, b)) > 4 * MAX_WORKING_BITS {
             return false;
@@ -160,7 +183,10 @@ impl Power<'_> {
 /// `bits` as a shift, or [`NumberError::Precision`] past [`MAX_WORKING_BITS`].
 fn working_bits(bits: u64) -> Result<u64, NumberError> {
     if bits > MAX_WORKING_BITS {
-        Err(NumberError::Precision { bits, max: MAX_WORKING_BITS })
+        Err(NumberError::Precision {
+            bits,
+            max: MAX_WORKING_BITS,
+        })
     } else {
         Ok(bits)
     }
@@ -217,7 +243,9 @@ fn exp(y: &BigInt, w: u64, ln2: &BigInt) -> BigInt {
 /// carries, and the terms reach zero within `w` steps.
 fn exp_small(r: &BigInt, w: u64) -> BigInt {
     successors(Some((BigInt::one() << w, 1_u32)), |(term, i)| {
-        Some(((term * r) >> w) / *i).filter(|next| !next.is_zero()).map(|next| (next, i + 1))
+        Some(((term * r) >> w) / *i)
+            .filter(|next| !next.is_zero())
+            .map(|next| (next, i + 1))
     })
     .map(|(term, _)| term)
     .sum()
@@ -313,7 +341,10 @@ mod tests {
         let tie = |x: &str, n: u32, want: &str| {
             let x = r(x);
             let ratio = pow(&x, n);
-            assert_eq!(growth_rate(&ratio, &Rational::from_int(n.into()), SizeCap::DEFAULT).unwrap(), Some(r(want)));
+            assert_eq!(
+                growth_rate(&ratio, &Rational::from_int(n.into()), SizeCap::DEFAULT).unwrap(),
+                Some(r(want))
+            );
         };
         tie("1.0000000000005", 3, "0");
         tie("1.0000000000015", 7, "0.000000000002");
@@ -330,7 +361,10 @@ mod tests {
     #[test]
     fn absurd_inputs_are_refused() {
         let huge = Rational::new(1, BigInt::one() << 4000).unwrap();
-        assert!(matches!(growth_rate(&r("2"), &huge, SizeCap::DEFAULT), Err(NumberError::TooLarge { .. })));
+        assert!(matches!(
+            growth_rate(&r("2"), &huge, SizeCap::DEFAULT),
+            Err(NumberError::TooLarge { .. })
+        ));
         let wide = SizeCap::bits(1 << 20);
         let years = Rational::new(1, BigInt::one() << 20_000).unwrap();
         let ratio = Rational::new((BigInt::one() << 20_000) + 1, BigInt::one() << 20_000).unwrap();

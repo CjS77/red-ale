@@ -216,8 +216,10 @@ fn a_failed_set_changes_nothing() {
     );
     assert_eq!(s.text(), text);
     // The lock file stays beside the Configuration: it is what writers lock, not a temporary file.
-    let mut entries: Vec<String> =
-        std::fs::read_dir(s.dir.path()).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    let mut entries: Vec<String> = std::fs::read_dir(s.dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
     entries.sort();
     assert_eq!(entries, ["red-ale.json", "red-ale.json.lock"], "no temporary file is left");
 }

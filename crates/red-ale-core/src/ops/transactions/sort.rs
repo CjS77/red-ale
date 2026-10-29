@@ -84,7 +84,11 @@ enum SortValue<'a> {
 /// every level keep the given (split) order, where GnuCash's merge sort keeps the order the query collected them in,
 /// which is hash order. With no levels, or no key at the first level, GnuCash does not sort at all (`:492-497`) and
 /// the splits stay in split order. Both are deviations (`design/reports.md` §14).
-pub fn sort_splits<'a>(book: &'a Book, levels: &[SortLevel], found: Vec<(&'a Transaction, &'a Split)>) -> Vec<(&'a Transaction, &'a Split)> {
+pub fn sort_splits<'a>(
+    book: &'a Book,
+    levels: &[SortLevel],
+    found: Vec<(&'a Transaction, &'a Split)>,
+) -> Vec<(&'a Transaction, &'a Split)> {
     if levels.first().is_none_or(|l| l.key.is_none()) {
         return found;
     }
@@ -223,7 +227,13 @@ mod tests {
     }
 
     fn add_account(f: &mut Fixture, name: &str, parent: Guid, code: Option<&str>) -> Guid {
-        let mut a = Account::new(f.env.new_guid(), name, AccountType::Asset, Some(CommodityRef::currency("USD")), Some(parent));
+        let mut a = Account::new(
+            f.env.new_guid(),
+            name,
+            AccountType::Asset,
+            Some(CommodityRef::currency("USD")),
+            Some(parent),
+        );
         a.code = code.map(Into::into);
         let g = a.guid;
         f.book.accounts.insert(g, Arc::new(a));
@@ -235,7 +245,10 @@ mod tests {
         let mut f = fixture();
         let late = post(&mut f, 2, |_| {});
         let early = post(&mut f, 1, |_| {});
-        let none = SortLevel { key: None, ascending: true };
+        let none = SortLevel {
+            key: None,
+            ascending: true,
+        };
         assert_eq!(txns(&sorted(&f, &[], &[f.food])), [early, late]);
         assert_eq!(
             txns(&sorted(&f, &[none, level(SortKey::DatePosted, false)], &[f.food])),
@@ -252,9 +265,7 @@ mod tests {
         let assets = add_account(&mut f, "Assets", root, None);
         let bank = add_account(&mut f, "Bank", assets, None);
         let assets2 = add_account(&mut f, "Assets 2", root, None);
-        let [in_bank, in_assets2, in_assets] = [bank, assets2, assets].map(|a| {
-            post(&mut f, 1, |n| n.splits[0].account = a)
-        });
+        let [in_bank, in_assets2, in_assets] = [bank, assets2, assets].map(|a| post(&mut f, 1, |n| n.splits[0].account = a));
         let by_name = sorted(&f, &[level(SortKey::AccountFullName, true)], &[bank, assets2, assets]);
         // "Assets 2" < "Assets:Bank" as whole strings, but "Assets" < "Assets 2" at the first level.
         assert_eq!(txns(&by_name), [in_assets, in_bank, in_assets2]);
@@ -294,19 +305,31 @@ mod tests {
         let a_1 = post(&mut f, 1, memo("a"));
         let a_3 = post(&mut f, 3, memo("a"));
         let levels = [level(SortKey::Memo, false), level(SortKey::DatePosted, false)];
-        assert_eq!(txns(&sorted(&f, &levels, &[f.food])), [b_2, a_3, a_1], "each level negated on its own");
-        let levels = [level(SortKey::Memo, true), SortLevel { key: None, ascending: false }, level(SortKey::Default, false)];
-        assert_eq!(txns(&sorted(&f, &levels, &[f.food])), [a_3, a_1, b_2], "a none level compares equal");
+        assert_eq!(
+            txns(&sorted(&f, &levels, &[f.food])),
+            [b_2, a_3, a_1],
+            "each level negated on its own"
+        );
+        let levels = [
+            level(SortKey::Memo, true),
+            SortLevel {
+                key: None,
+                ascending: false,
+            },
+            level(SortKey::Default, false),
+        ];
+        assert_eq!(
+            txns(&sorted(&f, &levels, &[f.food])),
+            [a_3, a_1, b_2],
+            "a none level compares equal"
+        );
     }
 
     #[test]
     fn nums_compare_by_their_leading_numbers_then_the_rest() {
         let mut f = fixture();
         let nums = ["10", "9", "abc", "", " 5", "-3", "5a", "+5"];
-        let posted: Vec<Guid> = nums
-            .iter()
-            .map(|n| post(&mut f, 1, |t| t.num = Some((*n).into())))
-            .collect();
+        let posted: Vec<Guid> = nums.iter().map(|n| post(&mut f, 1, |t| t.num = Some((*n).into()))).collect();
         let order: Vec<&str> = txns(&sorted(&f, &[level(SortKey::Num, true)], &[f.food]))
             .iter()
             .map(|g| nums[posted.iter().position(|p| p == g).unwrap()])
@@ -333,15 +356,27 @@ mod tests {
             n.splits[1].reconcile_date = Some(Time64(1));
             n.date_entered = Some(Time64(30));
         });
-        assert_eq!(txns(&sorted(&f, &[level(SortKey::Value, true)], &[f.food])), [small, big, reconciled]);
-        assert_eq!(txns(&sorted(&f, &[level(SortKey::Amount, false)], &[f.food])), [big, reconciled, small]);
-        assert_eq!(txns(&sorted(&f, &[level(SortKey::DatePosted, true)], &[f.food])), [big, reconciled, small]);
+        assert_eq!(
+            txns(&sorted(&f, &[level(SortKey::Value, true)], &[f.food])),
+            [small, big, reconciled]
+        );
+        assert_eq!(
+            txns(&sorted(&f, &[level(SortKey::Amount, false)], &[f.food])),
+            [big, reconciled, small]
+        );
+        assert_eq!(
+            txns(&sorted(&f, &[level(SortKey::DatePosted, true)], &[f.food])),
+            [big, reconciled, small]
+        );
         assert_eq!(
             txns(&sorted(&f, &[level(SortKey::DateReconciled, false)], &[f.food])),
             [reconciled, big, small],
             "never reconciled is time 0"
         );
-        assert_eq!(txns(&sorted(&f, &[level(SortKey::DateEntered, true)], &[f.food])), [small, big, reconciled]);
+        assert_eq!(
+            txns(&sorted(&f, &[level(SortKey::DateEntered, true)], &[f.food])),
+            [small, big, reconciled]
+        );
     }
 
     #[test]

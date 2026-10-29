@@ -571,7 +571,10 @@ fn set_default_changes_default_and_value() {
     assert_eq!(db.get("Display", "Show Totals").unwrap().default_value(), &OptionValue::Bool(false));
     assert!(db.changed().is_empty(), "a new default is not a change");
     let refused = |db: &mut OptionDb, section: &str, name: &str, v: OptionValue| db.set_default(section, name, v).unwrap_err().reason;
-    assert_eq!(refused(&mut db, "Display", "Running Balance", OptionValue::Bool(true)), "unknown option");
+    assert_eq!(
+        refused(&mut db, "Display", "Running Balance", OptionValue::Bool(true)),
+        "unknown option"
+    );
     assert_eq!(
         refused(&mut db, "Display", "Parent account balances", OptionValue::Key("no-such".into())),
         "\"no-such\" is not a valid default"
@@ -594,8 +597,14 @@ fn an_option_made_internal_is_kept_but_not_published() {
     let s = db.params_schema();
     assert_eq!(s["properties"]["Display"]["properties"]["Show Totals"], Value::Null);
     assert!(s["properties"]["Display"]["properties"]["Show Percents"].is_object());
-    assert_eq!(reason_on(&mut db, &json!({ "Display": { "Show Totals": false } })), "internal option");
-    assert_eq!(reason_on(&mut db, &json!({ "Display": { "Show Totals": null } })), "internal option");
+    assert_eq!(
+        reason_on(&mut db, &json!({ "Display": { "Show Totals": false } })),
+        "internal option"
+    );
+    assert_eq!(
+        reason_on(&mut db, &json!({ "Display": { "Show Totals": null } })),
+        "internal option"
+    );
     assert_eq!(db.make_internal("Display", "Running Balance").unwrap_err().reason, "unknown option");
 }
 
@@ -627,8 +636,16 @@ fn report_placements_read_and_write_their_wire_form() {
         { "report": b, "options": { "General": { "Report name": "Mine" } }, "colspan": 0, "rowspan": 100 },
         { "report": a, "colspan": 1, "rowspan": 1 },
     ]);
-    assert_eq!(value_of(&db, "__general", "report-list"), want, "spans default to 1; empty options are none");
-    assert_eq!(db.changed()["__general"]["report-list"], want, "a saved configuration keeps the children");
+    assert_eq!(
+        value_of(&db, "__general", "report-list"),
+        want,
+        "spans default to 1; empty options are none"
+    );
+    assert_eq!(
+        db.changed()["__general"]["report-list"],
+        want,
+        "a saved configuration keeps the children"
+    );
     let mut again = view();
     apply(&mut again, &placements(want)).unwrap();
     assert_eq!(again, db, "the written form reads back");
@@ -647,8 +664,14 @@ fn malformed_report_placements_are_refused_naming_the_child() {
         ),
         (json!([{ "colspan": 1 }]), "child 0: a child needs its report"),
         (json!([{ "report": a, "wide": 1 }]), "child 0: unknown field \"wide\""),
-        (json!([{ "report": a, "colspan": 101 }]), "child 0: a span is an integer 0 to 100, got 101"),
-        (json!([{ "report": a, "rowspan": -1 }]), "child 0: a span is an integer 0 to 100, got -1"),
+        (
+            json!([{ "report": a, "colspan": 101 }]),
+            "child 0: a span is an integer 0 to 100, got 101",
+        ),
+        (
+            json!([{ "report": a, "rowspan": -1 }]),
+            "child 0: a span is an integer 0 to 100, got -1",
+        ),
         (json!([{ "report": a, "rowspan": "2" }]), "child 0: a span is an integer 0 to 100"),
         (json!([{ "report": a, "options": [] }]), "child 0: options must be an object"),
         (

@@ -53,7 +53,12 @@ fn rows(result: &Value) -> Vec<String> {
 
 /// The texts of the table's first row, as `sxml->table-row-col` reads row 1 of table 1.
 fn first_row(result: &Value) -> Vec<String> {
-    tables(result)[0]["rows"][0]["cells"].as_array().unwrap().iter().flat_map(cell_texts).collect()
+    tables(result)[0]["rows"][0]["cells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(cell_texts)
+        .collect()
 }
 
 /// One check of TP: row 1 of the run `id` of `stock-test-data.expected.json` holds `want`.
@@ -67,10 +72,30 @@ struct Ported {
 fn ported() -> [Ported; 4] {
     let p = |id, name, line, want| Ported { id, name, line, want };
     [
-        p("portfolio-latest", "portfolio: pricedb-latest", 56, ["AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$252.00"]),
-        p("portfolio-nearest", "portfolio: pricedb-nearest", 63, ["AAPL", "AAPL", "NASDAQ", "2.00", "$200.00", "$400.00"]),
-        p("portfolio-average-cost", "portfolio: average-cost", 70, ["AAPL", "AAPL", "NASDAQ", "1.00", "$200.00", "$200.00"]),
-        p("portfolio-weighted-average", "portfolio: weighted-average", 76, ["AAPL", "AAPL", "NASDAQ", "1.00", "$233.33", "$233.33"]),
+        p(
+            "portfolio-latest",
+            "portfolio: pricedb-latest",
+            56,
+            ["AAPL", "AAPL", "NASDAQ", "42.00", "$6.00", "$252.00"],
+        ),
+        p(
+            "portfolio-nearest",
+            "portfolio: pricedb-nearest",
+            63,
+            ["AAPL", "AAPL", "NASDAQ", "2.00", "$200.00", "$400.00"],
+        ),
+        p(
+            "portfolio-average-cost",
+            "portfolio: average-cost",
+            70,
+            ["AAPL", "AAPL", "NASDAQ", "1.00", "$200.00", "$200.00"],
+        ),
+        p(
+            "portfolio-weighted-average",
+            "portfolio: weighted-average",
+            76,
+            ["AAPL", "AAPL", "NASDAQ", "1.00", "$233.33", "$233.33"],
+        ),
     ]
 }
 
@@ -82,7 +107,14 @@ fn expected_figures_of_gnucash_test() {
         ported().iter().for_each(|c| {
             let options = options_param(expected_run(&e, c.id));
             let result = s.run(PORTFOLIO, &options);
-            assert_eq!(first_row(&result), c.want, "{format}: {} (test line {}): {:#?}", c.name, c.line, rows(&result));
+            assert_eq!(
+                first_row(&result),
+                c.want,
+                "{format}: {} (test line {}): {:#?}",
+                c.name,
+                c.line,
+                rows(&result)
+            );
             let html = s.export(PORTFOLIO, &options);
             c.want
                 .iter()
@@ -96,7 +128,12 @@ fn expected_figures_of_gnucash_test() {
 #[test]
 fn every_check_of_the_expected_figures_is_ported() {
     let e = expected("stock-test-data.expected.json");
-    let runs: Vec<&Value> = e["runs"].as_array().unwrap().iter().filter(|r| r["template"] == PORTFOLIO).collect();
+    let runs: Vec<&Value> = e["runs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["template"] == PORTFOLIO)
+        .collect();
     let theirs: Vec<Value> = runs
         .iter()
         .flat_map(|r| {
@@ -112,7 +149,12 @@ fn every_check_of_the_expected_figures_is_ported() {
         .map(|c| json!([c.id, c.name, c.line, { "table": 1, "row": 1, "column": null }, c.want]))
         .collect();
     assert_eq!(ours, theirs);
-    let null_tests: Vec<&Value> = e["renderOnly"].as_array().unwrap().iter().filter(|r| r["template"] == PORTFOLIO).collect();
+    let null_tests: Vec<&Value> = e["renderOnly"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["template"] == PORTFOLIO)
+        .collect();
     assert_eq!(null_tests.len(), 1);
     assert_eq!(null_tests[0]["line"], 26);
 }
@@ -125,7 +167,10 @@ fn the_null_test_renders() {
     let result = s.run(PORTFOLIO, &json!({}));
     let b = blocks(&result);
     assert_eq!(b.len(), 1);
-    assert_eq!((b[0]["kind"].as_str(), b[0]["title"].as_str()), (Some("warning"), Some("No accounts selected")));
+    assert_eq!(
+        (b[0]["kind"].as_str(), b[0]["title"].as_str()),
+        (Some("warning"), Some("No accounts selected"))
+    );
     assert_eq!(result["title"], "Investment Portfolio 03/15/24");
     assert!(s.export(PORTFOLIO, &json!({})).contains("No accounts selected"));
 }
@@ -139,10 +184,19 @@ fn rows_rule_and_total() {
     let result = s.run(PORTFOLIO, &json!({}));
     assert_eq!(
         rows(&result),
-        ["data: AAPL | AAPL | NASDAQ | 42.00 | $6.00 | $252.00", "rule: ", "grandTotal: Total | $252.00"]
+        [
+            "data: AAPL | AAPL | NASDAQ | 42.00 | $6.00 | $252.00",
+            "rule: ",
+            "grandTotal: Total | $252.00"
+        ]
     );
     let table = tables(&result)[0];
-    let labels: Vec<&str> = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect();
+    let labels: Vec<&str> = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect();
     assert_eq!(labels, ["Account", "Symbol", "Listing", "Units", "Price", "Value"]);
     let row = &table["rows"][0];
     assert_eq!(row["cells"][0]["account"], "a0000000000000000000000000000008");
@@ -204,14 +258,22 @@ fn shares_book() -> Setup {
     s.account("Bank", "BANK", None, "CURRENCY::USD");
     s.account("Broker", "ASSET", None, "CURRENCY::USD");
     ["XYZ", "EMP", "ABC", "NOP"].iter().for_each(|m| {
-        s.call("commodity.create", json!({ "namespace": "NYSE", "mnemonic": m, "fullname": m, "fraction": 1000 }));
+        s.call(
+            "commodity.create",
+            json!({ "namespace": "NYSE", "mnemonic": m, "fullname": m, "fraction": 1000 }),
+        );
         s.account(m, "STOCK", Some("Broker"), &format!("NYSE::{m}"));
     });
-    [("XYZ", "10", "12345.67"), ("ABC", "0.125", "5.00"), ("NOP", "5", "50.00")].iter().for_each(|(m, units, cost)| {
-        let splits = json!([{ "account": format!("Broker:{m}"), "value": cost, "amount": units },
+    [("XYZ", "10", "12345.67"), ("ABC", "0.125", "5.00"), ("NOP", "5", "50.00")]
+        .iter()
+        .for_each(|(m, units, cost)| {
+            let splits = json!([{ "account": format!("Broker:{m}"), "value": cost, "amount": units },
                             { "account": "Bank", "value": format!("-{cost}") }]);
-        s.call("transaction.post", json!({ "datePosted": "2024-01-10", "currency": "CURRENCY::USD", "splits": splits }));
-    });
+            s.call(
+                "transaction.post",
+                json!({ "datePosted": "2024-01-10", "currency": "CURRENCY::USD", "splits": splits }),
+            );
+        });
     [
         ("NYSE::XYZ", "CURRENCY::USD", "1200", "2024-02-01"),
         ("NYSE::XYZ", "CURRENCY::EUR", "1100", "2024-03-01"),
@@ -219,7 +281,10 @@ fn shares_book() -> Setup {
     ]
     .iter()
     .for_each(|(commodity, currency, value, date)| {
-        s.call("price.add", json!({ "commodity": commodity, "currency": currency, "value": value, "date": date }));
+        s.call(
+            "price.add",
+            json!({ "commodity": commodity, "currency": currency, "value": value, "date": date }),
+        );
     });
     s
 }
@@ -231,7 +296,11 @@ fn shares_options(source: &str, date: &str, more: Value) -> Value {
         "Accounts": { "Accounts": ["Broker:XYZ", "Broker:EMP", "Broker:ABC", "Broker:NOP"] },
     });
     more.as_object().unwrap().iter().for_each(|(section, values)| {
-        values.as_object().unwrap().iter().for_each(|(k, v)| options[section][k] = v.clone());
+        values
+            .as_object()
+            .unwrap()
+            .iter()
+            .for_each(|(k, v)| options[section][k] = v.clone());
     });
     options
 }
@@ -257,7 +326,9 @@ fn prices_as_stored_in_any_currency() {
         assert_eq!(rows(&result), want, "{source}");
     });
     let html = s.export(PORTFOLIO, &shares_options("pricedb-latest", "2024-03-10", json!({})));
-    ["€1,100.00", "0.025 ABC", "$12,005.00"].iter().for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
+    ["€1,100.00", "0.025 ABC", "$12,005.00"]
+        .iter()
+        .for_each(|w| assert!(html.contains(w), "{w} is in the HTML"));
 }
 
 /// On 2024-02-20 the euro price is in the future: "before" finds only the $1,200 of 2024-02-01; "nearest" lists each
@@ -360,7 +431,16 @@ fn options_are_gnucash_s() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|o| format!("{}/{} {} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["type"], o["default"]))
+        .map(|o| {
+            format!(
+                "{}/{} {} {} {}",
+                o["section"].as_str().unwrap(),
+                o["name"].as_str().unwrap(),
+                o["key"],
+                o["type"],
+                o["default"]
+            )
+        })
         .collect();
     let want = [
         r#"Accounts/Accounts "b" "accountList" []"#,
@@ -376,9 +456,23 @@ fn options_are_gnucash_s() {
     assert_eq!(got, want);
     let mut s = Setup::fixture(FIXTURE, &test_settings("locale"));
     let described = s.call("report.options", json!({ "report": PORTFOLIO }));
-    let accounts = described["options"].as_array().unwrap().iter().find(|o| o["name"] == "Accounts").unwrap().clone();
-    let aapl_msft_tsla = ["a0000000000000000000000000000008", "a0000000000000000000000000000009", "a000000000000000000000000000000a"];
-    assert_eq!(accounts["default"], json!(aapl_msft_tsla), "STOCK and MUTUAL accounts in display order");
+    let accounts = described["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["name"] == "Accounts")
+        .unwrap()
+        .clone();
+    let aapl_msft_tsla = [
+        "a0000000000000000000000000000008",
+        "a0000000000000000000000000000009",
+        "a000000000000000000000000000000a",
+    ];
+    assert_eq!(
+        accounts["default"],
+        json!(aapl_msft_tsla),
+        "STOCK and MUTUAL accounts in display order"
+    );
 }
 
 /// Running the report with each price source leaves the Book, its revision and its file as they were and writes
@@ -390,7 +484,15 @@ fn a_run_changes_nothing() {
         let before = s.d.context().book().unwrap().clone();
         let revision = s.d.context().session().unwrap().revision();
         let files = s.files();
-        ["pricedb-latest", "pricedb-nearest", "pricedb-before", "average-cost", "weighted-average"].iter().for_each(|source| {
+        [
+            "pricedb-latest",
+            "pricedb-nearest",
+            "pricedb-before",
+            "average-cost",
+            "weighted-average",
+        ]
+        .iter()
+        .for_each(|source| {
             let options = json!({ "General": { "Price Source": source }, "Accounts": { "Include accounts with no shares": true } });
             s.run(PORTFOLIO, &options);
             let (a, b) = (s.export(PORTFOLIO, &options), s.export(PORTFOLIO, &options));

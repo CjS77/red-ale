@@ -37,7 +37,9 @@ pub(super) fn register(engine: &mut Engine) {
     });
     engine.register_fn("uses_trading_accounts", |b: &mut BookHandle| uses_trading_accounts(b.0.book()));
     // `qof-book-use-split-action-for-num-field`: the book's num field source.
-    engine.register_fn("uses_split_action_for_num", |b: &mut BookHandle| uses_split_action_for_num(b.0.book()));
+    engine.register_fn("uses_split_action_for_num", |b: &mut BookHandle| {
+        uses_split_action_for_num(b.0.book())
+    });
     engine.register_fn("company_name", |b: &mut BookHandle| company_name(b.0.book()).to_owned());
     engine.register_fn("prices", book_prices);
     engine.register_fn("prices_any_currency", prices_any_currency);

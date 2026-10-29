@@ -294,7 +294,11 @@ fn original_text_kept_for_a_transaction_has_its_splits_sorted() {
     let with_num = text.replacen(&format!("  {BUY_ACME}"), &format!("  <trn:num></trn:num>\n  {BUY_ACME}"), 1);
     let (book, residue) = read_book(reorder_splits(&with_num, BUY_ACME, &[2, 0, 1]).as_bytes()).unwrap();
     assert_eq!(residue.originals_kept(), 1);
-    assert_same("rich with an empty num and unsorted splits", &with_num, &write_book_text(&book, &residue));
+    assert_same(
+        "rich with an empty num and unsorted splits",
+        &with_num,
+        &write_book_text(&book, &residue),
+    );
 }
 
 /// Template transactions are read by the same parser and committed the same way, so they are sorted too

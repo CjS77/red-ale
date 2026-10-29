@@ -83,12 +83,15 @@ fn growth(engine: &mut Engine, cap: SizeCap) {
         let rate = growth_rate(&rational_arg(&ratio)?, &rational_arg(&years)?, cap).map_err(arithmetic)?;
         Ok(to_dynamic(rate))
     });
-    engine.register_fn("calculate_cagr", move |basis: Dynamic, end: Dynamic, years: Dynamic| -> Fallible<Dynamic> {
-        let optional = |v: &Dynamic| if v.is_unit() { Ok(None) } else { rational_arg(v).map(Some) };
-        let (basis, years) = (optional(&basis)?, optional(&years)?);
-        let rate = cagr(basis.as_ref(), &rational_arg(&end)?, years.as_ref(), cap).map_err(arithmetic)?;
-        Ok(to_dynamic(rate))
-    });
+    engine.register_fn(
+        "calculate_cagr",
+        move |basis: Dynamic, end: Dynamic, years: Dynamic| -> Fallible<Dynamic> {
+            let optional = |v: &Dynamic| if v.is_unit() { Ok(None) } else { rational_arg(v).map(Some) };
+            let (basis, years) = (optional(&basis)?, optional(&years)?);
+            let rate = cagr(basis.as_ref(), &rational_arg(&end)?, years.as_ref(), cap).map_err(arithmetic)?;
+            Ok(to_dynamic(rate))
+        },
+    );
 }
 
 /// The error for a monetary amount in a commodity the book does not have.

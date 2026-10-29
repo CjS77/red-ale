@@ -40,7 +40,9 @@ pub(crate) struct Setup {
 /// The deadline of a run starting now under `limits`.
 pub(crate) fn deadline(limits: &Limits) -> Instant {
     let max = Duration::from_secs(limits.get(Limit::Time));
-    Instant::now().checked_add(max).unwrap_or_else(|| Instant::now() + Duration::from_secs(u64::from(u32::MAX)))
+    Instant::now()
+        .checked_add(max)
+        .unwrap_or_else(|| Instant::now() + Duration::from_secs(u64::from(u32::MAX)))
 }
 
 /// How often, in operations, the run time is checked against the host clock.

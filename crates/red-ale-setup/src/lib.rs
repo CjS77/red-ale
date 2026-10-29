@@ -66,7 +66,10 @@ impl Entry {
         if let Some(config) = config {
             args.extend(["--config".to_owned(), text(config)?]);
         }
-        Ok(Self { command: text(command)?, args })
+        Ok(Self {
+            command: text(command)?,
+            args,
+        })
     }
 
     /// The command and its arguments as one list, as opencode keeps them.

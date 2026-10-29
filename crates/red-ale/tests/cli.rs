@@ -944,7 +944,10 @@ fn without_config_every_process_shares_the_default_file() {
     let set = exec(&["config.set", r#"changes:={"import.settings.matchThreshold": 3}"#]);
     let file = set["configFile"].as_str().unwrap().to_owned();
     assert!(Path::new(&file).starts_with(home.path()), "{file}");
-    assert!(file.ends_with(&Path::new("red-ale").join("config.json").display().to_string()), "{file}");
+    assert!(
+        file.ends_with(&Path::new("red-ale").join("config.json").display().to_string()),
+        "{file}"
+    );
     if cfg!(target_os = "linux") {
         assert_eq!(Path::new(&file), home.path().join(".config/red-ale/config.json"));
     }
@@ -966,7 +969,11 @@ fn no_config_reads_and_writes_no_file() {
     let before = std::fs::read(home.path().join(".config/red-ale/config.json")).ok();
     let out = exec(&["--no-config", "config.set", r#"changes:={"import.settings.matchThreshold": 4}"#]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-    assert_eq!(std::fs::read(home.path().join(".config/red-ale/config.json")).ok(), before, "nor written");
+    assert_eq!(
+        std::fs::read(home.path().join(".config/red-ale/config.json")).ok(),
+        before,
+        "nor written"
+    );
     let both = exec(&["--no-config", "--config", "x.json", "config.get"]);
     assert!(!both.status.success(), "--config and --no-config together are refused");
 }

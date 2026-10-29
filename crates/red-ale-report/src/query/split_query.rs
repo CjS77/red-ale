@@ -9,7 +9,17 @@ use rhai::{Array, Dynamic, ImmutableString, Map};
 use super::args::{account_arg, accounts_arg, optional_time_arg};
 use super::{BookHandle, Fallible, script_error};
 
-const FIELDS: [&str; 9] = ["accounts", "from", "to", "description", "closing", "reconcile", "isClosing", "sort", "unique"];
+const FIELDS: [&str; 9] = [
+    "accounts",
+    "from",
+    "to",
+    "description",
+    "closing",
+    "reconcile",
+    "isClosing",
+    "sort",
+    "unique",
+];
 
 /// The sort keys by their script names, each a QOF sort parameter (`SortKey`'s documentation cites them).
 const SORT_KEYS: [(&str, SortKey); 14] = [

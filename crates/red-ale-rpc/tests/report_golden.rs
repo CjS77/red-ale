@@ -253,7 +253,10 @@ fn every_v05_report_gives_its_recorded_bytes() {
     let expected = recorded(include_str!("report_golden/v0.5.txt"));
     let now = v05();
     if let Ok(path) = std::env::var("RED_ALE_GOLDEN_WRITE_V05") {
-        let new: Vec<_> = now.into_iter().filter(|(key, ..)| !expected.iter().any(|(k, _)| k == key)).collect();
+        let new: Vec<_> = now
+            .into_iter()
+            .filter(|(key, ..)| !expected.iter().any(|(k, _)| k == key))
+            .collect();
         std::fs::write(path, lines(&new)).unwrap();
         return;
     }

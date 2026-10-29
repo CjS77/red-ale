@@ -63,9 +63,21 @@ fn a_function_resolved_in_one_script_is_called_in_place_of_another_of_the_same_n
     let m = [("m", r#"private fn total_of(a, b) { "module" } fn getpair(a, b) { total_of(a, b) }"#)];
     let main = |calls: &str| run(&m, &format!(r#"import "m" as m; fn total_of(a, b) {{ "script" }} {calls}"#)).unwrap();
     assert_eq!(main("m::getpair(1, 2)"), "module");
-    assert_eq!(main("total_of(1, 2); m::getpair(1, 2)"), "module", "looked up once by the script: not cached");
-    assert_eq!(main("total_of(1, 2); total_of(1, 2); m::getpair(1, 2)"), "script", "the module calls the script's");
-    assert_eq!(main("total_of(1, 2); m::getpair(1, 2); total_of(1, 2)"), "module", "the script calls the module's");
+    assert_eq!(
+        main("total_of(1, 2); m::getpair(1, 2)"),
+        "module",
+        "looked up once by the script: not cached"
+    );
+    assert_eq!(
+        main("total_of(1, 2); total_of(1, 2); m::getpair(1, 2)"),
+        "script",
+        "the module calls the script's"
+    );
+    assert_eq!(
+        main("total_of(1, 2); m::getpair(1, 2); total_of(1, 2)"),
+        "module",
+        "the script calls the module's"
+    );
     assert_eq!(
         main("fn twice() { total_of(1, 2); total_of(1, 2) } twice(); m::getpair(1, 2)"),
         "script",

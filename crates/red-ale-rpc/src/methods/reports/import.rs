@@ -7,8 +7,8 @@
 //! everything imported is written to the Configuration in one atomic save; a dry run writes nothing.
 
 use red_ale_core::Guid;
-use red_ale_report::error::OptionError;
 use red_ale_report::engine::TemplateInfo;
+use red_ale_report::error::OptionError;
 use red_ale_report::import::{self, EmbeddedForm, Malformed, OptionForm, SavedReportForm, StyleSheetForm, WireOptions};
 use red_ale_report::options::{GENERAL, STYLESHEET, ValueContext};
 use red_ale_report::render::{PREDEFINED, StyleSheet, StyleSheetTemplate, left_out};
@@ -231,7 +231,9 @@ impl Reports {
             return Err(skip(SkipReason::Untranslated, message));
         };
         let forms = e.options.as_ref().map_err(|m| skip(SkipReason::Malformed, m.clone()))?;
-        let children = self.embedded(e.embedded.as_deref().unwrap_or_default()).map_err(|(r, m)| skip(r, m))?;
+        let children = self
+            .embedded(e.embedded.as_deref().unwrap_or_default())
+            .map_err(|(r, m)| skip(r, m))?;
         if taken.iter().any(|s| s.guid == guid) {
             return Err(skip(
                 SkipReason::Exists,
@@ -245,7 +247,9 @@ impl Reports {
             ));
         }
         let mut sheets = self.sheets.names();
-        let named = [forms.as_slice()].into_iter().chain(children.iter().map(|(c, _)| c.options.as_slice()));
+        let named = [forms.as_slice()]
+            .into_iter()
+            .chain(children.iter().map(|(c, _)| c.options.as_slice()));
         named.filter_map(named_style_sheet).for_each(|n| {
             if !sheets.contains(&n) {
                 sheets.push(n);

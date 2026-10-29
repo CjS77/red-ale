@@ -88,7 +88,8 @@ fn check_reconcile(f: &mut Fixture, what: &str) -> usize {
                 let name = format!("{what}: \"{}\" (TT:{})", c["name"].as_str().unwrap(), c["line"]);
                 let got = select(&result, &c["select"]);
                 assert_eq!(got, strings(&c["expected"]), "{name}");
-                got.iter().for_each(|t| assert!(html.contains(t.as_str()), "{name}: {t} is not in the HTML"));
+                got.iter()
+                    .for_each(|t| assert!(html.contains(t.as_str()), "{name}: {t} is not in the HTML"));
             });
             checks.len()
         })
@@ -99,7 +100,12 @@ fn check_reconcile(f: &mut Fixture, what: &str) -> usize {
 #[test]
 fn reconcile_report_every_check_on_xml_and_sqlite() {
     let e = read_json("reconcile.expected.json");
-    let all: usize = e["runs"].as_array().unwrap().iter().map(|r| r["checks"].as_array().unwrap().len()).sum();
+    let all: usize = e["runs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["checks"].as_array().unwrap().len())
+        .sum();
     assert_eq!(all, 3);
     assert_eq!(check_reconcile(&mut Fixture::open("reconcile", "iso", true), "XML"), all);
     assert_eq!(check_reconcile(&mut Fixture::open_sqlite("reconcile", "iso"), "SQLite"), all);
@@ -108,9 +114,17 @@ fn reconcile_report_every_check_on_xml_and_sqlite() {
 /// A table's headings joined by `|`, then each row's cells joined by `|`: display or text, `-` when empty.
 fn shown(table: &Value) -> Vec<String> {
     let cell = |c: &Value| if c.is_null() { "-".to_owned() } else { texts(c).join(",") };
-    let head = table["columns"].as_array().unwrap().iter().map(|c| c["label"].as_str().unwrap()).collect::<Vec<_>>().join("|");
+    let head = table["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["label"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("|");
     let row = |r: &Value| r["cells"].as_array().unwrap().iter().map(cell).collect::<Vec<_>>().join("|");
-    std::iter::once(head).chain(table["rows"].as_array().unwrap().iter().map(row)).collect()
+    std::iter::once(head)
+        .chain(table["rows"].as_array().unwrap().iter().map(row))
+        .collect()
 }
 
 /// The only table of a result, shown.
@@ -149,22 +163,25 @@ fn reconcile_report_table() {
     let mut f = Fixture::open("reconcile", "iso", true);
     let result = f.run(RECONCILIATION, &on_bank_and_liabilities(&march_1970()));
     assert_eq!(result["title"], "Reconciliation Report");
-    assert_eq!(the_table(&result), [
-        "|Date|Reconciled Date|Num|Description|Transfer from/to|Funds In|Funds Out",
-        "Reconciled|-|-",
-        "-|1970-02-10|1970-03-01|trn7|desc-7|Expenses|-|$8.00",
-        "-|Total For Reconciled|-|$8.00",
-        "Cleared|-|-",
-        "-|1969-12-31|-|trn3|desc-3|Income|$29.00|-",
-        "-|Total For Cleared|$29.00|-",
-        "Unreconciled|-|-",
-        "-|1970-01-01|-|trn1|desc-1|Expenses|-|$5.00",
-        "-|1970-01-10|-|trn6|desc-6|Expenses|-|$11.00",
-        "-|1970-02-01|-|trn4|desc-4|Expenses|-|$15.00",
-        "-|Total For Unreconciled|-|$31.00",
-        "-|-|-|-|-|-|-|-",
-        "Grand Total|$29.00|$39.00",
-    ]);
+    assert_eq!(
+        the_table(&result),
+        [
+            "|Date|Reconciled Date|Num|Description|Transfer from/to|Funds In|Funds Out",
+            "Reconciled|-|-",
+            "-|1970-02-10|1970-03-01|trn7|desc-7|Expenses|-|$8.00",
+            "-|Total For Reconciled|-|$8.00",
+            "Cleared|-|-",
+            "-|1969-12-31|-|trn3|desc-3|Income|$29.00|-",
+            "-|Total For Cleared|$29.00|-",
+            "Unreconciled|-|-",
+            "-|1970-01-01|-|trn1|desc-1|Expenses|-|$5.00",
+            "-|1970-01-10|-|trn6|desc-6|Expenses|-|$11.00",
+            "-|1970-02-01|-|trn4|desc-4|Expenses|-|$15.00",
+            "-|Total For Unreconciled|-|$31.00",
+            "-|-|-|-|-|-|-|-",
+            "Grand Total|$29.00|$39.00",
+        ]
+    );
 }
 
 /// TT:1108-1109, the run on the template's dates, the start of the previous quarter to today. Quarters count from
@@ -178,15 +195,18 @@ fn reconcile_report_on_its_default_dates() {
     let blocks = blocks_of(&result, "text");
     assert_eq!(blocks[0]["text"], "2023-12-15 to 2024-03-15");
     let rows = the_table(&result);
-    assert_eq!(rows.iter().filter(|r| !r.starts_with("-|19")).cloned().collect::<Vec<_>>(), [
-        "|Date|Reconciled Date|Num|Description|Transfer from/to|Funds In|Funds Out",
-        "Cleared|-|-",
-        "-|Total For Cleared|$29.00|-",
-        "Unreconciled|-|-",
-        "-|Total For Unreconciled|-|$31.00",
-        "-|-|-|-|-|-|-|-",
-        "Grand Total|$29.00|$31.00",
-    ]);
+    assert_eq!(
+        rows.iter().filter(|r| !r.starts_with("-|19")).cloned().collect::<Vec<_>>(),
+        [
+            "|Date|Reconciled Date|Num|Description|Transfer from/to|Funds In|Funds Out",
+            "Cleared|-|-",
+            "-|Total For Cleared|$29.00|-",
+            "Unreconciled|-|-",
+            "-|Total For Unreconciled|-|$31.00",
+            "-|-|-|-|-|-|-|-",
+            "Grand Total|$29.00|$31.00",
+        ]
+    );
 }
 
 /// Void Transactions "Both": voided splits group first (TE:204-212) and show their former amounts (RR:71-74).
@@ -196,12 +216,15 @@ fn reconcile_report_voided_splits_show_their_former_amounts() {
     let mut more = march_1970();
     merge(&mut more, &json!({ "Filter": { "Void Transactions": "both" } }));
     let rows = the_table(&f.run(RECONCILIATION, &on_bank_and_liabilities(&more)));
-    assert_eq!(rows[1..5], [
-        "Voided|-|-",
-        "-|1969-12-31|-|trn2|desc-2|Income|$10.00|-",
-        "-|1970-01-10|-|trn5|desc-5|Expenses|-|$10.00",
-        "-|Total For Voided|$10.00|$10.00",
-    ]);
+    assert_eq!(
+        rows[1..5],
+        [
+            "Voided|-|-",
+            "-|1969-12-31|-|trn2|desc-2|Income|$10.00|-",
+            "-|1970-01-10|-|trn5|desc-5|Expenses|-|$10.00",
+            "-|Total For Voided|$10.00|$10.00",
+        ]
+    );
     assert_eq!(rows.last().unwrap(), "Grand Total|$39.00|$49.00");
 }
 
@@ -211,7 +234,10 @@ fn reconcile_report_voided_splits_show_their_former_amounts() {
 fn reconcile_report_never_converts() {
     let mut f = Fixture::open("reconcile", "iso", true);
     let mut more = march_1970();
-    merge(&mut more, &json!({ "Currency": { "Common Currency": true, "Report's currency": "CURRENCY::GBP" } }));
+    merge(
+        &mut more,
+        &json!({ "Currency": { "Common Currency": true, "Report's currency": "CURRENCY::GBP" } }),
+    );
     let rows = the_table(&f.run(RECONCILIATION, &on_bank_and_liabilities(&more)));
     assert_eq!(rows[0], "|Date|Reconciled Date|Num|Description|Transfer from/to|Funds In|Funds Out");
     assert_eq!(rows.last().unwrap(), "Grand Total|$29.00|$39.00");
@@ -229,7 +255,10 @@ fn reconcile_report_with_no_account_gives_its_instructions() {
     assert_eq!(blocks[0]["title"], "No accounts selected");
     assert_eq!(blocks[1]["kind"], "text");
     let text = blocks[1]["text"].as_str().unwrap();
-    assert!(text.starts_with("The reconcile report is designed to be similar to the formal reconciliation tool."), "{text}");
+    assert!(
+        text.starts_with("The reconcile report is designed to be similar to the formal reconciliation tool."),
+        "{text}"
+    );
     assert!(text.ends_with("will apply to the Reconciliation Date.\n\n"), "{text:?}");
     assert_eq!(blocks.as_array().unwrap().len(), 2);
 }
@@ -277,33 +306,43 @@ fn ledger_on(accounts: &[&str], from: &str, to: &str, more: &Value) -> Value {
 #[test]
 fn general_ledger_defaults() {
     let mut f = Fixture::open("transaction", "iso", true);
-    let options = ledger_on(&["trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Expenses"], "1970-01-01",
-                            "2000-12-31", &json!({}));
+    let options = ledger_on(
+        &["trep:Root.Asset.GBP Bank", "trep:Root.Asset.USD Bank", "trep:Root.Expenses"],
+        "1970-01-01",
+        "2000-12-31",
+        &json!({}),
+    );
     let result = f.run(GENERAL_LEDGER, &options);
     assert_eq!(result["title"], "General Ledger");
     let rows = the_table(&result);
-    assert_eq!(rows, [
-        "|Date|Description|Debit|Credit",
-        "01-GBP GBP Bank|-|-",
-        "-|2000-01-15|GBP 10 to USD 14|-|#10.00",
-        "-|2000-02-15|USD 9 to GBP 6|#6.00|-",
-        "-|Total For 01-GBP GBP Bank|-|#4.00",
-        "02-USD USD Bank|-|-",
-        "-|2000-01-15|GBP 10 to USD 14|$14.00|-",
-        "-|2000-02-15|USD 9 to GBP 6|-|$9.00",
-        "-|Total For 02-USD USD Bank|$5.00|-",
-        "EXP-001 Expenses|-|-",
-        "-|1970-01-01|desc-1|$5.00|-",
-        "-|1970-01-10|desc-6|$11.00|-",
-        "-|1970-02-01|desc-4|$15.00|-",
-        "-|1971-02-14|$100bank -> $80expenses + $20wallet|$80.00|-",
-        "-|Total For EXP-001 Expenses|$111.00|-",
-        "-|-|-|-|-",
-        "Grand Total|$116.00|-",
-        "|-|#4.00",
-    ]);
+    assert_eq!(
+        rows,
+        [
+            "|Date|Description|Debit|Credit",
+            "01-GBP GBP Bank|-|-",
+            "-|2000-01-15|GBP 10 to USD 14|-|#10.00",
+            "-|2000-02-15|USD 9 to GBP 6|#6.00|-",
+            "-|Total For 01-GBP GBP Bank|-|#4.00",
+            "02-USD USD Bank|-|-",
+            "-|2000-01-15|GBP 10 to USD 14|$14.00|-",
+            "-|2000-02-15|USD 9 to GBP 6|-|$9.00",
+            "-|Total For 02-USD USD Bank|$5.00|-",
+            "EXP-001 Expenses|-|-",
+            "-|1970-01-01|desc-1|$5.00|-",
+            "-|1970-01-10|desc-6|$11.00|-",
+            "-|1970-02-01|desc-4|$15.00|-",
+            "-|1971-02-14|$100bank -> $80expenses + $20wallet|$80.00|-",
+            "-|Total For EXP-001 Expenses|$111.00|-",
+            "-|-|-|-|-",
+            "Grand Total|$116.00|-",
+            "|-|#4.00",
+        ]
+    );
     let html = f.export(GENERAL_LEDGER, &options);
-    report_runs::in_html(&html, &["General Ledger", "01-GBP GBP Bank", "Total For EXP-001 Expenses", "$116.00"]);
+    report_runs::in_html(
+        &html,
+        &["General Ledger", "01-GBP GBP Bank", "Total For EXP-001 Expenses", "$116.00"],
+    );
 }
 
 /// "Account Balance" on: with GL's sorting the balance is brought forward, so the column reads "Running Balance"
@@ -317,22 +356,30 @@ fn general_ledger_running_balance_reverses_credit_accounts() {
         if let Some(s) = signs {
             display["Sign Reverses"] = json!(s);
         }
-        let options = ledger_on(&["trep:Root.Income", "trep:Root.Expenses"], "1969-01-01", "1970-12-31", &json!({ "Display": display }));
+        let options = ledger_on(
+            &["trep:Root.Income", "trep:Root.Expenses"],
+            "1969-01-01",
+            "1970-12-31",
+            &json!({ "Display": display }),
+        );
         the_table(&f.run(GENERAL_LEDGER, &options))
     };
-    assert_eq!(run(&mut f, None), [
-        "|Date|Description|Debit|Credit|Running Balance",
-        "Income: Balance b/f|-|-|$0.00",
-        "-|1969-12-31|desc-3|-|$29.00|$29.00",
-        "-|Total For Income|-|$29.00|-",
-        "EXP-001 Expenses: Balance b/f|-|-|$0.00",
-        "-|1970-01-01|desc-1|$5.00|-|$5.00",
-        "-|1970-01-10|desc-6|$11.00|-|$16.00",
-        "-|1970-02-01|desc-4|$15.00|-|$31.00",
-        "-|Total For EXP-001 Expenses|$31.00|-|-",
-        "-|-|-|-|-|-",
-        "Grand Total|$2.00|-|-",
-    ]);
+    assert_eq!(
+        run(&mut f, None),
+        [
+            "|Date|Description|Debit|Credit|Running Balance",
+            "Income: Balance b/f|-|-|$0.00",
+            "-|1969-12-31|desc-3|-|$29.00|$29.00",
+            "-|Total For Income|-|$29.00|-",
+            "EXP-001 Expenses: Balance b/f|-|-|$0.00",
+            "-|1970-01-01|desc-1|$5.00|-|$5.00",
+            "-|1970-01-10|desc-6|$11.00|-|$16.00",
+            "-|1970-02-01|desc-4|$15.00|-|$31.00",
+            "-|Total For EXP-001 Expenses|$31.00|-|-",
+            "-|-|-|-|-|-",
+            "Grand Total|$2.00|-|-",
+        ]
+    );
     assert_eq!(run(&mut f, Some("global"))[2], "-|1969-12-31|desc-3|-|$29.00|-$29.00");
 }
 
@@ -369,7 +416,12 @@ fn general_ledger_option_defaults() {
     has(r#"Sorting/Secondary Subtotal "i5" "boolean" true"#);
     has(r#"Sorting/Secondary Subtotal for Date Key "i2" "multichoice" "none""#);
     assert!(!options.iter().any(|o| o.starts_with("Display/Trans Number")), "{options:#?}");
-    assert!(!options.iter().any(|o| o.contains("Running Balance") || o.starts_with("Display/Totals")), "{options:#?}");
+    assert!(
+        !options
+            .iter()
+            .any(|o| o.contains("Running Balance") || o.starts_with("Display/Totals")),
+        "{options:#?}"
+    );
 }
 
 /// In a book that uses split actions for numbers, GL turns off "Num/Action" and "Trans Number" (GL:64-69).
@@ -380,7 +432,11 @@ fn general_ledger_option_defaults_in_a_split_action_book() {
     let described = f.call("report.options", &json!({ "report": GENERAL_LEDGER }));
     let default = |name: &str| {
         let options = described["options"].as_array().unwrap();
-        options.iter().find(|o| o["section"] == "Display" && o["name"] == name).unwrap_or_else(|| panic!("no {name}"))["default"].clone()
+        options
+            .iter()
+            .find(|o| o["section"] == "Display" && o["name"] == name)
+            .unwrap_or_else(|| panic!("no {name}"))["default"]
+            .clone()
     };
     assert_eq!(default("Num/Action"), json!(false));
     assert_eq!(default("Trans Number"), json!(false));
@@ -389,13 +445,21 @@ fn general_ledger_option_defaults_in_a_split_action_book() {
 /// GnuCash's SQLite copy of test-data gives the same General Ledger and Reconciliation Report as the XML book.
 #[test]
 fn ledgers_on_sqlite_match_xml() {
-    let accounts = json!(["a0000000000000000000000000000003", "a0000000000000000000000000000004", "a0000000000000000000000000000008"]);
+    let accounts = json!([
+        "a0000000000000000000000000000003",
+        "a0000000000000000000000000000004",
+        "a0000000000000000000000000000008"
+    ]);
     let options = json!({ "Accounts": { "Accounts": accounts }, "General": { "Start Date": { "absolute": "1969-01-01T00:00:00Z" },
                                                                              "End Date": { "absolute": "2024-12-31T00:00:00Z" } },
                           "Display": { "Account Balance": true } });
     [GENERAL_LEDGER, RECONCILIATION].iter().for_each(|report| {
         let run = |sqlite: bool| {
-            let mut f = if sqlite { Fixture::open_sqlite("test-data", "iso") } else { Fixture::open("test-data", "iso", true) };
+            let mut f = if sqlite {
+                Fixture::open_sqlite("test-data", "iso")
+            } else {
+                Fixture::open("test-data", "iso", true)
+            };
             let mut result = f.run(report, &options);
             result["now"] = Value::Null;
             result
@@ -412,7 +476,10 @@ fn ledgers_leave_the_book_unchanged() {
     let mut f = Fixture::open("reconcile", "iso", false);
     let files = f.files();
     f.run(RECONCILIATION, &on_bank_and_liabilities(&march_1970()));
-    f.run(GENERAL_LEDGER, &on_bank_and_liabilities(&json!({ "Display": { "Account Balance": true } })));
+    f.run(
+        GENERAL_LEDGER,
+        &on_bank_and_liabilities(&json!({ "Display": { "Account Balance": true } })),
+    );
     f.export(RECONCILIATION, &json!({}));
     assert_eq!(f.call("book.info", &json!({}))["dirty"], false);
     assert_eq!(f.files(), files);

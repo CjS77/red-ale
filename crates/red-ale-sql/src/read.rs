@@ -13,8 +13,8 @@ use red_ale_core::business::Business;
 use red_ale_core::commodity::TEMPLATE_NAMESPACE;
 use red_ale_core::ops::scheduled::TEMPLATE_ROOT_NAME;
 use red_ale_core::{
-    Account, AccountType, Book, Budget, Commodity, CommodityRef, FixedEnv, Frame, Guid, Lot, Price, Recurrence, ScheduledTransaction, SlotValue,
-    Templates, Time64, Transaction,
+    Account, AccountType, Book, Budget, Commodity, CommodityRef, FixedEnv, Frame, Guid, Lot, Price, Recurrence, ScheduledTransaction,
+    SlotValue, Templates, Time64, Transaction,
 };
 use rusqlite::Connection;
 use rusqlite::types::ValueRef;

@@ -16,10 +16,11 @@ mod rational;
 use thiserror::Error;
 
 pub use flonum::guile_inexact;
-pub use growth::{MAX_WORKING_BITS, cagr, growth_rate};
 pub use format::{
-    CommodityFormat, MonetaryDisplay, PrintInfo, display_exact, display_monetary, display_number, display_number_rounded, display_price, display_share, fixed, format_amount,
+    CommodityFormat, MonetaryDisplay, PrintInfo, display_exact, display_monetary, display_number, display_number_rounded, display_price,
+    display_share, fixed, format_amount,
 };
+pub use growth::{MAX_WORKING_BITS, cagr, growth_rate};
 pub use monetary::Monetary;
 pub use rational::{DEFAULT_MAX_BITS, Rational, Rounding, SizeCap};
 

@@ -27,7 +27,12 @@ fn side_by_side() -> Value {
 fn cells(result: &Value) -> Vec<Value> {
     let grid = &result["sections"][0]["blocks"][0];
     assert_eq!(grid["kind"], "grid");
-    grid["rows"].as_array().unwrap().iter().flat_map(|r| r["cells"].as_array().unwrap().clone()).collect()
+    grid["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|r| r["cells"].as_array().unwrap().clone())
+        .collect()
 }
 
 /// A child's cell holds the result of running it alone, without the run's version and now.
@@ -84,14 +89,21 @@ fn a_saved_configuration_child_follows_its_changes_and_warns_once_deleted() {
     assert_eq!(cell["result"]["report"]["configuration"], json!(guid));
     assert_eq!(cell["link"]["report"]["configuration"], json!(guid));
     let summary = run["sections"].as_array().unwrap().last().unwrap()["blocks"][0].clone();
-    assert_eq!(summary["rows"][0], json!({ "section": "", "name": "Embedded Report", "value": "Short" }));
+    assert_eq!(
+        summary["rows"][0],
+        json!({ "section": "", "name": "Embedded Report", "value": "Short" })
+    );
 
     f.call(
         "report.updateConfiguration",
         &json!({ "configuration": "Short", "options": { "General": { "Report name": "Shorter" } } }),
     );
     let run = f.run("Board pack", &json!({}));
-    assert_eq!(cells(&run)[0]["result"]["options"]["General"]["Report name"], "Shorter", "a reference, not a copy");
+    assert_eq!(
+        cells(&run)[0]["result"]["options"]["General"]["Report name"],
+        "Shorter",
+        "a reference, not a copy"
+    );
 
     f.call("report.deleteConfiguration", &json!({ "configuration": "Short" }));
     let run = f.run("Board pack", &json!({}));

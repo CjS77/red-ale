@@ -3,16 +3,16 @@
 
 use std::rc::Rc;
 
-use red_ale_core::ops::balances::{Balances, Total};
 use red_ale_core::book_options::uses_split_action_for_num;
 use red_ale_core::lot::is_stock_split;
+use red_ale_core::ops::balances::{Balances, Total};
 use red_ale_core::ops::business::payments::lot_invoice;
-use red_ale_core::ops::lots::lot_split_list;
 use red_ale_core::ops::commodities::{display_symbol, is_iso_namespace, lookup};
 use red_ale_core::ops::doc_links::doc_link;
+use red_ale_core::ops::lots::lot_split_list;
 use red_ale_core::ops::transactions::find::share_price;
-use red_ale_core::ops::transactions::void::{void_former_amount, void_former_value};
 use red_ale_core::ops::transactions::order::trans_order;
+use red_ale_core::ops::transactions::void::{void_former_amount, void_former_value};
 use red_ale_core::ops::transactions::{corr_account_code, corr_account_full_name, other_split};
 use red_ale_core::transaction::slot_paths;
 use red_ale_core::{Commodity, Price, Split, Transaction};
@@ -217,8 +217,12 @@ fn lot(engine: &mut Engine) {
     });
     let optional = |s: Option<&str>| s.map_or(Dynamic::UNIT, Into::into);
     // `gnc-lot-get-title`, `gnc-lot-get-notes` (`5.17:libgnucash/engine/gnc-lot.cpp:444-460`): `()` when unset.
-    engine.register_get("title", move |l: &mut LotHandle| -> Fallible<Dynamic> { Ok(optional(l.get()?.title())) });
-    engine.register_get("notes", move |l: &mut LotHandle| -> Fallible<Dynamic> { Ok(optional(l.get()?.notes())) });
+    engine.register_get("title", move |l: &mut LotHandle| -> Fallible<Dynamic> {
+        Ok(optional(l.get()?.title()))
+    });
+    engine.register_get("notes", move |l: &mut LotHandle| -> Fallible<Dynamic> {
+        Ok(optional(l.get()?.notes()))
+    });
     engine.register_get("account", |l: &mut LotHandle| -> Fallible<AccountHandle> {
         Ok(BookHandle(Rc::clone(&l.snap)).account(l.get()?.account))
     });

@@ -346,7 +346,10 @@ fn is_update_form(d: &Datum) -> bool {
             r#"(gnc-lookup-option (gnc:optiondb options) "__general" "report-list")"#,
             "(GncOption-get-value option)",
         ),
-        (r#"(gnc:lookup-option options "__general" "report-list")"#, "(gnc:option-value option)"),
+        (
+            r#"(gnc:lookup-option options "__general" "report-list")"#,
+            "(gnc:option-value option)",
+        ),
     ];
     LOOKUPS.iter().any(|(lookup, value)| {
         let text = format!(
@@ -413,7 +416,9 @@ fn report_list_spans(d: &Datum) -> Matched<Vec<(u32, u32)>> {
         _ => None,
     };
     let span = |item: &Datum| match item.as_list() {
-        Some([id, wide, high, rest @ ..]) if count(id).is_some() && matches!(rest, [] | [Datum::Bool(false)]) => count(wide).zip(count(high)),
+        Some([id, wide, high, rest @ ..]) if count(id).is_some() && matches!(rest, [] | [Datum::Bool(false)]) => {
+            count(wide).zip(count(high))
+        }
         _ => None,
     };
     let items = d
@@ -668,7 +673,10 @@ mod tests {
     fn reads_a_saved_view_and_its_embedded_reports() {
         let entry = view(|t| t);
         let names = |o: &[OptionForm]| o.iter().map(|o| format!("{}/{}", o.section, o.name)).collect::<Vec<_>>();
-        assert_eq!(names(entry.options.as_ref().unwrap()), ["General/Report name", "General/Number of columns"]);
+        assert_eq!(
+            names(entry.options.as_ref().unwrap()),
+            ["General/Report name", "General/Number of columns"]
+        );
         let children = entry.embedded.unwrap();
         let shape = |c: &EmbeddedForm| (c.template.clone(), c.template_name.clone(), c.colspan, c.rowspan, c.options.len());
         assert_eq!(
@@ -676,7 +684,13 @@ mod tests {
             [
                 ("3298541c236b494998b236dfad6ad752".to_owned(), "Account Summary".to_owned(), 1, 1, 3),
                 ("c4173ac99b2b448289bf4d11c731af13".to_owned(), "Balance Sheet".to_owned(), 1, 2, 2),
-                ("d8ba4a2e89e8479ca9f6eccdeb164588".to_owned(), "Multicolumn View".to_owned(), 2, 1, 2),
+                (
+                    "d8ba4a2e89e8479ca9f6eccdeb164588".to_owned(),
+                    "Multicolumn View".to_owned(),
+                    2,
+                    1,
+                    2
+                ),
             ]
         );
         assert_eq!(
@@ -690,8 +704,11 @@ mod tests {
     #[test]
     fn reads_the_4_x_update_form() {
         let old = view(|t| {
-            t.replace("(gnc-lookup-option (gnc:optiondb options) \"__general\"", "(gnc:lookup-option options \"__general\"")
-                .replace("(GncOption-get-value option)", "(gnc:option-value option)")
+            t.replace(
+                "(gnc-lookup-option (gnc:optiondb options) \"__general\"",
+                "(gnc:lookup-option options \"__general\"",
+            )
+            .replace("(GncOption-get-value option)", "(gnc:option-value option)")
         });
         assert_eq!(old.embedded.map(|c| c.len()), Some(3));
     }
@@ -702,13 +719,21 @@ mod tests {
         assert!(refused("(13 1 2 #f) ", "").contains("places 2 reports, and 3 embedded reports"));
         assert!(refused("(14 2 1 #f)", "(14 2 1 x)").contains("not a placement"));
         assert!(refused("(14 2 1 #f)", "(14 2.5 1 #f)").contains("not a placement"));
-        assert!(refused("'2)", "(launch))").contains("not a literal value"), "an embedded option's value");
+        assert!(
+            refused("'2)", "(launch))").contains("not a literal value"),
+            "an embedded option's value"
+        );
         let other_template = "#f \"c4173ac99b2b448289bf4d11c731af13\" \"Income Statement\"";
-        assert!(refused("#f \"c4173ac99b2b448289bf4d11c731af13\" \"Balance Sheet\"", other_template).contains("not an embedded report form"));
+        assert!(
+            refused("#f \"c4173ac99b2b448289bf4d11c731af13\" \"Balance Sheet\"", other_template).contains("not an embedded report form")
+        );
         assert!(refused("(set! new-embedded-report-ids", "(set! other-ids").contains("not an embedded report form"));
         let update = "(map (lambda (x y) (cons x (cdr y))) new-embedded-report-ids saved-report-list)";
         let wrong = refused(update, "(launch)");
-        assert!(wrong.contains("not an option form"), "without the update form, nothing is a view's: {wrong}");
+        assert!(
+            wrong.contains("not an option form"),
+            "without the update form, nothing is a view's: {wrong}"
+        );
     }
 
     /// What `gnc:save-style-sheet-options` writes (5.17:gnucash/report/html-style-sheet.scm:145-166).

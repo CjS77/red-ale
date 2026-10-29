@@ -61,7 +61,10 @@ fn check_pie(charts: &mut Charts, template: &str, options: Value, want: &Pie<'_>
     let palette = ["#ff4136", "#ff851b", "#ffdc00", "#2ecc40", "#0074d9", "#001f3f", "#85144b"];
     assert_eq!(series["colors"], json!(palette[..labels.len()]), "GnuCash's colours (HU:226-245)");
     let html = charts.export(template, &options);
-    want.title.iter().chain(&labels).for_each(|t| assert!(html.contains(&escaped(t)), "{t} in the export"));
+    want.title
+        .iter()
+        .chain(&labels)
+        .for_each(|t| assert!(html.contains(&escaped(t)), "{t} in the export"));
     result
 }
 
@@ -78,40 +81,54 @@ fn warning_title(result: &Value) -> String {
 #[test]
 fn options_are_gnucash_s() {
     let mut charts = Charts::open("charts-daily.gnucash", "iso");
-    [(INCOME, "Income vs. Day of Week", "a0000000000000000000000000000007"), (EXPENSE, "Expenses vs. Day of Week", "a0000000000000000000000000000009")]
-        .iter()
-        .for_each(|(template, name, account)| {
-            let described = charts.call("report.options", json!({ "report": template }));
-            let got: Vec<String> = described["options"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|o| format!("{}/{} {} {}", o["section"].as_str().unwrap(), o["name"].as_str().unwrap(), o["key"], o["default"]))
-                .collect();
-            let want = [
-                "Accounts/Include Sub-Accounts \"a\" true".to_owned(),
-                format!("Accounts/Accounts \"a\" [\"{account}\"]"),
-                "Display/Show Totals \"b\" true".to_owned(),
-                "Display/Plot Width \"da\" {\"percent\":100}".to_owned(),
-                "Display/Plot Height \"db\" {\"percent\":100}".to_owned(),
-                format!("General/Report name \"0a\" \"{name}\""),
-                "General/Stylesheet \"0b\" \"Default\"".to_owned(),
-                "General/Add options summary \"0c\" \"never\"".to_owned(),
-                "General/Start Date \"aa\" {\"relative\":\"start-accounting-period\"}".to_owned(),
-                "General/End Date \"ab\" {\"relative\":\"end-accounting-period\"}".to_owned(),
-                "General/Report's currency \"b\" \"CURRENCY::USD\"".to_owned(),
-                "General/Price Source \"c\" \"weighted-average\"".to_owned(),
-            ];
-            assert_eq!(got, want, "{name}");
-        });
+    [
+        (INCOME, "Income vs. Day of Week", "a0000000000000000000000000000007"),
+        (EXPENSE, "Expenses vs. Day of Week", "a0000000000000000000000000000009"),
+    ]
+    .iter()
+    .for_each(|(template, name, account)| {
+        let described = charts.call("report.options", json!({ "report": template }));
+        let got: Vec<String> = described["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|o| {
+                format!(
+                    "{}/{} {} {}",
+                    o["section"].as_str().unwrap(),
+                    o["name"].as_str().unwrap(),
+                    o["key"],
+                    o["default"]
+                )
+            })
+            .collect();
+        let want = [
+            "Accounts/Include Sub-Accounts \"a\" true".to_owned(),
+            format!("Accounts/Accounts \"a\" [\"{account}\"]"),
+            "Display/Show Totals \"b\" true".to_owned(),
+            "Display/Plot Width \"da\" {\"percent\":100}".to_owned(),
+            "Display/Plot Height \"db\" {\"percent\":100}".to_owned(),
+            format!("General/Report name \"0a\" \"{name}\""),
+            "General/Stylesheet \"0b\" \"Default\"".to_owned(),
+            "General/Add options summary \"0c\" \"never\"".to_owned(),
+            "General/Start Date \"aa\" {\"relative\":\"start-accounting-period\"}".to_owned(),
+            "General/End Date \"ab\" {\"relative\":\"end-accounting-period\"}".to_owned(),
+            "General/Report's currency \"b\" \"CURRENCY::USD\"".to_owned(),
+            "General/Price Source \"c\" \"weighted-average\"".to_owned(),
+        ];
+        assert_eq!(got, want, "{name}");
+    });
     let listed = charts.call("report.list", json!({}));
     let reports = listed["reports"].as_array().unwrap();
-    [(INCOME, "Shows a piechart with the total income for each day of the week"), (EXPENSE, "Shows a piechart with the total expenses for each day of the week")]
-        .iter()
-        .for_each(|(guid, tip)| {
-            let t = reports.iter().find(|r| r["guid"] == *guid).unwrap();
-            assert_eq!((&t["menuPath"], &t["menuTip"]), (&json!(["E_xamples"]), &json!(tip)), "DR:291-310");
-        });
+    [
+        (INCOME, "Shows a piechart with the total income for each day of the week"),
+        (EXPENSE, "Shows a piechart with the total expenses for each day of the week"),
+    ]
+    .iter()
+    .for_each(|(guid, tip)| {
+        let t = reports.iter().find(|r| r["guid"] == *guid).unwrap();
+        assert_eq!((&t["menuPath"], &t["menuTip"]), (&json!(["E_xamples"]), &json!(tip)), "DR:291-310");
+    });
 }
 
 /// GnuCash's null test (`test-charts.scm:71-77`): each template with its defaults on an empty book renders. No
@@ -122,11 +139,13 @@ fn the_null_test_renders_the_warning() {
     let mut charts = Charts::new("iso");
     let book = charts.path().join("book.gnucash");
     charts.call("book.create", json!({ "path": book.display().to_string() }));
-    [(INCOME, "Income vs. Day of Week"), (EXPENSE, "Expenses vs. Day of Week")].iter().for_each(|(t, name)| {
-        let result = charts.run(t, &json!({}));
-        assert_eq!(result["title"], *name);
-        assert_eq!(warning_title(&result), "No data");
-    });
+    [(INCOME, "Income vs. Day of Week"), (EXPENSE, "Expenses vs. Day of Week")]
+        .iter()
+        .for_each(|(t, name)| {
+            let result = charts.run(t, &json!({}));
+            assert_eq!(result["title"], *name);
+            assert_eq!(warning_title(&result), "No data");
+        });
 }
 
 /// GnuCash's render test (`test-charts.scm:187-190`): book A with Start Date `start-cal-year` and End Date
@@ -145,7 +164,11 @@ fn the_render_test_on_book_a() {
     check_pie(&mut charts, INCOME, options.clone(), &income);
     let expense = Pie {
         title: ["Expenses vs. Day of Week", "2024-01-01 to 2024-12-31: $39.00"],
-        slices: &[("Wednesday - -$11.00", "-11"), ("Thursday - $35.00", "35"), ("Friday - $15.00", "15")],
+        slices: &[
+            ("Wednesday - -$11.00", "-11"),
+            ("Thursday - $35.00", "35"),
+            ("Friday - $15.00", "15"),
+        ],
     };
     check_pie(&mut charts, EXPENSE, options, &expense);
     let refused = charts.err(
@@ -153,7 +176,11 @@ fn the_render_test_on_book_a() {
         json!({ "report": INCOME, "options": { "Accounts": { "Accounts": ["a0000000000000000000000000000006"] } } }),
     );
     assert_eq!(refused.code, 3002, "Bank is not an INCOME account");
-    assert_eq!(charts.run(INCOME, &json!({}))["title"], "Income vs. Day of Week", "the defaults are this year");
+    assert_eq!(
+        charts.run(INCOME, &json!({}))["title"],
+        "Income vs. Day of Week",
+        "the defaults are this year"
+    );
 }
 
 /// 1970 on charts-daily: every weekday of Income's 101 daily transactions, Sunday first (DR:220-237), as the
@@ -189,8 +216,15 @@ fn income_by_weekday_in_1970() {
 #[test]
 fn show_totals_off_and_a_report_name() {
     let mut charts = Charts::open("charts-daily.gnucash", "iso");
-    let options = dated("2024-01-01", "2024-12-31", json!({ "Display": { "Show Totals": false }, "General": { "Report name": "Days" } }));
-    let want = Pie { title: ["Days", "2024-01-01 to 2024-12-31"], slices: &[("Sunday", "-29"), ("Tuesday", "-8")] };
+    let options = dated(
+        "2024-01-01",
+        "2024-12-31",
+        json!({ "Display": { "Show Totals": false }, "General": { "Report name": "Days" } }),
+    );
+    let want = Pie {
+        title: ["Days", "2024-01-01 to 2024-12-31"],
+        slices: &[("Sunday", "-29"), ("Tuesday", "-8")],
+    };
     let result = check_pie(&mut charts, INCOME, options, &want);
     assert_eq!(result["title"], "Days");
     assert_eq!(chart(&result)["series"][0]["label"], "Income vs. Day of Week");
@@ -202,8 +236,14 @@ fn show_totals_off_and_a_report_name() {
 fn zero_totals_and_no_splits_give_the_warning() {
     let mut charts = Charts::open("charts-daily.gnucash", "iso");
     let zero = charts.run(INCOME, &dated("1970-01-01", "1970-01-01", Value::Null));
-    assert_eq!((warning_title(&zero), zero["title"].as_str()), ("No data".to_owned(), Some("Income vs. Day of Week")));
-    let none = charts.run(EXPENSE, &dated("1980-01-01", "1980-12-31", json!({ "General": { "Report name": "Mine" } })));
+    assert_eq!(
+        (warning_title(&zero), zero["title"].as_str()),
+        ("No data".to_owned(), Some("Income vs. Day of Week"))
+    );
+    let none = charts.run(
+        EXPENSE,
+        &dated("1980-01-01", "1980-12-31", json!({ "General": { "Report name": "Mine" } })),
+    );
     assert_eq!((warning_title(&none), none["title"].as_str()), ("No data".to_owned(), Some("Mine")));
     let selected = json!({ "Accounts": { "Accounts": [DAILY_INCOME] } });
     let one = charts.run(INCOME, &dated("1970-01-01", "1970-01-01", selected));
@@ -216,15 +256,29 @@ fn zero_totals_and_no_splits_give_the_warning() {
 #[test]
 fn include_sub_accounts() {
     let mut charts = Charts::open("test-data.gnucash", "iso");
-    charts.call("account.create", json!({ "name": "Child", "type": "INCOME", "parent": "Root:Income", "commodity": "CURRENCY::USD" }));
+    charts.call(
+        "account.create",
+        json!({ "name": "Child", "type": "INCOME", "parent": "Root:Income", "commodity": "CURRENCY::USD" }),
+    );
     let splits = json!([{ "account": "Root:Asset:Bank", "value": "7" }, { "account": "Root:Income:Child", "value": "-7" }]);
-    charts.call("transaction.post", json!({ "datePosted": "1978-01-05", "currency": "CURRENCY::USD", "splits": splits }));
+    charts.call(
+        "transaction.post",
+        json!({ "datePosted": "1978-01-05", "currency": "CURRENCY::USD", "splits": splits }),
+    );
     let only_income = |subs: bool| {
-        dated("1978-01-01", "1978-01-31", json!({ "Accounts": { "Accounts": [TD_INCOME], "Include Sub-Accounts": subs } }))
+        dated(
+            "1978-01-01",
+            "1978-01-31",
+            json!({ "Accounts": { "Accounts": [TD_INCOME], "Include Sub-Accounts": subs } }),
+        )
     };
     let with = Pie {
         title: ["Income vs. Day of Week", "1978-01-01 to 1978-01-31: -$219.00"],
-        slices: &[("Monday - -$109.00", "-109"), ("Tuesday - -$103.00", "-103"), ("Thursday - -$7.00", "-7")],
+        slices: &[
+            ("Monday - -$109.00", "-109"),
+            ("Tuesday - -$103.00", "-103"),
+            ("Thursday - -$7.00", "-7"),
+        ],
     };
     check_pie(&mut charts, INCOME, only_income(true), &with);
     let without = Pie {
@@ -251,10 +305,17 @@ fn a_foreign_account_converted_at_each_date() {
     let mut charts = Charts::open("test-data.gnucash", "iso");
     ["2000-01-20", "2000-02-20"].iter().for_each(|date| {
         let splits = json!([{ "account": "Root:Asset:GBP Bank", "value": "10" }, { "account": "Root:Income-GBP", "value": "-10" }]);
-        charts.call("transaction.post", json!({ "datePosted": date, "currency": "CURRENCY::GBP", "splits": splits }));
+        charts.call(
+            "transaction.post",
+            json!({ "datePosted": date, "currency": "CURRENCY::GBP", "splits": splits }),
+        );
     });
     let gbp = |source: &str, from: &str, to: &str| {
-        dated(from, to, json!({ "Accounts": { "Accounts": [TD_INCOME_GBP] }, "General": { "Price Source": source } }))
+        dated(
+            from,
+            to,
+            json!({ "Accounts": { "Accounts": [TD_INCOME_GBP] }, "General": { "Price Source": source } }),
+        )
     };
     let nearest = Pie {
         title: ["Income vs. Day of Week", "2000-01-01 to 2000-12-31: -$29.00"],
@@ -266,14 +327,21 @@ fn a_foreign_account_converted_at_each_date() {
         slices: &[("Sunday - -$14.375", "-115/8"), ("Thursday - -$14.00", "-14")],
     };
     let result = check_pie(&mut charts, INCOME, gbp("weighted-average", "2000-01-01", "2000-12-31"), &weighted);
-    assert_eq!(chart(&result)["series"][0]["displays"], json!(["-$14.38", "-$14.00"]), "the slice shown at the SCU");
+    assert_eq!(
+        chart(&result)["series"][0]["displays"],
+        json!(["-$14.38", "-$14.00"]),
+        "the slice shown at the SCU"
+    );
 
     let before = charts.run(INCOME, &gbp("weighted-average", "1978-01-01", "1978-12-31"));
     assert_eq!(warning_title(&before), "No data");
     let c = chart(&charts.run(INCOME, &gbp("pricedb-nearest", "1978-01-01", "1978-12-31")));
     // The 8th of each month of 1978: two Sundays, a Monday, a Tuesday, three Wednesdays, a Thursday, two Fridays and
     // two Saturdays.
-    assert_eq!(values(&c["series"][0]), ["-714/5", "-357/5", "-357/5", "-1071/5", "-357/5", "-714/5", "-714/5"]);
+    assert_eq!(
+        values(&c["series"][0]),
+        ["-714/5", "-357/5", "-357/5", "-1071/5", "-357/5", "-714/5", "-714/5"]
+    );
 }
 
 /// Both templates read the Book and write nothing, on XML and SQLite.
@@ -281,6 +349,10 @@ fn a_foreign_account_converted_at_each_date() {
 fn a_run_changes_nothing() {
     let options = dated("1970-01-01", "2024-12-31", Value::Null);
     check_read_only(&mut Charts::open("charts-daily.gnucash", "iso"), &[INCOME, EXPENSE], &options);
-    check_read_only(&mut Charts::open_sqlite("charts-daily.gnucash", "iso"), &[INCOME, EXPENSE], &options);
+    check_read_only(
+        &mut Charts::open_sqlite("charts-daily.gnucash", "iso"),
+        &[INCOME, EXPENSE],
+        &options,
+    );
     check_read_only(&mut Charts::open_sqlite("test-data.gnucash", "iso"), &[INCOME, EXPENSE], &options);
 }

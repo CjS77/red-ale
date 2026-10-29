@@ -35,7 +35,10 @@ struct Machine {
 
 impl Machine {
     fn new(programs: &[&str]) -> Self {
-        let machine = Self { home: tempfile::tempdir().unwrap(), fail: false };
+        let machine = Self {
+            home: tempfile::tempdir().unwrap(),
+            fail: false,
+        };
         programs.iter().for_each(|p| Machine::fake(&machine.bin(), p, ""));
         machine
     }
@@ -85,7 +88,10 @@ impl Machine {
 
     /// The arguments of the calls logged, without their working directory, and forget them.
     fn args(&self) -> Vec<String> {
-        self.calls().iter().map(|c| c.split_once(": ").map_or(c.clone(), |(_, args)| args.to_owned())).collect()
+        self.calls()
+            .iter()
+            .map(|c| c.split_once(": ").map_or(c.clone(), |(_, args)| args.to_owned()))
+            .collect()
     }
 
     fn write(&self, relative: &str, text: &str) {
@@ -131,8 +137,14 @@ fn claude_code_adds_updates_by_removing_first_and_removes() {
     assert!(machine.calls().is_empty(), "nothing to do runs nothing");
 
     machine.write(".claude.json", &claude_json("/usr/local/bin/red-ale"));
-    assert!(matches!(apply_set(claude.as_ref(), &env, &Scope::User).unwrap(), Action::Update { .. }));
-    let expected = ["mcp remove -s user red-ale".to_owned(), format!("mcp add -s user red-ale -- {RED_ALE} mcp")];
+    assert!(matches!(
+        apply_set(claude.as_ref(), &env, &Scope::User).unwrap(),
+        Action::Update { .. }
+    ));
+    let expected = [
+        "mcp remove -s user red-ale".to_owned(),
+        format!("mcp add -s user red-ale -- {RED_ALE} mcp"),
+    ];
     assert_eq!(machine.args(), expected);
 
     let removal = claude.plan_removal(&env, &Scope::User);
@@ -147,9 +159,15 @@ fn claude_code_reads_the_config_directory_and_takes_a_project() {
     let project = machine.home().join("work");
     fs::create_dir_all(&project).unwrap();
     let claude = harness("claude-code").unwrap();
-    assert_eq!(claude.config(&env_vars, &Scope::Project(project.clone())).unwrap(), project.join(".mcp.json"));
+    assert_eq!(
+        claude.config(&env_vars, &Scope::Project(project.clone())).unwrap(),
+        project.join(".mcp.json")
+    );
     apply_set(claude.as_ref(), &env_vars, &Scope::Project(project.clone())).unwrap();
-    assert_eq!(machine.calls(), [format!("{}: mcp add -s project red-ale -- {RED_ALE} mcp", project.display())]);
+    assert_eq!(
+        machine.calls(),
+        [format!("{}: mcp add -s project red-ale -- {RED_ALE} mcp", project.display())]
+    );
 
     let dir = machine.home().join("claude-config");
     env_vars = Env::new(
@@ -171,7 +189,10 @@ fn a_failing_cli_is_a_failure_with_its_message() {
     machine.fail = true;
     let env = machine.default_env();
     let failed = apply_set(harness("claude-code").unwrap().as_ref(), &env, &Scope::User).unwrap_err();
-    assert!(matches!(&failed, Error::Cli { message, .. } if message == "claude: no such server"), "{failed}");
+    assert!(
+        matches!(&failed, Error::Cli { message, .. } if message == "claude: no such server"),
+        "{failed}"
+    );
     assert!(failed.to_string().contains("mcp add -s user red-ale"), "{failed}");
 }
 
@@ -190,11 +211,17 @@ fn codex_reads_its_toml_and_has_no_project_scope() {
     let machine = Machine::new(&["codex"]);
     let env = machine.default_env();
     let codex = harness("codex").unwrap();
-    machine.write(".codex/config.toml", "model = \"o4\"\n\n[mcp_servers.github]\ncommand = \"docker\"\n");
+    machine.write(
+        ".codex/config.toml",
+        "model = \"o4\"\n\n[mcp_servers.github]\ncommand = \"docker\"\n",
+    );
     assert!(matches!(apply_set(codex.as_ref(), &env, &Scope::User).unwrap(), Action::Add));
     assert_eq!(machine.args(), [format!("mcp add red-ale -- {RED_ALE} mcp")]);
 
-    machine.write(".codex/config.toml", &format!("[mcp_servers.red-ale]\ncommand = \"{RED_ALE}\"\nargs = [\"mcp\"]\n"));
+    machine.write(
+        ".codex/config.toml",
+        &format!("[mcp_servers.red-ale]\ncommand = \"{RED_ALE}\"\nargs = [\"mcp\"]\n"),
+    );
     assert!(matches!(apply_set(codex.as_ref(), &env, &Scope::User).unwrap(), Action::Nothing));
     let removal = codex.plan_removal(&env, &Scope::User);
     codex.apply(&env, removal).unwrap();
@@ -202,9 +229,17 @@ fn codex_reads_its_toml_and_has_no_project_scope() {
 
     machine.write(".codex/config.toml", "[mcp_servers\n");
     let plan = codex.plan(&env, &Scope::User, &entry());
-    assert!(matches!(plan.action, Action::Skip(Error::Invalid { format: "TOML", .. })), "{:?}", plan.action);
+    assert!(
+        matches!(plan.action, Action::Skip(Error::Invalid { format: "TOML", .. })),
+        "{:?}",
+        plan.action
+    );
     let project = codex.plan(&env, &Scope::Project(machine.home().to_path_buf()), &entry());
-    assert!(matches!(project.action, Action::Skip(Error::NoProjectScope("Codex"))), "{:?}", project.action);
+    assert!(
+        matches!(project.action, Action::Skip(Error::NoProjectScope("Codex"))),
+        "{:?}",
+        project.action
+    );
 }
 
 #[test]
@@ -214,7 +249,10 @@ fn copilot_cli_is_not_vs_codes_shim() {
     Machine::fake(&shims, "copilot", "");
     Machine::fake(&machine.bin(), "copilot", "# VSCODE_COPILOT_RUST_SHIM_V1");
     let copilot = harness("copilot-cli").unwrap();
-    assert!(!copilot.detect(&machine.env(&[shims.clone(), machine.bin()])), "both shims are passed over");
+    assert!(
+        !copilot.detect(&machine.env(&[shims.clone(), machine.bin()])),
+        "both shims are passed over"
+    );
 
     Machine::fake(&real, "copilot", "");
     let env = machine.env(&[shims, machine.bin(), real.clone()]);
@@ -222,10 +260,16 @@ fn copilot_cli_is_not_vs_codes_shim() {
     assert!(matches!(apply_set(copilot.as_ref(), &env, &Scope::User).unwrap(), Action::Add));
     assert_eq!(machine.args(), [format!("mcp add --tools * red-ale -- {RED_ALE} mcp")]);
     let shown = copilot.plan(&env, &Scope::User, &entry()).exact_change().unwrap();
-    assert!(shown.starts_with(&format!("$ {}/copilot mcp add --tools '*' red-ale", real.display())), "{shown}");
+    assert!(
+        shown.starts_with(&format!("$ {}/copilot mcp add --tools '*' red-ale", real.display())),
+        "{shown}"
+    );
 
     let entry = format!(r#"{{ "command": "{RED_ALE}", "args": ["mcp"], "tools": ["*"] }}"#);
-    machine.write(".copilot/mcp-config.json", &format!(r#"{{ "mcpServers": {{ "red-ale": {entry} }} }}"#));
+    machine.write(
+        ".copilot/mcp-config.json",
+        &format!(r#"{{ "mcpServers": {{ "red-ale": {entry} }} }}"#),
+    );
     assert!(matches!(apply_set(copilot.as_ref(), &env, &Scope::User).unwrap(), Action::Nothing));
 }
 
@@ -236,9 +280,15 @@ fn gemini_takes_the_command_without_a_separator() {
     let gemini = harness("gemini").unwrap();
     let with_config = Entry::new(Path::new(RED_ALE), Some(Path::new("/srv/red-ale.json"))).unwrap();
     gemini.apply(&env, gemini.plan(&env, &Scope::User, &with_config)).unwrap();
-    assert_eq!(machine.args(), [format!("mcp add -s user red-ale {RED_ALE} mcp --config /srv/red-ale.json")]);
+    assert_eq!(
+        machine.args(),
+        [format!("mcp add -s user red-ale {RED_ALE} mcp --config /srv/red-ale.json")]
+    );
     let entry = format!(r#"{{ "command": "{RED_ALE}", "args": ["mcp"] }}"#);
-    machine.write(".gemini/settings.json", &format!("{{\n  // comments are allowed\n  \"mcpServers\": {{ \"red-ale\": {entry} }}\n}}\n"));
+    machine.write(
+        ".gemini/settings.json",
+        &format!("{{\n  // comments are allowed\n  \"mcpServers\": {{ \"red-ale\": {entry} }}\n}}\n"),
+    );
     let removal = gemini.plan_removal(&env, &Scope::User);
     gemini.apply(&env, removal).unwrap();
     assert_eq!(machine.args(), ["mcp remove -s user red-ale".to_owned()]);

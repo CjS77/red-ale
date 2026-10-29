@@ -258,7 +258,12 @@ impl ConfigStore {
         if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
             std::fs::create_dir_all(dir).map_err(io)?;
         }
-        let file = OpenOptions::new().create(true).truncate(false).write(true).open(&lock_path).map_err(io)?;
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(&lock_path)
+            .map_err(io)?;
         file.lock().map_err(io)?;
         Ok(ConfigLock { _file: Some(file) })
     }
@@ -375,11 +380,20 @@ mod tests {
             move |name| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| OsString::from(*v))
         }
         let linux = [("HOME", "/home/me")];
-        assert_eq!(default_path_for("linux", env(&linux)), Some(PathBuf::from("/home/me/.config/red-ale/config.json")));
+        assert_eq!(
+            default_path_for("linux", env(&linux)),
+            Some(PathBuf::from("/home/me/.config/red-ale/config.json"))
+        );
         let xdg = [("HOME", "/home/me"), ("XDG_CONFIG_HOME", "/xdg")];
-        assert_eq!(default_path_for("linux", env(&xdg)), Some(PathBuf::from("/xdg/red-ale/config.json")));
+        assert_eq!(
+            default_path_for("linux", env(&xdg)),
+            Some(PathBuf::from("/xdg/red-ale/config.json"))
+        );
         let relative = [("HOME", "/home/me"), ("XDG_CONFIG_HOME", "rel")];
-        assert_eq!(default_path_for("freebsd", env(&relative)), Some(PathBuf::from("/home/me/.config/red-ale/config.json")));
+        assert_eq!(
+            default_path_for("freebsd", env(&relative)),
+            Some(PathBuf::from("/home/me/.config/red-ale/config.json"))
+        );
         assert_eq!(
             default_path_for("macos", env(&linux)),
             Some(PathBuf::from("/home/me/Library/Application Support/red-ale/config.json"))

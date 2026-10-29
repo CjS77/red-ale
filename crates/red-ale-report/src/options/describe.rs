@@ -171,9 +171,7 @@ fn kind_schema(kind: &OptionKind, default: &OptionValue) -> Value {
 }
 
 fn placement_schema() -> Value {
-    let span = |what: &str| {
-        json!({ "type": "integer", "minimum": 0, "maximum": SPAN_MAX, "default": 1, "description": format!("The {what} it spans.") })
-    };
+    let span = |what: &str| json!({ "type": "integer", "minimum": 0, "maximum": SPAN_MAX, "default": 1, "description": format!("The {what} it spans.") });
     json!({ "type": "array", "items": {
         "type": "object",
         "properties": {
