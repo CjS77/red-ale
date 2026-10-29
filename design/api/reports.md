@@ -59,7 +59,15 @@ field or a new kind (`api.md`, "Versioning"): link kinds `split`, `transaction`,
 "Tables"); `labelLines` on columns; `link` on text blocks; `list` blocks (§7, "Blocks"). `report.export` renders a
 `docLink` as plain text (§8). Then: `alternate` on rows, the `warning` row role, tables with no columns, `rounding`
 (`bankers`, `halfUp`) and `numberFormat` (`share`) on number cells (§7, "Tables"), and `exportError` on the result
-(§7, "Top level").
+(§7, "Top level"). Then, for the Multicolumn View: `grid` blocks, whose cells hold each child's result (the shape
+`report.run` returns, less `version` and `now`) or a "Report error" warning (§7, "Blocks"); `configuration` on report
+links; and options summary rows with an empty `section`, the view's `Embedded Report` rows.
+
+A view's children run inside its `report.run` or `report.export`, with the same Book, `now`, Locale and settings,
+under one run time limit for all of them. A child that no longer exists, fails, would nest deeper than 4 or past the
+100th child of the run, or is a saved configuration already being run further up (a cycle) renders a warning in its
+cell; a child past an engine limit ends the call with `report-limit`. `report.export` renders the children through
+the view's style sheet.
 
 ## Methods
 

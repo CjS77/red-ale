@@ -19,7 +19,7 @@ use super::convert::to_json;
 use super::errors::{Failure, from_eval, from_parse};
 use super::log::Log;
 use super::resolver::Defined;
-use super::setup::{Setup, engine};
+use super::setup::{Setup, deadline, engine};
 use crate::error::{LoadError, ReportError};
 use crate::library::Library;
 use crate::limits::{Limit, Limits};
@@ -214,6 +214,7 @@ impl Registry {
             log: log.clone(),
             conventions,
             defined: Defined::default(),
+            deadline: deadline(&self.limits),
         };
         let engine = engine(&setup);
         let failure = |log: &Log| Failure {

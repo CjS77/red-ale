@@ -354,6 +354,9 @@ impl Link {
 pub struct ReportLink {
     /// The template to run.
     pub template: Id,
+    /// A saved configuration of the template to run (v0.5); `options` are then changes over its values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<Id>,
     /// The options to change, in the form `report.run` takes.
     #[serde(default)]
     pub options: OptionValues,

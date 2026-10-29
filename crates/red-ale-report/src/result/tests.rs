@@ -469,3 +469,47 @@ fn additions_b_are_validated() {
     v["sections"][0]["blocks"][0]["rows"][0]["cells"][0]["numberFormat"] = json!("plain");
     assert!(ReportDraft::from_json(&v).is_err(), "share is the one number format");
 }
+
+#[allow(clippy::needless_pass_by_value)]
+fn grid_json(cell: Value) -> Value {
+    json!({ "title": "", "sections": [{ "blocks": [{ "kind": "grid", "width": "2", "rows": [{ "cells": [cell] }] }] }] })
+}
+
+/// A script lays out a grid's cells; their link, result and warning are the host's, and a finished cell holds a
+/// result or a warning, not both, with spans of at most 100.
+#[test]
+fn grid_cells_leave_their_children_to_the_host() {
+    let cell = json!({ "rowspan": 1, "colspan": 0, "child": 0 });
+    ReportDraft::from_json(&grid_json(cell.clone())).unwrap().validate().unwrap();
+    let at = |edit: &dyn Fn(&mut Value)| {
+        let mut c = cell.clone();
+        edit(&mut c);
+        ReportDraft::from_json(&grid_json(c)).unwrap().validate().unwrap_err().path
+    };
+    let prefix = "sections[0].blocks[0].rows[0].cells[0]";
+    assert_eq!(at(&|c| c["rowspan"] = json!(101)), format!("{prefix}.rowspan"));
+    assert_eq!(at(&|c| c["warning"] = json!({ "title": "t", "text": "x" })), format!("{prefix}.warning"));
+    assert_eq!(at(&|c| c["link"] = json!({ "account": BANK })), format!("{prefix}.link"));
+
+    let finished = |c: Value| {
+        let mut v = grid_json(c);
+        let fields = [("version", json!(RESULT_VERSION)), ("now", json!("2024-12-31T10:59:00Z")), ("options", json!({})), ("log", json!([]))];
+        fields.into_iter().for_each(|(k, f)| v[k] = f);
+        v["report"] = json!({ "guid": BANK, "name": "View", "configuration": null });
+        v["headline"] = Value::Null;
+        ReportResult::from_json(&v).unwrap().validate()
+    };
+    assert_eq!(finished(cell.clone()).unwrap_err().path, prefix, "the host fills every cell");
+    let child = json!({ "report": { "guid": BANK, "name": "Leaf", "configuration": null }, "title": "Leaf", "headline": null,
+                        "options": {}, "log": [], "sections": [{ "blocks": [{ "kind": "optionsSummary", "rows": [] }] }] });
+    let mut both = cell.clone();
+    both["result"] = child.clone();
+    both["warning"] = json!({ "title": "Report error", "text": "x" });
+    assert_eq!(finished(both).unwrap_err().path, prefix);
+    let mut one = cell;
+    one["result"] = child;
+    one["link"] = json!({ "report": { "template": BANK, "configuration": BANK, "options": {} } });
+    finished(one.clone()).unwrap();
+    one["result"]["sections"][0]["blocks"][0] = json!({ "kind": "text", "text": "x", "link": { "docLink": "" } });
+    assert_eq!(finished(one).unwrap_err().path, format!("{prefix}.result.sections[0].blocks[0].link.docLink"));
+}

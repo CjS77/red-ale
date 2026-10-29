@@ -385,6 +385,33 @@
           ]
         },
         {
+          "description": "A Multicolumn View's children in rows of cells (`5.17:gnucash/report/reports/standard/view-column.scm:51-159`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "grid"
+            },
+            "width": {
+              "description": "The view's \"Number of columns\", GnuCash's `table-width`: the width at which a row is closed.",
+              "$ref": "#/$defs/Rational"
+            },
+            "rows": {
+              "description": "The rows, top to bottom. A cell spanning rows takes room in the rows below without being listed in them.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/GridRow"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "width",
+            "rows"
+          ]
+        },
+        {
           "description": "Set by the host only: the options that differ from their defaults (`gnc:html-render-options-changed`).",
           "type": "object",
           "properties": {
@@ -541,6 +568,14 @@
         "template": {
           "description": "The template to run.",
           "type": "string",
+          "pattern": "^[0-9a-fA-F]{32}$"
+        },
+        "configuration": {
+          "description": "A saved configuration of the template to run (v0.5); `options` are then changes over its values.",
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^[0-9a-fA-F]{32}$"
         },
         "options": {
@@ -1484,28 +1519,132 @@
         "text"
       ]
     },
-    "OptionsSummaryRow": {
-      "description": "One changed option in the options summary.",
+    "GridRow": {
+      "description": "One row of a grid.",
       "type": "object",
       "properties": {
-        "section": {
-          "description": "The option's section.",
-          "type": "string"
-        },
-        "name": {
-          "description": "The option's name.",
-          "type": "string"
-        },
-        "value": {
-          "description": "Its value as text.",
-          "type": "string"
+        "cells": {
+          "description": "The cells, left to right.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GridCell"
+          }
         }
       },
       "additionalProperties": false,
       "required": [
-        "section",
-        "name",
-        "value"
+        "cells"
+      ]
+    },
+    "GridCell": {
+      "description": "One child in its cell.",
+      "type": "object",
+      "properties": {
+        "rowspan": {
+          "description": "The rows the cell spans, 0 to 100, GnuCash's `high`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "colspan": {
+          "description": "The columns the cell spans, 0 to 100, GnuCash's `wide`; a page shows 0 as 1.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "child": {
+          "description": "The child's position in the view's report-list, from 0.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "link": {
+          "description": "*Host*: a report link that runs the child alone, GnuCash's \"Single Report\"; absent when the child names no\nreport that is loaded.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Link"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "description": "*Host*: the child's result.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EmbeddedResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "warning": {
+          "description": "*Host*: why the child did not run, in place of `result`: GnuCash's \"Report error\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WarningBlock"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "rowspan",
+        "colspan",
+        "child"
+      ]
+    },
+    "EmbeddedResult": {
+      "description": "A child's report result: what `report.run` returns, without the view's `version` and `now`.",
+      "type": "object",
+      "properties": {
+        "report": {
+          "description": "The template and saved configuration run.",
+          "$ref": "#/$defs/ReportIdentity"
+        },
+        "title": {
+          "description": "The child's title, which a page shows as the cell's heading.",
+          "type": "string"
+        },
+        "headline": {
+          "description": "A heading when it differs from the title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "options": {
+          "description": "Every option's value, in wire form.",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "sections": {
+          "description": "The sections, in order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Section"
+          }
+        },
+        "log": {
+          "description": "The child's report log.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LogEntry"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "report",
+        "title",
+        "options",
+        "sections",
+        "log"
       ]
     },
     "LogEntry": {
@@ -1556,6 +1695,49 @@
           "type": "string",
           "const": "debug"
         }
+      ]
+    },
+    "WarningBlock": {
+      "description": "A warning block.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "The warning's title, such as \"No accounts selected\".",
+          "type": "string"
+        },
+        "text": {
+          "description": "What it says.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "text"
+      ]
+    },
+    "OptionsSummaryRow": {
+      "description": "One changed option in the options summary.",
+      "type": "object",
+      "properties": {
+        "section": {
+          "description": "The option's section; empty for a view's `Embedded Report` rows (v0.5), which name no option.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The option's name, or `Embedded Report`.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Its value as text; for an `Embedded Report` row, the child's \"Report name\".",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "section",
+        "name",
+        "value"
       ]
     },
     "ExportCell": {

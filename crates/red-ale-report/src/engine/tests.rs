@@ -28,6 +28,7 @@ fn no_script_function_hands_out_the_book() {
         log: Log::new(1024),
         conventions,
         defined: super::resolver::Defined::default(),
+        deadline: super::setup::deadline(&Limits::default()),
     });
     let signatures = e.gen_fn_signatures(false);
     assert!(

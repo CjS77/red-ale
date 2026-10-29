@@ -33,12 +33,20 @@ pub(crate) struct Setup {
     pub conventions: Conventions,
     /// The functions of the scripts the run has compiled, which the resolver checks each module against.
     pub defined: Defined,
+    /// When the run time limit is passed: one deadline for a report and the children it embeds.
+    pub deadline: Instant,
+}
+
+/// The deadline of a run starting now under `limits`.
+pub(crate) fn deadline(limits: &Limits) -> Instant {
+    let max = Duration::from_secs(limits.get(Limit::Time));
+    Instant::now().checked_add(max).unwrap_or_else(|| Instant::now() + Duration::from_secs(u64::from(u32::MAX)))
 }
 
 /// How often, in operations, the run time is checked against the host clock.
 const CLOCK_EVERY: u64 = 1024;
 
-/// A configured engine. The run-time limit counts from now.
+/// A configured engine, stopping at the setup's deadline.
 pub(crate) fn engine(s: &Setup) -> Engine {
     let mut engine = Engine::new_raw();
     engine.register_global_module(StandardPackage::new().as_shared_module());
@@ -51,7 +59,7 @@ pub(crate) fn engine(s: &Setup) -> Engine {
     });
     engine.set_strict_variables(true);
     engine.set_fail_on_invalid_map_property(true);
-    limits(&mut engine, &s.limits);
+    limits(&mut engine, &s.limits, s.deadline);
     log(&mut engine, &s.log);
     engine.set_module_resolver(Resolver::new(Arc::clone(&s.sources), s.defined.clone()));
     numbers::register(&mut engine, &s.snap, SizeCap::bits(s.limits.get(Limit::NumberSize)), s.conventions);
@@ -64,7 +72,7 @@ pub(crate) fn engine(s: &Setup) -> Engine {
     engine
 }
 
-fn limits(engine: &mut Engine, l: &Limits) {
+fn limits(engine: &mut Engine, l: &Limits, deadline: Instant) {
     engine.set_max_operations(l.get(Limit::Operations));
     engine.set_max_call_levels(l.get_usize(Limit::CallDepth));
     let depth = l.get_usize(Limit::ExpressionDepth);
@@ -75,9 +83,8 @@ fn limits(engine: &mut Engine, l: &Limits) {
     engine.set_max_modules(l.get_usize(Limit::Modules));
     engine.set_max_variables(l.get_usize(Limit::Variables));
     engine.set_max_functions(l.get_usize(Limit::Functions));
-    let (start, max) = (Instant::now(), Duration::from_secs(l.get(Limit::Time)));
     // The clock only ever ends a run early; it never changes what a run returns.
-    engine.on_progress(move |ops| (ops % CLOCK_EVERY == 0 && start.elapsed() >= max).then_some(Dynamic::UNIT));
+    engine.on_progress(move |ops| (ops % CLOCK_EVERY == 0 && Instant::now() >= deadline).then_some(Dynamic::UNIT));
 }
 
 fn log(engine: &mut Engine, log: &Log) {

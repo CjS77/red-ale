@@ -690,3 +690,38 @@ fn row_shading_warning_rows_and_tables_with_no_columns() {
         ["<tr class=\"role-data normal-row\"></tr>", "<tr class=\"role-rule\"><td><hr></td></tr>"]
     );
 }
+
+/// A Multicolumn View's grid (`5.17:gnucash/report/reports/standard/view-column.scm:99-155`): a full-width table, each
+/// cell top-aligned with its spans (a column span of 0 written as 1), the child's title, its sections with chart ids
+/// below the cell's path, and its "Single Report" link; a warning in place of a child that did not run; and the
+/// options summary's `Embedded Report` rows with no section.
+#[test]
+fn a_grid_lays_out_its_children_in_cells() {
+    let child = json!({
+        "report": { "guid": BANK, "name": "Leaf", "configuration": null },
+        "title": "Child <1>", "headline": null, "options": {}, "log": [],
+        "sections": [ { "blocks": [ net_worth_bar(false) ] } ]
+    });
+    let link = json!({ "report": { "template": BANK, "options": {} } });
+    let r = result(
+        "",
+        json!([
+            { "blocks": [ { "kind": "grid", "width": "2", "rows": [ { "cells": [
+                { "rowspan": 2, "colspan": 1, "child": 0, "link": link, "result": child },
+                { "rowspan": 1, "colspan": 0, "child": 1, "warning": { "title": "Report error", "text": "gone" } }
+            ] } ] } ] },
+            { "blocks": [ { "kind": "optionsSummary", "rows": [ { "section": "", "name": "Embedded Report", "value": "Leaf" } ] } ] }
+        ]),
+    );
+    r.validate().unwrap();
+    let html = page(&r, None);
+    check_page(&html);
+    let cell = |spans: &str| format!("<td {spans} style=\"vertical-align: top\">");
+    let first = format!("<table class=\"grid\" style=\"width: 100%\">\n<tr>\n{}\n<h3>Child &lt;1&gt;</h3>", cell("rowspan=\"2\" colspan=\"1\""));
+    assert!(html.contains(&first), "{html}");
+    assert!(html.contains("id=\"chart-0-0-0-0-0-0\""), "a child's chart ids lie below its cell");
+    assert!(html.contains("<p class=\"note\"><span class=\"link\" data-link=\"{&quot;report&quot;:"));
+    let warning = "<div class=\"warning\" role=\"note\"><h3>Report error</h3><p>gone</p></div>";
+    assert!(html.contains(&format!("{}\n{warning}\n</td>", cell("rowspan=\"1\" colspan=\"1\""))));
+    assert!(html.contains("<tr><td><b>Embedded Report</b></td><td>Leaf</td></tr>"));
+}
