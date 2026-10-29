@@ -17,6 +17,11 @@
 //! | `Price`       | [`PriceHandle`]       | GUID                           |
 //! | `Lot`         | [`LotHandle`]         | GUID                           |
 //! | `Budget`      | [`BudgetHandle`]      | GUID                           |
+//! | `Invoice`     | [`InvoiceHandle`]     | GUID                           |
+//! | `Entry`       | [`EntryHandle`]       | GUID                           |
+//! | `Owner`       | [`OwnerHandle`]       | kind and GUID                  |
+//! | `Order`       | [`OrderHandle`]       | GUID                           |
+//! | `BillTerm`    | [`BillTermHandle`]    | GUID                           |
 
 // Functions registered with Rhai take their arguments by value: Rhai passes owned values to every parameter but
 // the first.
@@ -27,6 +32,8 @@ mod args;
 mod book;
 #[allow(clippy::needless_pass_by_value)]
 mod budget;
+#[allow(clippy::needless_pass_by_value)]
+mod business;
 mod entities;
 #[allow(clippy::needless_pass_by_value)]
 mod split_query;
@@ -42,6 +49,7 @@ use rhai::{Engine, EvalAltResult};
 
 pub(crate) use args::{account_arg, commodity_arg, rational_arg, small_count, time_arg};
 pub use budget::BudgetHandle;
+pub use business::{BillTermHandle, EntryHandle, InvoiceHandle, OrderHandle, OwnerHandle};
 
 /// The result of a script-facing function: a value, or an error the engine turns into `report-script`.
 pub(crate) type Fallible<T> = Result<T, Box<EvalAltResult>>;
@@ -286,6 +294,7 @@ impl LotHandle {
 pub(crate) fn register(engine: &mut Engine) {
     book::register(engine);
     budget::register(engine);
+    business::register(engine);
     account::register(engine);
     entities::register(engine);
 }

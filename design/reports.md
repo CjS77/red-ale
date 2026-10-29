@@ -466,6 +466,8 @@ comes back in hash order.
 | `book.uses_trading_accounts()` | bool | `book.info` | `qof-book-use-trading-accounts` |
 | `book.uses_split_action_for_num()` (v0.5) | bool | `book.info` | `qof-book-use-split-action-for-num-field`: the num field source, which the Transaction Report's option names and Num cells follow |
 | `book.company_name()` | string, `""` when unset | | `gnc:company-info` |
+| `book.option(path)` (v0.6) | string, integer, Rational, GUID text, Time64 or `()` | `book.options` | `qof-book-get-option` (`gnc:book-get-option-value`, `5.17:bindings/guile/options.scm:85-87`): the slot `options/<path>`, `path` being `"Section/Name"` or deeper (`"Business/Fancy Date Format/custom"`). A double comes back as the exact Rational of its stored text, a frame, list or date as `()`, as does an absent option. The invoice reads the business options and the Fancy Date Format through it |
+| `book.invoice(guid)` (v0.6) | Invoice or `()` | `invoice.get` | `gncInvoiceLookup`: any document, invoice, bill, expense voucher or credit note. A GUID naming none, or text that is no GUID, is `()` |
 | `book.prices(commodity, currency)` | Price[], newest first, ties by GUID | `price.list` | `gnc-pricedb-get-prices`, forward only (`5.17:libgnucash/engine/gnc-pricedb.cpp:2047-2058`) |
 | `book.prices_any_currency(commodity, when, mode)` (v0.5) | Price[], newest first | | `gnc-pricedb-lookup-nearest-in-time-any-currency-t64`, `-nearest-before-any-currency-t64` and `-latest-any-currency` (`5.17:libgnucash/engine/gnc-pricedb.cpp:1955-2001`): for each other commodity `commodity` has a price with, either way round, the one nearest `when`, the newest at or before it, or (`"latest"`) the newest at or before the run's now. Prices come as stored: a script inverts one whose `commodity` is not the one asked for, as the investment reports do. A price at exactly `when` may be listed twice under `"nearest"`, as GnuCash lists it |
 | `book.price_rate(commodity, currency, when, mode)` | Rational | `price.nearest`, `price.latest` | `gnc-pricedb-get-{nearest,nearest-before,latest}-price`: 1 for the same commodity; a direct price, inverted when quoted the other way; else an indirect price through a commodity both are priced in; 0 when there is none (`:2408-2527`) |
@@ -600,6 +602,35 @@ the account table through `get_balance_fn`, as `standard/account-summary.scm:327
 formula's variable a value its calculator kept (§4.10 step 4 of the note); red-ale reads every variable as 0, as
 GnuCash does with no such value.
 
+### Invoice, Entry, Owner, Order, BillTerm (v0.6)
+
+The reads of the Printable invoice (`notes/report-invoice.md` §1.3, §4), with `InvoiceDetail`'s and `EntryInfo`'s
+names ([`api/business-documents.md`](api/business-documents.md)). Each figure is exact; a script never computes one.
+
+- **Invoice**: `guid`, `id`, `type` (`invoice`, `bill`, `expenseVoucher` or `creditNote`, as `InvoiceDetail` names
+  them), `isCustomerDocument` (the end owner is a customer: GnuCash's `cust-doc?`, `standard/invoice.scm:769-782`),
+  `isCreditNote`, `owner` (Owner), `currency` (Commodity or `()`), `posted`, `datePosted` and `dateDue` (Time64, `()`
+  unless posted), `terms` (BillTerm or `()`; a posted document's is the frozen copy, which keeps the description),
+  `billingId`, `notes`, `postedLot` (Lot or `()`), `postedTransaction` (Transaction or `()`); and
+  - `inv.entries()`: Entry[], in document order (`gncEntryCompare`);
+  - `inv.totals()`: `#{ subtotal, tax, total, taxes }`, signed as printed on the document (`gncInvoiceGetTotalSubtotal`,
+    `-TotalTax`, `-Total`, `-TotalTaxList`, `5.17:libgnucash/engine/gncInvoice.c:917-1038`); `taxes` is
+    `[#{ account, value }]` in GnuCash's list order, each the account's unrounded taxes summed, then rounded once.
+- **Entry**: `guid`, `date`, `description`, `action`, `notes`, `quantity` (as stored, negated on a credit note),
+  `documentQuantity` (as printed, `gncEntryGetDocQuantity`), `invoicePrice`, `billPrice`, `discount`, `discountType`
+  (`percent` or `value`), `discountHow` (`preTax`, `sameTime`, `postTax`), `invoiceTaxable`, `billTaxable`,
+  `invoiceTaxTable` and `billTaxTable` (the table's GUID or `()`), `order` (Order or `()`); `documentValue` and
+  `documentTaxValue`: the value and tax of its document's side, rounded half up to the currency, the tax rounded at
+  each step of its sum, negated on a credit note (`gncEntryGetDocValue`, `-DocTaxValue` with `round` true,
+  `5.17:libgnucash/engine/gncEntry.c:1431-1442`, `:1535-1546`).
+- **Owner**: `kind` (`customer`, `job`, `vendor`, `employee`), `guid`, `id`, `name` (`gncOwnerGetName`: an
+  employee's is its address name, `5.17:libgnucash/engine/gncEmployee.c:512-517`), `address`
+  (`#{ name, addr1, addr2, addr3, addr4, phone, fax, email }`, `()` for a job), `owner` (a job's customer or vendor,
+  else `()`).
+- **Order**: `guid`, `id`, `reference`. **BillTerm**: `guid`, `name`, `description`.
+
+`lib/business` translates the owner helpers of `5.17:bindings/guile/business-core.scm:35-105` on top of these.
+
 ### Core reads behind the query API
 
 Each function reads the Book through one `red_ale_core` read; the report crate adds no Book logic of its own. Reads
@@ -613,6 +644,14 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | `book.commodity(id)` | `ops::commodities::lookup` | |
 | `book.uses_trading_accounts()` | `book_options::uses_trading_accounts` | |
 | `book.company_name()` | `book_options::company_name` (`options/Business/Company Name`) | new |
+| `book.option(path)` | `Slots::get` of `options/<path>` | v0.6 |
+| `book.invoice(guid)`; Invoice `id`, `billingId`, `notes`, `posted`, `datePosted`, `owner`, `currency`, `terms`, `postedLot`, `postedTransaction` | `Book::business.invoices`, the `Invoice` fields | v0.6 |
+| Invoice `type`, `isCustomerDocument`, `isCreditNote` | `ops::business::calc::invoice_type` | v0.6 |
+| Invoice `dateDue` | `ops::business::posting::date_due` | new (v0.6) |
+| `inv.entries()`; Entry fields, `order` | `ops::business::documents::entries_of`; the `Entry` fields | v0.6 |
+| `inv.totals()` | `ops::business::calc::document_totals` | v0.6 |
+| Entry `documentQuantity`, `documentValue`, `documentTaxValue` | `documents::document_quantity`, `documents::entry_on_credit_note`; `calc::entry_amounts` (`value_rounded`, `tax_rounded`) | v0.6 |
+| Owner `name`, `owner`; `address`, `id` | `ops::business::contacts::owner_name`, `end_owner`; the contact's fields | v0.6 |
 | `book.prices(commodity, currency)` | `ops::prices::prices(book, commodity, Some(currency), false)`; a date range is a filter on `time`, as the Price Scatterplot filters (`standard/price-scatter.scm:220-229`) | |
 | `book.prices_any_currency(…)` | `ops::prices::convert::nearest_any_currency`, `latest_before_any_currency` (at now for `"latest"`) | v0.5 |
 | `book.price_rate(…)` | `ops::prices::convert::rate` with `PriceAt::{Nearest, Before, Latest { now }}` | new |
@@ -682,6 +721,7 @@ The run context `ctx` gives time and formatting, all in the local time zone of t
 | `ctx.local(t)` | `gnc-localtime`: `#{ year, month, day, hour, minute, second, weekday, yearday }`, counted as people count them, not as `struct tm` does: `month` 1–12, `weekday` 1 (Sunday) to 7, `yearday` 1–366 |
 | `ctx.make_time(fields)` | `gnc-mktime` with `isdst = -1`, fields normalised C-style (31 January + 1 month is 3 March) |
 | `ctx.print_date(t)`, `ctx.print_date_interval(from, to)` | `qof-print-date`, `gnc-date-interval-format`, under `reports.dateFormat` |
+| `ctx.print_time(t, format)` (v0.6) | `gnc-print-time64` (`5.17:libgnucash/engine/gnc-date.cpp:370-385`) under a strftime format, the local date of `t`, month and day names from the Locale. The invoice prints its posted and due dates in the Book's Fancy Date Format with it. Only date directives (`%d %e %m %y %Y %a %A %b %h %B %%`) are known; any other prints as written (section 14) |
 | `ctx.print_month_year(t)`, `ctx.print_year(t)` | `gnc:date-get-month-year-string`, `gnc:date-get-year-string`: `gnc-print-time64` with `%B %Y` and `%Y` (`5.17:bindings/guile/date-utilities.scm:151-152`, `:166-167`), month names from the Locale: `March 2024`, `mars 2024` under fr_FR (v0.5) |
 | `ctx.print_time_iso(t)` | `gnc-print-time64` with the ISO format, for CSV dates: `YYYY-MM-DD HH:MM:SS` in local time |
 | `ctx.print_date_iso(t)` | `gnc-print-time64` with `QOF-DATE-FORMAT-ISO`'s date format, for the charts' CSV dates: `YYYY-MM-DD` in local time (v0.3) |

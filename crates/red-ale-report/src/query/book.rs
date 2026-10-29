@@ -1,5 +1,6 @@
 //! The `Book` handle (`design/reports.md` §5, "Book").
 
+use num_bigint::BigInt;
 use red_ale_core::book_options::{company_name, uses_split_action_for_num, uses_trading_accounts};
 use red_ale_core::currencies::{convert_from_euro, convert_to_euro, is_euro_currency};
 use red_ale_core::ops::accounts::descendants_sorted;
@@ -8,7 +9,7 @@ use red_ale_core::ops::prices::convert::{PriceAt, convert_balance, latest_before
 use red_ale_core::ops::prices::prices;
 use red_ale_core::ops::scheduled::cash_flow;
 use red_ale_core::ops::transactions::find::cross_commodity_splits;
-use red_ale_core::{AccountType, Guid, Numeric, Time64};
+use red_ale_core::{AccountType, Guid, Numeric, SlotValue, Time64};
 use rhai::{Array, Dynamic, Engine, INT, Map};
 
 use super::args::{accounts_arg, commodity_arg, optional_commodity_arg, optional_time_arg};
@@ -41,6 +42,7 @@ pub(super) fn register(engine: &mut Engine) {
         uses_split_action_for_num(b.0.book())
     });
     engine.register_fn("company_name", |b: &mut BookHandle| company_name(b.0.book()).to_owned());
+    engine.register_fn("option", option);
     engine.register_fn("prices", book_prices);
     engine.register_fn("prices_any_currency", prices_any_currency);
     engine.register_fn("price_rate", price_rate);
@@ -62,6 +64,42 @@ fn account(b: &mut BookHandle, reference: &str) -> Dynamic {
         .and_then(|g| book.account(g))
         .or_else(|| book.account_by_full_name(reference));
     found.map_or(Dynamic::UNIT, |a| Dynamic::from(b.account(a.guid)))
+}
+
+/// `qof-book-get-option` (`gnc:book-get-option-value`, `5.17:bindings/guile/options.scm:85-87`): the Book option at
+/// `path`, `"Section/Name"` or deeper, read from the slot `options/<path>`. A string or integer comes back as one, a
+/// GUID as its text, a number as the exact Rational of its stored text, a time as a Time64; anything else (a frame, a
+/// list, a date) and an absent slot as `()`.
+fn option(b: &mut BookHandle, path: &str) -> Fallible<Dynamic> {
+    let Some(value) = b.0.book().slots.get(&format!("options/{path}")) else {
+        return Ok(Dynamic::UNIT);
+    };
+    Ok(match value {
+        SlotValue::String(s) => s.clone().into(),
+        SlotValue::Integer(i) => Dynamic::from(*i),
+        SlotValue::Guid(g) => g.to_string().into(),
+        SlotValue::Timespec(t) => Dynamic::from(t.0),
+        SlotValue::Numeric(n) => Dynamic::from(numeric(*n)?),
+        SlotValue::Double(text) => double_text(text).map_or(Dynamic::UNIT, Dynamic::from),
+        SlotValue::Date(_) | SlotValue::List(_) | SlotValue::Frame(_) => Dynamic::UNIT,
+    })
+}
+
+/// The exact value of a double's stored text (`30`, `0.5`, `1e+20`), or `None` for text that is not a finite
+/// decimal number. A double's exponent never passes 400, so neither does the power of ten here.
+fn double_text(text: &str) -> Option<Rational> {
+    let text = text.trim();
+    let (mantissa, exponent) = match text.split_once(['e', 'E']) {
+        Some((m, e)) => (m, e.parse::<i32>().ok().filter(|e| e.abs() <= 400)?),
+        None => (text, 0),
+    };
+    let m = Rational::parse(mantissa).ok()?;
+    let power = BigInt::from(10).pow(exponent.unsigned_abs());
+    if exponent >= 0 {
+        Rational::new(m.numer() * power, m.denom().clone()).ok()
+    } else {
+        Rational::new(m.numer().clone(), m.denom() * power).ok()
+    }
 }
 
 /// `gnc:filter-accountlist-type` over the root's descendants in display order (`report/report-utilities.scm:178-181`).
