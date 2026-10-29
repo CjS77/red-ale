@@ -3,7 +3,8 @@
 id: guide/migrate-from-gnucash
 title: Migrate from GnuCash
 summary: Open a copy of your GnuCash file in red-ale, check that it opens as you expect, and bring over data from other tools with CSV and QIF imports.
-related: method/book.open, method/book.info, method/book.save, method/import.preview, method/export.csvTransactions, method/export.accounts, guide/import-transactions
+related: method/book.open, method/book.info, method/book.save, method/import.preview, method/export.csvTransactions, method/export.accounts, guide/import-transactions, concept/coming-from-gnucash
+from: guide/ch_basics.docbook#basics-migrate-settings
 ---
 red-ale reads and writes GnuCash's own files, so there is nothing to convert. Your existing `.gnucash` file, XML (plain or
 compressed) or SQLite, is the book. What changes is how you work with it: through JSON-RPC, MCP or the command line instead

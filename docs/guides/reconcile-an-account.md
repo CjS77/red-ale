@@ -3,7 +3,8 @@
 id: guide/reconcile-an-account
 title: Reconcile an account
 summary: Match an account to a bank or card statement: start with the statement date and ending balance, tick the splits that appear on it, and finish when the difference is zero, or postpone.
-related: method/reconcile.start, method/reconcile.status, method/reconcile.setState, method/reconcile.autoClear, method/reconcile.finish, method/reconcile.postpone, method/reconcile.info, method/reconcile.setInfo, error/invalid
+related: method/reconcile.start, method/reconcile.status, method/reconcile.setState, method/reconcile.autoClear, method/reconcile.finish, method/reconcile.postpone, method/reconcile.info, method/reconcile.setInfo, error/invalid, gnucash/account-menu, concept/reconciliation
+from: guide/ch_cbook.docbook#chapter_cbook
 ---
 Reconciling checks your books against the statement the bank sends. You tick every split that appears on the statement;
 when the ticked splits bring the account to the statement's ending balance, the difference is zero and you finish.

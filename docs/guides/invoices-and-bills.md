@@ -3,7 +3,8 @@
 id: guide/invoices-and-bills
 title: Invoices and bills
 summary: Add a customer or vendor, optionally a job, then create an invoice or bill, add its lines, post it to Receivable or Payable, and unpost or duplicate it.
-related: method/customer.create, method/vendor.create, method/job.create, method/invoice.create, method/invoice.addEntry, method/invoice.post, method/invoice.unpost, method/invoice.duplicate, method/invoice.get, method/invoice.totals, method/invoice.list
+related: method/customer.create, method/vendor.create, method/job.create, method/invoice.create, method/invoice.addEntry, method/invoice.post, method/invoice.unpost, method/invoice.duplicate, method/invoice.get, method/invoice.totals, method/invoice.list, concept/account-types, concept/business-documents
+from: guide/ch_expenses.docbook#expenses-other
 ---
 An **invoice** is what you send a customer to ask for payment; a **bill** is what a vendor sends you. Both are
 *documents*: a list of lines (entries) with prices, taxes and discounts, which you edit freely until you **post** it.

@@ -3,7 +3,8 @@
 id: guide/create-open-and-save-a-book
 title: Create, open and save a book
 summary: Make a new book as XML or SQLite, open an existing one (read-only if you only want to look), save it with a backup, and close it so its lock is released.
-related: method/book.create, method/book.open, method/book.info, method/book.save, method/book.close, error/unsaved-changes, error/file-exists
+related: method/book.create, method/book.open, method/book.info, method/book.save, method/book.close, error/unsaved-changes, error/file-exists, concept/books-and-files, concept/read-only-books
+from: guide/ch_basics.docbook#basics-files1
 ---
 A book is the file that holds all your accounts and transactions. red-ale keeps one book open at a time. You create it
 or open it, change it in memory, save it, and close it. Opening takes the book's lock so that GnuCash and red-ale never

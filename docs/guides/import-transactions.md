@@ -3,7 +3,8 @@
 id: guide/import-transactions
 title: Import transactions
 summary: Bring bank transactions in from a CSV or QIF file: preview what would happen, choose the accounts, apply the proposal, and let red-ale learn which account a description belongs to.
-related: method/import.preview, method/import.apply, method/import.discard, method/importMap.list, method/importMap.delete, method/account.create, method/book.save
+related: method/import.preview, method/import.apply, method/import.discard, method/importMap.list, method/importMap.delete, method/account.create, method/book.save, concept/importing-and-matching, gnucash/import-and-export
+from: guide/ch_importing.docbook#chapter_importing
 ---
 Most banks let you download your transactions as a file. Importing saves typing them, and red-ale checks each against
 what is already in the book so that a transaction is not entered twice. Nothing changes until you have seen what would

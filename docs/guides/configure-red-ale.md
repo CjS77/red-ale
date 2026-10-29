@@ -3,7 +3,8 @@
 id: guide/configure-red-ale
 title: Configure red-ale
 summary: Change red-ale's own settings (accounting period, report directory, network) with config.set, and the settings stored in the book with book.setOptions.
-related: method/config.get, method/config.set, method/config.schema, method/book.options, method/book.setOptions, method/period.get, method/period.set, method/period.dates, error/invalid-params
+related: method/config.get, method/config.set, method/config.schema, method/book.options, method/book.setOptions, method/period.get, method/period.set, method/period.dates, error/invalid-params, concept/configuration, concept/closing-the-books-and-accounting-period, gnucash/preferences-and-book-options
+from: guide/ch_configuring.docbook#chapter_configuring
 ---
 There are two places where settings live, and it matters which you change.
 

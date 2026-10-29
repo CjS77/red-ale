@@ -4,6 +4,7 @@ id: guide/stock-splits-and-mergers
 title: Stock splits and mergers
 summary: Record a stock split with stock.split, which adds shares at no cost; record a merger by hand with ordinary transactions.
 related: method/stock.split, method/transaction.post, method/account.balance, method/price.add, guide/buy-and-sell-shares
+from: guide/ch_invest.docbook#invest-splitsnmergers1
 ---
 A **stock split** gives you more shares for the ones you have, without changing what the holding is worth: two-for-one
 doubles your shares and halves each one's price. The cost of the holding stays the same. A **merger** or takeover

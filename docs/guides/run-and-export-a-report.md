@@ -3,7 +3,8 @@
 id: guide/run-and-export-a-report
 title: Run and export a report
 summary: Find a report, read its options, run it for exact figures, export it as HTML or CSV, save a set of options under a name, and choose a style sheet.
-related: method/report.list, method/report.options, method/report.run, method/report.export, method/report.exportCsv, method/report.saveConfiguration, method/report.styleSheets, report/balance-sheet
+related: method/report.list, method/report.options, method/report.run, method/report.export, method/report.exportCsv, method/report.saveConfiguration, method/report.styleSheets, report/balance-sheet, concept/reports, gnucash/tools-menu
+from: guide/ch_cbook.docbook#cbook-puttoget-reports
 ---
 A report summarises the book: a balance sheet, an income statement, a transaction listing. In red-ale a report is a
 *template* with *options*. You choose a template, set the options you care about, and run it. The result is data: every

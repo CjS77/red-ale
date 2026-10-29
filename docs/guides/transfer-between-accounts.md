@@ -3,7 +3,8 @@
 id: guide/transfer-between-accounts
 title: Transfer between accounts
 summary: Move an amount from one account to another with transaction.transfer, including a transfer between accounts in different currencies at an exchange rate.
-related: method/transaction.transfer, method/transaction.post, method/price.add, method/account.balance
+related: method/transaction.transfer, method/transaction.post, method/price.add, method/account.balance, gnucash/transaction-menu
+from: manual/ch_Transactions.docbook#trans-win-enter
 ---
 Moving money between two of your own accounts (bank to savings, bank to cash, one currency to another) is the most
 common transaction, and [transaction.transfer](method/transaction.transfer) does it in one call. It is GnuCash's

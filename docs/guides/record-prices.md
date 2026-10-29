@@ -3,7 +3,8 @@
 id: guide/record-prices
 title: Record prices and commodities
 summary: Add a security, record its price by hand, turn on online quotes, and tidy old prices out of the price database.
-related: method/commodity.create, method/commodity.update, method/price.add, method/price.list, method/price.fetchQuotes, method/price.fetchStatus, method/price.removeOld, method/config.set, error/network-disabled
+related: method/commodity.create, method/commodity.update, method/price.add, method/price.list, method/price.fetchQuotes, method/price.fetchStatus, method/price.removeOld, method/config.set, error/network-disabled, concept/prices-and-exchange-rates, gnucash/not-in-red-ale, gnucash/tools-menu
+from: guide/ch_invest.docbook#invest-stockprice1
 ---
 Reports that show what your shares are worth, and accounts held in a foreign currency, need prices: how many dollars one
 share, or one euro, was worth on a day. The book keeps them in its **price database**, one price per commodity,

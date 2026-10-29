@@ -3,7 +3,7 @@
 id: gnucash/reports-menu
 title: Reports menu and the report window
 summary: GnuCash's Reports menu mapped to report names for report.run, and the report window's File and Edit menus mapped to report.saveConfiguration, report.export and report.styleSheets. The business and tax reports that are not ported are written as User reports.
-related: concept/reports, concept/report-scripts, gnucash/business-menu, gnucash/not-in-red-ale, method/report.run, method/report.export, method/report.saveConfiguration, method/report.styleSheets, report/dashboard
+related: concept/reports, concept/report-scripts, gnucash/business-menu, gnucash/not-in-red-ale, method/report.run, method/report.export, method/report.saveConfiguration, method/report.styleSheets, report/dashboard, guide/print-an-invoice, guide/write-your-own-report
 from: manual/ch_GUIMenus.docbook#AccTree-reports-menu
 ---
 Every GnuCash report is a menu entry that opens a window. In red-ale a report is a name and some options given to

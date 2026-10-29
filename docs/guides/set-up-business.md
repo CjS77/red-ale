@@ -3,7 +3,8 @@
 id: guide/set-up-business
 title: Set up the business features
 summary: Prepare a book for invoices and bills: receivable and payable accounts, tax tables, billing terms, document numbering and your company's details.
-related: method/account.create, method/taxTable.create, method/billTerm.create, method/counter.set, method/counter.list, method/book.setOptions, method/book.options
+related: method/account.create, method/taxTable.create, method/billTerm.create, method/counter.set, method/counter.list, method/book.setOptions, method/book.options, gnucash/preferences-and-book-options
+from: guide/ch_bus_features.docbook#bus_setup
 ---
 GnuCash's business features (customers, vendors, employees, invoices, bills and payments) rest on a few settings made
 once per book. This guide sets them up. Then [Invoices and bills](guide/invoices-and-bills) and

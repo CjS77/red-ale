@@ -3,7 +3,8 @@
 id: guide/track-a-loan
 title: Track a loan
 summary: Record a loan you owe (a car loan or mortgage) with a liability account, the asset it bought and an interest expense; split each payment into principal and interest.
-related: method/account.create, method/transaction.post, method/account.balance, method/scheduledTransaction.loan, method/reconcile.start
+related: method/account.create, method/transaction.post, method/account.balance, method/scheduledTransaction.loan, method/reconcile.start, concept/loans-and-interest
+from: guide/ch_loans.docbook#chapter_loans
 ---
 A loan is money you owe, so the books carry it as a liability. When you borrow to buy something, the loan and the thing
 you bought both appear: the liability grows and an asset grows by the same amount. Each repayment then has two parts.

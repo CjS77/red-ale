@@ -4,6 +4,7 @@ id: guide/split-transactions
 title: Split transactions
 summary: Record one payment that is divided among several accounts (a pay slip, a shop receipt), then add, change or remove a split while keeping the transaction balanced.
 related: method/transaction.post, method/transaction.update, method/transaction.get, error/unbalanced
+from: guide/ch_expenses.docbook#expenses-entering
 ---
 Most transactions have two splits: money leaves one account and arrives in another. A *split transaction* has more:
 your salary arrives in the bank as one deposit but is really gross pay less tax and pension; a supermarket receipt is

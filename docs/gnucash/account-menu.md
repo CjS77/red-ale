@@ -3,7 +3,7 @@
 id: gnucash/account-menu
 title: Accounts and the Actions menu
 summary: GnuCash's Edit and Actions menus for Accounts mapped to methods - New Account, Edit Account, Delete Account, Cascade, Renumber Subaccounts, Transfer, Reconcile, Auto clear, Check and Repair, View Lots. Find Account, Open Account and the New Account Hierarchy assistant have no counterpart.
-related: concept/chart-of-accounts, concept/account-types, concept/reconciliation, concept/imbalance-and-scrubs, method/account.create, method/account.update, method/account.delete, method/reconcile.start, method/scrub.checkAndRepair
+related: concept/chart-of-accounts, concept/account-types, concept/reconciliation, concept/imbalance-and-scrubs, method/account.create, method/account.update, method/account.delete, method/reconcile.start, method/scrub.checkAndRepair, guide/set-up-accounts, guide/reconcile-an-account
 from: manual/ch_GUIMenus.docbook#AccTree-actions-menu
 ---
 The Account tree window's **Edit** and **Actions** menus are about Accounts. Scheduled transactions, budgets, stock splits

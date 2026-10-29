@@ -4,6 +4,7 @@ id: guide/process-payments
 title: Process payments
 summary: Record a customer's payment (full, part or over-payment) against open invoices, pay a vendor's bills, turn an existing deposit into a payment, and write off a bad debt.
 related: method/payment.openItems, method/payment.process, method/payment.fromTransaction, method/invoice.pay, method/invoice.get, method/invoice.list
+from: manual/ch_Business.docbook#busnss-ar-payment
 ---
 Posting an invoice records that a customer owes you money, in a lot on your Receivable account. A **payment** is the
 transaction that settles it: money arrives in the bank and the Receivable lot shrinks. For bills it is the other way

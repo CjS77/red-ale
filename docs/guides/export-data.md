@@ -4,6 +4,7 @@ id: guide/export-data
 title: Export data
 summary: Get transactions out as CSV, in GnuCash's simple or complex layout, and the account tree as CSV or as a file of accounts and commodities.
 related: method/export.csvTransactions, method/export.csvTree, method/export.accounts, method/report.exportCsv
+from: manual/ch_Transactions.docbook#trans-export
 ---
 To use your data in a spreadsheet, send it to an accountant, or load it into another book, export it. red-ale has three
 exports. None changes the book.

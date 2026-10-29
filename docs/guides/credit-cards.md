@@ -3,7 +3,8 @@
 id: guide/credit-cards
 title: Credit cards
 summary: Record charges, payments, refunds and interest on a credit card as a liability account, and know what the sign of its balance means.
-related: method/account.create, method/transaction.post, method/account.balance, method/reconcile.start, method/reconcile.finish
+related: method/account.create, method/transaction.post, method/account.balance, method/reconcile.start, method/reconcile.finish, concept/account-types
+from: guide/ch_cc.docbook#chapter_cc
 ---
 A credit card is money you owe, so it belongs in a liability account of type `CREDIT`, not in your assets. Every charge
 makes the debt larger; every payment makes it smaller. Keeping the card as an account of its own lets you see what you

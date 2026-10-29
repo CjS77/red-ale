@@ -4,6 +4,7 @@ id: guide/import-business-data
 title: Import business data
 summary: Load customers or vendors, and invoices or bills with their lines, from CSV files in GnuCash's layouts, with a preview before anything changes.
 related: method/import.preview, method/import.apply, method/import.discard, method/customer.create, method/invoice.list
+from: guide/ch_import_business_data.docbook#ch_import_bus_data
 ---
 If your customers and invoices live in a spreadsheet or another program, you can bring them in with the business
 imports. They work as other imports do: **preview** shows what would be created or updated, and **apply** does it. The

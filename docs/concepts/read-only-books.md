@@ -3,7 +3,7 @@
 id: concept/read-only-books
 title: Read-only books
 summary: Why a Book opens read-only - you asked, it declares a Book feature red-ale lacks, it holds content red-ale cannot safely edit, or its SQL schema is not GnuCash 5.17's - what readOnlyReasons says and what to do about each.
-related: concept/books-and-files, method/book.open, method/book.info, error/read-only, error/book-locked
+related: concept/books-and-files, method/book.open, method/book.info, error/read-only, error/book-locked, guide/create-open-and-save-a-book
 from: guide/ch_basics.docbook#basics-files-storage-comparison
 ---
 A **read-only session** never takes the lock and refuses every method that changes the Book (with

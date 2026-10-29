@@ -3,7 +3,8 @@
 id: guide/buy-and-sell-shares
 title: Buy and sell shares
 summary: Set up a security and a brokerage account, record a purchase with its commission, record a sale with the realised gain, and keep the share price up to date.
-related: method/commodity.create, method/account.create, method/transaction.post, method/price.add, method/account.balance, method/lot.assignSplit
+related: method/commodity.create, method/account.create, method/transaction.post, method/price.add, method/account.balance, method/lot.assignSplit, concept/investments, gnucash/stock-assistants
+from: guide/ch_invest.docbook#chapter_invest
 ---
 Shares are a commodity that is not a currency. A holding of shares is an account of type `STOCK` whose commodity is the
 security, so its balance counts shares, not dollars. In a transaction, the share account's split has an *amount* in shares

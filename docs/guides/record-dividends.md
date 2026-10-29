@@ -3,7 +3,8 @@
 id: guide/record-dividends
 title: Record dividends and return of capital
 summary: Record a cash dividend as income, a reinvested dividend as new shares, and a return of capital as a reduction in cost.
-related: method/transaction.post, method/account.create, method/account.balance, guide/buy-and-sell-shares
+related: method/transaction.post, method/account.create, method/account.balance, guide/buy-and-sell-shares, gnucash/stock-assistants
+from: guide/ch_invest.docbook#invest-dividends1
 ---
 A company that shares its profit pays a *dividend*. You can take it as cash, or have it reinvested in more shares. A
 *return of capital* looks the same on the statement but is not income: it hands part of your original investment back, so

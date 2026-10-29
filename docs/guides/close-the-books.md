@@ -4,6 +4,7 @@ id: guide/close-the-books
 title: Close the books
 summary: At the end of a period, move the income and expense balances into equity with book.closeBooks, so those accounts start the next period at zero.
 related: method/book.closeBooks, method/account.balance, method/book.save, method/book.close
+from: manual/ch_Tools_Assistants.docbook#tool-close-book
 ---
 At the end of an accounting year, accountants *close the books*: the year's income and expenses are moved into equity
 (retained earnings) and the income and expense accounts return to zero. The reports for the new year then start

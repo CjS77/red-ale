@@ -3,7 +3,8 @@
 id: guide/employees-and-payroll
 title: Employees, vouchers and payroll
 summary: Add an employee, record expenses they paid as an expense voucher and reimburse them, and record payroll with ordinary accounts and transactions.
-related: method/employee.create, method/employee.list, method/invoice.create, method/invoice.addEntry, method/invoice.post, method/payment.process, method/transaction.post
+related: method/employee.create, method/employee.list, method/invoice.create, method/invoice.addEntry, method/invoice.post, method/payment.process, method/transaction.post, concept/business-documents
+from: guide/ch_bus_features.docbook#bus_payroll
 ---
 red-ale has two things for people who work for you. The first is the **employee** record, with its **expense vouchers**:
 what the employee spent for the business and you owe back. The second is payroll, which GnuCash does not calculate; you

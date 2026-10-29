@@ -3,7 +3,7 @@
 id: gnucash/tools-menu
 title: Tools, scheduled transactions and budgets
 summary: GnuCash's Tools menu and the Actions submenus for scheduled transactions and budgets mapped to methods - Find, General Journal, Price Database, Security Editor, Close Book, Lots, Import Map Editor, Since Last Run, Scheduled Transaction Editor, the loan assistant and Budget. The Loan Repayment Calculator and Online Banking Setup are not provided.
-related: concept/scheduled-transactions, concept/budgets, concept/prices-and-exchange-rates, concept/lots-and-capital-gains, concept/closing-the-books-and-accounting-period, method/transaction.find, method/price.add, method/commodity.create, method/book.closeBooks, method/lot.list, method/scheduledTransaction.sinceLastRun
+related: concept/scheduled-transactions, concept/budgets, concept/prices-and-exchange-rates, concept/lots-and-capital-gains, concept/closing-the-books-and-accounting-period, method/transaction.find, method/price.add, method/commodity.create, method/book.closeBooks, method/lot.list, method/scheduledTransaction.sinceLastRun, guide/find-transactions, guide/run-and-export-a-report, guide/schedule-a-transaction, guide/record-prices, guide/capital-gains-with-lots
 from: manual/ch_GUIMenus.docbook#AccTree-tools-menu
 ---
 ## Tools menu

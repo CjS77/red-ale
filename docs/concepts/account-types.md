@@ -3,7 +3,7 @@
 id: concept/account-types
 title: Account types
 summary: The five basic kinds of Account and the Account types red-ale offers (BANK, CASH, ASSET, CREDIT, LIABILITY, STOCK, MUTUAL, CURRENCY, INCOME, EXPENSE, EQUITY, RECEIVABLE, PAYABLE, TRADING), which Account can sit under which, and what each is for.
-related: concept/double-entry, concept/chart-of-accounts, method/account.types, method/account.create, method/account.update
+related: concept/double-entry, concept/chart-of-accounts, method/account.types, method/account.create, method/account.update, guide/invoices-and-bills, guide/credit-cards
 from: guide/ch_basics.docbook#basics-accounting52
 ---
 Bookkeeping groups everything into five kinds of thing:

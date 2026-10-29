@@ -3,7 +3,8 @@
 id: guide/write-your-own-report
 title: Write your own report
 summary: Write a User report as a .rhai script in the report directory, check that report.list shows it, then run it with report.run and export it with report.export.
-related: method/config.set, method/config.get, method/report.list, method/report.run, method/report.export, method/report.options, error/report-script, error/report-load
+related: method/config.set, method/config.get, method/report.list, method/report.run, method/report.export, method/report.options, error/report-script, error/report-load, concept/report-scripts, gnucash/reports-menu
+from: guide/ch_reports.docbook#rpt_grp_sampcust
 ---
 GnuCash comes with reports of its own, and red-ale has translated most of them. Others, such as GnuCash's business reports
 and the sample reports you may have written for it, are left for you to write. A **User report** is a Rhai script, a file

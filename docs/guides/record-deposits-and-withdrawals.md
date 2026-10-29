@@ -3,7 +3,8 @@
 id: guide/record-deposits-and-withdrawals
 title: Record deposits and withdrawals
 summary: Enter income, expenses and cash withdrawals as balanced transactions, then check the balance and list what you have entered.
-related: method/transaction.post, method/account.balance, method/transaction.list, method/account.create, error/unbalanced
+related: method/transaction.post, method/account.balance, method/transaction.list, method/account.create, error/unbalanced, gnucash/windows-and-registers
+from: guide/ch_basics.docbook#basics-together1
 ---
 Day-to-day bookkeeping is a sequence of transactions: your pay arrives in the bank, you buy groceries, you take cash
 out of a machine. In double-entry bookkeeping each one is a date, a description and two or more splits whose values

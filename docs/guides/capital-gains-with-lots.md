@@ -3,7 +3,8 @@
 id: guide/capital-gains-with-lots
 title: Capital gains with lots
 summary: Match each sale of shares to the purchases it came from by putting them in lots, so the book records the realised gain of every sale as GnuCash does.
-related: method/lot.scrubAccount, method/lot.create, method/lot.assignSplit, method/lot.computeGains, method/lot.list, method/lot.scrub, guide/buy-and-sell-shares
+related: method/lot.scrubAccount, method/lot.create, method/lot.assignSplit, method/lot.computeGains, method/lot.list, method/lot.scrub, guide/buy-and-sell-shares, concept/lots-and-capital-gains, gnucash/tools-menu
+from: guide/ch_invest.docbook#invest-sell1
 ---
 When you buy the same security several times at different prices and sell part of it, the gain depends on *which* shares
 you sold. A **lot** is a group of splits in one security account that opens with a purchase and closes when its

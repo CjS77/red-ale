@@ -3,7 +3,8 @@
 id: guide/use-trading-accounts
 title: Use trading accounts
 summary: Turn on the Use Trading Accounts book option so every transaction that mixes currencies balances in each currency, and see the Trading accounts it creates.
-related: method/book.setOptions, method/book.options, method/transaction.post, method/account.list, guide/multiple-currencies
+related: method/book.setOptions, method/book.options, method/transaction.post, method/account.list, guide/multiple-currencies, concept/trading-accounts
+from: guide/ch_currency.docbook#currency_trading_accts
 ---
 A transaction in two currencies balances in *value*, but each currency taken alone does not: you gave up 108.50 dollars and
 received 100.00 euros. Trading accounts fix that. With the option on, red-ale adds balancing splits to a hidden tree of

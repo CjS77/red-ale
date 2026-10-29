@@ -4,6 +4,7 @@ id: guide/report-to-pdf
 title: Turn a report into a PDF
 summary: red-ale exports reports as HTML only; write the HTML to a file with report.export, then convert it with pandoc, wkhtmltopdf or a browser's print-to-PDF.
 related: method/report.export, method/report.run, guide/run-and-export-a-report
+from: manual/ch_Reports.docbook#report-print
 ---
 GnuCash prints a report to a PDF file. red-ale does not: it has no PDF export and none is planned. A report is exported as
 one self-contained HTML page ([report.export](method/report.export)), and a PDF is made from that page by a program built

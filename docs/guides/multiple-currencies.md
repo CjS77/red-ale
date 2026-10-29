@@ -4,6 +4,7 @@ id: guide/multiple-currencies
 title: Multiple currencies
 summary: Keep an account in a foreign currency, buy that currency, spend it, and record the exchange rate, with each split's value in the transaction currency and its amount in the account's.
 related: method/account.create, method/price.add, method/transaction.post, method/transaction.transfer, method/account.balance, method/price.list, method/currency.list
+from: guide/ch_currency.docbook#currency_manual
 ---
 If you hold money in a foreign currency, give it an account in that currency. The book then keeps two numbers for every
 split, and they are not the same thing:

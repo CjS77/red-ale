@@ -3,7 +3,8 @@
 id: guide/back-up-and-recover
 title: Back up and recover a book
 summary: Every save backs up the previous file; a .log journal records changes between saves, and book.replayJournal puts them back after a crash.
-related: method/book.save, method/book.info, method/book.replayJournal, error/io-error, error/file-format
+related: method/book.save, method/book.info, method/book.replayJournal, error/io-error, error/file-format, concept/books-and-files
+from: guide/ch_basics.docbook#basics-backup1
 ---
 red-ale protects your book the way GnuCash does, with two safety nets. Each save first copies the old file to a
 timestamped backup. Between saves, every change is also written to a `.log` journal beside the book. If a session ends

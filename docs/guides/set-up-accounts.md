@@ -3,7 +3,8 @@
 id: guide/set-up-accounts
 title: Set up accounts
 summary: Build a chart of accounts for a household (assets, credit cards, income, expenses), change it, renumber it, move and delete accounts, and enter opening balances.
-related: method/account.create, method/account.update, method/account.renumber, method/account.cascade, method/account.move, method/account.delete, method/account.openingBalanceAccount, method/export.accounts, method/transaction.post, method/account.types
+related: method/account.create, method/account.update, method/account.renumber, method/account.cascade, method/account.move, method/account.delete, method/account.openingBalanceAccount, method/export.accounts, method/transaction.post, method/account.types, gnucash/not-in-red-ale, concept/loans-and-interest, concept/other-assets-and-depreciation, gnucash/file-menu, gnucash/account-menu, concept/chart-of-accounts
+from: guide/ch_basics.docbook#basics-expt-acct
 ---
 The chart of accounts is the skeleton of the book: every transaction moves value between its accounts. A household
 usually needs somewhere to keep money (assets), somewhere that records what is owed (liabilities), and categories for

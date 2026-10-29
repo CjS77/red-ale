@@ -3,7 +3,7 @@
 id: concept/lots-and-capital-gains
 title: Lots and capital gains
 summary: A Lot groups the Splits that buy and then sell one holding. Realised and unrealised gains, cost basis, the FIFO lot policy, the gains Transaction red-ale records, and what stock splits do to lots.
-related: concept/investments, concept/prices-and-exchange-rates, method/lot.create, method/lot.assignSplit, method/lot.computeGains, method/lot.scrubAccount, method/lot.list, method/stock.split
+related: concept/investments, concept/prices-and-exchange-rates, method/lot.create, method/lot.assignSplit, method/lot.computeGains, method/lot.scrubAccount, method/lot.list, method/stock.split, guide/capital-gains-with-lots
 from: guide/ch_capgain.docbook#capgain_concepts1
 ---
 Many things you own change in value: stocks, bonds, a house, a painting. Track the change only for items you could sell

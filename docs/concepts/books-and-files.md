@@ -3,7 +3,7 @@
 id: concept/books-and-files
 title: Books and files
 summary: A Book is one set of Accounts kept in one file, XML (plain or gzipped) or SQLite. Locks, the journal, backups and retention, Book features, and which storage to choose. Database-server books are not supported.
-related: concept/read-only-books, method/book.create, method/book.open, method/book.info, method/book.save, method/book.close, method/book.replayJournal
+related: concept/read-only-books, method/book.create, method/book.open, method/book.info, method/book.save, method/book.close, method/book.replayJournal, guide/create-open-and-save-a-book, guide/back-up-and-recover
 from: guide/ch_basics.docbook#basics-files1
 ---
 GnuCash organises data on three levels: books, accounts and transactions. One **Book** holds many Accounts, and one

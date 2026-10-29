@@ -3,7 +3,8 @@
 id: guide/create-a-budget
 title: Create a budget
 summary: Plan income and spending per account and period, fill the amounts by hand or estimate them from past transactions, and compare plan with actuals in the Budget Report.
-related: method/budget.create, method/budget.setAmounts, method/budget.setNotes, method/budget.estimate, method/budget.get, method/budget.list, method/report.run, report/budget-report
+related: method/budget.create, method/budget.setAmounts, method/budget.setNotes, method/budget.estimate, method/budget.get, method/budget.list, method/report.run, report/budget-report, concept/budgets
+from: guide/ch_budgets.docbook#chapter_budgets
 ---
 A budget is a plan: how much you expect each account to receive or spend in each period. Comparing it with what
 actually happened tells you where the money went. A budget has a number of periods (for example 12 months) that start on

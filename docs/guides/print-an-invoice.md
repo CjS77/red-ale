@@ -3,7 +3,8 @@
 id: guide/print-an-invoice
 title: Print an invoice
 summary: Put your company's details in the book, run the Printable Invoice report for a document, and export it as a single HTML page to print or send.
-related: report/printable-invoice, method/report.run, method/report.export, method/report.options, method/book.setOptions, method/book.options, method/invoice.list, method/invoice.get
+related: report/printable-invoice, method/report.run, method/report.export, method/report.options, method/book.setOptions, method/book.options, method/invoice.list, method/invoice.get, gnucash/reports-menu, concept/report-scripts
+from: guide/ch_reports.docbook#rpt_grp_business
 ---
 red-ale has no print dialog. A document is printed by running the **Printable Invoice** report on it, which gives its
 figures exactly, and exporting that as one HTML page. Open the page in a browser to print it, or

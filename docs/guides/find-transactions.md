@@ -3,7 +3,8 @@
 id: guide/find-transactions
 title: Find transactions
 summary: Search for transactions by description, date, amount or account with transaction.find; list an account's register with transaction.list; find business documents with invoice.list.
-related: method/transaction.find, method/transaction.list, method/transaction.get, method/invoice.list
+related: method/transaction.find, method/transaction.list, method/transaction.get, method/invoice.list, gnucash/tools-menu
+from: manual/ch_Transactions.docbook#general-journal
 ---
 There are two ways to look at transactions. [transaction.list](method/transaction.list) is a register: all transactions,
 or those of one account and a date range, in GnuCash's order. [transaction.find](method/transaction.find) is GnuCash's

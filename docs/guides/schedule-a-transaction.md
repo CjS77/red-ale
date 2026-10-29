@@ -3,7 +3,8 @@
 id: guide/schedule-a-transaction
 title: Schedule a transaction
 summary: Set up a transaction that repeats (rent, a salary, a loan payment), see when it falls due, and create what is due with Since Last Run.
-related: method/scheduledTransaction.create, method/scheduledTransaction.fromTransaction, method/scheduledTransaction.sinceLastRun, method/scheduledTransaction.apply, method/scheduledTransaction.discard, method/scheduledTransaction.loan, method/scheduledTransaction.occurrences, method/scheduledTransaction.list
+related: method/scheduledTransaction.create, method/scheduledTransaction.fromTransaction, method/scheduledTransaction.sinceLastRun, method/scheduledTransaction.apply, method/scheduledTransaction.discard, method/scheduledTransaction.loan, method/scheduledTransaction.occurrences, method/scheduledTransaction.list, concept/scheduled-transactions, gnucash/tools-menu
+from: guide/ch_loans.docbook#loans_mortgage1
 ---
 Some transactions come round on a rhythm: rent on the first of the month, a salary every fortnight, a loan payment. A
 **scheduled transaction** keeps a template of such a transaction and a schedule, and creates the real transactions when

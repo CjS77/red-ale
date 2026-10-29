@@ -4,6 +4,7 @@ id: guide/edit-void-and-reverse-transactions
 title: Edit, void and reverse transactions
 summary: Correct a transaction in place, void it while keeping a record, undo it with a reversing transaction, or delete it; attach a document link to a receipt.
 related: method/transaction.update, method/transaction.delete, method/transaction.void, method/transaction.unvoid, method/transaction.reverse, method/transaction.get, method/docLink.setPathHead, method/docLink.transactions, method/docLink.documents
+from: manual/ch_Transactions.docbook#trans-assoc
 ---
 Mistakes happen, and a bookkeeper has four tools for them, from lightest to heaviest. Which to use depends on whether
 you want the history to show the mistake.

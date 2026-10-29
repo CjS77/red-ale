@@ -3,7 +3,8 @@
 id: guide/depreciate-an-asset
 title: Depreciate an asset
 summary: Spread the cost of equipment over its useful life with a monthly scheduled transaction that moves an equal amount into a depreciation expense.
-related: method/scheduledTransaction.create, method/scheduledTransaction.occurrences, method/scheduledTransaction.sinceLastRun, method/scheduledTransaction.apply, method/transaction.post, method/account.balance
+related: method/scheduledTransaction.create, method/scheduledTransaction.occurrences, method/scheduledTransaction.sinceLastRun, method/scheduledTransaction.apply, method/transaction.post, method/account.balance, concept/other-assets-and-depreciation
+from: guide/ch_dep.docbook#chapter_dep
 ---
 Equipment loses value as it is used. Rather than count the whole price as an expense the day you buy it, accountants spread
 it over the years it will last. This is *depreciation*. The simplest way is the straight line: if a 1,200.00 machine will
