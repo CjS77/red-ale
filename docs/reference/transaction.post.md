@@ -8,6 +8,12 @@ account. The splits' values must sum to exactly zero, or the transaction is refu
 left as it was. Values are in the transaction's currency; a split in an account of another commodity also needs its
 `amount` in that commodity, which is how a purchase of shares or foreign currency records its price.
 
+Without `currency`, the transaction's currency is the commodity of the first split's account. That matters when the first
+split is in a foreign-currency account: the values are then in that currency, and every split in an account of another
+commodity needs an `amount`. To record the transaction in your own currency, pass `currency`, or put an account in that
+currency first. If the first split's account holds no currency (shares, say), `currency` is required and the call is
+refused as `invalid` without it.
+
 Positive values are debits, negative values credits: paying 750.00 of rent from a bank account is `-750.00` on the
 bank account and `750.00` on the expense account.
 
