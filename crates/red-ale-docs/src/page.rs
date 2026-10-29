@@ -130,7 +130,7 @@ pub fn report_page_id(template_name: &str) -> String {
 }
 
 /// `text` in lower case with every run of characters other than letters and digits made one `-`, none at the ends.
-fn slug(text: &str) -> String {
+pub(crate) fn slug(text: &str) -> String {
     let lowered = text.to_lowercase();
     let words: Vec<&str> = lowered.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
     words.join("-")
