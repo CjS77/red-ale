@@ -52,7 +52,8 @@ pub struct GridCell {
 }
 
 /// A child's report result: what `report.run` returns, without the view's `version` and `now`, and without its `css`,
-/// which a page holding several reports leaves out (`design/reports.md` §8).
+/// which GnuCash leaves out of a report rendered inside another (`5.17:gnucash/report/html-document.scm:154-185`,
+/// `5.17:gnucash/report/reports/standard/view-column.scm:91`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EmbeddedResult {

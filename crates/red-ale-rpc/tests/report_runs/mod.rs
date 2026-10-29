@@ -58,6 +58,23 @@ impl Fixture {
         Self { dir, d }
     }
 
+    /// Any book of `fixtures/`, by its path there (`synthetic/business.gnucash`), with `reports.dateFormat` set to
+    /// `date_format`.
+    pub fn open_fixture(path: &str, date_format: &str, read_only: bool) -> Self {
+        let (dir, mut d) = configured(date_format, "none");
+        let book = dir.path().join("book.gnucash");
+        std::fs::copy(format!("{}/../../fixtures/{path}", env!("CARGO_MANIFEST_DIR")), &book).unwrap();
+        let params = json!({ "path": book.display().to_string(), "readOnly": read_only });
+        d.call("book.open", params)
+            .unwrap_or_else(|e| panic!("book.open: {e} {:?}", e.data));
+        Self { dir, d }
+    }
+
+    /// The book's file.
+    pub fn book_path(&self) -> PathBuf {
+        self.dir.path().join("book.gnucash")
+    }
+
     /// A new, empty book created by `book.create`, with `reports.dateFormat` set to `date_format`.
     pub fn create(date_format: &str) -> Self {
         let (dir, mut d) = configured(date_format, "none");

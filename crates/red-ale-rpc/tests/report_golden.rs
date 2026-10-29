@@ -27,6 +27,14 @@
 //! ```text
 //! RED_ALE_GOLDEN_WRITE_V05=/tmp/new.txt cargo test -p red-ale-rpc --test report_golden v05 && cat /tmp/new.txt >> …/v0.5.txt
 //! ```
+//!
+//! The v0.6 reports keep `tests/report_golden/v0.6.txt` the same way: each on every book of `BOOKS` and `V05_BOOKS`
+//! with its defaults, and the Printable Invoice also for every document of the books that have them
+//! (`INVOICE_BOOKS`), keyed by the book's path below `fixtures/` and the document's GUID:
+//!
+//! ```text
+//! RED_ALE_GOLDEN_WRITE_V06=/tmp/new.txt cargo test -p red-ale-rpc --test report_golden v06 && cat /tmp/new.txt >> …/v0.6.txt
+//! ```
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -108,6 +116,36 @@ const V05_BOOKS: &[&str] = &[
     "lots-baseline",
     "lots-reverse-split-sale",
     "lots-postsplit-baseline",
+];
+
+/// The built-in reports added in v0.6, which `v0.6.txt` covers.
+const V06_REPORTS: &[&str] = &["Printable Invoice"];
+
+/// The books holding business documents, by path below `fixtures/`, and the documents the Printable Invoice prints:
+/// `create-test-invoice-data`'s eight, and the business book's four as XML and as SQLite.
+const INVOICE_BOOKS: [(&str, &[&str]); 3] = [
+    (
+        "reports/transaction.gnucash",
+        &[
+            "30000000000000000000000000000000",
+            "30000000000000000000000000000001",
+            "30000000000000000000000000000002",
+            "30000000000000000000000000000003",
+            "30000000000000000000000000000004",
+            "30000000000000000000000000000005",
+            "30000000000000000000000000000006",
+            "30000000000000000000000000000007",
+        ],
+    ),
+    ("synthetic/business.gnucash", &BUSINESS_DOCUMENTS),
+    ("sqlite/synthetic/business.gnucash", &BUSINESS_DOCUMENTS),
+];
+
+const BUSINESS_DOCUMENTS: [&str; 4] = [
+    "35ad2d2ebe3847ea9a415e7cc53cc09f",
+    "6193d3b14af34c25b389fc13ac14d277",
+    "f6772a8b0ea543679c940e23904f9ed9",
+    "fc2cd829ac2442269c964a2ee27244cc",
 ];
 
 /// FNV-1a, 64 bits: a digest with no dependency, enough to see that two outputs differ.
@@ -267,4 +305,53 @@ fn every_v05_report_gives_its_recorded_bytes() {
         "v0.5.txt records every v0.5 report on every book, and nothing else"
     );
     assert_as_recorded("v0.5", &expected, &now);
+}
+
+/// The Printable Invoice of every document of `INVOICE_BOOKS`, under each date format.
+fn invoice_exports() -> Vec<(String, String, Option<String>)> {
+    INVOICE_BOOKS
+        .iter()
+        .flat_map(|(path, documents)| DATE_FORMATS.iter().map(move |format| (*path, *documents, *format)))
+        .flat_map(|(path, documents, format)| {
+            let mut f = Fixture::open_fixture(path, format, true);
+            documents
+                .iter()
+                .map(|guid| {
+                    let params = json!({ "report": "Printable Invoice", "options": { "General": { "Invoice Number": guid } } });
+                    let html = f.call("report.export", &params)["html"].as_str().unwrap().to_owned();
+                    let outcome = format!("{} {:016x}", html.len(), fnv1a(html.as_bytes()));
+                    (format!("{path} {format} Printable Invoice {guid}"), outcome, Some(html))
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// The exports of the v0.6 reports: on `BOOKS` and `V05_BOOKS` with their defaults, and the invoices.
+fn v06() -> Vec<(String, String, Option<String>)> {
+    let books: Vec<&str> = BOOKS.iter().chain(V05_BOOKS).copied().collect();
+    let mut all = exports_of(&books, None, |name| V06_REPORTS.contains(&name));
+    all.extend(invoice_exports());
+    all
+}
+
+#[test]
+fn every_v06_report_gives_its_recorded_bytes() {
+    let expected = recorded(include_str!("report_golden/v0.6.txt"));
+    let now = v06();
+    if let Ok(path) = std::env::var("RED_ALE_GOLDEN_WRITE_V06") {
+        let new: Vec<_> = now
+            .into_iter()
+            .filter(|(key, ..)| !expected.iter().any(|(k, _)| k == key))
+            .collect();
+        std::fs::write(path, lines(&new)).unwrap();
+        return;
+    }
+    let keys = |ks: Vec<&String>| ks.into_iter().cloned().collect::<BTreeSet<String>>();
+    assert_eq!(
+        keys(expected.iter().map(|(k, _)| k).collect()),
+        keys(now.iter().map(|(k, ..)| k).collect()),
+        "v0.6.txt records every v0.6 report on every book, and nothing else"
+    );
+    assert_as_recorded("v0.6", &expected, &now);
 }

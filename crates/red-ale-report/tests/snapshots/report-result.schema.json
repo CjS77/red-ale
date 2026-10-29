@@ -1694,7 +1694,7 @@
       ]
     },
     "EmbeddedResult": {
-      "description": "A child's report result: what `report.run` returns, without the view's `version` and `now`, and without its `css`,\nwhich a page holding several reports leaves out (`design/reports.md` §8).",
+      "description": "A child's report result: what `report.run` returns, without the view's `version` and `now`, and without its `css`,\nwhich GnuCash leaves out of a report rendered inside another (`5.17:gnucash/report/html-document.scm:154-185`,\n`5.17:gnucash/report/reports/standard/view-column.scm:91`).",
       "type": "object",
       "properties": {
         "report": {
