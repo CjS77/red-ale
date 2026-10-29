@@ -6,6 +6,7 @@ use red_ale_core::{Book, Guid, Time64, TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use super::terms::BillTermRef;
 use crate::dispatch::{Context, Effect, Method, method};
 use crate::error::RpcError;
 use crate::wire::{AccountRef, Amount, CommodityId, Day, Done, Id, Timestamp};
@@ -141,9 +142,9 @@ pub struct DueDateParams {
     /// A document whose billing term to use. Give this or `term`.
     #[serde(default)]
     pub invoice: Option<Id>,
-    /// A billing term to use. Give this or `invoice`.
+    /// A billing term to use, by GUID or by name. Give this or `invoice`.
     #[serde(default)]
-    pub term: Option<Id>,
+    pub term: Option<BillTermRef>,
     /// The posting date.
     pub post_date: Day,
 }
@@ -159,15 +160,10 @@ pub struct DueDateResult {
 }
 
 /// The billing term named by a document or directly.
-fn term_of(book: &Book, invoice_id: Option<Id>, term: Option<Id>) -> Result<Option<Guid>, RpcError> {
+fn term_of(book: &Book, invoice_id: Option<Id>, term: Option<BillTermRef>) -> Result<Option<Guid>, RpcError> {
     match (invoice_id, term) {
         (Some(i), None) => Ok(invoice(book, i)?.terms),
-        (None, Some(t)) => book
-            .business
-            .bill_terms
-            .contains_key(&t.0)
-            .then_some(Some(t.0))
-            .ok_or_else(|| RpcError::not_found("billing term", t.0)),
+        (None, Some(t)) => t.resolve(book).map(Some),
         _ => Err(RpcError::invalid_params("give exactly one of invoice and term")),
     }
 }
