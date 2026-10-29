@@ -388,6 +388,17 @@ fn accounting_period_in_memory_and_in_a_file() {
     );
 }
 
+/// With no book open, "today" is the server's clock: the environment its sessions would get, not the wall clock.
+#[test]
+fn period_dates_without_a_book_use_the_servers_clock() {
+    let mut d = dispatcher(Settings::default());
+    let dates = d.call("period.dates", json!({})).unwrap();
+    assert_eq!(
+        (dates["today"].as_str(), dates["start"].as_str()),
+        (Some("2024-07-01"), Some("2024-01-01"))
+    );
+}
+
 /// A copy of rich.gnucash whose budget has its amounts and notes for Fees instead of Food, which only the scheduled
 /// transaction then uses.
 fn open_with_fees_budget() -> Book {
