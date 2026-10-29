@@ -29,8 +29,9 @@
 //! ```
 //!
 //! The v0.6 reports keep `tests/report_golden/v0.6.txt` the same way: each on every book of `BOOKS` and `V05_BOOKS`
-//! with its defaults, and the Printable Invoice also for every document of the books that have them
-//! (`INVOICE_BOOKS`), keyed by the book's path below `fixtures/` and the document's GUID:
+//! with its defaults (the Dashboard, a built-in saved configuration, with its values), and the Printable Invoice
+//! also for every document of the books that have them (`INVOICE_BOOKS`), keyed by the book's path below `fixtures/`
+//! and the document's GUID:
 //!
 //! ```text
 //! RED_ALE_GOLDEN_WRITE_V06=/tmp/new.txt cargo test -p red-ale-rpc --test report_golden v06 && cat /tmp/new.txt >> …/v0.6.txt
@@ -118,8 +119,8 @@ const V05_BOOKS: &[&str] = &[
     "lots-postsplit-baseline",
 ];
 
-/// The built-in reports added in v0.6, which `v0.6.txt` covers.
-const V06_REPORTS: &[&str] = &["Printable Invoice"];
+/// The built-in reports and built-in saved configurations added in v0.6, which `v0.6.txt` covers.
+const V06_REPORTS: &[&str] = &["Printable Invoice", "Dashboard"];
 
 /// The books holding business documents, by path below `fixtures/`, and the documents the Printable Invoice prints:
 /// `create-test-invoice-data`'s eight, and the business book's four as XML and as SQLite.
@@ -161,7 +162,7 @@ fn exports(locale: Option<&str>) -> Vec<(String, String, Option<String>)> {
     exports_of(&BOOKS, locale, |_| true)
 }
 
-/// The exports of the built-in reports `wanted` picks by name, on `books`.
+/// The exports of the built-in reports and built-in saved configurations `wanted` picks by name, on `books`.
 fn exports_of(books: &[&str], locale: Option<&str>, wanted: impl Fn(&str) -> bool) -> Vec<(String, String, Option<String>)> {
     books
         .iter()
@@ -173,7 +174,7 @@ fn exports_of(books: &[&str], locale: Option<&str>, wanted: impl Fn(&str) -> boo
                 .as_array()
                 .unwrap()
                 .iter()
-                .filter(|r| r["kind"] == "builtin")
+                .filter(|r| r["kind"] == "builtin" || r["readOnly"] == true)
                 .map(|r| r["name"].as_str().unwrap().to_owned())
                 .filter(|name| wanted(name))
                 .collect();

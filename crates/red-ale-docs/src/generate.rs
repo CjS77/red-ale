@@ -8,19 +8,23 @@ use serde_json::{Map, Value};
 
 use crate::page::{Kind, Page, error_page_id, method_page_id, report_page_id};
 
-/// A report template as its Reference page needs it. `red-ale-rpc` fills these from `red-ale-report`'s registry.
+/// A report template as its Reference page needs it, or a built-in saved configuration of one (the Dashboard).
+/// `red-ale-rpc` fills these from `red-ale-report`'s registry and built-in configurations.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportTemplate {
-    /// The template's GUID.
+    /// The template's GUID, or the saved configuration's.
     pub guid: String,
-    /// The template's name, GnuCash's English one for a built-in report.
+    /// The template's name, GnuCash's English one for a built-in report, or the saved configuration's.
     pub name: String,
-    /// The script defining it: `standard/balance-sheet.rhai`.
+    /// The script defining it: `standard/balance-sheet.rhai`; for a saved configuration, its template's.
     pub script: String,
     /// GnuCash's menu tip, if it has one.
     pub menu_tip: Option<String>,
-    /// Its options, in the order `report.options` lists them.
+    /// For a built-in saved configuration: the name of the template it configures, whose Page its Page links to.
+    #[serde(default)]
+    pub configures: Option<String>,
+    /// Its options, in the order `report.options` lists them; a saved configuration's with its values as defaults.
     pub options: Vec<ReportOption>,
 }
 
@@ -224,7 +228,15 @@ fn one_type(t: &str, schema: &Value, defs: &Map<String, Value>) -> String {
 }
 
 fn report_body(t: &ReportTemplate) -> String {
-    let head = format!("**Template GUID:** `{}` · **Script:** `{}`\n", t.guid, t.script);
+    let head = match &t.configures {
+        None => format!("**Template GUID:** `{}` · **Script:** `{}`\n", t.guid, t.script),
+        Some(template) => format!(
+            "**Built-in saved configuration GUID:** `{}`, read-only · **Configures:** [{template}]({}) · **Script:** `{}`\n",
+            t.guid,
+            report_page_id(template),
+            t.script
+        ),
+    };
     if t.options.is_empty() {
         return head;
     }
@@ -321,6 +333,7 @@ mod tests {
             name: "Balance Sheet".into(),
             script: "standard/balance-sheet.rhai".into(),
             menu_tip: None,
+            configures: None,
             options: vec![option("General", "A"), option("Display", "B"), option("General", "C")],
         };
         let pages = report_pages(&[template]);
@@ -330,5 +343,26 @@ mod tests {
         let general = body.find("### General").unwrap();
         assert!(general < body.find("### Display").unwrap(), "{body}");
         assert!(body.contains("- **C** (boolean, default `true`): Show it?\n"), "{body}");
+    }
+
+    #[test]
+    fn a_built_in_configuration_links_to_its_template() {
+        let dashboard = ReportTemplate {
+            guid: "ad80271c890b11dfa79f2dcedfd72085".into(),
+            name: "Dashboard".into(),
+            script: "standard/view-column.rhai".into(),
+            menu_tip: Some("A basic dashboard for your accounting data".into()),
+            configures: Some("Multicolumn View".into()),
+            options: Vec::new(),
+        };
+        let pages = report_pages(&[dashboard]);
+        assert_eq!(pages[0].id, "report/dashboard");
+        assert!(
+            pages[0]
+                .body
+                .contains("**Configures:** [Multicolumn View](report/multicolumn-view)"),
+            "{}",
+            pages[0].body
+        );
     }
 }

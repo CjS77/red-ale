@@ -43,9 +43,10 @@ pub enum SkipReason {
     /// Its template (a report's GUID, a style sheet template's name) is not one red-ale has translated.
     Untranslated,
     /// A saved configuration with its GUID, or a style sheet entry with its name, is already in the Configuration or
-    /// earlier in the file.
+    /// earlier in the file, or is built in.
     Exists,
-    /// Another saved configuration already has its name.
+    /// Another saved configuration of the Configuration already has its name. A built-in one's name is not
+    /// reserved, so a GnuCash user's own "Dashboard" imports.
     Conflict,
     /// An option value red-ale refuses (`report-option`).
     InvalidOption,
@@ -234,7 +235,7 @@ impl Reports {
         let children = self
             .embedded(e.embedded.as_deref().unwrap_or_default())
             .map_err(|(r, m)| skip(r, m))?;
-        if taken.iter().any(|s| s.guid == guid) {
+        if taken.iter().any(|s| s.guid == guid) || self.builtin_saved(guid).is_some() {
             return Err(skip(
                 SkipReason::Exists,
                 format!("a saved configuration with GUID {} exists", e.guid),
