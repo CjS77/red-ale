@@ -45,14 +45,11 @@ when you open the book. GnuCash calls this *Since Last Run*.
 {"method": "scheduledTransaction.create", "params": {"name": "Monthly rent", "startDate": "2024-05-01", "schedule": [{"mult": 1, "periodType": "month"}], "templateTransactions": [{"description": "Rent", "splits": [{"account": "Rent", "debitFormula": "750"}, {"account": "Checking", "creditFormula": "750"}]}]}}
 {"result": {"name": "Monthly rent", "enabled": true, "nextOccurrence": "2024-05-01", "…": "…"}}
 {"method": "scheduledTransaction.sinceLastRun", "params": {}}
-{"result": {"id": "…", "today": "2024-07-01", "summary": {"toCreate": 3, "reminders": 0, "postponed": 0, "errors": 0, "…": "…"}, "…": "…"}}
-```
-
-The proposal's `id` goes into the next call. It counts up in each server process, so it is not always `slr-1`:
-
-```json
+{"result": {"id": "slr-1", "today": "2024-07-01", "summary": {"toCreate": 3, "reminders": 0, "postponed": 0, "errors": 0, "…": "…"}, "…": "…"}}
 {"method": "scheduledTransaction.apply", "params": {"proposal": "slr-1"}}
+{"result": {"created": [{"index": 0, "date": "2024-05-01", "transactions": ["…"], "…": "…"}, {"index": 1, "date": "2024-06-01", "transactions": ["…"], "…": "…"}, {"index": 2, "date": "2024-07-01", "transactions": ["…"], "…": "…"}], "ignored": [], "postponed": [], "reminders": [], "schedules": ["…"], "imbalanceSplits": [], "warnings": []}}
 ```
 
-It creates the three rent transactions, 750.00 each, and moves the schedule on. A second `scheduledTransaction.sinceLastRun`
-then finds nothing to create until the next occurrence, 1 August.
+The proposal's `id` is the one `sinceLastRun` gave; it counts up from `slr-1` in each server process. Applying creates the
+three rent transactions, 750.00 each, and moves the schedule on. A second `scheduledTransaction.sinceLastRun` then finds
+nothing to create until the next occurrence, 1 August.

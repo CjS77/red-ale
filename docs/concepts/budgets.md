@@ -11,11 +11,11 @@ over a period, and compare your actual Transactions to the plan.
 
 ## Kinds of budget
 
-- A **cash budget** plans receipts and disbursements: where the money comes from, where it goes, how much.
-- An **expense budget** plans what you spend; it ignores things like loan repayment, though it counts interest. Buying
+- A *cash budget* plans receipts and disbursements: where the money comes from, where it goes, how much.
+- An *expense budget* plans what you spend; it ignores things like loan repayment, though it counts interest. Buying
   100 of groceries on a credit card is a 100 expense; paying the card bill of 110 adds 10 of interest expense, and the
   repayment of the 100 is not budgeted.
-- A **capital budget** plans how to pay for a large future expense, with savings and borrowing.
+- A *capital budget* plans how to pay for a large future expense, with savings and borrowing.
 
 The kind is decided by which Accounts you give amounts to. Expense Accounts only make an expense budget; assets,
 liabilities, income and expenses together make a cash flow budget. Your Accounts must be at least as specific as your

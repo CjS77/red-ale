@@ -25,7 +25,7 @@ Assets in the balance sheet are grouped by how long they last. Neither group nee
 
 ## Fixed assets
 
-**Long-term or fixed assets** last longer than a year: land, buildings, vehicles, equipment and intangibles such as
+Long-term, or **fixed assets**, last longer than a year: land, buildings, vehicles, equipment and intangibles such as
 patents. Land does not wear out, so it is recorded at cost and its rise in value is not recorded until you sell; the
 cost of land bought with a building is split between them. Buildings, vehicles and equipment wear, which is what
 depreciation accounts for.

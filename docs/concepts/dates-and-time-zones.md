@@ -12,7 +12,7 @@ agree on every date.
 
 - A **Date** is a calendar day with no time: `2024-07-01`. A Transaction's `datePosted`, a Price's day and a due date
   are Dates. This is what you send and what you usually read back.
-- A **timestamp** is an instant, always written in UTC with a `Z`: `2024-07-01T10:59:00Z`. Entered times, reconcile
+- A *timestamp* is an instant, always written in UTC with a `Z`: `2024-07-01T10:59:00Z`. Entered times, reconcile
   times and the time a method ran are timestamps.
 
 A Date you choose is stored as the **day-neutral time**: 10:59:00 UTC on that day, moved to 11:59 in zones west of

@@ -12,17 +12,17 @@ read-only.
 
 ## Templates and options
 
-A **report template** is a report definition with a GUID, a name and **options**. The built-in templates keep GnuCash 5.17's
+A **report template** is a report definition with a GUID, a name and *options*. The built-in templates keep GnuCash 5.17's
 names and GUIDs. **⚠** GnuCash also calls saved configurations "custom reports"; red-ale says *saved report
 configuration* for those (below).
 
 - [`report.list`](method/report.list) lists every template and saved configuration, with `kind` `builtin`, `user` or
   `saved`. It needs no book.
-- [`report.options`](method/report.options) lists a report's **options**: each is named by a section and name (GnuCash's
+- [`report.options`](method/report.options) lists a report's *options*: each is named by a section and name (GnuCash's
   English strings, such as *General* / *Start Date*), has a type, a default and the current value, plus a JSON Schema for
   the `options` of `report.run`. Options come in GnuCash's order.
 - Report options go in `options` as `{ "<section>": { "<name>": <value> } }`, changing only what differs from the defaults.
-  Dates may be absolute or **relative** (`start-this-month`, `end-prev-quarter`). Accounts are given by GUID or full name.
+  Dates may be absolute or *relative* (`start-this-month`, `end-prev-quarter`). Accounts are given by GUID or full name.
 
 Every report has GnuCash's three General options: *Report name*, *Stylesheet* and *Add options summary*.
 
