@@ -1349,6 +1349,18 @@ start-up (`report/gnc-report.cpp:55-112`). red-ale keeps the same things in its 
 - **Names** are unique among saved configurations. GnuCash appends a number to a clashing name on save
   (`report/report-core.scm:515-532`) and refuses a clash on rename; red-ale refuses both (`conflict`), so a client
   always gets the name it asked for.
+- **Built-in saved configurations** (v0.6) are compiled into red-ale beside the built-in scripts
+  (`crates/red-ale-report/src/library/configurations.rs`), each the record a Configuration entry reads as, with the
+  menu fields of the GnuCash menu item it stands for. The Configuration never stores them. They run, export and list
+  as any saved configuration; `report.list` marks them `readOnly`. Changing, renaming or deleting one is `conflict`
+  (`data.reason: "built-in"`); `report.saveConfiguration` copies one into the user's own. Their names are not
+  reserved, so `report.importConfigurations` keeps a GnuCash user's own saved "Dashboard" (GnuCash names a saved
+  report after its "Report name"); a name both have is ambiguous (§11). A Configuration entry with a built-in's GUID
+  is left out, as a user script reusing a built-in template's GUID is (§11): `report.list` gives it under `problems`,
+  and it is written back as it was. The first is the **Dashboard** ([`milestone6.md`](milestone6.md), "Decided",
+  item 5; [`notes/report-invoice.md`](notes/report-invoice.md) §2): GnuCash's menu item builds a two-column
+  Multicolumn View of four reports at their defaults (`standard/dashboard.scm:40-65`), so red-ale keeps that view's
+  options under the menu item's GUID.
 - **Style sheets**: the six predefined ones always exist. An entry under `styleSheets` with a predefined name holds
   changes to it; one with a new name is a user style sheet of the named template. Deleting a predefined style sheet
   resets it to its template's defaults, which is what GnuCash does at its next start, since it recreates the
@@ -1462,6 +1474,14 @@ Invoices, its other two variants (`standard/invoice.scm:887-905`), are ❌ ([`mi
 configuration. A name matches template names and saved configuration names; more than one match is a `conflict`
 whose `data.matches` lists them, as `gnucash-cli` refuses a name that matches several reports and asks for the GUID
 (`report/report-core.scm:874-878`, `:914-929`). No match is `not-found` (`data.kind: "report"`).
+
+**Built-in saved configurations** (v0.6, §9) keep the GUID and English name of the GnuCash menu item each stands
+for, so a client that knows GnuCash's menu finds them. Their names are not reserved: a user's configuration may
+share one, and the GUID tells them apart.
+
+| Name | GUID | Configures | Menu | Source |
+|------|------|------------|------|--------|
+| Dashboard | `ad80271c890b11dfa79f2dcedfd72085` | Multicolumn View (`d8ba4a2e89e8479ca9f6eccdeb164588`): "Report name" Dashboard, two columns; the Expense Accounts and Income Accounts pies 1×1, the Income/Expense Chart 2×1, the Account Summary 2×1 | Multicolumn | `5.17:gnucash/gnome/report-menus.scm:113-121`; `standard/dashboard.scm:40-65` |
 
 **User reports** may not reuse a built-in GUID or each other's: the first definition wins, in the order built-in,
 then user files by path, and the others are reported by `report.list` with `report-load`, as GnuCash keeps the first
