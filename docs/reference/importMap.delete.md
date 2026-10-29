@@ -10,9 +10,13 @@ token goes for all of them. It is destructive: the matcher forgets what it learn
 
 ## Examples
 
-```example fixture=synthetic/rich
+Removing the invalid entries, then one learned description, which is then gone:
+
+```example fixture=synthetic/import-map
 {"method": "importMap.delete", "params": {"invalid": true}}
-{"result": {"deleted": []}}
-{"method": "importMap.delete", "params": {"entries": [{"account": "Assets:Cash", "kind": "desc", "key": "Coffee"}]}}
+{"result": {"deleted": [{"account": {"guid": "…", "fullName": "Assets:Checking"}, "kind": "bayes", "key": "Coffee", "target": null, "count": 1, "valid": false}]}}
+{"method": "importMap.delete", "params": {"entries": [{"account": "Assets:Checking", "kind": "desc", "key": "Corner Grocer"}]}}
+{"result": {"deleted": [{"kind": "desc", "key": "Corner Grocer", "…": "…"}]}}
+{"method": "importMap.delete", "params": {"entries": [{"account": "Assets:Checking", "kind": "desc", "key": "Corner Grocer"}]}}
 {"error": {"code": 2000, "message": "…", "data": {"help": "error/not-found", "…": "…"}}}
 ```

@@ -43,6 +43,14 @@ that has none, as choosing the account in GnuCash's assistant does. A saved layo
 {"result": {"transactions": [{"index": 0, "description": "Interest", "splits": [{"accountName": "Savings", "value": {"num": "125", "denom": "100"}, "…": "…"}], "…": "…"}], "…": "…"}}
 ```
 
+In a book that has imported before, the Bayesian matcher proposes the account the same words and weekday went to
+last time (`from: "bayes"`), so `import.apply` needs no account for them:
+
+```example fixture=synthetic/import-map
+{"method": "import.preview", "params": {"format": "csvTransactions", "files": [{"text": "2024-06-03,Corner Grocer,-23.40\n2024-06-28,Salary ACME,2000.00\n"}], "layout": {"columns": ["Date", "Description", "Amount"], "dateFormat": "y-m-d"}, "baseAccount": "Assets:Checking"}}
+{"result": {"transactions": [{"description": "Corner Grocer", "action": "add", "other": {"accountName": "Expenses:Groceries", "from": "bayes", "…": "…"}, "…": "…"}, {"description": "Salary ACME", "other": {"accountName": "Income:Salary", "from": "bayes", "…": "…"}, "…": "…"}], "…": "…"}}
+```
+
 Prices from a file with a date and a rate on each line:
 
 ```example
