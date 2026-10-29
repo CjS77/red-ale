@@ -51,5 +51,6 @@ Design comes before code. Read in this order:
 | [`engine-accounts-transactions.md`](notes/engine-accounts-transactions.md)   | Numeric rules, accounts, transactions, void, scrubs, reconcile  |
 | [`engine-commodities-prices-lots.md`](notes/engine-commodities-prices-lots.md) | Commodities, ISO table, prices, lots, capital gains, splits   |
 | [`engine-business.md`](notes/engine-business.md)                             | Owners, documents, entries, posting, payments, reminders        |
+| [`report-invoice.md`](notes/report-invoice.md)                               | The Printable Invoice (options, Book reads, layout, test) and the Dashboard |
 | [`time-zones.md`](notes/time-zones.md)                                       | The local zone, day-neutral and local times, relative dates     |
 | [`mcp-harnesses.md`](notes/mcp-harnesses.md)                                 | How each agent harness keeps its MCP servers (not GnuCash)      |

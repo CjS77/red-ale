@@ -47,6 +47,8 @@ A feature added in a development series is listed under the stable release that 
 |   ✅   | Num field source                                          | Use the split action field as the transaction number                         |    2.6     |  0.2   |
 |   ✅   | Use trading accounts                                      | Book option to balance multi-commodity transactions through trading accounts |    2.4     |  0.2   |
 |   ✅   | Close book                                                | Zeroes income and expense into equity at a closing date                      |   2.2.4    |  0.2   |
+|        | Business options                                          | Company name, address, ID, contact, phone, fax, email, URL and tax number    |    1.8     |        |
+|        | Default invoice report                                    | The book's invoice report that Print Invoice runs                            |    5.0     |        |
 
 ## 2. Transactions
 

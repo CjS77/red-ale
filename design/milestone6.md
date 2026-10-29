@@ -1,9 +1,9 @@
 # Milestone 6: red-ale v0.6
 
-**Status: draft, decisions settled.** The scope comes from [`roadmap.md`](roadmap.md) ("v0.6") and
-[`manual.md`](manual.md), as narrowed by the maintainer during planning ("Decide before code"). A short research
-note, `notes/report-invoice.md`, comes before the invoice is translated, as [`milestone5.md`](milestone5.md)'s notes
-did for its reports.
+**Status: in progress, decisions settled.** The scope comes from [`roadmap.md`](roadmap.md) ("v0.6") and
+[`manual.md`](manual.md), as narrowed by the maintainer during planning ("Decide before code"). The research for the
+invoice and the Dashboard is in [`notes/report-invoice.md`](notes/report-invoice.md) ("the note" below); its open
+questions are settled in "Decided", item 11.
 
 **Goal:** red-ale documents itself. The Manual answers an agent's or a user's "how do I" through JSON-RPC, MCP, the
 CLI and a published website, with every Example run as a test, and shows how to write a User report. red-ale
@@ -28,6 +28,9 @@ Also in v0.6:
 
 - **the Manual** ("The Manual"), which documents v0.1 to v0.6 at once, with a section on User reports;
 - the v0.5 follow-ups taken up here ("Carried forward from v0.5");
+- **two Book settings rows the invoice needs**, found by the research (the note, open question 8): *Business options*
+  (company name, address, ID, contact, phone, fax, email, URL, tax number) and *Default invoice report*. No method read
+  or wrote them before; `book.options` and `book.setOptions` gain them ("Business book options");
 - the `sql-book` error no longer names a version for MySQL and PostgreSQL, which are ❌ (done:
   `crates/red-ale-service/src/error.rs:44`, `tests/session.rs`,
   `database_server_books_are_refused_before_anything_happens`).
@@ -57,9 +60,9 @@ Manual reads nothing of a Book. Two rules are new:
   (`5.17:gnucash/report/reports/standard/invoice.scm:405-407`). red-ale puts the string into the HTML's `<img src>`,
   as GnuCash does, and never opens it ("Decided", item 4).
 - **Book options the invoice reads are read, not set.** The business options (company name, address, ID, contact,
-  phone, fax, email, URL) and the Default Invoice Report are kept in the Book's Slots (`5.17:libgnucash/engine/qofbook.cpp:1034-1112`), and
-  red-ale already edits them through its book options methods.
-  No report run writes one, and GnuCash's migration of the old invoice report preference into the Book
+  phone, fax, email, URL) and the Default Invoice Report are kept in the Book's Slots
+  (`5.17:libgnucash/engine/qofbook.cpp:1034-1112`), which `book.setOptions` writes from v0.6 as GnuCash's Book Options
+  dialog does (the note §1.6). No report run writes one, and GnuCash's migration of the old invoice report preference into the Book
   (`5.17:gnucash/gnome/business-gnome-utils.c:115-128`) is a GUI step red-ale doesn't copy.
 
 ## The Manual
@@ -128,8 +131,22 @@ files are under `5.17:gnucash/report/reports/`; lines are the file's length at t
   the query API exposes reads only, as for the v0.5 lot reads. The research note lists exactly what
   `standard/invoice.scm` reads.
 - **Two option types** ([`reports.md`](reports.md) §6): an invoice (General › Invoice Number, which
-  `gnc:invoice-report-create` sets, `5.17:gnucash/report/reports/reports.scm:68-80`) and an image (Layout › Picture
-  Location, `gnc-register-pixmap-option`), each with its wire value.
+  `gnc:invoice-report-create` sets, `5.17:gnucash/report/reports/reports.scm:68-80`; a GUID or `null`, as `budget`)
+  and an image (Layout › Picture Location, `gnc-register-pixmap-option`; a string), each with its wire value.
+- **One core read**, the due date (the posted transaction's due date, else its date posted), and the query API's
+  Invoice, Entry, Owner, Order and BillTerm handles, `book.invoice`, `book.option(path)` and `ctx.print_time` (the
+  note §4, §5 items 1–2).
+- **Four additions to the report result** (the note §3.2): `numberFormat: "exact"` (GnuCash prints quantities and
+  percentage discounts unrounded), `class` on blocks and cells (the invoice's CSS option styles by class), `css` on
+  the result, and an `image` block. Additive; no earlier report sets them, so every golden byte stays the same.
+- **Built-in saved configurations** (the note §2.3), of which the Dashboard is the first.
+
+### Business book options
+
+| Status | Item                   | Notes |
+|:------:|------------------------|-------|
+|        | Business options       | `book.options` and `book.setOptions` read and write the Business tab's strings (company name, address, contact, phone, fax, email, URL, ID) and the Tax tab's Tax Number, in the Slots GnuCash's Book Options dialog writes (the note §1.6, open question 8) |
+|        | Default invoice report | `defaultInvoiceReport`: `{ guid, name }` or `null`, read and written as GnuCash parses and writes the slot (the note §1.6) |
 
 ## Carried forward from v0.5
 
@@ -218,8 +235,10 @@ The maintainer's decisions, during the planning of v0.6. Each ❌ row is ❌ in 
    already ❌, and the Balance Sheet of v0.2 gives its figures.
 3. **User scripts stay files.** No method takes a script's text; an agent that writes reports needs file access where
    red-ale runs.
-4. **Image options hold a string**, a URL or a `file:` path, which the HTML's `<img src>` refers to, as GnuCash's
-   does. The server never reads it.
+4. **Image options hold a string**, a file name, which the HTML's `<img src>` refers to as GnuCash's does: GnuCash's
+   `make-file-url` puts `file:///` in front of whatever the option holds (the note §1.4), so the page never fetches
+   from the network. The server never reads the file. [`reports.md`](reports.md) §8's rule that an exported page holds
+   no image or URL gains this one exception.
 5. **The Dashboard is a built-in saved configuration** of the Multicolumn View: named "Dashboard", read-only, two
    columns, with GnuCash's four children and spans (`standard/dashboard.scm:44-63`). `report.list` shows it, and
    `report.run { report: "Dashboard" }` runs it. Its GUID is the menu item's (`ad80271c890b11dfa79f2dcedfd72085`,
@@ -227,9 +246,10 @@ The maintainer's decisions, during the planning of v0.6. Each ❌ row is ❌ in 
    their own saved configuration to change it.
 6. **Printing an invoice** is `report.run` with an invoice template and its Invoice Number option, as
    `gnc:invoice-report-create` does (`5.17:gnucash/report/reports/reports.scm:68-80`). No new method. The Book's
-   Default Invoice Report, falling back to the Printable invoice, is named on the invoice's From GnuCash page; a
-   Default Invoice Report naming a template red-ale doesn't have (the Easy or Fancy invoice, say) runs as `report.run`
-   does for any untranslated template.
+   Default Invoice Report, falling back to the Printable invoice, is named on the invoice's From GnuCash page. GnuCash
+   prints the Printable invoice when the Default Invoice Report is not an invoice report
+   (`5.17:gnucash/gnome/dialog-invoice.c:957-963`), so the page tells clients to do the same when it names a template
+   red-ale doesn't have (the Easy or Fancy invoice, say).
 7. **The Manual's open items** ([`manual.md`](manual.md), "Settled for v0.6"): the site publishes the latest release
    only; synonyms are generated from the glossary's ⚠ entries with a short hand-kept supplement; every method needs
    a "what it is for" paragraph and one Example, and nothing more is required.
@@ -237,6 +257,13 @@ The maintainer's decisions, during the planning of v0.6. Each ❌ row is ❌ in 
 9. **No split:** v0.6 ships the Manual and the two reports together.
 10. **MySQL and PostgreSQL books are ❌**, so v0.7 has no rows ([`roadmap.md`](roadmap.md), "v0.7"); the `sql-book`
     error no longer names a version.
+11. **The note's open questions** (§6) are settled as it proposes: the invoice's result has an empty title and a
+    heading block, as GnuCash's document has none (1); an invoice GUID that names no document reads as `()` and
+    renders the no-invoice warning (2); refused CSS in the CSS option is left out with a `debug` log entry (3); class
+    names are in scope (4); built-in saved configuration names are not reserved (5); an invoice report is a template
+    whose General › Invoice Number is of type `invoice` (6); the Business book options are added (8); clients fall
+    back to the Printable invoice (9, item 6); the new number display is `exact` (10). Question 7, porting the Easy
+    and Fancy invoices as built-in saved configurations, stays ❌ under item 2.
 
 ### Glossary
 
