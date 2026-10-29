@@ -7,6 +7,7 @@ use red_ale_report::error::OptionError;
 use red_ale_report::options::{GENERAL, OptionInfo, STYLESHEET};
 use red_ale_report::render::{self, DEFAULT_STYLE_SHEET, RenderContext, StyleSheet};
 use red_ale_report::{ReportError, ReportResult};
+use red_ale_service::reports::SavedReport;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -16,11 +17,16 @@ use crate::dispatch::Context;
 use crate::error::RpcError;
 use crate::wire::{NoParams, Timestamp};
 
-/// A user script that did not load, or a file the loader left out of the report directory.
+/// The `source` of a problem with a saved configuration of the Configuration: its key.
+const SAVED_SOURCE: &str = "reports.saved";
+
+/// A user script that did not load, a file the loader left out of the report directory, or a saved configuration
+/// left out of the Configuration.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadProblem {
-    /// The script: `./` and its path in the report directory, `.` for the directory itself.
+    /// The script: `./` and its path in the report directory, `.` for the directory itself; `reports.saved` for a
+    /// saved configuration of the Configuration.
     pub source: String,
     /// `report-load`, or `report-limit` for a script past a limit when it compiles.
     pub code: String,
@@ -44,7 +50,7 @@ pub(super) fn list(ctx: &mut Context, _: NoParams) -> Result<ListResult, RpcErro
     let reports = Reports::load(ctx)?;
     let templates = reports.registry.templates().into_iter().map(Found::Template);
     let mut all: Vec<ReportInfo> = templates
-        .chain(reports.saved.iter().map(Found::Saved))
+        .chain(reports.all_saved().map(Found::Saved))
         .map(|f| reports.info(f))
         .collect();
     all.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.guid.cmp(&b.guid)));
@@ -54,8 +60,25 @@ pub(super) fn list(ctx: &mut Context, _: NoParams) -> Result<ListResult, RpcErro
         message: p.message.clone(),
         line: None,
     });
-    let problems = unread.chain(reports.registry.problems().iter().map(problem)).collect();
+    let shadowed = reports.shadowed().map(shadowed_problem);
+    let problems = unread
+        .chain(reports.registry.problems().iter().map(problem))
+        .chain(shadowed)
+        .collect();
     Ok(ListResult { reports: all, problems })
+}
+
+/// A saved configuration of the Configuration left out because a built-in one has its GUID.
+fn shadowed_problem(s: &SavedReport) -> LoadProblem {
+    LoadProblem {
+        source: SAVED_SOURCE.to_owned(),
+        code: "report-load".to_owned(),
+        message: format!(
+            "saved configuration {:?} reuses the GUID {} of a built-in saved configuration and is left out; give it another GUID in the Configuration",
+            s.name, s.guid
+        ),
+        line: None,
+    }
 }
 
 fn problem(e: &ReportError) -> LoadProblem {

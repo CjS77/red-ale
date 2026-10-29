@@ -412,6 +412,7 @@ GnuCash's report files).
 | Name clash on save | A number is appended | `conflict` | The caller gets the name it asked for |
 | Invalid option value | Logged, option unchanged | `report-option` | A typo never runs a different report |
 | A Multicolumn View's children | Report instances of the session; a saved configuration's options are copied into the new instance | Template or saved configuration GUIDs; a saved configuration child follows its later changes | Children stay put across restarts (`notes/report-statements-charts.md` Q4) |
+| The Dashboard (v0.6) | A menu item (`5.17:gnucash/gnome/report-menus.scm:113-121`) that builds a new Multicolumn View and four child report instances at each click (`5.17:gnucash/report/reports/standard/dashboard.scm:40-65`); the view has no GUID of its own, and saving it makes a custom report under a new GUID | A read-only built-in saved configuration of the Multicolumn View, under the menu item's GUID: `report.list` lists it with `readOnly` and the menu fields, `report.run` runs it by name or GUID, and it changes only as a copy | A report is named by a GUID or name, and a saved configuration is what red-ale has for a configured report |
 | `gnucash-cli --report run` failure | Exit status 0, error on standard error (`5.17:gnucash/gnucash-commands.cpp:234-250`) | An error response; the CLI exits with status 2 | Failures are visible |
 | Export target | A file the GUI or CLI writes | HTML returned; only the CLI writes, on its side | The server never writes caller-named paths |
 

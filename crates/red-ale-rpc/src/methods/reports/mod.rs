@@ -24,7 +24,7 @@ use red_ale_docs::{ReportOption, ReportTemplate};
 use red_ale_locale::Locale;
 use red_ale_report::ReportError;
 use red_ale_report::engine::{Configurations, Registry, RunContext, ScriptSource, TemplateInfo, TemplateKind};
-use red_ale_report::library::Library;
+use red_ale_report::library::{BuiltinConfiguration, Library, builtin_configurations};
 use red_ale_report::limits::{Limit, Limits};
 use red_ale_report::options::{GENERAL, OptionDb, OptionInfo, STYLESHEET, ValueContext};
 use red_ale_report::render::{StyleSheetEntry, StyleSheets};
@@ -217,6 +217,10 @@ pub struct ReportInfo {
     /// The exports offered besides HTML: `["csv"]` for the net and category charts (`report.exportCsv`), and for a
     /// saved configuration of one.
     pub export_types: Vec<String>,
+    /// `true` for a built-in saved configuration (v0.6), which cannot be changed, renamed or deleted, only copied
+    /// with `report.saveConfiguration`; absent otherwise.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub read_only: bool,
 }
 
 impl ReportInfo {
@@ -236,6 +240,7 @@ impl ReportInfo {
             menu_tip: t.menu_tip.clone(),
             in_menu: t.in_menu,
             export_types: t.export_types.clone(),
+            read_only: false,
         }
     }
 
@@ -251,7 +256,41 @@ impl ReportInfo {
             menu_tip: None,
             in_menu: false,
             export_types: template.map(|t| t.export_types.clone()).unwrap_or_default(),
+            read_only: false,
         }
+    }
+
+    /// A built-in saved configuration: a saved configuration with the menu fields of the GnuCash menu item it stands
+    /// for, and read-only.
+    fn builtin_saved(b: &BuiltinSaved, template: Option<&TemplateInfo>) -> Self {
+        Self {
+            menu_path: b.config.menu_path.clone(),
+            menu_name: b.config.menu_name.clone(),
+            menu_tip: b.config.menu_tip.clone(),
+            in_menu: b.config.in_menu,
+            read_only: true,
+            ..Self::saved(&b.saved, template)
+        }
+    }
+}
+
+/// A built-in saved configuration: its record, as a Configuration entry reads, and its menu fields.
+#[derive(Debug, Clone)]
+struct BuiltinSaved {
+    saved: SavedReport,
+    config: BuiltinConfiguration,
+}
+
+impl From<BuiltinConfiguration> for BuiltinSaved {
+    fn from(config: BuiltinConfiguration) -> Self {
+        let saved = SavedReport {
+            guid: config.guid.0,
+            name: config.name.clone(),
+            template: config.template.0,
+            options: config.options.clone(),
+            other: Map::new(),
+        };
+        Self { saved, config }
     }
 }
 
@@ -269,7 +308,10 @@ struct Reports {
     registry: Arc<Registry>,
     /// Files the loader left out of the report directory.
     unread: Vec<ScriptProblem>,
+    /// The Configuration's saved configurations, all of them, as they are written back.
     saved: Vec<SavedReport>,
+    /// The built-in saved configurations, which the Configuration never stores.
+    builtin: Vec<BuiltinSaved>,
     settings: ReportSettings,
     period: AccountingPeriod,
     fiscal_year_end: Option<FiscalYearEnd>,
@@ -293,6 +335,7 @@ impl Reports {
         let registry = registry(user, limits(&config)?)?;
         Ok(Self {
             saved: config.saved_reports()?,
+            builtin: builtin_configurations()?.into_iter().map(BuiltinSaved::from).collect(),
             period: config.accounting_period()?,
             fiscal_year_end: config.fiscal_year_end()?,
             sheets: style_sheets(&config.style_sheets()?)?,
@@ -313,38 +356,69 @@ impl Reports {
     }
 
     /// The template or saved configuration `reference` names: a GUID, else a name exactly one has
-    /// (`design/reports.md` §11).
+    /// (`design/reports.md` §11). Built-in saved configurations are named as the Configuration's are: their names are
+    /// not reserved, so a name a built-in one shares with another report is ambiguous, and the GUID always works.
     fn find(&self, reference: &str) -> Result<Found<'_>, RpcError> {
         if let Ok(guid) = Guid::parse(reference.trim()) {
             if let Some(t) = self.registry.template(guid) {
                 return Ok(Found::Template(t));
             }
-            if let Some(s) = self.saved.iter().find(|s| s.guid == guid) {
+            if let Some(s) = self.all_saved().find(|s| s.guid == guid) {
                 return Ok(Found::Saved(s));
             }
         }
         let templates = self.registry.named(reference).into_iter().map(Found::Template);
         let mut matches: Vec<Found<'_>> = templates
-            .chain(self.saved.iter().filter(|s| s.name == reference).map(Found::Saved))
+            .chain(self.all_saved().filter(|s| s.name == reference).map(Found::Saved))
             .collect();
         match matches.len() {
             0 => Err(RpcError::not_found("report", reference)),
             1 => Ok(matches.remove(0)),
-            n => {
-                let guids: Vec<String> = matches.iter().map(|m| self.info(*m).guid.0.to_string()).collect();
-                let message = format!("{n} reports are named {reference:?}; name one by its GUID");
-                Err(RpcError::new(codes::CONFLICT, message).with_data(json!({ "matches": guids })))
-            }
+            _ => Err(ambiguous(reference, matches.iter().map(|m| self.info(*m).guid))),
         }
     }
 
-    /// The saved configuration `reference` names, by GUID or name.
+    /// The saved configuration `reference` names, by GUID or name, for a method that changes it. A built-in one is
+    /// refused (`conflict`): it can only be copied.
     fn configuration(&self, reference: &str) -> Result<&SavedReport, RpcError> {
         let guid = Guid::parse(reference.trim()).ok();
-        let by_guid = guid.and_then(|g| self.saved.iter().find(|s| s.guid == g));
-        by_guid
-            .or_else(|| self.saved.iter().find(|s| s.name == reference))
-            .ok_or_else(|| RpcError::not_found("configuration", reference))
+        let found = match guid.and_then(|g| self.all_saved().find(|s| s.guid == g)) {
+            Some(s) => s,
+            None => self.saved_named(reference)?,
+        };
+        match self.builtin_saved(found.guid) {
+            Some(b) => Err(read_only(&b.saved)),
+            None => Ok(found),
+        }
+    }
+
+    /// The one saved configuration named `name`.
+    fn saved_named(&self, name: &str) -> Result<&SavedReport, RpcError> {
+        let matches: Vec<&SavedReport> = self.all_saved().filter(|s| s.name == name).collect();
+        match matches.as_slice() {
+            [] => Err(RpcError::not_found("configuration", name)),
+            [one] => Ok(one),
+            _ => Err(ambiguous(name, matches.iter().map(|s| Id(s.guid)))),
+        }
+    }
+
+    /// The built-in saved configuration with GUID `guid`.
+    fn builtin_saved(&self, guid: Guid) -> Option<&BuiltinSaved> {
+        self.builtin.iter().find(|b| b.saved.guid == guid)
+    }
+
+    /// Every saved configuration a report reference can name: the built-in ones, then the Configuration's, less any
+    /// that reuses a built-in one's GUID ([`Reports::shadowed`]).
+    fn all_saved(&self) -> impl Iterator<Item = &SavedReport> {
+        let builtin = self.builtin.iter().map(|b| &b.saved);
+        builtin.chain(self.saved.iter().filter(|s| self.builtin_saved(s.guid).is_none()))
+    }
+
+    /// The Configuration's saved configurations that reuse a built-in one's GUID. The built-in one wins, as a
+    /// built-in template wins over a user script reusing its GUID (`design/reports.md` §11); they stay in the
+    /// Configuration untouched, and `report.list` names them under `problems`.
+    fn shadowed(&self) -> impl Iterator<Item = &SavedReport> {
+        self.saved.iter().filter(|s| self.builtin_saved(s.guid).is_some())
     }
 
     /// The template a saved configuration configures. One that is not loaded (its user script was removed or no
@@ -367,7 +441,13 @@ impl Reports {
     fn info(&self, found: Found<'_>) -> ReportInfo {
         match found {
             Found::Template(t) => ReportInfo::template(t),
-            Found::Saved(s) => ReportInfo::saved(s, self.registry.template(s.template)),
+            Found::Saved(s) => {
+                let template = self.registry.template(s.template);
+                match self.builtin_saved(s.guid) {
+                    Some(b) => ReportInfo::builtin_saved(b, template),
+                    None => ReportInfo::saved(s, template),
+                }
+            }
         }
     }
 
@@ -465,14 +545,15 @@ impl Reports {
 
 impl Configurations for Reports {
     fn configuration(&self, guid: Guid) -> Option<(Guid, &Map<String, Value>)> {
-        self.saved.iter().find(|s| s.guid == guid).map(|s| (s.template, &s.options))
+        self.all_saved().find(|s| s.guid == guid).map(|s| (s.template, &s.options))
     }
 }
 
 /// Every built-in report template as the Manual's report Pages show it: its options at their defaults, described as
-/// `report.options` describes them with no book open, under the default Configuration, in UTC at the epoch. None
-/// when the library does not load; a template whose options can't be described has none listed. Either is a bug in
-/// a built-in script, which the report tests catch.
+/// `report.options` describes them with no book open, under the default Configuration, in UTC at the epoch; then
+/// every built-in saved configuration, its options with its values. None when the library does not load; a report
+/// whose options can't be described has none listed. Either is a bug in a built-in script, which the report tests
+/// catch.
 pub(crate) fn builtin_templates() -> Vec<ReportTemplate> {
     let Ok(reports) = Reports::builtin() else {
         return Vec::new();
@@ -484,31 +565,49 @@ pub(crate) fn builtin_templates() -> Vec<ReportTemplate> {
         zone: &zone,
     };
     let sheets = reports.style_sheet_choices(None);
-    reports
-        .registry
-        .templates()
-        .into_iter()
-        .filter(|t| t.kind == TemplateKind::Builtin)
-        .map(|t| ReportTemplate {
-            guid: t.guid.0.to_string(),
-            name: t.name.clone(),
-            script: t.script.clone(),
-            menu_tip: t.menu_tip.clone(),
-            options: reports
-                .defaults(t, &sheets, &on)
-                .map(|db| db.describe().into_iter().map(manual_option).collect())
-                .unwrap_or_default(),
-        })
-        .collect()
+    let templates = reports.registry.templates().into_iter().filter(|t| t.kind == TemplateKind::Builtin);
+    let templates = templates.map(|t| ReportTemplate {
+        guid: t.guid.0.to_string(),
+        name: t.name.clone(),
+        script: t.script.clone(),
+        menu_tip: t.menu_tip.clone(),
+        configures: None,
+        options: reports
+            .defaults(t, &sheets, &on)
+            .map(|db| db.describe().into_iter().map(|o| manual_option(o, false)).collect())
+            .unwrap_or_default(),
+    });
+    let configurations = reports.builtin.iter().filter_map(|b| reports.builtin_page(b, &on));
+    templates.chain(configurations).collect()
 }
 
-fn manual_option(o: OptionInfo) -> ReportOption {
+impl Reports {
+    /// A built-in saved configuration as the Manual's report Pages show it, its values as the defaults; `None` when
+    /// its template is not loaded.
+    fn builtin_page(&self, b: &BuiltinSaved, on: &On<'_>) -> Option<ReportTemplate> {
+        let template = self.registry.template(b.saved.template)?;
+        Some(ReportTemplate {
+            guid: b.saved.guid.to_string(),
+            name: b.saved.name.clone(),
+            script: template.script.clone(),
+            menu_tip: b.config.menu_tip.clone(),
+            configures: Some(template.name.clone()),
+            options: self
+                .configured(template, Some(&b.saved), None, on)
+                .map(|db| db.describe().into_iter().map(|o| manual_option(o, true)).collect())
+                .unwrap_or_default(),
+        })
+    }
+}
+
+/// An option as the Manual lists it: its default, or for a saved configuration its configured value.
+fn manual_option(o: OptionInfo, configured: bool) -> ReportOption {
     ReportOption {
         section: o.section,
         name: o.name,
         option_type: o.option_type,
         help: o.help,
-        default: o.default,
+        default: if configured { o.value } else { o.default },
     }
 }
 
@@ -615,6 +714,24 @@ fn name(name: &str, what: &str) -> Result<String, RpcError> {
     } else {
         Ok(name.to_owned())
     }
+}
+
+/// A name several reports have: `conflict`, with their GUIDs in `data.matches`, as `gnucash-cli` refuses a name that
+/// matches several reports (`5.17:gnucash/report/report-core.scm:914-929`).
+fn ambiguous(name: &str, guids: impl Iterator<Item = Id>) -> RpcError {
+    let guids: Vec<String> = guids.map(|g| g.0.to_string()).collect();
+    let message = format!("{} reports are named {name:?}; name one by its GUID", guids.len());
+    RpcError::new(codes::CONFLICT, message).with_data(json!({ "matches": guids }))
+}
+
+/// A change to a built-in saved configuration: `conflict`, since it exists but may only be copied.
+fn read_only(s: &SavedReport) -> RpcError {
+    let message = format!(
+        "{:?} is a built-in saved report configuration and cannot be changed; save a copy with report.saveConfiguration",
+        s.name
+    );
+    let data = json!({ "kind": "configuration", "reason": "built-in", "guid": s.guid.to_string(), "name": s.name });
+    RpcError::new(codes::CONFLICT, message).with_data(data)
 }
 
 /// A name already taken by a `what`, whose errors have `data.kind` `kind`.

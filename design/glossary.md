@@ -255,7 +255,7 @@ See [`reports.md`](reports.md).
 | **Report script** | A `.rhai` file defining one or more Report templates. *Built-in* scripts are translations of GnuCash's `.scm` files compiled into red-ale; *user* scripts load from the Report directory. |
 | **Report directory** | The directory, named in the Configuration, that user Report scripts load from. |
 | **Report option** | One setting of a report, identified by section and name (GnuCash's English strings), with a type, a default and a value. |
-| **Saved report configuration** | A Report template's options saved under a new name and GUID in the Configuration. Stores only what differs from the template's defaults. **⚠** GnuCash's *custom report*; its *saved report* is an open report window, which red-ale does not have. |
+| **Saved report configuration** | A Report template's options saved under a new name and GUID in the Configuration. Stores only what differs from the template's defaults. A *built-in* saved report configuration (v0.6; the Dashboard) is compiled into red-ale instead, under the GUID of the GnuCash menu item it stands for, and is read-only: it is copied, never changed. **⚠** GnuCash's *custom report*; its *saved report* is an open report window, which red-ale does not have. |
 | **Report result** | What running a report gives: sections of tables, charts and text with exact figures. The published language for reports. |
 | **Report log** | The lines a Report script prints with `print` and `debug`, returned with the Report result. |
 | **Query API** | The read-only functions and handles through which a Report script reads the Book. |

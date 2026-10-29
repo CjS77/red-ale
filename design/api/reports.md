@@ -17,8 +17,8 @@ GnuCash's files) and `crates/red-ale-rpc/tests/report_chart_csv.rs` (CSV export)
 ## Types
 
 `ReportRef`: a GUID (a template or a saved configuration), or a name. A name is looked up among template names and
-saved configuration names; several matches give `conflict` with `data.matches`, as `gnucash-cli` asks for the GUID
-when a name is ambiguous (`5.17:gnucash/report/report-core.scm:914-929`).
+saved configuration names, built-in ones included; several matches give `conflict` with `data.matches`, as
+`gnucash-cli` asks for the GUID when a name is ambiguous (`5.17:gnucash/report/report-core.scm:914-929`).
 
 `ReportInfo`:
 
@@ -28,8 +28,19 @@ when a name is ambiguous (`5.17:gnucash/report/report-core.scm:914-929`).
 | `kind` | `builtin`, `user` or `saved` |
 | `template` | For `saved`: the GUID of the template it configures |
 | `script` | The script that defines it: `standard/balance-sheet.rhai`, or `./` and a user script's path in the report directory (`./mine/report.rhai`), the source name errors and the log use. For `saved`: its template's script, or `null` when that template is not loaded |
-| `menuPath`, `menuName`, `menuTip`, `inMenu` | GnuCash's menu fields, kept for clients that build menus. A saved configuration has none (`[]`, `null`, `null`, `false`): GnuCash lists custom reports in their own dialog |
+| `menuPath`, `menuName`, `menuTip`, `inMenu` | GnuCash's menu fields, kept for clients that build menus. A saved configuration has none (`[]`, `null`, `null`, `false`): GnuCash lists custom reports in their own dialog. A built-in saved configuration has those of the GnuCash menu item it stands for |
 | `exportTypes` | The exports offered besides HTML (v0.3): `["csv"]` for the four net charts, the four category charts and saved configurations of them (`report.exportCsv`), else `[]` |
+| `readOnly` | `true` for a built-in saved configuration (v0.6, additive); absent otherwise |
+
+**Built-in saved configurations** (v0.6): saved configurations compiled into red-ale, as the built-in scripts are,
+which the Configuration never stores ([`../reports.md`](../reports.md) §9). The first and only one is the
+**Dashboard** (`ad80271c890b11dfa79f2dcedfd72085`), GnuCash's Reports › Multicolumn › Dashboard. `report.list`,
+`report.options`, `report.run`, `report.export` and `report.exportCsv` take one as any saved configuration, by GUID
+or name, and `options` change it for that run. `report.updateConfiguration`, `report.renameConfiguration` and
+`report.deleteConfiguration` refuse it with `conflict`, `data` `{ kind: "configuration", reason: "built-in", guid,
+name }`; `report.saveConfiguration { name, report: "Dashboard" }` copies it into a configuration of the user's. Their
+names are not reserved: a user's saved or imported configuration may have the same name, which then matches both
+(`conflict` with `data.matches`), and the GUID always works.
 
 `OptionInfo`: `{ section, name, key, type, help, default, value, … }` with the fields of each option type
 ([`../reports.md`](../reports.md) §6). `value` is the configured value: the default for a template, the saved value
@@ -117,7 +128,10 @@ templates and saved configurations, sorted by name (bytewise), then GUID: GnuCas
 `problems` lists user scripts that failed to load (code `report-load`, or `report-limit` for one past a compile-time
 limit), so one bad file does not hide the others, and the files the loader left out of the report directory
 (`report-load`): a symbolic link that leads outside it, a file over 1 MiB or not UTF-8, files past the 1,000th, or
-`source: "."` when the directory itself cannot be read. Needs no book.
+`source: "."` when the directory itself cannot be read. A saved configuration of the Configuration with a built-in
+saved configuration's GUID is left out too, as a user script reusing a built-in template's GUID is: `report-load`,
+`source: "reports.saved"`, its name in the message (v0.6). It stays in the Configuration as it is, and is written
+back unchanged when other configurations are saved. Needs no book.
 
 ### `report.options` (read)
 
@@ -184,8 +198,9 @@ Nothing is written to disk; the CLI's `--output` writes the `csv` on the caller'
 `{ name, report: ReportRef, options?: Options }` → `ReportInfo` (`kind: "saved"`, a new GUID). The options are
 those of `report` with `options` applied; what is stored is only what differs from the template's defaults
 (`5.17:bindings/guile/options.scm:141`). When `report` is itself a saved configuration, the new one configures the
-same template. A name already used by a saved configuration is `conflict` (GnuCash appends a number,
-`5.17:gnucash/report/report-core.scm:515-532`). `report-option` for an invalid value; an account given by full name
+same template; this is how a built-in saved configuration is copied. A name already used by a saved configuration
+of the Configuration is `conflict` (GnuCash appends a number, `5.17:gnucash/report/report-core.scm:515-532`); a
+built-in one's name is not taken. `report-option` for an invalid value; an account given by full name
 needs an open book to resolve, a GUID does not.
 
 ### `report.updateConfiguration` (write, configuration)
@@ -197,7 +212,8 @@ configuration.
 
 The `configuration` param of this method, `renameConfiguration` and `deleteConfiguration` is a GUID or name looked
 up among saved configurations only, so a template of the same name does not make it ambiguous; no match is
-`not-found` with `data.kind: "configuration"`.
+`not-found` with `data.kind: "configuration"`, a name two saved configurations share (a built-in one and the
+user's) `conflict` with `data.matches`, and a built-in one `conflict` with `data.reason: "built-in"` (v0.6).
 
 ### `report.renameConfiguration` (write, configuration)
 
@@ -231,8 +247,8 @@ Configuration. With `dryRun` nothing is written.
 |----------|---------------------------|
 | `malformed` | It is not a form GnuCash writes, or a value is not a literal of its option's kind; text that cannot be read at all ends the file with one `malformed` entry |
 | `untranslated` | Its template, or the template of one of a Multicolumn View's embedded reports (the message names it), is not one red-ale has: a report red-ale has not translated, or a user report that is not loaded |
-| `exists` | A saved configuration with its GUID is in the Configuration or earlier in the file, so importing twice adds nothing |
-| `conflict` | Another saved configuration has its name |
+| `exists` | A saved configuration with its GUID is in the Configuration or earlier in the file, so importing twice adds nothing, or a built-in saved configuration has its GUID |
+| `conflict` | Another saved configuration of the Configuration has its name. A built-in one's does not count: a GnuCash user's own saved "Dashboard" imports |
 | `invalid-option` | A value red-ale refuses, as `report-option` would |
 
 An option form is accepted with the setter 5.17 and 3.x/4.x write or the one 2.x wrote. The values each option
@@ -345,6 +361,7 @@ file on the caller's side into the `text` param; giving `text` as well is a usag
 | Name clash on save | A number is appended | `conflict` | The caller gets the name it asked for |
 | Invalid option value | Logged, option unchanged | `report-option` | A typo never runs a different report |
 | A Multicolumn View's children | Report instances of the session; a saved configuration's options are copied into the new instance | Template or saved configuration GUIDs; a saved configuration child follows its later changes | Children stay put across restarts (`../notes/report-statements-charts.md` Q4) |
+| The Dashboard (v0.6) | A menu item (`5.17:gnucash/gnome/report-menus.scm:113-121`) that builds a new Multicolumn View and four child report instances at each click (`5.17:gnucash/report/reports/standard/dashboard.scm:40-65`); the view has no GUID of its own, and saving it makes a custom report under a new GUID | A read-only built-in saved configuration of the Multicolumn View, under the menu item's GUID: `report.list` lists it with `readOnly` and the menu fields, `report.run` runs it by name or GUID, and it changes only as a copy | A report is named by a GUID or name, and a saved configuration is what red-ale has for a configured report |
 | `gnucash-cli --report run` failure | Exit status 0, error on standard error (`5.17:gnucash/gnucash-commands.cpp:234-250`) | An error response; the CLI exits with status 2 | Failures are visible |
 | Export target | A file the GUI or CLI writes | HTML returned; only the CLI writes, on its side | The server never writes caller-named paths |
 

@@ -3,7 +3,11 @@
 //! They live in `crates/red-ale-report/scripts/`, laid out as GnuCash lays out its reports: `standard/` and `example/`
 //! for the reports (`standard/balance-sheet.scm` becomes `standard/balance-sheet.rhai`) and `lib/` for the shared
 //! helper modules they import (`import "lib/collectors" as collectors;`). Adding a script is one line in
-//! [`BUILTIN`].
+//! [`BUILTIN`]. The built-in saved configurations are compiled in beside them ([`builtin_configurations`]).
+
+mod configurations;
+
+pub use configurations::{BuiltinConfiguration, builtin_configurations};
 
 /// One `include_str!` per built-in script, by its path below `scripts/`.
 macro_rules! scripts {
