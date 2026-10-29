@@ -535,9 +535,8 @@ legacy bank types get "Debit" and "Credit".
   and `notes`, `()` when unset (`gnc-lot-get-title`, `-notes`, `5.17:libgnucash/engine/gnc-lot.cpp:444-460`);
   `account`; `splits()`, in the lot's list order (`gnc-lot-get-split-list`, `:424-431`): the order they joined it,
   which red-ale takes as Book order, as loading a file adds them (`gnc_lot_add_split` appends, `:619`). Investment
-  Lots reads these and sorts the splits itself; no report reads the engine's lot balance or closure.
-  slot names, or `()` (`gncInvoiceGetInvoiceFromLot`), which the Transaction Report's Invoice column reads; `title`,
-  `""` when the lot has none (`gnc-lot-get-title`), which the General Journal's Lot column reads.
+  Lots reads these and sorts the splits itself; no report reads the engine's lot balance or closure. The General
+  Journal's Lot column shows `title`, and nothing for an untitled lot.
 - **Commodity**: `id` (`NAMESPACE::MNEMONIC`), `namespace`, `mnemonic`, `fullname`, `fraction` (SCU), `isCurrency`,
   `symbol` (the nice symbol of section 3), `uniqueName`.
 - **Price**: `guid`, `commodity`, `currency`, `time`, `source`, `type`, `value`.

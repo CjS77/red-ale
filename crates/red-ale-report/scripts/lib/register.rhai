@@ -155,7 +155,8 @@ private fn split_cell(t, key, split) {
         "description" => if t.memo { text_cell(split.memo) },
         "account" => text_cell(account.fullName),
         "shares" => #{ number: amount },
-        "lot" => if split.lot != () { text_cell(split.lot.title) },
+        // An untitled lot's `#f` leaves the cell empty (REG:227).
+        "lot" => if split.lot != () && split.lot.title != () { text_cell(split.lot.title) },
         "price" => #{ price: split.sharePrice, currency: trans.currency },
         "amount-single" =>
             html_utils::html_split_anchor(split, #{ monetary: monetary(account.commodity, if reverse { -amount } else { amount }) }),
