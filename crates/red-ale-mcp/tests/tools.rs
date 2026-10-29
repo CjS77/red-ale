@@ -2,82 +2,13 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use std::collections::BTreeSet;
-use std::sync::{Arc, Mutex};
+mod common;
 
-use red_ale_mcp::McpServer;
-use red_ale_rpc::Dispatcher;
+use std::collections::BTreeSet;
+
+use common::Client;
 use red_ale_testkit::TempBook;
 use serde_json::{Map, Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, Lines, ReadHalf, WriteHalf};
-
-/// A raw MCP client: one JSON-RPC message per line.
-struct Client {
-    lines: Lines<BufReader<ReadHalf<DuplexStream>>>,
-    writer: WriteHalf<DuplexStream>,
-    next_id: u64,
-}
-
-impl Client {
-    /// Start a server over a fresh deterministic dispatcher and complete the handshake.
-    async fn start() -> Self {
-        Self::start_with(red_ale_testkit::dispatcher()).await
-    }
-
-    /// Start a server over `dispatcher` and complete the handshake.
-    async fn start_with(dispatcher: Dispatcher) -> Self {
-        let (ours, theirs) = tokio::io::duplex(1 << 16);
-        let (server_in, server_out) = tokio::io::split(theirs);
-        let server = McpServer::new(Arc::new(Mutex::new(dispatcher)));
-        tokio::spawn(server.serve(server_in, server_out));
-        let (reader, writer) = tokio::io::split(ours);
-        let mut client = Self {
-            lines: BufReader::new(reader).lines(),
-            writer,
-            next_id: 0,
-        };
-        let init = client
-            .request(
-                "initialize",
-                json!({ "protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": { "name": "test", "version": "0" } }),
-            )
-            .await;
-        assert_eq!(init["result"]["protocolVersion"], "2025-11-25", "{init}");
-        assert_eq!(init["result"]["serverInfo"]["name"], "red-ale");
-        let capabilities = init["result"]["capabilities"].as_object().unwrap();
-        assert_eq!(capabilities.keys().collect::<Vec<_>>(), ["tools"], "tools only");
-        client
-            .send(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }))
-            .await;
-        client
-    }
-
-    async fn send(&mut self, message: &Value) {
-        self.writer.write_all(format!("{message}\n").as_bytes()).await.unwrap();
-        self.writer.flush().await.unwrap();
-    }
-
-    /// Send a request and return its response, skipping any notifications.
-    async fn request(&mut self, method: &str, params: Value) -> Value {
-        self.next_id += 1;
-        let id = self.next_id;
-        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }))
-            .await;
-        loop {
-            let line = self.lines.next_line().await.unwrap().expect("the server closed the connection");
-            let message: Value = serde_json::from_str(&line).unwrap();
-            if message["id"] == id {
-                return message;
-            }
-        }
-    }
-
-    /// Call a tool and return its result.
-    async fn call(&mut self, tool: &str, arguments: Value) -> Value {
-        let response = self.request("tools/call", json!({ "name": tool, "arguments": arguments })).await;
-        response.get("result").cloned().unwrap_or_else(|| panic!("{tool}: {response}"))
-    }
-}
 
 fn defs(schema: &Value) -> &Map<String, Value> {
     schema["$defs"].as_object().unwrap()
@@ -151,7 +82,12 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     methods.iter().for_each(|m| {
         let name = m["name"].as_str().unwrap();
         let t = tool(name);
-        assert_eq!(t["description"], m["summary"], "{name}");
+        let description = t["description"].as_str().unwrap();
+        assert!(description.starts_with(m["summary"].as_str().unwrap()), "{name}: {description}");
+        assert!(
+            description.ends_with(&format!("Manual: {}", m["help"].as_str().unwrap())),
+            "{name}: {description}"
+        );
         assert_eq!(t["annotations"], expected_hints(m["effect"].as_str().unwrap()), "{name}");
         assert_same_params(name, &t["inputSchema"], &m["params"], &document);
     });

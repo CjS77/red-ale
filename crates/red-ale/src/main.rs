@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+mod help;
 mod params;
 mod setup;
 
@@ -13,10 +14,11 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context as _, Result, bail};
 use base64::Engine as _;
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::core::params::ObjectParams;
 use jsonrpsee::http_client::HttpClientBuilder;
+use red_ale_mcp::ToolDescriptions;
 use red_ale_rpc::{Dispatcher, RpcError};
 use red_ale_service::Settings;
 use red_ale_service::config::ConfigStore;
@@ -24,8 +26,10 @@ use red_ale_service::files::Retention;
 use serde_json::{Value, json};
 
 /// red-ale: GnuCash books, driven by JSON-RPC.
+// `help` is the Manual's; clap's own help command would take its name. `red-ale help <command>` still prints a
+// command's options.
 #[derive(Debug, Parser)]
-#[command(version, about)]
+#[command(version, about, disable_help_subcommand = true)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -41,10 +45,12 @@ enum Command {
     Call(CallArgs),
     /// Open a book, run methods on it in this process, save if anything changed, and close it.
     Exec(ExecArgs),
-    /// List every method.
+    /// List every method: its name, Effect, Manual Page ID and summary.
     Methods,
     /// Print the API's schema document.
     Schema,
+    /// Print a Page of red-ale's Manual (the Start Page without one), or search the Manual.
+    Help(help::HelpArgs),
     /// Register red-ale's MCP server with the agent harnesses installed on this machine, or remove it.
     Setup(setup::SetupArgs),
 }
@@ -117,8 +123,28 @@ struct McpArgs {
     /// Open the book read-only.
     #[arg(long, requires = "book")]
     read_only: bool,
+    /// How much each tool's description says: `full`, the method's summary with the lead of its Manual page and the
+    /// Page ID (about 60 words at most), or `short`, the summary only, for clients short of context.
+    #[arg(long, value_enum, default_value_t = ToolDescriptionsArg::Full)]
+    tool_descriptions: ToolDescriptionsArg,
     #[command(flatten)]
     settings: SettingsArgs,
+}
+
+/// `--tool-descriptions`.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ToolDescriptionsArg {
+    Full,
+    Short,
+}
+
+impl From<ToolDescriptionsArg> for ToolDescriptions {
+    fn from(arg: ToolDescriptionsArg) -> Self {
+        match arg {
+            ToolDescriptionsArg::Full => Self::Full,
+            ToolDescriptionsArg::Short => Self::Short,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -302,6 +328,7 @@ fn main() -> ExitCode {
         Command::Methods => methods().map(|()| Ended::Done),
         Command::Schema => print_json(&Dispatcher::new(Settings::default()).schema()).map(|()| Ended::Done),
         Command::Setup(args) => setup::run(&args).map(Ended::Status),
+        Command::Help(args) => help::run(&args, Cli::command()).map(Ended::Status),
     };
     match outcome {
         Ok(Ended::Done) => ExitCode::SUCCESS,
@@ -346,12 +373,26 @@ fn is_broken_pipe(e: &anyhow::Error) -> bool {
     })
 }
 
+/// One line per method: name, Effect, the Page ID of its Reference page and summary, the first three in columns.
 fn methods() -> Result<()> {
     let dispatcher = Dispatcher::new(Settings::default());
-    let mut out = std::io::stdout().lock();
-    dispatcher
+    let rows: Vec<[String; 4]> = dispatcher
         .methods()
-        .try_for_each(|m| writeln!(out, "{:<32} {:<12} {}", m.name, format!("{:?}", m.effect).to_lowercase(), m.summary))?;
+        .map(|m| {
+            let effect = format!("{:?}", m.effect).to_lowercase();
+            [
+                m.name.to_owned(),
+                effect,
+                red_ale_docs::method_page_id(m.name),
+                m.summary.to_owned(),
+            ]
+        })
+        .collect();
+    let width = |column: usize| rows.iter().map(|r| r[column].len()).max().unwrap_or(0);
+    let (name, effect, page) = (width(0), width(1), width(2));
+    let mut out = std::io::stdout().lock();
+    rows.iter()
+        .try_for_each(|[n, e, p, s]| writeln!(out, "{n:<name$} {e:<effect$} {p:<page$} {s}"))?;
     Ok(())
 }
 
@@ -393,7 +434,8 @@ fn mcp(args: &McpArgs) -> Result<Option<RpcError>> {
     let runtime = tokio::runtime::Runtime::new()?;
     let outcome = runtime.block_on(async {
         tokio::select! {
-            served = red_ale_mcp::serve_stdio(dispatcher.clone(), max_request_bytes) => served.map_err(anyhow::Error::from),
+            served = red_ale_mcp::serve_stdio(dispatcher.clone(), max_request_bytes, args.tool_descriptions.into()) =>
+                served.map_err(anyhow::Error::from),
             signalled = shutdown_signal() => signalled,
         }
     });

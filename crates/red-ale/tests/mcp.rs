@@ -130,3 +130,43 @@ fn sigterm_stops_mcp_and_releases_the_lock_while_standard_input_is_open() {
         "SIGTERM closes the book and releases the lock"
     );
 }
+
+/// The `transaction.post` tool's description from `red-ale mcp` with `extra` arguments.
+fn post_description(extra: &[&str]) -> String {
+    let mut server = red_ale()
+        .args(["mcp", "--no-config"])
+        .args(extra)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = server.stdin.take().unwrap();
+    let mut lines = BufReader::new(server.stdout.take().unwrap()).lines();
+    let client = json!({ "protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": { "name": "test", "version": "0" } });
+    send(
+        &mut stdin,
+        &json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize", "params": client }),
+    );
+    response(&mut lines, 1);
+    send(&mut stdin, &json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }));
+    send(&mut stdin, &json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }));
+    let tools = response(&mut lines, 2);
+    drop(stdin);
+    assert!(server.wait().unwrap().success());
+    let post = tools["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "transaction.post")
+        .unwrap();
+    post["description"].as_str().unwrap().to_owned()
+}
+
+#[test]
+fn tool_descriptions_short_keeps_the_summary_only() {
+    let full = post_description(&[]);
+    assert!(full.ends_with("Manual: method/transaction.post"), "{full}");
+    let short = post_description(&["--tool-descriptions", "short"]);
+    assert!(!short.contains("Manual:"), "{short}");
+    assert!(full.starts_with(&short), "the summary leads the full description: {short} / {full}");
+}

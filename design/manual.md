@@ -1,7 +1,8 @@
 # The manual
 
 **Status: in progress** (see [`roadmap.md`](roadmap.md), v0.6; [`milestone6.md`](milestone6.md), "The Manual"):
-`red-ale-docs`, the `help.*` methods and the coverage and Example tests are built ("Settled in building it", below).
+`red-ale-docs`, the `help.*` methods, the coverage and Example tests, the MCP resources and `red-ale help` are built
+("Settled in building it", below).
 How red-ale documents itself, so that:
 
 1. an AI agent can find out by itself how to do something with red-ale;
@@ -10,7 +11,9 @@ How red-ale documents itself, so that:
 
 All three read one corpus, the **Manual**, built by one crate and served through every door red-ale already has.
 
-## What exists today
+## What existed before
+
+What v0.5 had, which the Manual builds on:
 
 - `api.schema` (and `red-ale schema`): every method with a one-line summary, its Effect and target, and params and
   result schemas whose field descriptions come from doc comments; every error code by name.
@@ -135,8 +138,8 @@ The adapter stays thin. It still has no logic of its own; it adds MCP's own ways
   ([2025-11-25 spec, "Resources"](https://modelcontextprotocol.io/specification/2025-11-25/server/resources)).
   Clients that load resources give the agent the whole Manual; the others still have the `help.*` tools.
 - **Instructions** are the Start Page's summary section, generated, not a string in the adapter.
-- **Tool descriptions** are the summary plus the Reference page's "When to use it" paragraph, within a fixed budget
-  (about 60 words), ending with the Page ID.
+- **Tool descriptions** are the summary plus the Reference page's lead (its first hand-written paragraph, what the
+  method is for), within a fixed budget (about 60 words), ending with the Page ID.
   - `red-ale mcp --tool-descriptions short` keeps the one-line summary, for clients that are short of context:
     146 tools and growing.
 - **No prompts** for now. Guides are resources; a prompt per Guide can be added later without changing anything
@@ -257,3 +260,16 @@ Decided while building `red-ale-docs` and the `help.*` methods ([`api/help.md`](
   shrinks. Reports, like methods, need a hand-written part and an Example. The check that every glossary term a Page
   uses is defined is not built yet: it needs a way to tell a term in a Page from an ordinary word.
 - **`data.help`** is added by the dispatcher to every error: `error/<name>` unless the method set a Page of its own.
+- **MCP** ([`mcp.md`](mcp.md), "Resources"): `resources/list` gives every Page in one page, as `tools/list` gives
+  every tool; a resource's `name` is its Page ID and its `description` the summary; `resources/read` renders as
+  `help.get` does for the `mcp` door; a URI that names no Page is `-32002`. The instructions are the Start Page's
+  summary and one sentence on where the resources are, since the Start Page is written for every door and doesn't
+  name MCP's URIs. Tool descriptions keep 60 words in all, the `Manual: <page-id>` ending included, by taking the
+  lead's whole sentences that fit (else its first words and `…`); a method whose page has no hand-written part yet
+  still ends with its Page ID, and `api.schema`, which has no Page, is its summary alone.
+- **CLI.** `red-ale help` takes a Page ID or any name `help.get` takes (method, error code, report template).
+  `--search <words>` takes the words as one argument or several and lists ten Pages, each as `<page-id>  <title>`
+  and its summary indented below. A name that is no Page, or a search with no hits, exits with status 1, as `grep`
+  does, with the five closest Pages on standard error. `help` replaces clap's own help command, so `red-ale help
+  <command>` (`red-ale help exec`) still prints that command's options when no Page has the name. `red-ale methods`
+  prints name, Effect, Page ID and summary, the first three in columns as wide as their longest entry.
