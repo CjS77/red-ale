@@ -580,6 +580,15 @@ fn relink_remaining(book: &mut Book, env: &mut dyn Env, work: &mut LotWork, lot:
     Ok(())
 }
 
+/// A posted document's due date: its posted transaction's `trans-date-due`, else that transaction's date posted
+/// (`gncInvoiceGetDateDue`, `5.17:libgnucash/engine/gncInvoice.c:849-856`; `xaccTransRetDateDue`,
+/// `5.17:libgnucash/engine/Transaction.cpp:2298-2303`). `None` when the document is not posted or its transaction is
+/// gone, where GnuCash returns `INT64_MAX`.
+pub fn date_due(book: &Book, invoice: &Invoice) -> Option<Time64> {
+    let txn = book.transaction(invoice.post_txn?)?;
+    Some(txn.slots.get(DATE_DUE).and_then(SlotValue::as_time).unwrap_or(txn.date_posted))
+}
+
 /// Point each entry's tax table at its parent (`5.17:libgnucash/engine/gncInvoice.c:1841-1855`).
 fn reset_tables(book: &mut Book, inv: &Invoice) -> DomainResult<()> {
     let kind = calc::invoice_type(book, inv)?;
@@ -770,6 +779,28 @@ mod tests {
         let again = post(&mut f.book, &mut f.env, &req).unwrap();
         assert_eq!(f.book.business.tax_tables[&f.table].child, Some(child), "the frozen copy is reused");
         assert_eq!(lot_balance(&f.book, again.lot), Numeric::new(2555, 100));
+    }
+
+    #[test]
+    fn the_due_date_is_the_slot_else_the_date_posted() {
+        let mut f = fixture();
+        let inv = invoice(&mut f, "I1", &[(Numeric::ONE, Numeric::from_int(10))]);
+        assert_eq!(date_due(&f.book, &f.book.business.invoices[&inv]), None, "not posted");
+        let due = Time64(1_712_000_000);
+        let req = PostRequest {
+            due: Some(due),
+            ..request(&f, inv)
+        };
+        let posted = post(&mut f.book, &mut f.env, &req).unwrap();
+        assert_eq!(date_due(&f.book, &f.book.business.invoices[&inv]), Some(due));
+        let txn = f.book.transactions.get_mut(&posted.transaction).unwrap();
+        Arc::make_mut(txn).slots.remove(DATE_DUE);
+        let posted_on = Date::from_ymd(2024, 3, 5).unwrap().neutral_time();
+        assert_eq!(
+            date_due(&f.book, &f.book.business.invoices[&inv]),
+            Some(posted_on),
+            "no slot: the date posted"
+        );
     }
 
     #[test]
