@@ -17,7 +17,7 @@ and where its source is published.
 
 Both are published by the GnuCash Documentation Team at <https://github.com/Gnucash/gnucash-docs> (directories `C/guide`
 and `C/manual`) and are used at the tag 5.17, commit `6627658b6b47bef1e4e89afe2e2cb3af9db938cd`. The Pages that adapt
-them name the section in `from`; `docs/gnucash-docs-checklist.md` lists every section and the Pages it went to.
+them name the section in `from`; `design/gnucash-docs-checklist.md` lists every section and the Pages it went to.
 
 - **GnuCash Tutorial and Concepts Guide**, "The Didactical Documentation", release 5.17, 27 September 2026. Copyright
   2001-2026. Publisher: The GnuCash Documentation Team. Principal authors, as the book names them: the GnuCash
