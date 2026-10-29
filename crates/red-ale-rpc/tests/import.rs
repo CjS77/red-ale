@@ -340,6 +340,22 @@ fn a_stale_proposal_is_a_conflict_and_a_discarded_one_is_gone() {
     );
 }
 
+/// A top-level `baseAccount` overrides the layout's, and gives one to a layout that has none, as choosing the account
+/// in GnuCash's assistant does.
+#[test]
+fn a_base_account_param_overrides_the_layouts() {
+    let mut b = Book::new();
+    let columns = json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Amount"] });
+    let params = |layout: Value| json!({ "format": "csvTransactions", "files": [{ "text": MARCH }], "layout": layout, "baseAccount": "Assets:Checking" });
+    let p = b.ok("import.preview", params(columns));
+    assert_eq!(p["transactions"][0]["splits"][0]["accountName"], "Assets:Checking", "{p}");
+    let p = b.ok(
+        "import.preview",
+        params(json!({ "skipStartLines": 1, "columns": ["Date", "Description", "Amount"], "baseAccount": "Expenses:Rent" })),
+    );
+    assert_eq!(p["transactions"][0]["splits"][0]["accountName"], "Assets:Checking", "{p}");
+}
+
 /// IDs are numbered by the server from 1, so a new server's first proposal is always `imp-1`, and are never reused
 /// while it runs, so one from a book closed since is never mistaken for one of the book open now.
 #[test]

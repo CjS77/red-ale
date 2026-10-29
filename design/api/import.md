@@ -534,7 +534,7 @@ resolved by the map or full name; mapping one by hand writes `csv-account-map` o
 | Param | Type | Meaning |
 |-------|------|---------|
 | `layout` | string or CsvImportLayout | A CSV import layout by name (a built-in one or one in the Configuration), or given whole |
-| `baseAccount` | AccountRef? | Overrides the layout's |
+| `baseAccount` | AccountRef? | Overrides the layout's, or gives one to a layout without one (`GncTxImport::base_account`, `gnc-import-tx.cpp:180-209`); ignored in multi-split mode |
 | `accountNames` | `{ "<name in the file>": AccountRef }` | GnuCash's account match page: what each name the file uses means. Learned as `csv-account-map` at apply |
 
 **The CSV import layout** is kept in the Configuration under `import.csvLayouts.<name>`. GnuCash's built-in layouts,

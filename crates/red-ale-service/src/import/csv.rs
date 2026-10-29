@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use red_ale_core::{Book, Env, Guid};
 use red_ale_import::csv::build::{BuildContext, CsvBuild, build};
-use red_ale_import::csv::{DateContext, MonetaryLocale, ParseContext, TxImport, TxLayout, locale_parser, tokenize};
+use red_ale_import::csv::{BaseAccount, DateContext, MonetaryLocale, ParseContext, TxImport, TxLayout, locale_parser, tokenize};
 use red_ale_import::matcher::{ImportSettings, ImportedTransaction, match_batch};
 use red_ale_import::pipeline::{CsvState, Format, Proposal, ProposedTransaction, Warning, review};
 use red_ale_locale::Locale;
@@ -62,6 +62,20 @@ fn base_account(book: &Book, layout: &TxLayout, given: Option<Guid>) -> Result<O
     })
 }
 
+/// The layout with the caller's base account in place of its own, as choosing the account on GnuCash's assistant page
+/// sets the parser's (`5.17:gnucash/import-export/csv-imp/gnc-import-tx.cpp:180-209`). A layout without one would
+/// otherwise parse as if no base account were given.
+fn with_base_account(layout: &TxLayout, given: Option<Guid>) -> TxLayout {
+    let mut layout = layout.clone();
+    if let Some(g) = given {
+        layout.base_account = Some(BaseAccount {
+            guid: Some(g.to_string()),
+            full_name: None,
+        });
+    }
+    layout
+}
+
 /// Read the file and build the proposal.
 pub(super) fn propose(
     book: &Book,
@@ -73,7 +87,7 @@ pub(super) fn propose(
     let [file] = files else {
         return Err(invalid(format!("csvTransactions takes exactly one file, not {}", files.len())));
     };
-    let layout = &choices.layout;
+    let layout = &with_base_account(&choices.layout, params.base_account);
     let text = decode(0, file, &layout.csv.encoding)?;
     let rows = tokenize(&text, &layout.csv).map_err(|e| ServiceError::ImportFile {
         file: 0,
