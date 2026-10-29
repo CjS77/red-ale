@@ -37,6 +37,7 @@ import "lib/accounts" as accounts;
 import "lib/balances" as balances;
 import "lib/dates" as dates;
 import "lib/exchange" as exchange;
+import "lib/html-utilities" as html_utils;
 import "lib/options" as opts_util;
 
 /// The template (:2321-2326).
@@ -338,11 +339,19 @@ private fn years_between(env, bought, sold) {
     if undefined(bought) || undefined(sold) { () } else { dates::date_year_delta(env.ctx, bought, sold) }
 }
 
-/// `long-term?` (:779-789): held strictly longer than the "Long term gains age (years)", counted by
-/// `gnc:date-year-delta`; false when either date is unknown.
+/// `long-term?` (:779-789): held strictly longer than `long_term_years`, counted by `gnc:date-year-delta`; false when
+/// either date is unknown. So a purchase on 1 January sold on 1 January a year later is short term at 1 year,
+/// where the test-only `is-long-term?` (:488-497, 365.25-day years, at least the threshold) says long term.
+fn held_long_term(ctx, bought, sold, long_term_years) {
+    if undefined(bought) || undefined(sold) {
+        return false;
+    }
+    dates::date_year_delta(ctx, bought, sold) > long_term_years
+}
+
+/// `long-term?` under the report's "Long term gains age (years)".
 private fn long_term(env, bought, sold) {
-    let years = years_between(env, bought, sold);
-    !undefined(years) && years > env.long_term_years
+    held_long_term(env.ctx, bought, sold, env.long_term_years)
 }
 
 // The lot statistics collector (`create-lot-stats-collector`, :1177-2069): a map of figures for one lot (`kind`
@@ -593,7 +602,7 @@ private fn value_cell(env, is_bold, value) {
 
 /// A date cell linked to `split` (`to-split-cell`, :829-837), as `qof-print-date` prints the date.
 private fn split_date_cell(date, split) {
-    #{ date: date, link: #{ split: split } }
+    html_utils::html_split_anchor(split, #{ date: date })
 }
 
 /// `compute-gain-metrics` (:499-513): the total gain and the ROI and CAGR as percentages. The ROI is `()` without a
@@ -689,7 +698,118 @@ private fn add_data_row(env, amount_currency, is_bold, is_odd_row, first_cell, l
 /// `add-split-row` (:1262-1312): with "Show lot split rows", a row for a purchase or a sale in the window under its
 /// lot, with the lot's running end amount and basis; a sale's figures go to its term's columns.
 private fn add_split_row(env, st, split, trans_date, s) {
+    if !env.show_split_rows {
+        return st;
+    }
+    let date_cell = split_date_cell(trans_date, split);
+    let lt = s.is_long_term;
+    let f = #{
+        bought_amount: s.bought_amount, bought_value: s.bought_value, sold_split_count: (),
+        st_sold_amount: short_term_part(lt, s.sold_amount), st_sold_basis: short_term_part(lt, s.sold_basis),
+        st_sold_value: short_term_part(lt, s.sold_value), lt_sold_amount: long_term_part(lt, s.sold_amount),
+        lt_sold_basis: long_term_part(lt, s.sold_basis), lt_sold_value: long_term_part(lt, s.sold_value),
+        end_amount: st.end_amount, end_basis: st.end_basis, end_value: (),
+        st_realized_gain: short_term_part(lt, s.sold_gain), lt_realized_gain: long_term_part(lt, s.sold_gain),
+        realized_cagr: s.cagr, st_unrealized_gain: (), lt_unrealized_gain: (), unrealized_cagr: (),
+    };
+    let open_cell = if undefined(s.bought_amount) { () } else { date_cell };
+    let close_cell = if undefined(s.sold_amount) { () } else { date_cell };
+    // The "split" title is indented (:1290-1294).
+    let row = add_data_row(env, st.currency, false, true, #{ text: "split" }, (), open_cell, close_cell, f)[0];
+    row.depth = 1;
+    st.split_rows.push(row);
     st
+}
+
+/// A sale's figure in the short-term columns of its split row: 0 when it is long term (:1295-1300), else `x`
+/// itself, `()` for a purchase.
+private fn short_term_part(is_long_term, x) {
+    if is_long_term && !undefined(x) { rational(0) } else { x }
+}
+
+/// A sale's figure in the long-term columns of its split row: `x` when it is long term, else 0.
+private fn long_term_part(is_long_term, x) {
+    if is_long_term && !undefined(x) { x } else { rational(0) }
+}
+
+// Warnings (:1443-1660): text, or for an unassigned split listed `#{ split, text }`, each on a row of its own.
+
+/// `get-lot-warnings` (:1554-1602). A lot with no title at all counts as blank here; GnuCash's `string-trim` fails
+/// on the `#f` that `gnc-lot-get-title` gives for it.
+private fn lot_warnings(env, st) {
+    let warnings = [];
+    if env.warn_if_multiple_bought_splits && st.bought_split_count > 1 {
+        warnings.push(`Warning: Above lot has ${st.bought_split_count} bought splits. `
+            + "Consider separating them into their own lots.");
+    }
+    if env.warn_if_balance_negative && !undefined(st.first_negative_split) {
+        let date = env.ctx.print_date(st.first_negative_split.transaction.datePosted);
+        warnings.push(`Warning: Above lot's balance is negative on ${date}. `
+            + "Consider removing the responsible sale split from the lot and then scrubbing.");
+    }
+    if env.warn_if_lot_title_blank && blank_title(st.lot.title) {
+        warnings.push("Warning: Above lot's title is blank.");
+    }
+    if env.warn_if_gains_mismatch {
+        let all_terms_realized_gain = num_add(st.st_realized_gain, st.lt_realized_gain);
+        let gain_discrepancy = num_sub(all_terms_realized_gain, st.splits_realized_gain);
+        if !num_zero(gain_discrepancy) {
+            warnings.push(`Warning: Above lot's computed gain ${value_string(env, all_terms_realized_gain)} is not equal `
+                + `to the "Realized Gain/Loss" split(s) sum ${value_string(env, st.splits_realized_gain)}. `
+                + `Difference: ${value_string(env, gain_discrepancy)}`);
+        }
+    }
+    warnings
+}
+
+/// An empty title, or one of whitespace only (`string-trim`, :1582-1583).
+private fn blank_title(title) {
+    if undefined(title) {
+        return true;
+    }
+    let trimmed = title;
+    trimmed.trim();
+    trimmed.is_empty()
+}
+
+/// `get-account-warnings` (:1605-1660): the splits in no lot, counted or listed newest first with their amount and
+/// value in the report's currency; and an end amount that the account's balance (strictly before the End date's end,
+/// `xaccAccountGetBalanceAsOfDate`) does not match.
+private fn account_warnings(env, st) {
+    let warnings = [];
+    let count = st.unassigned_splits.len();
+    let warn_type = env.warn_type_if_split_not_in_lot;
+    if warn_type == "count" && count > 0 {
+        warnings.push(`Warning: ${count} split(s) are not assigned to a lot. Do lots need to be scrubbed?`);
+    } else if warn_type == "list" && count > 0 {
+        warnings.push(`Warning: The following ${count} split(s) are not assigned to a lot. Do lots need to be scrubbed?`);
+        for split in st.unassigned_splits {
+            let trans = split.transaction;
+            let value = report_value(env, split.value, trans.currency);
+            warnings.push(#{ split: split, text: env.ctx.print_date(trans.datePosted) + ": amount "
+                + amount_string(env, st.currency, split.amount) + ", value " + value_string(env, value) });
+        }
+    }
+    if env.warn_if_balance_mismatch {
+        let account_end_balance = st.account.balance_as_of(env.to_date);
+        let amount_discrepancy = num_sub(st.end_amount, account_end_balance);
+        if !num_zero(amount_discrepancy) {
+            warnings.push(`Warning: End amount ${amount_string(env, st.currency, st.end_amount)} is not equal to actual `
+                + `account balance ${amount_string(env, st.currency, account_end_balance)}. `
+                + `Difference: ${amount_string(env, st.currency, amount_discrepancy)}. Do lots need to be scrubbed?`);
+        }
+    }
+    warnings
+}
+
+/// `add-warning-row` (:1078-1096): one cell across the table, in the negative colour; a listed split indented and
+/// linked to it.
+private fn warning_row(env, warning) {
+    if type_of(warning) == "string" {
+        return #{ role: "warning", cells: [#{ text: warning, span: env.column_count }] };
+    }
+    #{ role: "warning", depth: 1,
+       cells: [html_utils::html_split_anchor(warning.split, #{ text: warning.text, span: env.column_count })] }
 }
 
 /// The row of a collector (`add-to-table`, :1315-1440): the figures, the lot's split rows and warnings after a lot
@@ -749,6 +869,18 @@ private fn add_to_table(env, st, is_odd_row) {
         for row in st.split_rows {
             row.alternate = !is_odd_row;
             rows.push(row);
+        }
+    }
+    // `add-warnings-to-table` (:1443-1458).
+    let warnings = switch st.kind {
+        "lot" => lot_warnings(env, st),
+        "account" => account_warnings(env, st),
+        _ => [],
+    };
+    if !warnings.is_empty() {
+        st.has_warnings = true;
+        for warning in warnings {
+            rows.push(warning_row(env, warning));
         }
     }
     #{ rows: rows, stats: st }
@@ -845,6 +977,23 @@ private fn padding_rows(env, row_count) {
     rows
 }
 
+/// `to-price-anchor` (:944-962) across the table: the price in its own currency, and in the report's when that
+/// differs, with its date, linked to the price stored; or "No price found".
+private fn price_row(env, price) {
+    if undefined(price) {
+        return #{ alternate: false, cells: [#{ text: "No price found", span: env.column_count }] };
+    }
+    let in_report_currency = if price.currency == env.currency {
+        ""
+    } else {
+        " [" + value_string(env, price_report_value(env, price)) + "]"
+    };
+    // The price is a gnc-monetary, which the style sheet's monetary renderer rounds to its currency's SCU.
+    let text = "  End price: " + monetary(price.currency, price.value).round_scu().to_string(true) + in_report_currency
+        + " on " + env.ctx.print_date(price.time);
+    #{ alternate: false, cells: [#{ text: text, span: env.column_count, link: #{ price: price.price } }] }
+}
+
 /// The account's name, linked to it, across the table (:2244-2253).
 private fn account_name_row(env, account) {
     #{ role: "heading", account: account,
@@ -857,7 +1006,7 @@ private fn account_name_row(env, account) {
 /// and the chart.
 private fn add_lots_rows(env, run, account, currency, price, lots, unassigned_splits) {
     let acct = account_stats(account, unassigned_splits);
-    let rows = [account_name_row(env, account), header_row(env, false)];
+    let rows = [account_name_row(env, account), price_row(env, price), header_row(env, false)];
     let is_odd_row = true;
     for lot in lots {
         let lot_info = merge_lot(env, lot, currency, price);
@@ -875,8 +1024,60 @@ private fn add_lots_rows(env, run, account, currency, price, lots, unassigned_sp
         run.rows += padding_rows(env, 3);
         run.rows += rows;
         run.grand = merge_stats(run.grand, acct);
+        run = add_account_to_chart(env, run, account, acct);
     }
     run
+}
+
+/// The gains of one kind as the chart shows them: short and long term, or their sum.
+private fn chart_gain_values(env, short_gain, long_gain) {
+    if env.group_gains_by_age { [short_gain, long_gain] } else { [num_add(short_gain, long_gain)] }
+}
+
+/// `add-account-to-chart` (:2112-2145): a series of the account's shown gains, in the next of the report's colours.
+private fn add_account_to_chart(env, run, account, st) {
+    if !env.show_chart {
+        return run;
+    }
+    let values = [];
+    if env.show_realized_gain_columns {
+        values += chart_gain_values(env, st.st_realized_gain, st.lt_realized_gain);
+    }
+    if env.show_unrealized_gain_columns {
+        values += chart_gain_values(env, st.st_unrealized_gain, st.lt_unrealized_gain);
+    }
+    run.series.push(#{ label: account_name(env, account), color: run.colors[0], values: values });
+    run.colors.remove(0);
+    run
+}
+
+/// A plot size option's value as the chart takes it.
+private fn chart_size(size) {
+    let m = #{};
+    m[size.unit] = size.value;
+    m
+}
+
+/// The chart (:2272-2298): a bar per shown gain column and shown account, stacked with "Stacked Bar Chart".
+private fn gains_chart(env, run, interval) {
+    let labels = [];
+    if env.show_realized_gain_columns {
+        labels += if env.group_gains_by_age { ["ST Realized Gain", "LT Realized Gain"] } else { ["Realized Gain"] };
+    }
+    if env.show_unrealized_gain_columns {
+        labels += if env.group_gains_by_age { ["ST Unrealized Gain", "LT Unrealized Gain"] } else { ["Unrealized Gain"] };
+    }
+    #{
+        kind: "chart",
+        type: "bar",
+        title: ["Account Lot Gains", interval],
+        width: chart_size(env.chart_width),
+        height: chart_size(env.chart_height),
+        stacked: env.chart_type == "bar-stacked",
+        yAxis: #{ label: env.currency.mnemonic, format: "currency", commodity: env.currency.id },
+        labels: labels,
+        series: run.series,
+    }
 }
 
 /// `add-account-report` (:2072-2264): the account's lots, when it holds shares at the End date or "Include accounts
@@ -947,11 +1148,13 @@ private fn report_env(book, opts, ctx) {
 }
 
 /// `investment-lots-renderer` (:607-2318). Both dates are taken at the end of their day (:667-672), so the Start
-/// date's own trades fall before the window.
+/// date's own trades fall before the window. With no accounts GnuCash still adds its chart, never set up; red-ale
+/// leaves it out, as there is nothing to draw.
 fn render(params, book, opts, ctx) {
     let env = report_env(book, opts, ctx);
-    let title = opts.get("General", "Report name") + ", " + ctx.print_date_interval(env.from_date, env.to_date);
-    let run = #{ rows: [], grand: new_stats("grand") };
+    let interval = ctx.print_date_interval(env.from_date, env.to_date);
+    let title = opts.get("General", "Report name") + ", " + interval;
+    let run = #{ rows: [], grand: new_stats("grand"), series: [], colors: html_utils::assign_colors(env.accounts.len()) };
     if !env.accounts.is_empty() {
         for account in env.accounts {
             run = add_account_report(env, run, account);
@@ -961,6 +1164,19 @@ fn render(params, book, opts, ctx) {
         run.rows.push(header_row(env, true));
         run.rows += add_to_table(env, run.grand, true).rows;
     }
+    // The padding GnuCash adds for the chart goes to the end of the table, wherever the chart is (:2300-2316).
+    if env.show_chart {
+        run.rows += padding_rows(env, 3);
+    }
     let table = #{ kind: "table", columns: columns(env), rows: run.rows };
-    #{ title: title, sections: [#{ blocks: [table] }] }
+    let blocks = [table];
+    if env.show_chart && !env.accounts.is_empty() {
+        let chart = gains_chart(env, run, interval);
+        if env.chart_location == "top" {
+            blocks.insert(0, chart);
+        } else {
+            blocks.push(chart);
+        }
+    }
+    #{ title: title, sections: [#{ blocks: blocks }] }
 }
