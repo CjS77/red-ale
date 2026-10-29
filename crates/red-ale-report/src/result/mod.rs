@@ -78,6 +78,11 @@ pub struct ReportResult {
     /// `5.17:gnucash/report/trep-engine.scm:2524`): "No splits found". Absent otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub export_error: Option<String>,
+    /// The report's own CSS, which a page appends after the style sheet's (`gnc:html-document-set-style-text!`,
+    /// `5.17:gnucash/report/reports/standard/invoice.scm:795`) (v0.6). Never text the CSS template refuses
+    /// (`design/reports.md` §8): the host leaves that out and says so in the log. Absent when the report sets none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub css: Option<String>,
 }
 
 /// The rows of an export: each a list of cells, as GnuCash's `gnc:lists->csv` takes them
@@ -111,6 +116,10 @@ pub struct ReportDraft {
     /// Why there is nothing to export, when the run context asks for an export; not with `export`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub export_error: Option<String>,
+    /// The report's own CSS (v0.6); the host leaves it out of the result, with a log entry, when the CSS template
+    /// would refuse it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub css: Option<String>,
 }
 
 /// A section: an optional title and ordered blocks.
@@ -142,6 +151,9 @@ pub enum Block {
     List(ListBlock),
     /// A Multicolumn View's children in rows of cells (`5.17:gnucash/report/reports/standard/view-column.scm:51-159`).
     Grid(GridBlock),
+    /// A picture, the invoice's `picture` layout choice (`5.17:gnucash/report/reports/standard/invoice.scm:300-308`)
+    /// (v0.6).
+    Image(ImageBlock),
     /// Set by the host only: the options that differ from their defaults (`gnc:html-render-options-changed`).
     OptionsSummary(OptionsSummary),
 }
@@ -159,6 +171,9 @@ pub struct TextBlock {
     /// (`5.17:gnucash/report/reports/standard/balsheet-pnl.scm:1079-1083`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<Link>,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 /// The role of a text block.
@@ -182,6 +197,9 @@ pub struct WarningBlock {
     pub title: String,
     /// What it says.
     pub text: String,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 /// Blocks side by side.
@@ -190,6 +208,9 @@ pub struct WarningBlock {
 pub struct GroupBlock {
     /// The blocks, left to right.
     pub blocks: Vec<Block>,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 /// A bulleted list: the Cash Flow's selected accounts (`5.17:gnucash/report/reports/standard/cash-flow.scm:253-262`).
@@ -198,6 +219,22 @@ pub struct GroupBlock {
 pub struct ListBlock {
     /// The items, in order.
     pub items: Vec<ListItem>,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
+}
+
+/// A picture: GnuCash's `gnc:html-markup-img` of `make-file-url` (`5.17:gnucash/report/report-utilities.scm:1028-1031`).
+/// The server never reads the file; a page names it and the browser shows it, or a broken image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ImageBlock {
+    /// The picture's address: `file:///` and the file name, as `make-file-url` writes it. Always starts `file:///`,
+    /// so a page never fetches anything from the network.
+    pub src: String,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 /// One item of a list.
@@ -301,8 +338,26 @@ fn locate_in_block(block: &Value, path: &str) -> Option<ResultError> {
         "group" => from_json_at::<GroupBlock>(inner, path).err(),
         "list" => from_json_at::<ListBlock>(inner, path).err(),
         "grid" => from_json_at::<GridBlock>(inner, path).err(),
+        "image" => from_json_at::<ImageBlock>(inner, path).err(),
         "optionsSummary" => from_json_at::<OptionsSummary>(inner, path).err(),
         _ => None,
+    }
+}
+
+impl Block {
+    /// The block's class names, if it has any.
+    pub fn class(&self) -> Option<&str> {
+        match self {
+            Self::Text(b) => b.class.as_deref(),
+            Self::Warning(b) => b.class.as_deref(),
+            Self::Table(b) => b.class.as_deref(),
+            Self::Chart(b) => b.class.as_deref(),
+            Self::Group(b) => b.class.as_deref(),
+            Self::List(b) => b.class.as_deref(),
+            Self::Grid(b) => b.class.as_deref(),
+            Self::Image(b) => b.class.as_deref(),
+            Self::OptionsSummary(_) => None,
+        }
     }
 }
 
@@ -340,6 +395,7 @@ impl ReportResult {
                 format!("expected {RESULT_VERSION}, got {}", self.version),
             ));
         }
+        validate::css(self.css.as_deref())?;
         validate::sections(&self.sections, validate::Stage::Finished)
     }
 

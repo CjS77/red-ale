@@ -31,7 +31,9 @@ type Read<T> = Result<T, String>;
 pub(super) fn read(kind: &OptionKind, default: &OptionValue, json: &Value, ctx: &ValueContext<'_>) -> Read<OptionValue> {
     match kind {
         OptionKind::Boolean => boolean(json).map(OptionValue::Bool),
-        OptionKind::String | OptionKind::Text | OptionKind::Font => string(json).map(|s| OptionValue::Text(s.to_owned())),
+        OptionKind::String | OptionKind::Text | OptionKind::Font | OptionKind::Image => {
+            string(json).map(|s| OptionValue::Text(s.to_owned()))
+        }
         OptionKind::Color => color(json).map(OptionValue::Text),
         OptionKind::Internal => match default {
             OptionValue::Bool(_) => boolean(json).map(OptionValue::Bool),
@@ -49,6 +51,7 @@ pub(super) fn read(kind: &OptionKind, default: &OptionValue, json: &Value, ctx: 
         OptionKind::Currency => commodity(json, true, ctx).map(OptionValue::Commodity),
         OptionKind::Commodity => commodity(json, false, ctx).map(OptionValue::Commodity),
         OptionKind::Budget => string(json).and_then(budget).map(|g| OptionValue::Budget(Some(g))),
+        OptionKind::Invoice => string(json).and_then(invoice).map(|g| OptionValue::Invoice(Some(g))),
         OptionKind::ReportPlacement => placements(json).map(OptionValue::Placements),
     }
 }
@@ -67,7 +70,7 @@ pub(super) fn write(value: &OptionValue) -> Value {
         OptionValue::Accounts(guids) => Value::Array(guids.iter().map(|g| Value::String(g.to_string())).collect()),
         OptionValue::Account(g) => g.map_or(Value::Null, |g| Value::String(g.to_string())),
         OptionValue::Commodity(c) => Value::String(c.to_string()),
-        OptionValue::Budget(g) => g.map_or(Value::Null, |g| Value::String(g.to_string())),
+        OptionValue::Budget(g) | OptionValue::Invoice(g) => g.map_or(Value::Null, |g| Value::String(g.to_string())),
         OptionValue::Placements(list) => Value::Array(list.iter().map(placement_json).collect()),
     }
 }
@@ -300,6 +303,11 @@ fn account(text: &str, types: &[AccountType], ctx: &ValueContext<'_>) -> Read<Gu
 /// has no such budget: a saved configuration may name one since deleted. GnuCash restores the option through
 /// `gnc-budget-lookup`, which then gives no budget (`5.17:bindings/guile/options.scm:150-160`,
 /// `5.17:libgnucash/engine/gnc-option-impl.cpp:200-217`), so the report runs with none and gives its own warning.
+fn invoice(text: &str) -> Read<Guid> {
+    Guid::parse(text.trim()).map_err(|_| format!("{text:?} is not a document's GUID"))
+}
+
+/// A budget by GUID, as GnuCash saves it.
 fn budget(text: &str) -> Read<Guid> {
     Guid::parse(text.trim()).map_err(|_| format!("{text:?} is not a budget's GUID"))
 }

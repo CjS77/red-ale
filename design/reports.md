@@ -466,6 +466,8 @@ comes back in hash order.
 | `book.uses_trading_accounts()` | bool | `book.info` | `qof-book-use-trading-accounts` |
 | `book.uses_split_action_for_num()` (v0.5) | bool | `book.info` | `qof-book-use-split-action-for-num-field`: the num field source, which the Transaction Report's option names and Num cells follow |
 | `book.company_name()` | string, `""` when unset | | `gnc:company-info` |
+| `book.option(path)` (v0.6) | string, integer, Rational, GUID text, Time64 or `()` | `book.options` | `qof-book-get-option` (`gnc:book-get-option-value`, `5.17:bindings/guile/options.scm:85-87`): the slot `options/<path>`, `path` being `"Section/Name"` or deeper (`"Business/Fancy Date Format/custom"`). A double comes back as the exact Rational of its stored text, a frame, list or date as `()`, as does an absent option. The invoice reads the business options and the Fancy Date Format through it |
+| `book.invoice(guid)` (v0.6) | Invoice or `()` | `invoice.get` | `gncInvoiceLookup`: any document, invoice, bill, expense voucher or credit note. A GUID naming none, or text that is no GUID, is `()` |
 | `book.prices(commodity, currency)` | Price[], newest first, ties by GUID | `price.list` | `gnc-pricedb-get-prices`, forward only (`5.17:libgnucash/engine/gnc-pricedb.cpp:2047-2058`) |
 | `book.prices_any_currency(commodity, when, mode)` (v0.5) | Price[], newest first | | `gnc-pricedb-lookup-nearest-in-time-any-currency-t64`, `-nearest-before-any-currency-t64` and `-latest-any-currency` (`5.17:libgnucash/engine/gnc-pricedb.cpp:1955-2001`): for each other commodity `commodity` has a price with, either way round, the one nearest `when`, the newest at or before it, or (`"latest"`) the newest at or before the run's now. Prices come as stored: a script inverts one whose `commodity` is not the one asked for, as the investment reports do. A price at exactly `when` may be listed twice under `"nearest"`, as GnuCash lists it |
 | `book.price_rate(commodity, currency, when, mode)` | Rational | `price.nearest`, `price.latest` | `gnc-pricedb-get-{nearest,nearest-before,latest}-price`: 1 for the same commodity; a direct price, inverted when quoted the other way; else an indirect price through a commodity both are priced in; 0 when there is none (`:2408-2527`) |
@@ -600,6 +602,35 @@ the account table through `get_balance_fn`, as `standard/account-summary.scm:327
 formula's variable a value its calculator kept (§4.10 step 4 of the note); red-ale reads every variable as 0, as
 GnuCash does with no such value.
 
+### Invoice, Entry, Owner, Order, BillTerm (v0.6)
+
+The reads of the Printable invoice (`notes/report-invoice.md` §1.3, §4), with `InvoiceDetail`'s and `EntryInfo`'s
+names ([`api/business-documents.md`](api/business-documents.md)). Each figure is exact; a script never computes one.
+
+- **Invoice**: `guid`, `id`, `type` (`invoice`, `bill`, `expenseVoucher` or `creditNote`, as `InvoiceDetail` names
+  them), `isCustomerDocument` (the end owner is a customer: GnuCash's `cust-doc?`, `standard/invoice.scm:769-782`),
+  `isCreditNote`, `owner` (Owner), `currency` (Commodity or `()`), `posted`, `datePosted` and `dateDue` (Time64, `()`
+  unless posted), `terms` (BillTerm or `()`; a posted document's is the frozen copy, which keeps the description),
+  `billingId`, `notes`, `postedLot` (Lot or `()`), `postedTransaction` (Transaction or `()`); and
+  - `inv.entries()`: Entry[], in document order (`gncEntryCompare`);
+  - `inv.totals()`: `#{ subtotal, tax, total, taxes }`, signed as printed on the document (`gncInvoiceGetTotalSubtotal`,
+    `-TotalTax`, `-Total`, `-TotalTaxList`, `5.17:libgnucash/engine/gncInvoice.c:917-1038`); `taxes` is
+    `[#{ account, value }]` in GnuCash's list order, each the account's unrounded taxes summed, then rounded once.
+- **Entry**: `guid`, `date`, `description`, `action`, `notes`, `quantity` (as stored, negated on a credit note),
+  `documentQuantity` (as printed, `gncEntryGetDocQuantity`), `invoicePrice`, `billPrice`, `discount`, `discountType`
+  (`percent` or `value`), `discountHow` (`preTax`, `sameTime`, `postTax`), `invoiceTaxable`, `billTaxable`,
+  `invoiceTaxTable` and `billTaxTable` (the table's GUID or `()`), `order` (Order or `()`); `documentValue` and
+  `documentTaxValue`: the value and tax of its document's side, rounded half up to the currency, the tax rounded at
+  each step of its sum, negated on a credit note (`gncEntryGetDocValue`, `-DocTaxValue` with `round` true,
+  `5.17:libgnucash/engine/gncEntry.c:1431-1442`, `:1535-1546`).
+- **Owner**: `kind` (`customer`, `job`, `vendor`, `employee`), `guid`, `id`, `name` (`gncOwnerGetName`: an
+  employee's is its address name, `5.17:libgnucash/engine/gncEmployee.c:512-517`), `address`
+  (`#{ name, addr1, addr2, addr3, addr4, phone, fax, email }`, `()` for a job), `owner` (a job's customer or vendor,
+  else `()`).
+- **Order**: `guid`, `id`, `reference`. **BillTerm**: `guid`, `name`, `description`.
+
+`lib/business` translates the owner helpers of `5.17:bindings/guile/business-core.scm:35-105` on top of these.
+
 ### Core reads behind the query API
 
 Each function reads the Book through one `red_ale_core` read; the report crate adds no Book logic of its own. Reads
@@ -613,6 +644,14 @@ num field source off and on (`crates/red-ale-testkit/tests/oracle_report_reads.r
 | `book.commodity(id)` | `ops::commodities::lookup` | |
 | `book.uses_trading_accounts()` | `book_options::uses_trading_accounts` | |
 | `book.company_name()` | `book_options::company_name` (`options/Business/Company Name`) | new |
+| `book.option(path)` | `Slots::get` of `options/<path>` | v0.6 |
+| `book.invoice(guid)`; Invoice `id`, `billingId`, `notes`, `posted`, `datePosted`, `owner`, `currency`, `terms`, `postedLot`, `postedTransaction` | `Book::business.invoices`, the `Invoice` fields | v0.6 |
+| Invoice `type`, `isCustomerDocument`, `isCreditNote` | `ops::business::calc::invoice_type` | v0.6 |
+| Invoice `dateDue` | `ops::business::posting::date_due` | new (v0.6) |
+| `inv.entries()`; Entry fields, `order` | `ops::business::documents::entries_of`; the `Entry` fields | v0.6 |
+| `inv.totals()` | `ops::business::calc::document_totals` | v0.6 |
+| Entry `documentQuantity`, `documentValue`, `documentTaxValue` | `documents::document_quantity`, `documents::entry_on_credit_note`; `calc::entry_amounts` (`value_rounded`, `tax_rounded`) | v0.6 |
+| Owner `name`, `owner`; `address`, `id` | `ops::business::contacts::owner_name`, `end_owner`; the contact's fields | v0.6 |
 | `book.prices(commodity, currency)` | `ops::prices::prices(book, commodity, Some(currency), false)`; a date range is a filter on `time`, as the Price Scatterplot filters (`standard/price-scatter.scm:220-229`) | |
 | `book.prices_any_currency(…)` | `ops::prices::convert::nearest_any_currency`, `latest_before_any_currency` (at now for `"latest"`) | v0.5 |
 | `book.price_rate(…)` | `ops::prices::convert::rate` with `PriceAt::{Nearest, Before, Latest { now }}` | new |
@@ -682,6 +721,7 @@ The run context `ctx` gives time and formatting, all in the local time zone of t
 | `ctx.local(t)` | `gnc-localtime`: `#{ year, month, day, hour, minute, second, weekday, yearday }`, counted as people count them, not as `struct tm` does: `month` 1–12, `weekday` 1 (Sunday) to 7, `yearday` 1–366 |
 | `ctx.make_time(fields)` | `gnc-mktime` with `isdst = -1`, fields normalised C-style (31 January + 1 month is 3 March) |
 | `ctx.print_date(t)`, `ctx.print_date_interval(from, to)` | `qof-print-date`, `gnc-date-interval-format`, under `reports.dateFormat` |
+| `ctx.print_time(t, format)` (v0.6) | `gnc-print-time64` (`5.17:libgnucash/engine/gnc-date.cpp:370-385`) under a strftime format, the local date of `t`, month and day names from the Locale. The invoice prints its posted and due dates in the Book's Fancy Date Format with it. Only date directives (`%d %e %m %y %Y %a %A %b %h %B %%`) are known; any other prints as written (section 14) |
 | `ctx.print_month_year(t)`, `ctx.print_year(t)` | `gnc:date-get-month-year-string`, `gnc:date-get-year-string`: `gnc-print-time64` with `%B %Y` and `%Y` (`5.17:bindings/guile/date-utilities.scm:151-152`, `:166-167`), month names from the Locale: `March 2024`, `mars 2024` under fr_FR (v0.5) |
 | `ctx.print_time_iso(t)` | `gnc-print-time64` with the ISO format, for CSV dates: `YYYY-MM-DD HH:MM:SS` in local time |
 | `ctx.print_date_iso(t)` | `gnc-print-time64` with `QOF-DATE-FORMAT-ISO`'s date format, for the charts' CSV dates: `YYYY-MM-DD` in local time (v0.3) |
@@ -721,6 +761,8 @@ Option types used by the reports in scope and the style sheets, and their wire v
 | `currency`, `commodity` | `GncOptionCommodityValue`, stored by namespace and mnemonic (`gnc-option-impl.hpp:215-259`) | CommodityId | Commodity |
 | `internal` | `gnc_register_internal_option` | string or bool | |
 | `budget` | `GncOptionQofInstanceValue` with the budget UI type (`5.17:libgnucash/engine/gnc-optiondb.cpp:657-665`) (v0.4) | the budget's GUID; `null` when the Book has none to default to | Budget or `()` (also for a budget since deleted) |
+| `invoice` (v0.6) | `GncOptionQofInstanceValue` with UI `INVOICE` (`5.17:libgnucash/engine/gnc-optiondb.cpp:915-923`), serialized as the GUID (`5.17:libgnucash/engine/gnc-option-impl.cpp:259-284`) | a business document's GUID, or `null` (the default) for none. Any GUID is kept, as a budget's is: a saved configuration may be made with no Book open | Invoice, or `()` for none and for a GUID that names no document of the Book, as GnuCash's failed lookup leaves the option at `'()` |
+| `image` (v0.6) | `GncOptionValue<std::string>` with UI `PIXMAP` (`gnc-optiondb.cpp:725-732`) | a string: a picture's file name, which the server never reads (section 8) | string |
 | `reportPlacement` | `GncOptionValue<GncOptionReportPlacementVec>`, UI `REPORT_PLACEMENT`: `(id, wide, high)` per child, `id` a report instance of the session (`5.17:libgnucash/engine/gnc-option.hpp:71-72`) (v0.5) | array of `{ report, options?, colspan, rowspan }`, below | the wire form: an array of maps |
 
 **Report placements** are a Multicolumn View's children, GnuCash's `__general`/`report-list`
@@ -782,6 +824,8 @@ The builder passed to `options()` mirrors GnuCash's `gnc-register-*-option` func
 | `o.currency(…, default)`, `o.commodity(…, default)` | `gnc-register-currency-option`, `-commodity-option` |
 | `o.internal(…, default)` | `gnc_register_internal_option` |
 | `o.budget(…, default)` | `gnc-register-budget-option`; `default` is a Budget or `()`, which reports take from `book.default_budget()` (v0.4) |
+| `o.invoice(…, default)` (v0.6) | `gnc-register-invoice-option`; `default` is an Invoice or `()`, which the Printable Invoice passes (`standard/invoice.scm:391-393`) |
+| `o.image(…, default)` (v0.6) | `gnc-register-pixmap-option` (`standard/invoice.scm:405-407`) |
 | `o.complex_boolean(…, default, callback)`, `o.multichoice_callback(…, default, choices, callback)` | `gnc-register-complex-boolean-option`, `-multichoice-callback-option` (`5.17:bindings/guile/gnc-optiondb.i:1664-1710`): a boolean and a multichoice like any other, saved as one. The callback (a function or `()`) is GnuCash's dialog hook, which in every report only makes other options selectable; red-ale has no dialog and never calls it (v0.4) |
 | `o.set_default_section(s)` | `GncOptionDBPtr-set-default-section` |
 | `o.set_default(section, name, value)` | `GncOption-set-default-value` (`5.17:bindings/guile/gnc-optiondb.i:1500-1611`): the default and the value both become `value`, given in the form the option's declaration takes its default (`5.17:libgnucash/engine/gnc-option-impl.cpp:87-91`). A value the declaration would have replaced (a key that is not a choice, a number out of range) is refused. GnuCash ignores an option that does not exist; red-ale makes it a `report-script` error, so a misspelt name is found, and the translations leave out GnuCash's calls on options that do not exist (`notes/report-transaction-engine.md` §7, Q6) (v0.5) |
@@ -798,7 +842,9 @@ Every template also gets GnuCash's three General options, unless its generator d
 (`gnc:report-template-new-options`, `report/report-core.scm:298-335`): "Report name" (key `0a`, default the
 template name), "Stylesheet" (`0b`, a multichoice over the style sheets, default `Default`) and "Add options
 summary" (`0c`, `always` or `never`, default `never`). With `always`, the host appends a table of every option whose
-value differs from its default, as `gnc:html-render-options-changed` does (`report/html-utilities.scm:298-345`).
+value differs from its default, as `gnc:html-render-options-changed` does (`report/html-utilities.scm:298-345`). An
+`invoice` value shows as its GUID: GnuCash's `disp` has no case for one and prints a pointer that differs at every
+run (section 14).
 
 In a script, `opts.get(section, name)` returns the value (dates already turned into Time64, as
 `gnc:date-option-absolute-time` does, `5.17:bindings/guile/options.scm:335-340`), and `opts.raw(section, name)` the
@@ -857,6 +903,10 @@ rest of the API. It carries data, not markup: exact figures with their display f
 `render()` returns it as a Rhai map of the same shape, without the fields the host fills in (marked *host*). The host
 checks it against the schema and fills those fields; a mismatch is a `report-result` error naming the path.
 
+**Class names** (v0.6). Every block but `optionsSummary`, and every cell, may have `class`: names for the report's
+own CSS (`css`), as GnuCash's invoice styles its layout by the classes of its `div`s and cells
+(`standard/invoice.scm:36-45`). They change no figure.
+
 Beyond the schema, a result is valid when every cell holds exactly one content (`text`, `monetary`, `commodities`,
 `number`, `price`, `date` or `anchors`), `places` and `suffix` appear only on number cells and `currency` on every price
 cell and nowhere else, `until` only on date cells and not before the date, an `anchors` cell has at least one anchor
@@ -865,7 +915,9 @@ covers exactly the table's columns (a `null` cell covers one, a cell its `span`)
 `levels` of the table's amount columns, `levels` appears only on amount columns, a chart's series have one value per
 label (scatter series have `points` instead), `colors` and `links` have one entry per value, a `currency` axis names
 its `commodity`, a pie chart has one series, plot sizes are 1–100 % or at least one pixel, and no *host* field is set
-by the script. `optionsSummary` blocks come only from the host.
+by the script. `optionsSummary` blocks come only from the host. A `class` (v0.6) is one or more names separated by
+single spaces, each a letter then letters, digits, `-` and `_`; an `image` block's `src` starts `file:///`; an
+`exact` number cell has no `places` and no `rounding`.
 
 ### Top level
 
@@ -892,6 +944,7 @@ by the script. `optionsSummary` blocks come only from the host.
 | `options` | *host*. Every option's value, in wire form, so the result says exactly what produced it |
 | `sections` | Ordered sections, each an optional `title` and ordered `blocks` |
 | `export` | Optional (v0.3). Set only when `ctx.export_type()` is `"csv"`: the rows GnuCash hands `gnc:lists->csv` (`report/trep-engine.scm:463-512`), each a list of cells that are a string, an exact number or `null`. The host turns them into the CSV of `report.exportCsv`; `report.run` never carries them |
+| `css` | Optional (v0.6). The report's own CSS, which a page appends after the style sheet's: GnuCash's `gnc:html-document-set-style-text!`, which the invoice fills from its Layout › CSS option (`standard/invoice.scm:795`). Text the CSS template refuses (section 8) is left out of the result by the host, with a `debug` log entry naming the reason: the host cannot tell which option fed it, and the figures do not depend on it (`notes/report-invoice.md` §6 Q3) |
 | `exportError` | Optional (v0.5). Set only when `ctx.export_type()` is `"csv"`, instead of `export`: why there is nothing to export ("No splits found"), GnuCash's `gnc:html-document-set-export-error` (`report/trep-engine.scm:2524`, `:2605`, `:2641`). `report.exportCsv` answers it with `invalid`, `data.reason: "export-error"` and the message. A draft with both is a `report-result` error |
 | `log` | *host*. The report log |
 
@@ -906,6 +959,7 @@ by the script. `optionsSummary` blocks come only from the host.
 | `list` (v0.5) | `items: [{ text, account? }]`, an item with `account` naming (and linking to) that account | `gnc:html-markup-ul` (`report/html-text.scm:210-215`): the Cash Flow's selected accounts (`standard/cash-flow.scm:253-262`) |
 | `group` | `blocks`, laid out side by side | the one-row layout tables of the two-column Balance Sheet and Income Statement (`standard/balance-sheet.scm:503-513`, `standard/income-statement.scm:483-536`) |
 | `grid` (v0.5) | `width` (a Rational, the view's "Number of columns", GnuCash's `table-width`) and `rows: [{ cells: [GridCell] }]`, below | the table of `standard/view-column.scm:51-159` |
+| `image` (v0.6) | `src`: `file:///` and a file name, as GnuCash's `make-file-url` writes it (`report/report-utilities.scm:1028-1031`) | `gnc:html-markup-img`: the invoice's `picture` layout choice (`standard/invoice.scm:300-308`). The server never reads the file |
 | `optionsSummary` | *host*. `rows: [{ section, name, value }]`; a Multicolumn View's summary starts with one row per child, `section` empty, `name` `Embedded Report` and `value` the child's "Report name" (its GUID when it did not run), as GnuCash lists them first (`report/html-utilities.scm:339-343`) | `gnc:html-render-options-changed` |
 
 **Grid cells** (v0.5). A Multicolumn View's script lays out its children by GnuCash's rules (`notes/report-statements-charts.md`
@@ -980,7 +1034,7 @@ colour (section 8).
 | text | `text` | the text |
 | monetary | `monetary: { amount: Rational, commodity }` | `rounded` (Amount at the commodity's SCU, banker's rounding) and `display`, section 3 |
 | commodities | `commodities: [{ monetary, converted }]` | each line's `display` and `convertedDisplay` |
-| number | `number: Rational`, `places` (default 2), `suffix`; `rounding` (v0.5): `bankers` (default) or `halfUp`; `numberFormat` (v0.5): `share` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer. `rounding: "halfUp"` rounds ties away from zero, for the rates GnuCash prints from doubles with Guile's `~,nf` (`standard/advanced-portfolio.scm:914-922`; `3.625` is `3.63`). `numberFormat: "share"` is GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): exactly `places` decimals, the magnitude rounded half up (`:1105-1145`, so ties go away from zero), grouped with the Locale's numeric separators, the point always printed (`1,234.568`, `100.`); it takes no `rounding` |
+| number | `number: Rational`, `places` (default 2), `suffix`; `rounding` (v0.5): `bankers` (default) or `halfUp`; `numberFormat` (v0.5): `share`, or (v0.6) `exact` | `display`, rounded to `places` with banker's rounding, then the suffix (`"57.14 %"`). With `places` unset, padded to the Locale's `frac_digits` (2 under C), as GnuCash's number renderer. `rounding: "halfUp"` rounds ties away from zero, for the rates GnuCash prints from doubles with Guile's `~,nf` (`standard/advanced-portfolio.scm:914-922`; `3.625` is `3.63`). `numberFormat: "share"` is GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`): exactly `places` decimals, the magnitude rounded half up (`:1105-1145`, so ties go away from zero), grouped with the Locale's numeric separators, the point always printed (`1,234.568`, `100.`); it takes no `rounding`. `numberFormat: "exact"` (v0.6) is `xaccPrintAmount` with `gnc_default_print_info(FALSE)` (`gnc-ui-util.cpp:833-860`), which the invoice uses for quantities and percentage discounts (`report/html-style-info.scm:217-218`): at least the Locale's `frac_digits` decimals, no maximum and no rounding, grouped, a remainder that is not decimal as `w + n/d` (`1/8` is `0.125`, `4/3` is `1 + 1/3`, `1/3` is `1/3`, `:1237-1242`); it takes no `places` and no `rounding`, and `suffix` still applies (`2.50 %`) |
 | price | `price: Rational`, `currency` | `display` with the currency's price print info |
 | date | `date: Time64` (a Timestamp on the wire); `until` (v0.5, optional): the end of the period it starts | `localDate` (`YYYY-MM-DD` in the run's zone) and `display` under `reports.dateFormat`; with `until`, also `localUntil`, and `display` is `<date> to <until>`, each as `qof-print-date` prints it, as the Multicolumn P&L's column headers (`standard/balsheet-pnl.scm:1140-1153`) |
 | anchors (v0.5) | `anchors: [{ text, link }]` | none: the texts, one per line. The Transaction Report's invoice cell (`report/trep-engine.scm:1036-1049`) |
@@ -1100,6 +1154,15 @@ figures must match GnuCash's, the markup need not.
 
 - `<!DOCTYPE html>`, `<html lang="en">`, `<meta charset="utf-8">`, the `title`, one `<style>` element, then the body.
   No `<script>`, no external stylesheet, font, image or URL of any kind, so the page works offline and leaks nothing.
+  **The one exception** (v0.6) is an `image` block, written only when a script puts one in the result: an
+  `<img src="file:///…">`, the src HTML-escaped and otherwise as given (GnuCash quotes it as a Scheme string,
+  `report/html-text.scm:227-231`). It may name a local file, but the `file:///` prefix means the page never fetches
+  anything from the network, and red-ale never reads the file ([`milestone6.md`](milestone6.md), "Decided", item 4).
+  An empty Picture Location gives `file:///`, which a browser shows as a broken image, as in GnuCash.
+- **The report's CSS** (v0.6), a result's `css`, goes in the same `<style>` element after the style sheet's CSS, on
+  a line of its own, trailing whitespace trimmed, as GnuCash's style sheets append a document's style text
+  (`report/html-fonts.scm:162-192`). It passes the CSS template's rule (below) or is not written: a host never puts
+  refused CSS in a result, but a client may hand the renderer one from elsewhere.
 - Every piece of text from the Book, an option or a script is HTML-escaped. GnuCash inserts some text raw
   (preparer, footer and comments in the style sheets, `report/html-text.scm:239-245`); red-ale never does.
 - **Deterministic bytes.** Elements and attributes are written in a fixed order, numbers in a fixed form, IDs from
@@ -1129,6 +1192,9 @@ figures must match GnuCash's, the markup need not.
   make the header as many rows as the most lines, a column without them showing its label in the first row. A
   table with no columns has no header and empty rows (v0.5).
 - A `list` block is a `<ul>`; an item naming an account carries `data-account` and shows as a link.
+- **Class names** (v0.6). A block with a `class` is wrapped in `<div class="…">` whose only child is the block's own
+  element, so the invoice's `.entries-table > table` matches; a table's classes join its `table-wrap` wrapper's
+  (`<div class="table-wrap entries-table">`). A cell's classes follow its own in its `<td>`'s class list.
 - **Negative figures** get the class `neg`, coloured red when the style sheet's "Negative Values in Red" is on
   (`report/html-fonts.scm:116-119`).
 - A `group` block is a CSS grid of its blocks side by side, stacking on narrow screens.
@@ -1295,8 +1361,11 @@ start-up (`report/gnc-report.cpp:55-112`). red-ale keeps the same things in its 
   the literal forms GnuCash writes into them (section 15).
 - The Book's one reference to a saved configuration, the default invoice report
   (`options/Business/Default Invoice Report`, `5.17:libgnucash/engine/qofbook.cpp:1034-1112`), names the template
-  that prints an invoice: `report.run` with that template and the invoice ([`milestone6.md`](milestone6.md)). red-ale
-  reads it and keeps the slot as it keeps every slot.
+  that prints an invoice: `report.run` with that template and the invoice ([`milestone6.md`](milestone6.md)). From
+  v0.6 `book.options` reads it as `defaultInvoiceReport` and `book.setOptions` writes it, as GnuCash parses and writes
+  the slot ([`api/book-options.md`](api/book-options.md)); no report run reads or writes it. A client printing an
+  invoice runs the report it names, and the Printable invoice when it names no invoice report red-ale has, as GnuCash
+  falls back (`5.17:gnucash/gnome/dialog-invoice.c:957-963`).
 
 `limits` holds any of the limits of section 2 under the names in `data.limit` (`seconds` for `time`).
 
@@ -1375,6 +1444,7 @@ names the same report in red-ale. All names are GnuCash's English ones.
 | `example/daily-reports.rhai` (v0.5) | Income vs. Day of Week | `5e2d129f28d14df881c3e47e3053f604` | Examples | `example/daily-reports.scm:49`, `:291-308` |
 | | Expenses vs. Day of Week | `dde49fed4ca940959ae7d01b72742530` | Examples | `example/daily-reports.scm:50`, `:309-310` |
 | `standard/view-column.rhai` (v0.5) | Multicolumn View | `d8ba4a2e89e8479ca9f6eccdeb164588` | Multicolumn (menu entry "Custom Multicolumn Report") | `standard/view-column.scm:180-189`; `report/report-core.scm:163` |
+| `standard/invoice.rhai` (v0.6) | Printable Invoice | `5123a759ceb9483abf2182d01c140e8d` | Business | `standard/invoice.scm:873`, `:877-885` |
 
 Menu paths are GnuCash's (`report/report-core.scm:157-161`) without the mnemonic underscore in this table; the
 scripts keep the strings as written (`"_Assets & Liabilities"`). The Future Scheduled Transactions Summary is the
@@ -1382,7 +1452,9 @@ Account Summary's script with `params.sx`, as GnuCash's two templates share one 
 (`standard/account-summary.scm:138`, `:241`); it reads `book.sx_cashflow` (section 5). The two Multicolumn templates
 are one script with `params.report_type` (`balsheet` or `pnl`), as GnuCash's share one options generator and renderer
 (`standard/balsheet-pnl.scm:1250-1251`, `:1258-1259`); `milestone5.md`'s "Multicolumn Balance Sheet and P&L" is the
-feature's name, not a template's. The two day-of-week templates are one script with `params.account_types` and
+feature's name, not a template's. The Printable Invoice is the only invoice template: GnuCash's Easy and Fancy
+Invoices, its other two variants (`standard/invoice.scm:887-905`), are ❌ ([`milestone6.md`](milestone6.md),
+"Decided", item 2). The two day-of-week templates are one script with `params.account_types` and
 `params.reportname`, as GnuCash builds both from one list (`example/daily-reports.scm:291-310`); `features.md`'s
 "Income/expense vs day of week" is the feature's name.
 
@@ -1429,6 +1501,7 @@ Abbreviations: RU `report/report-utilities.scm`, CU `report/commodity-utilities.
 | `standard/investment-lots.scm` (v0.5) | Investment Lots | OU: date-interval, currency, price-source, plot-size. RU: account-get-comm-balance-at-date (`lib/balances`). CU: case-exchange-fn. HU: html-split-anchor (date cells linked to their split), assign-colors. DU: date-year-delta, time64-end-day-time, `time64CanonicalDayTime`. Its own none-aware arithmetic (`gnc-numeric` operations on `#f`), split classifier, lot-statistics collector and warnings (`:499-2069`) | Each selected account's splits up to the End date, void transactions left out, with their lot, amount, value, action and stock-split mark (`isStockSplit`); each lot's title and splits, sorted by date, one day's purchases by `xaccTransOrder` (`t.order`) and its other splits in the reverse of the lot's list order; the account's balance at the End date; one price of its commodity in any currency by the price source, inverted when quoted the other way. Every figure is exact but the CAGR (below); bases, gains and end values are rounded to the report currency's SCU where GnuCash rounds them |
 | `example/daily-reports.scm` (v0.5) | Income vs. Day of Week, Expenses vs. Day of Week | OU: date-interval, currency, price-source (default `weighted-average`), plot-size. RU: filter-accountlist-type, accounts-get-commodities. CU: case-exchange-time-fn. HU: assign-colors, empty-data warning (also for no accounts). DU: time64-start/end-day-time. `gnc-accounts-and-all-descendants` | The selected accounts' non-void splits in the period, with their descendants' unless "Include Sub-Accounts" is off; each amount converted at its posted date and added to its local weekday's exact total, no sign reversed (income totals are negative, as GnuCash shows them); prices for the descendants' commodities |
 | `standard/txn-columns.scm` (v0.5) | Transaction Breakdown Report | OU: date-interval. HU: html-split-anchor, empty-data and generic warnings. DU: time64-start/end-day-time. The engine's `xaccAccountTypeGetFundamental` (`account_type_fundamental` in `lib/accounts`) and `xaccAccountOrder` (`a.compare_order`, §5). Its own `acct-get-fullname-list` (`standard/txn-columns.scm:59-66`) | One account's non-void splits in the period, the first of each transaction (`book.split_query` with `unique`), filtered by description with `contains`; every split of those transactions, value and amount, signed by `a.reverse_balance`; the accounts' `compare_order` across the tree, types, depths and names; the transaction's num field whatever the num source |
+| `standard/invoice.scm` (v0.6) | Printable Invoice (the Easy and Fancy Invoices are ❌) | `lib/business`: BC's owner helpers and `gnc:company-info`. HU: the generic warning. Its own layout renderers (client, company, details, today, picture), `make-entry-table` and `reg-renderer`, with `variant-list`'s `'invoice` defaults written directly | One document (section 5, "Invoice, Entry, Owner, Order, BillTerm"): its owner and the job's, entries and their orders, totals and tax list, terms, posted lot's splits and their transactions' order; the Book's Business and Tax options and its Fancy Date Format (`book.option`) |
 | `standard/view-column.scm` (v0.5) | Multicolumn View | None of the helpers: its two options (`o.report_placement`, section 6) and the grid of `render-view` (`standard/view-column.scm:51-159`), with `column-allocs` an array by row. Running the children is the host's (section 2, "Embedded reports") | Nothing of the Book: the children read it |
 | `standard/reconcile-report.scm` (v0.5) | Reconciliation Report | the engine with RR's calculated cells, "Funds In" and "Funds Out" (closures passed as `custom_calculated_cells`), and its instructions as `empty_report_message` | as the Transaction Report; the void former amount; amounts never converted. Its "Running Balance" default and `make-internal` are left out as GL's are |
 
@@ -1453,6 +1526,7 @@ keeps its source's header and licence (GPL-2.0-or-later, checked at 5.17). Funct
 | `lib/budget` (v0.4) | RU:727-856 | `budget_get_start_date`, `budget_get_end_date`, `budget_account_get_net`, `budget_accountlist_get_net`, `budget_account_get_initial_balance`, `budget_accountlist_get_initial_balance`, `get_account_period_rolledup_budget_value`, `budget_account_get_rolledup_net` (the last two take the Book first, for the price database) |
 | `lib/html-utilities` | HU:168-381 | `assign_colors` (GnuCash's 18-colour palette), `make_rates_table` (a result table), `make_generic_warning`, `make_generic_simple_warning`, `make_generic_budget_warning`, `make_generic_options_warning`, `make_no_account_warning`, `make_empty_data_warning` (warning blocks); `make_report_anchor` (v0.5), a report link copying the options both templates have, which the caller names besides the three General options every report has, then setting the given ones |
 | `lib/cash-flow-calc` (v0.5) | `5.17:gnucash/report/reports/cash-flow-calc.scm:33-106` | `cash_flow_calc_money_in_out`: the money into and out of the selected accounts by other account, as GnuCash's alists of collectors, and the two totals; the trading option works backwards as in 5.17 |
+| `lib/business` (v0.6) | `5.17:bindings/guile/business-core.scm:35-105` (BC); `gnc:company-info` (`5.17:bindings/guile/options.scm:409-411`) | `owner_get_name_dep`, `owner_get_address_dep`, `owner_get_owner_id`, on `end_owner` (a job's customer or vendor, else the owner); `company_info`, and `book_string`, a string Book option or `""` |
 | `lib/register` (v0.5) | `standard/register.scm:32-634` | What the General Journal reaches: `options` (REG:324-404, without the query option), `reg_renderer(book, opts, ctx, query)` (REG:605-634) with the caller's `book.split_query` map, `make_split_table` in journal mode with its rows, notes rows and totals (REG:166-603), `build_column_used`, `make_heading_list`, `get_num_action`. Left out: the `__reg/query` and `__reg/ledger-type` options and what ledger type changes ("T-Num", balances from the totals, "Net Change"), the non-journal mode (a row per split, the Memo and Transfer columns; `reg_renderer` refuses `__reg/journal` false), and `gnc:register-report-create-internal`. No template is registered for the Register report (`milestone5.md`, "Decided", item 5) |
 | `lib/trep-engine` (v0.5) | TE:149-2641 | The options and the renderer. `trep_options_generator`; `trep_splits(book, opts, ctx, hooks)`, the first half, returning `#{ parameters, report_title, subtotal_table, splits, warning, export_error }`; `trep_renderer(book, opts, ctx, hooks)`, the document: the table of `make-split-table`, the Subtotal Table of `make-grid`, and under the CSV export type the export rows or GnuCash's export error. `trep_hooks` names the renderer's keyword arguments; `calc_cell` builds a calculated cell for `custom_calculated_cells`; `account_namestring` and `get_num_action` are GnuCash's helpers of those names. The keylists `sortkey_list`, `date_subtotal_list`, `reconcile_list`, `sign_reverse_list`, `date_sorting_types`, `sortkey_informal_headers`; `sortkey_sortkey`, `sortkey_split_sortvalue`, `sortkey_renderer_fn`, `date_sortvalue`, `date_subtotal_renderer_fn`, `subtotal_enabled`, `custom_sorting`, and `apply_split_sortvalue` and `apply_renderer_fn` to call the renderer-fn and split-sortvalue the parameters hold |
 
@@ -1600,6 +1674,7 @@ can be re-run to check it.
 | `reports/ifrs-cost-basis.gnucash` (v0.5), and its SQLite copy, saved the same way | `create-ifrs-cost-basis-test-data` (`standard/test/test-ifrs-cost-basis.scm:54-243`): SPY with SCU 10000 and fifteen transactions in CAD with per-split actions; the price database keeps one price per commodity, currency and day, so the two 2020-06-10 transactions leave one SPY price and one USD price, and the 0/450 stock split a SPY price of 0 | IFRS cost basis |
 | `reports/transaction.gnucash` (v0.5) | the trep tree of `standard/test/test-transaction.scm:104-226`, then `create-test-invoice-data` (`5.17:bindings/guile/test/test-engine-extras.scm:487-849`) in the same book; no SQLite copy, as GnuCash cannot save it as SQLite | the Transaction Report; the General Ledger and General Journal (hand-worked) |
 | `reports/investment-lots.gnucash` and the four `reports/lots-*.gnucash` (v0.5), and their SQLite copies, saved the same way | books A to E of `standard/test/test-investment-lots.scm:59-369` (`scripts/report-fixtures/investment_lots.py`): A, AAPL and SPY bought and partly sold with no lots; B, a lot of 100 AAPL then a 2-for-1 reverse split (value 0, marked `stock-split`, action "Split"); C, B without the split; D, B and a sale of 25; E, D's equivalent bought as 50 shares. B to E keep their splits in one untitled lot, GUID `1…0`; no prices | Investment Lots |
+| `synthetic/business.gnucash` and its SQLite copy `sqlite/synthetic/business.gnucash` (v0.6 for reports) | none: the business fixture of [`testing.md`](testing.md): a customer invoice taxed by a table of two accounts and paid in part, a bill, an expense voucher and an unposted credit note for a job, in euros | the Printable Invoice (hand-worked), and its SQLite runs: `reports/transaction.gnucash` has no SQLite copy |
 | `reports/reconcile.gnucash` (v0.5), and its SQLite copy, saved the same way | the reconcile tree of `standard/test/test-transaction.scm:1077-1104`, alone | the Reconciliation Report; the General Ledger (hand-worked) |
 
 GUIDs are fixed and readable (`a000…0001` for the first account made, and so on), entered dates and void times are
@@ -1641,6 +1716,7 @@ GnuCash reads and the exact expected strings, with the test line (see `fixtures/
 | Advanced Portfolio (v0.5) | `standard/test/test-portfolios.scm:84-107`: AAPL's row under the average, FIFO and LIFO bases, on the XML book and its SQLite copy; the null test (`:27`) as the no-account warning on an empty book | the options and their order, the default accounts; the rows, the rule over every column and the Total row, the account and price links; the exact rates (−5/8 %) as half-up number cells; the price list off (a transaction's price, `*`, linked to it, found up to the Date or now) and accounts with no price (`**`, $1.00), each note and both a line apart; both price sources on one date; the Display options and share places; prices in another currency, a report-currency price preferred to a newer one, an inverted price linked to the price stored, an unconvertible price falling back to the transaction; the three fee options; the three bases on a sale across pairs; the rate tie (`3.63%`); the 10⁻⁸ price ($9,999,999.99 for $10,000,000.00) and the fee's SCU share ($309.99 against $310.00 in); a sale with nothing held (no money in, empty rates), a gift to charity, a worthless stock; the division by zero after a short sale and on a spin-off with no basis, rows before it kept; income and fees of the parent account by name; reinvested dividends with a sibling holding account, an unrelated one and a negative holding; a purchase in another currency; a run changing nothing, XML and SQLite |
 | Investment Lots (v0.5) | `standard/test/test-investment-lots.scm:392-834`: the eleven render-only runs and the option checks on book A; the helper checks against the script's own helpers and the engine's `calculate_cagr` within GnuCash's ranges (`calculate-gain` is not translated; the `is-long-term?` cases under the report's rule, where a year to the day is short term); the reverse-split checks on B and D and the comparisons of B with C and D with E, each read by label and as GnuCash reads them, a column to the right (the plain style sheet's account-name `<th>` counts in the header list); on the XML books and their SQLite copies. With the default window nothing is sold and the default grouping has no Realized Gain column, so GnuCash's comparisons hold trivially; they are repeated over 2020, where they compare real figures. The worked figures of `workedFromCode` for every default run and for D over 2020: a $500 short-term gain, a CAGR of 204.1 %, and the gains-mismatch warning | the options and their order; D's whole table over 2020, its split rows, links and export; the column options (gains and sales by term, ROI, GUID, no grouping, zeros shown, every column off); the Start date's own trades outside the window; the long-term threshold around a leap day, at 0 and at 0.5; several purchases (CAGR from the latest, 399.4 %); a forward split as a purchase; an oversold lot and a sale from an empty lot (blanks, no CAGR); gains splits that match and do not; unassigned splits counted, listed and ignored, and the balance check; "Include only accounts with warnings" with a blank title; the include and display options; the three price sources, an inverted price, a third currency, a future price and none; same-day sales in reverse Book order; the chart's variants; no accounts; a run changing nothing, XML and SQLite |
 | Transaction Breakdown Report (v0.5) | none: GnuCash has no test of it; `test/test-stress-options.scm` only renders it | the options and their order; the default run (no account) as the empty-data warning, titled with the "Report name" option, on test-data and an empty book; Bank in 1970–71 on test-data: the columns by account order and fundamental type, their three-row headers, the cells, the multi-split row, the total row and the split links; the 2000 foreign transfers as `commodities` cells; Liabilities and Income negated under `credit`; the description filter, case-sensitive (none left: the warning); the column limit at exactly the count and below it (the "Too many accounts" warning); a two-row header and the closing transaction kept; a void transaction left out; on books built through the API, two splits to one account summed and linked to the first, the columns in `xaccAccountOrder` across the tree rather than depth first, the transaction's num in a split-action book, and TRADING accounts left out; test-data's XML and SQLite copies giving the same result; a run leaving the Book unchanged |
+| Printable Invoice (v0.6) | `standard/test/test-invoice.scm:93-261`, the Printable variant (`report_invoice.rs`): each document's last cells, its first entry less the date, the client's name, the texts in the body, the details' first column, the sparse run's first and last cells, and that inv-8 is paid; every option TI sets exists | on `synthetic/business.gnucash`, XML and SQLite: two tax accounts with and without the detailed summary, a partial payment with the Total column on and off, an unposted credit note for a job with its job rows, a bill and an expense voucher; on `reports/transaction.gnucash`: each display column, three and none shown, the minimum number of entries (fractional and 0), every layout choice, the Picture Location (never read: a FIFO), the company details and footers with a Custom Title and the owner's ID, the CSS option and refused CSS, no document and a GUID naming none; References with two orders and a line without one and exact quantities (1/8, 1/3) on a document made through the API; the Fancy Date Format (`red-ale-report/tests/report_invoice.rs`); golden bytes of every document (`report_golden/v0.6.txt`); a run leaving the Book unchanged |
 | Multicolumn View (v0.5) | none: GnuCash has no test of its output; `test/test-stress-options.scm:8` renders it with no children | no children (an untitled, empty grid); rows closing at "Number of columns" with a row span taking room below, a span wider than the grid, "Number of columns" 0 and column spans of 0; a template child with options and a saved configuration child, each cell equal to the child run alone, on test-data's XML and SQLite copies, export bytes the same each time and on both; the child's style sheet ignored (one since deleted); "Single Report" links; the `Embedded Report` rows; a deleted saved configuration, failing and no-longer-valid children as warnings in their cells, the others still run; a saved configuration child following its later changes; nested views, a cycle of saved configurations, the depth and count limits; an operations limit in a child stopping the whole run; a run leaving the Book unchanged |
 | Income vs. Day of Week, Expenses vs. Day of Week (v0.5) | none: `standard/test/test-charts.scm:71-77` and `:187-190` only render them; both run as checks here, on an empty book (the empty-data warning) and on charts-daily with the calendar year (GnuCash's Accounts value refused, as its validation refuses it) | the options and their order for both templates, menu and tips; 2024 on charts-daily, income negative and the void left out, expenses with a negative day; Income by weekday over 1970's 101 daily transactions, also on the SQLite copy; "Show Totals" off and a "Report name" in the titles but not the series; the warning for only zero totals, for no splits and for no accounts; "Include Sub-Accounts" on and off with a child account; a GBP account at each split's date under `pricedb-nearest` and `weighted-average` (an exact $14.375 printed whole), and no weighted average before any exchange (the warning); a run leaving the Book unchanged, XML and SQLite |
 
@@ -1747,6 +1823,11 @@ Collected with every other area's in [`differences-from-gnucash.md`](differences
 | Investment Lots: an untitled lot with "Warn if a lot has a blank title" (v0.5) | A Guile error: `string-trim` of the `#f` that `gnc-lot-get-title` gives (`standard/investment-lots.scm:1577-1580`) | The blank-title warning | An untitled lot is blank; the report runs |
 | Investment Lots: an account total's shares when the account has no lot (v0.5) | Printed with the default print info of a commodity of `'()`: the locale's default currency (`standard/investment-lots.scm:810-813`) | Printed in the report's currency | red-ale has no default-currency preference; the report's currency stands in |
 | Investment Lots' chart with no account selected (v0.5) | A chart it never set up, with no data (`standard/investment-lots.scm:2266-2298`) | No chart | There is nothing to draw |
+| The Printable Invoice's page (v0.6) | No title, and one `div.main-table` holding a two-column table (`standard/invoice.scm:797-869`) whose entries table has rows of different widths: *n* cells for an entry, 1 + max(3, *n*) for a total, max(3, *n*) for a payment (`:601-606`, `:670-678`) | An empty title; the main table's rows as blocks in order: a heading of class `invoice-title`, a group per layout row (the right-hand block's class starting `div-align-right`), the entries table and the notes. The entries table declares 1 + max(3, *n*) columns, the shown ones headed, and pads shorter rows with empty cells at the end | The report result has no layout tables and every row covers its table; the figures sit in the columns GnuCash's browser puts them in |
+| An invoice option in the options summary (v0.6) | `#<swig-pointer …>`, different at every run: `disp` has no case for an invoice (`report/html-utilities.scm:302-323`) | The document's GUID | The same bytes for the same run |
+| The invoice's picture (v0.6) | `<img src=…>` with the address quoted as a Scheme string (`report/html-text.scm:227-231`) | The address HTML-escaped | Every text on a page is HTML-escaped (§8) |
+| An invoice whose owner is not a job, with Job Details on (v0.6) | `gncJobGetID` of the null job `gncOwnerGetJob` gives (`standard/invoice.scm:238-239`; `5.17:libgnucash/engine/gncOwner.c:376-381`); GnuCash's own test shows no job rows for such documents (`standard/test/test-invoice.scm:85-90`) | No job, so no job rows | As GnuCash's test runs show |
+| `ctx.print_time` with a time directive (v0.6) | `gnc-print-time64` prints any `strftime` directive (`5.17:libgnucash/engine/gnc-date.cpp:370-385`) | Date directives only; any other is printed as written | Reports print dates: the Book's Fancy Date Format, which the invoice reads, is built from day, month and year (`5.17:gnucash/gnome-utils/gnc-date-format.c:458-461`) |
 
 ## 15. Importing GnuCash's report files, and what is left for later
 

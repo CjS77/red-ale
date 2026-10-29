@@ -841,7 +841,7 @@ pub fn documents_due(book: &Book, which: DueFor, days: i64, now: Time64) -> Doma
     let mut work = LotWork::default();
     let mut out = Vec::new();
     for inv in book.business.invoices.values() {
-        let (Some(txn), Some(lot)) = (inv.post_txn.and_then(|g| book.transaction(g)), inv.post_lot) else {
+        let (Some(due), Some(lot)) = (crate::ops::business::posting::date_due(book, inv), inv.post_lot) else {
             continue;
         };
         let Ok(kind) = calc::invoice_type(book, inv) else { continue };
@@ -849,11 +849,6 @@ pub fn documents_due(book: &Book, which: DueFor, days: i64, now: Time64) -> Doma
             DueFor::Customers => kind.is_customer(),
             DueFor::Vendors => !kind.is_customer(),
         };
-        let due = txn
-            .slots
-            .get(crate::ops::business::posting::DATE_DUE)
-            .and_then(SlotValue::as_time)
-            .unwrap_or(txn.date_posted);
         if wanted && due <= limit && book.lot(lot).is_some() && !work.is_closed(book, lot)? {
             out.push(DueDocument {
                 invoice: inv.guid,

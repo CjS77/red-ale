@@ -73,6 +73,13 @@
         "string",
         "null"
       ]
+    },
+    "css": {
+      "description": "The report's own CSS, which a page appends after the style sheet's (`gnc:html-document-set-style-text!`,\n`5.17:gnucash/report/reports/standard/invoice.scm:795`) (v0.6). Never text the CSS template refuses\n(`design/reports.md` §8): the host leaves that out and says so in the log. Absent when the report sets none.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "additionalProperties": false,
@@ -169,6 +176,13 @@
                   "type": "null"
                 }
               ]
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false,
@@ -192,6 +206,13 @@
             "text": {
               "description": "What it says.",
               "type": "string"
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false,
@@ -237,6 +258,13 @@
               "items": {
                 "type": "string"
               }
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false,
@@ -331,6 +359,13 @@
                 "grouped": true,
                 "nonZeroOnly": false
               }
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false,
@@ -354,6 +389,13 @@
               "items": {
                 "$ref": "#/$defs/Block"
               }
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false,
@@ -376,6 +418,13 @@
               "items": {
                 "$ref": "#/$defs/ListItem"
               }
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false,
@@ -402,6 +451,13 @@
               "items": {
                 "$ref": "#/$defs/GridRow"
               }
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false,
@@ -409,6 +465,32 @@
             "kind",
             "width",
             "rows"
+          ]
+        },
+        {
+          "description": "A picture, the invoice's `picture` layout choice (`5.17:gnucash/report/reports/standard/invoice.scm:300-308`)\n(v0.6).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "image"
+            },
+            "src": {
+              "description": "The picture's address: `file:///` and the file name, as `make-file-url` writes it. Always starts `file:///`,\nso a page never fetches anything from the network.",
+              "type": "string"
+            },
+            "class": {
+              "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "src"
           ]
         },
         {
@@ -982,6 +1064,13 @@
           ],
           "format": "uint32",
           "minimum": 0
+        },
+        "class": {
+          "description": "Class names added to the cell's own, for the report's CSS (`css`), separated by single spaces (v0.6).",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false,
@@ -1141,6 +1230,11 @@
           "description": "GnuCash's share print info (`gnc_share_print_info_places`, `5.17:libgnucash/app-utils/gnc-ui-util.cpp:1013-1023`):\nexactly `places` decimals, rounded half away from zero (`:1105-1145`), grouped with the locale's numeric\nseparators, the decimal point always printed: the portfolios' share counts, `100.` with no places.",
           "type": "string",
           "const": "share"
+        },
+        {
+          "description": "`xaccPrintAmount` with `gnc_default_print_info(FALSE)` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-860`):\nat least the Locale's `frac_digits` decimals, no maximum and no rounding, grouped, a remainder that is not a\ndecimal as `w + n/d`. The invoice's quantities and percentage discounts\n(`5.17:gnucash/report/html-style-info.scm:217-218`) (v0.6). Takes no `places` and no `rounding`.",
+          "type": "string",
+          "const": "exact"
         }
       ]
     },
@@ -1600,7 +1694,7 @@
       ]
     },
     "EmbeddedResult": {
-      "description": "A child's report result: what `report.run` returns, without the view's `version` and `now`.",
+      "description": "A child's report result: what `report.run` returns, without the view's `version` and `now`, and without its `css`,\nwhich GnuCash leaves out of a report rendered inside another (`5.17:gnucash/report/html-document.scm:154-185`,\n`5.17:gnucash/report/reports/standard/view-column.scm:91`).",
       "type": "object",
       "properties": {
         "report": {
@@ -1708,6 +1802,13 @@
         "text": {
           "description": "What it says.",
           "type": "string"
+        },
+        "class": {
+          "description": "Class names for the report's CSS (`css`), separated by single spaces (v0.6).",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false,

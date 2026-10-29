@@ -169,6 +169,17 @@ impl OptionDb {
         self.register(c, OptionKind::Budget, OptionValue::Budget(default))
     }
 
+    /// `gnc-register-invoice-option`: no document by default (`'()`, `5.17:gnucash/report/reports/standard/invoice.scm:391-393`).
+    /// A GUID naming no document is kept: a saved configuration may be made with no Book open (v0.6).
+    pub fn invoice(&mut self, c: Classifier, default: Option<Guid>) -> Declared {
+        self.register(c, OptionKind::Invoice, OptionValue::Invoice(default))
+    }
+
+    /// `gnc-register-pixmap-option`: a picture's file name, which the server never reads (v0.6).
+    pub fn image(&mut self, c: Classifier, default: String) -> Declared {
+        self.register(c, OptionKind::Image, OptionValue::Text(default))
+    }
+
     /// `gnc_register_internal_option`: a string or boolean default.
     pub fn internal(&mut self, c: Classifier, default: OptionValue) -> Declared {
         self.register(c, OptionKind::Internal, default)
@@ -413,11 +424,12 @@ fn checked_default(kind: &OptionKind, default: OptionValue) -> Result<OptionValu
     let mismatch = || format!("a {} option cannot default to {default:?}", kind.type_name());
     match (kind, &default) {
         (OptionKind::Boolean, OptionValue::Bool(_))
-        | (OptionKind::String | OptionKind::Text | OptionKind::Font | OptionKind::Color, OptionValue::Text(_))
+        | (OptionKind::String | OptionKind::Text | OptionKind::Font | OptionKind::Color | OptionKind::Image, OptionValue::Text(_))
         | (OptionKind::Internal, OptionValue::Bool(_) | OptionValue::Text(_))
         | (OptionKind::PlotSize, OptionValue::PlotSize(_))
         | (OptionKind::Commodity, OptionValue::Commodity(_))
         | (OptionKind::Budget, OptionValue::Budget(_))
+        | (OptionKind::Invoice, OptionValue::Invoice(_))
         | (OptionKind::ReportPlacement, OptionValue::Placements(_))
         | (OptionKind::AccountSel { .. }, OptionValue::Account(_)) => Ok(default),
         (OptionKind::Currency, OptionValue::Commodity(c)) if c.is_currency() => Ok(default),

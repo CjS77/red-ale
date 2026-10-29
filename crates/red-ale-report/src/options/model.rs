@@ -220,6 +220,12 @@ pub enum OptionKind {
     /// A budget (`gnc-register-budget-option`, a `GncOptionQofInstanceValue` with the budget UI type,
     /// `5.17:libgnucash/engine/gnc-optiondb.cpp:657-665`).
     Budget,
+    /// A business document (`gnc-register-invoice-option`, a `GncOptionQofInstanceValue` with UI type `INVOICE`,
+    /// `5.17:libgnucash/engine/gnc-optiondb.cpp:915-923`) (v0.6).
+    Invoice,
+    /// A picture's file name (`gnc-register-pixmap-option`, a string with UI type `PIXMAP`,
+    /// `5.17:libgnucash/engine/gnc-optiondb.cpp:725-732`) (v0.6). The server never reads the file.
+    Image,
     /// An option scripts keep for themselves, never shown in GnuCash's dialog: a string or a boolean.
     Internal,
     /// The reports a Multicolumn View shows and their spans (`gnc-register-report-placement-option`,
@@ -246,6 +252,8 @@ impl OptionKind {
             Self::Currency => "currency",
             Self::Commodity => "commodity",
             Self::Budget => "budget",
+            Self::Invoice => "invoice",
+            Self::Image => "image",
             Self::Internal => "internal",
             Self::ReportPlacement => "reportPlacement",
         }
@@ -285,6 +293,8 @@ pub enum OptionValue {
     Commodity(CommodityRef),
     /// A budget's GUID; `None` when the Book has no budget to default to.
     Budget(Option<Guid>),
+    /// A business document's GUID; `None` for no document, the default.
+    Invoice(Option<Guid>),
     /// Report placements, in order.
     Placements(Vec<Placement>),
 }

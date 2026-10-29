@@ -16,6 +16,9 @@ pub struct GridBlock {
     pub width: Rational,
     /// The rows, top to bottom. A cell spanning rows takes room in the rows below without being listed in them.
     pub rows: Vec<GridRow>,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 /// One row of a grid.
@@ -48,7 +51,9 @@ pub struct GridCell {
     pub warning: Option<WarningBlock>,
 }
 
-/// A child's report result: what `report.run` returns, without the view's `version` and `now`.
+/// A child's report result: what `report.run` returns, without the view's `version` and `now`, and without its `css`,
+/// which GnuCash leaves out of a report rendered inside another (`5.17:gnucash/report/html-document.scm:154-185`,
+/// `5.17:gnucash/report/reports/standard/view-column.scm:91`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EmbeddedResult {

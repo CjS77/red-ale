@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use crate::error::{OptionError, ReportError};
 use crate::options::{Choice, ChoiceKey, Classifier, DateUi, DateValue, OptionDb, OptionKind, OptionValue, ReportOption, parse_relative};
-use crate::query::{BookHandle, BudgetHandle, Fallible, account_arg, commodity_arg, rational_arg, script_error};
+use crate::query::{BookHandle, BudgetHandle, Fallible, InvoiceHandle, account_arg, commodity_arg, rational_arg, script_error};
 use crate::result::PlotSize;
 
 /// The option builder handed to a template's `options()` as `o` (Rhai type `OptionBuilder`).
@@ -265,6 +265,8 @@ pub(super) fn register_builder(engine: &mut Engine) {
         },
     );
     engine.register_fn("budget", budget);
+    engine.register_fn("invoice", invoice);
+    engine.register_fn("image", image);
     engine.register_fn("complex_boolean", complex_boolean);
     engine.register_fn("multichoice_callback", multichoice_callback);
     engine.register_fn("set_default_section", |o: &mut OptionBuilder, s: &str| {
@@ -347,6 +349,28 @@ fn budget_value(d: &Dynamic) -> Fallible<Option<Guid>> {
     Ok(Some(b.guid()))
 }
 
+/// `gnc-register-invoice-option`: the default document, an `Invoice` or `()`; the Printable Invoice passes `()`
+/// (`5.17:gnucash/report/reports/standard/invoice.scm:391-393`).
+fn invoice(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: Dynamic) -> Fallible<()> {
+    let default = invoice_value(&d)?;
+    declare(o.db.borrow_mut().invoice(classifier(s, n, k, h), default))
+}
+
+/// `gnc-register-pixmap-option`: a picture's file name, never read.
+fn image(o: &mut OptionBuilder, s: &str, n: &str, k: &str, h: &str, d: &str) -> Fallible<()> {
+    declare(o.db.borrow_mut().image(classifier(s, n, k, h), d.to_owned()))
+}
+
+fn invoice_value(d: &Dynamic) -> Fallible<Option<Guid>> {
+    if d.is_unit() {
+        return Ok(None);
+    }
+    let i = d
+        .read_lock::<InvoiceHandle>()
+        .ok_or_else(|| script_error(format!("an invoice option defaults to an Invoice or (), got {}", d.type_name())))?;
+    Ok(Some(i.guid()))
+}
+
 /// `o.set_default(section, name, value)`, GnuCash's `GncOption-set-default-value`
 /// (`5.17:bindings/guile/gnc-optiondb.i:1500-1611`): `value` in the form the option's declaration takes its default.
 fn set_default(o: &mut OptionBuilder, s: &str, n: &str, d: Dynamic) -> Fallible<()> {
@@ -373,7 +397,7 @@ fn script_value(o: &OptionBuilder, kind: &OptionKind, d: &Dynamic) -> Fallible<O
     };
     Ok(match kind {
         OptionKind::Boolean => OptionValue::Bool(bool_arg(Some(d), false)?),
-        OptionKind::String | OptionKind::Text | OptionKind::Font => OptionValue::Text(text()?),
+        OptionKind::String | OptionKind::Text | OptionKind::Font | OptionKind::Image => OptionValue::Text(text()?),
         OptionKind::Color => OptionValue::Text(text()?.trim_start_matches('#').to_owned()),
         OptionKind::Internal => match d.as_bool() {
             Ok(b) => OptionValue::Bool(b),
@@ -389,6 +413,7 @@ fn script_value(o: &OptionBuilder, kind: &OptionKind, d: &Dynamic) -> Fallible<O
         OptionKind::AccountSel { .. } => OptionValue::Account(Some(account_arg(book, d)?)),
         OptionKind::Currency | OptionKind::Commodity => OptionValue::Commodity(commodity_arg(book, d)?),
         OptionKind::Budget => OptionValue::Budget(budget_value(d)?),
+        OptionKind::Invoice => OptionValue::Invoice(invoice_value(d)?),
         OptionKind::ReportPlacement if array()?.is_empty() => OptionValue::Placements(Vec::new()),
         OptionKind::ReportPlacement => return Err(script_error("a report placement option defaults to no reports, []")),
     })
@@ -502,6 +527,11 @@ fn value(o: &ReportOption, r: &Resolve<'_>) -> Result<Dynamic, ReportError> {
         (OptionValue::Budget(g), _) => g
             .filter(|g| r.book.0.book().budget(*g).is_some())
             .map_or(Dynamic::UNIT, |g| Dynamic::from(r.book.budget(g))),
+        // A GUID naming no document reads as none, as GnuCash's failed lookup leaves the option at `'()`
+        // (`design/notes/report-invoice.md` §1.2).
+        (OptionValue::Invoice(g), _) => g
+            .filter(|g| r.book.0.book().business.invoices.contains_key(g))
+            .map_or(Dynamic::UNIT, |g| Dynamic::from(r.book.invoice(g))),
         (OptionValue::Accounts(_) | OptionValue::Account(_) | OptionValue::Placements(_), _) => Dynamic::UNIT,
     })
 }

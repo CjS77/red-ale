@@ -118,6 +118,12 @@ pub(super) fn register(engine: &mut Engine) {
     engine.register_fn("print_year", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         c.strftime("%Y", &t)
     });
+    // `gnc-print-time64` (`5.17:libgnucash/engine/gnc-date.cpp:370-385`) under any format: the invoice's dates in the
+    // Book's Fancy Date Format. Only the date directives are known; others print as written.
+    engine.register_fn(
+        "print_time",
+        |c: &mut ContextHandle, t: Dynamic, format: &str| -> Fallible<String> { c.strftime(format, &t) },
+    );
     engine.register_fn("print_date_iso", |c: &mut ContextHandle, t: Dynamic| -> Fallible<String> {
         Ok(c.date(time_arg(&t)?)?.to_file_string())
     });

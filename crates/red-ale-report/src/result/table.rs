@@ -22,6 +22,9 @@ pub struct Table {
     /// collector (`5.17:gnucash/report/reports/standard/budget.scm:240-259`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub footnotes: Vec<String>,
+    /// Class names for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 /// A column.
@@ -201,6 +204,9 @@ pub struct Cell {
     /// The number of the table's footnote this cell refers to, shown as a superscript after the content.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub footnote: Option<u32>,
+    /// Class names added to the cell's own, for the report's CSS (`css`), separated by single spaces (v0.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
 }
 
 /// How a `number` cell is rounded to its `places`.
@@ -222,6 +228,11 @@ pub enum NumberFormat {
     /// exactly `places` decimals, rounded half away from zero (`:1105-1145`), grouped with the locale's numeric
     /// separators, the decimal point always printed: the portfolios' share counts, `100.` with no places.
     Share,
+    /// `xaccPrintAmount` with `gnc_default_print_info(FALSE)` (`5.17:libgnucash/app-utils/gnc-ui-util.cpp:833-860`):
+    /// at least the Locale's `frac_digits` decimals, no maximum and no rounding, grouped, a remainder that is not a
+    /// decimal as `w + n/d`. The invoice's quantities and percentage discounts
+    /// (`5.17:gnucash/report/html-style-info.scm:217-218`) (v0.6). Takes no `places` and no `rounding`.
+    Exact,
 }
 
 /// The content of a cell, borrowed.

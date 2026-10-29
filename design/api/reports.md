@@ -53,6 +53,21 @@ Its default is `[]`. When a caller sets it (`report.run`, `report.export`, `repo
 with the child's position from 0. A saved configuration's stored children are not checked again: one deleted since
 renders a warning in its cell when the view runs ([`../reports.md`](../reports.md) §6).
 
+Option types `invoice` and `image` (`redAleApi` 0.6.0, additive: new `type` values of `OptionInfo`), which the
+Printable invoice declares ([`../reports.md`](../reports.md) §6):
+
+| Type | Value | Default |
+|------|-------|---------|
+| `invoice` | A business document's GUID (invoice, bill, expense voucher or credit note), or `null` for none. Any GUID is accepted, as for `budget`; one that names no document of the Book runs as none, and the report shows its no-invoice warning | `null` |
+| `image` | A string: a picture's file name. The server never reads it; the HTML refers to it as `file:///` and the string ([`../reports.md`](../reports.md) §8) | the template's |
+
+Printing an invoice is `report.run` (or `report.export`) with an invoice report and `options: { "General": {
+"Invoice Number": "<guid>" } }`, as GnuCash's `gnc:invoice-report-create` sets the option
+(`5.17:gnucash/report/reports/reports.scm:68-80`). An *invoice report* is a template whose General › Invoice Number is
+of type `invoice`, or a saved configuration of one. `book.options`' `defaultInvoiceReport` names the Book's; when it
+names no invoice report `report.list` lists, clients run the Printable Invoice
+(`5123a759ceb9483abf2182d01c140e8d`), as GnuCash falls back (`5.17:gnucash/gnome/dialog-invoice.c:957-963`).
+
 `ReportResult`: the published language of §7, listed in `api.schema`. Additions in `redAleApi` 0.5.0, each an optional
 field or a new kind (`api.md`, "Versioning"): link kinds `split`, `transaction`, `invoice`,
 `price` and `docLink` (§7, "Links"); `anchors` cells and `until` on date cells, with the host's `localUntil` (§7,
@@ -61,7 +76,12 @@ field or a new kind (`api.md`, "Versioning"): link kinds `split`, `transaction`,
 (`bankers`, `halfUp`) and `numberFormat` (`share`) on number cells (§7, "Tables"), and `exportError` on the result
 (§7, "Top level"). Then, for the Multicolumn View: `grid` blocks, whose cells hold each child's result (the shape
 `report.run` returns, less `version` and `now`) or a "Report error" warning (§7, "Blocks"); `configuration` on report
-links; and options summary rows with an empty `section`, the view's `Embedded Report` rows.
+links; and options summary rows with an empty `section`, the view's `Embedded Report` rows. Additions in `redAleApi`
+0.6.0, for the Printable Invoice: `numberFormat: "exact"` on number cells, every figure printed unrounded (§7,
+"Tables"); `class` on blocks and cells, class names for the report's CSS (§7, "Blocks"); `css` on the result, the
+report's own CSS, left out with a `debug` log entry when the CSS template would refuse it (§7, "Top level"); and
+`image` blocks, whose `src` starts `file:///` and which `report.export` writes as the page's one image (§8). The
+server never reads the picture's file.
 
 A view's children run inside its `report.run` or `report.export`, with the same Book, `now`, Locale and settings,
 under one run time limit for all of them. A child that no longer exists, fails, would nest deeper than 4 or past the

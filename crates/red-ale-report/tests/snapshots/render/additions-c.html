@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+:root{color-scheme:light}
+body{margin:0;padding:24px 32px;background-color:#ffffff;color:#1f2328;line-height:1.35;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+.report{max-width:1200px;margin:0 auto}
+h1.report-title{margin:0 0 4px;font-family:"Noto Sans",sans-serif;font-size:15pt;font-weight:bold;}
+.masthead{margin:0 0 20px;color:#57606a}.masthead p,.colophon p{margin:2px 0}
+.colophon{margin:24px 0 0;padding-top:8px;border-top:1px solid #d0d7de;color:#57606a}
+section{margin:0 0 28px}section>h2{margin:0 0 10px;font-size:1.15em;font-weight:600}
+h3.text-heading{margin:16px 0 6px;font-size:1.05em;font-weight:600}p.note{color:#57606a;font-size:.92em}
+.warning{margin:12px 0;padding:10px 14px;border-left:4px solid #d4a72c;background-color:#fff8c5}.warning h3{margin:0 0 4px;font-size:1em}.warning p{margin:0}
+.table-wrap{overflow-x:auto;margin:0 0 16px}
+table.report-table{border-collapse:separate;border-spacing:0px;border:0px solid #8c959f;border-style:none;}
+table.report-table caption{text-align:left;font-weight:600;padding:0 0 6px}
+table.report-table td,table.report-table th{padding:4px;border:none;vertical-align:top}
+th{font-weight:600;border-bottom:1px solid #8c959f !important;font-family:"Noto Sans",sans-serif;font-size:10pt;}
+th.column-heading-left{text-align:left}th.column-heading-center{text-align:center}th.column-heading-right{text-align:right}
+td.text-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.label-cell{padding-left:calc(4px + var(--depth,0) * 1.25em)}
+td.number-cell,td.total-number-cell{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}td.number-cell{font-family:"Noto Sans",sans-serif;font-size:10pt;}td.total-number-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.total-label-cell{font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}td.centered-label-cell{text-align:center;font-family:"Noto Sans",sans-serif;font-size:12pt;font-weight:bold;}
+td.date-cell{white-space:nowrap}td.align-left{text-align:left}td.align-right{text-align:right}td.align-center{text-align:center}
+.neg{color:#c0392b;}
+.link{font-family:"Noto Sans",sans-serif;font-size:10pt;font-style:italic;}
+tr.role-heading td{font-weight:600}tr.role-spacer td{height:.8em}tr.role-rule hr{border:0;border-top:1px solid #8c959f;margin:0}
+tr.role-subtotal td.total-number-cell{border-top:1px solid #57606a}
+tr.role-total td.total-number-cell,tr.role-grandTotal td.total-number-cell{border-top:3px double #24292f}
+td.rule-above{border-top:1px solid #24292f !important}
+table.commodities{border-collapse:collapse;margin-left:auto}table.commodities td{padding:0 0 0 12px;border:none;text-align:right}
+.group{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:24px;align-items:start}
+figure.chart{margin:0 0 16px}svg.chart{display:block;max-width:100%;font-family:inherit}svg.chart text{fill:#24292f}
+table.options-summary td{padding:2px 12px 2px 0}
+@media print{body{padding:0;background:none;color:#000}tr,td,th{background:none !important}table,figure,.warning{break-inside:avoid}}
+.entries-table > table { width: 100% }
+</style>
+</head>
+<body class="sheet-none">
+<div class="report">
+<section>
+<div class="invoice-title">
+<h3 class="text-heading">Invoice #0001</h3>
+</div>
+<div class="main-table">
+<div class="group">
+<div>
+<p>Acme &amp; Co</p>
+</div>
+<div>
+<div class="picture">
+<img src="file:///home/me/logo&amp;co.png">
+</div>
+</div>
+</div>
+</div>
+<div class="table-wrap entries-table">
+<table class="report-table">
+<thead>
+<tr><th class="column-heading-right">Quantity</th><th class="column-heading-right">Total</th></tr>
+</thead>
+<tbody>
+<tr class="role-data normal-row"><td class="number-cell qty">0.125</td><td class="number-cell">$6.00</td></tr>
+</tbody>
+</table>
+</div>
+<img src="file:///">
+</section>
+</div>
+</body>
+</html>

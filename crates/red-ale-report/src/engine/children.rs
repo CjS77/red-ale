@@ -150,6 +150,7 @@ fn warning(text: impl Into<String>) -> WarningBlock {
     WarningBlock {
         title: REPORT_ERROR.to_owned(),
         text: text.into(),
+        class: None,
     }
 }
 

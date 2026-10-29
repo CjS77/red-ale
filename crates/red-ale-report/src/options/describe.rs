@@ -25,7 +25,8 @@ pub struct OptionInfo {
     /// The sort tag.
     pub key: String,
     /// The type: `boolean`, `string`, `text`, `font`, `color`, `multichoice`, `list`, `numberRange`, `plotSize`,
-    /// `date`, `accountList`, `accountSel`, `currency`, `commodity`, `budget`, `internal` or `reportPlacement`.
+    /// `date`, `accountList`, `accountSel`, `currency`, `commodity`, `budget`, `internal`, `reportPlacement`, and from
+    /// v0.6 `invoice` or `image`.
     #[serde(rename = "type")]
     pub option_type: String,
     /// Help text.
@@ -151,7 +152,9 @@ fn kind_schema(kind: &OptionKind, default: &OptionValue) -> Value {
         | OptionKind::Currency
         | OptionKind::Commodity
         | OptionKind::Budget
+        | OptionKind::Image
         | OptionKind::AccountSel { .. } => json!({ "type": "string" }),
+        OptionKind::Invoice => json!({ "type": ["string", "null"] }),
         OptionKind::Color => json!({ "type": "string", "pattern": "^#?([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$" }),
         OptionKind::Internal => json!({ "type": if matches!(default, OptionValue::Bool(_)) { "boolean" } else { "string" } }),
         OptionKind::Multichoice { choices } => json!({ "enum": keys(choices) }),
