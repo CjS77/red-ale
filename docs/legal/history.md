@@ -15,6 +15,14 @@ and where its source is published.
 
 ## Documents drawn on
 
-None yet. Pages that adapt GnuCash's *Tutorial and Concept Guide* or *Help Manual* name their source section in
-their footer, and those books are listed here, with their copyright notices on
-[Copyright and licence notices](legal/notices), from the first such Page.
+Both are published by the GnuCash Documentation Team at <https://github.com/Gnucash/gnucash-docs> (directories `C/guide`
+and `C/manual`) and are used at the tag 5.17, commit `6627658b6b47bef1e4e89afe2e2cb3af9db938cd`. The Pages that adapt
+them name the section in `from`; `design/gnucash-docs-checklist.md` lists every section and the Pages it went to.
+
+- **GnuCash Tutorial and Concepts Guide**, "The Didactical Documentation", release 5.17, 27 September 2026. Copyright
+  2001-2026. Publisher: The GnuCash Documentation Team. Principal authors, as the book names them: the GnuCash
+  Documentation Team, Yawar Amin, Tom Bullock, Cristian Marchi, Chris Lyttle, Jon Lapham, and Carol Champagne.
+- **GnuCash Help Manual**, release 5.17, 27 September 2026. Copyright 2002-2026. Publisher: The GnuCash Documentation
+  Team. Author, as the book names it: the GnuCash Documentation Team.
+
+Each release of both books lists its authors as "Multiple authors" and its publisher as the GnuCash Documentation Team.

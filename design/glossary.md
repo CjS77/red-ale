@@ -54,8 +54,9 @@ Code names are given in `code font` when they differ from the term.
 |------|---------|
 | **Account** | A named place where Splits are recorded, with one Commodity and one Account type. |
 | **Root account** | The single nameless top of the Account tree (type `ROOT`). Every other Account descends from it. |
-| **Account tree** | The hierarchy of Accounts under the Root account. |
+| **Account tree** | The hierarchy of Accounts under the Root account. **⚠** GnuCash's documentation calls it the *chart of accounts*, a name that elsewhere means a list of accounts with their codes; red-ale says *Account tree* and the Manual's page `concept/chart-of-accounts` explains the other name. |
 | **Account type** | One of `BANK`, `CASH`, `ASSET`, `CREDIT`, `LIABILITY`, `STOCK`, `MUTUAL`, `CURRENCY`, `INCOME`, `EXPENSE`, `EQUITY`, `RECEIVABLE`, `PAYABLE`, `ROOT`, `TRADING`. **⚠** `STOCK` is an account holding a security, not warehouse inventory. **⚠** `CREDIT` is a credit-card account. |
+| **Asset**, **Liability** | **⚠** In bookkeeping, what the business owns and owes, shown on a balance sheet. In red-ale they are also the names of two Account types, `ASSET` and `LIABILITY`, which are only two of the types that hold assets or liabilities: `BANK`, `CASH`, `STOCK` and `RECEIVABLE` are assets, and `CREDIT` and `PAYABLE` are liabilities. Code and the schema mean the Account type; the Manual says which it means. |
 | **Placeholder** | An Account that groups others and accepts no Splits. |
 | **Hidden** | An Account kept but left out of everyday listings. |
 | **Account code** | A free-text code per Account used for sorting and numbering. |
@@ -65,7 +66,7 @@ Code names are given in `code font` when they differ from the term.
 | **Display order** | GnuCash's order of sibling Accounts: code, then type rank, then name, then GUID. **⚠** Not the Book's storage order, which keeps parents before children as read. |
 | **Name violation** | An Account name containing the separator `:`. red-ale refuses new ones and reports existing ones. |
 | **Delete with move** | Deleting an Account while moving its Splits to another Account, or re-parenting its single sub-account, instead of deleting them. |
-| **Accounting period** | Start and end bounds (a relative choice such as *start of this quarter*, or a date) and a fiscal year end. A user setting kept in red-ale's Configuration, not Book data. |
+| **Accounting period** | **⚠** GnuCash's glossary means any span of time (a month, a quarter, a year); red-ale's is a pair of bounds, start and end (each a relative choice such as *start of this quarter*, or a date), and a fiscal year end. A user setting kept in red-ale's Configuration, not Book data. |
 | **Fiscal year end** | The month and day a fiscal year ends, from the Configuration or the Book's `fy_end` slot. |
 | **Account colour** | A display colour for an Account, in its `color` slot, written `rgb(r,g,b)` as GnuCash's account dialog writes it. Unset means GnuCash's default colour. **⚠** The slot key is spelt `color`. |
 | **Balance limit** | A *higher* or *lower* limit on an Account's balance, in Raw sign, in the `balance-limit` Frame. GnuCash warns when the balance crosses one. **⚠** The include-sub-accounts slot is spelt `inlude-sub-accts` in GnuCash's files. |
@@ -104,6 +105,7 @@ Code names are given in `code font` when they differ from the term.
 | **Statement** | One reconciliation's Account, statement date (the last second of the local day), ending balance and include-subaccounts flag. |
 | **Ticked split** | A Split marked to reconcile during a reconciliation. Held by the caller, never by the Book, until the reconciliation finishes. |
 | **Postponed reconciliation** | A reconciliation saved for later: its date and balance in the Account's `reconcile-info/postpone` slots, its ticked Splits cleared. |
+| **Reconciliation** | The umbrella term for checking an Account against a bank statement: it is a *Statement*, whose *Ticked splits* are marked to reconcile, ending in Splits at Reconcile state `y` or in a *Postponed reconciliation*. Not a stored object. |
 | **Repair** | One change a Scrub made, as the scrub methods report it. |
 | **Raw sign** | Debits positive, credits negative: the sign of every reconcile amount. **⚠** GnuCash's flipped sign for credit Accounts is a display preference. |
 | **Closing the books** (`book.closeBooks`) | GnuCash's *Close Book* (Tools ▸ Close Book…): at a closing date, one Closing transaction per Commodity moves the balances of the income Accounts, and another those of the expense Accounts, into an equity Account. **⚠** Not closing a Session (`book.close`): the books stay open and editable. |
@@ -125,7 +127,7 @@ Code names are given in `code font` when they differ from the term.
 | **Commodity** | Anything an Account can hold: a currency or a security. Identified by namespace and mnemonic. |
 | **Namespace** | A Commodity group: `CURRENCY`, an exchange such as `NASDAQ`, or a user-defined one. `template` is reserved. |
 | **Mnemonic** | A Commodity's symbol within its namespace (`USD`, `AAPL`). **⚠** The XML calls it `cmdty:id`, but it is not a GUID. |
-| **Security** | A Commodity outside the `CURRENCY` namespace. |
+| **Security** | A Commodity outside the `CURRENCY` namespace. **⚠** GnuCash's documentation also says *stock*, meaning a share of a company, and `STOCK` is an Account type; red-ale says Security for the Commodity. |
 | **Quote source** | The name, in Finance::Quote's vocabulary, of where a Commodity's online quotes come from (`alphavantage`, `yahoo_json`, `currency`, …), stored on the Commodity in the Book. Says *what* to fetch; a Quote service says *where from*. **⚠** Not a Quote service, and not a Price's source string. |
 | **Quote service** | A web service red-ale fetches quotes from, set in the Configuration: a URL template, a response format, an optional key and a minimum interval between requests. The Configuration maps each Quote source to the Quote services that answer it. Never stored in the Book. See [`api/quotes.md`](api/quotes.md). |
 | **Quote record** | One commodity's answer as GnuCash reads it from Finance::Quote: `success`, `errormsg`, `last`/`nav`/`price`, `currency`, `date` (month/day/year), `inverted`, every value as text. Each Quote service's answer is read into one; prices are built only from quote records (`red_ale_core::ops::quotes::QuoteRecord`). |
@@ -151,6 +153,11 @@ Code names are given in `code font` when they differ from the term.
 |------|---------|
 | **Lot** | A group of Splits in one Account that buy and then sell the same holding. *Closed* when its amount sums to zero. |
 | **Capital gain** | The realised gain or loss of a Lot, recorded as a gains Split in a separate gains Transaction. |
+| **Realised gain** | The same as *Capital gain*. |
+| **Unrealised gain** | What a holding is worth now less its *Cost basis*, before it is sold. Never recorded as a Split. Reports compute it from Prices. |
+| **Cost basis** | What a holding cost, the figure gains are measured against. red-ale reads it from the Lots of an Account and from the Advanced Portfolio and IFRS weighted average cost basis reports. |
+| **Commission** | A broker's fee on a trade. Posted to an expense Account; the Account for it is the *Associated account* with tag `stock-broker-fees`. |
+| **Dividends** | Income paid on a holding. Posted to an income Account; the Account for it is the *Associated account* with tag `stock-dividends`. Accounting vocabulary only, not a type. |
 | **Lot policy** | The rule picking which Lot a selling Split draws from. GnuCash 5.17 uses FIFO. |
 | **Stock split** | A change in the number of shares held with no change in value, recorded as a *stock-split Split*: value `0/1`, action `Split` and slot `split-type = stock-split`. Such Splits never join Lots and never produce gains. |
 | **Adjusted amount** | A Split's Amount restated in the units after any later Stock split in its Account. Lot balances, closure, FIFO and gains use it. New in GnuCash 5.17; never stored in the file. |
@@ -229,7 +236,7 @@ See [`api/import.md`](api/import.md) and [`api/export.md`](api/export.md).
 
 | Term | Meaning |
 |------|---------|
-| **Import** | Reading a file of transactions, accounts, prices, business documents or Owners into the Book, as one of GnuCash's importers does. Each import is one Mutation. |
+| **Import** | Reading a file of transactions (QIF or CSV), accounts, prices, business documents or Owners (CSV) into the Book, as one of GnuCash's importers does. Each import is one Mutation. |
 | **Import proposal** | What `import.preview` returns and the server holds until it is applied, discarded, the book closes or 16 newer ones push it out: every transaction the file holds, each with its Import action, Candidate matches, the account of each Split, any Imbalance and whether it would be read-only by date. Identified by an ID and tied to the Book revision it was made at. It changes nothing until `import.apply`. **⚠** GnuCash has no such object: its matcher window holds the same state in the GUI. |
 | **Imported transaction** | One transaction of an Import proposal, by its index in the file: the Transaction the importer built from the file, not yet in the Book. **⚠** GnuCash's `GNCImportTransInfo`. |
 | **Import action** | What `import.apply` does with one record of an Import proposal. For an Imported transaction: *add* it as a new Transaction; *clear* the existing Transaction it matches; *update* that Transaction from it and clear it; or *skip* it. For accounts, prices, Business documents and Owners: *add*, *update* the existing one (replace a same-day Price) or *skip*. **⚠** GnuCash's GUI calls *update* "update and clear" (`GNCImport_UPDATE`); it is one action, not two. **⚠** *Clear* sets the matched Split's Reconcile state to `c` (cleared); it never deletes anything. |
@@ -252,7 +259,7 @@ See [`reports.md`](reports.md).
 | Term | Meaning |
 |------|---------|
 | **Report template** | A report definition: a GUID, a name, its options and the code that builds its result. Built-in templates keep GnuCash 5.17's names and GUIDs. **⚠** GnuCash also calls saved configurations "custom report templates"; red-ale says *saved report configuration* for those. |
-| **Report script** | A `.rhai` file defining one or more Report templates. *Built-in* scripts are translations of GnuCash's `.scm` files compiled into red-ale; *user* scripts load from the Report directory. |
+| **Report script** | A `.rhai` file defining one or more Report templates. **⚠** GnuCash's reports are Scheme (Guile); red-ale's are Rhai. *Built-in* scripts are translations of GnuCash's `.scm` files compiled into red-ale; *user* scripts load from the Report directory. |
 | **Report directory** | The directory, named in the Configuration, that user Report scripts load from. |
 | **Report option** | One setting of a report, identified by section and name (GnuCash's English strings), with a type, a default and a value. |
 | **Saved report configuration** | A Report template's options saved under a new name and GUID in the Configuration. Stores only what differs from the template's defaults. A *built-in* saved report configuration (v0.6; the Dashboard) is compiled into red-ale instead, under the GUID of the GnuCash menu item it stands for, and is read-only: it is copied, never changed. **⚠** GnuCash's *custom report*; its *saved report* is an open report window, which red-ale does not have. |
@@ -279,6 +286,8 @@ See [`manual.md`](manual.md).
 | **Reference page** | The Page for one method, error code or Report template, generated from the registries and completed by hand. |
 | **Guide** | A Page that shows how to do one task, as a sequence of method calls. |
 | **Concept page** | A Page that explains an idea the methods rely on. |
+| **From GnuCash page** | A Page that maps one part of GnuCash (a menu, a window or an assistant) to the red-ale methods that do the same, with Page IDs of the form `gnucash/<name>`. |
+| **Start page** | The Page, `start`, that says what the Manual is and where to begin. |
 | **Example** | A method call with its params and expected result, inside a Page, that the tests run. **⚠** A test, not sample data. |
 | **User report** | A Report template from a user Report script, written by a user or an agent on their behalf. Most of GnuCash's business and tax reports are left for users to write this way ([`milestone6.md`](milestone6.md)). **⚠** Not GnuCash's *custom report*, which is a Saved report configuration. |
 
