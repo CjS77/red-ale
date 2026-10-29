@@ -3,7 +3,7 @@
 id: gnucash/not-in-red-ale
 title: Not in red-ale
 summary: What GnuCash does that red-ale does not, and what to do instead - the GUI, online banking, OFX and the AqBanking formats, Finance::Quote, PDF export, MySQL and PostgreSQL books, the Python and Guile interfaces, and the business and tax reports that are not ported.
-related: concept/report-scripts, concept/coming-from-gnucash, concept/importing-and-matching, gnucash/stock-assistants, gnucash/reports-menu, gnucash/import-and-export, error/sql-book, method/report.export, method/price.fetchQuotes
+related: concept/report-scripts, concept/coming-from-gnucash, concept/importing-and-matching, gnucash/stock-assistants, gnucash/reports-menu, gnucash/import-and-export, error/sql-book, method/report.export, method/price.fetchQuotes, guide/set-up-accounts, guide/record-prices
 from: guide/ch_python_bindings.docbook#ch_python_bindings
 ---
 red-ale aims at GnuCash's behaviour on your file, driven by a program. Anything that is a window, needs a bank or a

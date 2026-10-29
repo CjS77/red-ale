@@ -3,7 +3,7 @@
 id: concept/configuration
 title: The Configuration
 summary: red-ale's own settings file, for what GnuCash keeps in preferences and user files, against Book options, which live in the book. Where it is, how to read and change a Setting by path, secrets, and the settings you are likely to want.
-related: concept/books-and-files, concept/closing-the-books-and-accounting-period, concept/report-scripts, method/config.get, method/config.set, method/config.schema, method/book.options, method/book.setOptions
+related: concept/books-and-files, concept/closing-the-books-and-accounting-period, concept/report-scripts, method/config.get, method/config.set, method/config.schema, method/book.options, method/book.setOptions, guide/configure-red-ale
 from: manual/ch_Customize.docbook#book-options
 ---
 GnuCash keeps settings in two places. **Preferences** (Edit > Preferences) belong to the person using GnuCash and are kept

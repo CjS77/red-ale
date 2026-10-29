@@ -8,8 +8,8 @@ Concept Guide, `guide`) and `C/manual/` (Help Manual, `manual`). A row is a chap
 Classification: **concept** (explained on a Concept page), **how-to** (a task, covered by a Guide), **gnu-only** (GnuCash's
 windows, menus and assistants, mapped on a From GnuCash page) and **not-in-red-ale** (listed on `gnucash/not-in-red-ale`).
 
-Page IDs: `start` is the Start page. Every Page ID a row lists must exist, except planned Guides, which are listed in
-`docs/coverage-pending.txt` as `guide/<name> checklist` until they are written. A Page that adapts text from a row
+Page IDs: `start` is the Start page. Every Page ID a row lists must exist; one planned but not yet written is a
+pending gap in `docs/coverage-pending.txt`, `<page-id> checklist`. A Page that adapts text from a row
 names it in `from:` as `<book>/<file>#<section id>`, and the row must list that Page. The coverage test
 (`crates/red-ale-rpc/tests/manual_coverage.rs`) reads this table and checks both.
 

@@ -290,8 +290,8 @@ Decided while building `red-ale-docs` and the `help.*` methods ([`api/help.md`](
 - **The checklist** of GnuCash's documentation is `design/gnucash-docs-checklist.md`, not in `docs/`: every Markdown
   file there is a Page, and only the coverage test reads the checklist (`include_str!`), so the site never sees it.
   Each `from` must be `<book>/<file>#<section id>` of a row that lists the Page; and each Page ID a row lists must
-  exist. Guides the checklist plans but nobody has written yet are pending gaps, `guide/<name> checklist`, so writing
-  one fails the test until its line is crossed off.
+  exist. A Page a row names before it is written is a pending gap, `<page-id> checklist`, so writing it fails the
+  test until its line is crossed off (the Guides were, until they were all written).
 - **Glossary terms.** In a Concept page, bold marks a term and italics mark emphasis. Each bold phrase must be
   defined in the glossary, except bold that opens a list item (a label), holds code, ends with `.`, `!`, `?` or `:`
   (a sentence or a lead-in), or runs past four words. The glossary defines a phrase when it is a row's bold name or

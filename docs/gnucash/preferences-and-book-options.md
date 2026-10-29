@@ -3,7 +3,7 @@
 id: gnucash/preferences-and-book-options
 title: Preferences and book options
 summary: GnuCash's Edit > Preferences become Configuration settings read with config.get and changed with config.set; File > Properties (Book Options) become book.options and book.setOptions, with counters in counter.list and counter.set. Preferences about windows, registers and printing have no counterpart.
-related: concept/configuration, concept/closing-the-books-and-accounting-period, concept/importing-and-matching, concept/prices-and-exchange-rates, gnucash/file-menu, method/config.get, method/config.set, method/config.schema, method/book.options, method/book.setOptions
+related: concept/configuration, concept/closing-the-books-and-accounting-period, concept/importing-and-matching, concept/prices-and-exchange-rates, gnucash/file-menu, method/config.get, method/config.set, method/config.schema, method/book.options, method/book.setOptions, guide/set-up-business, guide/configure-red-ale
 from: manual/ch_Customize.docbook#set-prefs
 ---
 GnuCash keeps two kinds of settings. **Preferences** belong to the person and live in GSettings (dconf, the registry or

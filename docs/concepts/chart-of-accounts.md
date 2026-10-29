@@ -3,7 +3,7 @@
 id: concept/chart-of-accounts
 title: The chart of accounts
 summary: The Account tree under the root Account, which GnuCash calls the chart of accounts - names, full names, placeholders, hidden Accounts, codes and how to lay one out.
-related: concept/account-types, concept/transactions-and-splits, method/account.tree, method/account.list, method/account.get, method/account.create
+related: concept/account-types, concept/transactions-and-splits, method/account.tree, method/account.list, method/account.get, method/account.create, guide/set-up-accounts
 from: guide/ch_basics.docbook#basics-accounts2
 ---
 GnuCash calls the whole set of Accounts a book holds its **chart of accounts**; red-ale's term is the **Account

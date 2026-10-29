@@ -3,7 +3,7 @@
 id: concept/coming-from-gnucash
 title: Coming from GnuCash
 summary: What changes if you know GnuCash - no windows, registers or menus, only methods - and GnuCash's words mapped to red-ale's, how the two share books safely, accounts instead of categories, and where the From GnuCash pages are.
-related: concept/books-and-files, concept/value-and-amount, concept/chart-of-accounts, concept/configuration, gnucash/file-menu, gnucash/not-in-red-ale, method/help.search
+related: concept/books-and-files, concept/value-and-amount, concept/chart-of-accounts, concept/configuration, gnucash/file-menu, gnucash/not-in-red-ale, method/help.search, guide/migrate-from-gnucash
 from: guide/ch_oview.docbook#chapter_oview
 ---
 GnuCash is personal finance software made to keep track of anything from a checkbook to a business, with investments,

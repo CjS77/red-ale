@@ -3,7 +3,7 @@
 id: concept/loans-and-interest
 title: Loans and interest
 summary: Principal, interest, compounding and amortisation; how a loan is kept in the books as a liability, the payment formulas red-ale computes exactly, and the loan assistant as scheduledTransaction.loan. There is no loan calculator.
-related: concept/scheduled-transactions, concept/account-types, concept/investments, method/scheduledTransaction.loan, method/scheduledTransaction.create
+related: concept/scheduled-transactions, concept/account-types, concept/investments, method/scheduledTransaction.loan, method/scheduledTransaction.create, guide/track-a-loan, guide/set-up-accounts
 from: guide/ch_loans.docbook#loans_concepts1
 ---
 A loan is a financial arrangement in which someone pays for the use of someone else's money: a credit card, a car loan,

@@ -3,7 +3,7 @@
 id: concept/other-assets-and-depreciation
 title: Other assets and depreciation
 summary: Current and fixed assets, prepaid items and suspense accounts, and depreciation - why, book and tax depreciation, and the linear, geometric and sum-of-digits schemes - recorded with ordinary Accounts and a scheduled transaction.
-related: concept/account-types, concept/scheduled-transactions, concept/lots-and-capital-gains, method/account.create, method/scheduledTransaction.create, method/transaction.post
+related: concept/account-types, concept/scheduled-transactions, concept/lots-and-capital-gains, method/account.create, method/scheduledTransaction.create, method/transaction.post, guide/set-up-accounts, guide/depreciate-an-asset
 from: guide/ch_dep.docbook#dep_concepts1
 ---
 Assets in the balance sheet are grouped by how long they last. Neither group needs a special Account type: use `ASSET`

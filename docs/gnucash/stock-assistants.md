@@ -3,7 +3,7 @@
 id: gnucash/stock-assistants
 title: Stock assistants
 summary: Actions > Stock Split is stock.split. The Stock Transaction assistant (Buy, Sell, Dividend, Return of Capital, Notional Distribution, Reverse Split) is not provided; each of its transactions is a transaction.post, and the recipes below say how.
-related: concept/investments, concept/lots-and-capital-gains, concept/prices-and-exchange-rates, method/stock.split, method/transaction.post, method/lot.computeGains, method/price.add
+related: concept/investments, concept/lots-and-capital-gains, concept/prices-and-exchange-rates, method/stock.split, method/transaction.post, method/lot.computeGains, method/price.add, guide/buy-and-sell-shares, guide/record-dividends
 from: manual/ch_Tools_Assistants.docbook#stock-assistant
 ---
 GnuCash has two assistants for investments, both in **Actions** when the register is a Stock or Mutual Fund Account.

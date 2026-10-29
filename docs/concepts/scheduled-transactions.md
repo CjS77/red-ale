@@ -3,7 +3,7 @@
 id: concept/scheduled-transactions
 title: Scheduled transactions
 summary: A Scheduled transaction is a Transaction that recurs - a schedule of Recurrences, template Transactions with formulas and variables, and Instances created by Since Last Run. red-ale runs Since Last Run only when asked, as a proposal you apply.
-related: concept/loans-and-interest, concept/budgets, method/scheduledTransaction.create, method/scheduledTransaction.sinceLastRun, method/scheduledTransaction.apply, method/scheduledTransaction.occurrences, method/scheduledTransaction.fromTransaction, method/scheduledTransaction.loan
+related: concept/loans-and-interest, concept/budgets, method/scheduledTransaction.create, method/scheduledTransaction.sinceLastRun, method/scheduledTransaction.apply, method/scheduledTransaction.occurrences, method/scheduledTransaction.fromTransaction, method/scheduledTransaction.loan, guide/schedule-a-transaction
 from: manual/ch_Transactions.docbook#trans-sched
 ---
 A **scheduled transaction** is a Transaction that recurs: rent, salary, a loan repayment, a depreciation entry. GnuCash

@@ -3,7 +3,7 @@
 id: concept/closing-the-books-and-accounting-period
 title: Closing the books and the accounting period
 summary: The accounting period (fiscal year bounds, kept in the Configuration) and what book.closeBooks does - one closing Transaction per currency for income and for expenses, moved into equity - and why you rarely need it. Not book.close.
-related: concept/dates-and-time-zones, concept/configuration, concept/account-types, method/book.closeBooks, method/period.get, method/period.set, method/period.dates
+related: concept/dates-and-time-zones, concept/configuration, concept/account-types, method/book.closeBooks, method/period.get, method/period.set, method/period.dates, guide/configure-red-ale
 from: manual/ch_Tools_Assistants.docbook#tool-close-book-workings
 ---
 ## The accounting period

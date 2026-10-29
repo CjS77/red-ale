@@ -3,7 +3,7 @@
 id: concept/importing-and-matching
 title: Importing and matching
 summary: Importing QIF, CSV and business files in two calls - import.preview builds a proposal and changes nothing, import.apply applies your choices - and how the matcher finds duplicates, scores candidates and learns accounts from import maps.
-related: concept/transactions-and-splits, concept/reconciliation, concept/configuration, method/import.preview, method/import.apply, method/import.discard, method/importMap.list, method/importMap.delete
+related: concept/transactions-and-splits, concept/reconciliation, concept/configuration, method/import.preview, method/import.apply, method/import.discard, method/importMap.list, method/importMap.delete, guide/import-transactions
 from: guide/ch_importing.docbook#importing-matcher
 ---
 GnuCash imports transactions from files in the formats QIF, OFX/QFX, CSV, MT940, MT942 and DTAUS. red-ale imports *QIF

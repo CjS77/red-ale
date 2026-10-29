@@ -3,7 +3,7 @@
 id: concept/reports
 title: Reports
 summary: Report templates and their options, the report result and its HTML export, style sheets, saved report configurations and the Multicolumn View - what red-ale ports from GnuCash, and what you write yourself as a User report.
-related: concept/report-scripts, concept/budgets, method/report.list, method/report.options, method/report.run, method/report.export, method/report.exportCsv, method/report.saveConfiguration, method/report.styleSheets
+related: concept/report-scripts, concept/budgets, method/report.list, method/report.options, method/report.run, method/report.export, method/report.exportCsv, method/report.saveConfiguration, method/report.styleSheets, guide/run-and-export-a-report
 from: guide/ch_reports.docbook#rpt_concepts
 ---
 A **report** is a read-only view of your book: balances, income and spending, the holdings of your investments, a

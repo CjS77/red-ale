@@ -4,44 +4,6 @@
 # checks print them (crates/red-ale-docs/src/coverage.rs). The list may only shrink: crates/red-ale-rpc/tests/
 # manual_coverage.rs fails on a gap missing from it and on an entry that is no longer a gap.
 #
-# `checklist` gaps: Guides that design/gnucash-docs-checklist.md plans but that are not written yet. Cross one off
-# when its Guide is.
-guide/back-up-and-recover checklist
-guide/buy-and-sell-shares checklist
-guide/capital-gains-with-lots checklist
-guide/close-the-books checklist
-guide/configure-red-ale checklist
-guide/create-a-budget checklist
-guide/create-open-and-save-a-book checklist
-guide/credit-cards checklist
-guide/depreciate-an-asset checklist
-guide/edit-void-and-reverse-transactions checklist
-guide/employees-and-payroll checklist
-guide/export-data checklist
-guide/find-transactions checklist
-guide/import-business-data checklist
-guide/import-transactions checklist
-guide/invoices-and-bills checklist
-guide/migrate-from-gnucash checklist
-guide/multiple-currencies checklist
-guide/print-an-invoice checklist
-guide/process-payments checklist
-guide/reconcile-an-account checklist
-guide/record-deposits-and-withdrawals checklist
-guide/record-dividends checklist
-guide/record-prices checklist
-guide/report-to-pdf checklist
-guide/run-and-export-a-report checklist
-guide/schedule-a-transaction checklist
-guide/set-up-accounts checklist
-guide/set-up-business checklist
-guide/split-transactions checklist
-guide/stock-splits-and-mergers checklist
-guide/track-a-loan checklist
-guide/transfer-between-accounts checklist
-guide/use-trading-accounts checklist
-guide/write-your-own-report checklist
-#
 # `term` gaps: words a Concept page writes in bold, so as terms, that the glossary does not define. Add the term to
 # design/glossary.md, or write the word without bold if it is not one of red-ale's terms.
 concept/budgets term capital budget
