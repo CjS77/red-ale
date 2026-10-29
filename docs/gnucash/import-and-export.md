@@ -3,7 +3,7 @@
 id: gnucash/import-and-export
 title: Import and export
 summary: GnuCash's File > Import and File > Export mapped to methods - QIF, CSV transactions, accounts, prices, bills and invoices, and customers and vendors through import.preview and import.apply; exports through the export methods. OFX, QFX, MT940 and the AqBanking formats are not supported.
-related: concept/importing-and-matching, gnucash/file-menu, gnucash/not-in-red-ale, method/import.preview, method/import.apply, method/import.discard, method/export.csvTransactions, method/export.csvTree, method/export.accounts, method/book.replayJournal
+related: concept/importing-and-matching, gnucash/file-menu, gnucash/not-in-red-ale, method/import.preview, method/import.apply, method/import.discard, method/export.csvTransactions, method/export.csvTree, method/export.accounts, method/book.replayJournal, guide/import-transactions
 from: guide/ch_importing.docbook#chapter_importing
 ---
 GnuCash imports through assistants that ask you questions as they go. red-ale always works in two steps: a **preview**

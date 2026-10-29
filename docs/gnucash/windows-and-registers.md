@@ -3,7 +3,7 @@
 id: gnucash/windows-and-registers
 title: Windows and registers
 summary: GnuCash's main windows mapped to methods - the Account tree window is account.tree, an Account register is transaction.list and transaction.post, the Reconcile window is reconcile.*, and the report, scheduled transaction, budget and business windows are their own methods. Tabs, toolbars and summary bars have no counterpart.
-related: concept/chart-of-accounts, concept/transactions-and-splits, concept/reconciliation, gnucash/transaction-menu, gnucash/account-menu, gnucash/reports-menu, method/account.tree, method/transaction.list, method/reconcile.start
+related: concept/chart-of-accounts, concept/transactions-and-splits, concept/reconciliation, gnucash/transaction-menu, gnucash/account-menu, gnucash/reports-menu, method/account.tree, method/transaction.list, method/reconcile.start, guide/record-deposits-and-withdrawals
 from: manual/ch_GUIMenus.docbook#gui-windows
 ---
 red-ale has no windows. Each window of GnuCash is a view of the book, and a view is a method that returns the same

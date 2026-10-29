@@ -3,7 +3,7 @@
 id: concept/investments
 title: Investments
 summary: Stocks, mutual funds, bonds and fixed assets in the books - one STOCK or MUTUAL Account per holding, shares as amounts, prices in the price database, income Accounts for dividends and interest, and how fees, dividends and returns are recorded.
-related: concept/lots-and-capital-gains, concept/prices-and-exchange-rates, concept/commodities-and-currencies, concept/value-and-amount, method/commodity.create, method/account.create, method/price.add
+related: concept/lots-and-capital-gains, concept/prices-and-exchange-rates, concept/commodities-and-currencies, concept/value-and-amount, method/commodity.create, method/account.create, method/price.add, guide/buy-and-sell-shares
 from: guide/ch_invest.docbook#invest_concepts1
 ---
 An investment is something you buy hoping to earn from it or sell it for more. This page covers how the books hold the

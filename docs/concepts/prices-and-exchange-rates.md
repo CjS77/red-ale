@@ -3,7 +3,7 @@
 id: concept/prices-and-exchange-rates
 title: Prices and exchange rates
 summary: The price database holds the value of one Commodity in another at a time. Prices, direct and indirect lookup, same-day rules and source rank, and fetching quotes from Quote services when the Configuration allows the network.
-related: concept/commodities-and-currencies, concept/value-and-amount, concept/investments, method/price.add, method/price.list, method/price.nearest, method/price.latest, method/price.fetchQuotes
+related: concept/commodities-and-currencies, concept/value-and-amount, concept/investments, method/price.add, method/price.list, method/price.nearest, method/price.latest, method/price.fetchQuotes, guide/record-prices
 from: guide/ch_invest.docbook#invest-stockprice1
 ---
 An Account that holds shares tracks how many you own; what each share is worth lives in the **price database**. A

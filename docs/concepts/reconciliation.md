@@ -3,7 +3,7 @@
 id: concept/reconciliation
 title: Reconciliation
 summary: Checking an Account against a bank statement. Reconcile states, the statement, ticked Splits, the difference that must reach zero, finishing or postponing, and auto-clear. red-ale keeps no reconcile window - the caller carries the ticks.
-related: concept/transactions-and-splits, method/reconcile.start, method/reconcile.status, method/reconcile.finish, method/reconcile.postpone, method/reconcile.autoClear, method/reconcile.setState
+related: concept/transactions-and-splits, method/reconcile.start, method/reconcile.status, method/reconcile.finish, method/reconcile.postpone, method/reconcile.autoClear, method/reconcile.setState, guide/reconcile-an-account
 from: manual/ch_Account-Actions.docbook#acct-reconcile
 ---
 **Reconciliation** double-checks your records and the bank's: it matches the Transactions in an Account with a

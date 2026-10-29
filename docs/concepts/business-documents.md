@@ -3,7 +3,7 @@
 id: concept/business-documents
 title: Business documents
 summary: Owners (Customers, Vendors, Employees, Jobs) and their invoices, bills and expense vouchers - Entries, tax tables, billing terms, posting to A/Receivable or A/Payable, payments through Lots, credit notes, and printing an invoice.
-related: concept/account-types, concept/lots-and-capital-gains, concept/report-scripts, method/customer.create, method/vendor.create, method/invoice.create, method/invoice.post, method/payment.process, method/taxTable.create, method/billTerm.create
+related: concept/account-types, concept/lots-and-capital-gains, concept/report-scripts, method/customer.create, method/vendor.create, method/invoice.create, method/invoice.post, method/payment.process, method/taxTable.create, method/billTerm.create, guide/invoices-and-bills, guide/employees-and-payroll
 from: guide/ch_bus_features.docbook#bus-intro
 ---
 GnuCash has business features for customers that owe you, vendors you owe and employees you reimburse. For most people

@@ -3,7 +3,7 @@
 id: concept/report-scripts
 title: Report scripts
 summary: User reports - how to write your own report as a .rhai script in the Configuration's report directory. The shape of a script (templates, options, render), option types, the query API's main reads, exact Rational arithmetic, the report result's blocks, limits, library modules and load errors.
-related: concept/reports, concept/configuration, concept/business-documents, method/report.list, method/report.options, method/report.run, method/report.export, method/config.set
+related: concept/reports, concept/configuration, concept/business-documents, method/report.list, method/report.options, method/report.run, method/report.export, method/config.set, guide/print-an-invoice, guide/write-your-own-report
 from: manual/ch_Reports.docbook#report-create
 ---
 red-ale ports the reports GnuCash itself relies on and leaves the rest for you to write: the business and tax reports,

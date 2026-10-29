@@ -3,7 +3,7 @@
 id: concept/trading-accounts
 title: Trading accounts
 summary: With the book option Use Trading Accounts on, every Transaction that crosses Commodities also records what was bought and sold in TRADING Accounts, so amounts balance per Commodity as well as values. What the option does, and what to expect.
-related: concept/value-and-amount, concept/commodities-and-currencies, concept/account-types, method/book.options, method/book.setOptions, method/transaction.post
+related: concept/value-and-amount, concept/commodities-and-currencies, concept/account-types, method/book.options, method/book.setOptions, method/transaction.post, guide/use-trading-accounts
 from: guide/ch_currency.docbook#trading_acct_concepts
 ---
 A Transaction in two Commodities balances by *value* (in the Transaction currency) but not by *amount*: you spent 100

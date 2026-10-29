@@ -3,7 +3,7 @@
 id: gnucash/transaction-menu
 title: Transaction menu and the register
 summary: GnuCash's register and Transaction menu mapped to methods - entering a Transaction is transaction.post, the Transfer dialog is transaction.transfer, and Void, Unvoid, Reverse, Delete, Duplicate, document links and the register's columns each have a method or a stated replacement.
-related: concept/transactions-and-splits, concept/value-and-amount, concept/double-entry, gnucash/windows-and-registers, method/transaction.post, method/transaction.update, method/transaction.transfer, method/transaction.void, method/transaction.reverse
+related: concept/transactions-and-splits, concept/value-and-amount, concept/double-entry, gnucash/windows-and-registers, method/transaction.post, method/transaction.update, method/transaction.transfer, method/transaction.void, method/transaction.reverse, guide/transfer-between-accounts
 from: manual/ch_GUIMenus.docbook#Trans-transaction-menu
 ---
 GnuCash enters Transactions in an Account **register**, a ledger of one Account's Splits. red-ale has no register. You

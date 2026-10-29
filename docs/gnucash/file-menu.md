@@ -3,7 +3,7 @@
 id: gnucash/file-menu
 title: File menu and the New File assistant
 summary: GnuCash's File menu mapped to methods - File > New File is book.create, Open is book.open, Save is book.save, Revert is book.close with discard, Export is the export methods, Properties is book.options. There is no Save As, no Print and no Account templates.
-related: concept/books-and-files, concept/read-only-books, concept/configuration, gnucash/import-and-export, gnucash/windows-and-registers, method/book.create, method/book.open, method/book.save, method/book.close
+related: concept/books-and-files, concept/read-only-books, concept/configuration, gnucash/import-and-export, gnucash/windows-and-registers, method/book.create, method/book.open, method/book.save, method/book.close, guide/set-up-accounts
 from: manual/ch_GUIMenus.docbook#AccTree-file-menu
 ---
 GnuCash's **File** menu opens, saves and exports books. In red-ale every item is a method, and there is no window to

@@ -3,7 +3,7 @@
 id: concept/budgets
 title: Budgets
 summary: A Budget plans an amount per Account for each Budget period. Budget periods, set and unset amounts, natural signs, notes, actuals, estimating from past Transactions, and the budget reports.
-related: concept/reports, concept/scheduled-transactions, method/budget.create, method/budget.setAmounts, method/budget.setNotes, method/budget.estimate, method/budget.get, report/budget-report
+related: concept/reports, concept/scheduled-transactions, method/budget.create, method/budget.setAmounts, method/budget.setNotes, method/budget.estimate, method/budget.get, report/budget-report, guide/create-a-budget
 from: guide/ch_budgets.docbook#budget_concepts1
 ---
 A **budget** is a tool for estimating expected income and expenses. It lets you plan how your finances should change
