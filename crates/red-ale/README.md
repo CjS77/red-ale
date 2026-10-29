@@ -12,9 +12,10 @@ route into red-ale behave the same.
 |------------------------------------------------|---------------------------------------------------------------------------------------------|
 | `red-ale exec --book <file> <method> [params]` | Opens a book, runs one method or a script of them, saves if anything changed, and closes it |
 | `red-ale serve [--book <file>]`                | Keeps a book open and serves the API over HTTP, on `127.0.0.1:7878` by default              |
-| `red-ale mcp [--book <file>]`                  | Serves every method as an MCP tool over standard input and output, for AI agents            |
+| `red-ale mcp [--book <file>]`                  | Serves every method as an MCP tool, and the Manual as resources, over stdio, for AI agents  |
 | `red-ale call <method> [params]`               | Sends one method to a running server                                                        |
-| `red-ale methods`                              | Lists every method, with its effect and a one-line summary                                  |
+| `red-ale methods`                              | Lists every method, with its effect, its Manual Page ID and a one-line summary              |
+| `red-ale help [page]`, `red-ale help --search` | Prints a Page of the Manual (the Start Page by default) as text, or searches the Manual     |
 | `red-ale schema`                               | Prints the API's JSON Schema                                                                |
 
 Params are one JSON object, or `key=value` pairs for text and `key:=json` pairs for anything else. Results go to

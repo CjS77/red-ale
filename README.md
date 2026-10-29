@@ -204,6 +204,8 @@ The server listens on 127.0.0.1 only and has no password. Don't expose it to a n
 
 ## Learn more
 
+- `red-ale help` prints red-ale's Manual: `red-ale help transaction.post` shows what a method is for, with examples
+  as `red-ale exec` command lines, and `red-ale help --search <words>` finds the Page for a question.
 - `red-ale methods` lists every method, with what it does and whether it changes the book.
 - `red-ale schema` prints every method's params and results as JSON Schema.
 - `red-ale mcp` serves the same methods to AI agents as MCP tools; [`design/mcp.md`](design/mcp.md) shows how to set
