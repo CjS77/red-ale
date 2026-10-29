@@ -46,7 +46,7 @@ PV * (1 + i)^n + PMT * (1 + i*X) * ((1 + i)^n - 1) / i + FV = 0
 with *X* 0 for payments at the end of each period and 1 for payments at the beginning. For 100,000 over 30 years at 4%
 compounded monthly, *n* = 360 and *i* = 1/300 per month, so the monthly payment is 477.42.
 
-A **nominal** annual rate must first be turned into the effective rate per payment period: with *CF* compounding
+A *nominal* annual rate must first be turned into the effective rate per payment period: with *CF* compounding
 periods and *PF* payments per year, `ieff = (1 + rate/CF)^(CF/PF) - 1`.
 
 **There is no Loan Repayment Calculator in red-ale.** The same arithmetic is available where it matters, in the

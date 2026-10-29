@@ -6,22 +6,3 @@
 #
 # `term` gaps: words a Concept page writes in bold, so as terms, that the glossary does not define. Add the term to
 # design/glossary.md, or write the word without bold if it is not one of red-ale's terms.
-concept/budgets term capital budget
-concept/budgets term cash budget
-concept/budgets term default budget
-concept/budgets term expense budget
-concept/business-documents term pre-payment
-concept/configuration term Preferences
-concept/dates-and-time-zones term timestamp
-concept/investments term return of capital
-concept/loans-and-interest term nominal
-concept/other-assets-and-depreciation term Current assets
-concept/other-assets-and-depreciation term Depreciation
-concept/other-assets-and-depreciation term Long-term or fixed assets
-concept/prices-and-exchange-rates term direct
-concept/prices-and-exchange-rates term indirect
-concept/reports term Multicolumn View
-concept/reports term options
-concept/reports term relative
-concept/reports term report
-concept/value-and-amount term exact rationals

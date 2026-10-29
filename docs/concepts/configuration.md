@@ -6,7 +6,7 @@ summary: red-ale's own settings file, for what GnuCash keeps in preferences and 
 related: concept/books-and-files, concept/closing-the-books-and-accounting-period, concept/report-scripts, method/config.get, method/config.set, method/config.schema, method/book.options, method/book.setOptions, guide/configure-red-ale
 from: manual/ch_Customize.docbook#book-options
 ---
-GnuCash keeps settings in two places. **Preferences** (Edit > Preferences) belong to the person using GnuCash and are kept
+GnuCash keeps settings in two places. *Preferences* (Edit > Preferences) belong to the person using GnuCash and are kept
 outside the book. **Book options** (File > Properties) belong to the book and travel with it. red-ale keeps the same split.
 
 | | Kept in | Examples | Methods |

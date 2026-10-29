@@ -31,8 +31,8 @@ for a Price at a time:
 
 - **`nearest`** takes the Price closest to the time (the older on a tie), **`before`** the newest at or before it, and
   **`latest`** the newest there is: [`price.nearest`](method/price.nearest) and [`price.latest`](method/price.latest).
-- A **direct** price is one between the two Commodities, in either direction; a Price quoted the other way round is
-  inverted. When there is none, an **indirect** price goes through a third Commodity both are priced in (shares to USD
+- A *direct* price is one between the two Commodities, in either direction; a Price quoted the other way round is
+  inverted. When there is none, an *indirect* price goes through a third Commodity both are priced in (shares to USD
   to EUR). **⚠** For the *latest* lookup GnuCash takes a direct price even if it lies in the future, but an indirect
   one only up to now.
 - With no price at all, the conversion gives nothing: a report shows a zero or leaves the Commodity unconverted rather

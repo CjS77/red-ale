@@ -49,7 +49,7 @@ rewrite what you recorded.
 
 ## Exact numbers
 
-Amounts, values, prices and rates are **exact rationals**, a numerator over a denominator, never floating point. On the
+Amounts, values, prices and rates are *exact rationals*, a numerator over a denominator, never floating point. On the
 wire send one as a decimal string (`"12.34"`), a rational string (`"1234/100"`) or an object
 (`{"num": "1234", "denom": "100"}`); red-ale answers with the object. A JSON number is refused. This holds in every
 door: JSON-RPC, MCP and the CLI.

@@ -57,6 +57,8 @@ Code names are given in `code font` when they differ from the term.
 | **Account tree** | The hierarchy of Accounts under the Root account. **⚠** GnuCash's documentation calls it the *chart of accounts*, a name that elsewhere means a list of accounts with their codes; red-ale says *Account tree* and the Manual's page `concept/chart-of-accounts` explains the other name. |
 | **Account type** | One of `BANK`, `CASH`, `ASSET`, `CREDIT`, `LIABILITY`, `STOCK`, `MUTUAL`, `CURRENCY`, `INCOME`, `EXPENSE`, `EQUITY`, `RECEIVABLE`, `PAYABLE`, `ROOT`, `TRADING`. **⚠** `STOCK` is an account holding a security, not warehouse inventory. **⚠** `CREDIT` is a credit-card account. |
 | **Asset**, **Liability** | **⚠** In bookkeeping, what the business owns and owes, shown on a balance sheet. In red-ale they are also the names of two Account types, `ASSET` and `LIABILITY`, which are only two of the types that hold assets or liabilities: `BANK`, `CASH`, `STOCK` and `RECEIVABLE` are assets, and `CREDIT` and `PAYABLE` are liabilities. Code and the schema mean the Account type; the Manual says which it means. |
+| **Current asset**, **Fixed asset** | **⚠** Bookkeeping groupings of `ASSET` Accounts by how long they last: a year or less, or longer. Not Account types: GnuCash has one `ASSET` type, and the groups are Accounts you name and place in the Account tree. Docs-only. |
+| **Depreciation** | Expensing a capital purchase over its useful life, as a depreciation expense Transaction against an accumulated-depreciation Account. **⚠** GnuCash has no depreciation feature or report; red-ale does not add one, and the Manual's Guide records it with ordinary Transactions or Scheduled transactions. Docs-only. |
 | **Placeholder** | An Account that groups others and accepts no Splits. |
 | **Hidden** | An Account kept but left out of everyday listings. |
 | **Account code** | A free-text code per Account used for sorting and numbering. |
@@ -160,6 +162,7 @@ Code names are given in `code font` when they differ from the term.
 | **Dividends** | Income paid on a holding. Posted to an income Account; the Account for it is the *Associated account* with tag `stock-dividends`. Accounting vocabulary only, not a type. |
 | **Lot policy** | The rule picking which Lot a selling Split draws from. GnuCash 5.17 uses FIFO. |
 | **Stock split** | A change in the number of shares held with no change in value, recorded as a *stock-split Split*: value `0/1`, action `Split` and slot `split-type = stock-split`. Such Splits never join Lots and never produce gains. |
+| **Return of capital** | A distribution from a holding that is not income: it lowers the Cost basis and leaves the number of shares as it was, recorded as a Split of amount `0` and a negative value in the stock Account. GnuCash has no feature for it; the accounting practice is docs-only. |
 | **Adjusted amount** | A Split's Amount restated in the units after any later Stock split in its Account. Lot balances, closure, FIFO and gains use it. New in GnuCash 5.17; never stored in the file. |
 | **Gains transaction** | The Transaction recording a Capital gain, described `Realized Gain/Loss`: a *gains Split* in the Lot (Amount zero, Value the gain, slot `gains-source` naming the selling Split) and a Split in the Gains account. The selling Split names the gains Split in its slot `gains-split`. |
 | **Gains account** | Where a Lot Account's gains go: the Account named by its `lot-mgmt/gains-acct/<currency>` slot, or else an INCOME Account `Orphaned Gains-<CUR>` under the Root account, found by name or created. |
@@ -190,6 +193,7 @@ Code names are given in `code font` when they differ from the term.
 | **Refcount** | How many Customers, Vendors, documents and Entries use a Tax table or Billing term. Frozen copies are never counted. A table or term in use cannot be deleted. |
 | **Frozen copy** | A hidden child copy of a Tax table or Billing term made when a document is posted, so later edits to the original do not change posted documents. **⚠** GnuCash calls it the *child*. |
 | **Payment lot** | A Lot in the A/R or A/P Account holding a payment not yet matched to a document. A *pre-payment lot* is one made before the document existed. |
+| **Pre-payment** | A payment made before the document it settles exists, or larger than the documents it settles: it leaves a *pre-payment lot* (a Payment lot) that GnuCash finds again by the Lot's Owner when the document arrives (`5.17:libgnucash/engine/gncOwner.c:718`). |
 | **Lot link** | A Transaction of type `L` that moves value between Lots of one Owner to settle documents against payments or credits. |
 | **Duplicate** | A new unposted document copied from another, with the next number, a new date for it and its Entries, and GnuCash's other resets. |
 | **Credit note** | A document that reverses an invoice, bill or expense voucher of its kind: its `credit-note` slot is 1, its Entries store their quantity negated, and posting it moves the A/R or A/P balance the other way. Making one sets the Book feature `Credit Notes`. |
@@ -205,6 +209,7 @@ See [`notes/engine-budgets.md`](notes/engine-budgets.md).
 |------|---------|
 | **Recurrence** | A step repeated from a start Date: a multiplier, a *period type* (`once`, `day`, `week`, `month`, `end of month`, `nth weekday`, `last weekday`, `year`) and a *weekend adjustment* (`none`, `back` to the Friday, `forward` to the Monday; GnuCash sets one only on monthly and yearly types). Every 3 months from 2024-01-31, say. A Budget has one; a scheduled transaction's schedule is a list of them. |
 | **Budget** | A named plan of amounts per Account and Budget period: a description, a number of periods, a Recurrence giving the periods, and Slots holding its Budget amounts and Budget notes. A Book may hold several; its `Default Budget` option names the one reports start from. |
+| **Default budget** | The Budget reports start from: the one named by the `Default Budget` Book option, else the Book's first (`5.17:libgnucash/engine/qofbookslots.h:70`, `5.17:libgnucash/engine/qofbook.cpp:176`). |
 | **Budget period** | One of a Budget's periods, numbered from 0. Period *p* runs from the Recurrence's *p*-th occurrence to the day before the next. **⚠** Not the *Accounting period*, which is a Configuration setting and has nothing to do with budgets. |
 | **Budget amount** | The amount planned for one Account in one Budget period, kept as written (no rounding to the SCU) in the Budget's `<account-guid>/<period>` Slot. It is *set* or *unset*: an explicit zero is set, and only an unset amount lets a report sum the Account's children instead. **⚠** Unset is not zero, though GnuCash reads both as 0. |
 | **Budget note** | Free text for one Account in one Budget period, in the Budget's `notes/<account-guid>/<period>` Slot. An empty note reads as no note. |
@@ -259,6 +264,7 @@ See [`reports.md`](reports.md).
 | Term | Meaning |
 |------|---------|
 | **Report template** | A report definition: a GUID, a name, its options and the code that builds its result. Built-in templates keep GnuCash 5.17's names and GUIDs. **⚠** GnuCash also calls saved configurations "custom report templates"; red-ale says *saved report configuration* for those. |
+| **Report** | A read-only view of a Book made by running a Report template with its Report options: it never changes the Book. What it gives is a Report result. |
 | **Report script** | A `.rhai` file defining one or more Report templates. **⚠** GnuCash's reports are Scheme (Guile); red-ale's are Rhai. *Built-in* scripts are translations of GnuCash's `.scm` files compiled into red-ale; *user* scripts load from the Report directory. |
 | **Report directory** | The directory, named in the Configuration, that user Report scripts load from. |
 | **Report option** | One setting of a report, identified by section and name (GnuCash's English strings), with a type, a default and a value. |
@@ -272,6 +278,7 @@ See [`reports.md`](reports.md).
 | **Display rounding** | Rounding a figure to its Commodity's SCU with banker's rounding, only to show it, as GnuCash's report renderer does. |
 | **Exchange method** | How a report converts other Commodities to the report currency: the *Price Source* option (average cost, weighted average, or the Price database before, nearest to or latest at the report date). **⚠** Not a Price's source string (see *Price source rank*). |
 | **Style sheet** | A named set of presentation options from a *style sheet template* (Plain, CSS, Easy, Fancy, Footer, Head or Tail), applied when a Report result is rendered as HTML. |
+| **Multicolumn View** | The Report template (`d8ba4a2e89e8479ca9f6eccdeb164588`) that puts several reports, templates or saved report configurations, on one page (`5.17:gnucash/report/reports/standard/view-column.scm:182`). |
 | **Report settings** | The Configuration's `reports` values standing in for GnuCash preferences reports read: report currency, reversed-balance accounts, date format, week start, limits. |
 
 ## The Manual
