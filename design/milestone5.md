@@ -261,3 +261,7 @@ As v0.2 and v0.4 did for reports ([`reports.md`](reports.md) §13):
   byte-exact.
 - **`setup` updates through a Harness CLI are remove then add.** If the add fails after the remove, the Harness is
   left with no red-ale entry; the error names the failing command, but the old entry is not restored.
+- **Report functions that reuse an engine function's name.** A report script's function is found before the engine's
+  inside the libraries it imports too, so a report `fn abs(x)` would replace `abs` there (Rhai 1.27,
+  `func/script.rs:377`). The load check refuses clashes between scripts, not with registered or standard-package
+  functions; it could, with Rhai's `metadata` feature enabled outside tests. A dependency change of its own.
