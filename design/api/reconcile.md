@@ -124,8 +124,9 @@ call**, and nothing is kept in the server or the session.
 ### Postpone (`recnPostponeCB`, `window-reconcile.cpp:2482-2510`)
 
 - **Splits:** every listed split posted on or before the statement date, or ticked, becomes `c` if ticked and `n` if
-  not. This un-clears cleared splits left unticked, as GnuCash does (`reconcile-view.c:961-998`). Later unticked
-  splits are left alone.
+  not. This un-clears cleared splits left unticked, as GnuCash does (`reconcile-view.c:988-995`): such a split is
+  pre-ticked when the window opens, so in GnuCash it goes back to `n` only if the user unticks it; in red-ale, if
+  `ticked` leaves it out. Later unticked splits are left alone, cleared or not.
 - **The account:** `postpone/date` and `postpone/balance` are written; `last-date` is not touched. `include-children`
   and `last-interval` are recorded as described under "Start records" below.
 - **Result:** the splits whose state changed.

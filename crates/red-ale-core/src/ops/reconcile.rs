@@ -780,6 +780,26 @@ mod tests {
         );
     }
 
+    /// `gnc_reconcile_view_postpone` sets a split only if it is ticked or posted on or before the statement date
+    /// (`5.17:gnucash/gnome/reconcile-view.c:988-995`): an unticked cleared split in the statement goes back to `n`,
+    /// and a later one stays cleared.
+    #[test]
+    fn postpone_unclears_unticked_splits_up_to_the_statement_date_only() {
+        let mut f = fixture();
+        let early = pay(&mut f, day(2024, 6, 3), 500);
+        let late = pay(&mut f, day(2024, 7, 20), 100);
+        [early, late]
+            .into_iter()
+            .for_each(|s| set_split_state(&mut f.book, &mut f.env, s, ReconcileState::Cleared, None).unwrap());
+        let st = statement(&f, day(2024, 6, 30), -500);
+        let p = postpone(&mut f.book, &st, &[]).unwrap();
+        assert_eq!(
+            p.changed.iter().map(|c| (c.split, c.from, c.to)).collect::<Vec<_>>(),
+            [(early, ReconcileState::Cleared, ReconcileState::New)]
+        );
+        assert_eq!(state(&f.book, late).0, ReconcileState::Cleared);
+    }
+
     #[test]
     fn default_ending_balance_is_the_balance_before_the_statement_end() {
         let mut f = fixture();
