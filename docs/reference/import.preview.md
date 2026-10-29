@@ -18,8 +18,8 @@ transaction, with `matches` to choose from). A transaction that does not balance
 it adds an `Imbalance-<CUR>` split, and the proposal flags it with `imbalance` beforehand. Rows that cannot be imported
 are listed in `errors` with GnuCash's own messages and are left out.
 
-Proposal IDs (`imp-1`, …) count up in each server process, so a proposal made before the book was opened, or pushed out
-by 16 newer ones, is gone. Applying a proposal made at an older revision of the book is refused.
+Proposal IDs (`imp-1`, …) count up from 1 in each server and are never reused while it runs, so a proposal made before
+the book was opened, or pushed out by 16 newer ones, is gone. Applying a proposal made at an older revision of the book is refused.
 
 ## Examples
 

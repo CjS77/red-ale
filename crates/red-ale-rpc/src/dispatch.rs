@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use red_ale_core::{Book, DomainResult, Env, TimeZone};
 use red_ale_quotes::fetch::Hosts;
+use red_ale_service::proposals::ProposalIds;
 use red_ale_service::session::{EnvDebug, SystemEnv};
 use red_ale_service::{ServiceError, Session, Settings};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
@@ -130,6 +131,8 @@ pub struct Context {
     quote_notifier: Option<Notifier>,
     /// The hosts Quote fetches may ask.
     pub(crate) quote_hosts: Hosts,
+    /// The server's proposal IDs, which every session it installs numbers its proposals from.
+    proposal_ids: ProposalIds,
 }
 
 impl std::fmt::Debug for Context {
@@ -157,7 +160,8 @@ impl Context {
         self.session.is_some()
     }
 
-    /// Install a newly opened session, giving it the configured environment. Fails if one is open.
+    /// Install a newly opened session, giving it the configured environment and the server's proposal IDs. Fails if
+    /// one is open.
     pub fn install(&mut self, mut session: Session) -> Result<&mut Session, RpcError> {
         if let Some(open) = &self.session {
             return Err(ServiceError::AlreadyOpen {
@@ -165,6 +169,7 @@ impl Context {
             }
             .into());
         }
+        session.number_proposals_from(&self.proposal_ids);
         if let Some(factory) = &self.env_factory {
             session.set_env_boxed(factory());
         }
@@ -262,6 +267,7 @@ impl Dispatcher {
             quote_fetches: QuoteFetches::default(),
             quote_notifier: None,
             quote_hosts: Hosts::Any,
+            proposal_ids: ProposalIds::new(),
         };
         Self { ctx, methods }
     }

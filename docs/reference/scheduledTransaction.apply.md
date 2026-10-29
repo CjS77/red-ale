@@ -27,10 +27,18 @@ refused:
 {"error": {"code": 2000, "message": "…", "data": {"kind": "sinceLastRunProposal", "id": "slr-999999", "help": "error/not-found"}}}
 ```
 
-A run with a monthly rent scheduled since May, ignoring May's instance (proposal IDs count up from 1 in each server
-process, so this is shown, not run as an Example):
+A run with a monthly rent scheduled since May, ignoring May's instance. Proposal IDs count up from `slr-1` in each
+server:
 
-```json
+```example
+{"method": "account.create", "params": {"name": "Checking", "type": "BANK", "commodity": "USD"}}
+{"result": "…"}
+{"method": "account.create", "params": {"name": "Rent", "type": "EXPENSE", "commodity": "USD"}}
+{"result": "…"}
+{"method": "scheduledTransaction.create", "params": {"name": "Monthly rent", "startDate": "2024-05-01", "schedule": [{"mult": 1, "periodType": "month"}], "templateTransactions": [{"description": "Rent", "splits": [{"account": "Rent", "debitFormula": "750"}, {"account": "Checking", "creditFormula": "750"}]}]}}
+{"result": "…"}
+{"method": "scheduledTransaction.sinceLastRun", "params": {}}
+{"result": {"id": "slr-1", "…": "…"}}
 {"method": "scheduledTransaction.apply", "params": {"proposal": "slr-1", "choices": [{"index": 0, "state": "ignored"}]}}
-{"result": {"created": [{"index": 1, "date": "2024-06-01", "transactions": ["…"]}, {"index": 2, "date": "2024-07-01", "transactions": ["…"]}], "ignored": [0], "postponed": [], "reminders": [], "schedules": [{"lastOccurrence": "2024-07-01", "instanceCount": 4, "…": "…"}], "imbalanceSplits": [], "warnings": []}}
+{"result": {"created": [{"index": 1, "date": "2024-06-01", "transactions": ["…"], "…": "…"}, {"index": 2, "date": "2024-07-01", "transactions": ["…"], "…": "…"}], "ignored": [0], "postponed": [], "reminders": [], "schedules": [{"lastOccurrence": "2024-07-01", "instanceCount": 4, "…": "…"}], "imbalanceSplits": [], "warnings": []}}
 ```

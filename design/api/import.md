@@ -50,7 +50,9 @@ There is no employee import: GnuCash has none (`5.17:gnucash/import-export/custo
 3. **`import.apply`** applies the proposal with those changes as **one Mutation**: everything or nothing.
 
 The server holds each proposal by ID until it is applied, discarded, pushed out by 16 newer ones, or the book closes
-([`../milestone3.md`](../milestone3.md), "Decided"). A proposal records the **Book revision** it was made at: the
+([`../milestone3.md`](../milestone3.md), "Decided"). Its ID is `imp-<n>`, numbered from 1 by the server (one counter
+with `slr-<n>`) and never reused while it runs, so one from a book closed since is never taken for a new one; a new
+server, such as each Example of the Manual, starts again at `imp-1`. A proposal records the **Book revision** it was made at: the
 number of Mutations the Session has applied. `import.apply` refuses it with `conflict` if the revision has moved, so a
 proposal is never applied to a Book it was not computed from. Applying one is itself a Mutation, so the other
 proposals held become stale.

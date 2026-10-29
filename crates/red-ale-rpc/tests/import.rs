@@ -340,6 +340,22 @@ fn a_stale_proposal_is_a_conflict_and_a_discarded_one_is_gone() {
     );
 }
 
+/// IDs are numbered by the server from 1, so a new server's first proposal is always `imp-1`, and are never reused
+/// while it runs, so one from a book closed since is never mistaken for one of the book open now.
+#[test]
+fn proposal_ids_count_from_one_in_each_server_and_survive_a_reopen() {
+    let mut a = Book::new();
+    let mut b = Book::new();
+    assert_eq!(a.preview(MARCH, bank_layout())["id"], "imp-1");
+    assert_eq!(b.preview(MARCH, bank_layout())["id"], "imp-1");
+    assert_eq!(b.preview(MARCH, bank_layout())["id"], "imp-2");
+    b.ok("book.close", json!({ "save": true }));
+    let path = b.dir.path().join("book.gnucash").display().to_string();
+    b.ok("book.open", json!({ "path": path }));
+    assert_eq!(b.err("import.apply", json!({ "proposal": "imp-1" })).code, codes::NOT_FOUND);
+    assert_eq!(b.preview(MARCH, bank_layout())["id"], "imp-3");
+}
+
 #[test]
 fn seventeen_previews_push_out_the_first() {
     let mut b = Book::new();
