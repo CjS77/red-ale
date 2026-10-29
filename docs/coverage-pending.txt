@@ -3,26 +3,6 @@
 # Gaps in the Manual known to be open while it is being written: one per line, `<page-id> <what>`, as the coverage
 # checks print them (crates/red-ale-docs/src/coverage.rs). The list may only shrink: crates/red-ale-rpc/tests/
 # manual_coverage.rs fails on a gap missing from it and on an entry that is no longer a gap.
-method/budget.copy example
-method/budget.copy text
-method/budget.create example
-method/budget.create text
-method/budget.delete example
-method/budget.delete text
-method/budget.estimate example
-method/budget.estimate text
-method/budget.get example
-method/budget.get text
-method/budget.list example
-method/budget.list text
-method/budget.scrubSigns example
-method/budget.scrubSigns text
-method/budget.setAmounts example
-method/budget.setAmounts text
-method/budget.setNotes example
-method/budget.setNotes text
-method/budget.update example
-method/budget.update text
 method/export.accounts example
 method/export.accounts text
 method/export.csvTransactions example
