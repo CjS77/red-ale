@@ -3,9 +3,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use red_ale_docs::method_page_id;
+use red_ale_rpc::manual::manual;
 use red_ale_rpc::{Dispatcher, Effect};
 use rmcp::model::{JsonObject, Tool, ToolAnnotations};
 use serde_json::{Map, Value, json};
+
+use crate::manual::{ToolDescriptions, tool_description};
 
 /// The method the dispatcher answers itself, outside its registry and so outside the schema document's method list.
 const API_SCHEMA: &str = "api.schema";
@@ -14,8 +18,9 @@ const API_SCHEMA_SUMMARY: &str = "The API's schema document: every method with i
 /// Where the schema document keeps its shared definitions, as a `$ref` prefix.
 const DEFS: &str = "#/$defs/";
 
-/// Every method of `dispatcher` as an MCP tool, `api.schema` included, in the registry's order.
-pub fn tools(dispatcher: &Dispatcher) -> Vec<Tool> {
+/// Every method of `dispatcher` as an MCP tool, `api.schema` included, in the registry's order, each described as
+/// `descriptions` asks, from its Reference page.
+pub fn tools(dispatcher: &Dispatcher, descriptions: ToolDescriptions) -> Vec<Tool> {
     let schema = dispatcher.schema();
     let defs = schema.get("$defs").and_then(Value::as_object).cloned().unwrap_or_default();
     let params: BTreeMap<&str, &Value> = schema
@@ -27,13 +32,21 @@ pub fn tools(dispatcher: &Dispatcher) -> Vec<Tool> {
         .collect();
     dispatcher
         .methods()
-        .map(|m| tool(m.name, m.summary, m.effect, input_schema(params.get(m.name).copied(), &defs)))
-        .chain(std::iter::once(tool(API_SCHEMA, API_SCHEMA_SUMMARY, Effect::Read, no_params())))
+        .map(|m| {
+            let description = tool_description(m.summary, manual().get(&method_page_id(m.name)), descriptions);
+            tool(m.name, description, m.effect, input_schema(params.get(m.name).copied(), &defs))
+        })
+        .chain(std::iter::once(tool(
+            API_SCHEMA,
+            API_SCHEMA_SUMMARY.to_owned(),
+            Effect::Read,
+            no_params(),
+        )))
         .collect()
 }
 
-fn tool(name: &'static str, summary: &'static str, effect: Effect, input_schema: JsonObject) -> Tool {
-    Tool::new(name, summary, Arc::new(input_schema)).with_annotations(annotations(effect))
+fn tool(name: &'static str, description: String, effect: Effect, input_schema: JsonObject) -> Tool {
+    Tool::new(name, description, Arc::new(input_schema)).with_annotations(annotations(effect))
 }
 
 /// MCP's hints, from the Effect alone. `destructiveHint` means something only when `readOnlyHint` is false.

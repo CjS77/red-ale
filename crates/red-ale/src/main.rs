@@ -13,10 +13,11 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context as _, Result, bail};
 use base64::Engine as _;
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::core::params::ObjectParams;
 use jsonrpsee::http_client::HttpClientBuilder;
+use red_ale_mcp::ToolDescriptions;
 use red_ale_rpc::{Dispatcher, RpcError};
 use red_ale_service::Settings;
 use red_ale_service::config::ConfigStore;
@@ -117,8 +118,28 @@ struct McpArgs {
     /// Open the book read-only.
     #[arg(long, requires = "book")]
     read_only: bool,
+    /// How much each tool's description says: `full`, the method's summary with the lead of its Manual page and the
+    /// Page ID (about 60 words at most), or `short`, the summary only, for clients short of context.
+    #[arg(long, value_enum, default_value_t = ToolDescriptionsArg::Full)]
+    tool_descriptions: ToolDescriptionsArg,
     #[command(flatten)]
     settings: SettingsArgs,
+}
+
+/// `--tool-descriptions`.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ToolDescriptionsArg {
+    Full,
+    Short,
+}
+
+impl From<ToolDescriptionsArg> for ToolDescriptions {
+    fn from(arg: ToolDescriptionsArg) -> Self {
+        match arg {
+            ToolDescriptionsArg::Full => Self::Full,
+            ToolDescriptionsArg::Short => Self::Short,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -393,7 +414,8 @@ fn mcp(args: &McpArgs) -> Result<Option<RpcError>> {
     let runtime = tokio::runtime::Runtime::new()?;
     let outcome = runtime.block_on(async {
         tokio::select! {
-            served = red_ale_mcp::serve_stdio(dispatcher.clone(), max_request_bytes) => served.map_err(anyhow::Error::from),
+            served = red_ale_mcp::serve_stdio(dispatcher.clone(), max_request_bytes, args.tool_descriptions.into()) =>
+                served.map_err(anyhow::Error::from),
             signalled = shutdown_signal() => signalled,
         }
     });

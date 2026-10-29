@@ -1812,6 +1812,7 @@ dependencies = [
  "clap",
  "jsonrpsee",
  "red-ale-core",
+ "red-ale-docs",
  "red-ale-mcp",
  "red-ale-rpc",
  "red-ale-service",
@@ -1885,6 +1886,7 @@ dependencies = [
 name = "red-ale-mcp"
 version = "0.5.0"
 dependencies = [
+ "red-ale-docs",
  "red-ale-rpc",
  "red-ale-testkit",
  "rmcp",

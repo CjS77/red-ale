@@ -1,27 +1,27 @@
-//! The MCP server handler: lists the tools and runs each call through the dispatcher.
+//! The MCP server handler: lists the tools and the Manual's resources, runs each call through the dispatcher and reads
+//! each resource from the Manual.
 
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+use red_ale_rpc::manual::manual;
 use red_ale_rpc::{Dispatcher, Origin, RpcError, codes};
 use rmcp::ServerHandler;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData, Implementation, ListToolsResult,
-    PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerConfig, Tool,
+    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData, Implementation, ListResourceTemplatesResult,
+    ListResourcesResult, ListToolsResult, PaginatedRequestParams, ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse,
+    ReadResourceResult, ServerCapabilities, ServerConfig, Tool,
 };
 use rmcp::service::{QuitReason, RequestContext, RoleServer, ServerInitializeError, ServiceExt};
 use rmcp::transport::async_rw::{AsyncRwTransport, DEFAULT_MAX_LINE_LENGTH};
 use serde_json::{Map, Value, json};
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::manual::{self as pages, ToolDescriptions};
 use crate::tools;
 
 /// The MCP revision red-ale is designed and tested against; it negotiates this one or an earlier one.
 const PROTOCOL: ProtocolVersion = ProtocolVersion::V_2025_11_25;
-
-const INSTRUCTIONS: &str = "red-ale edits GnuCash books. Open one with book.open or book.create first. Changes stay in memory \
-    (and the book's journal) until book.save. Amounts are strings such as \"12.34\" or {\"num\": \"1234\", \"denom\": \"100\"}, \
-    never JSON numbers. api.schema describes every tool's params and results.";
 
 /// Errors serving MCP.
 #[derive(Debug, thiserror::Error)]
@@ -47,12 +47,19 @@ impl McpServer {
     /// stored as soon as its requests are done.
     pub fn new(dispatcher: Arc<Mutex<Dispatcher>>) -> Self {
         red_ale_rpc::quote_fetches::settle_when_fetched(&dispatcher);
-        let tools = tools::tools(&lock(&dispatcher)).into();
+        let tools = tools::tools(&lock(&dispatcher), ToolDescriptions::Full).into();
         Self {
             dispatcher,
             tools,
             max_request_bytes: DEFAULT_MAX_LINE_LENGTH,
         }
+    }
+
+    /// The same server, its tools described as `descriptions` asks (`red-ale mcp --tool-descriptions`).
+    #[must_use]
+    pub fn with_tool_descriptions(mut self, descriptions: ToolDescriptions) -> Self {
+        self.tools = tools::tools(&lock(&self.dispatcher), descriptions).into();
+        self
     }
 
     /// The same server, accepting messages of up to `bytes` (the Configuration's `mcp.maxRequestBytes`) instead of
@@ -85,7 +92,9 @@ fn lock(dispatcher: &Mutex<Dispatcher>) -> MutexGuard<'_, Dispatcher> {
 
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerConfig {
-        let mut info = ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(INSTRUCTIONS);
+        let capabilities = ServerCapabilities::builder().enable_resources().enable_tools().build();
+        let mut info = ServerConfig::new(capabilities);
+        info.instructions = pages::instructions(manual());
         info.protocol_version = PROTOCOL;
         info.server_info = Implementation::new("red-ale", env!("CARGO_PKG_VERSION"));
         info
@@ -118,6 +127,33 @@ impl ServerHandler for McpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("the call did not finish: {e}"), None))?;
         Ok(tool_result(outcome).into())
+    }
+
+    fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourcesResult, ErrorData>> + Send + '_ {
+        std::future::ready(Ok(ListResourcesResult::with_all_items(pages::resources(manual()))))
+    }
+
+    fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourceTemplatesResult, ErrorData>> + Send + '_ {
+        std::future::ready(Ok(ListResourceTemplatesResult::with_all_items(pages::templates())))
+    }
+
+    fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ReadResourceResponse, ErrorData>> + Send + '_ {
+        let read = pages::read(manual(), &request.uri)
+            .map(|contents| ReadResourceResult::new(vec![contents]).into())
+            .ok_or_else(|| ErrorData::resource_not_found(format!("no Page of the Manual at {}", request.uri), None));
+        std::future::ready(read)
     }
 }
 
