@@ -3,22 +3,6 @@
 # Gaps in the Manual known to be open while it is being written: one per line, `<page-id> <what>`, as the coverage
 # checks print them (crates/red-ale-docs/src/coverage.rs). The list may only shrink: crates/red-ale-rpc/tests/
 # manual_coverage.rs fails on a gap missing from it and on an entry that is no longer a gap.
-method/export.accounts example
-method/export.accounts text
-method/export.csvTransactions example
-method/export.csvTransactions text
-method/export.csvTree example
-method/export.csvTree text
-method/import.apply example
-method/import.apply text
-method/import.discard example
-method/import.discard text
-method/import.preview example
-method/import.preview text
-method/importMap.delete example
-method/importMap.delete text
-method/importMap.list example
-method/importMap.list text
 method/report.createStyleSheet example
 method/report.createStyleSheet text
 method/report.deleteConfiguration example
