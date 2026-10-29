@@ -6,7 +6,8 @@ and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has
 
 ## 0.5.0 - Unreleased
 
-Milestone 5 ([`design/milestone5.md`](design/milestone5.md)), in progress.
+Milestone 5 ([`design/milestone5.md`](design/milestone5.md)): ledgers, statements, analysis and investment reports,
+the Multicolumn View, and distribution. `redAleApi` is 0.5.0, additive over 0.4.0.
 
 ### Added
 
