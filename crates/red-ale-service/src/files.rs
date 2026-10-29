@@ -39,8 +39,12 @@ pub fn local_timestamp() -> String {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
-    crate::zone::local_zone()
-        .to_local(red_ale_core::Time64(now))
+    timestamp_at(red_ale_core::Time64(now), crate::zone::local_zone())
+}
+
+/// [`local_timestamp`] at `now` in `zone`, for a session whose clock is not the system's.
+pub fn timestamp_at(now: red_ale_core::Time64, zone: &red_ale_core::TimeZone) -> String {
+    zone.to_local(now)
         .map_or_else(|| "19700101000000".to_owned(), red_ale_core::time::LocalTime::compact)
 }
 

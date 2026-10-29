@@ -92,6 +92,24 @@ fn describe_first(session: &mut Session, text: &str) {
         .unwrap();
 }
 
+/// The journal is named by the session's clock and zone, as GnuCash names it by the time it opens the log, so a
+/// session with a fixed clock writes a journal whose name is known beforehand.
+#[test]
+fn the_journal_is_named_by_the_sessions_clock() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = copy_to(dir.path(), "synthetic/rich.gnucash");
+    let mut session = Session::open(path.to_str().unwrap(), false, Settings::default()).unwrap();
+    // 2024-07-01T12:00:00Z, which is 08:00 in New York.
+    let zone = red_ale_core::TimeZone::from_gnucash_posix("EST-5EDT,M3.2.0,M11.1.0").unwrap();
+    session.set_env(FixedEnv::new(Time64(1_719_835_200), 1 << 100).with_zone(zone));
+    describe_first(&mut session, "First");
+    assert_eq!(
+        session.journal_path().unwrap(),
+        PathBuf::from(format!("{}.20240701080000.log", path.display()))
+    );
+    session.close(false).unwrap();
+}
+
 #[test]
 fn an_sqlite_session_journals_backs_up_once_and_saves() {
     let dir = tempfile::tempdir().unwrap();

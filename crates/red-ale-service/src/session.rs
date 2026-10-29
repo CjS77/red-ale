@@ -385,9 +385,11 @@ impl Session {
             self.backend.check_storable(&self.book, &next)?;
             journal_records(&self.book, &next, &changes, self.env.now())
         };
+        let now = self.env.now();
+        let zone = self.env.zone();
         records
             .iter()
-            .try_for_each(|lines| self.journal.write_record(lines))
+            .try_for_each(|lines| self.journal.write_record(lines, now, zone))
             .map_err(|e| self.io_error(e))?;
         self.book = next;
         self.dirty = true;

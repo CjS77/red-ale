@@ -21,3 +21,23 @@ fails with `io-error`, and nothing is changed:
 {"method": "book.replayJournal", "params": {"path": "missing.log"}}
 {"error": {"code": 1008, "message": "…", "data": {"path": "…", "help": "error/io-error"}}}
 ```
+
+A transaction posted and then lost, because the book was closed without saving, comes back from the journal. The
+journal is named by the local time it was opened at, here `book.gnucash.20240701120000.log`:
+
+```example now=2024-07-01T12:00:00Z
+{"method": "account.create", "params": {"name": "Checking", "type": "BANK", "commodity": "USD"}}
+{"result": "…"}
+{"method": "account.create", "params": {"name": "Rent", "type": "EXPENSE", "commodity": "USD"}}
+{"result": "…"}
+{"method": "book.save", "params": {}}
+{"result": "…"}
+{"method": "transaction.post", "params": {"datePosted": "2024-07-01", "description": "Rent", "splits": [{"account": "Checking", "value": "-750.00"}, {"account": "Rent", "value": "750.00"}]}}
+{"result": {"guid": "…", "…": "…"}}
+{"method": "book.close", "params": {"discard": true}}
+{"result": "…"}
+{"method": "book.open", "params": {"path": "book.gnucash"}}
+{"result": {"counts": {"transactions": 0, "…": "…"}, "…": "…"}}
+{"method": "book.replayJournal", "params": {"path": "book.gnucash.20240701120000.log"}}
+{"result": {"created": ["…"], "updated": [], "deleted": [], "notFound": [], "…": "…"}}
+```

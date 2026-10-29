@@ -10,9 +10,9 @@ use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use chrono::DateTime;
-use red_ale_core::{Book, Guid, Numeric, Time64, Transaction};
+use red_ale_core::{Book, Guid, Numeric, Time64, TimeZone, Transaction};
 
-use crate::files::local_timestamp;
+use crate::files::timestamp_at;
 
 /// The header line, without its newline.
 pub const HEADER: &str = "mod\ttrans_guid\tsplit_guid\ttime_now\tdate_entered\tdate_posted\tacc_guid\tacc_name\tnum\tdescription\tnotes\tmemo\taction\treconciled\tamount\tvalue\tdate_reconciled";
@@ -107,10 +107,10 @@ impl Journal {
         self.file.as_ref().map(|(p, _)| p.as_path())
     }
 
-    fn open(&mut self) -> io::Result<&mut BufWriter<File>> {
+    fn open(&mut self, now: Time64, zone: &TimeZone) -> io::Result<&mut BufWriter<File>> {
         if self.file.is_none() {
             let mut name = self.book_path.as_os_str().to_owned();
-            name.push(format!(".{}.log", local_timestamp()));
+            name.push(format!(".{}.log", timestamp_at(now, zone)));
             let path = PathBuf::from(name);
             let mut writer = BufWriter::new(OpenOptions::new().create(true).append(true).open(&path)?);
             writeln!(writer, "{HEADER}")?;
@@ -124,9 +124,9 @@ impl Journal {
         }
     }
 
-    /// Append one record and flush it.
-    pub fn write_record(&mut self, lines: &[String]) -> io::Result<()> {
-        let writer = self.open()?;
+    /// Append one record and flush it. A new file is named by `now` in `zone`, the local time it was opened at.
+    pub fn write_record(&mut self, lines: &[String], now: Time64, zone: &TimeZone) -> io::Result<()> {
+        let writer = self.open(now, zone)?;
         writeln!(writer, "===== START")?;
         lines.iter().try_for_each(|l| writeln!(writer, "{l}"))?;
         writeln!(writer, "===== END")?;
