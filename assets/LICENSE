@@ -1,0 +1,21 @@
+Assets in this directory
+=======================
+
+The images whose names begin with `naomi` (the "Naomi" character artwork):
+
+    naomi-call.png
+    naomi-call_120.png
+    naomi-chewing-pencil.jpeg
+    naomi-chewing-pencil_120.png
+    naomi_desk.webp
+    naomi_profile1.webp
+    naomi_profile1_120.png
+
+are used with the permission of the copyright holder (https://github.com/CjS77). They are not covered by
+red-ale's GPL-3.0-or-later licence: copyright in them remains with their
+author, and permission to use them here does not extend to redistribution
+elsewhere.
+
+Everything else in this directory is part of red-ale and is licensed under the
+GNU General Public License, version 3 or later, as the repository's LICENSE
+file says.
