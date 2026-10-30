@@ -4,6 +4,16 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## 0.6.3 - 2026-10-30
+
+`redAleApi` is unchanged at 0.6.0.
+
+### Fixed
+
+- The Manual's site asked for its images at root-absolute `/assets/…`, so they 404ed on the GitHub Pages project site
+  at `/red-ale/`. `red-ale-manual build` gains a `--base` option, the deploy passes the repository's name, and the
+  images are now served from `/red-ale/assets/…`.
+
 ## 0.6.2 - 2026-10-30
 
 `redAleApi` is unchanged at 0.6.0.
