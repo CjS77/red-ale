@@ -16,6 +16,117 @@
       });
   })();
 
+  // "Watch the walkthrough" opens the asciinema recording in a modal dressed as a
+  // CRT television. The player's script is loaded on the first open, so it does
+  // not autoplay while hidden, and its iframe is reloaded on later opens.
+  (function () {
+    var trigger = document.getElementById('watch-walkthrough');
+    var modal = document.getElementById('walkthrough-modal');
+    if (!trigger || !modal) return;
+    var player = document.getElementById('walkthrough-player');
+    var closeButton = modal.querySelector('.crt-close');
+    var lastFocus = null;
+    var cast = null;
+    var CAST_URL = 'https://asciinema.org/a/5txiC2VGTCcgyNB4.cast';
+    var PLAYER_CSS = 'https://cdn.jsdelivr.net/npm/asciinema-player@3.17.0/dist/bundle/asciinema-player.min.css';
+    var PLAYER_JS = 'https://cdn.jsdelivr.net/npm/asciinema-player@3.17.0/dist/bundle/asciinema-player.min.js';
+
+    function addPlayerStyle() {
+      if (document.querySelector('link[data-asciinema-player]')) return;
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = PLAYER_CSS;
+      link.dataset.asciinemaPlayer = '';
+      document.head.appendChild(link);
+    }
+
+    function createPlayer() {
+      if (!window.AsciinemaPlayer || !player) return;
+      cast = window.AsciinemaPlayer.create(CAST_URL, player, {
+        autoplay: true,
+        controls: true,
+        fit: 'width',
+        preload: true,
+        theme: 'solarized-dark'
+      });
+      if (modal.hidden) cast.pause();
+    }
+
+    function fallbackPlayer() {
+      if (!player || player.querySelector('iframe')) return;
+      var frame = document.createElement('iframe');
+      frame.src = 'https://asciinema.org/a/5txiC2VGTCcgyNB4/iframe?autoplay=1';
+      frame.title = 'Walkthrough';
+      frame.setAttribute('allowfullscreen', '');
+      player.appendChild(frame);
+    }
+
+    function loadPlayer() {
+      if (!player) return;
+      if (cast) { cast.seek(0); cast.play(); return; }
+      if (player.dataset.loaded === '1') return;
+      player.dataset.loaded = '1';
+      addPlayerStyle();
+      var script = document.createElement('script');
+      script.src = PLAYER_JS;
+      script.async = true;
+      script.addEventListener('load', createPlayer);
+      script.addEventListener('error', fallbackPlayer);
+      document.head.appendChild(script);
+    }
+
+    function open() {
+      lastFocus = document.activeElement;
+      modal.hidden = false;
+      document.body.classList.add('crt-open');
+      loadPlayer();
+      if (closeButton) closeButton.focus();
+    }
+
+    function close() {
+      if (modal.hidden) return;
+      modal.hidden = true;
+      document.body.classList.remove('crt-open');
+      if (cast && typeof cast.pause === 'function') cast.pause();
+      if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+    }
+
+    function focusable() {
+      return Array.prototype.slice.call(
+        modal.querySelectorAll('button, [href], iframe, input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ).filter(function (node) {
+        return !node.disabled && node.offsetParent !== null;
+      });
+    }
+
+    function onKey(event) {
+      if (modal.hidden) return;
+      if (event.key === 'Escape') { event.preventDefault(); close(); return; }
+      if (event.key !== 'Tab') return;
+      var nodes = focusable();
+      if (!nodes.length) return;
+      var first = nodes[0];
+      var last = nodes[nodes.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    trigger.addEventListener('click', function (event) {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      open();
+    });
+    modal.querySelectorAll('[data-crt-close]').forEach(function (node) {
+      node.addEventListener('click', close);
+    });
+    document.addEventListener('keydown', onKey);
+  })();
+
   var STEPS = [
     {
       num: '01', label: 'Open a new book',

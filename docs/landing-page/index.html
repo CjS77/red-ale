@@ -50,7 +50,7 @@
                     your own programs over JSON-RPC, or hand the ledger to AI agents over MCP. Anything it saves, GnuCash 5.17 opens with no
                     warnings and no lost data.</p>
                 <div class="cta-row">
-                    <a class="btn btn-ghost" href="#demo">Watch the walkthrough</a>
+                    <a class="btn btn-ghost" id="watch-walkthrough" href="#demo" aria-haspopup="dialog">Watch the walkthrough</a>
                     <div class="stamp">100% GNUCASH COMPATIBLE</div>
                 </div>
             </div>
@@ -345,6 +345,26 @@ $ red-ale exec --create --book home.gnucash book.info
         </div>
     </div>
 </footer>
+
+<!-- The walkthrough, in a modal dressed as a CRT television; script.js loads the asciinema player when it opens. -->
+<div class="crt-modal" id="walkthrough-modal" hidden>
+    <div class="crt-backdrop" data-crt-close></div>
+    <div class="crt-dialog" role="dialog" aria-modal="true" aria-label="Walkthrough">
+        <div class="crt-tv">
+            <div class="crt-top">
+                <span class="crt-brand">red-ale</span>
+                <div class="crt-top-right">
+                    <span class="crt-channel">CH 03</span>
+                    <button type="button" class="crt-close" data-crt-close aria-label="Close the walkthrough">Close</button>
+                </div>
+            </div>
+            <div class="crt-screen">
+                <div class="crt-player" id="walkthrough-player"></div>
+                <div class="crt-scanlines" aria-hidden="true"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script src="script.js"></script>
 </body>
