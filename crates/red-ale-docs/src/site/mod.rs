@@ -2,8 +2,9 @@
 //! returns the files and the caller writes them.
 //!
 //! The landing page is the site's `index.html`; its `styles.css` and `script.js` dress every other page too. The pages
-//! ask for their images at `/assets/…`; the caller copies the repository's `assets/` beside the site, so the site is
-//! served from a domain's root.
+//! ask for their images at `/assets/…`, which [`Manual::site`] rewrites to sit under the base the site is served at;
+//! the caller copies the repository's `assets/` beside the site. With base `/` the site is served from a domain's root;
+//! with a base like `/repo` it is served from a sub-path, as GitHub Pages serves a project site at `user.github.io/repo`.
 //!
 //! Layout: `index.html` is the landing page (`docs/landing-page/`); the Start Page is `start.html`; every other Page is
 //! `<page id>.html`; each kind has `<kind>/index.html`; `search.html` with `search.js` and `search-index.js`;
@@ -82,9 +83,25 @@ fn relative(from: &str, to: &str) -> String {
     format!("{}{to}", "../".repeat(from.matches('/').count()))
 }
 
+/// The URL prefix the pages ask for their images at, with the base the site is served at taken off: `/assets` at the
+/// root, or `/repo/assets` under `/repo`. `base` is like `/` or `/repo`, a trailing `/` ignored.
+fn assets_base(base: &str) -> String {
+    format!("{}/assets", base.trim_end_matches('/'))
+}
+
+/// A site file a browser fetches by URL, whose asset links must sit under the site's base: the HTML pages and the
+/// scripts.
+fn asset_link_hosts(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("html") || ext.eq_ignore_ascii_case("js"))
+}
+
 impl Manual {
     /// The static site: every file, sorted by path. `schema` is the `api.schema` document, published as `schema.json`.
-    pub fn site(&self, schema: &Value) -> Vec<SiteFile> {
+    /// `base` is the URL path the site is served at, `/` for a domain's root; the asset links `/assets/…` are rewritten
+    /// to sit under it, so a site at `/repo` asks for `/repo/assets/…`.
+    pub fn site(&self, schema: &Value, base: &str) -> Vec<SiteFile> {
         let mut files: Vec<SiteFile> = self
             .pages()
             .iter()
@@ -102,6 +119,12 @@ impl Manual {
                 SiteFile::text("llms-full.txt", llms::full(self)),
             ])
             .collect();
+        let assets = format!("{}/", assets_base(base));
+        files.iter_mut().filter(|f| asset_link_hosts(&f.path)).for_each(|f| {
+            if let Ok(text) = std::str::from_utf8(&f.bytes) {
+                f.bytes = text.replace("/assets/", &assets).into_bytes();
+            }
+        });
         files.sort_by(|a, b| a.path.cmp(&b.path));
         files
     }

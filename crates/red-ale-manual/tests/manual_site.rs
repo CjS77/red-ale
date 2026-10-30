@@ -26,7 +26,7 @@ fn text(path: &str) -> &'static str {
 }
 
 fn files() -> Vec<SiteFile> {
-    manual().site(&Dispatcher::new(Settings::default()).schema())
+    manual().site(&Dispatcher::new(Settings::default()).schema(), "/")
 }
 
 fn is_html(path: &str) -> bool {
@@ -246,6 +246,28 @@ fn the_images_the_pages_ask_for_are_copied_beside_the_site() {
     wanted
         .iter()
         .for_each(|link| assert!(target.join(link).is_file(), "{link} is not copied"));
+}
+
+#[test]
+fn a_base_path_rewrites_the_asset_links_under_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("site");
+    let out = Command::new(BIN)
+        .arg("build")
+        .arg("--base")
+        .arg("/red-ale")
+        .arg(&target)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(target.join("assets/logo.webp").is_file(), "assets are still copied beside the site");
+    let landing = std::fs::read_to_string(target.join("index.html")).unwrap();
+    assert!(landing.contains("src=\"/red-ale/assets/logo.webp\""), "the landing page");
+    assert!(!landing.contains("src=\"/assets/"), "no root-absolute asset link is left");
+    let script = std::fs::read_to_string(target.join("script.js")).unwrap();
+    assert!(script.contains("fetch('/red-ale/assets/wordmark.svg')"), "script.js");
+    let page = std::fs::read_to_string(target.join("method/book.open.html")).unwrap();
+    assert!(page.contains("src=\"/red-ale/assets/logo.webp\""), "a page in a sub-directory");
 }
 
 #[test]

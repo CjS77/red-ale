@@ -1,4 +1,5 @@
-//! `red-ale-manual build <dir>`: red-ale's Manual as a static website (`design/manual.md`, "The static site").
+//! `red-ale-manual build <dir> [--base /repo]`: red-ale's Manual as a static website
+//! (`design/manual.md`, "The static site").
 //!
 //! It is a binary of its own because it is built from a checked-out source tree: the landing page in
 //! `docs/landing-page/` is compiled in, and the images in `assets/` are copied beside the site. An installed `red-ale`
@@ -32,13 +33,17 @@ enum Command {
     Build {
         /// Where to write the site.
         dir: PathBuf,
+        /// The URL path the site is served at: `/` for a domain's root (the default), or `/repo` for a GitHub Pages
+        /// project site at `user.github.io/repo`, which serves it at `/repo/`. The asset links are written under it.
+        #[arg(long, default_value = "/")]
+        base: String,
     },
 }
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let outcome = match cli.command {
-        Command::Build { dir } => build(&dir),
+        Command::Build { dir, base } => build(&dir, &base),
     };
     match outcome {
         Ok(()) => ExitCode::SUCCESS,
@@ -49,9 +54,12 @@ fn main() -> ExitCode {
     }
 }
 
-fn build(dir: &Path) -> Result<()> {
+fn build(dir: &Path, base: &str) -> Result<()> {
+    if !base.starts_with('/') {
+        bail!("--base must start with '/', as GitHub Pages serves a project site at /repo");
+    }
     ensure_empty(dir)?;
-    let files = manual().site(&Dispatcher::new(Settings::default()).schema());
+    let files = manual().site(&Dispatcher::new(Settings::default()).schema(), base);
     files.iter().try_for_each(|file| write(dir, file))?;
     let assets = copy_assets(dir)?;
     println!("wrote {} files and {assets} assets to {}", files.len(), dir.display());
@@ -78,7 +86,7 @@ fn write(dir: &Path, file: &SiteFile) -> Result<()> {
     std::fs::write(&path, &file.bytes).with_context(|| format!("cannot write {}", path.display()))
 }
 
-/// The repository's `assets/`, which the pages ask for at `/assets/…`.
+/// The repository's `assets/`, which the pages ask for under the site's base.
 fn assets() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets")
 }

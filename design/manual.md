@@ -156,10 +156,11 @@ The adapter stays thin. It still has no logic of its own; it adds MCP's own ways
 
 ### The static site
 
-`red-ale-manual build <dir>` writes the website from the same Manual: the landing page as its main page, one HTML file
-per Page, an index per kind and a search page. It also writes:
+`red-ale-manual build <dir> --base /<repo>` writes the website from the same Manual: the landing page as its main page,
+one HTML file per Page, an index per kind and a search page. It also writes:
 - `styles.css` and `script.js`, the landing page's, which dress every page;
-- `assets/`, a copy of the repository's images, which the pages ask for at `/assets/…`;
+- `assets/`, a copy of the repository's images, which the pages ask for under the site's base (`/assets/…` at the
+  root, `/repo/assets/…` under `/repo`);
 - `schema.json`, the `api.schema` document;
 - `llms.txt`, an index of Page IDs, titles and summaries with links, for LLMs reading the site;
 - `llms-full.txt`, every Page as Markdown in one file.
@@ -176,7 +177,7 @@ Markdown becomes HTML through `pulldown-cmark` (MIT). CI builds the site for eac
 the release.
 
 What was settled in building it:
-- **The generator is `Manual::site(&schema)` in `red-ale-docs`**: it returns `SiteFile { path, bytes }` sorted by path and
+- **The generator is `Manual::site(&schema, base)` in `red-ale-docs`**: it returns `SiteFile { path, bytes }` sorted by path and
   does no I/O. `red-ale-manual` writes them and copies `assets/` beside them (a directory that holds anything is
   refused).
 - **Layout.** `index.html` is the landing page, `docs/landing-page/index.html`, compiled in; it is a template whose
@@ -185,8 +186,9 @@ What was settled in building it:
   `start.html`; every other Page is `<page id>.html` (`method/transaction.post.html`); each kind but Start has
   `<kind>/index.html` (methods grouped by namespace); then `search.html`, `search.js`, `search-index.js`, `styles.css`,
   `script.js`, `schema.json`, `llms.txt`, `llms-full.txt`, and `assets/`. Links between Pages are relative, so the site
-  works from a sub-path; images are asked for at `/assets/…`, so the site is served from a domain's root, as GitHub
-  Pages serves it.
+  works from a sub-path; images are asked for at `/assets/…`, which `site` rewrites under the base the site is served
+  at — `/` for a domain's root, or `/repo` for a GitHub Pages project site at `user.github.io/repo`, which serves it
+  at `/repo/`.
 - **Markdown.** `pulldown-cmark` with tables, its `html` feature on. Raw HTML in a source becomes text. Headings get
   ids from their text (`request-parameters`, a repeat `-2`). A link whose target is a Page ID, with an optional
   `#anchor`, points at that Page's file.
@@ -208,8 +210,9 @@ What was settled in building it:
 - **Licence.** Each Page's footer carries the licence line and links `legal/notices` and `legal/gfdl`; the notices,
   History and licence are Pages of the site, so they are carried in full.
 - **Deployment.** `.github/workflows/manual.yml` builds with the tagged release's binary on a `vX.Y.Z` tag and deploys
-  with `actions/deploy-pages`. A run by hand builds only, unless its `publish` input is ticked. Each deployment replaces
-  the site, so the latest release is what is published.
+  with `actions/deploy-pages`, passing the base `/<repo>` that GitHub Pages serves a project site at. A run by hand
+  builds only, unless its `publish` input is ticked. Each deployment replaces the site, so the latest release is what
+  is published.
 
 ## Writing it
 
