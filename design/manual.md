@@ -57,7 +57,7 @@ So `red-ale-rpc` can depend on it to serve the `help.*` methods without a cycle.
                                              ├─► help.* methods (JSON-RPC, so MCP tools and CLI too)
                                              ├─► MCP resources and instructions
                                              ├─► red-ale help (terminal text)
-                                             └─► red-ale manual build (static site, llms.txt)
+                                             └─► red-ale-manual build (static site, llms.txt)
 ```
 
 ### Sources
@@ -156,27 +156,37 @@ The adapter stays thin. It still has no logic of its own; it adds MCP's own ways
 
 ### The static site
 
-`red-ale manual build <dir>` writes the website from the same Manual: one HTML file per Page, an index per kind and
-a search page. It also writes:
+`red-ale-manual build <dir>` writes the website from the same Manual: the landing page as its main page, one HTML file
+per Page, an index per kind and a search page. It also writes:
+- `styles.css` and `script.js`, the landing page's, which dress every page;
+- `assets/`, a copy of the repository's images, which the pages ask for at `/assets/…`;
 - `schema.json`, the `api.schema` document;
 - `llms.txt`, an index of Page IDs, titles and summaries with links, for LLMs reading the site;
 - `llms-full.txt`, every Page as Markdown in one file.
 
-The site follows the report renderer's rules ([`reports.md`](reports.md) §8):
-- one stylesheet;
-- no script except an optional search page;
-- deterministic bytes, so a rebuild with no changes is a no-op.
+It is its own binary, not a `red-ale` subcommand, because it is built from a checked-out source tree: the landing page
+in `docs/landing-page/` is compiled in and `assets/` is copied from the tree, and an installed `red-ale` has neither.
+
+The site keeps the report renderer's determinism ([`reports.md`](reports.md) §8): the same bytes on every build, so a
+rebuild with no changes is a no-op. It does not keep its "one stylesheet, no script" rule: it is the landing page
+that is published, so it carries the landing page's stylesheet, its script and its web fonts (from Google Fonts, the
+one thing fetched from another site).
 
 Markdown becomes HTML through `pulldown-cmark` (MIT). CI builds the site for each release; the published site matches
 the release.
 
 What was settled in building it:
 - **The generator is `Manual::site(&schema)` in `red-ale-docs`**: it returns `SiteFile { path, bytes }` sorted by path and
-  does no I/O. The binary writes them (`red-ale manual build <dir>`, which refuses a directory that holds anything).
-- **Layout.** The Start Page is `index.html`; every other Page is `<page id>.html` (`method/transaction.post.html`); each
-  kind but Start has `<kind>/index.html` (methods grouped by namespace); then `search.html`, `search.js`,
-  `search-index.js`, `style.css`, `schema.json`, `llms.txt`, `llms-full.txt`. Every link is relative, so the site works
-  from `file://` and from a sub-path.
+  does no I/O. `red-ale-manual` writes them and copies `assets/` beside them (a directory that holds anything is
+  refused).
+- **Layout.** `index.html` is the landing page, `docs/landing-page/index.html`, compiled in; it is a template whose
+  `{{version}}` and `{{release-status}}` are filled in from the crate's version and the release's status (`Beta` until
+  one is declared stable); the Start Page is
+  `start.html`; every other Page is `<page id>.html` (`method/transaction.post.html`); each kind but Start has
+  `<kind>/index.html` (methods grouped by namespace); then `search.html`, `search.js`, `search-index.js`, `styles.css`,
+  `script.js`, `schema.json`, `llms.txt`, `llms-full.txt`, and `assets/`. Links between Pages are relative, so the site
+  works from a sub-path; images are asked for at `/assets/…`, so the site is served from a domain's root, as GitHub
+  Pages serves it.
 - **Markdown.** `pulldown-cmark` with tables, its `html` feature on. Raw HTML in a source becomes text. Headings get
   ids from their text (`request-parameters`, a repeat `-2`). A link whose target is a Page ID, with an optional
   `#anchor`, points at that Page's file.
@@ -185,11 +195,13 @@ What was settled in building it:
 - **Search.** `search-index.js` is `window.redAleIndex = [...]` (a script, because a browser will not `fetch` a file
   from a `file://` page), one entry per Page: `id`, `title`, `summary`, `kind`, and `terms`, the distinct stemmed words
   of the Page in one string. `search.js` (about 90 lines) matches every query word against title, Page ID, summary and
-  terms, and ranks by where it matched. It is the only script, loaded only by `search.html`, which points to the indexes
-  when scripts are off. The ranking is simpler than `help.search`'s BM25F.
-- **Look.** One stylesheet, system fonts, light and dark by `prefers-color-scheme`, a single column that works at phone
-  width, tables and code that scroll inside the page, a skip link and `aria-current` in the header. Nothing is
-  requested from another site.
+  terms, and ranks by where it matched. It is loaded only by `search.html`, which points to the indexes when scripts
+  are off. The ranking is simpler than `help.search`'s BM25F.
+- **Look.** The landing page's: the paper and ink palette, Big Shoulders Display, IBM Plex Sans and IBM Plex Mono, the
+  ruled background, the pint and wordmark in the header and footer, cards, stamps and ink code blocks. Every page
+  carries the same header with the Manual's parts and `aria-current`, and the same footer with the brand, the site's
+  links and the page's licence. `script.js` injects the wordmark's three parts on every page and drives the landing
+  page's walkthrough; the search page adds its own two scripts.
 - **`llms.txt`** follows the llms.txt convention: title, summary, then a link, title and summary for every Page by kind,
   and an Optional section. **`llms-full.txt`** is every Page as Markdown with Examples as JSON-RPC, each Page ending with
   its licence notice.

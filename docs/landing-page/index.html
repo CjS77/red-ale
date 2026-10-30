@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>red-ale — GnuCash books, kept by machines</title>
+    <meta name="description"
+          content="red-ale reads and edits GnuCash books without the GnuCash program. Give an AI agent the reins over MCP, script it from the command line or drive it over JSON-RPC.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- `{{version}}` and `{{release-status}}` are replaced with red-ale's version and release status when the site is built by `red-ale-manual`. -->
+
+<!-- red-ale wordmark: its three parts (red, ale, dot) are loaded from assets/wordmark.svg by script.js and injected into each .wordmark, so CSS can colour them separately -->
+
+<header class="site-header">
+    <nav class="nav container" aria-label="Main">
+        <a class="brand" href="#top" aria-label="red ale — home">
+            <img class="brand-pint" src="/assets/logo.webp" alt="" width="33" height="48">
+            <svg class="wordmark wordmark-nav" viewBox="38 82 664 182" role="img" aria-label="red ale"></svg>
+        </a>
+        <div class="nav-links">
+            <a href="#what">01 What it does</a>
+            <a href="#install">02 Install</a>
+            <a href="#demo">03 Demo</a>
+            <a href="start.html">Manual</a>
+            <a class="nav-github" href="https://github.com/CjS77/red-ale">GitHub</a>
+        </div>
+    </nav>
+</header>
+
+<main>
+    <!-- HERO -->
+    <section id="top" class="ruled section">
+        <div class="hero-inner container">
+            <div class="hero-copy">
+                <div class="badges">
+                    <span class="badge">v{{version}} {{release-status}}</span>
+                    <span class="badge badge-rust">Rust · GPL-3.0</span>
+                </div>
+                <h1 class="hero-title">Scriptable GnuCash.
+                    <span>Made for agents.</span>
+                </h1>
+                <p class="hero-lede">red-ale reads and edits GnuCash books without the GnuCash program. Drive it from the command line, from
+                    your own programs over JSON-RPC, or hand the ledger to AI agents over MCP. Anything it saves, GnuCash 5.17 opens with no
+                    warnings and no lost data.</p>
+                <div class="cta-row">
+                    <a class="btn btn-ghost" href="#demo">Watch the walkthrough</a>
+                    <div class="stamp">100% GNUCASH COMPATIBLE</div>
+                </div>
+            </div>
+
+            <div class="hero-art-wrap">
+                <img src="/assets/naomi_desk.webp" width="640" alt="accountant at desk">
+            </div>
+
+            <div class="cmd-bar">
+                <span class="prompt">$</span>
+                <span>curl -fsSL https://github.com/CjS77/red-ale/releases/latest/download/install.sh | sh</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- NAME STRIP -->
+    <section class="name-strip" aria-label="About the name">
+        <div class="name-strip-inner container">
+            <div class="name-brand">
+                <img class="brand-pint" src="/assets/logo.webp" alt="" width="44" height="64">
+                <svg class="wordmark wordmark-strip" viewBox="38 82 664 182" role="img" aria-label="red ale"></svg>
+            </div>
+            <p class="name-line"><span>red</span> = Rust</p>
+            <p class="name-line"><span>ale</span> = Assets = Liabilities + Equity</p>
+        </div>
+    </section>
+
+    <!-- WHAT IT DOES -->
+    <section id="what" class="section">
+        <div class="section-inner container">
+            <div class="what-head">
+                <div class="section-head">
+                    <p class="eyebrow">01 — What it does</p>
+                    <h2 class="section-title">GnuCash, without the windows.</h2>
+                    <p class="section-sub">Script your bookkeeping, build tools on top of your GnuCash books, or let AI agents do it for
+                        you. Talk to red-ale like you talk to your accountant.</p>
+                </div>
+                <div class="stamp">AI READY</div>
+            </div>
+
+            <div class="what-grid">
+                <div class="ledger">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">No.</th>
+                            <th scope="col">Entry</th>
+                            <th scope="col">Covers</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="num">101</td>
+                            <td class="entry">Accounts &amp; transactions</td>
+                            <td>Accounts, transactions, voids, reversals, transfers and reconciling</td>
+                            <td class="status"><span class="tag">POSTED</span></td>
+                        </tr>
+                        <tr>
+                            <td class="num">102</td>
+                            <td class="entry">Investments</td>
+                            <td>Commodities, currencies, prices, lots, capital gains and stock splits</td>
+                            <td class="status"><span class="tag">POSTED</span></td>
+                        </tr>
+                        <tr>
+                            <td class="num">103</td>
+                            <td class="entry">Business</td>
+                            <td>Customers, vendors, employees, jobs, invoices, bills, expense vouchers, orders, tax tables, billing terms
+                                and payments
+                            </td>
+                            <td class="status"><span class="tag">POSTED</span></td>
+                        </tr>
+                        <tr>
+                            <td class="num">104</td>
+                            <td class="entry">Check &amp; Repair</td>
+                            <td>The same checks and repairs as GnuCash's Check &amp; Repair</td>
+                            <td class="status"><span class="tag">POSTED</span></td>
+                        </tr>
+                        <tr>
+                            <td class="num">105</td>
+                            <td class="entry">Safekeeping</td>
+                            <td>GnuCash's backups, its <code>.log</code> journal and its lock, so two programs never write the same book
+                            </td>
+                            <td class="status"><span class="tag">POSTED</span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <aside class="not-yet">
+                    <h3>GnuCash?</h3>
+                    <ul>
+                        <li>Double-entry accounting</li>
+                        <li>Battle-tested since 1998</li>
+                        <li>Multi-currency</li>
+                        <li>For individuals to SMEs</li>
+                    </ul>
+                    <p>Red-ale runs on your existing GnuCash DBs</p>
+                </aside>
+            </div>
+        </div>
+    </section>
+
+    <!-- STAFF -->
+    <section class="staff section" aria-labelledby="staff-h">
+        <div class="section-inner container">
+            <div class="section-head">
+                <p class="eyebrow">Staffing the back office</p>
+                <h2 class="section-title" id="staff-h">Three clerks. One ledger. Zero windows.</h2>
+            </div>
+            <div class="staff-grid">
+
+                <article class="staff-card">
+                    <img src="/assets/naomi-chewing-pencil_120.png" width="120" alt="agent1"/>
+                    <p class="staff-role">The Clerk</p>
+                    <h3 class="staff-cmd">red-ale exec</h3>
+                    <p>Runs one method or a whole script from the command line.</p>
+                </article>
+
+                <article class="staff-card">
+                    <img src="/assets/naomi_profile1_120.png" width="120" alt="agent2"/>
+                    <p class="staff-role">The Teller</p>
+                    <h3 class="staff-cmd">red-ale serve</h3>
+                    <p>Open a book and handle JSON-RPC from <code>curl</code>, any program you write.</p>
+                </article>
+
+                <article class="staff-card">
+                    <img src="/assets/naomi-call_120.png" width="120" alt="agent3"/>
+                    <p class="staff-role">The Agent</p>
+                    <h3 class="staff-cmd">red-ale mcp</h3>
+                    <p>Run the MCP Server in your favorite harness, whether it's Claude Code, Codex, or 7 others.</p>
+                </article>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- INSTALL -->
+    <section id="install" class="ruled section">
+        <div class="section-inner container">
+            <div class="section-head">
+                <p class="eyebrow">02 — Install</p>
+                <h2 class="section-title">Installed with one line.</h2>
+                <p class="section-sub">Linux or macOS</p>
+            </div>
+
+            <div class="install-grid">
+                <div class="install-card primary">
+                    <div class="card-head">
+                        <div class="card-title">
+                            <img src="/assets/logo.webp" alt="" width="36" height="52">
+                            <h3>Option A — Installer script</h3>
+                        </div>
+                        <span class="recommended">RECOMMENDED</span>
+                    </div>
+                    <div class="code-block wrap">
+                        <pre><span class="prompt">$</span> curl -fsSL https://github.com/CjS77/red-ale/releases/latest/download/install.sh | sh</pre>
+                    </div>
+                </div>
+
+                <div class="install-card secondary">
+                    <h3>Option B — From source</h3>
+                    <p>Needs Rust (rustup picks the toolchain), git and a C compiler such as gcc or clang. Installs to
+                        <code>~/.cargo/bin</code>.</p>
+                    <div class="code-block">
+<pre>git clone https://github.com/CjS77/red-ale.git
+cd red-ale
+cargo install --path crates/red-ale</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- DEMO -->
+    <section id="demo" class="section">
+        <div class="section-inner container">
+            <div class="section-head">
+                <p class="eyebrow">03 — Command-line Demo</p>
+                <h2 class="section-title">A household book, from blank page to balanced.</h2>
+                <p class="section-sub">Five steps from the walkthrough. Output is piped through jq to keep it short; jq is optional.</p>
+            </div>
+
+            <div class="tabs" role="tablist" aria-label="Walkthrough steps">
+                <button class="tab" type="button" role="tab" aria-selected="true">01 Open a new book</button>
+                <button class="tab" type="button" role="tab" aria-selected="false">02 Chart of accounts</button>
+                <button class="tab" type="button" role="tab" aria-selected="false">03 Post transactions</button>
+                <button class="tab" type="button" role="tab" aria-selected="false">04 Check the balance</button>
+                <button class="tab" type="button" role="tab" aria-selected="false">05 Run it as a server</button>
+            </div>
+
+            <div class="demo-grid">
+                <div class="terminal">
+                    <div class="term-bar">
+                        <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+                        <span class="term-title">~/red-ale-demo — step <span data-step-num>01</span></span>
+                    </div>
+                    <div class="term-code"><pre id="demo-code">$ mkdir red-ale-demo &amp;&amp; cd red-ale-demo
+$ red-ale exec --create --book home.gnucash book.info
+</pre>
+                    </div>
+                    <div class="term-out" id="demo-out" hidden>
+                        <span class="term-out-label" id="demo-out-label"></span>
+                        <pre id="demo-out-text"></pre>
+                    </div>
+                </div>
+
+                <aside class="note">
+                    <p class="note-kicker">Clerk's note · step <span data-step-num>01</span></p>
+                    <h3 data-step-label>Open a new book</h3>
+                    <p class="note-body" id="demo-note"><code>exec</code> opens a book, runs one method on it, saves if anything changed, and
+                        closes it.
+
+                        Here it creates home.gnucash and describes it: an empty book with only a root account.</p>
+                    <div class="step-nav">
+                        <button type="button" id="demo-prev" aria-label="Previous step">Prev</button>
+                        <button type="button" id="demo-next" class="next" aria-label="Next step">Next</button>
+                    </div>
+                </aside>
+            </div>
+            <p class="demo-foot">The full Manual, with guides, concepts and a reference for every method: <a
+                    href="start.html">start reading</a>.</p>
+        </div>
+    </section>
+
+    <!-- TAKEAWAYS -->
+    <section class="ruled section" aria-labelledby="rules-h">
+        <div class="rules-inner container">
+            <h2 class="rules-title" id="rules-h">Takeaways</h2>
+            <div class="rules-grid">
+                <div class="rule">
+                    <span class="n">§1</span>
+                    <h3>Say what you want</h3>
+                    <p>Use the MCP Server and talk to your agent like you talk to your accountant.</p>
+                </div>
+                <div class="rule">
+                    <span class="n">§2</span>
+                    <h3>Detailed help</h3>
+                    <p>Not sure how to do something? Just ask. The full guide is embedded into the MCP server.</p>
+                </div>
+                <div class="rule">
+                    <span class="n">§3</span>
+                    <h3>Need a report?</h3>
+                    <p>Most of the GnuCash reports have been ported. But if you need something specific ask your agent to
+                        write it for you! And save it for next time.</p>
+                </div>
+                <div class="rule">
+                    <span class="n">§4</span>
+                    <h3>Open it in GnuCash</h3>
+                    <p>If you still want old-school control, just open the book in GnuCash. All your changes will be saved as usual.</code>.
+                    </p>
+                </div>
+            </div>
+
+            <div class="fine-print" aria-labelledby="fine-print-h">
+                <h2 class="fine-print-title" id="fine-print-h">The Fine print, a.k.a. why we can't have nice things</h2>
+                <p>This software is in beta and has bugs: please
+                    <a href="https://github.com/CjS77/red-ale/issues">submit an issue</a> for defects, and
+                    <a href="https://github.com/CjS77/red-ale/issues">feature requests</a> may be considered. Red-ale is
+                    provided <b>"as is"</b>, without warranty of any kind, express or implied, including but not limited to the
+                    warranties of merchantability, fitness for a particular purpose, title and non-infringement. To the
+                    maximum extent permitted by law, the authors and <b>copyright holders accept no liability</b> for any claim,
+                    damages or other liability whatsoever, including any direct, indirect, incidental, special, exemplary
+                    or consequential damages, and in particular no liability for any financial loss, howsoever arising
+                    from, out of or in connection with the software or its use or other dealings in it. <b>You use red-ale at
+                    your own risk</b>. Keep backups of your books, which red-ale writes to, and note that nothing here is
+                    financial, tax or accounting advice. Red-ale is an independent project, not affiliated with or
+                    endorsed by the GnuCash project; <code>red-ale serve</code> and <code>red-ale mcp</code> listen on the
+                    local machine without authentication, so do not expose them to a network. This paragraph does not
+                    replace the licence: the GNU General Public License, version 3 or later, governs this software, and
+                    its own warranty disclaimer and limitation of liability apply in full.</p>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <div class="footer-inner container">
+        <div class="footer-brand">
+            <div class="footer-logo">
+                <img class="brand-pint" src="/assets/logo.webp" alt="" width="58" height="84">
+                <svg class="wordmark wordmark-footer" viewBox="38 82 664 182" role="img" aria-label="red ale"></svg>
+            </div>
+            <span class="footer-meta">v{{version}} {{release-status}} · Assets = Liabilities + Equity · GPL-3.0-or-later</span>
+        </div>
+        <div class="footer-links">
+            <a href="https://github.com/CjS77/red-ale">GitHub</a>
+            <a href="start.html">Manual</a>
+            <a href="https://github.com/CjS77/red-ale/blob/main/CHANGELOG.md">Changelog</a>
+            <a href="https://www.gnucash.org">GnuCash</a>
+        </div>
+    </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

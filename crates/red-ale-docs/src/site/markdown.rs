@@ -217,7 +217,7 @@ mod tests {
             "[a](start) [b](legal/gfdl#top) [c](https://example.org/x) [d](#here) [e](nothing/here)",
             "method/x.html",
         );
-        assert!(out.contains("href=\"../index.html\""), "{out}");
+        assert!(out.contains("href=\"../start.html\""), "{out}");
         assert!(out.contains("href=\"../legal/gfdl.html#top\""), "{out}");
         assert!(out.contains("href=\"https://example.org/x\""), "{out}");
         assert!(out.contains("href=\"#here\"") && out.contains("href=\"nothing/here\""), "{out}");

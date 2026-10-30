@@ -22,7 +22,7 @@
     return words.filter(function (w) { return w.length > 1; }).map(stem);
   }
 
-  function path(page) { return page.id === "start" ? "index.html" : page.id + ".html"; }
+  function path(page) { return page.id + ".html"; }
 
   // 0 when the page lacks the word; otherwise the higher the better: title, then Page ID, summary, then body terms.
   function scoreWord(page, word, terms) {

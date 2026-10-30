@@ -1,0 +1,22 @@
+[package]
+name = "red-ale-manual"
+description = "Builds red-ale's Manual as a static website, from a checked-out source tree"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+red-ale-docs.workspace = true
+red-ale-rpc.workspace = true
+red-ale-service.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

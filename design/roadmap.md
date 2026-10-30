@@ -200,7 +200,7 @@ v0.1 to v0.5 at once:
   on errors;
 - MCP resources (`red-ale://manual/<page-id>`), instructions generated from the Start Page, and richer tool
   descriptions;
-- `red-ale help`, and `red-ale manual build` for the static site with `llms.txt`;
+- `red-ale help`, and `red-ale-manual build` for the static site with `llms.txt`;
 - Reference pages and tested Examples for every method, error and report up to v0.6, the Start Page, Concept
   pages, Guides, and the From GnuCash pages for every ported feature;
 - **what applies from GnuCash's own documentation**, translated for the API, MCP and the CLI (below).

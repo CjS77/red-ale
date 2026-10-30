@@ -1890,6 +1890,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "red-ale-manual"
+version = "0.6.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "red-ale-docs",
+ "red-ale-rpc",
+ "red-ale-service",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "red-ale-mcp"
 version = "0.6.1"
 dependencies = [

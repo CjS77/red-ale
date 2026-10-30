@@ -119,6 +119,7 @@ are hard to break by accident.
   - `red-ale-rpc`: the JSON-RPC server and its schema.
   - `red-ale-mcp`: the MCP server.
   - `red-ale`: the binary.
+  - `red-ale-manual`: the binary that builds the Manual's static site from a checked-out source tree.
   - `red-ale-testkit`: fixtures, builders and the GnuCash oracle harness.
 - **Context map.**
   - The GnuCash file format is an external model. Each backend is an anti-corruption layer that translates to and from

@@ -1,12 +1,13 @@
 //! The static site: the Manual as HTML files (`design/manual.md`, "The static site"). Nothing here does I/O; [`Manual::site`]
 //! returns the files and the caller writes them.
 //!
-//! The rules are the report renderer's (`design/reports.md` §8): one stylesheet, no script except the search page's,
-//! no request outside the site, and the same bytes on every build.
+//! The landing page is the site's `index.html`; its `styles.css` and `script.js` dress every other page too. The pages
+//! ask for their images at `/assets/…`; the caller copies the repository's `assets/` beside the site, so the site is
+//! served from a domain's root.
 //!
-//! Layout: the Start Page is `index.html`; every other Page is `<page id>.html`; each kind has `<kind>/index.html`;
-//! `search.html` with `search.js` and `search-index.js`; `style.css`; `schema.json`; `llms.txt`; `llms-full.txt`.
-//! Links are relative, so the site works from `file://` and from any sub-path.
+//! Layout: `index.html` is the landing page (`docs/landing-page/`); the Start Page is `start.html`; every other Page is
+//! `<page id>.html`; each kind has `<kind>/index.html`; `search.html` with `search.js` and `search-index.js`;
+//! `styles.css`; `script.js`; `schema.json`; `llms.txt`; `llms-full.txt`. Links between Pages are relative.
 
 mod llms;
 mod markdown;
@@ -22,8 +23,23 @@ use crate::render;
 use crate::{Manual, START};
 use markdown::Renderer;
 
-const STYLE: &str = include_str!("style.css");
+/// The landing page, which is the site's main page; it is a template whose `{{version}}` and `{{release-status}}` are filled in.
+const LANDING: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/landing-page/index.html"));
+/// The one stylesheet, shared by the landing page and every other page.
+const STYLE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/landing-page/styles.css"));
+/// The landing page's script: the wordmark's parts on every page and the walkthrough on the landing page.
+const SCRIPT: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/landing-page/script.js"));
 const SEARCH_JS: &str = include_str!("search.js");
+
+/// The fonts the landing page loads, and every page with it.
+const FONTS: &str = "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n\
+<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n\
+<link href=\"https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&amp;\
+family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap\" \
+rel=\"stylesheet\">\n";
+
+/// The landing page's, and the site's, home on the web.
+const GITHUB: &str = "https://github.com/CjS77/red-ale";
 
 /// The Manual's name on the site.
 const SITE_TITLE: &str = "red-ale Manual";
@@ -46,10 +62,11 @@ impl SiteFile {
     }
 }
 
-/// The file that holds a Page, relative to the site's directory.
+/// The file that holds a Page, relative to the site's directory. The landing page has `index.html`, so the Start Page
+/// is `start.html`.
 pub fn page_path(id: &str) -> String {
     if id == START {
-        "index.html".to_owned()
+        "start.html".to_owned()
     } else {
         format!("{id}.html")
     }
@@ -73,7 +90,10 @@ impl Manual {
             .iter()
             .map(|p| page_file(self, p))
             .chain(Kind::ALL.into_iter().filter(|k| *k != Kind::Start).map(|k| kind_index(self, k)))
-            .chain([search_page(), SiteFile::text("style.css", STYLE.to_owned())])
+            .chain([search_page()])
+            .chain([SiteFile::text("index.html", landing())])
+            .chain([SiteFile::text("styles.css", STYLE.to_owned())])
+            .chain([SiteFile::text("script.js", SCRIPT.to_owned())])
             .chain([SiteFile::text("search.js", SEARCH_JS.to_owned())])
             .chain([SiteFile::text("search-index.js", search::index_script(self))])
             .chain([SiteFile::text("schema.json", schema_json(schema))])
@@ -85,6 +105,16 @@ impl Manual {
         files.sort_by(|a, b| a.path.cmp(&b.path));
         files
     }
+}
+
+/// How mature the release is, shown beside its version: `Beta` until a release is declared stable.
+const RELEASE_STATUS: &str = "Beta";
+
+/// The landing page, its tokens replaced with red-ale's version and release status, so the site never shows a stale one.
+fn landing() -> String {
+    LANDING
+        .replace("{{version}}", env!("CARGO_PKG_VERSION"))
+        .replace("{{release-status}}", RELEASE_STATUS)
 }
 
 fn schema_json(schema: &Value) -> String {
@@ -155,7 +185,11 @@ fn page_file(manual: &Manual, page: &Page) -> SiteFile {
         from: &path,
         page: Some(page),
     };
-    let mut main = format!("<article>\n{}<h1>{}</h1>\n", kind_label(page.kind, &path), esc(&page.title));
+    let mut main = format!(
+        "<article class=\"manual-page\">\n{}<h1>{}</h1>\n",
+        kind_label(page.kind, &path),
+        esc(&page.title)
+    );
     if !page.summary.is_empty() {
         let _ = writeln!(main, "<p class=\"summary\">{}</p>", esc(&page.summary));
     }
@@ -165,13 +199,13 @@ fn page_file(manual: &Manual, page: &Page) -> SiteFile {
         main.push_str(&browse(manual));
     }
     main.push_str("</article>\n");
-    let footer = Renderer { page: None, ..md }.html(&render::footer(page));
+    let licence = Renderer { page: None, ..md }.html(&render::footer(page));
     let title = if page.id == START {
         SITE_TITLE.to_owned()
     } else {
         format!("{} - {SITE_TITLE}", page.title)
     };
-    SiteFile::text(&path, document(&path, &title, &page.summary, &main, &footer, ""))
+    SiteFile::text(&path, document(&path, &title, &page.summary, &main, &licence, ""))
 }
 
 fn kind_label(kind: Kind, from: &str) -> String {
@@ -234,9 +268,12 @@ fn kind_index(manual: &Manual, kind: Kind) -> SiteFile {
         page: None,
     }
     .html(blurb(kind));
-    let main = format!("<article>\n<h1>{}</h1>\n{intro}{lists}</article>\n", plural(kind));
+    let main = format!(
+        "<article class=\"manual-page\">\n<h1>{}</h1>\n{intro}{lists}</article>\n",
+        plural(kind)
+    );
     let title = format!("{} - {SITE_TITLE}", plural(kind));
-    SiteFile::text(&path, document(&path, &title, blurb(kind), &main, &site_footer(&path), ""))
+    SiteFile::text(&path, document(&path, &title, blurb(kind), &main, &licence_footer(&path), ""))
 }
 
 /// The namespace of a method (`transaction`), empty for every other kind.
@@ -283,7 +320,7 @@ fn search_page() -> SiteFile {
         .collect::<Vec<_>>()
         .concat();
     let main = format!(
-        "<article>\n<h1>Search</h1>\n<form id=\"search-form\" role=\"search\" action=\"search.html\">\n\
+        "<article class=\"manual-page\">\n<h1>Search</h1>\n<form id=\"search-form\" role=\"search\" action=\"search.html\">\n\
          <label for=\"q\">Search the Manual</label>\n<input id=\"q\" name=\"q\" type=\"search\" autocomplete=\"off\" autofocus>\n\
          <button type=\"submit\">Search</button>\n</form>\n<p id=\"search-status\" role=\"status\"></p>\n\
          <ol id=\"search-results\" class=\"pages\"></ol>\n\
@@ -293,12 +330,12 @@ fn search_page() -> SiteFile {
     let title = format!("Search - {SITE_TITLE}");
     SiteFile::text(
         path,
-        document(path, &title, "Search the Manual.", &main, &site_footer(path), scripts),
+        document(path, &title, "Search the Manual.", &main, &licence_footer(path), scripts),
     )
 }
 
-/// The footer of a file that is no Page: the site-wide links.
-fn site_footer(from: &str) -> String {
+/// The licence notice of a file that is no Page: the site-wide one.
+fn licence_footer(from: &str) -> String {
     let link = |id: &str, label: &str| format!("<a href=\"{}\">{label}</a>", relative(from, &page_path(id)));
     format!(
         "<p>{SITE_TITLE}. Licensed under the GNU Free Documentation License, version 1.1 or later, with no Invariant \
@@ -309,22 +346,42 @@ fn site_footer(from: &str) -> String {
     )
 }
 
-/// A whole HTML document: header with navigation, `main`, footer.
-fn document(path: &str, title: &str, description: &str, main: &str, footer: &str, scripts: &str) -> String {
+/// A whole HTML document: header with navigation, `main`, the licence and the site's footer.
+fn document(path: &str, title: &str, description: &str, main: &str, licence: &str, scripts: &str) -> String {
     let root = relative(path, "");
     format!(
         "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n\
          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n\
-         <meta name=\"description\" content=\"{}\">\n<link rel=\"stylesheet\" href=\"{root}style.css\">\n</head>\n<body>\n\
-         <a class=\"skip\" href=\"#page-main\">Skip to the page</a>\n<header>\n{}</header>\n\
-         <main id=\"page-main\">\n{main}</main>\n<footer>\n{footer}</footer>\n{scripts}</body>\n</html>\n",
+         <meta name=\"description\" content=\"{}\">\n{FONTS}<link rel=\"stylesheet\" href=\"{root}styles.css\">\n\
+         </head>\n<body>\n<a class=\"skip\" href=\"#page-main\">Skip to the page</a>\n{}\n\
+         <main id=\"page-main\" class=\"ruled\">\n<div class=\"section-inner container\">\n{main}</div>\n</main>\n\
+         {}<script src=\"{root}script.js\"></script>\n{scripts}</body>\n</html>\n",
         esc(title),
         esc(description),
-        nav(path)
+        nav(path),
+        site_footer(path, licence)
     )
 }
 
-/// The header: the Manual's name and its parts. Reference is methods, errors and reports.
+/// The site's footer: the brand, the site's links, and the licence of the file it ends.
+fn site_footer(path: &str, licence: &str) -> String {
+    let link = |label: &str, to: &str| format!("<a href=\"{}\">{label}</a>", relative(path, to));
+    format!(
+        "<footer class=\"site-footer\">\n<div class=\"footer-inner container\">\n\
+         <div class=\"footer-brand\">\n<div class=\"footer-logo\">\n\
+         <img class=\"brand-pint\" src=\"/assets/logo.webp\" alt=\"\" width=\"58\" height=\"84\">\n\
+         <svg class=\"wordmark wordmark-footer\" viewBox=\"38 82 664 182\" role=\"img\" aria-label=\"red ale\"></svg>\n\
+         </div>\n<span class=\"footer-meta\">Assets = Liabilities + Equity · GPL-3.0-or-later</span>\n</div>\n\
+         <div class=\"footer-links\">\n{}\n{}\n{}\n<a href=\"{GITHUB}\">GitHub</a>\n\
+         <a href=\"{GITHUB}/blob/main/CHANGELOG.md\">Changelog</a>\n</div>\n</div>\n\
+         <div class=\"page-licence container\">\n{licence}</div>\n</footer>\n",
+        link("Home", "index.html"),
+        link("Manual", "start.html"),
+        link("Search", "search.html")
+    )
+}
+
+/// The header: the landing page's own, with the Manual's parts.
 fn nav(path: &str) -> String {
     let link = |label: &str, to: &str| {
         let current = if to == path { " aria-current=\"page\"" } else { "" };
@@ -332,11 +389,14 @@ fn nav(path: &str) -> String {
     };
     let kind = |k: Kind| link(plural(k), &index_path(k));
     format!(
-        "<nav aria-label=\"The Manual\">\n<a class=\"brand\" href=\"{}\">{SITE_TITLE}</a>\n<ul>\n\
-         <li>{}</li>\n<li>{}</li>\n<li>{}</li>\n<li class=\"group\"><span>Reference:</span> {} {} {}</li>\n<li>{}</li>\n<li>{}</li>\n\
-         </ul>\n</nav>\n",
+        "<header class=\"site-header\">\n<nav class=\"nav container\" aria-label=\"Main\">\n\
+         <a class=\"brand\" href=\"{}\" aria-label=\"red ale — home\">\n\
+         <img class=\"brand-pint\" src=\"/assets/logo.webp\" alt=\"\" width=\"33\" height=\"48\">\n\
+         <svg class=\"wordmark wordmark-nav\" viewBox=\"38 82 664 182\" role=\"img\" aria-label=\"red ale\"></svg>\n\
+         </a>\n<div class=\"nav-links\">\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n\
+         <a class=\"nav-github\" href=\"{GITHUB}\">GitHub</a>\n</div>\n</nav>\n</header>\n",
         relative(path, "index.html"),
-        link("Start", "index.html"),
+        link("Manual", "start.html"),
         kind(Kind::Concept),
         kind(Kind::Guide),
         kind(Kind::Method),

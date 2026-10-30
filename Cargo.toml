@@ -5,6 +5,7 @@ members = [
     "crates/red-ale-docs",
     "crates/red-ale-export",
     "crates/red-ale-import",
+    "crates/red-ale-manual",
     "crates/red-ale-locale",
     "crates/red-ale-mcp",
     "crates/red-ale-quotes",

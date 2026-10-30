@@ -4,6 +4,16 @@ All notable changes to red-ale are recorded here. The format follows [Keep a Cha
 and red-ale uses [Semantic Versioning](https://semver.org). The JSON-RPC API has its own version (`redAleApi`), which
 `api.schema` reports.
 
+## Unreleased
+
+### Changed
+
+- `red-ale-manual build`, the Manual's static site, is a binary of its own instead of `red-ale manual build`: it is
+  built from a checked-out source tree, where the landing page and the images are, and an installed `red-ale` has
+  neither.
+- The Manual's site now opens on the landing page, and every Manual page wears the landing page's stylesheet, script,
+  wordmark and footer. The landing page's version and release status are filled in when it is built.
+
 ## 0.6.1 - 2026-10-29
 
 The first tagged release of 0.6: it ships everything listed under 0.6.0. `redAleApi` is unchanged at 0.6.0.
