@@ -46,7 +46,7 @@
                 <h1 class="hero-title">Scriptable GnuCash.
                     <span>Made for agents.</span>
                 </h1>
-                <p class="hero-lede">red-ale reads and edits GnuCash books without the GnuCash program. Drive it from the command line, from
+                <p class="hero-lede">red-ale reads and edits GnuCash books. Drive it from the command line, from
                     your own programs over JSON-RPC, or hand the ledger to AI agents over MCP. Anything it saves, GnuCash 5.17 opens with no
                     warnings and no lost data.</p>
                 <div class="cta-row">
@@ -86,7 +86,8 @@
                     <p class="eyebrow">01 — What it does</p>
                     <h2 class="section-title">GnuCash, without the windows.</h2>
                     <p class="section-sub">Script your bookkeeping, build tools on top of your GnuCash books, or let AI agents do it for
-                        you. Talk to red-ale like you talk to your accountant.</p>
+                        you. Talk to red-ale like you
+                        <a class="btn btn-ghost" id="watch-walkthrough" href="#demo" aria-haspopup="dialog">talk to your accountant</a>.</p>
                 </div>
                 <div class="stamp">AI READY</div>
             </div>
@@ -283,13 +284,14 @@ $ red-ale exec --create --book home.gnucash book.info
             <div class="rules-grid">
                 <div class="rule">
                     <span class="n">§1</span>
-                    <h3>Say what you want</h3>
-                    <p>Use the MCP Server and talk to your agent like you talk to your accountant.</p>
+                    <h3>Just ask</h3>
+                    <p><code>red-ale setup</code>. Then talk to red-ale like you talk to your accountant.</p>
                 </div>
                 <div class="rule">
                     <span class="n">§2</span>
-                    <h3>Detailed help</h3>
-                    <p>Not sure how to do something? Just ask. The full guide is embedded into the MCP server.</p>
+                    <h3>Script it</h3>
+                    <p>Don't want to use AI, but want to automate your current GnuCash books? <code>red-ale exec</code> does anything
+                        you need.</p>
                 </div>
                 <div class="rule">
                     <span class="n">§3</span>
