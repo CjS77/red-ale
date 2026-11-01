@@ -6,6 +6,7 @@
 
 use std::fs::OpenOptions;
 use std::io;
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 
@@ -30,12 +31,11 @@ impl BookLock {
     /// Take the lock on `book`, failing if GnuCash or another red-ale holds it.
     pub fn acquire(book: &Path) -> Result<Self, ServiceError> {
         let path = lock_path(book);
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&path)
-            .map_err(|e| lock_error(&path, &e))?;
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+        options.open(&path).map_err(|e| lock_error(&path, &e))?;
         Ok(Self { path, released: false })
     }
 

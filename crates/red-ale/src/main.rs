@@ -446,12 +446,19 @@ fn mcp(args: &McpArgs) -> Result<Option<RpcError>> {
 }
 
 /// Wait for Ctrl-C (SIGINT) or SIGTERM, so a service manager stopping the server also releases the book's lock.
+#[cfg(unix)]
 async fn shutdown_signal() -> Result<()> {
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).context("installing the SIGTERM handler")?;
     tokio::select! {
         r = tokio::signal::ctrl_c() => r.context("waiting for Ctrl-C")?,
         _ = term.recv() => {}
     }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+async fn shutdown_signal() -> Result<()> {
+    tokio::signal::ctrl_c().await.context("waiting for Ctrl-C")?;
     Ok(())
 }
 

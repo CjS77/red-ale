@@ -20,7 +20,10 @@ fn copy_to(dir: &Path, name: &str) -> PathBuf {
 
 /// The rich fixture with extra book slots inserted after `book:id`.
 fn with_book_slots(dir: &Path, slots: &str) -> PathBuf {
-    let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash")).unwrap();
+    let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash"))
+        .unwrap()
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
     let id_end = text.find("</book:id>\n").unwrap() + "</book:id>\n".len();
     let patched = format!("{}<book:slots>\n{slots}</book:slots>\n{}", &text[..id_end], &text[id_end..]);
     let dest = dir.join("book.gnucash");
@@ -442,6 +445,8 @@ fn a_legacy_frequency_spec_opens_read_only() {
     );
     let text = std::fs::read_to_string(fixture("synthetic/rich.gnucash"))
         .unwrap()
+        .replace("\r\n", "\n")
+        .replace('\r', "\n")
         .replacen("<gnc:schedxaction version=\"2.0.0\">", "<gnc:schedxaction version=\"1.0.0\">", 1)
         .replacen("  <sx:schedule>", &format!("{freqspec}  <sx:schedule>"), 1);
     let path = dir.path().join("book.gnucash");
