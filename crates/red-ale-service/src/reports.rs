@@ -424,6 +424,7 @@ mod tests {
         assert_eq!(ConfigStore::in_memory().resolve(Path::new("reports")), PathBuf::from("reports"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_loader_reads_scripts_below_the_directory_only() {
         let outside = tempfile::tempdir().unwrap();

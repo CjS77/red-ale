@@ -81,7 +81,8 @@ mod tests {
     /// Zone files: `Pacific/Kiritimati` (+14) under the default tree, `Local/Zone` (+3) under `/tz`, and
     /// `/etc/localtime` (+1).
     fn files(path: &Path) -> Option<Vec<u8>> {
-        match path.to_str()? {
+        let path = path.to_string_lossy().replace('\\', "/");
+        match path.as_str() {
             "/usr/share/zoneinfo/Pacific/Kiritimati" => Some(tzif(14 * 3600)),
             "/tz/Local/Zone" => Some(tzif(3 * 3600)),
             "/etc/localtime" => Some(tzif(3600)),

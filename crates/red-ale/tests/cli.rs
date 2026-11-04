@@ -238,8 +238,8 @@ fn serve_and_call_over_http() {
     assert_eq!(json(&out.stderr)["error"]["code"], 1001);
     let lock = format!("{book}.LCK");
     assert!(Path::new(&lock).exists());
-    Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
-    assert!(server.wait().unwrap().success());
+    stop(server);
+    #[cfg(unix)]
     assert!(!Path::new(&lock).exists(), "SIGTERM closes the book and releases the lock");
 }
 
@@ -580,8 +580,7 @@ fn call_saves_a_configuration_and_exports_it_to_a_file() {
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(json(&out.stdout)["title"], "Accounts to 4");
     assert!(std::fs::read_to_string(&html).unwrap().contains("<title>Accounts to 4</title>"));
-    Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
-    assert!(server.wait().unwrap().success());
+    stop(server);
 }
 
 /// `red-ale schema | head` closes the pipe early. The schema is larger than a pipe's buffer, so the write is sure to
@@ -688,9 +687,20 @@ fn serve_with(args: &[&str]) -> (std::process::Child, String) {
     (server, url)
 }
 
+/// Stop the server as a service manager would, with SIGTERM, so it closes the book and releases the lock.
+#[cfg(unix)]
 fn stop(mut server: std::process::Child) {
-    Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
+    let killed = Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
+    assert!(killed.success(), "kill -TERM reached the server");
     assert!(server.wait().unwrap().success());
+}
+
+/// Windows has no SIGTERM, and sending a child Ctrl-Break takes Win32 calls, so the server is ended outright. Its
+/// lock stays behind in the test's temporary directory.
+#[cfg(windows)]
+fn stop(mut server: std::process::Child) {
+    server.kill().unwrap();
+    server.wait().unwrap();
 }
 
 #[test]
@@ -899,6 +909,7 @@ fn call_imports_exports_and_fetches_quotes_on_a_running_server() {
     // `serve_with` has stopped reading the server's standard error, so its note about unsaved changes must not fail
     // the shutdown.
     stop(server);
+    #[cfg(unix)]
     assert!(
         !Path::new(&format!("{book}.LCK")).exists(),
         "the lock is released though the book had unsaved changes"

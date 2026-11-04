@@ -89,6 +89,7 @@ Detail: [`file-fidelity.md`](file-fidelity.md), [`sql-fidelity.md`](sql-fidelity
 | Local day boundaries near a daylight-saving change | Approximates the zone file with one rule per year (`TimeZoneProvider::parse_file`, `5.17:libgnucash/engine/gnc-timezone.cpp:635-720`): local midnight an hour late on the autumn change in zones whose rules are in UT, and no daylight saving from 2037 | Follows the zone file's transitions exactly | The zone file is the true local time; stored dates are unaffected (decided for v0.3) |
 | `GncDate` "today" | Reads the C library's zone, whose POSIX `TZ` sign is the opposite of GnuCash's own | One zone | One meaning of "today" |
 | A `TZ` naming a file that is not TZif | Aborts | Read as a POSIX string, then falls back as GnuCash does | A bad environment is not a crash |
+| The local time zone on Windows | Read from the registry: the zone `TZ` names, else the system's current zone (`5.17:libgnucash/engine/gnc-timezone.cpp:90`, `:276-330`) | `TZ` only; with none set, UTC. "Today", period ends, due and reconcile dates and backup timestamps are then in UTC | Interim, not a decision: the Windows build is new and reading the registry zone is still to do ([`milestone5.md`](milestone5.md), "Out") |
 
 ## Book options
 

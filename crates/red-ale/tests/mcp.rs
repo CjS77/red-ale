@@ -103,6 +103,8 @@ fn mcp_writes_only_protocol_messages_and_releases_the_lock_on_exit() {
     );
 }
 
+/// Unix only: Windows has no SIGTERM.
+#[cfg(unix)]
 #[test]
 #[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn sigterm_stops_mcp_and_releases_the_lock_while_standard_input_is_open() {
@@ -125,7 +127,8 @@ fn sigterm_stops_mcp_and_releases_the_lock_while_standard_input_is_open() {
     );
     response(&mut lines, 1);
     assert!(Path::new(&format!("{book}.LCK")).exists());
-    Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
+    let killed = Command::new("kill").args(["-TERM", &server.id().to_string()]).status().unwrap();
+    assert!(killed.success(), "kill -TERM reached the server");
     assert!(server.wait().unwrap().success());
     assert!(
         !Path::new(&format!("{book}.LCK")).exists(),

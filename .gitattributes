@@ -1,0 +1,5 @@
+# Check text out with LF on every platform: tests compare fixtures and snapshots byte for byte.
+* text=auto eol=lf
+# Kept exactly as written: GnuCash books (some are binary SQLite), and CSV files whose CRLF line endings are the test.
+*.gnucash -text
+*.csv -text
