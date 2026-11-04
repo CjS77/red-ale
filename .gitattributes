@@ -1,0 +1,2 @@
+# GnuCash books are compared byte for byte; checking them out with CRLF on Windows would change them.
+*.gnucash -text

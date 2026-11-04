@@ -456,9 +456,24 @@ async fn shutdown_signal() -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(unix))]
+/// Wait for Ctrl-C or Ctrl-Break, or for Windows closing the console, logging the user off or shutting down, so each
+/// releases the book's lock. For the last three, tokio holds Windows' handler until the process exits, and Windows ends
+/// the process when its timeout runs out (5 seconds by default), which leaves time to close the book.
+#[cfg(windows)]
 async fn shutdown_signal() -> Result<()> {
-    tokio::signal::ctrl_c().await.context("waiting for Ctrl-C")?;
+    use tokio::signal::windows::{ctrl_break, ctrl_c, ctrl_close, ctrl_logoff, ctrl_shutdown};
+    let mut c = ctrl_c().context("installing the Ctrl-C handler")?;
+    let mut brk = ctrl_break().context("installing the Ctrl-Break handler")?;
+    let mut close = ctrl_close().context("installing the console close handler")?;
+    let mut logoff = ctrl_logoff().context("installing the logoff handler")?;
+    let mut shutdown = ctrl_shutdown().context("installing the shutdown handler")?;
+    tokio::select! {
+        _ = c.recv() => {}
+        _ = brk.recv() => {}
+        _ = close.recv() => {}
+        _ = logoff.recv() => {}
+        _ = shutdown.recv() => {}
+    }
     Ok(())
 }
 

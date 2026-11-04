@@ -536,7 +536,7 @@ write is `cannot-lock`.
 
 **What is written.** `INSERT INTO gnclock VALUES (?, ?)` with the host name and the process ID as GnuCash writes
 them: `gethostname`, at most 255 bytes (`:129`, `:155-156`), and the PID, which SQLite stores as an INTEGER as it
-stores GnuCash's quoted `'%d'` (`:157-159`). The service supplies both (`rustix::system::uname().nodename()`,
+stores GnuCash's quoted `'%d'` (`:157-159`). The service supplies both (`gethostname::gethostname()`,
 `std::process::id()`); binding them, where GnuCash splices the host name into SQL unescaped, gives the same row.
 red-ale never creates `gnclock`: a book without it opens read-only (§1). It never offers `SESSION_BREAK_LOCK` (v0.4).
 
@@ -778,8 +778,9 @@ options include extension loading, which red-ale never turns on (no `load_extens
 `SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION` stays off). Pure-Rust SQLite engines are not yet ready to trust with a
 user's books (Decided item 3).
 
-**`rustix`** (feature `system`) gives the lock row's host name, as `gethostname` does, without `unsafe` in red-ale.
-It is already in `Cargo.lock` through `tempfile`; its licence (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT)
+**`gethostname`** gives the lock row's host name without `unsafe` in red-ale: `gethostname()` on Unix, as GnuCash
+calls it, and on Windows `GetComputerNameExW(ComputerNamePhysicalDnsHostname)`, the DNS host name Winsock's
+`gethostname()` returns, in its own case and not cut to 15 characters as `%COMPUTERNAME%` is. Its licence (Apache-2.0)
 is on the allow-list.
 
 ## API changes

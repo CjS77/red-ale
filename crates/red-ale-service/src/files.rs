@@ -240,8 +240,10 @@ pub fn remove_old_files(book: &Path, retention: Retention, keep: Option<&Path>) 
 }
 
 /// Replace a small file of red-ale's own, such as the Configuration, with no backup: write a temporary file beside it,
-/// sync it and rename it into place, so the file is whole before and after, never half written. Unix files keep their
-/// existing mode, or are created owner-only; other platforms use their normal permission defaults.
+/// sync it and rename it into place, so the file is whole before and after, never half written. On Unix an existing
+/// file keeps its mode, and a new one is readable by its owner only, since the Configuration can hold keys. Windows has
+/// no modes: the file takes its folder's inherited ACL, which under `%APPDATA%` already admits only the user, SYSTEM
+/// and Administrators.
 pub fn replace_private_file(path: &Path, bytes: &[u8]) -> Result<(), ServiceError> {
     #[cfg(unix)]
     let mode = fs::metadata(path).map_or(0o600, |m| m.mode() & 0o7777);
