@@ -456,9 +456,11 @@ async fn shutdown_signal() -> Result<()> {
     Ok(())
 }
 
-/// Wait for Ctrl-C or Ctrl-Break, or for Windows closing the console, logging the user off or shutting down, so each
-/// releases the book's lock. For the last three, tokio holds Windows' handler until the process exits, and Windows ends
-/// the process when its timeout runs out (5 seconds by default), which leaves time to close the book.
+/// Wait for Ctrl-C, Ctrl-Break or the console closing, so each releases the book's lock. For a close, tokio holds
+/// Windows' handler until the process exits, and Windows ends the process when its timeout runs out (5 seconds by
+/// default), which leaves time to close the book. Windows sends logoff and shutdown only to services, and not to a
+/// process that loads user32 or gdi32 (`HandlerRoutine` docs; docs-only); they are listened for, but an interactive
+/// `serve` may not see them and can leave its lock behind.
 #[cfg(windows)]
 async fn shutdown_signal() -> Result<()> {
     use tokio::signal::windows::{ctrl_break, ctrl_c, ctrl_close, ctrl_logoff, ctrl_shutdown};

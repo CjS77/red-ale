@@ -11,12 +11,12 @@ publish.workspace = true
 red-ale-core.workspace = true
 indexmap.workspace = true
 rusqlite.workspace = true
-tempfile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 red-ale-xml.workspace = true
 proptest.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

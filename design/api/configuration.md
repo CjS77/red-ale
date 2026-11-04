@@ -108,7 +108,9 @@ Result: `{ values, clearedKeys, configFile }`: each path changed with its value 
 
 - **Atomic.** Every change is checked before any is made; then the file is written to a temporary file beside it,
   synced and renamed into place. A refused or interrupted call leaves the file as it was, byte for byte. A new file
-  is created readable by its owner only (`0600`), since it can hold keys; an existing file keeps its mode.
+  is created readable by its owner only (`0600`), since it can hold keys; an existing file keeps its mode. Windows
+  has no modes: the file takes its folder's inherited ACL, owner-only under `%APPDATA%` but not in a shared folder
+  ([`../milestone5.md`](../milestone5.md), "Out").
 - **Validated against the schema.** Refused with `invalid-params`, and `data.problems` listing every problem found:
   an unknown or malformed path; a path inside another path of the same call; a setting another method owns
   (`reports.saved`, `reports.styleSheets`, or a group holding one, such as `reports`), since replacing those lists

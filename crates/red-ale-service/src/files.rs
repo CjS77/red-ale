@@ -192,6 +192,7 @@ fn keep_owner(tmp: &Path, old: Option<&fs::Metadata>) -> Result<(), ServiceError
 }
 
 #[cfg(not(unix))]
+#[allow(clippy::unnecessary_wraps)] // The Unix signature; Windows has no mode or group to copy.
 fn keep_owner(_tmp: &Path, _old: Option<&fs::Metadata>) -> Result<(), ServiceError> {
     Ok(())
 }
@@ -245,19 +246,9 @@ pub fn remove_old_files(book: &Path, retention: Retention, keep: Option<&Path>) 
 /// no modes: the file takes its folder's inherited ACL, which under `%APPDATA%` already admits only the user, SYSTEM
 /// and Administrators.
 pub fn replace_private_file(path: &Path, bytes: &[u8]) -> Result<(), ServiceError> {
-    #[cfg(unix)]
-    let mode = fs::metadata(path).map_or(0o600, |m| m.mode() & 0o7777);
-    #[cfg(not(unix))]
-    let mode = 0;
     let tmp = temp_path(path);
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    options.mode(mode);
-    let written = options
-        .open(&tmp)
+    let written = create_private(path, &tmp)
         .and_then(|mut file| file.write_all(bytes).and_then(|()| file.sync_all()))
-        .and_then(|()| set_file_mode(&tmp, mode))
         .and_then(|()| fs::rename(&tmp, path));
     if written.is_err() {
         let _ = fs::remove_file(&tmp);
@@ -270,14 +261,20 @@ pub fn replace_private_file(path: &Path, bytes: &[u8]) -> Result<(), ServiceErro
     Ok(())
 }
 
+/// Create `tmp` with the mode `path` has, or owner-only if it is new. The mode is set again once open, since the
+/// umask can narrow the one asked for at creation.
 #[cfg(unix)]
-fn set_file_mode(path: &Path, mode: u32) -> io::Result<()> {
-    fs::set_permissions(path, fs::Permissions::from_mode(mode))
+fn create_private(path: &Path, tmp: &Path) -> io::Result<File> {
+    let mode = fs::metadata(path).map_or(0o600, |m| m.mode() & 0o7777);
+    let file = OpenOptions::new().write(true).create_new(true).mode(mode).open(tmp)?;
+    file.set_permissions(fs::Permissions::from_mode(mode))?;
+    Ok(file)
 }
 
+/// Create `tmp` with its folder's inherited ACL.
 #[cfg(not(unix))]
-fn set_file_mode(_path: &Path, _mode: u32) -> io::Result<()> {
-    Ok(())
+fn create_private(_path: &Path, tmp: &Path) -> io::Result<File> {
+    OpenOptions::new().write(true).create_new(true).open(tmp)
 }
 
 #[cfg(test)]

@@ -778,10 +778,11 @@ options include extension loading, which red-ale never turns on (no `load_extens
 `SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION` stays off). Pure-Rust SQLite engines are not yet ready to trust with a
 user's books (Decided item 3).
 
-**`gethostname`** gives the lock row's host name without `unsafe` in red-ale: `gethostname()` on Unix, as GnuCash
-calls it, and on Windows `GetComputerNameExW(ComputerNamePhysicalDnsHostname)`, the DNS host name Winsock's
-`gethostname()` returns, in its own case and not cut to 15 characters as `%COMPUTERNAME%` is. Its licence (Apache-2.0)
-is on the allow-list.
+**`gethostname`** gives the lock row's host name without `unsafe` in red-ale. On Unix it is `gethostname()`, as GnuCash
+calls it. On Windows it is `GetComputerNameExW(ComputerNamePhysicalDnsHostname)`, the DNS host name in its own case.
+*Unverified:* GnuCash's Windows `gethostname()` is Winsock's, which needs `WSAStartup` first; whether GnuCash's
+process has called it, and so whether GnuCash writes this name or an empty one, has not been checked against its
+source or a Windows run. Its licence (Apache-2.0) is on the allow-list.
 
 ## API changes
 

@@ -6,9 +6,7 @@
 //! GnuCash's books have.
 
 use std::fs::OpenOptions;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use red_ale_core::{Account, AccountType, Book, Env, Guid};
 use rusqlite::{Connection, params};
@@ -22,6 +20,12 @@ use crate::{SqliteBook, connection, encode, tables};
 
 /// The name GnuCash gives the template root (`5.17:libgnucash/engine/SX-book.cpp:121`).
 const TEMPLATE_ROOT: &str = "Template Root";
+
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    PathBuf::from(name)
+}
 
 /// The schema, the rows of an empty book and the lock row, in one transaction.
 fn fill(conn: &mut Connection, book: &Book, template_root: Guid, owner: &LockOwner, env: &mut dyn Env) -> Result<HeldLock, SqlError> {
@@ -57,23 +61,19 @@ fn fill(conn: &mut Connection, book: &Book, template_root: Guid, owner: &LockOwn
 /// Write a new book at `path`, which must not exist, from `book`, an empty Book with only its root account and Slots,
 /// and lock it for `owner`. Frame GUIDs and the template root's come from `env`.
 pub fn create(path: &Path, book: &Book, owner: &LockOwner, env: &mut dyn Env) -> Result<SqliteBook, SqlError> {
-    let parent = path.parent().filter(|dir| !dir.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    #[cfg(unix)]
-    let mut builder = tempfile::Builder::new();
-    #[cfg(not(unix))]
-    let builder = tempfile::Builder::new();
-    #[cfg(unix)]
-    builder.permissions(std::fs::Permissions::from_mode(0o666));
-    let tmp = builder.tempfile_in(parent)?;
+    let tmp = with_suffix(path, &format!(".tmp-{}", env.new_guid()));
+    OpenOptions::new().write(true).create_new(true).open(&tmp)?;
     let template_root = book.templates.root.unwrap_or_else(|| env.new_guid());
     let made = (|| {
-        let mut conn = connection::create(tmp.path())?;
+        let mut conn = connection::create(&tmp)?;
         let held = fill(&mut conn, book, template_root, owner, env)?;
         drop(conn);
-        tmp.as_file().sync_all()?;
-        tmp.persist_noclobber(path).map_err(|e| SqlError::Io(e.error))?;
+        // Write access, since Windows' `FlushFileBuffers` refuses a read-only handle.
+        OpenOptions::new().write(true).open(&tmp)?.sync_all()?;
+        std::fs::hard_link(&tmp, path)?;
         Ok::<_, SqlError>(held)
     })();
+    let _ = std::fs::remove_file(&tmp);
     let held = made?;
     let conn = connection::open_read_write(path)?;
     let residue = SqlResidue {
