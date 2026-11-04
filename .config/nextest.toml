@@ -1,0 +1,10 @@
+# cargo-nextest runs each test in its own process. It does not run doctests; `cargo test --doc --workspace` does.
+
+[profile.default]
+# The oracle tests start GnuCash and can take a while; flag them as slow, never kill them.
+slow-timeout = { period = "60s" }
+
+[profile.ci]
+# Report every failure in one run, not just the first.
+fail-fast = false
+failure-output = "immediate-final"

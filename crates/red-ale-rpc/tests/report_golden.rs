@@ -248,6 +248,7 @@ fn assert_as_recorded(label: &str, expected: &[(String, String)], now: &[(String
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_v02_report_gives_the_same_bytes_under_the_c_locale() {
     if let Ok(path) = std::env::var("RED_ALE_GOLDEN_WRITE") {
         std::fs::write(path, lines(&exports(None))).unwrap();
@@ -271,6 +272,7 @@ fn v04(all: Vec<(String, String, Option<String>)>) -> Vec<(String, String, Optio
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_v04_report_gives_its_recorded_bytes() {
     if let Ok(path) = std::env::var("RED_ALE_GOLDEN_WRITE_V04") {
         std::fs::write(path, lines(&v04(exports(None)))).unwrap();
@@ -288,6 +290,7 @@ fn v05() -> Vec<(String, String, Option<String>)> {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_v05_report_gives_its_recorded_bytes() {
     let expected = recorded(include_str!("report_golden/v0.5.txt"));
     let now = v05();
@@ -337,6 +340,7 @@ fn v06() -> Vec<(String, String, Option<String>)> {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_v06_report_gives_its_recorded_bytes() {
     let expected = recorded(include_str!("report_golden/v0.6.txt"));
     let now = v06();

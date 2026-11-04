@@ -318,6 +318,7 @@ fn pre_closing_balances_leave_closing_entries_out() {
 /// What GnuCash cannot do is refused: no depth limit without "flatten" (`(< logi-depth #f)`) and `account-less-p` #t
 /// (an undefined function).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn refusals() {
     let cases = [
         ("#{}", "display_tree_depth must be an integer"),
@@ -333,6 +334,7 @@ fn refusals() {
 /// gnc:html-table-add-labeled-amount-line! (HAT:870-923) and gnc-commodity-table (HAT:925-948) on their own, and the
 /// rows of an account table as a table block of a finished result.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn labeled_lines_and_a_finished_table() {
     let got = run(
         &host(),

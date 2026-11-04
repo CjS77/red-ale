@@ -141,6 +141,7 @@ fn run(host: &Host, body: &str) -> Vec<String> {
 /// set, period dates go on past the count, and actuals follow `ops::budgets::actual`: Expenses' January is its
 /// children's $10.00 plus EUR 3.33 at $1.10 before the period's end, $3.66 (the $1.00 at 23:59:59 is in no period).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_query_api_reads_budgets() {
     let got = run(
         &Host::new(book(false)),
@@ -256,6 +257,7 @@ fn render(params, book, opts, ctx) {
 "#;
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn budget_and_callback_options() {
     let reg = registry_with(Library::builtin(), &[("test.rhai", OPTIONS_SCRIPT)], Limits::default());
     assert!(reg.problems().is_empty(), "{:?}", reg.problems());

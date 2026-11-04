@@ -391,6 +391,7 @@ fn the_base_options_select_bank_s_year() {
 
 /// The filter runs of TT:293-452: each grand total of a single amount column is the sum of the splits kept.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_filters_keep_the_splits_test_transaction_totals() {
     [
         ("accounts filter expenses", 301),
@@ -424,6 +425,7 @@ fn the_filters_keep_the_splits_test_transaction_totals() {
 /// no split left gives "No matching transactions found" (TE:2599-2605). Under `exclude`, Filter By… Expenses drops
 /// the multisplit, whose other splits include Expenses (fact 11 of the note: the split's own account never counts).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn filters_that_leave_nothing_give_a_warning() {
     let no_match = "No matching transactions found|No transactions were found that match the time interval and account \
                     selection specified in the Options panel.";
@@ -445,6 +447,7 @@ fn filters_that_leave_nothing_give_a_warning() {
 /// cells drop out). The `date`, `number`, `memo`, `corresponding-acc-name` and `amount` keys sort through the query;
 /// `reconciled-status` and `notes` through the custom sort.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn each_sort_key_orders_as_test_transaction_expects() {
     let non_empty = |v: Vec<&str>| v.into_iter().filter(|s| !s.is_empty()).map(str::to_owned).collect::<Vec<_>>();
     // The Memo/Notes cell: the memo, or the notes when the memo is empty (TE:1167-1177).
@@ -506,6 +509,7 @@ fn invoices_follow_the_query_s_account_name_sort() {
 /// sort, and Primary Key "None", which keeps split order where GnuCash leaves hash order (§14). A query sort's ties
 /// fall to split order (TE:2541-2549); a custom sort's to the order before it, the query's split order.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn hand_worked_sort_keys_and_orders() {
     let order = |key: &str, ord: &str| {
         run(&sorted_by(key, ord))
@@ -547,6 +551,7 @@ fn hand_worked_sort_keys_and_orders() {
 /// key, then split order; a group keeps split order inside it even when descending. A reconciled-date key groups
 /// by the reconcile date's month.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn date_subtotals_sort_by_group() {
     let yearly = run(&bank_1969_1970(&json!({ "Filter": { "Void Transactions": "both" }, "Sorting": {
         "Primary Key": "date", "Primary Subtotal for Date Key": "yearly", "Primary Sort Order": "descend" } })));
@@ -592,6 +597,7 @@ fn date_subtotals_sort_by_group() {
 /// The other date sources (TE:2566-2578): under "Reconciled Date" only a reconciled split is checked against the
 /// dates and the query leaves posted dates alone; under "Date Entered" the entered date is checked.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn date_filters_on_reconcile_and_entered_dates() {
     let liabilities = |from: &str, to: &str, source: &str| {
         run(&json!({
@@ -613,6 +619,7 @@ fn date_filters_on_reconcile_and_entered_dates() {
 /// Regular expressions that do not compile stop the report before the query (TE:2512-2524), unless the account
 /// filter, falling back to a substring, already left no account: the no-account warning comes first.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn bad_regular_expressions_give_warnings() {
     let filter = |more: Value| run(&bank_1969_1970(&json!({ "Filter": more })));
     let o = filter(
@@ -630,6 +637,7 @@ fn bad_regular_expressions_give_warnings() {
 /// TT's filters do not reach these (§4.6): `unreconciled` with `void-only` leaves no state (TE:2259-2262); Filter
 /// By… looks only at a split's other splits (TE:2491-2499); the transaction filter reads notes and memos too.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn hand_worked_filters() {
     let o = run(&bank_1969_1970(
         &json!({ "Filter": { "Reconciled Status": "unreconciled", "Void Transactions": "void-only" } }),
@@ -657,6 +665,7 @@ fn hand_worked_filters() {
 /// split date with its behaviour for #f, and `__trep`/`unique-transactions` set by a derived report. An unknown
 /// hook is refused.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn hooks_and_unique_transactions() {
     let options = bank_1969_1970(&json!({}));
     let with = |opts: &str, hooks: &str| run_script(host(), &script(opts, hooks, ""), &options);
@@ -690,6 +699,7 @@ fn hooks_and_unique_transactions() {
 /// The parameters ticket 5's table reads (TE:2289-2429), and the renderer-fn and split-sortvalue maps applied to a
 /// split: account keys give the account, date subtotals their group and label from the date posted.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn parameters_and_key_functions() {
     let extra = r#"
         let p = r.parameters;
@@ -765,6 +775,7 @@ fn parameters_and_key_functions() {
 /// Liabilities in March 1970 select the same splits as on XML, grouped as TT:1110-1121 totals them: Reconciled $8,
 /// Cleared $29, Unreconciled $31 (the absolute amounts the Funds In and Out columns show).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_reconcile_book_reads_the_same_on_sqlite() {
     let expected = read_json("fixtures/reports/reconcile.expected.json");
     let options = json!({
@@ -880,6 +891,7 @@ fn csv_rows_are_the_grand_totals() {
 /// GnuCash's export errors (TE:2524, :2605, :2641), set only for an export: no account, no split, two amount
 /// columns. A run that is not for an export carries neither rows nor an error.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn csv_export_errors() {
     let error = |options: &Value| render_on(host(), "#{}", options, Some("csv"))["exportError"].clone();
     assert_eq!(error(&json!({})), "No accounts, or regexp error");
@@ -903,6 +915,7 @@ fn csv_export_errors() {
 /// Reconciliation Report's Funds In and Out (RR:69-98), whose subtotal rows do not merge (no start-dual column);
 /// the legacy vectors (TE:1014-1026) are upgraded; a cell lacking a key falls back to the defaults, logged.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn custom_calculated_cells() {
     let funds = r#"#{ custom_calculated_cells: |options| [
         trep::calc_cell("Funds In", |s, tr| if s.amount > 0 { monetary(s.account.commodity, s.amount) }, false, true, false, (), true),
@@ -942,6 +955,7 @@ fn custom_calculated_cells() {
 /// both follow it, since GnuCash turns "none" into #t, which `sign-reverse-list` lacks; "income-expense" reverses
 /// Income and Expenses. Income's -$29 of trn3 and Liabilities' $8 of trn7, single column.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn sign_reverses_none_reads_the_global_preference() {
     let accounts = ["trep:Root.Income", "trep:Root.Liabilities"].map(account);
     let amounts = |choice: &str| {
@@ -963,6 +977,7 @@ fn sign_reverses_none_reads_the_global_preference() {
 
 /// `#:empty-report-message` (TE:2526-2531) follows the warnings before the query, not "No matching transactions".
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_empty_report_message_follows_the_no_account_warning() {
     let hooks = r#"#{ empty_report_message: "Please select the account from Report Options." }"#;
     let kinds = |options: &Value| {
@@ -997,6 +1012,7 @@ fn tables_shown(result: &Value) -> Vec<Vec<String>> {
 /// no secondary key, only the total column and no average; with one column, no average either; two amount columns
 /// net debit less credit; only subtotals shown leaves the main table out (TE:2623-2625).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_subtotal_table_shapes() {
     let accounts = ["trep:Root.Asset.Bank", "trep:Root.Expenses"].map(account);
     let with = |more: &Value| {

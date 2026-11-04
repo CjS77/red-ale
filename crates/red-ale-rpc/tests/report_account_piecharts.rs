@@ -1078,6 +1078,7 @@ fn options_follow_gnucash() {
 /// two exports give the same bytes, and the HTML holds no script. The charts fixtures stand for GnuCash's only
 /// test of these reports, that each renders on that book (`standard/test/test-charts.scm:189`).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_template_reads_only_and_exports_deterministically() {
     FIXTURES.iter().for_each(|(fixture, _)| {
         let mut s = Setup::fixture(fixture);

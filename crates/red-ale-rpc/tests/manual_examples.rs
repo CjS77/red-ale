@@ -25,6 +25,7 @@ const DEFAULT_NOW: Time64 = Time64(1_719_835_200);
 const BOOK: &str = "book.gnucash";
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_example_passes() {
     let manual = red_ale_rpc::manual::manual();
     assert!(!manual.examples().is_empty(), "the Manual has no Examples");

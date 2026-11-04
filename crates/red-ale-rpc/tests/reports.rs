@@ -277,6 +277,7 @@ fn two_exports_are_byte_identical_and_hold_no_script() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn errors_carry_the_report_codes() {
     let mut s = Setup::new();
     s.open(true);

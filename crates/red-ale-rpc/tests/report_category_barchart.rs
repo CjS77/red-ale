@@ -394,6 +394,7 @@ fn two_currencies_in_the_report_currency() {
 
 // Running every template leaves the Book as it was, writes nothing, and exports the same bytes twice with no script.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn reports_only_read_and_export_deterministically() {
     let mut c = multi();
     check_read_only(&mut c, &TEMPLATES, &json!({ "Display": { "Show table": true } }));
@@ -418,6 +419,7 @@ proptest! {
     // design/reports.md §13: a category chart's "Grand Total" column equals the sum of its series, on generated
     // books and options.
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
     fn grand_total_is_the_sum_of_the_series(
         posts in proptest::collection::vec((0usize..4, 1u32..32, -9000i64..20000), 0..12),
         levels in prop_oneof![Just(json!(2)), Just(json!("all"))],

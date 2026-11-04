@@ -346,6 +346,7 @@ fn a_foreign_account_converted_at_each_date() {
 
 /// Both templates read the Book and write nothing, on XML and SQLite.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn a_run_changes_nothing() {
     let options = dated("1970-01-01", "2024-12-31", Value::Null);
     check_read_only(&mut Charts::open("charts-daily.gnucash", "iso"), &[INCOME, EXPENSE], &options);

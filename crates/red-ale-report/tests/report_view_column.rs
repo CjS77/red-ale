@@ -148,6 +148,7 @@ fn rows_close_at_the_width_and_row_spans_take_room_below() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn zero_columns_and_zero_spans_follow_gnucash() {
     // Width 0: every child closes its row. A column span of 0 adds nothing, a row span of 0 still takes its own row.
     let mut changes = list(vec![child(LEAF, 0, 0), child(LEAF, 1, 1)]);
@@ -226,6 +227,7 @@ fn children_that_cannot_run_leave_a_warning_in_their_cell() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn nested_views_cycles_and_the_depth_limit() {
     let [a, b] = ["000000000000000000000000000000a1", "000000000000000000000000000000a2"];
     // A holds Leaf and B; B holds A again: the cycle stops at A's second appearance.
@@ -257,6 +259,7 @@ fn nested_views_cycles_and_the_depth_limit() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn at_most_100_children_run_and_engine_limits_stop_the_whole_run() {
     let r = run(list((0..101).map(|_| child(LEAF, 1, 1)).collect()));
     let cells: Vec<&GridCell> = grid(&r).rows.iter().flat_map(|row| &row.cells).collect();

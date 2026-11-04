@@ -170,9 +170,11 @@ are hard to break by accident.
 
 ```
 cargo build --workspace
-cargo test --workspace                         # unit, property and round-trip tests
+cargo nextest run --workspace                  # unit, property and round-trip tests, but not the slow ones
+cargo nextest run --workspace --release        # every test, the slow ones included
+cargo test --doc --workspace                   # doctests, which nextest doesn't run
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test -p red-ale-testkit --features oracle # tests that run real GnuCash (slower)
+cargo nextest run -p red-ale-testkit --features oracle # tests that run real GnuCash (slower)
 cargo deny check && cargo audit                 # licences and advisories
 ```
 

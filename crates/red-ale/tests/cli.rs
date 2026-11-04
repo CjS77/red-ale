@@ -480,6 +480,7 @@ fn render(params, book, opts, ctx) {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn exec_runs_reports_and_writes_the_export_to_a_file() {
     let dir = tempfile::tempdir().unwrap();
     let book = copy(dir.path(), "reports/balsheet-pnl.gnucash");

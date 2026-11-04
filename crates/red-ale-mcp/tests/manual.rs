@@ -16,6 +16,7 @@ use red_ale_rpc::manual::manual;
 use serde_json::{Value, json};
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn every_page_is_a_markdown_resource() {
     let mut client = Client::start().await;
     let listed = client.request("resources/list", json!({})).await;
@@ -37,6 +38,7 @@ async fn every_page_is_a_markdown_resource() {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn reading_a_resource_gives_its_page_with_examples_as_tool_calls() {
     let mut client = Client::start().await;
     let uri = "red-ale://manual/method/transaction.post";
@@ -59,6 +61,7 @@ async fn reading_a_resource_gives_its_page_with_examples_as_tool_calls() {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn the_method_template_is_listed() {
     let mut client = Client::start().await;
     let listed = client.request("resources/templates/list", json!({})).await;
@@ -73,6 +76,7 @@ async fn the_method_template_is_listed() {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn the_instructions_come_from_the_start_page() {
     let client = Client::start().await;
     let instructions = client.init["instructions"].as_str().unwrap();
@@ -98,6 +102,7 @@ async fn descriptions(client: &mut Client) -> Vec<(String, String)> {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn tool_descriptions_lead_with_the_reference_page_within_the_budget() {
     let mut client = Client::start().await;
     let described = descriptions(&mut client).await;
@@ -121,6 +126,7 @@ async fn tool_descriptions_lead_with_the_reference_page_within_the_budget() {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn short_tool_descriptions_are_the_summary() {
     let dispatcher = Arc::new(Mutex::new(red_ale_testkit::dispatcher()));
     let server = McpServer::new(dispatcher).with_tool_descriptions(ToolDescriptions::Short);

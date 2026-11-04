@@ -313,6 +313,7 @@ fn the_canonical_day_time_is_local_noon() {
 /// `ctx.print_month_year` and `ctx.print_year` print `%B %Y` and `%Y` (DU:151-152, :166-167) with the Locale's month
 /// names.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn month_and_year_labels_use_the_locale() {
     let script = "print(`${ctx.print_month_year(ctx.now)}|${ctx.print_year(ctx.now)}|${ctx.print_month_year(t.call(1999, 12, 31))}`);";
     let mut host = Host::new(empty_book());

@@ -131,6 +131,7 @@ fn check_layout(f: &mut Fixture) -> Value {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_dashboard_runs_by_name_and_guid_as_gnucash_lays_it_out_on_xml_and_sqlite() {
     let mut xml = Fixture::open("test-data", "us", true);
     let mut sqlite = Fixture::open_sqlite("test-data", "us");
@@ -145,6 +146,7 @@ fn the_dashboard_runs_by_name_and_guid_as_gnucash_lays_it_out_on_xml_and_sqlite(
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_dashboard_gives_the_bytes_of_a_multicolumn_view_saved_by_hand() {
     let mut f = Fixture::open("test-data", "us", true);
     let saved = f.call(

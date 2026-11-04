@@ -57,6 +57,7 @@ fn check_children(f: &mut Fixture) -> Value {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn children_run_on_the_views_book_in_xml_and_sqlite() {
     let mut xml = Fixture::open("test-data", "us", true);
     let mut sqlite = Fixture::open_sqlite("test-data", "us");

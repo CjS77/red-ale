@@ -478,6 +478,7 @@ fn options_are_gnucash_s() {
 /// Running the report with each price source leaves the Book, its revision and its file as they were and writes
 /// nothing beside it, on XML and SQLite; two exports are the same bytes, with no script.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn a_run_changes_nothing() {
     for (format, mut s) in both_formats() {
         let bytes = std::fs::read(s.book()).unwrap();

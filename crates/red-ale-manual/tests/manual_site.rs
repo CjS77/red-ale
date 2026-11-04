@@ -65,6 +65,7 @@ fn resolve(from: &str, link: &str) -> String {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn building_twice_gives_the_same_bytes() {
     assert_eq!(files(), files());
     let paths: Vec<&String> = site().keys().collect();
@@ -75,6 +76,7 @@ fn building_twice_gives_the_same_bytes() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_command_writes_the_site_into_an_empty_or_new_directory() {
     let dir = tempfile::tempdir().unwrap();
     let target = dir.path().join("site");
@@ -94,6 +96,7 @@ fn the_command_writes_the_site_into_an_empty_or_new_directory() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_page_has_a_file_with_its_title_and_the_licence_line() {
     manual().pages().iter().for_each(|page| {
         let html = text(&page_path(&page.id));
@@ -113,6 +116,7 @@ fn every_page_has_a_file_with_its_title_and_the_licence_line() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_internal_link_resolves_to_a_file_and_anchor() {
     let missing: Vec<String> = site()
         .iter()
@@ -150,6 +154,7 @@ fn broken(from: &str, link: &str) -> Option<String> {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn llms_txt_lists_every_page_and_llms_full_holds_them() {
     let index = text("llms.txt");
     let full = text("llms-full.txt");
@@ -161,12 +166,14 @@ fn llms_txt_lists_every_page_and_llms_full_holds_them() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_schema_is_the_api_schema_document() {
     let schema: Value = serde_json::from_str(text("schema.json")).unwrap();
     assert_eq!(schema, Dispatcher::new(Settings::default()).schema());
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_search_index_parses_and_has_every_page() {
     let script = text("search-index.js");
     let json = script
@@ -181,6 +188,7 @@ fn the_search_index_parses_and_has_every_page() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_page_uses_the_landing_pages_stylesheet_and_script() {
     site().iter().filter(|(p, _)| is_html(p)).for_each(|(path, file)| {
         let html = std::str::from_utf8(&file.bytes).unwrap();
@@ -204,6 +212,7 @@ fn every_page_uses_the_landing_pages_stylesheet_and_script() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_landing_page_carries_this_binaries_version_and_release_status() {
     let landing = text("index.html");
     let version = format!("v{} Beta", env!("CARGO_PKG_VERSION"));
@@ -213,6 +222,7 @@ fn the_landing_page_carries_this_binaries_version_and_release_status() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_landing_page_is_the_main_page() {
     let landing = text("index.html");
     assert!(landing.contains("class=\"hero-title\""), "the landing page");
@@ -221,6 +231,7 @@ fn the_landing_page_is_the_main_page() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_images_the_pages_ask_for_are_copied_beside_the_site() {
     let dir = tempfile::tempdir().unwrap();
     let target = dir.path().join("site");
@@ -249,6 +260,7 @@ fn the_images_the_pages_ask_for_are_copied_beside_the_site() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn a_base_path_rewrites_the_asset_links_under_it() {
     let dir = tempfile::tempdir().unwrap();
     let target = dir.path().join("site");
@@ -271,6 +283,7 @@ fn a_base_path_rewrites_the_asset_links_under_it() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn examples_show_three_doors_and_pages_work_without_script() {
     let html = text("method/book.open.html");
     ["<h4>JSON-RPC</h4>", "<h4>Command line</h4>", "<h4>MCP tool call</h4>"]
@@ -281,6 +294,7 @@ fn examples_show_three_doors_and_pages_work_without_script() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn headings_have_ids_and_pages_use_relative_links() {
     let html = text("method/book.open.html");
     assert!(html.contains("<h2 id=\"examples\">"));
