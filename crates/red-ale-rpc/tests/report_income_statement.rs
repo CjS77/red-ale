@@ -137,6 +137,7 @@ fn expected_figures(template: &str) {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn expected_figures_of_gnucash_test() {
     expected_figures(INCOME_STATEMENT);
     let e = expected("balsheet-pnl.expected.json");
@@ -160,6 +161,7 @@ fn expected_figures_of_gnucash_test() {
 /// is the same report under another name (IS:574-582), so the same checks hold for it, and only the title differs
 /// (IS:369-374).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn profit_and_loss_is_the_income_statement_renamed() {
     expected_figures(PROFIT_AND_LOSS);
     let period = json!({ "General": { "Start Date": { "absolute": "1980-01-01" }, "End Date": { "absolute": "1981-01-01" } } });

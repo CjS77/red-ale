@@ -152,6 +152,7 @@ fn default_options_show_the_empty_data_warning() {
 /// amounts. Every average is zero, so the Average series is left out and the chart gives way to the empty-data
 /// warning (AB:391-402, :435-451).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn default_accounts_include_the_income_account_below_root() {
     let mut f = Fixture::open("average-balance", "locale", true);
     let options = json!({
@@ -215,6 +216,7 @@ fn step_size_quarter() {
 /// Step Size "YearDelta" over 1979: one row of 365 daily balances (2 January to 31 December and the end), 45 at $0,
 /// 60 at $100 (16 February to 16 April) and 260 at $200: 58,000 / 365 = $158.9041…, shown $158.90.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn step_size_year() {
     let mut f = Fixture::open("average-balance", "locale", true);
     let options = json!({
@@ -409,6 +411,7 @@ fn runs_only_read_and_exports_are_deterministic() {
 /// with the default options, over the first quarter of each year the fixtures hold data in, and with each price
 /// source in a GBP report.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn runs_on_every_fixture_book() {
     let books = [
         "average-balance",
@@ -503,6 +506,7 @@ proptest! {
     /// positive and negative amounts, an internal transfer counted on both sides unless excluded (AB:220-233), so
     /// the profits add up to the change in balance either way.
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
     fn rows_add_up(transfers in proptest::collection::vec((0u32..181, 0u8..3, 1u32..1_000_000), 0..8)) {
         let mut f = Fixture::open("average-balance", "locale", false);
         let (gain, loss, internal) = post(&mut f, &transfers);

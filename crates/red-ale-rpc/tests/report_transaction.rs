@@ -251,6 +251,7 @@ fn escaped(s: &str) -> String {
 
 /// Every run of `transaction.expected.json` but the CSV one, each assertion a named check.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn test_transaction_every_assertion() {
     let e = expected();
     let mut f = Fixture::open("transaction", "iso", true);
@@ -499,6 +500,7 @@ fn test_transaction_balance_brought_forward_in_common_currency() {
 /// `bal-bf` (TE:2380-2389): each condition it needs, broken alone, turns "Running Balance" back into "Account
 /// Balance" with no "Balance b/f".
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn test_transaction_balance_brought_forward_conditions() {
     let mut f = Fixture::open("transaction", "iso", true);
     let heading = |f: &mut Fixture, more: &Value| {
@@ -529,6 +531,7 @@ fn test_transaction_balance_brought_forward_conditions() {
 /// A run only reads: the Book stays clean and unchanged, nothing is written beside it, two exports are the same
 /// bytes and hold no script.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn test_transaction_leaves_the_book_unchanged() {
     let mut f = Fixture::open("transaction", "iso", false);
     let files = f.files();
@@ -551,6 +554,7 @@ fn test_transaction_leaves_the_book_unchanged() {
 /// book has none, GnuCash cannot save it as SQLite) gives the same result as the XML book, for the base options and
 /// with every display column, the Subtotal Table and running totals.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn test_transaction_on_sqlite_matches_xml() {
     let accounts = json!([
         "a0000000000000000000000000000003",

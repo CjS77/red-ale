@@ -444,6 +444,7 @@ fn general_ledger_option_defaults_in_a_split_action_book() {
 
 /// GnuCash's SQLite copy of test-data gives the same General Ledger and Reconciliation Report as the XML book.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn ledgers_on_sqlite_match_xml() {
     let accounts = json!([
         "a0000000000000000000000000000003",

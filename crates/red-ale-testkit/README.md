@@ -53,8 +53,8 @@ fn a_new_account_reads_the_same_in_gnucash() {
 Running the tests:
 
 ```sh
-cargo test -p red-ale-testkit                    # API tests, no GnuCash needed
-cargo test -p red-ale-testkit --features oracle  # also the oracle tests
+cargo nextest run -p red-ale-testkit                    # API tests, no GnuCash needed
+cargo nextest run -p red-ale-testkit --features oracle  # also the oracle tests
 ```
 
 The oracle tests need GnuCash 5.17 built with its Python bindings and installed in `~/.local/opt/gnucash-5.17` (see

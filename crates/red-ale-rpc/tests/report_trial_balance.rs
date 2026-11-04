@@ -120,6 +120,7 @@ fn expected_checks(book: &str) -> usize {
 
 /// test-trial-balance.scm:78-166: the current, pre-adjustment and work sheet runs, 20 checks.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn expected_figures_of_gnucash_test() {
     assert_eq!(expected_checks("adjusting-entries"), 20);
 }
@@ -745,6 +746,7 @@ fn titles() {
 /// Running every variant leaves the Book, its revision and its file as they were and writes nothing beside it, on XML
 /// and SQLite; two exports are the same bytes, with no script.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn a_run_changes_nothing() {
     let settings = test_settings("iso");
     let books = [

@@ -27,5 +27,15 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
+        with:
+          tool: cargo-nextest
       - name: Run the tests
-        run: cargo test --workspace --locked
+        run: cargo nextest run --workspace --locked --release --profile ci
+      # nextest doesn't run doctests. Release too, so it reuses the build above.
+      - name: Run the doctests
+        run: cargo test --doc --workspace --locked --release
+      # Again in debug, for the overflow checks and debug assertions release turns off. Tests marked slow
+      # (`#[cfg_attr(debug_assertions, ignore = ...)]`) are skipped here; the release run above covers them.
+      - name: Run the fast tests in debug
+        run: cargo nextest run --workspace --locked --profile ci

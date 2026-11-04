@@ -407,6 +407,7 @@ fn report_currency_and_price_source_exchange_foreign_accounts() {
 
 // Running every template leaves the Book as it was, writes nothing, and exports the same bytes twice with no script.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn reports_only_read_and_export_deterministically() {
     let mut c = daily();
     check_read_only(&mut c, &TEMPLATES, &half_year(&[BANK, LIABILITY, INCOME, EXPENSES]));

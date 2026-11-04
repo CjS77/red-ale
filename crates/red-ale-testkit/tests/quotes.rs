@@ -237,6 +237,7 @@ fn testkit_fetches_reach_loopback_hosts_only() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn a_slow_fetch_holds_up_nothing_and_closing_the_book_cancels_it() {
     let server = QuoteServer::start(vec![("/quote/HPE", Answer::ok(HPE).after(Duration::from_secs(3)))]);
     let book = TempBook::new_path();

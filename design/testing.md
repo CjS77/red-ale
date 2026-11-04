@@ -16,10 +16,17 @@ result. Tests never touch real books: every test works on a copy in a temporary 
 | Oracle      | `crates/red-ale-testkit/tests/oracle_*.rs`        | GnuCash 5.17 reads what red-ale wrote and sees the same data, and computes the same answers |
 
 ```
-cargo test --workspace                              # everything but the oracle
-cargo test -p red-ale-testkit --features oracle     # the oracle tests (needs GnuCash 5.17)
+cargo nextest run --workspace                       # everything but the oracle, the doctests and the slow tests
+cargo nextest run --workspace --release             # the slow tests too
+cargo test --doc --workspace                        # the doctests
+cargo nextest run -p red-ale-testkit --features oracle  # the oracle tests (needs GnuCash 5.17)
 cargo clippy --workspace --all-targets --features red-ale-testkit/oracle -- -D warnings
 ```
+
+A test that takes more than 3 seconds in a debug build is marked slow with
+`#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]`. Debug runs skip it and list it as
+ignored; release builds run it. CI runs every test in release, then the rest again in debug for the overflow checks
+and debug assertions that release turns off. `--run-ignored all` runs the slow tests in a debug build too.
 
 ## Fuzzing
 

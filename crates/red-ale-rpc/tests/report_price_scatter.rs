@@ -342,6 +342,7 @@ fn all_prices_equal_or_on_one_day() {
 /// The report runs on every report fixture (`design/reports.md` §13: reports never fail on a book red-ale can open),
 /// with the default options and for GBP and EUR in USD under each price source, inverted or not.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn runs_on_every_fixture_book() {
     let books = [
         "average-balance",

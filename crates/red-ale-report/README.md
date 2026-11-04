@@ -158,4 +158,4 @@ const BUILTIN: &[(&str, &str)] = scripts!["lib/dates.rhai", "standard/balance-sh
 A built-in template with a GnuCash name or GUID must have both, as `GNUCASH_TEMPLATES` lists them; a test checks it.
 
 Regenerate the result schema snapshot after a deliberate change with
-`UPDATE_SNAPSHOTS=1 cargo test -p red-ale-report --test result_schema`, and review the diff.
+`UPDATE_SNAPSHOTS=1 cargo nextest run -p red-ale-report --test result_schema`, and review the diff.

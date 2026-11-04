@@ -22,6 +22,7 @@ const PENDING: &str = include_str!("../../../docs/coverage-pending.txt");
 const CHECKLIST: &str = include_str!("../../../design/gnucash-docs-checklist.md");
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_manual_sources_have_no_problems() {
     let problems: Vec<String> = red_ale_rpc::manual::manual().problems().iter().map(ToString::to_string).collect();
     assert!(problems.is_empty(), "the Manual's sources have problems:\n{}", problems.join("\n"));
@@ -35,6 +36,7 @@ fn the_checklist_has_a_row_for_every_section() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_only_gaps_are_the_pending_ones() {
     let manual = red_ale_rpc::manual::manual();
     let checklist = coverage::checklist(CHECKLIST);
@@ -60,6 +62,7 @@ fn the_only_gaps_are_the_pending_ones() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_method_and_error_names_an_existing_page() {
     let manual = red_ale_rpc::manual::manual();
     let schema = Dispatcher::new(Settings::default()).schema();
@@ -79,6 +82,7 @@ fn every_method_and_error_names_an_existing_page() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn every_report_template_has_a_page() {
     let manual = red_ale_rpc::manual::manual();
     let templates = red_ale_rpc::manual::report_templates();
