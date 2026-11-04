@@ -29,14 +29,19 @@ const RED_ALE: &str = "/opt/red-ale/bin/red-ale";
 /// A temporary home with fake CLIs in `~/bin`, which log `<working directory>: <arguments>` and fail when
 /// `FAKE_FAIL` is set.
 struct Machine {
-    home: tempfile::TempDir,
+    _temp: tempfile::TempDir,
+    /// The temporary home with symlinks resolved: macOS's temp directory is under `/var`, a link to `/private/var`,
+    /// and the fake CLIs log the resolved path that `pwd` gives.
+    home: PathBuf,
     fail: bool,
 }
 
 impl Machine {
     fn new(programs: &[&str]) -> Self {
+        let temp = tempfile::tempdir().unwrap();
         let machine = Self {
-            home: tempfile::tempdir().unwrap(),
+            home: fs::canonicalize(temp.path()).unwrap(),
+            _temp: temp,
             fail: false,
         };
         programs.iter().for_each(|p| Machine::fake(&machine.bin(), p, ""));
@@ -44,7 +49,7 @@ impl Machine {
     }
 
     fn home(&self) -> &Path {
-        self.home.path()
+        &self.home
     }
 
     fn bin(&self) -> PathBuf {
