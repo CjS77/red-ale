@@ -68,7 +68,8 @@ pub fn create(path: &Path, book: &Book, owner: &LockOwner, env: &mut dyn Env) ->
         let mut conn = connection::create(&tmp)?;
         let held = fill(&mut conn, book, template_root, owner, env)?;
         drop(conn);
-        std::fs::File::open(&tmp)?.sync_all()?;
+        // Write access, since Windows' `FlushFileBuffers` refuses a read-only handle.
+        OpenOptions::new().write(true).open(&tmp)?.sync_all()?;
         std::fs::hard_link(&tmp, path)?;
         Ok::<_, SqlError>(held)
     })();
@@ -125,7 +126,7 @@ impl SqliteBook {
             .map_err(SqlError::from_write)?;
         }
         drop(copy);
-        std::fs::File::open(dest)?.sync_all()?;
+        OpenOptions::new().write(true).open(dest)?.sync_all()?;
         Ok(())
     }
 }

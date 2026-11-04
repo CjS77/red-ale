@@ -8,6 +8,7 @@
 use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
+#[cfg(unix)]
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -67,7 +68,11 @@ fn link_or_copy(orig: &Path, backup: &Path) -> io::Result<()> {
     match fs::hard_link(orig, backup) {
         Ok(()) => Ok(()),
         Err(e) if matches!(e.raw_os_error(), Some(1 | 38 | 95)) || e.kind() == io::ErrorKind::Unsupported => {
-            let mut out = OpenOptions::new().write(true).create_new(true).mode(0o600).open(backup)?;
+            let mut options = OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            options.mode(0o600);
+            let mut out = options.open(backup)?;
             io::copy(&mut File::open(orig)?, &mut out)?;
             out.sync_all()
         }
@@ -167,22 +172,28 @@ pub fn replace_book_file<T>(
 }
 
 fn write_temp(tmp: &Path, write: impl FnOnce(&mut File) -> Result<(), ServiceError>) -> Result<(), ServiceError> {
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o666)
-        .open(tmp)
-        .map_err(io_err(tmp))?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o666);
+    let mut file = options.open(tmp).map_err(io_err(tmp))?;
     write(&mut file)?;
     file.sync_all().map_err(io_err(tmp))
 }
 
+#[cfg(unix)]
 fn keep_owner(tmp: &Path, old: Option<&fs::Metadata>) -> Result<(), ServiceError> {
     if let Some(meta) = old {
         fs::set_permissions(tmp, fs::Permissions::from_mode(meta.mode() & 0o7777)).map_err(io_err(tmp))?;
         // GnuCash copies the group only and ignores failures (`gnc-xml-backend.cpp:413-457`).
         let _ = std::os::unix::fs::chown(tmp, None, Some(meta.gid()));
     }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+#[allow(clippy::unnecessary_wraps)] // The Unix signature; Windows has no mode or group to copy.
+fn keep_owner(_tmp: &Path, _old: Option<&fs::Metadata>) -> Result<(), ServiceError> {
     Ok(())
 }
 
@@ -230,18 +241,14 @@ pub fn remove_old_files(book: &Path, retention: Retention, keep: Option<&Path>) 
 }
 
 /// Replace a small file of red-ale's own, such as the Configuration, with no backup: write a temporary file beside it,
-/// sync it and rename it into place, so the file is whole before and after, never half written. An existing file
-/// keeps its mode; a new one is readable by its owner only, since the Configuration can hold keys.
+/// sync it and rename it into place, so the file is whole before and after, never half written. On Unix an existing
+/// file keeps its mode, and a new one is readable by its owner only, since the Configuration can hold keys. Windows has
+/// no modes: the file takes its folder's inherited ACL, which under `%APPDATA%` already admits only the user, SYSTEM
+/// and Administrators.
 pub fn replace_private_file(path: &Path, bytes: &[u8]) -> Result<(), ServiceError> {
-    let mode = fs::metadata(path).map_or(0o600, |m| m.mode() & 0o7777);
     let tmp = temp_path(path);
-    let written = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(mode)
-        .open(&tmp)
+    let written = create_private(path, &tmp)
         .and_then(|mut file| file.write_all(bytes).and_then(|()| file.sync_all()))
-        .and_then(|()| fs::set_permissions(&tmp, fs::Permissions::from_mode(mode)))
         .and_then(|()| fs::rename(&tmp, path));
     if written.is_err() {
         let _ = fs::remove_file(&tmp);
@@ -252,6 +259,22 @@ pub fn replace_private_file(path: &Path, bytes: &[u8]) -> Result<(), ServiceErro
         let _ = File::open(dir).and_then(|d| d.sync_all());
     }
     Ok(())
+}
+
+/// Create `tmp` with the mode `path` has, or owner-only if it is new. The mode is set again once open, since the
+/// umask can narrow the one asked for at creation.
+#[cfg(unix)]
+fn create_private(path: &Path, tmp: &Path) -> io::Result<File> {
+    let mode = fs::metadata(path).map_or(0o600, |m| m.mode() & 0o7777);
+    let file = OpenOptions::new().write(true).create_new(true).mode(mode).open(tmp)?;
+    file.set_permissions(fs::Permissions::from_mode(mode))?;
+    Ok(file)
+}
+
+/// Create `tmp` with its folder's inherited ACL.
+#[cfg(not(unix))]
+fn create_private(_path: &Path, tmp: &Path) -> io::Result<File> {
+    OpenOptions::new().write(true).create_new(true).open(tmp)
 }
 
 #[cfg(test)]
@@ -290,6 +313,7 @@ mod tests {
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1, "no backup and no temporary file");
     }
 
+    #[cfg(unix)]
     #[test]
     fn private_files_are_replaced_whole_and_keep_their_mode() {
         let dir = tempfile::tempdir().unwrap();

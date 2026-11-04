@@ -28,8 +28,7 @@ pub struct SqliteBackend {
 /// This process as the lock row names it: the host name as `gethostname` gives it, and the process ID, as GnuCash
 /// writes them (`5.17:libgnucash/backend/dbi/gnc-dbisqlconnection.cpp:155-159`).
 fn owner() -> LockOwner {
-    let uname = rustix::system::uname();
-    LockOwner::new(&uname.nodename().to_string_lossy(), i64::from(std::process::id()))
+    LockOwner::new(&gethostname::gethostname().to_string_lossy(), i64::from(std::process::id()))
 }
 
 impl SqliteBackend {

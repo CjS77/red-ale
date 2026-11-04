@@ -40,10 +40,19 @@ Research: [`notes/report-transaction-engine.md`](notes/report-transaction-engine
 **Out:**
 
 - **Tax and business reports, invoices, PDF export** (v0.6), and the Manual (v0.6).
-- **Windows builds and installation:** deferred to a later version. `red-ale-service` uses Unix-only file APIs
-  (`files.rs`: file modes and `chown`; `lock.rs`: the `.LCK` file's mode), so red-ale doesn't build on Windows today;
-  porting them, with Windows' own owner-only permissions, comes first. `red-ale setup` keeps the harnesses' Windows
-  paths in its spec for then.
+- **Windows builds and installation:** deferred to a later version. The workspace builds and its tests run on
+  Windows in CI: Unix file modes, `chown` and the `.LCK` file's mode apply on Unix only. Still open before Windows
+  ships:
+  - **The local time zone.** Only `TZ` is read, so without it red-ale runs in UTC where GnuCash reads the registry
+    zone ([`differences-from-gnucash.md`](differences-from-gnucash.md), "Files, sessions and time").
+  - **The Configuration's permissions.** Windows has no file modes. A new Configuration takes its folder's inherited
+    ACL, which under `%APPDATA%` admits only the user, SYSTEM and Administrators, so the default file is as private as
+    Unix's `0600`. A `--config` file in a shared folder takes that folder's wider ACL, and with it any Quote service
+    keys. To decide: set an owner-only ACL on Windows (Win32 security calls, through a dependency, since red-ale
+    forbids `unsafe`), or document the limit ([`api/configuration.md`](api/configuration.md), `config.set`).
+  - **Installation** (`install.ps1`) and release binaries.
+
+  `red-ale setup` keeps the harnesses' Windows paths in its spec for then.
 - **Interactive charts:** a v1.0 decision, proposed ❌ ([`roadmap.md`](roadmap.md), "v1.0").
 - **Reports GnuCash 5.17 ships that `features.md` had no row for**: the Lot Viewer and the Dashboard (v0.6), the
   Balance Sheet (eguile) and Sample Graphs (❌); "Decided", item 7.

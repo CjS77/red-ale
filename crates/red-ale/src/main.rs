@@ -446,11 +446,35 @@ fn mcp(args: &McpArgs) -> Result<Option<RpcError>> {
 }
 
 /// Wait for Ctrl-C (SIGINT) or SIGTERM, so a service manager stopping the server also releases the book's lock.
+#[cfg(unix)]
 async fn shutdown_signal() -> Result<()> {
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).context("installing the SIGTERM handler")?;
     tokio::select! {
         r = tokio::signal::ctrl_c() => r.context("waiting for Ctrl-C")?,
         _ = term.recv() => {}
+    }
+    Ok(())
+}
+
+/// Wait for Ctrl-C, Ctrl-Break or the console closing, so each releases the book's lock. For a close, tokio holds
+/// Windows' handler until the process exits, and Windows ends the process when its timeout runs out (5 seconds by
+/// default), which leaves time to close the book. Windows sends logoff and shutdown only to services, and not to a
+/// process that loads user32 or gdi32 (`HandlerRoutine` docs; docs-only); they are listened for, but an interactive
+/// `serve` may not see them and can leave its lock behind.
+#[cfg(windows)]
+async fn shutdown_signal() -> Result<()> {
+    use tokio::signal::windows::{ctrl_break, ctrl_c, ctrl_close, ctrl_logoff, ctrl_shutdown};
+    let mut c = ctrl_c().context("installing the Ctrl-C handler")?;
+    let mut brk = ctrl_break().context("installing the Ctrl-Break handler")?;
+    let mut close = ctrl_close().context("installing the console close handler")?;
+    let mut logoff = ctrl_logoff().context("installing the logoff handler")?;
+    let mut shutdown = ctrl_shutdown().context("installing the shutdown handler")?;
+    tokio::select! {
+        _ = c.recv() => {}
+        _ = brk.recv() => {}
+        _ = close.recv() => {}
+        _ = logoff.recv() => {}
+        _ = shutdown.recv() => {}
     }
     Ok(())
 }

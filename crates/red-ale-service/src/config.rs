@@ -374,11 +374,13 @@ mod tests {
         assert_eq!(ConfigStore::at(dir.path().join("red-ale.json")).load().unwrap(), c);
     }
 
+    fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<OsString> + 'a {
+        move |name| pairs.iter().find(|(key, _)| *key == name).map(|(_, value)| OsString::from(*value))
+    }
+
+    #[cfg(unix)]
     #[test]
-    fn the_default_path_follows_each_platform() {
-        fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<OsString> + 'a {
-            move |name| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| OsString::from(*v))
-        }
+    fn unix_default_path_uses_xdg_or_home() {
         let linux = [("HOME", "/home/me")];
         assert_eq!(
             default_path_for("linux", env(&linux)),
@@ -394,17 +396,28 @@ mod tests {
             default_path_for("freebsd", env(&relative)),
             Some(PathBuf::from("/home/me/.config/red-ale/config.json"))
         );
+        assert_eq!(default_path_for("linux", env(&[("HOME", "")])), None);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_default_path_uses_application_support() {
+        let home = [("HOME", "/home/me")];
         assert_eq!(
-            default_path_for("macos", env(&linux)),
+            default_path_for("macos", env(&home)),
             Some(PathBuf::from("/home/me/Library/Application Support/red-ale/config.json"))
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_default_path_uses_appdata() {
         let windows = [("APPDATA", "C:/Users/me/AppData/Roaming")];
         assert_eq!(
             default_path_for("windows", env(&windows)),
             Some(PathBuf::from("C:/Users/me/AppData/Roaming").join("red-ale").join("config.json"))
         );
-        assert_eq!(default_path_for("linux", env(&[("HOME", "")])), None);
-        assert_eq!(default_path_for("windows", env(&linux)), None);
+        assert_eq!(default_path_for("windows", env(&[("HOME", "C:/Users/me")])), None);
     }
 
     /// The first save makes the file's directory.
