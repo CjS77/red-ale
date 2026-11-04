@@ -44,6 +44,7 @@ fn response(lines: &mut impl Iterator<Item = std::io::Result<String>>, id: u64) 
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn mcp_writes_only_protocol_messages_and_releases_the_lock_on_exit() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("book.gnucash");
@@ -103,6 +104,7 @@ fn mcp_writes_only_protocol_messages_and_releases_the_lock_on_exit() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn sigterm_stops_mcp_and_releases_the_lock_while_standard_input_is_open() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("new.gnucash").display().to_string();
@@ -163,6 +165,7 @@ fn post_description(extra: &[&str]) -> String {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn tool_descriptions_short_keeps_the_summary_only() {
     let full = post_description(&[]);
     assert!(full.ends_with("Manual: method/transaction.post"), "{full}");

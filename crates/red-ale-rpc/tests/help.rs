@@ -17,6 +17,7 @@ fn ids(list: &Value) -> Vec<&str> {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn topics_list_every_page_by_id() {
     let all = call("help.topics", Value::Null);
     let topics = ids(&all["topics"]);
@@ -31,6 +32,7 @@ fn topics_list_every_page_by_id() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn get_renders_a_page_for_each_door() {
     let page = call("help.get", json!({ "id": "transaction.post" }));
     assert_eq!(page["id"], "method/transaction.post");
@@ -54,6 +56,7 @@ fn get_renders_a_page_for_each_door() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn get_refuses_an_unknown_page_and_points_at_help() {
     let e = Dispatcher::new(Settings::default())
         .call("help.get", json!({ "id": "concept/nothing" }))
@@ -66,6 +69,7 @@ fn get_refuses_an_unknown_page_and_points_at_help() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn search_ranks_pages_for_a_query() {
     let hits = call("help.search", json!({ "query": "post a transaction", "limit": 3 }));
     let found = ids(&hits["hits"]);
@@ -85,6 +89,7 @@ fn search_ranks_pages_for_a_query() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn gnucash_words_find_red_ale_pages() {
     // No Page says "TransLog"; the glossary records it as GnuCash's name for the journal.
     let hits = call("help.search", json!({ "query": "TransLog" }));

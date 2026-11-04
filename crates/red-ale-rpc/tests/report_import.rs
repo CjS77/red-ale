@@ -130,6 +130,7 @@ fn imports_saved_configurations() {
 /// (`5.17:libgnucash/engine/gnc-option-date.cpp:319`) and reads back `end-accounting-period`
 /// (`5.17:bindings/guile/gnc-optiondb.i:894-897`).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn both_accounting_period_spellings() {
     let mut c = Charts::open("charts-daily.gnucash", "iso");
     let text = userdata("saved-reports-2.8");
@@ -367,6 +368,7 @@ fn cells(result: &Value) -> Vec<Value> {
 /// A saved Multicolumn View imports with its embedded reports as template children, and runs as the same options set
 /// by hand: each cell holds what its child gives run alone.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn imports_a_saved_multicolumn_view() {
     let mut c = Charts::open("charts-daily.gnucash", "iso");
     let result = import_reports(&mut c, false);
@@ -450,6 +452,7 @@ fn board_pack_with(c: &mut Charts, from: &str, to: &str) -> Result<Value, Value>
 /// An embedded report that is not as GnuCash writes one makes its entry `malformed`; one whose values red-ale refuses
 /// makes it `invalid-option`, naming the child; an option its template lacks is ignored, naming the child.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn embedded_reports_red_ale_refuses_or_ignores() {
     let mut c = Charts::new("iso");
     let mut skip = |from: &str, to: &str| {

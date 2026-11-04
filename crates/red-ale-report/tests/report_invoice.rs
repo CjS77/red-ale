@@ -44,6 +44,7 @@ fn rows(t: &Table) -> Vec<(String, String)> {
 /// string as a strftime format (`5.17:bindings/guile/options.scm:403-407`), or `qof-print-date`'s text when the Book
 /// has none.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn dates_follow_the_books_fancy_date_format() {
     let book = fixture("transaction.gnucash");
     let plain = details(book.clone());

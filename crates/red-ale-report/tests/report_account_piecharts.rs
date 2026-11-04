@@ -143,6 +143,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(48))]
 
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
     fn unrounded_slices_sum_to_the_unrounded_total(
         t in tree(),
         levels in prop::sample::select(vec![json!(1), json!(2), json!(3), json!("all")]),

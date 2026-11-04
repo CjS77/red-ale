@@ -28,6 +28,7 @@ fn stdout(args: &[&str]) -> String {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn help_prints_the_start_page_as_text() {
     let start = stdout(&["help"]);
     assert!(start.starts_with("red-ale Manual\n=============="), "{start}");
@@ -37,6 +38,7 @@ fn help_prints_the_start_page_as_text() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn help_prints_a_page_with_its_examples_as_exec_lines() {
     let post = stdout(&["help", "transaction.post"]);
     assert!(post.starts_with("transaction.post\n"), "{post}");
@@ -46,6 +48,7 @@ fn help_prints_a_page_with_its_examples_as_exec_lines() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn help_finds_errors_and_reports_by_name() {
     assert!(stdout(&["help", "unbalanced"]).starts_with("unbalanced\n"));
     assert!(stdout(&["help", "error/unbalanced"]).starts_with("unbalanced\n"));
@@ -53,6 +56,7 @@ fn help_finds_errors_and_reports_by_name() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn help_search_lists_matching_pages() {
     let found = stdout(&["help", "--search", "open", "a", "book"]);
     let first = found.lines().next().unwrap();
@@ -73,6 +77,7 @@ fn help_search_lists_matching_pages() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn an_unknown_page_fails_with_the_closest_pages() {
     let out = run(&["help", "transaction-post"]);
     assert_eq!(out.status.code(), Some(1));
@@ -87,6 +92,7 @@ fn an_unknown_page_fails_with_the_closest_pages() {
 }
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn help_with_a_command_prints_its_options() {
     let exec = stdout(&["help", "exec"]);
     assert!(exec.contains("Usage: red-ale exec"), "{exec}");

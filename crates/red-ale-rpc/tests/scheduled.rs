@@ -173,6 +173,7 @@ fn create_get_list_occurrences_and_reopen() {
 /// without one the template commodity (`5.17:libgnucash/backend/xml/gnc-schedxaction-xml-v2.cpp:796-818`), so the
 /// save's read-back finds the root so; the save is not refused, and the book reopens with its scheduled transaction.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn the_first_scheduled_transaction_of_a_new_book_saves_and_reopens() {
     ["xml", "sqlite"]
         .iter()

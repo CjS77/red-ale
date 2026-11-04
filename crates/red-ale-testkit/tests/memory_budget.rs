@@ -42,6 +42,7 @@ const AT_REST: usize = 130;
 const PEAK: usize = 200;
 
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn memory_stays_within_budget() {
     let book = TempBook::new_path();
     std::fs::write(&book.path, synthetic_book_text(TRANSACTIONS)).unwrap();

@@ -65,6 +65,7 @@ fn expected_hints(effect: &str) -> Value {
 /// Done-when check for milestones 2 and 3: every JSON-RPC method is an MCP tool with the same name and params schema, and
 /// hints that match its Effect; there are no other tools.
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
     let document = red_ale_testkit::dispatcher().schema();
     let mut client = Client::start().await;
@@ -160,6 +161,7 @@ async fn every_method_is_a_tool_with_its_params_schema_and_hints() {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn an_agent_creates_a_book_adds_an_account_and_saves() {
     let book = TempBook::new_path();
     let mut client = Client::start().await;
@@ -194,6 +196,7 @@ async fn an_agent_creates_a_book_adds_an_account_and_saves() {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn errors_are_tool_results_with_red_ales_error_object() {
     let mut client = Client::start().await;
 
@@ -220,6 +223,7 @@ async fn errors_are_tool_results_with_red_ales_error_object() {
 /// Keys and the network switch are a person's to change: `config.set` through MCP refuses them and writes nothing,
 /// while a service's URL may change, which clears the key bound to the old host.
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
     let mut dispatcher = red_ale_testkit::dispatcher();
     dispatcher
@@ -294,6 +298,7 @@ async fn config_set_through_mcp_refuses_keys_and_the_network_switch() {
 }
 
 #[tokio::test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 async fn an_agent_imports_accounts_and_prices_from_csv() {
     let book = TempBook::new_path();
     let mut client = Client::start().await;

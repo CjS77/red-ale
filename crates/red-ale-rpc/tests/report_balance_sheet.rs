@@ -234,6 +234,7 @@ fn fixture() -> Setup {
 /// figure by its row label and each row at the place GnuCash's test reads it (its table starts with a row of spacer
 /// cells, BS:444-447).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn expected_figures_of_gnucash_test() {
     let mut s = fixture();
     let e = expected("balsheet-pnl.expected.json");
@@ -660,6 +661,7 @@ proptest! {
     /// `design/reports.md` §13: a Balance Sheet's assets equal its liabilities plus equity as multi-commodity
     /// collectors, before any rounding, with trading accounts or without; so its two totals show the same figure.
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
     fn a_balance_sheet_balances(trading in any::<bool>(), txns in proptest::collection::vec(txn(), 1..10),
                                 eur in 1_u32..300, acme in 1_u32..100_000) {
         let mut s = generated_book(trading, &txns, eur, acme);

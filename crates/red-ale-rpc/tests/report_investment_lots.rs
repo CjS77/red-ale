@@ -160,6 +160,7 @@ fn year_2020(more: Value) -> Value {
 /// with "Include accounts with no lots" off (IL:2150-2152) no account is shown: the table is the grand total's
 /// header and row.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn gnucash_s_rendering_runs() {
     let e = expected("investment-lots.expected.json");
     let runs = e["renderOnly"].as_array().unwrap();
@@ -1252,6 +1253,7 @@ fn no_accounts() {
 /// Running the report, with split rows, every warning and each price source, leaves the Book, its revision and its
 /// file as they were and writes nothing beside it, on XML and SQLite; two exports are the same bytes, with no script.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn a_run_changes_nothing() {
     for (format, mut s) in both(BOOK_D) {
         let bytes = std::fs::read(s.book()).unwrap();

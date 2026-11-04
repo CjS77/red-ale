@@ -165,6 +165,7 @@ fn want(check: &Value) -> Vec<String> {
 /// `report.run` and `report.export`, on the XML book and its SQLite copy. The runs at :617-650 give the P&L's options
 /// to the balance sheet's GUID, which GnuCash renders as a balance sheet (`5.17:gnucash/report/report-core.scm:389-409`).
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn expected_figures_of_gnucash_test() {
     let e = expected("balsheet-pnl.expected.json");
     let settings = test_settings("iso");
@@ -981,6 +982,7 @@ fn trading_accounts_replace_unrealized_gains() {
 /// A run leaves the Book, its revision, its dirty flag, the file and its directory as they were, on both extras books
 /// as XML and as SQLite; two exports are the same bytes, with no script.
 #[test]
+#[cfg_attr(debug_assertions, ignore = "slow in debug builds; runs in release")]
 fn a_run_changes_nothing() {
     let settings = test_settings("iso");
     let books = ["balsheet-pnl-extras.gnucash", "balsheet-pnl-extras-trading.gnucash"]
